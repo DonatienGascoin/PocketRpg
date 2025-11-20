@@ -1,7 +1,5 @@
 package com.pocket.rpg.utils;
 
-import com.pocket.rpg.postProcessing.BlurEffect;
-import com.pocket.rpg.postProcessing.ColorVignetteEffect;
 import com.pocket.rpg.postProcessing.PostEffect;
 import com.pocket.rpg.postProcessing.PostProcessor;
 import lombok.Builder;
@@ -33,27 +31,13 @@ public class WindowConfig {
 
     /**
      * List of post-processing effects to apply.
-     * Note: PillarboxEffect is no longer part of this list.
-     * Use enablePillarbox and pillarboxAspectRatio instead.
+     * Warning: Order matters! Effects are applied in the order listed.
      */
     @Builder.Default
     private List<PostEffect> postProcessingEffects = List.of(
 //            new BlurEffect(2.0f),
-            new ColorVignetteEffect(0.5f, 0.5f)
+//            new ColorVignetteEffect(0.5f, 0.5f)
     );
-
-    /**
-     * Whether to enable pillarboxing/letterboxing for aspect ratio preservation.
-     */
-    @Builder.Default
-    private boolean enablePillarbox = false;
-
-    /**
-     * Target aspect ratio for pillarbox (e.g., 16/9 = 1.777, 4/3 = 1.333).
-     * Only used if enablePillarbox is true.
-     */
-    @Builder.Default
-    private float pillarboxAspectRatio = 640f / 480f; // 4:3 aspect ratio
 
     /**
      * Scaling mode when pillarbox is disabled.
@@ -62,4 +46,17 @@ public class WindowConfig {
      */
     @Builder.Default
     private PostProcessor.ScalingMode scalingMode = PostProcessor.ScalingMode.STRETCH;
+
+    /**
+     * Whether to enable pillarboxing/letterboxing for aspect ratio preservation.
+     */
+    @Builder.Default
+    private boolean enablePillarBox = false;
+
+    /**
+     * Target aspect ratio for pillarbox (e.g., 16/9 = 1.777, 4/3 = 1.333).
+     * Only used if enablePillarbox is true.
+     */
+    @Builder.Default
+    private float pillarboxAspectRatio = 640f / 480f; // 4:3 aspect ratio
 }

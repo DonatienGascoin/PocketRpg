@@ -60,7 +60,7 @@ public class PostProcessor {
         this.effects.addAll(config.getPostProcessingEffects());
 
         // Enable pillarbox if configured
-        if (config.isEnablePillarbox()) {
+        if (config.isEnablePillarBox()) {
             enablePillarBox(config.getPillarboxAspectRatio());
         } else {
             scalingMode = config.getScalingMode();
@@ -112,15 +112,27 @@ public class PostProcessor {
     }
 
     public void beginCapture() {
-        if (!effects.isEmpty() || pillarBox != null) {
+        // Always use FBOs when any post-processing is needed
+        if (needsPostProcessing()) {
             bindFboA();
         }
     }
 
     public void endCaptureAndApplyEffects() {
-        if (!effects.isEmpty() || pillarBox != null) {
+        if (needsPostProcessing()) {
             applyEffects();
         }
+    }
+
+    /**
+     * Determines if post-processing is needed.
+     * Post-processing is needed if:
+     * - We have effects to apply, OR
+     * - PillarBox is enabled, OR
+     * - Scaling mode requires viewport management (MAINTAIN_ASPECT_RATIO)
+     */
+    private boolean needsPostProcessing() {
+        return !effects.isEmpty() || pillarBox != null || scalingMode == ScalingMode.MAINTAIN_ASPECT_RATIO;
     }
 
     /**

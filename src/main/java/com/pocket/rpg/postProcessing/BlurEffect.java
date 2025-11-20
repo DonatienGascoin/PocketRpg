@@ -1,4 +1,4 @@
-package com.pocket.rpg.aiEngineWithPostProcess;
+package com.pocket.rpg.postProcessing;
 
 import com.pocket.rpg.rendering.Shader;
 

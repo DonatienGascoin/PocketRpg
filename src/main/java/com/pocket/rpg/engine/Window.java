@@ -1,5 +1,8 @@
-package com.pocket.rpg.aiEngineWithPostProcess;
+package com.pocket.rpg.engine;
 
+import com.pocket.rpg.postProcessing.PillarboxEffect;
+import com.pocket.rpg.postProcessing.PostEffect;
+import com.pocket.rpg.postProcessing.PostProcessor;
 import com.pocket.rpg.utils.Time;
 import com.pocket.rpg.utils.WindowConfig;
 
@@ -13,6 +16,8 @@ import static org.lwjgl.opengl.GL11.glClearColor;
 
 public abstract class Window {
 
+    private final WindowConfig config;
+
     protected GlfwManager glfwManager;
     private PostProcessor postProcessor;
     private final List<PostEffect> effects = new ArrayList<>();
@@ -23,7 +28,7 @@ public abstract class Window {
      * @param config Window configuration
      */
     public Window(WindowConfig config) {
-        this.glfwManager = new GlfwManager(config);
+        this.config = config;
     }
 
     /**
@@ -40,18 +45,20 @@ public abstract class Window {
      * Subclasses can override to add custom initialization.
      */
     protected final void init() {
-        glfwManager.init();
         Time.init();
+
+        glfwManager = new GlfwManager(config);
+        glfwManager.init();
 
         // Initialize post-processor
         postProcessor = new PostProcessor(getScreenWidth(), getScreenHeight());
 
         // Let subclass declare which effects to use
-//        declareEffects();
+        declareEffects();
 
         // Add pillarbox effect as the last effect (always required)
-//        effects.add(new PillarboxEffect(getScreenWidth(), getScreenHeight(),
-//                glfwManager.getWindowHandle()));
+        effects.add(new PillarboxEffect(getScreenWidth(), getScreenHeight(),
+                glfwManager.getWindowHandle()));
 
         // Add all effects to processor and initialize
         for (PostEffect effect : effects) {
@@ -61,12 +68,6 @@ public abstract class Window {
 
         // Initialize game-specific resources
         initGame();
-
-       /* // Set key callbacks or other general callbacks here if needed
-        glfwSetKeyCallback(glfwManager.getWindowHandle(), (window, key, scancode, action, mods) -> {
-            if (key == GLFW_KEY_ESCAPE && action == GLFW_RELEASE)
-                glfwSetWindowShouldClose(window, true);
-        });*/
     }
 
     /**
@@ -104,6 +105,7 @@ public abstract class Window {
         while (!glfwManager.shouldClose()) {
             // Begin post-processing capture
             postProcessor.bindFboA();
+
             // Clear background
             glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

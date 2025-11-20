@@ -73,6 +73,14 @@ public class Renderer {
         shader.use();
 
         // Upload matrices
+
+//        float[] projData = new float[16];
+//        float[] viewData = new float[16];
+//
+//        projectionMatrix.get(projData);
+//        viewMatrix.get(viewData);
+//        shader.uploadFloatArray("projection", projData);
+//        shader.uploadFloatArray("view", viewData);
         shader.uploadMat4f("projection", projectionMatrix);
         shader.uploadMat4f("view", viewMatrix);
 
@@ -112,6 +120,9 @@ public class Renderer {
         modelMatrix.scale(sprite.getWidth(), sprite.getHeight(), 1);
 
         // Upload model matrix
+//        float[] modelData = new float[16];
+//        modelMatrix.get(modelData);
+//        shader.uploadFloatArray("model", modelData);
         shader.uploadMat4f("model", modelMatrix);
 
         // Draw quad

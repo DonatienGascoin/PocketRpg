@@ -1,4 +1,4 @@
-package com.pocket.rpg.aiEngineWithPostProcess;
+package com.pocket.rpg.postProcessing;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -9,17 +9,19 @@ import static org.lwjgl.opengl.GL33.*;
 public class PostProcessor {
     private final int width;
     private final int height;
-    private final float targetAspectRatio;
+//    private final float targetAspectRatio;
 
     private int fboA_ID;
     private int fboB_ID;
+
     private int textureA_ID;
     private int textureB_ID;
+
     private int rboID;
     private int quadVAO;
 
     private final List<PostEffect> effects = new ArrayList<>();
-//
+
 //    private Shader finalShader;
 
     /**
@@ -34,7 +36,7 @@ public class PostProcessor {
         }
         this.width = width;
         this.height = height;
-        this.targetAspectRatio = (float) width / height;
+//        this.targetAspectRatio = (float) width / height;
     }
 
     /**
@@ -98,50 +100,6 @@ public class PostProcessor {
     }
 
     /**
-     * Blits the final processed texture to the screen with aspect ratio preservation.
-     * Black bars (pillarbox/letterbox) are added as needed.
-     *
-     * @param finalTextureId The texture containing the final processed image
-     * @param windowWidth    Current window width
-     * @param windowHeight   Current window height
-     */
-    /*private void blitFinalTextureToScreen(int finalTextureId, int windowWidth, int windowHeight) {
-        // Clear entire window black
-        glViewport(0, 0, windowWidth, windowHeight);
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        // Apply pillarboxed viewport
-        int newWidth = windowWidth;
-        int newHeight = (int) (newWidth / targetAspectRatio);
-        if (newHeight > windowHeight) {
-            newHeight = windowHeight;
-            newWidth = (int) (newHeight * targetAspectRatio);
-        }
-        int viewportX = (windowWidth - newWidth) / 2;
-        int viewportY = (windowHeight - newHeight) / 2;
-        glViewport(viewportX, viewportY, newWidth, newHeight);
-
-        // Draw final texture using the internal finalBlitShader
-        glDisable(GL_DEPTH_TEST);
-        finalShader.use();
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, finalTextureId);
-
-        // Use nearest neighbor filtering for sharp pixels (fixes pixelation)
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-        glBindVertexArray(quadVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-
-        // Cleanup
-        glBindTexture(GL_TEXTURE_2D, 0);
-        glBindVertexArray(0);
-        finalShader.detach();
-    }*/
-
-    /**
      * Sets up the two frame buffer objects for ping-ponging between effect passes.
      */
     private void setupFBOs() {
@@ -167,6 +125,15 @@ public class PostProcessor {
         // Check FBO A completeness
         if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
             throw new RuntimeException("Framebuffer A is not complete!");
+        }
+
+        glBindFramebuffer(GL_FRAMEBUFFER, fboB_ID);
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
+                GL_RENDERBUFFER, rboID);
+
+        // Check FBO B completeness
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+            throw new RuntimeException("Framebuffer B is not complete!");
         }
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);

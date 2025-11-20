@@ -1,6 +1,7 @@
 #type vertex
 #version 310 es
 precision highp float;
+
 layout (location = 0) in vec2 aPos;
 layout (location = 1) in vec2 aTexCoord;
 out vec2 TexCoord;
@@ -12,6 +13,7 @@ void main() {
 #type fragment
 #version 310 es
 precision highp float;
+
 out vec4 FragColor;
 in vec2 TexCoord;
 uniform sampler2D screenTexture;

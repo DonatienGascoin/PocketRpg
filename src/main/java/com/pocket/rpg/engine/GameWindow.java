@@ -1,5 +1,7 @@
-package com.pocket.rpg.aiEngineWithPostProcess;
+package com.pocket.rpg.engine;
 
+import com.pocket.rpg.postProcessing.BlurEffect;
+import com.pocket.rpg.postProcessing.ColorVignetteEffect;
 import com.pocket.rpg.rendering.Renderer;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.Texture;

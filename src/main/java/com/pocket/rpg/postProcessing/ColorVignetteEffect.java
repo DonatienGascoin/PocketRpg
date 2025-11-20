@@ -1,4 +1,4 @@
-package com.pocket.rpg.aiEngineWithPostProcess;
+package com.pocket.rpg.postProcessing;
 
 import com.pocket.rpg.rendering.Shader;
 
@@ -41,6 +41,7 @@ public class ColorVignetteEffect implements PostEffect {
     public void init() {
         vignetteShader = new Shader("assets/shaders/colorVignette.glsl");
         vignetteShader.compileAndLink();
+
         vignetteShader.use();
         vignetteShader.uploadInt("screenTexture", 0);
         vignetteShader.uploadFloat("vignetteIntensity", this.vignetteIntensity);

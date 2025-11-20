@@ -1,4 +1,4 @@
-package com.pocket.rpg.aiEngineWithPostProcess;
+package com.pocket.rpg.engine;
 
 
 import static org.lwjgl.opengl.GL33.*;

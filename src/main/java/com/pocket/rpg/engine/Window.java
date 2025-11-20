@@ -4,6 +4,7 @@ import com.pocket.rpg.postProcessing.PostEffect;
 import com.pocket.rpg.postProcessing.PostProcessor;
 import com.pocket.rpg.utils.Time;
 import com.pocket.rpg.utils.WindowConfig;
+import lombok.Getter;
 
 import static org.lwjgl.opengl.GL11.GL_COLOR_BUFFER_BIT;
 import static org.lwjgl.opengl.GL11.GL_DEPTH_BUFFER_BIT;
@@ -12,11 +13,12 @@ import static org.lwjgl.opengl.GL11.glClearColor;
 
 public abstract class Window {
 
+    @Getter
     private final WindowConfig config;
+    private final boolean usePostProcessing;
 
     protected GlfwManager glfwManager;
     private PostProcessor postProcessor;
-    private boolean usePostProcessing;
 
     /**
      * Creates a window with the specified internal game resolution.

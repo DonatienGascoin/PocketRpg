@@ -1,5 +1,4 @@
 package com.pocket.rpg.postProcessing;
-
 import com.pocket.rpg.engine.Window;
 
 import java.nio.ByteBuffer;
@@ -8,23 +7,25 @@ import java.util.List;
 
 import static org.lwjgl.opengl.GL33.*;
 
+/**
+ * Manages the post-processing pipeline, coordinating multiple effects
+ * and handling frame buffer ping-ponging between passes.
+ * FIXED: Now properly displays the final result to screen.
+ */
 public class PostProcessor {
+
     private final int width;
     private final int height;
-//    private final float targetAspectRatio;
 
     private int fboA_ID;
     private int fboB_ID;
-
     private int textureA_ID;
     private int textureB_ID;
-
     private int rboID;
     private int quadVAO;
 
     private final List<PostEffect> effects = new ArrayList<>();
-
-//    private Shader finalShader;
+    private Window window;
 
     /**
      * Creates a post processor for the specified internal resolution.
@@ -38,23 +39,20 @@ public class PostProcessor {
         }
         this.width = width;
         this.height = height;
-//        this.targetAspectRatio = (float) width / height;
     }
 
     /**
      * Initializes all OpenGL resources including FBOs, textures, and effects.
      * Must be called after OpenGL context is current.
+     *
+     * @param window The window reference for effects
      */
     public void init(Window window) {
+        this.window = window;
         setupFBOs();
         setupFullScreenQuad();
-//        finalShader = new Shader("assets/shaders/finalShader.glsl");
-//        finalShader.compileAndLink();
-//        finalShader.use();
-//        finalShader.uploadInt("screenTexture", 0);
-//        finalShader.detach();
 
-        // Initialize all effects
+        // Initialize all effects with window reference
         for (PostEffect effect : effects) {
             effect.init(window);
         }
@@ -80,24 +78,63 @@ public class PostProcessor {
 
     /**
      * Applies all post-processing effects in sequence.
+     * FIXED: Now properly handles the final output.
      */
     public void applyEffects() {
+        if (effects.isEmpty()) {
+            // No effects - just blit FBO A to screen
+            blitToScreen(textureA_ID);
+            return;
+        }
+
         int inputTexture = textureA_ID;
         int outputFbo = fboB_ID;
 
         // Apply all effects in the chain
-        for (PostEffect effect : effects) {
+        for (int i = 0; i < effects.size(); i++) {
+            PostEffect effect = effects.get(i);
             int passCount = effect.getPassCount();
+            boolean isLastEffect = (i == effects.size() - 1);
 
             // Apply each pass of the effect
             for (int passIndex = 0; passIndex < passCount; passIndex++) {
-                effect.applyPass(passIndex, inputTexture, outputFbo, quadVAO, width, height);
+                boolean isLastPass = isLastEffect && (passIndex == passCount - 1);
 
-                // Swap FBOs for next pass
-                inputTexture = (inputTexture == textureA_ID) ? textureB_ID : textureA_ID;
-                outputFbo = (outputFbo == fboA_ID) ? fboB_ID : fboA_ID;
+                // Last pass of last effect goes to screen (FBO 0)
+                int targetFbo = isLastPass ? 0 : outputFbo;
+
+                effect.applyPass(passIndex, inputTexture, targetFbo, quadVAO, width, height);
+
+                // Swap FBOs for next pass (only if not going to screen)
+                if (!isLastPass) {
+                    inputTexture = (inputTexture == textureA_ID) ? textureB_ID : textureA_ID;
+                    outputFbo = (outputFbo == fboA_ID) ? fboB_ID : fboA_ID;
+                }
             }
         }
+    }
+
+    /**
+     * Blits a texture directly to the screen without any effects.
+     * Used when no post-processing effects are active.
+     *
+     * @param textureId The texture to display
+     */
+    private void blitToScreen(int textureId) {
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glViewport(0, 0, window.getScreenWidth(), window.getScreenHeight());
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        glDisable(GL_DEPTH_TEST);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, textureId);
+
+        glBindVertexArray(quadVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+
+        glBindTexture(GL_TEXTURE_2D, 0);
+        glBindVertexArray(0);
     }
 
     /**
@@ -114,14 +151,15 @@ public class PostProcessor {
         textureB_ID = createFBOTexture(width, height);
         attachTextureToFBO(fboB_ID, textureB_ID);
 
-        // Create shared depth/stencil render buffer
+        // Create shared depth/stencil renderbuffer
         rboID = glGenRenderbuffers();
         glBindRenderbuffer(GL_RENDERBUFFER, rboID);
         glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_STENCIL, width, height);
 
         // Attach depth buffer to both FBOs
         glBindFramebuffer(GL_FRAMEBUFFER, fboA_ID);
-        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rboID);
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
+                GL_RENDERBUFFER, rboID);
 
         // Check FBO A completeness
         if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
@@ -140,6 +178,10 @@ public class PostProcessor {
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
 
+    /**
+     * Creates a texture suitable for use as an FBO color attachment.
+     * Uses NEAREST filtering for sharp pixel-perfect rendering.
+     */
     private int createFBOTexture(int texWidth, int texHeight) {
         int texID = glGenTextures();
         glBindTexture(GL_TEXTURE_2D, texID);
@@ -158,24 +200,32 @@ public class PostProcessor {
         return texID;
     }
 
+    /**
+     * Attaches a texture as the color attachment of an FBO.
+     */
     private void attachTextureToFBO(int fboID, int textureID) {
         glBindFramebuffer(GL_FRAMEBUFFER, fboID);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureID, 0);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                GL_TEXTURE_2D, textureID, 0);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
 
+    /**
+     * Sets up a full-screen quad for rendering post-processing effects.
+     */
     private void setupFullScreenQuad() {
         // Vertex data: position (x, y) + texture coords (u, v)
         float[] quadVertices = {
                 // Position    // TexCoords
-                -1.0f, 1.0f, 0.0f, 1.0f,  // Top-left
-                -1.0f, -1.0f, 0.0f, 0.0f,  // Bottom-left
-                1.0f, -1.0f, 1.0f, 0.0f,  // Bottom-right
+                -1.0f,  1.0f,  0.0f, 1.0f,  // Top-left
+                -1.0f, -1.0f,  0.0f, 0.0f,  // Bottom-left
+                1.0f, -1.0f,  1.0f, 0.0f,  // Bottom-right
 
-                -1.0f, 1.0f, 0.0f, 1.0f,  // Top-left
-                1.0f, -1.0f, 1.0f, 0.0f,  // Bottom-right
-                1.0f, 1.0f, 1.0f, 1.0f   // Top-right
+                -1.0f,  1.0f,  0.0f, 1.0f,  // Top-left
+                1.0f, -1.0f,  1.0f, 0.0f,  // Bottom-right
+                1.0f,  1.0f,  1.0f, 1.0f   // Top-right
         };
+
         quadVAO = glGenVertexArrays();
         int vbo = glGenBuffers();
 
@@ -204,7 +254,6 @@ public class PostProcessor {
         glDeleteTextures(textureB_ID);
         glDeleteRenderbuffers(rboID);
         glDeleteVertexArrays(quadVAO);
-//        finalShader.delete();
 
         for (PostEffect effect : effects) {
             effect.destroy();

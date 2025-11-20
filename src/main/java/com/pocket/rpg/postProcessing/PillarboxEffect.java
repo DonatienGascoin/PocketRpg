@@ -1,5 +1,6 @@
 package com.pocket.rpg.postProcessing;
 
+import com.pocket.rpg.engine.Window;
 import com.pocket.rpg.rendering.Shader;
 
 import static org.lwjgl.glfw.GLFW.glfwGetFramebufferSize;
@@ -12,23 +13,21 @@ import static org.lwjgl.opengl.GL33.*;
 public class PillarboxEffect implements PostEffect {
 
     private final float targetAspectRatio;
-    private final long windowHandle;
     private Shader shader;
+    private long windowHandle;
 
     /**
      * Creates a pillarbox effect for the specified aspect ratio.
      *
-     * @param targetWidth  Target rendering width
-     * @param targetHeight Target rendering height
-     * @param windowHandle GLFW window handle for querying window dimensions
+     * @param targetAspectRatio Target aspect ratio
      */
-    public PillarboxEffect(int targetWidth, int targetHeight, long windowHandle) {
-        this.targetAspectRatio = (float) targetWidth / targetHeight;
-        this.windowHandle = windowHandle;
+    public PillarboxEffect(float targetAspectRatio) {
+        this.targetAspectRatio = targetAspectRatio;
     }
 
     @Override
-    public void init() {
+    public void init(Window window) {
+        windowHandle = window.getWindowHandle();
         shader = new Shader("assets/shaders/pillarbox.glsl");
         shader.use();
         shader.uploadInt("screenTexture", 0);

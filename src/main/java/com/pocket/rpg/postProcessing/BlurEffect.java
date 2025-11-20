@@ -1,5 +1,6 @@
 package com.pocket.rpg.postProcessing;
 
+import com.pocket.rpg.engine.Window;
 import com.pocket.rpg.rendering.Shader;
 
 import static org.lwjgl.opengl.GL33.*;
@@ -8,7 +9,7 @@ import static org.lwjgl.opengl.GL33.*;
  * Two-pass Gaussian blur effect implementation.
  * Applies horizontal and vertical blur passes for optimal performance.
  */
-public class BlurEffect implements MultiPassEffect {
+public class BlurEffect implements PostEffect {
     private static final float DEFAULT_BLUR_STRENGTH = 2.0f;
     private static final int PASS_COUNT = 2;
 
@@ -38,7 +39,7 @@ public class BlurEffect implements MultiPassEffect {
     }
 
     @Override
-    public void init() {
+    public void init(Window window) {
         blurShader = new Shader("assets/shaders/blurShader.glsl");
         blurShader.compileAndLink();
         blurShader.use();

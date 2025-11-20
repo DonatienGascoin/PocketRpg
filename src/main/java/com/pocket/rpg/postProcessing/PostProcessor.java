@@ -1,5 +1,7 @@
 package com.pocket.rpg.postProcessing;
 
+import com.pocket.rpg.engine.Window;
+
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -43,7 +45,7 @@ public class PostProcessor {
      * Initializes all OpenGL resources including FBOs, textures, and effects.
      * Must be called after OpenGL context is current.
      */
-    public void init() {
+    public void init(Window window) {
         setupFBOs();
         setupFullScreenQuad();
 //        finalShader = new Shader("assets/shaders/finalShader.glsl");
@@ -54,7 +56,7 @@ public class PostProcessor {
 
         // Initialize all effects
         for (PostEffect effect : effects) {
-            effect.init();
+            effect.init(window);
         }
     }
 
@@ -78,7 +80,6 @@ public class PostProcessor {
 
     /**
      * Applies all post-processing effects in sequence.
-     *
      */
     public void applyEffects() {
         int inputTexture = textureA_ID;

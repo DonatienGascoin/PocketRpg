@@ -15,16 +15,15 @@ import static org.lwjgl.opengl.GL33.*;
 public class Renderer {
 
     private Shader shader;
-
     private int quadVAO;
     private int quadVBO;
 
     private Matrix4f projectionMatrix;
     private Matrix4f viewMatrix;
     private Matrix4f modelMatrix;
-    // For dynamic UV updates
-    private FloatBuffer vertexBuffer;
 
+    // For dynamic UV updates - NOT FINAL (initialized in init())
+    private FloatBuffer vertexBuffer;
 
     /**
      * Initializes the renderer with the specified viewport dimensions.
@@ -37,8 +36,10 @@ public class Renderer {
         shader = new Shader("assets/shaders/sprite.glsl");
         shader.compileAndLink();
 
-        // Create quad mesh
+        // Allocate vertex buffer for UV updates
         vertexBuffer = MemoryUtil.memAllocFloat(24); // 6 vertices * 4 floats (pos + uv)
+
+        // Create quad mesh
         createQuadMesh();
 
         // Initialize matrices
@@ -73,14 +74,6 @@ public class Renderer {
         shader.use();
 
         // Upload matrices
-
-//        float[] projData = new float[16];
-//        float[] viewData = new float[16];
-//
-//        projectionMatrix.get(projData);
-//        viewMatrix.get(viewData);
-//        shader.uploadFloatArray("projection", projData);
-//        shader.uploadFloatArray("view", viewData);
         shader.uploadMat4f("projection", projectionMatrix);
         shader.uploadMat4f("view", viewMatrix);
 
@@ -89,7 +82,7 @@ public class Renderer {
     }
 
     /**
-     * Renders a sprite.
+     * Renders a sprite with its UV coordinates.
      *
      * @param sprite The sprite to render
      */
@@ -120,9 +113,6 @@ public class Renderer {
         modelMatrix.scale(sprite.getWidth(), sprite.getHeight(), 1);
 
         // Upload model matrix
-//        float[] modelData = new float[16];
-//        modelMatrix.get(modelData);
-//        shader.uploadFloatArray("model", modelData);
         shader.uploadMat4f("model", modelMatrix);
 
         // Draw quad
@@ -144,25 +134,17 @@ public class Renderer {
 
     /**
      * Creates a unit quad mesh (0,0 to 1,1) with texture coordinates.
+     * FIXED: Uses GL_DYNAMIC_DRAW since UVs are updated frequently.
      */
     private void createQuadMesh() {
-        float[] vertices = {
-                // Position   // TexCoords
-                0.0f, 0.0f, 0.0f, 0.0f,  // Top-left
-                0.0f, 1.0f, 0.0f, 1.0f,  // Bottom-left
-                1.0f, 1.0f, 1.0f, 1.0f,  // Bottom-right
-
-                0.0f, 0.0f, 0.0f, 0.0f,  // Top-left
-                1.0f, 1.0f, 1.0f, 1.0f,  // Bottom-right
-                1.0f, 0.0f, 1.0f, 0.0f   // Top-right
-        };
-
         quadVAO = glGenVertexArrays();
         quadVBO = glGenBuffers();
 
         glBindVertexArray(quadVAO);
         glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
-        glBufferData(GL_ARRAY_BUFFER, vertices, GL_STATIC_DRAW);
+
+        // IMPORTANT: Use GL_DYNAMIC_DRAW for frequently updated data
+        glBufferData(GL_ARRAY_BUFFER, 24 * Float.BYTES, GL_DYNAMIC_DRAW);
 
         // Position attribute
         glEnableVertexAttribArray(0);
@@ -173,6 +155,7 @@ public class Renderer {
         glVertexAttribPointer(1, 2, GL_FLOAT, false, 4 * Float.BYTES, 2 * Float.BYTES);
 
         glBindVertexArray(0);
+
         // Initialize with default UVs (0,0 to 1,1)
         updateQuadUVs(0, 0, 1, 1);
     }

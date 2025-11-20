@@ -1,5 +1,6 @@
 package com.pocket.rpg.postProcessing;
 
+import com.pocket.rpg.engine.Window;
 import com.pocket.rpg.rendering.Shader;
 
 import static org.lwjgl.opengl.GL33.*;
@@ -38,7 +39,7 @@ public class ColorVignetteEffect implements PostEffect {
     }
 
     @Override
-    public void init() {
+    public void init(Window window) {
         vignetteShader = new Shader("assets/shaders/colorVignette.glsl");
         vignetteShader.compileAndLink();
 

@@ -1,5 +1,6 @@
 package com.pocket.rpg.postProcessing;
 
+import com.pocket.rpg.engine.Window;
 import com.pocket.rpg.rendering.Shader;
 
 import static org.lwjgl.opengl.GL33.*;
@@ -16,7 +17,7 @@ public class PassThroughEffect implements PostEffect {
     private Shader passThroughShader;
 
     @Override
-    public void init() {
+    public void init(Window window) {
         passThroughShader = new Shader("assets/shaders/passThrough.glsl");
         passThroughShader.compileAndLink();
         passThroughShader.use();

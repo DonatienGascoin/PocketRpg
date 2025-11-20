@@ -1,9 +1,8 @@
 package com.pocket.rpg.engine;
 
-import com.pocket.rpg.postProcessing.BlurEffect;
-import com.pocket.rpg.postProcessing.ColorVignetteEffect;
 import com.pocket.rpg.rendering.Renderer;
 import com.pocket.rpg.rendering.Sprite;
+import com.pocket.rpg.rendering.SpriteSheet;
 import com.pocket.rpg.rendering.Texture;
 import com.pocket.rpg.utils.WindowConfig;
 
@@ -19,7 +18,7 @@ public class GameWindow extends Window {
     private Sprite playerSprite;
 
     // Sprite sheet sprites
-    private Texture spriteSheetTexture;
+    private SpriteSheet spriteSheet;
     private List<Sprite> sheetSprites;
 
     // Animation
@@ -29,16 +28,7 @@ public class GameWindow extends Window {
     private static final float ANIMATION_SPEED = 0.2f; // Seconds per frame
 
     public GameWindow() {
-        super(new WindowConfig());
-    }
-
-    @Override
-    protected void declareEffects() {
-        // Declare which post-processing effects to use
-        // Effects are applied in order
-        addEffect(new BlurEffect(2.0f));
-        addEffect(new ColorVignetteEffect(1.5f, 0.5f));
-        // PillarboxEffect is automatically added as the last effect
+        super(WindowConfig.builder().build());
     }
 
     @Override
@@ -92,27 +82,17 @@ public class GameWindow extends Window {
             playerSprite.setRotation(rotation);
         }
 
-        // Animate sprite sheet sprites
-        if (sheetSprites != null && !sheetSprites.isEmpty()) {
+        // Animate sprite sheet sprites using SpriteSheet class
+        if (spriteSheet != null && sheetSprites != null && !sheetSprites.isEmpty()) {
             animationTimer += deltaTime;
 
             if (animationTimer >= ANIMATION_SPEED) {
                 animationTimer -= ANIMATION_SPEED;
-                currentFrame = (currentFrame + 1) % 16; // 4x4 = 16 frames
+                currentFrame = (currentFrame + 1) % spriteSheet.getTotalFrames();
 
-                // Update UV coordinates for all sheet sprites
-                int spriteSize = 32;
-                int sheetCols = 4;
-                int row = currentFrame / sheetCols;
-                int col = currentFrame % sheetCols;
-
+                // Update all sprites to show the new frame
                 for (Sprite sprite : sheetSprites) {
-                    sprite.setUVsFromPixels(
-                            col * spriteSize,
-                            row * spriteSize,
-                            spriteSize,
-                            spriteSize
-                    );
+                    spriteSheet.updateSpriteFrame(sprite, currentFrame);
                 }
             }
         }
@@ -124,8 +104,8 @@ public class GameWindow extends Window {
         if (playerTexture != null) {
             playerTexture.destroy();
         }
-        if (spriteSheetTexture != null) {
-            spriteSheetTexture.destroy();
+        if (spriteSheet != null) {
+            spriteSheet.getTexture().destroy();
         }
 
         // Clean up systems
@@ -153,24 +133,19 @@ public class GameWindow extends Window {
         }
 
         try {
-            // Load sprite sheet
-            spriteSheetTexture = new Texture("assets/spritesheet.png");
+            // Load sprite sheet using SpriteSheet class
+            Texture sheetTexture = new Texture("assets/spritesheet.png");
+            spriteSheet = new SpriteSheet(sheetTexture, 32, 32); // 32x32 sprites
+
             sheetSprites = new ArrayList<>();
 
-            // Create sprites from different regions of the sprite sheet
-            // Assuming a 4x4 grid of 32x32 sprites in a 128x128 texture
-            int spriteSize = 32;
-            int sheetCols = 4;
-            int sheetRows = 4;
-
-            // Create a few animated sprites at different positions
+            // Create sprites from sprite sheet at different positions
             for (int i = 0; i < 3; i++) {
                 float x = 100 + i * 150;
                 float y = 400;
 
-                // Start with the first frame (top-left of sheet)
-                Sprite sprite = new Sprite(spriteSheetTexture, x, y, 64, 64,
-                        0, 0, spriteSize, spriteSize);
+                // Create sprite from frame 0 with screen size 64x64
+                Sprite sprite = spriteSheet.getSprite(0, x, y, 64, 64);
                 sprite.setOrigin(0.5f, 0.5f);
                 sheetSprites.add(sprite);
             }

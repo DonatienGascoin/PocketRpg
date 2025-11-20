@@ -9,11 +9,7 @@ import java.io.IOException;
 import java.nio.FloatBuffer;
 import java.nio.file.Files;
 
-import static org.lwjgl.opengl.GL11.GL_FALSE;
 import static org.lwjgl.opengl.GL20.*;
-import static org.lwjgl.opengl.GL20.glGetUniformLocation;
-import static org.lwjgl.opengl.GL20.glUniform1i;
-import static org.lwjgl.opengl.GL20.glUniform1iv;
 
 public class Shader implements Comparable<Shader> {
 
@@ -31,12 +27,12 @@ public class Shader implements Comparable<Shader> {
 
             // Find the first pattern after #type
             int index = source.indexOf("#type") + 6;
-            int eol = source.indexOf("\n"/*System.lineSeparator()*/, index);
+            int eol = source.indexOf("\n", index);
             String firstPattern = source.substring(index, eol).trim();
 
             // Find the second pattern after #type
             index = source.indexOf("#type", eol) + 6;
-            eol = source.indexOf("\n"/*System.lineSeparator()*/, index);
+            eol = source.indexOf("\n", index);
             String secondPattern = source.substring(index, eol).trim();
 
             if (firstPattern.equals("vertex")) {
@@ -63,56 +59,71 @@ public class Shader implements Comparable<Shader> {
         int vertexId, fragmentId;
 
         // =========================
-        // Compile shader
+        // Compile vertex shader
         // =========================
-
-        // First load and compile vertex shader
         vertexId = glCreateShader(GL_VERTEX_SHADER);
-        // Pass the shader source to the GPU
         glShaderSource(vertexId, vertexSource);
         glCompileShader(vertexId);
 
-        // Check for errors in compilation
+        // Check for compilation errors
         int success = glGetShaderi(vertexId, GL_COMPILE_STATUS);
         if (success == GL_FALSE) {
             int len = glGetShaderi(vertexId, GL_INFO_LOG_LENGTH);
-            System.err.printf("Error: '%s'\n\tVertex shader compilation failed.", filePath);
-            System.out.println(glGetShaderInfoLog(vertexId, len));
-            assert false : "";
+            String errorLog = glGetShaderInfoLog(vertexId, len);
+            glDeleteShader(vertexId);
+            throw new RuntimeException(String.format(
+                    "Vertex shader compilation failed for '%s':\n%s",
+                    filePath, errorLog
+            ));
         }
 
-        // First load and compile fragment shader
+        // =========================
+        // Compile fragment shader
+        // =========================
         fragmentId = glCreateShader(GL_FRAGMENT_SHADER);
-        // Pass the shader source to the GPU
         glShaderSource(fragmentId, fragmentSource);
         glCompileShader(fragmentId);
 
-        // Check for errors in compilation
+        // Check for compilation errors
         success = glGetShaderi(fragmentId, GL_COMPILE_STATUS);
         if (success == GL_FALSE) {
             int len = glGetShaderi(fragmentId, GL_INFO_LOG_LENGTH);
-            System.err.printf("Error: '%s'\n\tFragment shader compilation failed.%n", filePath);
-            System.out.println(glGetShaderInfoLog(fragmentId, len));
-            assert false : "";
+            String errorLog = glGetShaderInfoLog(fragmentId, len);
+            glDeleteShader(vertexId);
+            glDeleteShader(fragmentId);
+            throw new RuntimeException(String.format(
+                    "Fragment shader compilation failed for '%s':\n%s",
+                    filePath, errorLog
+            ));
         }
 
         // ======================
-        // Link shader
+        // Link shader program
         // ======================
-
         shaderProgramId = glCreateProgram();
         glAttachShader(shaderProgramId, vertexId);
         glAttachShader(shaderProgramId, fragmentId);
         glLinkProgram(shaderProgramId);
 
-        // Check for linking error
+        // Check for linking errors
         success = glGetProgrami(shaderProgramId, GL_LINK_STATUS);
         if (success == GL_FALSE) {
             int len = glGetProgrami(shaderProgramId, GL_INFO_LOG_LENGTH);
-            System.err.printf("Error: '%s'\n\tLinking of shaders failed.", filePath);
-            System.out.println(glGetProgramInfoLog(shaderProgramId, len));
-            assert false : "";
+            String errorLog = glGetProgramInfoLog(shaderProgramId, len);
+            glDeleteShader(vertexId);
+            glDeleteShader(fragmentId);
+            glDeleteProgram(shaderProgramId);
+            throw new RuntimeException(String.format(
+                    "Shader linking failed for '%s':\n%s",
+                    filePath, errorLog
+            ));
         }
+
+        // Cleanup: detach and delete shader objects after linking
+        glDetachShader(shaderProgramId, vertexId);
+        glDetachShader(shaderProgramId, fragmentId);
+        glDeleteShader(vertexId);
+        glDeleteShader(fragmentId);
     }
 
     public void use() {
@@ -134,7 +145,6 @@ public class Shader implements Comparable<Shader> {
 
     public void uploadFloatArray(String varName, float[] array) {
         int varLocation = glGetUniformLocation(shaderProgramId, varName);
-
         glUniformMatrix4fv(varLocation, false, array);
     }
 
@@ -187,7 +197,9 @@ public class Shader implements Comparable<Shader> {
 
     private int getVarLocation(String varName) {
         int varLocation = glGetUniformLocation(shaderProgramId, varName);
-//        use();
+        if (varLocation == -1) {
+            System.err.println("Warning: Uniform '" + varName + "' not found in shader '" + filePath + "'");
+        }
         return varLocation;
     }
 

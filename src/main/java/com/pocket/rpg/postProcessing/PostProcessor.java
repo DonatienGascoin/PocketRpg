@@ -1,5 +1,7 @@
 package com.pocket.rpg.postProcessing;
+
 import com.pocket.rpg.engine.Window;
+import com.pocket.rpg.utils.WindowConfig;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -10,35 +12,42 @@ import static org.lwjgl.opengl.GL33.*;
 /**
  * Manages the post-processing pipeline, coordinating multiple effects
  * and handling frame buffer ping-ponging between passes.
- * FIXED: Now properly displays the final result to screen.
+ * Now properly separates the effect pipeline from the final screen presentation.
  */
 public class PostProcessor {
 
     private final int width;
     private final int height;
 
-    private int fboA_ID;
-    private int fboB_ID;
-    private int textureA_ID;
-    private int textureB_ID;
-    private int rboID;
+    private int fboA;
+    private int fboB;
+    private int textureA;
+    private int textureB;
+    private int rbo;
     private int quadVAO;
 
     private final List<PostEffect> effects = new ArrayList<>();
+    private PillarBox pillarBox;
     private Window window;
 
     /**
-     * Creates a post processor for the specified internal resolution.
+     * Creates a post processor for the specified window configuration.
      *
-     * @param width  Internal game width (e.g., 1280)
-     * @param height Internal game height (e.g., 720)
+     * @param config Window configuration containing internal resolution and effects
      */
-    public PostProcessor(int width, int height) {
-        if (width <= 0 || height <= 0) {
+    public PostProcessor(WindowConfig config) {
+        if (config.getInitialWidth() <= 0 || config.getInitialHeight() <= 0) {
             throw new IllegalArgumentException("Width and height must be positive");
         }
-        this.width = width;
-        this.height = height;
+        this.width = config.getInitialWidth();
+        this.height = config.getInitialHeight();
+        // Add effects from config
+        this.effects.addAll(config.getPostProcessingEffects());
+
+        // Enable pillarbox if configured
+        if (config.isEnablePillarbox()) {
+            enablePillarBox(config.getPillarboxAspectRatio());
+        }
     }
 
     /**
@@ -52,71 +61,111 @@ public class PostProcessor {
         setupFBOs();
         setupFullScreenQuad();
 
-        // Initialize all effects with window reference
+        // Initialize all effects
         for (PostEffect effect : effects) {
             effect.init(window);
+        }
+
+        // Initialize pillarbox if needed
+        if (pillarBox != null) {
+            pillarBox.init(window);
         }
     }
 
     /**
-     * Adds a post-processing effect to the pipeline.
-     * Effects are applied in the order they are added.
+     * Convenience method to enable pillarbox with target aspect ratio.
      *
-     * @param effect The effect to add
+     * @param aspectRatio Target aspect ratio (e.g., 16f/9f, 4f/3f)
      */
-    public void addEffect(PostEffect effect) {
-        this.effects.add(effect);
+    public void enablePillarBox(float aspectRatio) {
+        this.pillarBox = new PillarBox(aspectRatio);
+        if (window != null) {
+            this.pillarBox.init(window);
+        }
+    }
+
+    public void beginCapture() {
+        if (!effects.isEmpty() || pillarBox != null) {
+            bindFboA();
+        }
+    }
+
+    public void endCaptureAndApplyEffects() {
+        if (!effects.isEmpty() || pillarBox != null) {
+            applyEffects();
+        }
+    }
+
+    /**
+     * Applies all post-processing effects in sequence, then renders to screen.
+     */
+    private void applyEffects() {
+        // Disable depth testing for 2D post-processing
+        glDisable(GL_DEPTH_TEST);
+
+        if (effects.isEmpty()) {
+            // No effects - just render directly to screen
+            renderToScreen(textureA);
+            return;
+        }
+
+        // Start with texture A (which contains the rendered game scene)
+        int inputTexture = textureA;
+        int outputFbo = fboB;
+
+        // Apply all effects, ping-ponging between FBOs
+        for (int i = 0; i < effects.size(); i++) {
+            PostEffect effect = effects.get(i);
+            int passCount = effect.getPassCount();
+
+            for (int passIndex = 0; passIndex < passCount; passIndex++) {
+                // Apply the effect pass
+                effect.applyPass(passIndex, inputTexture, outputFbo, quadVAO, width, height);
+
+                // Swap buffers for next pass/effect
+                // The output becomes the input for the next iteration
+                if (outputFbo == fboA) {
+                    inputTexture = textureA;
+                    outputFbo = fboB;
+                } else {
+                    inputTexture = textureB;
+                    outputFbo = fboA;
+                }
+            }
+        }
+
+        // After all effects, inputTexture contains the final result
+        // Render it to screen (with or without pillarbox)
+        renderToScreen(inputTexture);
+    }
+
+    /**
+     * Renders the final texture to the screen.
+     * Uses pillarbox if enabled, otherwise renders directly.
+     *
+     * @param textureId The final processed texture
+     */
+    private void renderToScreen(int textureId) {
+        if (pillarBox != null) {
+            // Use pillarbox for aspect ratio preservation
+            pillarBox.renderToScreen(textureId, quadVAO);
+        } else {
+            // Direct render without aspect ratio preservation
+            blitToScreen(textureId);
+        }
     }
 
     /**
      * Binds FBO A for rendering the initial game scene.
      */
-    public void bindFboA() {
-        glBindFramebuffer(GL_FRAMEBUFFER, fboA_ID);
+    private void bindFboA() {
+        glBindFramebuffer(GL_FRAMEBUFFER, fboA);
         glViewport(0, 0, width, height);
     }
 
     /**
-     * Applies all post-processing effects in sequence.
-     * FIXED: Now properly handles the final output.
-     */
-    public void applyEffects() {
-        if (effects.isEmpty()) {
-            // No effects - just blit FBO A to screen
-            blitToScreen(textureA_ID);
-            return;
-        }
-
-        int inputTexture = textureA_ID;
-        int outputFbo = fboB_ID;
-
-        // Apply all effects in the chain
-        for (int i = 0; i < effects.size(); i++) {
-            PostEffect effect = effects.get(i);
-            int passCount = effect.getPassCount();
-            boolean isLastEffect = (i == effects.size() - 1);
-
-            // Apply each pass of the effect
-            for (int passIndex = 0; passIndex < passCount; passIndex++) {
-                boolean isLastPass = isLastEffect && (passIndex == passCount - 1);
-
-                // Last pass of last effect goes to screen (FBO 0)
-                int targetFbo = isLastPass ? 0 : outputFbo;
-
-                effect.applyPass(passIndex, inputTexture, targetFbo, quadVAO, width, height);
-
-                // Swap FBOs for next pass (only if not going to screen)
-                if (!isLastPass) {
-                    inputTexture = (inputTexture == textureA_ID) ? textureB_ID : textureA_ID;
-                    outputFbo = (outputFbo == fboA_ID) ? fboB_ID : fboA_ID;
-                }
-            }
-        }
-    }
-
-    /**
-     * Blits a texture directly to the screen without any effects.
-     * Used when no post-processing effects are active.
+     * Blits a texture directly to the screen without aspect ratio preservation.
+     * Used when pillarbox is disabled.
      *
      * @param textureId The texture to display
      */
@@ -130,6 +179,10 @@ public class PostProcessor {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, textureId);
 
+        // Use nearest neighbor for sharp pixels
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
         glBindVertexArray(quadVAO);
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
@@ -141,34 +194,34 @@ public class PostProcessor {
      * Sets up the two frame buffer objects for ping-ponging between effect passes.
      */
     private void setupFBOs() {
-        // Create FBO A with color and depth attachments
-        fboA_ID = glGenFramebuffers();
-        textureA_ID = createFBOTexture(width, height);
-        attachTextureToFBO(fboA_ID, textureA_ID);
+        // Create FBO A with color attachment
+        fboA = glGenFramebuffers();
+        textureA = createFBOTexture(width, height);
+        attachTextureToFBO(fboA, textureA);
 
         // Create FBO B with color attachment
-        fboB_ID = glGenFramebuffers();
-        textureB_ID = createFBOTexture(width, height);
-        attachTextureToFBO(fboB_ID, textureB_ID);
+        fboB = glGenFramebuffers();
+        textureB = createFBOTexture(width, height);
+        attachTextureToFBO(fboB, textureB);
 
         // Create shared depth/stencil renderbuffer
-        rboID = glGenRenderbuffers();
-        glBindRenderbuffer(GL_RENDERBUFFER, rboID);
-        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_STENCIL, width, height);
+        rbo = glGenRenderbuffers();
+        glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
 
         // Attach depth buffer to both FBOs
-        glBindFramebuffer(GL_FRAMEBUFFER, fboA_ID);
+        glBindFramebuffer(GL_FRAMEBUFFER, fboA);
         glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
-                GL_RENDERBUFFER, rboID);
+                GL_RENDERBUFFER, rbo);
 
         // Check FBO A completeness
         if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
             throw new RuntimeException("Framebuffer A is not complete!");
         }
 
-        glBindFramebuffer(GL_FRAMEBUFFER, fboB_ID);
+        glBindFramebuffer(GL_FRAMEBUFFER, fboB);
         glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
-                GL_RENDERBUFFER, rboID);
+                GL_RENDERBUFFER, rbo);
 
         // Check FBO B completeness
         if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
@@ -185,7 +238,7 @@ public class PostProcessor {
     private int createFBOTexture(int texWidth, int texHeight) {
         int texID = glGenTextures();
         glBindTexture(GL_TEXTURE_2D, texID);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texWidth, texHeight, 0,
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, texWidth, texHeight, 0,
                 GL_RGBA, GL_UNSIGNED_BYTE, (ByteBuffer) null);
 
         // Use NEAREST filtering for sharp pixel-perfect rendering
@@ -217,13 +270,13 @@ public class PostProcessor {
         // Vertex data: position (x, y) + texture coords (u, v)
         float[] quadVertices = {
                 // Position    // TexCoords
-                -1.0f,  1.0f,  0.0f, 1.0f,  // Top-left
-                -1.0f, -1.0f,  0.0f, 0.0f,  // Bottom-left
-                1.0f, -1.0f,  1.0f, 0.0f,  // Bottom-right
+                -1.0f, 1.0f, 0.0f, 1.0f,  // Top-left
+                -1.0f, -1.0f, 0.0f, 0.0f,  // Bottom-left
+                1.0f, -1.0f, 1.0f, 0.0f,  // Bottom-right
 
-                -1.0f,  1.0f,  0.0f, 1.0f,  // Top-left
-                1.0f, -1.0f,  1.0f, 0.0f,  // Bottom-right
-                1.0f,  1.0f,  1.0f, 1.0f   // Top-right
+                -1.0f, 1.0f, 0.0f, 1.0f,  // Top-left
+                1.0f, -1.0f, 1.0f, 0.0f,  // Bottom-right
+                1.0f, 1.0f, 1.0f, 1.0f   // Top-right
         };
 
         quadVAO = glGenVertexArrays();
@@ -248,15 +301,19 @@ public class PostProcessor {
      * Cleans up all OpenGL resources.
      */
     public void destroy() {
-        glDeleteFramebuffers(fboA_ID);
-        glDeleteFramebuffers(fboB_ID);
-        glDeleteTextures(textureA_ID);
-        glDeleteTextures(textureB_ID);
-        glDeleteRenderbuffers(rboID);
+        glDeleteFramebuffers(fboA);
+        glDeleteFramebuffers(fboB);
+        glDeleteTextures(textureA);
+        glDeleteTextures(textureB);
+        glDeleteRenderbuffers(rbo);
         glDeleteVertexArrays(quadVAO);
 
         for (PostEffect effect : effects) {
             effect.destroy();
+        }
+
+        if (pillarBox != null) {
+            pillarBox.destroy();
         }
     }
 }

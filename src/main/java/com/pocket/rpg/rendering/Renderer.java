@@ -1,6 +1,5 @@
 package com.pocket.rpg.rendering;
 
-
 import org.joml.Matrix4f;
 import org.lwjgl.system.MemoryUtil;
 
@@ -22,7 +21,7 @@ public class Renderer {
     private Matrix4f viewMatrix;
     private Matrix4f modelMatrix;
 
-    // For dynamic UV updates - NOT FINAL (initialized in init())
+    // For dynamic UV updates
     private FloatBuffer vertexBuffer;
 
     /**
@@ -134,7 +133,7 @@ public class Renderer {
 
     /**
      * Creates a unit quad mesh (0,0 to 1,1) with texture coordinates.
-     * FIXED: Uses GL_DYNAMIC_DRAW since UVs are updated frequently.
+     * Uses GL_DYNAMIC_DRAW since UVs are updated frequently.
      */
     private void createQuadMesh() {
         quadVAO = glGenVertexArrays();
@@ -146,11 +145,11 @@ public class Renderer {
         // IMPORTANT: Use GL_DYNAMIC_DRAW for frequently updated data
         glBufferData(GL_ARRAY_BUFFER, 24 * Float.BYTES, GL_DYNAMIC_DRAW);
 
-        // Position attribute
+        // Position attribute (location 0)
         glEnableVertexAttribArray(0);
         glVertexAttribPointer(0, 2, GL_FLOAT, false, 4 * Float.BYTES, 0);
 
-        // Texture coordinate attribute
+        // Texture coordinate attribute (location 1)
         glEnableVertexAttribArray(1);
         glVertexAttribPointer(1, 2, GL_FLOAT, false, 4 * Float.BYTES, 2 * Float.BYTES);
 
@@ -208,11 +207,20 @@ public class Renderer {
 
     /**
      * Cleans up OpenGL resources.
+     * FIXED: Now properly deletes VBO.
      */
     public void destroy() {
-        shader.delete();
-        glDeleteVertexArrays(quadVAO);
-        glDeleteBuffers(quadVBO);
-        MemoryUtil.memFree(vertexBuffer);
+        if (shader != null) {
+            shader.delete();
+        }
+        if (quadVAO != 0) {
+            glDeleteVertexArrays(quadVAO);
+        }
+        if (quadVBO != 0) {
+            glDeleteBuffers(quadVBO);  // FIXED: Now properly cleaning up VBO
+        }
+        if (vertexBuffer != null) {
+            MemoryUtil.memFree(vertexBuffer);
+        }
     }
 }

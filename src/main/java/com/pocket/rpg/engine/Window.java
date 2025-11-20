@@ -1,6 +1,5 @@
 package com.pocket.rpg.engine;
 
-import com.pocket.rpg.postProcessing.PostEffect;
 import com.pocket.rpg.postProcessing.PostProcessor;
 import com.pocket.rpg.utils.Time;
 import com.pocket.rpg.utils.WindowConfig;
@@ -15,7 +14,6 @@ public abstract class Window {
 
     @Getter
     private final WindowConfig config;
-    private final boolean usePostProcessing;
 
     protected GlfwManager glfwManager;
     private PostProcessor postProcessor;
@@ -27,7 +25,6 @@ public abstract class Window {
      */
     public Window(WindowConfig config) {
         this.config = config;
-        usePostProcessing = config.getPostProcessingEffects() != null && !config.getPostProcessingEffects().isEmpty();
     }
 
     /**
@@ -56,16 +53,8 @@ public abstract class Window {
     }
 
     private void initPostProcessing() {
-        if (usePostProcessing) {
-            postProcessor = new PostProcessor(getScreenWidth(), getScreenHeight());
-
-            // Add effects from config
-            for (PostEffect effect : config.getPostProcessingEffects()) {
-                postProcessor.addEffect(effect);
-            }
-
-            postProcessor.init(this);
-        }
+        postProcessor = new PostProcessor(config);
+        postProcessor.init(this);
     }
 
     /**
@@ -79,10 +68,8 @@ public abstract class Window {
      */
     private void loop() {
         while (!glfwManager.shouldClose()) {
-            if (usePostProcessing) {
-                // Render to post-processing FBO
-                postProcessor.bindFboA();
-            }
+            postProcessor.beginCapture();
+
 
             // Clear background
             glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
@@ -91,10 +78,7 @@ public abstract class Window {
             // Update and render game
             renderGame(Time.deltaTime());
 
-            if (usePostProcessing) {
-                // Apply post-processing effects
-                postProcessor.applyEffects();
-            }
+            postProcessor.endCaptureAndApplyEffects();
 
             // Swap buffers and poll events
             glfwManager.pollEventsAndSwapBuffers();
@@ -114,9 +98,7 @@ public abstract class Window {
     protected void destroy() {
         destroyGame();
         glfwManager.destroy();
-        if (usePostProcessing && postProcessor != null) {
-            postProcessor.destroy();
-        }
+        postProcessor.destroy();
     }
 
     /**

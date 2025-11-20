@@ -1,6 +1,9 @@
 package com.pocket.rpg.utils;
 
+import com.pocket.rpg.postProcessing.BlurEffect;
+import com.pocket.rpg.postProcessing.ColorVignetteEffect;
 import com.pocket.rpg.postProcessing.PostEffect;
+import com.pocket.rpg.postProcessing.PostProcessor;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -12,17 +15,32 @@ public class WindowConfig {
 
     @Builder.Default
     private String title = "Pocket Rpg";
+
     @Builder.Default
     private int initialWidth = 640;
+
     @Builder.Default
     private int initialHeight = 480;
 
     @Builder.Default
     private boolean fullscreen = false;
+
     @Builder.Default
     private boolean vsync = false;
+
     @Builder.Default
     private ICallback callback = new DefaultCallback();
+
+    /**
+     * List of post-processing effects to apply.
+     * Note: PillarboxEffect is no longer part of this list.
+     * Use enablePillarbox and pillarboxAspectRatio instead.
+     */
+    @Builder.Default
+    private List<PostEffect> postProcessingEffects = List.of(
+//            new BlurEffect(2.0f),
+            new ColorVignetteEffect(0.5f, 0.5f)
+    );
 
     /**
      * Whether to enable pillarboxing/letterboxing for aspect ratio preservation.
@@ -37,11 +55,11 @@ public class WindowConfig {
     @Builder.Default
     private float pillarboxAspectRatio = 640f / 480f; // 4:3 aspect ratio
 
-
+    /**
+     * Scaling mode when pillarbox is disabled.
+     * MAINTAIN_ASPECT_RATIO: Keeps aspect ratio with black bars (like pillarbox)
+     * STRETCH: Stretches image to fill window (may distort)
+     */
     @Builder.Default
-    private List<PostEffect> postProcessingEffects = List.of(
-//            new BlurEffect(2.0f),
-//            new ColorVignetteEffect(1.5f, 0.5f)
-    );
+    private PostProcessor.ScalingMode scalingMode = PostProcessor.ScalingMode.STRETCH;
 }
-

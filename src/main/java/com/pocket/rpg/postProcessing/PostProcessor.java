@@ -16,6 +16,20 @@ import static org.lwjgl.opengl.GL33.*;
  */
 public class PostProcessor {
 
+    /**
+     * Scaling mode for rendering to screen when pillarbox is disabled.
+     */
+    public enum ScalingMode {
+        /**
+         * Stretch the image to fill the entire window (may distort)
+         */
+        STRETCH,
+        /**
+         * Maintain aspect ratio and center (adds black bars, like pillarbox)
+         */
+        MAINTAIN_ASPECT_RATIO
+    }
+
     private final int width;
     private final int height;
 
@@ -29,6 +43,7 @@ public class PostProcessor {
     private final List<PostEffect> effects = new ArrayList<>();
     private PillarBox pillarBox;
     private Window window;
+    private ScalingMode scalingMode = ScalingMode.MAINTAIN_ASPECT_RATIO;
 
     /**
      * Creates a post processor for the specified window configuration.
@@ -47,6 +62,8 @@ public class PostProcessor {
         // Enable pillarbox if configured
         if (config.isEnablePillarbox()) {
             enablePillarBox(config.getPillarboxAspectRatio());
+        } else {
+            scalingMode = config.getScalingMode();
         }
     }
 
@@ -70,6 +87,16 @@ public class PostProcessor {
         if (pillarBox != null) {
             pillarBox.init(window);
         }
+    }
+
+    /**
+     * Adds a post-processing effect to the pipeline.
+     * Effects are applied in the order they are added.
+     *
+     * @param effect The effect to add
+     */
+    public void addEffect(PostEffect effect) {
+        this.effects.add(effect);
     }
 
     /**
@@ -97,7 +124,16 @@ public class PostProcessor {
     }
 
     /**
+     * Binds FBO A for rendering the initial game scene.
+     */
+    private void bindFboA() {
+        glBindFramebuffer(GL_FRAMEBUFFER, fboA);
+        glViewport(0, 0, width, height);
+    }
+
+    /**
      * Applies all post-processing effects in sequence, then renders to screen.
+     * FIXED: Now properly handles the effect pipeline and final screen output.
      */
     private void applyEffects() {
         // Disable depth testing for 2D post-processing
@@ -141,7 +177,7 @@ public class PostProcessor {
 
     /**
      * Renders the final texture to the screen.
-     * Uses pillarbox if enabled, otherwise renders directly.
+     * Uses pillarbox if enabled, otherwise uses the configured scaling mode.
      *
      * @param textureId The final processed texture
      */
@@ -150,30 +186,57 @@ public class PostProcessor {
             // Use pillarbox for aspect ratio preservation
             pillarBox.renderToScreen(textureId, quadVAO);
         } else {
-            // Direct render without aspect ratio preservation
+            // Use scaling mode
             blitToScreen(textureId);
         }
     }
 
     /**
-     * Binds FBO A for rendering the initial game scene.
-     */
-    private void bindFboA() {
-        glBindFramebuffer(GL_FRAMEBUFFER, fboA);
-        glViewport(0, 0, width, height);
-    }
-
-    /**
-     * Blits a texture directly to the screen without aspect ratio preservation.
-     * Used when pillarbox is disabled.
+     * Blits a texture directly to the screen using the configured scaling mode.
      *
      * @param textureId The texture to display
      */
     private void blitToScreen(int textureId) {
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glViewport(0, 0, window.getScreenWidth(), window.getScreenHeight());
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        int viewportX, viewportY, viewportWidth, viewportHeight;
+
+        if (scalingMode == ScalingMode.MAINTAIN_ASPECT_RATIO) {
+            // Calculate viewport to maintain aspect ratio and center the content
+            float targetAspect = (float) width / height;
+            float windowAspect = (float) window.getScreenWidth() / window.getScreenHeight();
+
+            if (windowAspect > targetAspect) {
+                // Window is wider - add pillarboxes
+                viewportHeight = window.getScreenHeight();
+                viewportWidth = (int) (viewportHeight * targetAspect);
+                viewportX = (window.getScreenWidth() - viewportWidth) / 2;
+                viewportY = 0;
+            } else {
+                // Window is taller - add letterboxes
+                viewportWidth = window.getScreenWidth();
+                viewportHeight = (int) (viewportWidth / targetAspect);
+                viewportX = 0;
+                viewportY = (window.getScreenHeight() - viewportHeight) / 2;
+            }
+
+            // Clear entire window to black
+            glViewport(0, 0, window.getScreenWidth(), window.getScreenHeight());
+            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        } else {
+            // STRETCH mode - fill entire window
+            viewportX = 0;
+            viewportY = 0;
+            viewportWidth = window.getScreenWidth();
+            viewportHeight = window.getScreenHeight();
+
+            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        }
+
+        // Set viewport
+        glViewport(viewportX, viewportY, viewportWidth, viewportHeight);
 
         glDisable(GL_DEPTH_TEST);
         glActiveTexture(GL_TEXTURE0);

@@ -55,8 +55,7 @@ public class Shader implements Comparable<Shader> {
                 throw new IOException(String.format("Unexpected token '%s'", secondPattern));
             }
         } catch (IOException e) {
-            System.err.println(e.getMessage());
-            assert false : "Error: could not open file [" + filepath + "] for shader";
+            throw new RuntimeException("Error: could not open shader file: " + filepath, e);
         }
     }
 
@@ -188,7 +187,7 @@ public class Shader implements Comparable<Shader> {
 
     private int getVarLocation(String varName) {
         int varLocation = glGetUniformLocation(shaderProgramId, varName);
-        use();
+//        use();
         return varLocation;
     }
 

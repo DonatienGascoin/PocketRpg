@@ -47,11 +47,11 @@ public abstract class Window {
         postProcessor = new PostProcessor(getScreenWidth(), getScreenHeight());
 
         // Let subclass declare which effects to use
-        declareEffects();
+//        declareEffects();
 
         // Add pillarbox effect as the last effect (always required)
-        effects.add(new PillarboxEffect(getScreenWidth(), getScreenHeight(),
-                glfwManager.getWindowHandle()));
+//        effects.add(new PillarboxEffect(getScreenWidth(), getScreenHeight(),
+//                glfwManager.getWindowHandle()));
 
         // Add all effects to processor and initialize
         for (PostEffect effect : effects) {

@@ -35,6 +35,7 @@ public class Renderer {
     public void init(int viewportWidth, int viewportHeight) {
         // Create shader program
         shader = new Shader("assets/shaders/sprite.glsl");
+        shader.compileAndLink();
 
         // Create quad mesh
         vertexBuffer = MemoryUtil.memAllocFloat(24); // 6 vertices * 4 floats (pos + uv)

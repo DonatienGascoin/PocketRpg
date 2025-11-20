@@ -14,6 +14,8 @@ import static org.lwjgl.opengl.GL33.*;
  */
 public class Renderer {
 
+    private Shader shader;
+
     private int quadVAO;
     private int quadVBO;
 
@@ -23,7 +25,6 @@ public class Renderer {
     // For dynamic UV updates
     private FloatBuffer vertexBuffer;
 
-    private Shader shader;
 
     /**
      * Initializes the renderer with the specified viewport dimensions.
@@ -33,7 +34,7 @@ public class Renderer {
      */
     public void init(int viewportWidth, int viewportHeight) {
         // Create shader program
-        shader = new Shader("assets/shaders/default.glsl");
+        shader = new Shader("assets/shaders/sprite.glsl");
 
         // Create quad mesh
         vertexBuffer = MemoryUtil.memAllocFloat(24); // 6 vertices * 4 floats (pos + uv)
@@ -71,13 +72,6 @@ public class Renderer {
         shader.use();
 
         // Upload matrices
-
-        float[] projData = new float[16];
-        float[] viewData = new float[16];
-
-        projectionMatrix.get(projData);
-        viewMatrix.get(viewData);
-
         shader.uploadMat4f("projection", projectionMatrix);
         shader.uploadMat4f("view", viewMatrix);
 
@@ -117,9 +111,6 @@ public class Renderer {
         modelMatrix.scale(sprite.getWidth(), sprite.getHeight(), 1);
 
         // Upload model matrix
-        float[] modelData = new float[16];
-        modelMatrix.get(modelData);
-//        shader.uploadFloatArray("model", modelData);
         shader.uploadMat4f("model", modelMatrix);
 
         // Draw quad

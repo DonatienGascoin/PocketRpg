@@ -45,7 +45,7 @@ public class WindowConfig {
      * STRETCH: Stretches image to fill window (may distort)
      */
     @Builder.Default
-    private PostProcessor.ScalingMode scalingMode = PostProcessor.ScalingMode.STRETCH;
+    private PostProcessor.ScalingMode scalingMode = PostProcessor.ScalingMode.MAINTAIN_ASPECT_RATIO;
 
     /**
      * Whether to enable pillarboxing/letterboxing for aspect ratio preservation.

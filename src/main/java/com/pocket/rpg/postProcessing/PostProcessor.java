@@ -1,6 +1,7 @@
 package com.pocket.rpg.postProcessing;
 
 import com.pocket.rpg.engine.Window;
+import com.pocket.rpg.rendering.Shader;
 import com.pocket.rpg.utils.WindowConfig;
 
 import java.nio.ByteBuffer;
@@ -45,6 +46,9 @@ public class PostProcessor {
     private Window window;
     private ScalingMode scalingMode = ScalingMode.MAINTAIN_ASPECT_RATIO;
 
+    // Shader for simple blitting to screen when no pillarbox
+    private Shader blitShader;
+
     /**
      * Creates a post processor for the specified window configuration.
      *
@@ -77,6 +81,13 @@ public class PostProcessor {
         this.window = window;
         setupFBOs();
         setupFullScreenQuad();
+
+        // Initialize blit shader for non-pillarbox rendering
+        blitShader = new Shader("assets/shaders/passThrough.glsl");
+        blitShader.compileAndLink();
+        blitShader.use();
+        blitShader.uploadInt("screenTexture", 0);
+        blitShader.detach();
 
         // Initialize all effects
         for (PostEffect effect : effects) {
@@ -205,6 +216,7 @@ public class PostProcessor {
 
     /**
      * Blits a texture directly to the screen using the configured scaling mode.
+     * FIXED: Now actually renders the texture to screen instead of just clearing.
      *
      * @param textureId The texture to display
      */
@@ -250,7 +262,11 @@ public class PostProcessor {
         // Set viewport
         glViewport(viewportX, viewportY, viewportWidth, viewportHeight);
 
+        // FIXED: Actually render the texture using the blit shader
         glDisable(GL_DEPTH_TEST);
+
+        blitShader.use();
+
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, textureId);
 
@@ -263,6 +279,7 @@ public class PostProcessor {
 
         glBindTexture(GL_TEXTURE_2D, 0);
         glBindVertexArray(0);
+        blitShader.detach();
     }
 
     /**
@@ -382,6 +399,10 @@ public class PostProcessor {
         glDeleteTextures(textureB);
         glDeleteRenderbuffers(rbo);
         glDeleteVertexArrays(quadVAO);
+
+        if (blitShader != null) {
+            blitShader.delete();
+        }
 
         for (PostEffect effect : effects) {
             effect.destroy();

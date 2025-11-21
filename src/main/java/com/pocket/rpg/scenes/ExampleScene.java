@@ -1,15 +1,19 @@
 package com.pocket.rpg.scenes;
 
+import com.pocket.rpg.components.Camera;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.SpriteRenderer;
-import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.components.TranslationComponent;
 import com.pocket.rpg.engine.GameObject;
 import com.pocket.rpg.rendering.Texture;
 import org.joml.Vector3f;
 
 /**
- * Example scene that demonstrates the component system.
- * This scene creates GameObjects with Transform and SpriteRenderer components.
+ * Comprehensive example scene demonstrating all component system features:
+ * - Camera with custom clear color and movement
+ * - Player with rotation
+ * - Moving platforms with TranslationComponent
+ * - Sprite sheet animation
  */
 public class ExampleScene extends Scene {
 
@@ -22,52 +26,165 @@ public class ExampleScene extends Scene {
         System.out.println("Loading ExampleScene...");
 
         try {
-            // Create a player GameObject
-            GameObject player = new GameObject("Player", new Vector3f(400, 300, 0));
+            // Create camera with movement
+            createCamera();
 
-            // Add a SpriteRenderer component
-            Texture playerTexture = new Texture("assets/player.png");
-            SpriteRenderer playerRenderer = new SpriteRenderer(playerTexture, 64, 64);
-            player.addComponent(playerRenderer);
+            // Create player
+            createPlayer();
 
-            // Add custom behavior component
-            player.addComponent(new RotatingComponent(120f));
+            // Create moving platforms
+            createMovingPlatforms();
 
-            // Add to scene
-            addGameObject(player);
+            // Create animated enemies
+            createAnimatedEnemies();
 
-            // Create some sprite sheet enemies
-            Texture spriteSheetTexture = new Texture("assets/spritesheet.png");
-
-            for (int i = 0; i < 3; i++) {
-                GameObject enemy = new GameObject("Enemy" + i, new Vector3f(100 + i * 150, 400, 0));
-
-                SpriteRenderer enemyRenderer = new SpriteRenderer(spriteSheetTexture, 64, 64);
-                // Set UV coordinates for a specific frame in the sprite sheet
-                enemyRenderer.getSprite().setUVsFromPixels(0, 0, 32, 32);
-                enemy.addComponent(enemyRenderer);
-
-                // Add animation component
-                enemy.addComponent(new AnimatedSpriteComponent(32, 4, 4, 0.2f));
-
-                addGameObject(enemy);
-            }
-
-            System.out.println("ExampleScene loaded with " + getGameObjects().size() + " GameObjects");
+            System.out.println("ExampleScene loaded successfully with " + getGameObjects().size() + " GameObjects");
 
         } catch (Exception e) {
-            System.err.println("Failed to load scene content: " + e.getMessage());
+            System.err.println("Failed to load scene: " + e.getMessage());
             e.printStackTrace();
         }
     }
 
-    @Override
-    public void onUnload() {
-        System.out.println("Unloading ExampleScene...");
+    /**
+     * Creates camera with dark blue clear color and smooth movement
+     */
+    private void createCamera() {
+        GameObject cameraObj = new GameObject("MainCamera", new Vector3f(0, 0, 0));
+
+        // Create camera with dark blue/purple clear color
+        Camera camera = new Camera(1f, 0.05f, 0.15f, 1.0f);
+        cameraObj.addComponent(camera);
+
+        // Add smooth camera movement (panning left to right)
+        cameraObj.addComponent(new TranslationComponent(
+                new Vector3f(0, 0, 0),
+                new Vector3f(200, 0, 0),
+                8.0f,
+                TranslationComponent.EasingType.EASE_IN_OUT,
+                false,
+                true // Ping pong back and forth
+        ));
+
+        addGameObject(cameraObj);
+        System.out.println("Camera created with custom clear color and movement");
     }
 
     /**
-     * Example component that rotates a GameObject.
+     * Creates the main player character
+     */
+    private void createPlayer() throws Exception {
+        GameObject player = new GameObject("Player", new Vector3f(400, 300, 0));
+
+        // Add sprite
+        Texture playerTexture = new Texture("assets/player.png");
+        SpriteRenderer playerRenderer = new SpriteRenderer(playerTexture, 64, 64);
+        player.addComponent(playerRenderer);
+
+        // Add rotation
+        player.addComponent(new RotatingComponent(30f));
+
+        // Add gentle floating movement
+        player.addComponent(new TranslationComponent(
+                new Vector3f(400, 300, 0),
+                new Vector3f(400, 320, 0),
+                2.0f,
+                TranslationComponent.EasingType.SMOOTHER_STEP,
+                false,
+                true
+        ));
+
+        addGameObject(player);
+        System.out.println("Player created");
+    }
+
+    /**
+     * Creates moving platforms with different easing types
+     */
+    private void createMovingPlatforms() throws Exception {
+        Texture platformTexture = new Texture("assets/player.png");
+
+        // Platform 1: Linear movement (top)
+        GameObject platform1 = new GameObject("Platform_Linear", new Vector3f(100, 150, 0));
+        platform1.addComponent(new SpriteRenderer(platformTexture, 48, 16));
+        platform1.addComponent(new TranslationComponent(
+                new Vector3f(100, 150, 0),
+                new Vector3f(700, 150, 0),
+                3.0f,
+                TranslationComponent.EasingType.LINEAR,
+                false,
+                true // Ping pong
+        ));
+        addGameObject(platform1);
+
+        // Platform 2: Smooth step (middle)
+        GameObject platform2 = new GameObject("Platform_Smooth", new Vector3f(150, 450, 0));
+        platform2.addComponent(new SpriteRenderer(platformTexture, 48, 16));
+        platform2.addComponent(new TranslationComponent(
+                new Vector3f(150, 450, 0),
+                new Vector3f(650, 450, 0),
+                4.0f,
+                TranslationComponent.EasingType.SMOOTHER_STEP,
+                false,
+                true // Ping pong
+        ));
+        addGameObject(platform2);
+
+        // Platform 3: Ease in/out (diagonal)
+        GameObject platform3 = new GameObject("Platform_Diagonal", new Vector3f(200, 200, 0));
+        platform3.addComponent(new SpriteRenderer(platformTexture, 48, 16));
+        platform3.addComponent(new TranslationComponent(
+                new Vector3f(200, 200, 0),
+                new Vector3f(600, 400, 0),
+                5.0f,
+                TranslationComponent.EasingType.EASE_IN_OUT,
+                true, // Loop
+                false
+        ));
+        addGameObject(platform3);
+
+        System.out.println("3 moving platforms created");
+    }
+
+    /**
+     * Creates enemies with sprite sheet animation
+     */
+    private void createAnimatedEnemies() throws Exception {
+        Texture spriteSheetTexture = new Texture("assets/spritesheet.png");
+
+        for (int i = 0; i < 3; i++) {
+            GameObject enemy = new GameObject("Enemy" + i, new Vector3f(250 + i * 100, 300, 0));
+
+            SpriteRenderer enemyRenderer = new SpriteRenderer(spriteSheetTexture, 48, 48);
+            enemyRenderer.getSprite().setUVsFromPixels(0, 0, 32, 32);
+            enemy.addComponent(enemyRenderer);
+
+            // Add sprite sheet animation
+            enemy.addComponent(new AnimatedSpriteComponent(32, 4, 4, 0.15f));
+
+            // Add slight bobbing movement
+            enemy.addComponent(new TranslationComponent(
+                    new Vector3f(250 + i * 100, 300, 0),
+                    new Vector3f(250 + i * 100, 280, 0),
+                    1.5f + i * 0.3f, // Slightly different speeds
+                    TranslationComponent.EasingType.SMOOTH_STEP,
+                    false,
+                    true
+            ));
+
+            addGameObject(enemy);
+        }
+
+        System.out.println("3 animated enemies created");
+    }
+
+    @Override
+    public void onUnload() {
+        System.out.println("Unloading ExampleScene");
+    }
+
+    /**
+     * Component that rotates a GameObject continuously
      */
     private static class RotatingComponent extends Component {
         private float rotationSpeed;
@@ -78,20 +195,18 @@ public class ExampleScene extends Scene {
 
         @Override
         public void update(float deltaTime) {
-            Transform transform = gameObject.getTransform();
-            transform.rotate(0, 0, rotationSpeed * deltaTime);
+            gameObject.getTransform().rotate(0, 0, rotationSpeed * deltaTime);
         }
     }
 
     /**
-     * Example component that animates a sprite sheet.
+     * Component that animates sprite sheets
      */
     private static class AnimatedSpriteComponent extends Component {
         private int spriteSize;
         private int sheetCols;
         private int sheetRows;
         private float animationSpeed;
-
         private int currentFrame = 0;
         private float animationTimer = 0;
 

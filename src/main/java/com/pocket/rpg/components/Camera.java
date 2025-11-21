@@ -1,17 +1,12 @@
 package com.pocket.rpg.components;
 
-import lombok.Getter;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
-
 import org.joml.Vector4f;
 
 /**
  * Camera component that manages the view and projection matrices.
  * Also controls the clear color for rendering.
- *
- * A scene should have one active camera. If multiple cameras exist,
- * the first enabled camera found will be used.
  */
 public class Camera extends Component {
 
@@ -26,20 +21,18 @@ public class Camera extends Component {
     private Vector4f clearColor = new Vector4f(0.1f, 0.1f, 0.1f, 1.0f);
 
     // Orthographic settings
-    @Getter
     private float orthographicSize = 10.0f; // Half-height in world units
     private float nearPlane = -1.0f;
     private float farPlane = 1.0f;
 
     // Perspective settings
-    @Getter
     private float fieldOfView = 60.0f; // In degrees
     private float perspectiveNear = 0.1f;
     private float perspectiveFar = 1000.0f;
 
     // Viewport
-    private int viewportWidth;
-    private int viewportHeight;
+    private int viewportWidth = 800;
+    private int viewportHeight = 600;
 
     // Matrices
     private Matrix4f projectionMatrix = new Matrix4f();
@@ -72,20 +65,14 @@ public class Camera extends Component {
 
     @Override
     public void start() {
-        // Initialize viewport size from scene/renderer if possible
-        if (gameObject != null && gameObject.getScene() != null) {
-            // Will be set by SceneManager/Renderer
-        }
+        projectionDirty = true;
+        viewDirty = true;
     }
 
     @Override
     public void update(float deltaTime) {
-        if (viewDirty) {
-            updateViewMatrix();
-        }
-        if (projectionDirty) {
-            updateProjectionMatrix();
-        }
+        // Mark view as dirty if transform changed
+        viewDirty = true;
     }
 
     /**
@@ -111,10 +98,8 @@ public class Camera extends Component {
 
         viewMatrix.identity();
 
-        // For 2D, we typically just translate
-        // For 3D, you'd apply full transformation
         if (projectionType == ProjectionType.ORTHOGRAPHIC) {
-            // Invert position for camera (camera moves opposite to world)
+            // For 2D orthographic, just translate (camera moves opposite to world)
             viewMatrix.translate(-pos.x, -pos.y, -pos.z);
 
             // Apply rotation if needed (around Z for 2D)
@@ -141,14 +126,8 @@ public class Camera extends Component {
         float aspect = (float) viewportWidth / (float) viewportHeight;
 
         if (projectionType == ProjectionType.ORTHOGRAPHIC) {
-            float halfHeight = orthographicSize;
-            float halfWidth = halfHeight * aspect;
-
-            projectionMatrix.identity().ortho(
-                    -halfWidth, halfWidth,
-                    -halfHeight, halfHeight,
-                    nearPlane, farPlane
-            );
+            // For screen-space coordinates (0,0 at top-left)
+            projectionMatrix.identity().ortho(0, viewportWidth, viewportHeight, 0, nearPlane, farPlane);
         } else {
             projectionMatrix.identity().perspective(
                     (float) Math.toRadians(fieldOfView),
@@ -198,6 +177,10 @@ public class Camera extends Component {
 
     // Orthographic Settings
 
+    public float getOrthographicSize() {
+        return orthographicSize;
+    }
+
     public void setOrthographicSize(float size) {
         if (this.orthographicSize != size) {
             this.orthographicSize = size;
@@ -212,6 +195,10 @@ public class Camera extends Component {
     }
 
     // Perspective Settings
+
+    public float getFieldOfView() {
+        return fieldOfView;
+    }
 
     public void setFieldOfView(float fov) {
         if (this.fieldOfView != fov) {
@@ -248,7 +235,6 @@ public class Camera extends Component {
 
     /**
      * Marks the view matrix as dirty, forcing an update next frame.
-     * Call this if you manually modify the camera's transform.
      */
     public void markViewDirty() {
         this.viewDirty = true;
@@ -256,7 +242,6 @@ public class Camera extends Component {
 
     /**
      * Converts screen coordinates to world coordinates.
-     * Useful for mouse picking.
      */
     public Vector3f screenToWorld(float screenX, float screenY, float depth) {
         if (projectionDirty) updateProjectionMatrix();

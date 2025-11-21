@@ -1,6 +1,7 @@
-package com.pocket.rpg.postProcessing;
+package com.pocket.rpg.postProcessing.postEffects;
 
 import com.pocket.rpg.engine.Window;
+import com.pocket.rpg.postProcessing.PostEffect;
 import com.pocket.rpg.rendering.Shader;
 
 import static org.lwjgl.opengl.GL33.*;

@@ -1,5 +1,6 @@
 package com.pocket.rpg.scenes;
 
+import com.pocket.rpg.components.Camera;
 import com.pocket.rpg.rendering.Renderer;
 
 import java.util.HashMap;
@@ -7,6 +8,7 @@ import java.util.Map;
 
 /**
  * SceneManager handles loading, unloading, and transitioning between scenes.
+ * Now delegates OpenGL operations to Renderer for clean separation of concerns.
  */
 public class SceneManager {
     private final Map<String, Scene> scenes;
@@ -66,11 +68,23 @@ public class SceneManager {
 
     /**
      * Renders the current scene.
+     * Uses Renderer.beginWithCamera() to handle OpenGL clear operations.
+     * SceneManager now has NO OpenGL knowledge - pure Java logic.
      */
     public void render() {
-        if (currentScene != null) {
-            currentScene.render();
-        }
+        if (currentScene == null) return;
+
+        // Get active camera from scene (O(1) cached lookup)
+        Camera activeCamera = currentScene.getActiveCamera();
+
+        // Renderer handles ALL OpenGL operations (clear color, clear, view matrix)
+        renderer.beginWithCamera(activeCamera);
+
+        // Render the scene
+        currentScene.render();
+
+        // End rendering
+        renderer.end();
     }
 
     /**
@@ -81,5 +95,12 @@ public class SceneManager {
             currentScene.destroy();
         }
         scenes.clear();
+    }
+
+    /**
+     * Gets the current scene.
+     */
+    public Scene getCurrentScene() {
+        return currentScene;
     }
 }

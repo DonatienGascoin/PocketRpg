@@ -1,5 +1,6 @@
 package com.pocket.rpg.components;
 
+import com.pocket.rpg.scenes.Scene;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
@@ -7,6 +8,8 @@ import org.joml.Vector4f;
 /**
  * Camera component that manages the view and projection matrices.
  * Also controls the clear color for rendering.
+ * <p>
+ * Now automatically registers/unregisters with Scene when enabled/disabled.
  */
 public class Camera extends Component {
 
@@ -64,15 +67,47 @@ public class Camera extends Component {
     }
 
     @Override
-    public void start() {
+    public void startInternal() {
         projectionDirty = true;
         viewDirty = true;
+
+        // Register with scene when started
+        if (gameObject != null && gameObject.getScene() != null) {
+            gameObject.getScene().registerCamera(this);
+        }
     }
 
     @Override
     public void update(float deltaTime) {
         // Mark view as dirty if transform changed
         viewDirty = true;
+    }
+
+    @Override
+    public void setEnabled(boolean enabled) {
+        boolean wasEnabled = this.enabled;
+        super.setEnabled(enabled);
+
+        // Notify scene when camera is enabled/disabled
+        if (gameObject != null && gameObject.getScene() != null) {
+            Scene scene = gameObject.getScene();
+
+            if (enabled && !wasEnabled) {
+                // Camera was enabled - register with scene
+                scene.registerCamera(this);
+            } else if (!enabled && wasEnabled) {
+                // Camera was disabled - unregister from scene
+                scene.unregisterCamera(this);
+            }
+        }
+    }
+
+    @Override
+    public void destroy() {
+        // Unregister from scene when destroyed
+        if (gameObject != null && gameObject.getScene() != null) {
+            gameObject.getScene().unregisterCamera(this);
+        }
     }
 
     /**

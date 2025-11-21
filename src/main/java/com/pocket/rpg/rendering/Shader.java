@@ -175,6 +175,11 @@ public class Shader implements Comparable<Shader> {
         glUniform2f(varLocation, val1, val2);
     }
 
+    public void uploadBoolean(String varName, boolean val) {
+        int varLocation = getVarLocation(varName);
+        glUniform1i(varLocation, val?1:0);
+    }
+
     public void uploadFloat(String varName, float val) {
         int varLocation = getVarLocation(varName);
         glUniform1f(varLocation, val);

@@ -1,6 +1,8 @@
 package com.pocket.rpg.rendering;
 
+import com.pocket.rpg.components.Camera;
 import org.joml.Matrix4f;
+import org.joml.Vector4f;
 import org.lwjgl.system.MemoryUtil;
 
 import java.nio.FloatBuffer;
@@ -10,6 +12,7 @@ import static org.lwjgl.opengl.GL33.*;
 /**
  * A simple 2D sprite renderer with support for batching, transformations, and textures.
  * Uses an orthographic projection for 2D rendering.
+ * Now handles camera clear color and OpenGL clear operations.
  */
 public class Renderer {
 
@@ -23,6 +26,9 @@ public class Renderer {
 
     // For dynamic UV updates
     private FloatBuffer vertexBuffer;
+
+    // Default clear color when no camera is provided
+    private static final Vector4f DEFAULT_CLEAR_COLOR = new Vector4f(0.1f, 0.1f, 0.15f, 1.0f);
 
     /**
      * Initializes the renderer with the specified viewport dimensions.
@@ -63,6 +69,29 @@ public class Renderer {
     public void setProjection(int width, int height) {
         // Orthographic projection: (0, 0) at top-left, (width, height) at bottom-right
         projectionMatrix.identity().ortho(0, width, height, 0, -1, 1);
+    }
+
+    /**
+     * Begins a rendering batch with camera support.
+     * Handles OpenGL clear operations and applies camera matrices.
+     *
+     * @param camera The active camera (can be null for default behavior)
+     */
+    public void beginWithCamera(Camera camera) {
+        // Apply camera clear color (or default)
+        Vector4f clearColor = camera != null ? camera.getClearColor() : DEFAULT_CLEAR_COLOR;
+        glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        // Apply camera view matrix
+        if (camera != null) {
+            setViewMatrix(camera.getViewMatrix());
+        } else {
+            resetView();
+        }
+
+        // Continue with normal begin
+        begin();
     }
 
     /**
@@ -207,7 +236,6 @@ public class Renderer {
 
     /**
      * Cleans up OpenGL resources.
-     * FIXED: Now properly deletes VBO.
      */
     public void destroy() {
         if (shader != null) {
@@ -217,7 +245,7 @@ public class Renderer {
             glDeleteVertexArrays(quadVAO);
         }
         if (quadVBO != 0) {
-            glDeleteBuffers(quadVBO);  // FIXED: Now properly cleaning up VBO
+            glDeleteBuffers(quadVBO);
         }
         if (vertexBuffer != null) {
             MemoryUtil.memFree(vertexBuffer);

@@ -1,5 +1,6 @@
 package com.pocket.rpg.scenes;
 
+import com.pocket.rpg.components.Camera;
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.engine.GameObject;
 import com.pocket.rpg.rendering.Renderer;
@@ -10,6 +11,7 @@ import java.util.List;
 /**
  * Scene holds and manages GameObjects.
  * Scenes can be loaded and unloaded by the SceneManager.
+ * Now caches the active camera for O(1) lookup performance.
  */
 public abstract class Scene {
     private final String name;
@@ -17,6 +19,9 @@ public abstract class Scene {
     private final List<SpriteRenderer> spriteRenderers;
     private Renderer renderer;
     private boolean initialized = false;
+
+    // Cached active camera for O(1) lookup
+    private Camera activeCamera;
 
     public Scene(String name) {
         this.name = name;
@@ -61,8 +66,16 @@ public abstract class Scene {
 
         // Register any SpriteRenderer components
         SpriteRenderer spriteRenderer = gameObject.getComponent(SpriteRenderer.class);
-        if (spriteRenderer != null) {
+        if (spriteRenderer != null && spriteRenderer.isEnabled() && gameObject.isEnabled()) {
             registerSpriteRenderer(spriteRenderer);
+        }
+
+        // Check if this GameObject has a Camera and cache it
+        if (gameObject.isEnabled()) {
+            Camera camera = gameObject.getComponent(Camera.class);
+            if (camera != null && camera.isEnabled()) {
+                registerCamera(camera);
+            }
         }
 
         // If scene is already initialized, start the GameObject immediately
@@ -80,6 +93,12 @@ public abstract class Scene {
             SpriteRenderer spriteRenderer = gameObject.getComponent(SpriteRenderer.class);
             if (spriteRenderer != null) {
                 unregisterSpriteRenderer(spriteRenderer);
+            }
+
+            // If this GameObject has the active camera, clear it
+            Camera camera = gameObject.getComponent(Camera.class);
+            if (camera == activeCamera) {
+                unregisterCamera(camera);
             }
 
             gameObject.destroy();
@@ -124,6 +143,71 @@ public abstract class Scene {
     }
 
     /**
+     * Registers a camera as the active camera for this scene.
+     * Called automatically when a GameObject with Camera is added,
+     * or when a Camera component is enabled.
+     *
+     * If a camera is already active, the new camera takes precedence.
+     *
+     * @param camera The camera to register
+     */
+    public void registerCamera(Camera camera) {
+        if (camera != null && camera.isEnabled()) {
+            this.activeCamera = camera;
+            System.out.println("Camera registered: " + camera);
+        }
+    }
+
+    /**
+     * Unregisters a camera from this scene.
+     * Called when a Camera component is disabled or its GameObject is removed.
+     *
+     * @param camera The camera to unregister
+     */
+    public void unregisterCamera(Camera camera) {
+        if (this.activeCamera == camera) {
+            this.activeCamera = null;
+            System.out.println("Camera unregistered: " + camera);
+
+            // Try to find another active camera as fallback
+            findAndSetActiveCamera();
+        }
+    }
+
+    /**
+     * Searches for an active camera in the scene and sets it as active.
+     * This is called as a fallback when the current camera is unregistered.
+     */
+    private void findAndSetActiveCamera() {
+        for (GameObject go : gameObjects) {
+            if (go.isEnabled()) {
+                Camera camera = go.getComponent(Camera.class);
+                if (camera != null && camera.isEnabled()) {
+                    this.activeCamera = camera;
+                    System.out.println("Fallback camera found: " + camera);
+                    return;
+                }
+            }
+        }
+    }
+
+    /**
+     * Gets the active camera for this scene.
+     * This is a cached O(1) lookup.
+     *
+     * @return The active camera, or null if no camera is active
+     */
+    public Camera getActiveCamera() {
+        // Validate that cached camera is still valid
+        if (activeCamera != null && !activeCamera.isEnabled()) {
+            // Camera was disabled without notifying us - clear it
+            activeCamera = null;
+            findAndSetActiveCamera();
+        }
+        return activeCamera;
+    }
+
+    /**
      * Updates all GameObjects in the scene.
      */
     void update(float deltaTime) {
@@ -164,6 +248,7 @@ public abstract class Scene {
         }
         gameObjects.clear();
         spriteRenderers.clear();
+        activeCamera = null;
     }
 
     public String getName() {

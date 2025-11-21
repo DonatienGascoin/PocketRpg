@@ -21,19 +21,19 @@ in vec2 TexCoord;
 
 uniform sampler2D screenTexture;
 uniform float vignetteIntensity;
-uniform float desaturationAmount;
+uniform float vignetteStrength;
 
 void main() {
     vec4 color = texture(screenTexture, TexCoord);
     vec2 uv = TexCoord - 0.5;
 
     // Vignette calculation
-    float vignette = 1.0 - length(uv) * vignetteIntensity;
+    // vignetteIntensity controls how far the vignette reaches (lower = only corners)
+    // vignetteStrength controls how dark it gets (0.0 = no darkening, 1.0 = full black)
+    float vignetteFactor = length(uv) * vignetteIntensity;
+    float vignette = 1.0 - (vignetteFactor * vignetteStrength);
+    vignette = clamp(vignette, 0.0, 1.0);
     color.rgb *= vignette;
-
-    // Desaturation/color correction
-    float avg = (color.r + color.g + color.b) / 3.0;
-    color.rgb = mix(color.rgb, vec3(avg), desaturationAmount);
 
     FragColor = color;
 }

@@ -53,7 +53,7 @@ public class ExampleScene extends Scene {
         GameObject cameraObj = new GameObject("MainCamera", new Vector3f(0, 0, 0));
 
         // Create camera with dark blue/purple clear color
-        Camera camera = new Camera(1f, 0.05f, 0.15f, 1.0f);
+        Camera camera = new Camera(.9f, 0.85f, 1f, 1.0f);
         cameraObj.addComponent(camera);
 
         // Add smooth camera movement (panning left to right)

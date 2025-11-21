@@ -9,10 +9,7 @@ import lombok.Setter;
  * Components define behavior and data for GameObjects.
  */
 public abstract class Component {
-    /**
-     * -- SETTER --
-     *  Called when the component is added to a GameObject.
-     */
+
     @Getter
     @Setter
     protected GameObject gameObject;
@@ -25,13 +22,9 @@ public abstract class Component {
         return enabled && gameObject != null && gameObject.isEnabled();
     }
 
-    /**
-     * Called when the component is first initialized.
-     * Only called once when the component becomes active.
-     */
-    public void startInternal() {
-        // Override in subclasses
-    }
+    // =======================================================================
+    // Workflow
+    // =======================================================================
 
     /**
      * Called every frame if the component is enabled.
@@ -50,12 +43,17 @@ public abstract class Component {
     }
 
     /**
-     * Internal method to ensure start() is only called once.
+     * Called when the component is first initialized.
+     * Only called once when the component becomes active.
      */
-    void start() {
+    public void start() {
         if (!started) {
             startInternal();
             started = true;
         }
+    }
+
+    protected void startInternal() {
+        // Override in subclasses
     }
 }

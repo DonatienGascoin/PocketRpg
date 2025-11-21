@@ -23,8 +23,7 @@ public class GameObject {
     @Getter
     private boolean enabled = true;
     /**
-     * -- SETTER --
-     *  Internal method called by Scene when GameObject is added.
+     * Internal method called by Scene when GameObject is added.
      */
     @Setter
     @Getter
@@ -33,7 +32,7 @@ public class GameObject {
     private List<Component> components;
     /**
      * -- GETTER --
-     *  Gets the Transform component (always present).
+     * Gets the Transform component (always present).
      */
     @Getter
     private Transform transform; // Cached reference to mandatory Transform
@@ -119,20 +118,6 @@ public class GameObject {
         return null;
     }
 
-    /**
-     * Gets all components of the specified type.
-     */
-    @SuppressWarnings("unchecked")
-    public <T extends Component> List<T> getComponents(Class<T> componentClass) {
-        List<T> result = new ArrayList<>();
-        for (Component component : components) {
-            if (componentClass.isInstance(component)) {
-                result.add((T) component);
-            }
-        }
-        return result;
-    }
-
     // Lifecycle Methods
 
     /**
@@ -141,7 +126,7 @@ public class GameObject {
     public void start() {
         for (Component component : components) {
             if (component.isEnabled()) {
-                component.startInternal();
+                component.start();
             }
         }
     }
@@ -156,7 +141,8 @@ public class GameObject {
             if (component.isEnabled()) {
                 // Ensure start is called before first update
                 if (!component.isStarted()) {
-                    component.startInternal();
+                    component.start();
+
                 }
                 component.update(deltaTime);
             }
@@ -171,13 +157,5 @@ public class GameObject {
             component.destroy();
         }
         components.clear();
-    }
-
-    // Properties
-
-    @Override
-    public String toString() {
-        return String.format("GameObject[name=%s, enabled=%s, components=%d]",
-                name, enabled, components.size());
     }
 }

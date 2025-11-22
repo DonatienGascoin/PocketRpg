@@ -8,16 +8,19 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.FloatBuffer;
 import java.nio.file.Files;
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.lwjgl.opengl.GL20.*;
 
 public class Shader implements Comparable<Shader> {
 
-    private int shaderProgramId;
-
-    private String vertexSource, fragmentSource;
     @Getter
     private final String filePath;
+    private final Map<String, Integer> uniformLocationCache = new HashMap<>();
+
+    private int shaderProgramId;
+    private String vertexSource, fragmentSource;
 
     public Shader(String filepath) {
         this.filePath = filepath;
@@ -124,6 +127,8 @@ public class Shader implements Comparable<Shader> {
         glDetachShader(shaderProgramId, fragmentId);
         glDeleteShader(vertexId);
         glDeleteShader(fragmentId);
+
+        uniformLocationCache.clear(); // Clear cache on recompile
     }
 
     public void use() {
@@ -136,7 +141,7 @@ public class Shader implements Comparable<Shader> {
     }
 
     public void uploadMat4f(String varName, Matrix4f mat4) {
-        int varLocation = glGetUniformLocation(shaderProgramId, varName);
+        int varLocation = getUniformLocation(varName);
         FloatBuffer matBuffer = BufferUtils.createFloatBuffer(16);
         mat4.get(matBuffer);
 
@@ -144,68 +149,83 @@ public class Shader implements Comparable<Shader> {
     }
 
     public void uploadFloatArray(String varName, float[] array) {
-        int varLocation = glGetUniformLocation(shaderProgramId, varName);
+        int varLocation = getUniformLocation(varName);
         glUniformMatrix4fv(varLocation, false, array);
     }
 
     public void uploadMat3f(String varName, Matrix3f mat3) {
-        int varLocation = getVarLocation(varName);
+        int varLocation = getUniformLocation(varName);
         FloatBuffer matBuffer = BufferUtils.createFloatBuffer(9);
         mat3.get(matBuffer);
         glUniformMatrix3fv(varLocation, false, matBuffer);
     }
 
     public void uploadVec4f(String varName, Vector4f vec) {
-        int varLocation = getVarLocation(varName);
+        int varLocation = getUniformLocation(varName);
         glUniform4f(varLocation, vec.x, vec.y, vec.z, vec.w);
     }
 
     public void uploadVec3f(String varName, Vector3f vec) {
-        int varLocation = getVarLocation(varName);
+        int varLocation = getUniformLocation(varName);
         glUniform3f(varLocation, vec.x, vec.y, vec.z);
     }
 
     public void uploadVec2f(String varName, Vector2f vec) {
-        int varLocation = getVarLocation(varName);
+        int varLocation = getUniformLocation(varName);
         glUniform2f(varLocation, vec.x, vec.y);
     }
 
     public void uploadVec2f(String varName, float val1, float val2) {
-        int varLocation = getVarLocation(varName);
+        int varLocation = getUniformLocation(varName);
         glUniform2f(varLocation, val1, val2);
     }
 
     public void uploadBoolean(String varName, boolean val) {
-        int varLocation = getVarLocation(varName);
-        glUniform1i(varLocation, val?1:0);
+        int varLocation = getUniformLocation(varName);
+        glUniform1i(varLocation, val ? 1 : 0);
     }
 
     public void uploadFloat(String varName, float val) {
-        int varLocation = getVarLocation(varName);
+        int varLocation = getUniformLocation(varName);
         glUniform1f(varLocation, val);
     }
 
     public void uploadInt(String varName, int val) {
-        int varLocation = getVarLocation(varName);
+        int varLocation = getUniformLocation(varName);
         glUniform1i(varLocation, val);
     }
 
     public void uploadTexture(String varName, int slot) {
-        int varLocation = getVarLocation(varName);
+        int varLocation = getUniformLocation(varName);
         glUniform1i(varLocation, slot);
     }
 
     public void uploadIntArray(String varName, int[] array) {
-        int varLocation = getVarLocation(varName);
+        int varLocation = getUniformLocation(varName);
         glUniform1iv(varLocation, array);
     }
 
-    private int getVarLocation(String varName) {
-        int varLocation = glGetUniformLocation(shaderProgramId, varName);
-        if (varLocation == -1) {
-            System.err.println("Warning: Uniform '" + varName + "' not found in shader '" + filePath + "'");
+    /**
+     * Gets a uniform location, caching it for future use.
+     * First call: looks up location and caches it
+     * Subsequent calls: returns cached value
+     */
+    private int getUniformLocation(String name) {
+        // Check cache first
+        if (uniformLocationCache.containsKey(name)) {
+            return uniformLocationCache.get(name);
         }
-        return varLocation;
+
+        // Not cached - look it up
+        int location = glGetUniformLocation(shaderProgramId, name);
+
+        if (location == -1) {
+            System.err.println("Warning: Uniform '" + name + "' not found in shader");
+        }
+
+        // Cache for next time
+        uniformLocationCache.put(name, location);
+        return location;
     }
 
     public void delete() {

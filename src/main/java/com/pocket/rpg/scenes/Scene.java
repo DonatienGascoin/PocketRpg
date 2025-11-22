@@ -236,13 +236,13 @@ public abstract class Scene {
                     spriteRenderer.getSprite() != null &&
                     spriteRenderer.getGameObject() != null &&
                     spriteRenderer.getGameObject().isEnabled()) {
-                SpritePostEffect fx = spriteRenderer.getGameObject().getComponent(SpritePostEffect.class);
-                if (fx != null) {
-                    fx.renderWithEffects(renderer, spriteRenderer);
-                } else {
-                    renderer.drawSpriteRenderer(spriteRenderer);
-                }
-//                renderer.drawSpriteRenderer(spriteRenderer);
+//                SpritePostEffect fx = spriteRenderer.getGameObject().getComponent(SpritePostEffect.class);
+//                if (fx != null) {
+//                    fx.renderWithEffects(renderer, spriteRenderer);
+//                } else {
+//                    renderer.drawSpriteRenderer(spriteRenderer);
+//                }
+                renderer.drawSpriteRenderer(spriteRenderer);
             }
         }
     }

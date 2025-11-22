@@ -1,36 +1,41 @@
 package com.pocket.rpg.scenes;
 
-import com.pocket.rpg.components.Camera;
-import com.pocket.rpg.rendering.Renderer;
+import lombok.Getter;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
  * SceneManager handles loading, unloading, and transitioning between scenes.
- * Now delegates OpenGL operations to Renderer for clean separation of concerns.
+ * Supports lifecycle listeners for scene events.
  */
 public class SceneManager {
     private final Map<String, Scene> scenes;
-    private final Renderer renderer;
-
+    private final List<SceneLifecycleListener> lifecycleListeners;
+    @Getter
     private Scene currentScene;
 
-    public SceneManager(Renderer renderer) {
-        this.renderer = renderer;
+    public SceneManager() {
         this.scenes = new HashMap<>();
+        this.lifecycleListeners = new ArrayList<>();
     }
 
-    /**
-     * Registers a scene with the manager.
-     */
     public void registerScene(Scene scene) {
         scenes.put(scene.getName(), scene);
     }
 
-    /**
-     * Loads a scene by name.
-     */
+    public void addLifecycleListener(SceneLifecycleListener listener) {
+        if (!lifecycleListeners.contains(listener)) {
+            lifecycleListeners.add(listener);
+        }
+    }
+
+    public void removeLifecycleListener(SceneLifecycleListener listener) {
+        lifecycleListeners.remove(listener);
+    }
+
     public void loadScene(String sceneName) {
         Scene scene = scenes.get(sceneName);
         if (scene == null) {
@@ -41,66 +46,43 @@ public class SceneManager {
         loadScene(scene);
     }
 
-    /**
-     * Loads a scene object.
-     */
     public void loadScene(Scene scene) {
-        // Unload current scene if exists
         if (currentScene != null) {
             currentScene.destroy();
+            fireSceneUnloaded(currentScene);
         }
 
-        // Load new scene
         currentScene = scene;
-        currentScene.initialize(renderer);
+        currentScene.initialize();
+        fireSceneLoaded(currentScene);
 
         System.out.println("Loaded scene: " + scene.getName());
     }
 
-    /**
-     * Updates the current scene.
-     */
     public void update(float deltaTime) {
         if (currentScene != null) {
             currentScene.update(deltaTime);
         }
     }
 
-    /**
-     * Renders the current scene.
-     * Uses Renderer.beginWithCamera() to handle OpenGL clear operations.
-     * SceneManager now has NO OpenGL knowledge - pure Java logic.
-     */
-    public void render() {
-        if (currentScene == null) return;
-
-        // Get active camera from scene (O(1) cached lookup)
-        Camera activeCamera = currentScene.getActiveCamera();
-
-        // Renderer handles ALL OpenGL operations (clear color, clear, view matrix)
-        renderer.beginWithCamera(activeCamera);
-
-        // Render the scene
-        currentScene.render();
-
-        // End rendering
-        renderer.end();
-    }
-
-    /**
-     * Destroys all scenes.
-     */
     public void destroy() {
         if (currentScene != null) {
             currentScene.destroy();
+            fireSceneUnloaded(currentScene);
         }
         scenes.clear();
+        lifecycleListeners.clear();
     }
 
-    /**
-     * Gets the current scene.
-     */
-    public Scene getCurrentScene() {
-        return currentScene;
+    private void fireSceneLoaded(Scene scene) {
+        for (SceneLifecycleListener listener : lifecycleListeners) {
+            listener.onSceneLoaded(scene);
+        }
+    }
+
+    private void fireSceneUnloaded(Scene scene) {
+        for (SceneLifecycleListener listener : lifecycleListeners) {
+            listener.onSceneUnloaded(scene);
+        }
     }
 }

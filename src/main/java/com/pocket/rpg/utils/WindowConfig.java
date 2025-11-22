@@ -5,7 +5,7 @@ import com.pocket.rpg.postProcessing.PostProcessor;
 import com.pocket.rpg.postProcessing.postEffects.VignetteEffect;
 import lombok.Builder;
 import lombok.Getter;
-import lombok.NonNull;
+import lombok.Setter;
 
 import java.util.List;
 
@@ -28,8 +28,9 @@ public class WindowConfig {
     @Builder.Default
     private boolean vsync = false;
 
-    @NonNull
-    private ICallback callback;
+    @Setter
+    @Builder.Default
+    private ICallback callback = null;
 
     /**
      * List of post-processing effects to apply.

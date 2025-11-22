@@ -3,7 +3,6 @@ package com.pocket.rpg.scenes;
 import com.pocket.rpg.components.*;
 import com.pocket.rpg.engine.GameObject;
 import com.pocket.rpg.postProcessing.BloomEffect;
-import com.pocket.rpg.postProcessing.postEffects.ChromaticAberrationEffect;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.SpriteSheet;
 import com.pocket.rpg.rendering.Texture;
@@ -78,15 +77,11 @@ public class ExampleScene extends Scene {
 
         player.addComponent(new RotatingComponent(45f));
 
-        // Add post-processing component
-        SpritePostEffect postFX = player.addComponent(new SpritePostEffect());
-        postFX.setBufferWidth(256);
-        postFX.setBufferHeight(256);
-        postFX.setPadding(64); // Extra space for bloom bleed
-
-// Add effects (same as full-screen effects)
-        postFX.addEffect(new BloomEffect(0.8f, 2.5f));
-        postFX.addEffect(new ChromaticAberrationEffect(0.01f));
+        SpritePostEffect effects = player.addComponent(new SpritePostEffect());
+        effects.setBufferWidth(256);
+        effects.setBufferHeight(256);
+        effects.setPadding(64); // Extra space for bloom to bleed
+        effects.addEffect(new BloomEffect(0.8f, 2.0f));
 
 
         addGameObject(player);

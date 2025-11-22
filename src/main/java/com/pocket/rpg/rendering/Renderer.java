@@ -3,6 +3,7 @@ package com.pocket.rpg.rendering;
 import com.pocket.rpg.components.Camera;
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.utils.DirtyReference;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
@@ -23,8 +24,11 @@ public class Renderer {
     private int quadVAO;
     private int quadVBO;
 
-    private Matrix4f projectionMatrix;
-    private Matrix4f viewMatrix;
+
+    private DirtyReference<Matrix4f> projectionMatrixRef;
+    private DirtyReference<Matrix4f> viewMatrixRef;
+    //    private Matrix4f projectionMatrix;
+//    private Matrix4f viewMatrix;
     private Matrix4f modelMatrix;
 
     // For dynamic UV updates
@@ -51,8 +55,10 @@ public class Renderer {
         createQuadMesh();
 
         // Initialize matrices
-        projectionMatrix = new Matrix4f();
-        viewMatrix = new Matrix4f();
+        projectionMatrixRef = new DirtyReference<>(new Matrix4f(),
+                matrix4f -> shader.uploadMat4f("projection", matrix4f));
+        viewMatrixRef = new DirtyReference<>(new Matrix4f(),
+                matrix4f -> shader.uploadMat4f("view", matrix4f));
         modelMatrix = new Matrix4f();
 
         // Set up orthographic projection (origin at top-left, Y-down)
@@ -64,6 +70,7 @@ public class Renderer {
     }
 
     /**
+     * Projection matrix only changes when window is resized
      * Sets up the orthographic projection matrix.
      *
      * @param width  Viewport width
@@ -71,7 +78,7 @@ public class Renderer {
      */
     public void setProjection(int width, int height) {
         // Orthographic projection: (0, 0) at top-left, (width, height) at bottom-right
-        projectionMatrix.identity().ortho(0, width, height, 0, -1, 1);
+        projectionMatrixRef.set(projectionMatrixRef.getValue().identity().ortho(0, width, height, 0, -1, 1));
     }
 
     /**
@@ -105,8 +112,8 @@ public class Renderer {
         shader.use();
 
         // Upload matrices
-        shader.uploadMat4f("projection", projectionMatrix);
-        shader.uploadMat4f("view", viewMatrix);
+        projectionMatrixRef.applyIfDirty();
+        viewMatrixRef.applyIfDirty();
 
         // Set texture sampler
         shader.uploadInt("textureSampler", 0);
@@ -256,19 +263,20 @@ public class Renderer {
     }
 
     /**
+     * View matrix only changes when camera moves
      * Sets the view matrix for camera transforms.
      *
      * @param viewMatrix The view matrix
      */
     public void setViewMatrix(Matrix4f viewMatrix) {
-        this.viewMatrix.set(viewMatrix);
+        viewMatrixRef.set(viewMatrix);
     }
 
     /**
      * Resets the view matrix to identity.
      */
     public void resetView() {
-        viewMatrix.identity();
+        viewMatrixRef.set(viewMatrixRef.getValue().identity());
     }
 
     /**

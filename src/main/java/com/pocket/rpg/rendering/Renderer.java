@@ -339,9 +339,9 @@ public class Renderer {
     }
 
     private void printStats() {
-        System.out.printf("Sprites: %d total, %d rendered, %d culled (%.1f%% culled)%n",
-                totalSprites, renderedSprites, culledSprites,
-                (culledSprites / (float) totalSprites) * 100);
+//        System.out.printf("Sprites: %d total, %d rendered, %d culled (%.1f%% culled)%n",
+//                totalSprites, renderedSprites, culledSprites,
+//                (culledSprites / (float) totalSprites) * 100);
     }
 
     /**

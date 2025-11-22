@@ -10,6 +10,11 @@ public class Time {
     private static double previousTime;
     private static int frameCount = 0;
 
+    private static float frameTimeMs;
+    private static float avgFrameTimeMs;
+    private static float totalFrameTime = 0f;
+
+
     private static float beginTime;
 
     /**
@@ -28,6 +33,7 @@ public class Time {
     }
 
     public static void init() {
+        previousTime = getTime();
         beginTime = getTime();
         deltaTime = -1.0f;
     }
@@ -37,20 +43,32 @@ public class Time {
         updateTime();
     }
 
+    public static float frameTimeMs() {
+        return frameTimeMs;
+    }
+
+    public static float avgFrameTimeMs() {
+        return avgFrameTimeMs;
+    }
+
     private static void updateTime() {
         float endTime = getTime();
         deltaTime = endTime - beginTime;
+        frameTimeMs = deltaTime * 1000f;
         beginTime = endTime;
     }
 
     private static void updateFps() {
         double currentTime = getTime();
         frameCount++;
+        totalFrameTime += frameTimeMs;
         // If a second has passed.
         if (currentTime - previousTime >= 1.0) {
             fps = frameCount;
+            avgFrameTimeMs = totalFrameTime / frameCount;
 
             frameCount = 0;
+            totalFrameTime = 0f;
             previousTime = currentTime;
         }
     }

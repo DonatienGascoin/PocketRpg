@@ -1,6 +1,7 @@
 package com.pocket.rpg.engine;
 
 import com.pocket.rpg.postProcessing.PostProcessor;
+import com.pocket.rpg.utils.PerformanceMonitor;
 import com.pocket.rpg.utils.Time;
 import com.pocket.rpg.utils.WindowConfig;
 import lombok.Getter;
@@ -17,6 +18,7 @@ public abstract class Window {
 
     protected GlfwManager glfwManager;
     private PostProcessor postProcessor;
+    private PerformanceMonitor performanceMonitor;
 
     /**
      * Creates a window with the specified internal game resolution.
@@ -47,6 +49,9 @@ public abstract class Window {
         glfwManager.init();
 
         initPostProcessing();
+
+        performanceMonitor = new PerformanceMonitor();
+        performanceMonitor.setEnabled(true);
 
         // Initialize game-specific resources
         initGame();
@@ -82,6 +87,7 @@ public abstract class Window {
             // Swap buffers and poll events
             glfwManager.pollEventsAndSwapBuffers();
             Time.update();
+            performanceMonitor.update();
         }
     }
 

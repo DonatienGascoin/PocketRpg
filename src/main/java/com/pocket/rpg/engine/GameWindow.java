@@ -14,9 +14,9 @@ import java.util.List;
 
 /**
  * Main game window with integrated camera system and render pipeline.
+ * FIXED: Proper CameraSystem initialization
  */
 public class GameWindow extends Window {
-
 
     private Renderer renderer;
     private RenderPipeline renderPipeline;
@@ -39,59 +39,74 @@ public class GameWindow extends Window {
 
     @Override
     protected void initGame() {
-        // 1. Initialize camera system first
-        cameraSystem = new CameraSystem(getScreenWidth(), getScreenHeight());
+        System.out.println("Initializing game systems...");
+        
 
-        // 3. Initialize renderer
+        CameraSystem.initialize(getScreenWidth(), getScreenHeight());
+        cameraSystem = CameraSystem.getInstance();
+
+        if (cameraSystem == null) {
+            throw new IllegalStateException("Failed to initialize CameraSystem");
+        }
+
+        // Initialize renderer
         renderer = new Renderer();
         renderer.init(getScreenWidth(), getScreenHeight());
 
-        // 4. Create render pipeline
+        // Create render pipeline
         renderPipeline = new RenderPipeline(renderer, cameraSystem);
         renderPipeline.setStatisticsReporter(new ConsoleStatisticsReporter(60));
 
-        // 5. Initialize scene manager
+        // Initialize scene manager
         sceneManager = new SceneManager();
 
-        // 6. Add scene lifecycle listener to clear cameras on scene changes
+        // Add scene lifecycle listener to clear cameras on scene changes
         sceneManager.addLifecycleListener(new SceneLifecycleListener() {
             @Override
-            public void onSceneLoaded(com.pocket.rpg.scenes.Scene scene) {
+            public void onSceneLoaded(Scene scene) {
                 System.out.println("Scene loaded: " + scene.getName());
             }
 
             @Override
-            public void onSceneUnloaded(com.pocket.rpg.scenes.Scene scene) {
+            public void onSceneUnloaded(Scene scene) {
                 System.out.println("Scene unloaded: " + scene.getName());
                 // Cameras unregister themselves in their destroy() method
             }
         });
 
-        // 7. Register test scenes
+        // Register test scenes
         sceneManager.registerScene(new SmallOptimizationTestScene());
         sceneManager.registerScene(new LargePerformanceBenchmarkScene());
         sceneManager.registerScene(new ExampleScene());
-        // sceneManager.registerScene(new LargePerformanceBenchmarkScene());
 
-        // 8. Load first scene
-//        sceneManager.loadScene("SmallOptimizationTest");
-        sceneManager.loadScene("LargePerformanceBenchmark");
-//        sceneManager.loadScene("ExampleScene");
+        // Load first scene
+//        sceneManager.loadScene("LargePerformanceBenchmark");
+        sceneManager.loadScene("ExampleScene");
+
+        System.out.println("Game systems initialized successfully");
+        System.out.println("Active cameras: " + CameraSystem.getCameraCount());
     }
 
     @Override
     protected void renderGame(float deltaTime) {
-        // Update scene
-        sceneManager.update(deltaTime);
+        try {
+            // Update scene
+            sceneManager.update(deltaTime);
 
-        // Render via pipeline
-        if (sceneManager.getCurrentScene() != null) {
-            renderPipeline.render(sceneManager.getCurrentScene());
+            // Render via pipeline
+            if (sceneManager.getCurrentScene() != null) {
+                renderPipeline.render(sceneManager.getCurrentScene());
+            }
+        } catch (Exception e) {
+            System.err.println("ERROR in renderGame: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
     @Override
     protected void destroyGame() {
+        System.out.println("Destroying game systems...");
+        
         if (sceneManager != null) {
             sceneManager.destroy();
         }
@@ -100,8 +115,9 @@ public class GameWindow extends Window {
             renderer.destroy();
         }
 
-        CameraSystem.clear();
+        // FIX: Properly destroy CameraSystem
+        CameraSystem.destroy();
 
-        super.destroy();
+        System.out.println("Game systems destroyed");
     }
 }

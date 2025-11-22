@@ -8,18 +8,21 @@ import org.joml.Vector4f;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * Static camera management system that handles viewport, projection, and view matrices.
+ * Camera management system that handles viewport, projection, and view matrices.
  * Cameras register/unregister themselves automatically when enabled/disabled.
- * Uses DirtyReference for efficient matrix updates.
+ * 
+ * FIXED: Proper singleton pattern with thread safety
  */
 public class CameraSystem {
 
-    private static CameraSystem instance = null;
+    private static volatile CameraSystem instance = null;
+    private static final Object LOCK = new Object();
 
-    // Static camera registry
-    private final List<Camera> registeredCameras = new ArrayList<>();
+    // FIX: Use thread-safe collection
+    private final List<Camera> registeredCameras = new CopyOnWriteArrayList<>();
     private Camera activeCamera = null;
 
     // Viewport dimensions
@@ -33,42 +36,75 @@ public class CameraSystem {
     // Default clear color
     private static final Vector4f DEFAULT_CLEAR_COLOR = new Vector4f(0.1f, 0.1f, 0.15f, 1.0f);
 
-    /**
-     * Initializes the camera system with viewport size.
-     * Must be called before using any cameras.
-     */
-    public CameraSystem(int width, int height) {
-        if (instance != null) {
-            return;
-        }
+    // Fallback camera for when none exists
+    private Camera fallbackCamera = null;
 
+    /**
+     * FIX: Private constructor for proper singleton pattern
+     */
+    private CameraSystem(int width, int height) {
         viewportWidth = width;
         viewportHeight = height;
 
-        // Initialize dirty references with no-op consumers (consumers set per-camera later)
-        projectionMatrixRef = new DirtyReference<>(new Matrix4f(), m -> {
-        });
-        viewMatrixRef = new DirtyReference<>(new Matrix4f(), m -> {
-        });
+        // Initialize dirty references with no-op consumers
+        projectionMatrixRef = new DirtyReference<>(new Matrix4f(), m -> {});
+        viewMatrixRef = new DirtyReference<>(new Matrix4f(), m -> {});
 
         registeredCameras.clear();
         activeCamera = null;
+    }
 
-        instance = this;
+    /**
+     * Initializes the camera system with viewport size.
+     * Must be called before using any cameras.
+     * Thread-safe initialization.
+     */
+    public static void initialize(int width, int height) {
+        if (instance != null) {
+            System.err.println("WARNING: CameraSystem already initialized. Call clear() first to reinitialize.");
+            return;
+        }
+
+        synchronized (LOCK) {
+            if (instance == null) {
+                instance = new CameraSystem(width, height);
+            }
+        }
+    }
+
+    /**
+     * Gets the singleton instance.
+     * Throws exception if not initialized.
+     */
+    public static CameraSystem getInstance() {
+        if (instance == null) {
+            throw new IllegalStateException("CameraSystem not initialized. Call initialize() first.");
+        }
+        return instance;
     }
 
     /**
      * Registers a camera with the system.
      * The first camera registered becomes active automatically.
+     * Thread-safe.
      */
     public static void registerCamera(Camera camera) {
+        if (camera == null) {
+            System.err.println("WARNING: Attempted to register null camera");
+            return;
+        }
 
-        if (camera != null && !instance.registeredCameras.contains(camera)) {
-            instance.registeredCameras.add(camera);
+        CameraSystem sys = getInstance();
+        
+        if (!sys.registeredCameras.contains(camera)) {
+            sys.registeredCameras.add(camera);
 
             // First camera becomes active
-            if (instance.activeCamera == null) {
-                instance.activeCamera = camera;
+            synchronized (LOCK) {
+                if (sys.activeCamera == null) {
+                    sys.activeCamera = camera;
+                    System.out.println("Camera registered and set as active: " + camera);
+                }
             }
         }
     }
@@ -76,18 +112,30 @@ public class CameraSystem {
     /**
      * Unregisters a camera from the system.
      * If the active camera is unregistered, finds another camera as fallback.
+     * Thread-safe.
      */
     public static void unregisterCamera(Camera camera) {
-        instance.registeredCameras.remove(camera);
+        CameraSystem sys = getInstance();
+        sys.registeredCameras.remove(camera);
 
-        if (instance.activeCamera == camera) {
-            instance.activeCamera = null;
+        synchronized (LOCK) {
+            if (sys.activeCamera == camera) {
+                sys.activeCamera = null;
 
-            // Find fallback camera
-            for (Camera cam : instance.registeredCameras) {
-                if (cam.isEnabled()) {
-                    instance.activeCamera = cam;
-                    break;
+                // Find fallback camera
+                for (Camera cam : sys.registeredCameras) {
+                    if (cam.isEnabled()) {
+                        sys.activeCamera = cam;
+                        System.out.println("Active camera changed to: " + cam);
+                        break;
+                    }
+                }
+
+                // Warn if no cameras left
+                if (sys.activeCamera == null && !sys.registeredCameras.isEmpty()) {
+                    System.err.println("WARNING: No enabled cameras available");
+                } else if (sys.activeCamera == null && sys.registeredCameras.isEmpty()) {
+                    System.err.println("WARNING: No cameras registered");
                 }
             }
         }
@@ -95,44 +143,93 @@ public class CameraSystem {
 
     /**
      * Sets the active camera.
+     * Thread-safe.
      */
     public static void setActiveCamera(Camera camera) {
-        if (instance.registeredCameras.contains(camera)) {
-            instance.activeCamera = camera;
+        CameraSystem sys = getInstance();
+        
+        if (sys.registeredCameras.contains(camera)) {
+            synchronized (LOCK) {
+                sys.activeCamera = camera;
+                System.out.println("Active camera set to: " + camera);
+            }
+        } else {
+            System.err.println("WARNING: Cannot set active camera - camera not registered");
         }
     }
 
     /**
      * Gets the currently active camera.
+     * Creates fallback camera if none exists.
+     * Thread-safe.
      */
     public Camera getActiveCamera() {
-        // Validate active camera is still enabled
-        if (activeCamera != null && !activeCamera.isEnabled()) {
-            activeCamera = null;
+        synchronized (LOCK) {
+            // Validate active camera is still enabled
+            if (activeCamera != null && !activeCamera.isEnabled()) {
+                activeCamera = null;
 
-            // Find replacement
-            for (Camera cam : registeredCameras) {
-                if (cam.isEnabled()) {
-                    activeCamera = cam;
-                    break;
+                // Find replacement
+                for (Camera cam : registeredCameras) {
+                    if (cam.isEnabled()) {
+                        activeCamera = cam;
+                        System.out.println("Active camera auto-switched to: " + cam);
+                        break;
+                    }
                 }
             }
-        }
 
-        return activeCamera;
+            // FIX: Create fallback camera if none exists
+            if (activeCamera == null) {
+                if (fallbackCamera == null) {
+                    System.err.println("WARNING: No active camera, creating fallback");
+                    fallbackCamera = createFallbackCamera();
+                }
+                return fallbackCamera;
+            }
+
+            return activeCamera;
+        }
+    }
+
+    /**
+     * Creates a fallback camera when no cameras exist.
+     */
+    private Camera createFallbackCamera() {
+        Camera camera = new Camera(Camera.ProjectionType.ORTHOGRAPHIC);
+        camera.setClearColor(0.1f, 0.1f, 0.15f, 1.0f);
+        camera.setViewportSize(viewportWidth, viewportHeight);
+        return camera;
     }
 
     /**
      * Updates viewport size. Should be called when window is resized.
+     * Thread-safe.
      */
     public static void setViewportSize(int width, int height) {
-        if (instance.viewportWidth != width || instance.viewportHeight != height) {
-            instance.viewportWidth = width;
-            instance.viewportHeight = height;
+        if (width <= 0 || height <= 0) {
+            System.err.println("WARNING: Invalid viewport size: " + width + "x" + height);
+            return;
+        }
 
-            // Mark all camera projections as dirty
-            for (Camera camera : instance.registeredCameras) {
-                camera.setViewportSize(width, height);
+        CameraSystem sys = getInstance();
+        
+        synchronized (LOCK) {
+            if (sys.viewportWidth != width || sys.viewportHeight != height) {
+                sys.viewportWidth = width;
+                sys.viewportHeight = height;
+
+                // Update all camera viewports
+                for (Camera camera : sys.registeredCameras) {
+                    camera.setViewportSize(width, height);
+                }
+
+                // Update fallback camera if it exists
+                if (sys.fallbackCamera != null) {
+                    sys.fallbackCamera.setViewportSize(width, height);
+                }
+
+                System.out.println("Viewport size updated: " + width + "x" + height);
             }
         }
     }
@@ -144,10 +241,10 @@ public class CameraSystem {
         Camera camera = getActiveCamera();
         if (camera == null) return;
 
-        // Check if camera transform or parameters changed
-        if (hasTransformChanged(camera) || hasParametersChanged(camera)) {
-            updateProjectionMatrix(camera);
-            updateViewMatrix(camera);
+        // Matrices are updated lazily when requested
+        // Just ensure camera update is called
+        if (camera.hasTransformChanged() || camera.hasParametersChanged()) {
+            camera.markViewDirty();
         }
     }
 
@@ -193,63 +290,62 @@ public class CameraSystem {
      * Gets the viewport width.
      */
     public static int getViewportWidth() {
-        return instance.viewportWidth;
+        return getInstance().viewportWidth;
     }
 
     /**
      * Gets the viewport height.
      */
     public static int getViewportHeight() {
-        return instance.viewportHeight;
+        return getInstance().viewportHeight;
     }
 
     /**
-     * Checks if camera's transform has changed.
-     */
-    private static boolean hasTransformChanged(Camera camera) {
-        if (camera.getGameObject() == null) return false;
-
-        Transform transform = camera.getGameObject().getTransform();
-        // Camera component tracks this internally via update()
-        return false; // Handled by Camera.markViewDirty()
-    }
-
-    /**
-     * Checks if camera's parameters (FOV, ortho size, etc.) have changed.
-     */
-    private static boolean hasParametersChanged(Camera camera) {
-        // Camera component tracks this internally
-        return false; // Handled by Camera's dirty flags
-    }
-
-    /**
-     * Updates the projection matrix for the camera.
-     */
-    private static void updateProjectionMatrix(Camera camera) {
-        // Camera handles this internally
-        camera.getProjectionMatrix();
-    }
-
-    /**
-     * Updates the view matrix for the camera.
-     */
-    private static void updateViewMatrix(Camera camera) {
-        // Camera handles this internally
-        camera.getViewMatrix();
-    }
-
-    /**
-     * Clears all registered cameras.
+     * Clears all registered cameras and resets the system.
+     * Thread-safe.
      */
     public static void clear() {
-        instance.registeredCameras.clear();
-        instance.activeCamera = null;
+        if (instance == null) {
+            return;
+        }
+
+        CameraSystem sys = getInstance();
+        
+        synchronized (LOCK) {
+            sys.registeredCameras.clear();
+            sys.activeCamera = null;
+            sys.fallbackCamera = null;
+            System.out.println("CameraSystem cleared");
+        }
+    }
+
+    /**
+     * Completely destroys the singleton instance.
+     * Call this before reinitializing with different parameters.
+     */
+    public static void destroy() {
+        synchronized (LOCK) {
+            if (instance != null) {
+                instance.registeredCameras.clear();
+                instance.activeCamera = null;
+                instance.fallbackCamera = null;
+                instance = null;
+                System.out.println("CameraSystem destroyed");
+            }
+        }
     }
 
     /**
      * Gets the number of registered cameras.
      */
     public static int getCameraCount() {
-        return instance.registeredCameras.size();
+        return getInstance().registeredCameras.size();
+    }
+
+    /**
+     * Checks if the system is initialized.
+     */
+    public static boolean isInitialized() {
+        return instance != null;
     }
 }

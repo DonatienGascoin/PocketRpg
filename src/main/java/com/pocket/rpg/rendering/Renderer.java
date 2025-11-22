@@ -14,6 +14,8 @@ import static org.lwjgl.opengl.GL33.*;
 /**
  * A 2D sprite renderer focused purely on rendering.
  * Camera and culling logic removed - handled by RenderPipeline.
+ * 
+ * FIXED: Memory leak fixed, null safety added
  */
 public class Renderer {
 
@@ -52,6 +54,12 @@ public class Renderer {
     }
 
     public void setProjection(int width, int height) {
+        // FIX: Validate dimensions
+        if (width <= 0 || height <= 0) {
+            System.err.println("WARNING: Invalid projection dimensions: " + width + "x" + height);
+            return;
+        }
+
         this.viewportWidth = width;
         this.viewportHeight = height;
         projectionMatrix.identity().ortho(0, width, height, 0, -1, 1);
@@ -62,6 +70,11 @@ public class Renderer {
      * Called by RenderPipeline.
      */
     public void beginWithMatrices(Matrix4f projection, Matrix4f view, Vector4f clearColor) {
+        if (projection == null || view == null) {
+            System.err.println("ERROR: Cannot begin rendering with null matrices");
+            return;
+        }
+
         this.projectionMatrix = new Matrix4f(projection);
         this.viewMatrix = new Matrix4f(view);
 
@@ -78,8 +91,23 @@ public class Renderer {
         shader.uploadInt("textureSampler", 0);
     }
 
+    /**
+     * FIX: Added comprehensive null checks
+     */
     public void drawSpriteRenderer(SpriteRenderer spriteRenderer) {
-        if (spriteRenderer == null || spriteRenderer.getSprite() == null) {
+        // FIX: Null safety checks
+        if (spriteRenderer == null) {
+            System.err.println("WARNING: Attempted to render null SpriteRenderer");
+            return;
+        }
+
+        if (spriteRenderer.getSprite() == null) {
+            System.err.println("WARNING: SpriteRenderer has null sprite");
+            return;
+        }
+
+        if (spriteRenderer.getGameObject() == null) {
+            System.err.println("WARNING: SpriteRenderer has null GameObject");
             return;
         }
 
@@ -87,6 +115,12 @@ public class Renderer {
         Transform transform = spriteRenderer.getGameObject().getTransform();
 
         if (transform == null) {
+            System.err.println("WARNING: GameObject has null Transform");
+            return;
+        }
+
+        if (sprite.getTexture() == null) {
+            System.err.println("WARNING: Sprite has null Texture");
             return;
         }
 
@@ -154,6 +188,11 @@ public class Renderer {
     }
 
     private void updateQuadUVs(float u0, float v0, float u1, float v1) {
+        if (vertexBuffer == null) {
+            System.err.println("ERROR: vertexBuffer is null");
+            return;
+        }
+
         vertexBuffer.clear();
 
         vertexBuffer.put(0.0f).put(0.0f).put(u0).put(v1);
@@ -171,18 +210,31 @@ public class Renderer {
         glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
 
+    /**
+     * FIX: Memory leak fixed - now properly frees native buffer
+     */
     public void destroy() {
         if (shader != null) {
             shader.delete();
+            shader = null;
         }
+        
         if (quadVAO != 0) {
             glDeleteVertexArrays(quadVAO);
+            quadVAO = 0;
         }
+        
         if (quadVBO != 0) {
             glDeleteBuffers(quadVBO);
+            quadVBO = 0;
         }
+        
+        // FIX: Free native memory
         if (vertexBuffer != null) {
             MemoryUtil.memFree(vertexBuffer);
+            vertexBuffer = null;
         }
+
+        System.out.println("Renderer destroyed and resources freed");
     }
 }

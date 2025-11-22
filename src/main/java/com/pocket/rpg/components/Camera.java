@@ -4,13 +4,14 @@ import com.pocket.rpg.rendering.CameraSystem;
 import lombok.Getter;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
-
 import org.joml.Vector4f;
 
 /**
  * Camera component that manages projection parameters.
  * Now automatically registers with CameraSystem when enabled/disabled.
  * Matrices and viewport are managed by CameraSystem.
+ * 
+ * FIXED: Transform change detection now works correctly
  */
 public class Camera extends Component {
 
@@ -47,7 +48,10 @@ public class Camera extends Component {
     private boolean projectionDirty = true;
     private boolean viewDirty = true;
 
-    private Transform lastTransform;
+    // FIX: Store transform VALUES instead of reference
+    private Vector3f lastPosition = new Vector3f();
+    private Vector3f lastRotation = new Vector3f();
+    private Vector3f lastScale = new Vector3f(1, 1, 1);
 
     public Camera() {
         this(ProjectionType.ORTHOGRAPHIC);
@@ -66,16 +70,40 @@ public class Camera extends Component {
     public void startInternal() {
         projectionDirty = true;
         viewDirty = true;
-        lastTransform = getTransform();
+        
+        // Initialize last transform values
+        if (gameObject != null) {
+            Transform transform = getTransform();
+            lastPosition.set(transform.getPosition());
+            lastRotation.set(transform.getRotation());
+            lastScale.set(transform.getScale());
+        }
 
         // Register with CameraSystem
         CameraSystem.registerCamera(this);
     }
 
+    /**
+     * FIX: Now properly detects transform changes by comparing values
+     */
     @Override
     public void update(float deltaTime) {
-        if (!lastTransform.equals(getTransform())) {
-            lastTransform = getTransform();
+        if (gameObject == null) return;
+
+        Transform transform = getTransform();
+        Vector3f currentPos = transform.getPosition();
+        Vector3f currentRot = transform.getRotation();
+        Vector3f currentScale = transform.getScale();
+
+        // Check if any transform values changed
+        boolean posChanged = !lastPosition.equals(currentPos, 0.0001f);
+        boolean rotChanged = !lastRotation.equals(currentRot, 0.0001f);
+        boolean scaleChanged = !lastScale.equals(currentScale, 0.0001f);
+
+        if (posChanged || rotChanged || scaleChanged) {
+            lastPosition.set(currentPos);
+            lastRotation.set(currentRot);
+            lastScale.set(currentScale);
             viewDirty = true;
         }
     }
@@ -158,6 +186,7 @@ public class Camera extends Component {
         if (this.projectionType != type) {
             this.projectionType = type;
             this.projectionDirty = true;
+            this.viewDirty = true; // View matrix formula depends on projection type
         }
     }
 
@@ -227,6 +256,10 @@ public class Camera extends Component {
 
     public void markViewDirty() {
         this.viewDirty = true;
+    }
+
+    public void markProjectionDirty() {
+        this.projectionDirty = true;
     }
 
     public boolean hasTransformChanged() {

@@ -11,6 +11,9 @@ import static org.lwjgl.opengl.GL11.GL_DEPTH_BUFFER_BIT;
 import static org.lwjgl.opengl.GL11.glClear;
 import static org.lwjgl.opengl.GL11.glClearColor;
 
+/**
+ * FIXED: Now properly handles window minimization
+ */
 public abstract class Window {
 
     @Getter
@@ -55,6 +58,8 @@ public abstract class Window {
 
         // Initialize game-specific resources
         initGame();
+        
+        System.out.println("Window initialized successfully");
     }
 
     private void initPostProcessing() {
@@ -70,9 +75,30 @@ public abstract class Window {
 
     /**
      * Main rendering loop. Continues until window should close.
+     * FIX: Now properly handles minimization
      */
     private void loop() {
+        System.out.println("Entering main loop");
+        
         while (!glfwManager.shouldClose()) {
+            // FIX: Skip rendering when window is minimized
+            if (!glfwManager.isVisible()) {
+                // Window is minimized - don't render, just poll events and sleep
+                glfwManager.pollEvents();
+                
+                // Sleep to avoid busy-wait and save CPU/battery
+                try {
+                    Thread.sleep(100); // Sleep 100ms
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+                
+                Time.update();
+                continue; // Skip rendering
+            }
+
+            // Normal rendering when window is visible
             postProcessor.beginCapture();
 
             // Clear background
@@ -80,7 +106,12 @@ public abstract class Window {
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             // Update and render game
-            renderGame(Time.deltaTime());
+            try {
+                renderGame(Time.deltaTime());
+            } catch (Exception e) {
+                System.err.println("ERROR in renderGame: " + e.getMessage());
+                e.printStackTrace();
+            }
 
             postProcessor.endCaptureAndApplyEffects();
 
@@ -89,6 +120,8 @@ public abstract class Window {
             Time.update();
             performanceMonitor.update();
         }
+        
+        System.out.println("Exited main loop");
     }
 
     /**
@@ -101,9 +134,19 @@ public abstract class Window {
 
 
     protected void destroy() {
+        System.out.println("Destroying window...");
+        
         destroyGame();
-        glfwManager.destroy();
-        postProcessor.destroy();
+        
+        if (postProcessor != null) {
+            postProcessor.destroy();
+        }
+        
+        if (glfwManager != null) {
+            glfwManager.destroy();
+        }
+        
+        System.out.println("Window destroyed");
     }
 
     /**
@@ -121,5 +164,19 @@ public abstract class Window {
 
     public int getScreenHeight() {
         return glfwManager.getScreenHeight();
+    }
+    
+    /**
+     * FIX: New method to check if window is visible
+     */
+    public boolean isVisible() {
+        return glfwManager.isVisible();
+    }
+    
+    /**
+     * FIX: New method to check if window is focused
+     */
+    public boolean isFocused() {
+        return glfwManager.isFocused();
     }
 }

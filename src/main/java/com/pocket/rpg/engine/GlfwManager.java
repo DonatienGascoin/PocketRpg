@@ -14,6 +14,9 @@ import static org.lwjgl.glfw.Callbacks.glfwFreeCallbacks;
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.system.MemoryUtil.NULL;
 
+/**
+ * FIXED: Now properly handles window minimization/iconification
+ */
 public class GlfwManager {
 
     private final WindowConfig config;
@@ -22,6 +25,12 @@ public class GlfwManager {
     private long windowHandle;
     @Getter
     private int screenWidth, screenHeight;
+    
+    // FIX: Track window state
+    @Getter
+    private boolean isMinimized = false;
+    @Getter
+    private boolean isFocused = true;
 
     public GlfwManager(WindowConfig config) {
         this.config = config;
@@ -57,12 +66,20 @@ public class GlfwManager {
         glfwMakeContextCurrent(windowHandle);
         GL.createCapabilities(); // Initialize OpenGL capabilities
 
-        // Set resize callback after we make the current context.
+        // Set resize callback after we make the current context
         glfwSetWindowSizeCallback(windowHandle, this::resizeCallback);
+        
+        // FIX: Set iconify (minimize) callback
+        glfwSetWindowIconifyCallback(windowHandle, this::iconifyCallback);
+        
+        // FIX: Set focus callback
+        glfwSetWindowFocusCallback(windowHandle, this::focusCallback);
 
         glfwSwapInterval(config.isVsync() ? 1 : 0); // Enable v-sync
 
         glfwShowWindow(windowHandle);
+        
+        System.out.println("GLFW window initialized: " + screenWidth + "x" + screenHeight);
     }
 
     public boolean shouldClose() {
@@ -71,6 +88,14 @@ public class GlfwManager {
 
     public void pollEventsAndSwapBuffers() {
         glfwSwapBuffers(windowHandle);
+        glfwPollEvents();
+    }
+
+    /**
+     * Just polls events without swapping buffers.
+     * Used when window is minimized.
+     */
+    public void pollEvents() {
         glfwPollEvents();
     }
 
@@ -83,6 +108,8 @@ public class GlfwManager {
         if (errorCallback != null) {
             errorCallback.free();
         }
+        
+        System.out.println("GLFW destroyed");
     }
 
     private void setHints() {
@@ -96,7 +123,7 @@ public class GlfwManager {
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
         glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL33.GL_TRUE);
         glfwWindowHint(GLFW_MAXIMIZED, config.isFullscreen() ? GLFW_TRUE : GLFW_FALSE);
-        glfwWindowHint(GLFW_SAMPLES, 4); // 4* Antialiasing
+        glfwWindowHint(GLFW_SAMPLES, 4); // 4x Antialiasing
 
         if (config.isFullscreen()) {
             glfwWindowHint(GLFW_DECORATED, GLFW_FALSE); // Remove the border and title bar
@@ -115,8 +142,6 @@ public class GlfwManager {
         screenHeight = config.getInitialHeight();
 
         if (config.isFullscreen()) {
-            IntBuffer wBuffer = BufferUtils.createIntBuffer(1);
-            IntBuffer hBuffer = BufferUtils.createIntBuffer(1);
             GLFWVidMode mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
 
             if (mode == null) {
@@ -125,23 +150,62 @@ public class GlfwManager {
 
             this.screenHeight = mode.height();
             this.screenWidth = mode.width();
-
-//            glfwGetMonitorWorkarea(glfwGetPrimaryMonitor(), null, null, wBuffer, hBuffer);
-//            this.screenWidth = wBuffer.get(0);
-//            this.screenHeight = hBuffer.get(0);
-//            glfwGetMonitorWorkarea(glfwGetPrimaryMonitor(), null, null, wBuffer, hBuffer);
         }
     }
 
+    /**
+     * FIX: Now validates dimensions before accepting resize
+     */
     private void resizeCallback(long window, int newWidth, int newHeight) {
+        // FIX: Better validation
         if (newHeight <= 0 || newWidth <= 0) {
-            return; // Ignore minimize window
+            System.out.println("Window minimized or invalid size: " + newWidth + "x" + newHeight);
+            return;
         }
-        // Solution 1: force the Window to keep the aspect ratio (does not work when full screen)
-//        glfwSetWindowAspectRatio(glfwWindow, config.getInitialWidth(), config.getInitialHeight());
+
+        // Ignore tiny sizes that might cause issues
+        if (newWidth < 100 || newHeight < 100) {
+            System.out.println("WARNING: Window size too small, ignoring: " + newWidth + "x" + newHeight);
+            return;
+        }
+
         screenWidth = newWidth;
         screenHeight = newHeight;
 
+        System.out.println("Window resized: " + newWidth + "x" + newHeight);
         config.getCallback().windowResizeCallback(window, newWidth, newHeight);
+    }
+
+    /**
+     * FIX: New callback for window minimization/iconification
+     */
+    private void iconifyCallback(long window, boolean iconified) {
+        isMinimized = iconified;
+        
+        if (iconified) {
+            System.out.println("Window minimized - pausing rendering");
+        } else {
+            System.out.println("Window restored - resuming rendering");
+        }
+    }
+
+    /**
+     * FIX: New callback for window focus
+     */
+    private void focusCallback(long window, boolean focused) {
+        isFocused = focused;
+        
+        if (!focused) {
+            System.out.println("Window lost focus");
+        } else {
+            System.out.println("Window gained focus");
+        }
+    }
+
+    /**
+     * Checks if the window is currently visible (not minimized).
+     */
+    public boolean isVisible() {
+        return !isMinimized;
     }
 }

@@ -3,6 +3,7 @@ package com.pocket.rpg.engine;
 import com.pocket.rpg.rendering.Renderer;
 import com.pocket.rpg.scenes.ExampleScene;
 import com.pocket.rpg.scenes.SceneManager;
+import com.pocket.rpg.utils.DefaultCallback;
 import com.pocket.rpg.utils.WindowConfig;
 
 public class GameWindow extends Window {
@@ -25,7 +26,7 @@ public class GameWindow extends Window {
     private static final float ANIMATION_SPEED = 0.2f; // Seconds per frame*/
 
     public GameWindow() {
-        super(WindowConfig.builder().build());
+        super(WindowConfig.builder().callback(new DefaultCallback()).build());
     }
 
     @Override

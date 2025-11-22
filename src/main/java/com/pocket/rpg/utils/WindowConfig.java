@@ -1,12 +1,11 @@
 package com.pocket.rpg.utils;
 
-import com.pocket.rpg.postProcessing.BloomEffect;
 import com.pocket.rpg.postProcessing.PostEffect;
 import com.pocket.rpg.postProcessing.PostProcessor;
-import com.pocket.rpg.postProcessing.postEffects.*;
 import com.pocket.rpg.postProcessing.postEffects.VignetteEffect;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NonNull;
 
 import java.util.List;
 
@@ -29,8 +28,8 @@ public class WindowConfig {
     @Builder.Default
     private boolean vsync = false;
 
-    @Builder.Default
-    private ICallback callback = new DefaultCallback();
+    @NonNull
+    private ICallback callback;
 
     /**
      * List of post-processing effects to apply.
@@ -65,6 +64,7 @@ public class WindowConfig {
 //            new RadialBlurEffect(0.5f, 0.5f, 0.02f, 10),
 //            new ChromaticAberrationEffect(0.006f));
 
+            // General Purpose Effects
 //            new BlurEffect(2.0f),
 //            new DesaturationEffect(1f),
 //            new BloomEffect(0.8f, 2f),
@@ -82,7 +82,7 @@ public class WindowConfig {
 //            new RadialBlurEffect(0.3f, 0.7f, 0.05f, 12),
 //            new DisplacementEffect(0.005f),
 //            new DisplacementEffect(0.01f, 0.002f, 0.002f),
-//            new VignetteEffect(1f, 1.5f)
+            new VignetteEffect(1f, 1.5f)
     );
 
     /**

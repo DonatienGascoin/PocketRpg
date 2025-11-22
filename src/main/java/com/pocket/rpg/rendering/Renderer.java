@@ -20,6 +20,20 @@ import static org.lwjgl.opengl.GL33.*;
  */
 public class Renderer {
 
+    private int viewportWidth = 800;
+    private int viewportHeight = 600;
+
+    // Camera viewport bounds (world space)
+    private float cameraLeft = 0;
+    private float cameraRight = 800;
+    private float cameraTop = 0;
+    private float cameraBottom = 600;
+
+    // Debug statistics
+    private int totalSprites = 0;
+    private int culledSprites = 0;
+    private int renderedSprites = 0;
+
     private Shader shader;
     private int quadVAO;
     private int quadVBO;
@@ -27,8 +41,6 @@ public class Renderer {
 
     private DirtyReference<Matrix4f> projectionMatrixRef;
     private DirtyReference<Matrix4f> viewMatrixRef;
-    //    private Matrix4f projectionMatrix;
-//    private Matrix4f viewMatrix;
     private Matrix4f modelMatrix;
 
     // For dynamic UV updates
@@ -70,6 +82,109 @@ public class Renderer {
     }
 
     /**
+     * Updates camera bounds when view matrix changes.
+     * Call this in beginWithCamera() after setting view matrix.
+     */
+    private void updateCameraBounds(Camera camera) {
+        if (camera == null) {
+            // No camera - use viewport size
+            cameraLeft = 0;
+            cameraRight = viewportWidth;
+            cameraTop = 0;
+            cameraBottom = viewportHeight;
+        } else {
+            // Get camera position
+            Transform camTransform = camera.getGameObject().getTransform();
+            Vector3f camPos = camTransform.getPosition();
+
+            // Calculate world-space bounds
+            // For orthographic camera with screen-space coordinates
+            cameraLeft = camPos.x;
+            cameraRight = camPos.x + viewportWidth;
+            cameraTop = camPos.y;
+            cameraBottom = camPos.y + viewportHeight;
+        }
+    }
+
+    /**
+     * Tests if a sprite is visible in the camera frustum.
+     * Uses simple AABB (bounding box) intersection test.
+     */
+    private boolean isVisible(SpriteRenderer spriteRenderer) {
+        if (spriteRenderer == null || spriteRenderer.getSprite() == null) {
+            return false;
+        }
+
+        Sprite sprite = spriteRenderer.getSprite();
+        Transform transform = spriteRenderer.getGameObject().getTransform();
+        Vector3f pos = transform.getPosition();
+        Vector3f scale = transform.getScale();
+
+        // Calculate sprite bounds in world space
+        float spriteWidth = sprite.getWidth() * scale.x;
+        float spriteHeight = sprite.getHeight() * scale.y;
+
+        // Account for origin (rotation/scale pivot point)
+        float originOffsetX = spriteWidth * spriteRenderer.getOriginX();
+        float originOffsetY = spriteHeight * spriteRenderer.getOriginY();
+
+        // Calculate AABB (axis-aligned bounding box)
+        // Note: This doesn't account for rotation - conservative culling
+        float spriteLeft = pos.x - originOffsetX;
+        float spriteRight = pos.x + (spriteWidth - originOffsetX);
+        float spriteTop = pos.y - originOffsetY;
+        float spriteBottom = pos.y + (spriteHeight - originOffsetY);
+
+        // Add padding for rotation (conservative approach)
+        float diagonal = (float) Math.sqrt(spriteWidth * spriteWidth + spriteHeight * spriteHeight);
+        float padding = (diagonal - Math.max(spriteWidth, spriteHeight)) / 2;
+
+        spriteLeft -= padding;
+        spriteRight += padding;
+        spriteTop -= padding;
+        spriteBottom += padding;
+
+        // AABB intersection test
+        boolean intersects = !(spriteRight < cameraLeft ||
+                spriteLeft > cameraRight ||
+                spriteBottom < cameraTop ||
+                spriteTop > cameraBottom);
+
+        return intersects;
+    }
+
+    /**
+     * Optimized version without rotation padding (faster, less accurate).
+     */
+    private boolean isVisibleSimple(SpriteRenderer spriteRenderer) {
+        if (spriteRenderer == null || spriteRenderer.getSprite() == null) {
+            return false;
+        }
+
+        Sprite sprite = spriteRenderer.getSprite();
+        Transform transform = spriteRenderer.getGameObject().getTransform();
+        Vector3f pos = transform.getPosition();
+        Vector3f scale = transform.getScale();
+
+        float spriteWidth = sprite.getWidth() * scale.x;
+        float spriteHeight = sprite.getHeight() * scale.y;
+
+        float originOffsetX = spriteWidth * spriteRenderer.getOriginX();
+        float originOffsetY = spriteHeight * spriteRenderer.getOriginY();
+
+        float spriteLeft = pos.x - originOffsetX;
+        float spriteRight = pos.x + (spriteWidth - originOffsetX);
+        float spriteTop = pos.y - originOffsetY;
+        float spriteBottom = pos.y + (spriteHeight - originOffsetY);
+
+        // Simple AABB test
+        return !(spriteRight < cameraLeft ||
+                spriteLeft > cameraRight ||
+                spriteBottom < cameraTop ||
+                spriteTop > cameraBottom);
+    }
+
+    /**
      * Projection matrix only changes when window is resized
      * Sets up the orthographic projection matrix.
      *
@@ -93,6 +208,9 @@ public class Renderer {
         glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        // Update camera bounds for culling
+        updateCameraBounds(camera);
+
         // Apply camera view matrix
         if (camera != null) {
             setViewMatrix(camera.getViewMatrix());
@@ -109,6 +227,10 @@ public class Renderer {
      * Call this before rendering sprites.
      */
     public void begin() {
+        // Reset stats each frame
+        totalSprites = 0;
+        culledSprites = 0;
+        renderedSprites = 0;
         shader.use();
 
         // Upload matrices
@@ -129,6 +251,17 @@ public class Renderer {
         if (spriteRenderer == null || spriteRenderer.getSprite() == null) {
             return;
         }
+
+        totalSprites++;
+
+        // Early exit if not visible
+        if (!isVisible(spriteRenderer)) {
+            culledSprites++;
+            return; // Skip rendering entirely!
+        }
+
+        renderedSprites++;
+
 
         Sprite sprite = spriteRenderer.getSprite();
         Transform transform = spriteRenderer.getGameObject().getTransform();
@@ -201,7 +334,14 @@ public class Renderer {
      * Call this after rendering all sprites.
      */
     public void end() {
+        printStats();
         shader.detach();
+    }
+
+    private void printStats() {
+        System.out.printf("Sprites: %d total, %d rendered, %d culled (%.1f%% culled)%n",
+                totalSprites, renderedSprites, culledSprites,
+                (culledSprites / (float) totalSprites) * 100);
     }
 
     /**

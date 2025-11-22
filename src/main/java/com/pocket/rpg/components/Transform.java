@@ -2,6 +2,8 @@ package com.pocket.rpg.components;
 
 import org.joml.Vector3f;
 
+import java.util.Objects;
+
 /**
  * Transform component that defines position, rotation, and scale.
  * This is a mandatory component for all GameObjects.
@@ -92,5 +94,18 @@ public class Transform extends Component {
     public String toString() {
         return String.format("Transform[pos=%s, rot=%s, scale=%s]",
                 position, rotation, scale);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof Transform transform)) return false;
+        return Objects.equals(position, transform.position)
+                && Objects.equals(rotation, transform.rotation)
+                && Objects.equals(scale, transform.scale);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(position, rotation, scale);
     }
 }

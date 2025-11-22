@@ -238,14 +238,14 @@ public class Renderer {
         vertexBuffer.clear();
 
         // Triangle 1
-        vertexBuffer.put(0.0f).put(0.0f).put(u0).put(v0);  // Top-left
-        vertexBuffer.put(0.0f).put(1.0f).put(u0).put(v1);  // Bottom-left
-        vertexBuffer.put(1.0f).put(1.0f).put(u1).put(v1);  // Bottom-right
+        vertexBuffer.put(0.0f).put(0.0f).put(u0).put(v1);  // Top-left (flipped V)
+        vertexBuffer.put(0.0f).put(1.0f).put(u0).put(v0);  // Bottom-left (flipped V)
+        vertexBuffer.put(1.0f).put(1.0f).put(u1).put(v0);  // Bottom-right (flipped V)
 
         // Triangle 2
-        vertexBuffer.put(0.0f).put(0.0f).put(u0).put(v0);  // Top-left
-        vertexBuffer.put(1.0f).put(1.0f).put(u1).put(v1);  // Bottom-right
-        vertexBuffer.put(1.0f).put(0.0f).put(u1).put(v0);  // Top-right
+        vertexBuffer.put(0.0f).put(0.0f).put(u0).put(v1);  // Top-left (flipped V)
+        vertexBuffer.put(1.0f).put(1.0f).put(u1).put(v0);  // Bottom-right (flipped V)
+        vertexBuffer.put(1.0f).put(0.0f).put(u1).put(v1);  // Top-right (flipped V)
 
         vertexBuffer.flip();
 

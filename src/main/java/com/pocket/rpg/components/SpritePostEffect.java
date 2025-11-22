@@ -2,9 +2,11 @@ package com.pocket.rpg.components;
 
 import com.pocket.rpg.postProcessing.PostEffect;
 import com.pocket.rpg.rendering.Renderer;
+import com.pocket.rpg.rendering.Shader;
 import lombok.Getter;
 import lombok.Setter;
-import org.joml.Vector2f;
+import org.joml.Matrix4f;
+import org.joml.Vector3f;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,6 +17,10 @@ import static org.lwjgl.opengl.GL33.*;
  * Component that applies post-processing effects to a single sprite.
  * The sprite is rendered to an offscreen framebuffer, effects are applied,
  * then the result is composited back to the scene.
+ *
+ * STRATEGY 1: Component-Based Per-Sprite Effects
+ * Best for: 1-5 special sprites (bosses, hero character, special items)
+ * Performance: ~2-5ms per sprite with effects
  */
 public class SpritePostEffect extends Component {
 
@@ -24,9 +30,8 @@ public class SpritePostEffect extends Component {
     // Framebuffers for ping-pong rendering
     private int fbo1, fbo2;
     private int texture1, texture2;
-    private int quadVAO;
+    private int quadVAO, quadVBO;
 
-    // Size of the effect buffer (should match sprite bounds + padding for bloom)
     @Setter
     @Getter
     private int bufferWidth = 256;
@@ -37,169 +42,134 @@ public class SpritePostEffect extends Component {
 
     @Setter
     @Getter
-    private float padding = 64; // Extra pixels around sprite for bloom bleed
+    private float padding = 64;
 
     private boolean initialized = false;
+    private Shader compositeShader;
 
-    /**
-     * Adds a post-processing effect to this sprite.
-     */
     public void addEffect(PostEffect effect) {
         effects.add(effect);
+        if (initialized) {
+            effect.init(null);
+        }
     }
 
-    /**
-     * Removes a post-processing effect.
-     */
     public void removeEffect(PostEffect effect) {
         effects.remove(effect);
     }
 
-    /**
-     * Clears all effects.
-     */
     public void clearEffects() {
         effects.clear();
     }
 
     @Override
-    public void start() {
-        super.start();
+    public void startInternal() {
         initFramebuffers();
 
-        // Initialize all effects
+        compositeShader = new Shader("assets/shaders/sprite.glsl");
+        compositeShader.compileAndLink();
+
         for (PostEffect effect : effects) {
-            effect.init(null); // Effects don't need window for sprite-level processing
+            effect.init(null);
         }
 
         initialized = true;
     }
 
-    /**
-     * Initializes framebuffers for ping-pong rendering.
-     */
     private void initFramebuffers() {
-        // Create quad for rendering effects
         quadVAO = createQuad();
 
-        // Create two framebuffers for ping-pong
-        fbo1 = createFramebuffer();
+        fbo1 = glGenFramebuffers();
         texture1 = createTexture(bufferWidth, bufferHeight);
         attachTextureToFramebuffer(fbo1, texture1);
 
-        fbo2 = createFramebuffer();
+        fbo2 = glGenFramebuffers();
         texture2 = createTexture(bufferWidth, bufferHeight);
         attachTextureToFramebuffer(fbo2, texture2);
 
-        // Verify framebuffers
         glBindFramebuffer(GL_FRAMEBUFFER, fbo1);
         if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-            throw new RuntimeException("Framebuffer 1 is not complete!");
+            throw new RuntimeException("SpritePostEffect: Framebuffer 1 incomplete!");
         }
 
         glBindFramebuffer(GL_FRAMEBUFFER, fbo2);
         if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-            throw new RuntimeException("Framebuffer 2 is not complete!");
+            throw new RuntimeException("SpritePostEffect: Framebuffer 2 incomplete!");
         }
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
 
-    /**
-     * Renders the sprite with effects applied.
-     * Call this from your custom rendering loop.
-     */
     public void renderWithEffects(Renderer renderer, SpriteRenderer spriteRenderer) {
         if (!initialized || effects.isEmpty()) {
-            // No effects, render normally
             renderer.drawSpriteRenderer(spriteRenderer);
             return;
         }
 
-        // Step 1: Render sprite to first framebuffer
-        glBindFramebuffer(GL_FRAMEBUFFER, fbo1);
-        glClearColor(0, 0, 0, 0); // Transparent background
-        glClear(GL_COLOR_BUFFER_BIT);
-
-        // Calculate offset to center sprite in buffer
         Transform transform = gameObject.getTransform();
-        Vector2f originalPos = new Vector2f(transform.getPosition().x, transform.getPosition().y);
+        Vector3f originalPos = new Vector3f(transform.getPosition());
 
-        // Temporarily move sprite to center of buffer
-        transform.getPosition().x = bufferWidth / 2.0f;
-        transform.getPosition().y = bufferHeight / 2.0f;
+        // Render to FBO
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo1);
+        glViewport(0, 0, bufferWidth, bufferHeight);
+        glClearColor(0, 0, 0, 0);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        transform.setPosition(bufferWidth / 2.0f, bufferHeight / 2.0f, originalPos.z);
+        renderer.setProjection(bufferWidth, bufferHeight);
+        renderer.begin();
         renderer.drawSpriteRenderer(spriteRenderer);
-
-        // Restore original position
-        transform.getPosition().x = originalPos.x;
-        transform.getPosition().y = originalPos.y;
+        renderer.end();
+        transform.setPosition(originalPos);
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-        // Step 2: Apply effects using ping-pong rendering
+        // Apply effects
         int currentInput = texture1;
         int currentOutput = fbo2;
-        int currentOutputTex = texture2;
 
         for (PostEffect effect : effects) {
-            int passCount = effect.getPassCount();
-
-            for (int pass = 0; pass < passCount; pass++) {
+            for (int pass = 0; pass < effect.getPassCount(); pass++) {
                 effect.applyPass(pass, currentInput, currentOutput, quadVAO, bufferWidth, bufferHeight);
 
-                // Swap for next pass
-                if (currentInput == texture1) {
-                    currentInput = texture2;
-                    currentOutput = fbo1;
-                    currentOutputTex = texture1;
-                } else {
-                    currentInput = texture1;
-                    currentOutput = fbo2;
-                    currentOutputTex = texture2;
-                }
+                int temp = currentInput;
+                currentInput = (currentOutput == fbo1) ? texture1 : texture2;
+                currentOutput = (currentOutput == fbo1) ? fbo2 : fbo1;
             }
         }
 
-        // Step 3: Render final result to screen at sprite's actual position
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-        // Render the processed texture as a quad at the sprite's position
-        renderTexturedQuad(currentInput, originalPos.x, originalPos.y,
-                bufferWidth, bufferHeight, transform.getRotation().z);
+        // Composite back
+        renderComposite(currentInput, originalPos, spriteRenderer);
     }
 
-    /**
-     * Renders a textured quad at the specified position.
-     */
-    private void renderTexturedQuad(int texture, float x, float y, float width, float height, float rotation) {
-        // This is a simplified version - you'd want to use your renderer's shader
-        // For now, this shows the concept
+    private void renderComposite(int texture, Vector3f position, SpriteRenderer spriteRenderer) {
+        compositeShader.use();
+        compositeShader.uploadInt("textureSampler", 0);
+
+        Transform transform = gameObject.getTransform();
+        float width = spriteRenderer.getSprite().getWidth() * transform.getScale().x + padding * 2;
+        float height = spriteRenderer.getSprite().getHeight() * transform.getScale().y + padding * 2;
+
+        Matrix4f model = new Matrix4f()
+                .translate(position.x - padding, position.y - padding, position.z)
+                .scale(width, height, 1);
+
+        compositeShader.uploadMat4f("model", model);
+
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, texture);
-
-        // Enable blending for transparency
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
         glBindVertexArray(quadVAO);
         glDrawArrays(GL_TRIANGLES, 0, 6);
         glBindVertexArray(0);
 
         glBindTexture(GL_TEXTURE_2D, 0);
+        compositeShader.detach();
     }
 
-    /**
-     * Creates a framebuffer object.
-     */
-    private int createFramebuffer() {
-        return glGenFramebuffers();
-    }
-
-    /**
-     * Creates a texture for the framebuffer.
-     */
     private int createTexture(int width, int height) {
         int textureId = glGenTextures();
         glBindTexture(GL_TEXTURE_2D, textureId);
@@ -212,35 +182,27 @@ public class SpritePostEffect extends Component {
         return textureId;
     }
 
-    /**
-     * Attaches a texture to a framebuffer.
-     */
     private void attachTextureToFramebuffer(int fbo, int texture) {
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
 
-    /**
-     * Creates a simple quad VAO.
-     */
     private int createQuad() {
         float[] vertices = {
-                // Positions    // UVs
-                -1.0f,  1.0f,  0.0f, 1.0f,
-                -1.0f, -1.0f,  0.0f, 0.0f,
-                1.0f, -1.0f,  1.0f, 0.0f,
-
-                -1.0f,  1.0f,  0.0f, 1.0f,
-                1.0f, -1.0f,  1.0f, 0.0f,
-                1.0f,  1.0f,  1.0f, 1.0f
+                0.0f, 0.0f, 0.0f, 0.0f,
+                0.0f, 1.0f, 0.0f, 1.0f,
+                1.0f, 1.0f, 1.0f, 1.0f,
+                0.0f, 0.0f, 0.0f, 0.0f,
+                1.0f, 1.0f, 1.0f, 1.0f,
+                1.0f, 0.0f, 1.0f, 0.0f
         };
 
         int vao = glGenVertexArrays();
-        int vbo = glGenBuffers();
+        quadVBO = glGenBuffers();
 
         glBindVertexArray(vao);
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
         glBufferData(GL_ARRAY_BUFFER, vertices, GL_STATIC_DRAW);
 
         glEnableVertexAttribArray(0);
@@ -250,7 +212,6 @@ public class SpritePostEffect extends Component {
         glVertexAttribPointer(1, 2, GL_FLOAT, false, 4 * Float.BYTES, 2 * Float.BYTES);
 
         glBindVertexArray(0);
-
         return vao;
     }
 
@@ -258,16 +219,19 @@ public class SpritePostEffect extends Component {
     public void destroy() {
         super.destroy();
 
-        // Clean up framebuffers and textures
         if (fbo1 != 0) glDeleteFramebuffers(fbo1);
         if (fbo2 != 0) glDeleteFramebuffers(fbo2);
         if (texture1 != 0) glDeleteTextures(texture1);
         if (texture2 != 0) glDeleteTextures(texture2);
         if (quadVAO != 0) glDeleteVertexArrays(quadVAO);
+        if (quadVBO != 0) glDeleteBuffers(quadVBO);
 
-        // Destroy effects
         for (PostEffect effect : effects) {
             effect.destroy();
+        }
+
+        if (compositeShader != null) {
+            compositeShader.delete();
         }
     }
 }

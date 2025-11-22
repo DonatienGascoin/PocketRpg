@@ -1,6 +1,7 @@
 package com.pocket.rpg.scenes;
 
 import com.pocket.rpg.components.Camera;
+import com.pocket.rpg.components.SpritePostEffect;
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.engine.GameObject;
 import com.pocket.rpg.rendering.Renderer;
@@ -235,7 +236,13 @@ public abstract class Scene {
                     spriteRenderer.getSprite() != null &&
                     spriteRenderer.getGameObject() != null &&
                     spriteRenderer.getGameObject().isEnabled()) {
-                renderer.drawSpriteRenderer(spriteRenderer);
+                SpritePostEffect fx = spriteRenderer.getGameObject().getComponent(SpritePostEffect.class);
+                if (fx != null) {
+                    fx.renderWithEffects(renderer, spriteRenderer);
+                } else {
+                    renderer.drawSpriteRenderer(spriteRenderer);
+                }
+//                renderer.drawSpriteRenderer(spriteRenderer);
             }
         }
     }

@@ -56,4 +56,8 @@ public abstract class Component {
     protected void startInternal() {
         // Override in subclasses
     }
+
+    protected Transform getTransform() {
+        return gameObject.getTransform();
+    }
 }

@@ -5,16 +5,13 @@ import lombok.Getter;
 public final class DirtyReference<T> {
     @Getter
     private T value;
-    private boolean dirty = false;
+    private boolean dirty;
     private final java.util.function.Consumer<T> onDirtyAction;
 
     public DirtyReference(T initialValue, java.util.function.Consumer<T> onDirtyAction) {
         this.value = initialValue;
         this.onDirtyAction = onDirtyAction;
-    }
-
-    public void markDirty() {
-        dirty = true;
+        this.dirty = true;
     }
 
     public void set(T newValue) {
@@ -22,6 +19,11 @@ public final class DirtyReference<T> {
             value = newValue;
             dirty = true;
         }
+    }
+
+    public void setAndApply(T newValue) {
+        set(newValue);
+        applyIfDirty();
     }
 
     public void applyIfDirty() {

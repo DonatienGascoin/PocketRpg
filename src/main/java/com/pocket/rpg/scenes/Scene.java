@@ -1,7 +1,6 @@
 package com.pocket.rpg.scenes;
 
 import com.pocket.rpg.components.Camera;
-import com.pocket.rpg.components.SpritePostEffect;
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.engine.GameObject;
 import com.pocket.rpg.rendering.Renderer;
@@ -147,7 +146,7 @@ public abstract class Scene {
      * Registers a camera as the active camera for this scene.
      * Called automatically when a GameObject with Camera is added,
      * or when a Camera component is enabled.
-     *
+     * <p>
      * If a camera is already active, the new camera takes precedence.
      *
      * @param camera The camera to register
@@ -236,12 +235,6 @@ public abstract class Scene {
                     spriteRenderer.getSprite() != null &&
                     spriteRenderer.getGameObject() != null &&
                     spriteRenderer.getGameObject().isEnabled()) {
-//                SpritePostEffect fx = spriteRenderer.getGameObject().getComponent(SpritePostEffect.class);
-//                if (fx != null) {
-//                    fx.renderWithEffects(renderer, spriteRenderer);
-//                } else {
-//                    renderer.drawSpriteRenderer(spriteRenderer);
-//                }
                 renderer.drawSpriteRenderer(spriteRenderer);
             }
         }

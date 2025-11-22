@@ -1,6 +1,7 @@
 package com.pocket.rpg.components;
 
 import com.pocket.rpg.scenes.Scene;
+import lombok.Getter;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
@@ -24,11 +25,13 @@ public class Camera extends Component {
     private Vector4f clearColor = new Vector4f(0.1f, 0.1f, 0.1f, 1.0f);
 
     // Orthographic settings
+    @Getter
     private float orthographicSize = 10.0f; // Half-height in world units
     private float nearPlane = -1.0f;
     private float farPlane = 1.0f;
 
     // Perspective settings
+    @Getter
     private float fieldOfView = 60.0f; // In degrees
     private float perspectiveNear = 0.1f;
     private float perspectiveFar = 1000.0f;
@@ -43,6 +46,8 @@ public class Camera extends Component {
 
     private boolean projectionDirty = true;
     private boolean viewDirty = true;
+
+    private Transform lastTransform;
 
     /**
      * Creates an orthographic camera with default settings.
@@ -70,6 +75,7 @@ public class Camera extends Component {
     public void startInternal() {
         projectionDirty = true;
         viewDirty = true;
+        lastTransform = getTransform();
 
         // Register with scene when started
         if (gameObject != null && gameObject.getScene() != null) {
@@ -80,7 +86,10 @@ public class Camera extends Component {
     @Override
     public void update(float deltaTime) {
         // Mark view as dirty if transform changed
-        viewDirty = true;
+        if (!lastTransform.equals(getTransform())) {
+            lastTransform = getTransform();
+            viewDirty = true;
+        }
     }
 
     @Override
@@ -212,10 +221,6 @@ public class Camera extends Component {
 
     // Orthographic Settings
 
-    public float getOrthographicSize() {
-        return orthographicSize;
-    }
-
     public void setOrthographicSize(float size) {
         if (this.orthographicSize != size) {
             this.orthographicSize = size;
@@ -230,10 +235,6 @@ public class Camera extends Component {
     }
 
     // Perspective Settings
-
-    public float getFieldOfView() {
-        return fieldOfView;
-    }
 
     public void setFieldOfView(float fov) {
         if (this.fieldOfView != fov) {

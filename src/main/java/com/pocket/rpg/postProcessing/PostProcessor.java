@@ -13,7 +13,7 @@ import static org.lwjgl.opengl.GL33.*;
 /**
  * Manages the post-processing pipeline, coordinating multiple effects
  * and handling frame buffer ping-ponging between passes.
- * Now properly separates the effect pipeline from the final screen presentation.
+ * FIXED: Now properly uses fixed game resolution.
  */
 public class PostProcessor {
 
@@ -21,18 +21,13 @@ public class PostProcessor {
      * Scaling mode for rendering to screen when pillarbox is disabled.
      */
     public enum ScalingMode {
-        /**
-         * Stretch the image to fill the entire window (may distort)
-         */
         STRETCH,
-        /**
-         * Maintain aspect ratio and center (adds black bars, like pillarbox)
-         */
         MAINTAIN_ASPECT_RATIO
     }
 
-    private final int width;
-    private final int height;
+    // FIX: This is the GAME resolution (fixed internal resolution)
+    private final int gameWidth;
+    private final int gameHeight;
 
     private int fboA;
     private int fboB;
@@ -46,75 +41,61 @@ public class PostProcessor {
     private Window window;
     private ScalingMode scalingMode = ScalingMode.MAINTAIN_ASPECT_RATIO;
 
-    // Shader for simple blitting to screen when no pillarbox
     private Shader blitShader;
 
     /**
-     * Creates a post processor for the specified window configuration.
-     *
-     * @param config Window configuration containing internal resolution and effects
+     * FIX: Creates a post processor with fixed game resolution.
      */
     public PostProcessor(WindowConfig config) {
-        if (config.getInitialWidth() <= 0 || config.getInitialHeight() <= 0) {
-            throw new IllegalArgumentException("Width and height must be positive");
+        if (config.getGameWidth() <= 0 || config.getGameHeight() <= 0) {
+            throw new IllegalArgumentException("Game resolution must be positive: " +
+                    config.getGameWidth() + "x" + config.getGameHeight());
         }
-        this.width = config.getInitialWidth();
-        this.height = config.getInitialHeight();
-        // Add effects from config
+
+        // FIX: Use GAME resolution, not window size
+        this.gameWidth = config.getGameWidth();
+        this.gameHeight = config.getGameHeight();
+
+        System.out.println("PostProcessor using game resolution: " + gameWidth + "x" + gameHeight);
+
         this.effects.addAll(config.getPostProcessingEffects());
 
-        // Enable pillarbox if configured
         if (config.isEnablePillarBox()) {
-            enablePillarBox(config.getPillarboxAspectRatio());
+            enablePillarBox(config.getEffectivePillarboxAspectRatio());
         } else {
             scalingMode = config.getScalingMode();
         }
     }
 
     /**
-     * Initializes all OpenGL resources including FBOs, textures, and effects.
-     * Must be called after OpenGL context is current.
-     *
-     * @param window The window reference for effects
+     * Initializes all OpenGL resources.
      */
     public void init(Window window) {
         this.window = window;
         setupFBOs();
         setupFullScreenQuad();
 
-        // Initialize blit shader for non-pillarbox rendering
         blitShader = new Shader("assets/shaders/passThrough.glsl");
         blitShader.compileAndLink();
         blitShader.use();
         blitShader.uploadInt("screenTexture", 0);
         blitShader.detach();
 
-        // Initialize all effects
         for (PostEffect effect : effects) {
             effect.init(window);
         }
 
-        // Initialize pillarbox if needed
         if (pillarBox != null) {
             pillarBox.init(window);
         }
+
+        System.out.println("PostProcessor initialized with " + effects.size() + " effects");
     }
 
-    /**
-     * Adds a post-processing effect to the pipeline.
-     * Effects are applied in the order they are added.
-     *
-     * @param effect The effect to add
-     */
     public void addEffect(PostEffect effect) {
         this.effects.add(effect);
     }
 
-    /**
-     * Convenience method to enable pillarbox with target aspect ratio.
-     *
-     * @param aspectRatio Target aspect ratio (e.g., 16f/9f, 4f/3f)
-     */
     public void enablePillarBox(float aspectRatio) {
         this.pillarBox = new PillarBox(aspectRatio);
         if (window != null) {
@@ -123,7 +104,6 @@ public class PostProcessor {
     }
 
     public void beginCapture() {
-        // Always use FBOs when any post-processing is needed
         if (needsPostProcessing()) {
             bindFboA();
         }
@@ -135,54 +115,40 @@ public class PostProcessor {
         }
     }
 
-    /**
-     * Determines if post-processing is needed.
-     * Post-processing is needed if:
-     * - We have effects to apply, OR
-     * - PillarBox is enabled, OR
-     * - Scaling mode requires viewport management (MAINTAIN_ASPECT_RATIO)
-     */
     private boolean needsPostProcessing() {
         return !effects.isEmpty() || pillarBox != null || scalingMode == ScalingMode.MAINTAIN_ASPECT_RATIO;
     }
 
     /**
-     * Binds FBO A for rendering the initial game scene.
+     * FIX: Binds FBO A with game resolution viewport.
      */
     private void bindFboA() {
         glBindFramebuffer(GL_FRAMEBUFFER, fboA);
-        glViewport(0, 0, width, height);
+        glViewport(0, 0, gameWidth, gameHeight);
     }
 
     /**
      * Applies all post-processing effects in sequence, then renders to screen.
-     * FIXED: Now properly handles the effect pipeline and final screen output.
      */
     private void applyEffects() {
-        // Disable depth testing for 2D post-processing
         glDisable(GL_DEPTH_TEST);
 
         if (effects.isEmpty()) {
-            // No effects - just render directly to screen
             renderToScreen(textureA);
             return;
         }
 
-        // Start with texture A (which contains the rendered game scene)
         int inputTexture = textureA;
         int outputFbo = fboB;
 
-        // Apply all effects, ping-ponging between FBOs
         for (int i = 0; i < effects.size(); i++) {
             PostEffect effect = effects.get(i);
             int passCount = effect.getPassCount();
 
             for (int passIndex = 0; passIndex < passCount; passIndex++) {
-                // Apply the effect pass
-                effect.applyPass(passIndex, inputTexture, outputFbo, quadVAO, width, height);
+                // FIX: Pass game resolution to effects
+                effect.applyPass(passIndex, inputTexture, outputFbo, quadVAO, gameWidth, gameHeight);
 
-                // Swap buffers for next pass/effect
-                // The output becomes the input for the next iteration
                 if (outputFbo == fboA) {
                     inputTexture = textureA;
                     outputFbo = fboB;
@@ -193,32 +159,22 @@ public class PostProcessor {
             }
         }
 
-        // After all effects, inputTexture contains the final result
-        // Render it to screen (with or without pillarbox)
         renderToScreen(inputTexture);
     }
 
     /**
-     * Renders the final texture to the screen.
-     * Uses pillarbox if enabled, otherwise uses the configured scaling mode.
-     *
-     * @param textureId The final processed texture
+     * Renders the final texture to the screen with proper scaling.
      */
     private void renderToScreen(int textureId) {
         if (pillarBox != null) {
-            // Use pillarbox for aspect ratio preservation
             pillarBox.renderToScreen(textureId, quadVAO);
         } else {
-            // Use scaling mode
             blitToScreen(textureId);
         }
     }
 
     /**
-     * Blits a texture directly to the screen using the configured scaling mode.
-     * FIXED: Now actually renders the texture to screen instead of just clearing.
-     *
-     * @param textureId The texture to display
+     * FIX: Blits texture to screen with proper aspect ratio handling.
      */
     private void blitToScreen(int textureId) {
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -226,20 +182,20 @@ public class PostProcessor {
         int viewportX, viewportY, viewportWidth, viewportHeight;
 
         if (scalingMode == ScalingMode.MAINTAIN_ASPECT_RATIO) {
-            // Calculate viewport to maintain aspect ratio and center the content
-            float targetAspect = (float) width / height;
+            // FIX: Calculate viewport using game resolution aspect ratio
+            float gameAspect = (float) gameWidth / gameHeight;
             float windowAspect = (float) window.getScreenWidth() / window.getScreenHeight();
 
-            if (windowAspect > targetAspect) {
+            if (windowAspect > gameAspect) {
                 // Window is wider - add pillarboxes
                 viewportHeight = window.getScreenHeight();
-                viewportWidth = (int) (viewportHeight * targetAspect);
+                viewportWidth = (int) (viewportHeight * gameAspect);
                 viewportX = (window.getScreenWidth() - viewportWidth) / 2;
                 viewportY = 0;
             } else {
                 // Window is taller - add letterboxes
                 viewportWidth = window.getScreenWidth();
-                viewportHeight = (int) (viewportWidth / targetAspect);
+                viewportHeight = (int) (viewportWidth / gameAspect);
                 viewportX = 0;
                 viewportY = (window.getScreenHeight() - viewportHeight) / 2;
             }
@@ -262,7 +218,6 @@ public class PostProcessor {
         // Set viewport
         glViewport(viewportX, viewportY, viewportWidth, viewportHeight);
 
-        // FIXED: Actually render the texture using the blit shader
         glDisable(GL_DEPTH_TEST);
 
         blitShader.use();
@@ -283,30 +238,25 @@ public class PostProcessor {
     }
 
     /**
-     * Sets up the two frame buffer objects for ping-ponging between effect passes.
+     * FIX: Sets up FBOs with game resolution.
      */
     private void setupFBOs() {
-        // Create FBO A with color attachment
         fboA = glGenFramebuffers();
-        textureA = createFBOTexture(width, height);
+        textureA = createFBOTexture(gameWidth, gameHeight);
         attachTextureToFBO(fboA, textureA);
 
-        // Create FBO B with color attachment
         fboB = glGenFramebuffers();
-        textureB = createFBOTexture(width, height);
+        textureB = createFBOTexture(gameWidth, gameHeight);
         attachTextureToFBO(fboB, textureB);
 
-        // Create shared depth/stencil renderbuffer
         rbo = glGenRenderbuffers();
         glBindRenderbuffer(GL_RENDERBUFFER, rbo);
-        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
+        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, gameWidth, gameHeight);
 
-        // Attach depth buffer to both FBOs
         glBindFramebuffer(GL_FRAMEBUFFER, fboA);
         glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
                 GL_RENDERBUFFER, rbo);
 
-        // Check FBO A completeness
         if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
             throw new RuntimeException("Framebuffer A is not complete!");
         }
@@ -315,29 +265,24 @@ public class PostProcessor {
         glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
                 GL_RENDERBUFFER, rbo);
 
-        // Check FBO B completeness
         if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
             throw new RuntimeException("Framebuffer B is not complete!");
         }
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        System.out.println("FBOs created at game resolution: " + gameWidth + "x" + gameHeight);
     }
 
-    /**
-     * Creates a texture suitable for use as an FBO color attachment.
-     * Uses NEAREST filtering for sharp pixel-perfect rendering.
-     */
     private int createFBOTexture(int texWidth, int texHeight) {
         int texID = glGenTextures();
         glBindTexture(GL_TEXTURE_2D, texID);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, texWidth, texHeight, 0,
                 GL_RGBA, GL_UNSIGNED_BYTE, (ByteBuffer) null);
 
-        // Use NEAREST filtering for sharp pixel-perfect rendering
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-        // Clamp to edge to avoid border artifacts
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
@@ -345,9 +290,6 @@ public class PostProcessor {
         return texID;
     }
 
-    /**
-     * Attaches a texture as the color attachment of an FBO.
-     */
     private void attachTextureToFBO(int fboID, int textureID) {
         glBindFramebuffer(GL_FRAMEBUFFER, fboID);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
@@ -355,20 +297,15 @@ public class PostProcessor {
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
 
-    /**
-     * Sets up a full-screen quad for rendering post-processing effects.
-     */
     private void setupFullScreenQuad() {
-        // Vertex data: position (x, y) + texture coords (u, v)
         float[] quadVertices = {
-                // Position    // TexCoords
-                -1.0f, 1.0f, 0.0f, 1.0f,  // Top-left
-                -1.0f, -1.0f, 0.0f, 0.0f,  // Bottom-left
-                1.0f, -1.0f, 1.0f, 0.0f,  // Bottom-right
+                -1.0f, 1.0f, 0.0f, 1.0f,
+                -1.0f, -1.0f, 0.0f, 0.0f,
+                1.0f, -1.0f, 1.0f, 0.0f,
 
-                -1.0f, 1.0f, 0.0f, 1.0f,  // Top-left
-                1.0f, -1.0f, 1.0f, 0.0f,  // Bottom-right
-                1.0f, 1.0f, 1.0f, 1.0f   // Top-right
+                -1.0f, 1.0f, 0.0f, 1.0f,
+                1.0f, -1.0f, 1.0f, 0.0f,
+                1.0f, 1.0f, 1.0f, 1.0f
         };
 
         quadVAO = glGenVertexArrays();
@@ -378,20 +315,15 @@ public class PostProcessor {
         glBindBuffer(GL_ARRAY_BUFFER, vbo);
         glBufferData(GL_ARRAY_BUFFER, quadVertices, GL_STATIC_DRAW);
 
-        // Position attribute
         glEnableVertexAttribArray(0);
         glVertexAttribPointer(0, 2, GL_FLOAT, false, 4 * Float.BYTES, 0);
 
-        // Texture coordinate attribute
         glEnableVertexAttribArray(1);
         glVertexAttribPointer(1, 2, GL_FLOAT, false, 4 * Float.BYTES, 2 * Float.BYTES);
 
         glBindVertexArray(0);
     }
 
-    /**
-     * Cleans up all OpenGL resources.
-     */
     public void destroy() {
         glDeleteFramebuffers(fboA);
         glDeleteFramebuffers(fboB);
@@ -411,5 +343,21 @@ public class PostProcessor {
         if (pillarBox != null) {
             pillarBox.destroy();
         }
+
+        System.out.println("PostProcessor destroyed");
+    }
+
+    /**
+     * Gets the fixed game width.
+     */
+    public int getGameWidth() {
+        return gameWidth;
+    }
+
+    /**
+     * Gets the fixed game height.
+     */
+    public int getGameHeight() {
+        return gameHeight;
     }
 }

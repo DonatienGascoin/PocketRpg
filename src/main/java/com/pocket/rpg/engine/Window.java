@@ -17,7 +17,7 @@ import static org.lwjgl.opengl.GL11.glClearColor;
 public abstract class Window {
 
     @Getter
-    private final WindowConfig config;
+    protected final WindowConfig config;
 
     protected GlfwManager glfwManager;
     private PostProcessor postProcessor;

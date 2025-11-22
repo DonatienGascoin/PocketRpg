@@ -16,11 +16,35 @@ public class WindowConfig {
     @Builder.Default
     private String title = "Pocket Rpg";
 
+    // ===== WINDOW RESOLUTION (physical window size) =====
+    /**
+     * The initial physical window width in pixels.
+     */
     @Builder.Default
-    private int initialWidth = 640;
+    private int initialWidth = 1280;
 
+    /**
+     * The initial physical window height in pixels.
+     */
     @Builder.Default
-    private int initialHeight = 480;
+    private int initialHeight = 960;
+
+    // ===== GAME RESOLUTION (fixed internal resolution) =====
+    /**
+     * The fixed internal game resolution width.
+     * All game logic and rendering happens at this resolution.
+     * This is then scaled to fit the window.
+     */
+    @Builder.Default
+    private int gameWidth = 640;
+
+    /**
+     * The fixed internal game resolution height.
+     * All game logic and rendering happens at this resolution.
+     * This is then scaled to fit the window.
+     */
+    @Builder.Default
+    private int gameHeight = 480;
 
     @Builder.Default
     private boolean fullscreen = false;
@@ -102,8 +126,19 @@ public class WindowConfig {
 
     /**
      * Target aspect ratio for pillarbox (e.g., 16/9 = 1.777, 4/3 = 1.333).
-     * Only used if enablePillarbox is true.
+     * Only used if enablePillarbox is true. Set to 0 for auto-calculation from game resolution.
      */
     @Builder.Default
-    private float pillarboxAspectRatio = 640f / 480f; // 4:3 aspect ratio
+    private float pillarboxAspectRatio = 0f; // 0 means auto-calculate from gameWidth/gameHeight
+
+    /**
+     * Gets the effective pillarbox aspect ratio.
+     * If set to 0, calculates from game resolution.
+     */
+    public float getEffectivePillarboxAspectRatio() {
+        if (pillarboxAspectRatio > 0) {
+            return pillarboxAspectRatio;
+        }
+        return (float) gameWidth / gameHeight;
+    }
 }

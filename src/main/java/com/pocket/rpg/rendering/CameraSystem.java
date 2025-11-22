@@ -1,32 +1,29 @@
 package com.pocket.rpg.rendering;
 
 import com.pocket.rpg.components.Camera;
-import com.pocket.rpg.components.Transform;
 import com.pocket.rpg.utils.DirtyReference;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Camera management system that handles viewport, projection, and view matrices.
- * Cameras register/unregister themselves automatically when enabled/disabled.
- * 
- * FIXED: Proper singleton pattern with thread safety
+ * FIXED: Now properly separates game resolution from window viewport.
  */
 public class CameraSystem {
 
     private static volatile CameraSystem instance = null;
     private static final Object LOCK = new Object();
 
-    // FIX: Use thread-safe collection
     private final List<Camera> registeredCameras = new CopyOnWriteArrayList<>();
     private Camera activeCamera = null;
 
-    // Viewport dimensions
-    private int viewportWidth = 800;
+    // FIX: Separate game resolution from viewport
+    private int gameWidth = 640;   // Fixed internal game resolution
+    private int gameHeight = 480;
+    private int viewportWidth = 800;  // Physical window size
     private int viewportHeight = 600;
 
     // Matrix dirty references for efficient updates
@@ -40,13 +37,14 @@ public class CameraSystem {
     private Camera fallbackCamera = null;
 
     /**
-     * FIX: Private constructor for proper singleton pattern
+     * FIX: Private constructor now takes game resolution
      */
-    private CameraSystem(int width, int height) {
-        viewportWidth = width;
-        viewportHeight = height;
+    private CameraSystem(int gameWidth, int gameHeight) {
+        this.gameWidth = gameWidth;
+        this.gameHeight = gameHeight;
+        this.viewportWidth = gameWidth;
+        this.viewportHeight = gameHeight;
 
-        // Initialize dirty references with no-op consumers
         projectionMatrixRef = new DirtyReference<>(new Matrix4f(), m -> {});
         viewMatrixRef = new DirtyReference<>(new Matrix4f(), m -> {});
 
@@ -55,26 +53,25 @@ public class CameraSystem {
     }
 
     /**
-     * Initializes the camera system with viewport size.
-     * Must be called before using any cameras.
-     * Thread-safe initialization.
+     * FIX: Initializes with game resolution (fixed internal resolution).
+     * Viewport is set separately via setViewportSize.
      */
-    public static void initialize(int width, int height) {
+    public static void initialize(int gameWidth, int gameHeight) {
         if (instance != null) {
-            System.err.println("WARNING: CameraSystem already initialized. Call clear() first to reinitialize.");
+            System.err.println("WARNING: CameraSystem already initialized. Call destroy() first to reinitialize.");
             return;
         }
 
         synchronized (LOCK) {
             if (instance == null) {
-                instance = new CameraSystem(width, height);
+                instance = new CameraSystem(gameWidth, gameHeight);
+                System.out.println("CameraSystem initialized with game resolution: " + gameWidth + "x" + gameHeight);
             }
         }
     }
 
     /**
      * Gets the singleton instance.
-     * Throws exception if not initialized.
      */
     public static CameraSystem getInstance() {
         if (instance == null) {
@@ -85,8 +82,6 @@ public class CameraSystem {
 
     /**
      * Registers a camera with the system.
-     * The first camera registered becomes active automatically.
-     * Thread-safe.
      */
     public static void registerCamera(Camera camera) {
         if (camera == null) {
@@ -95,11 +90,13 @@ public class CameraSystem {
         }
 
         CameraSystem sys = getInstance();
-        
+
         if (!sys.registeredCameras.contains(camera)) {
+            // FIX: Set game resolution on camera
+            camera.setGameResolution(sys.gameWidth, sys.gameHeight);
+
             sys.registeredCameras.add(camera);
 
-            // First camera becomes active
             synchronized (LOCK) {
                 if (sys.activeCamera == null) {
                     sys.activeCamera = camera;
@@ -111,8 +108,6 @@ public class CameraSystem {
 
     /**
      * Unregisters a camera from the system.
-     * If the active camera is unregistered, finds another camera as fallback.
-     * Thread-safe.
      */
     public static void unregisterCamera(Camera camera) {
         CameraSystem sys = getInstance();
@@ -122,7 +117,6 @@ public class CameraSystem {
             if (sys.activeCamera == camera) {
                 sys.activeCamera = null;
 
-                // Find fallback camera
                 for (Camera cam : sys.registeredCameras) {
                     if (cam.isEnabled()) {
                         sys.activeCamera = cam;
@@ -131,7 +125,6 @@ public class CameraSystem {
                     }
                 }
 
-                // Warn if no cameras left
                 if (sys.activeCamera == null && !sys.registeredCameras.isEmpty()) {
                     System.err.println("WARNING: No enabled cameras available");
                 } else if (sys.activeCamera == null && sys.registeredCameras.isEmpty()) {
@@ -143,11 +136,10 @@ public class CameraSystem {
 
     /**
      * Sets the active camera.
-     * Thread-safe.
      */
     public static void setActiveCamera(Camera camera) {
         CameraSystem sys = getInstance();
-        
+
         if (sys.registeredCameras.contains(camera)) {
             synchronized (LOCK) {
                 sys.activeCamera = camera;
@@ -160,16 +152,12 @@ public class CameraSystem {
 
     /**
      * Gets the currently active camera.
-     * Creates fallback camera if none exists.
-     * Thread-safe.
      */
     public Camera getActiveCamera() {
         synchronized (LOCK) {
-            // Validate active camera is still enabled
             if (activeCamera != null && !activeCamera.isEnabled()) {
                 activeCamera = null;
 
-                // Find replacement
                 for (Camera cam : registeredCameras) {
                     if (cam.isEnabled()) {
                         activeCamera = cam;
@@ -179,7 +167,6 @@ public class CameraSystem {
                 }
             }
 
-            // FIX: Create fallback camera if none exists
             if (activeCamera == null) {
                 if (fallbackCamera == null) {
                     System.err.println("WARNING: No active camera, creating fallback");
@@ -198,13 +185,13 @@ public class CameraSystem {
     private Camera createFallbackCamera() {
         Camera camera = new Camera(Camera.ProjectionType.ORTHOGRAPHIC);
         camera.setClearColor(0.1f, 0.1f, 0.15f, 1.0f);
-        camera.setViewportSize(viewportWidth, viewportHeight);
+        camera.setGameResolution(gameWidth, gameHeight);
         return camera;
     }
 
     /**
-     * Updates viewport size. Should be called when window is resized.
-     * Thread-safe.
+     * FIX: Updates viewport size (physical window size).
+     * This does NOT change game resolution.
      */
     public static void setViewportSize(int width, int height) {
         if (width <= 0 || height <= 0) {
@@ -213,36 +200,28 @@ public class CameraSystem {
         }
 
         CameraSystem sys = getInstance();
-        
+
         synchronized (LOCK) {
             if (sys.viewportWidth != width || sys.viewportHeight != height) {
                 sys.viewportWidth = width;
                 sys.viewportHeight = height;
 
-                // Update all camera viewports
-                for (Camera camera : sys.registeredCameras) {
-                    camera.setViewportSize(width, height);
-                }
+                // Note: We do NOT update camera resolution here
+                // Cameras always use fixed game resolution
 
-                // Update fallback camera if it exists
-                if (sys.fallbackCamera != null) {
-                    sys.fallbackCamera.setViewportSize(width, height);
-                }
-
-                System.out.println("Viewport size updated: " + width + "x" + height);
+                System.out.println("Viewport size updated: " + width + "x" + height +
+                        " (game resolution remains: " + sys.gameWidth + "x" + sys.gameHeight + ")");
             }
         }
     }
 
     /**
-     * Updates camera matrices. Should be called each frame.
+     * Updates camera matrices.
      */
     public void updateFrame() {
         Camera camera = getActiveCamera();
         if (camera == null) return;
 
-        // Matrices are updated lazily when requested
-        // Just ensure camera update is called
         if (camera.hasTransformChanged() || camera.hasParametersChanged()) {
             camera.markViewDirty();
         }
@@ -256,8 +235,6 @@ public class CameraSystem {
         if (camera != null) {
             return camera.getProjectionMatrix();
         }
-
-        // Fallback to identity
         return new Matrix4f().identity();
     }
 
@@ -269,8 +246,6 @@ public class CameraSystem {
         if (camera != null) {
             return camera.getViewMatrix();
         }
-
-        // Fallback to identity
         return new Matrix4f().identity();
     }
 
@@ -282,19 +257,32 @@ public class CameraSystem {
         if (camera != null) {
             return camera.getClearColor();
         }
-
         return new Vector4f(DEFAULT_CLEAR_COLOR);
     }
 
     /**
-     * Gets the viewport width.
+     * FIX: Gets the fixed game width.
+     */
+    public static int getGameWidth() {
+        return getInstance().gameWidth;
+    }
+
+    /**
+     * FIX: Gets the fixed game height.
+     */
+    public static int getGameHeight() {
+        return getInstance().gameHeight;
+    }
+
+    /**
+     * Gets the viewport width (physical window size).
      */
     public static int getViewportWidth() {
         return getInstance().viewportWidth;
     }
 
     /**
-     * Gets the viewport height.
+     * Gets the viewport height (physical window size).
      */
     public static int getViewportHeight() {
         return getInstance().viewportHeight;
@@ -302,7 +290,6 @@ public class CameraSystem {
 
     /**
      * Clears all registered cameras and resets the system.
-     * Thread-safe.
      */
     public static void clear() {
         if (instance == null) {
@@ -310,7 +297,7 @@ public class CameraSystem {
         }
 
         CameraSystem sys = getInstance();
-        
+
         synchronized (LOCK) {
             sys.registeredCameras.clear();
             sys.activeCamera = null;
@@ -321,7 +308,6 @@ public class CameraSystem {
 
     /**
      * Completely destroys the singleton instance.
-     * Call this before reinitializing with different parameters.
      */
     public static void destroy() {
         synchronized (LOCK) {

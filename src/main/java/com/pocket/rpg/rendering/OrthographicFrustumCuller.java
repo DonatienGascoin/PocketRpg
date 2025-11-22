@@ -7,7 +7,7 @@ import org.joml.Vector3f;
 
 /**
  * Frustum culler for orthographic (2D) cameras.
- * Uses simple AABB tests against camera viewport bounds.
+ * FIXED: Now uses game resolution instead of viewport size.
  */
 public class OrthographicFrustumCuller extends FrustumCuller {
 
@@ -18,18 +18,18 @@ public class OrthographicFrustumCuller extends FrustumCuller {
     private float cameraBottom;
 
     /**
-     * Updates the orthographic frustum bounds from the camera.
+     * FIX: Updates the orthographic frustum bounds using game resolution.
      */
     @Override
     public void updateFromCamera(Camera camera) {
         this.camera = camera;
 
         if (camera == null || camera.getGameObject() == null) {
-            // Default viewport bounds
+            // Default to game resolution bounds
             cameraLeft = 0;
-            cameraRight = CameraSystem.getViewportWidth();
+            cameraRight = CameraSystem.getGameWidth();
             cameraTop = 0;
-            cameraBottom = CameraSystem.getViewportHeight();
+            cameraBottom = CameraSystem.getGameHeight();
             return;
         }
 
@@ -37,17 +37,16 @@ public class OrthographicFrustumCuller extends FrustumCuller {
         Transform camTransform = camera.getGameObject().getTransform();
         Vector3f camPos = camTransform.getPosition();
 
-        // Calculate world-space bounds for screen-space orthographic camera
+        // FIX: Calculate world-space bounds using GAME resolution
         // (0,0 at top-left, positive Y down)
         cameraLeft = camPos.x;
-        cameraRight = camPos.x + CameraSystem.getViewportWidth();
+        cameraRight = camPos.x + CameraSystem.getGameWidth();
         cameraTop = camPos.y;
-        cameraBottom = camPos.y + CameraSystem.getViewportHeight();
+        cameraBottom = camPos.y + CameraSystem.getGameHeight();
     }
 
     /**
      * Tests if a sprite is visible in the orthographic frustum.
-     * Uses AABB test with rotation padding for conservative culling.
      */
     @Override
     public boolean isVisible(SpriteRenderer spriteRenderer) {

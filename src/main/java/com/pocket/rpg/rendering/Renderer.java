@@ -13,14 +13,13 @@ import static org.lwjgl.opengl.GL33.*;
 
 /**
  * A 2D sprite renderer focused purely on rendering.
- * Camera and culling logic removed - handled by RenderPipeline.
- * 
- * FIXED: Memory leak fixed, null safety added
+ * FIXED: Now uses fixed game resolution for pixel-perfect rendering.
  */
 public class Renderer {
 
-    private int viewportWidth = 800;
-    private int viewportHeight = 600;
+    // FIX: Game resolution (fixed, never changes)
+    private int gameWidth = 640;
+    private int gameHeight = 480;
 
     private Shader shader;
     private int quadVAO;
@@ -32,9 +31,19 @@ public class Renderer {
 
     private FloatBuffer vertexBuffer;
 
-    public void init(int viewportWidth, int viewportHeight) {
-        this.viewportWidth = viewportWidth;
-        this.viewportHeight = viewportHeight;
+    /**
+     * FIX: Initialize with game resolution (fixed internal resolution).
+     */
+    public void init(int gameWidth, int gameHeight) {
+        if (gameWidth <= 0 || gameHeight <= 0) {
+            throw new IllegalArgumentException("Game resolution must be positive: " +
+                    gameWidth + "x" + gameHeight);
+        }
+
+        this.gameWidth = gameWidth;
+        this.gameHeight = gameHeight;
+
+        System.out.println("Renderer initialized with game resolution: " + gameWidth + "x" + gameHeight);
 
         shader = new Shader("assets/shaders/sprite.glsl");
         shader.compileAndLink();
@@ -47,21 +56,24 @@ public class Renderer {
         viewMatrix = new Matrix4f();
         modelMatrix = new Matrix4f();
 
-        setProjection(viewportWidth, viewportHeight);
+        setProjection(gameWidth, gameHeight);
 
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     }
 
+    /**
+     * FIX: Sets projection using game resolution.
+     * This should match the camera's projection.
+     */
     public void setProjection(int width, int height) {
-        // FIX: Validate dimensions
         if (width <= 0 || height <= 0) {
             System.err.println("WARNING: Invalid projection dimensions: " + width + "x" + height);
             return;
         }
 
-        this.viewportWidth = width;
-        this.viewportHeight = height;
+        this.gameWidth = width;
+        this.gameHeight = height;
         projectionMatrix.identity().ortho(0, width, height, 0, -1, 1);
     }
 
@@ -92,10 +104,9 @@ public class Renderer {
     }
 
     /**
-     * FIX: Added comprehensive null checks
+     * Draws a sprite renderer.
      */
     public void drawSpriteRenderer(SpriteRenderer spriteRenderer) {
-        // FIX: Null safety checks
         if (spriteRenderer == null) {
             System.err.println("WARNING: Attempted to render null SpriteRenderer");
             return;
@@ -211,30 +222,43 @@ public class Renderer {
     }
 
     /**
-     * FIX: Memory leak fixed - now properly frees native buffer
+     * Cleanup resources.
      */
     public void destroy() {
         if (shader != null) {
             shader.delete();
             shader = null;
         }
-        
+
         if (quadVAO != 0) {
             glDeleteVertexArrays(quadVAO);
             quadVAO = 0;
         }
-        
+
         if (quadVBO != 0) {
             glDeleteBuffers(quadVBO);
             quadVBO = 0;
         }
-        
-        // FIX: Free native memory
+
         if (vertexBuffer != null) {
             MemoryUtil.memFree(vertexBuffer);
             vertexBuffer = null;
         }
 
         System.out.println("Renderer destroyed and resources freed");
+    }
+
+    /**
+     * Gets the game width (fixed internal resolution).
+     */
+    public int getGameWidth() {
+        return gameWidth;
+    }
+
+    /**
+     * Gets the game height (fixed internal resolution).
+     */
+    public int getGameHeight() {
+        return gameHeight;
     }
 }

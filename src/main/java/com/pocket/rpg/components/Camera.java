@@ -8,10 +8,8 @@ import org.joml.Vector4f;
 
 /**
  * Camera component that manages projection parameters.
- * Now automatically registers with CameraSystem when enabled/disabled.
- * Matrices and viewport are managed by CameraSystem.
- * 
- * FIXED: Transform change detection now works correctly
+ * FIXED: Now uses fixed game resolution instead of viewport size
+ * for pixel-perfect rendering.
  */
 public class Camera extends Component {
 
@@ -37,9 +35,9 @@ public class Camera extends Component {
     private float perspectiveNear = 0.1f;
     private float perspectiveFar = 1000.0f;
 
-    // Viewport (for projection calculation)
-    private int viewportWidth = 800;
-    private int viewportHeight = 600;
+    // FIX: Use game resolution instead of viewport
+    private int gameWidth = 640;
+    private int gameHeight = 480;
 
     // Matrices (cached)
     private Matrix4f projectionMatrix = new Matrix4f();
@@ -48,7 +46,7 @@ public class Camera extends Component {
     private boolean projectionDirty = true;
     private boolean viewDirty = true;
 
-    // FIX: Store transform VALUES instead of reference
+    // Store transform VALUES instead of reference
     private Vector3f lastPosition = new Vector3f();
     private Vector3f lastRotation = new Vector3f();
     private Vector3f lastScale = new Vector3f(1, 1, 1);
@@ -70,7 +68,7 @@ public class Camera extends Component {
     public void startInternal() {
         projectionDirty = true;
         viewDirty = true;
-        
+
         // Initialize last transform values
         if (gameObject != null) {
             Transform transform = getTransform();
@@ -83,9 +81,6 @@ public class Camera extends Component {
         CameraSystem.registerCamera(this);
     }
 
-    /**
-     * FIX: Now properly detects transform changes by comparing values
-     */
     @Override
     public void update(float deltaTime) {
         if (gameObject == null) return;
@@ -125,12 +120,31 @@ public class Camera extends Component {
         CameraSystem.unregisterCamera(this);
     }
 
-    public void setViewportSize(int width, int height) {
-        if (this.viewportWidth != width || this.viewportHeight != height) {
-            this.viewportWidth = width;
-            this.viewportHeight = height;
+    /**
+     * FIX: Sets the game resolution (fixed internal resolution).
+     * This should be called once during initialization with the game's
+     * fixed resolution, NOT the window size.
+     */
+    public void setGameResolution(int width, int height) {
+        if (this.gameWidth != width || this.gameHeight != height) {
+            this.gameWidth = width;
+            this.gameHeight = height;
             this.projectionDirty = true;
         }
+    }
+
+    /**
+     * Gets the game width (fixed internal resolution).
+     */
+    public int getGameWidth() {
+        return gameWidth;
+    }
+
+    /**
+     * Gets the game height (fixed internal resolution).
+     */
+    public int getGameHeight() {
+        return gameHeight;
     }
 
     private void updateViewMatrix() {
@@ -157,13 +171,20 @@ public class Camera extends Component {
         viewDirty = false;
     }
 
+    /**
+     * FIX: Uses fixed game resolution instead of viewport size.
+     */
     private void updateProjectionMatrix() {
-        if (viewportWidth <= 0 || viewportHeight <= 0) return;
+        if (gameWidth <= 0 || gameHeight <= 0) {
+            System.err.println("WARNING: Invalid game resolution: " + gameWidth + "x" + gameHeight);
+            return;
+        }
 
-        float aspect = (float) viewportWidth / (float) viewportHeight;
+        float aspect = (float) gameWidth / (float) gameHeight;
 
         if (projectionType == ProjectionType.ORTHOGRAPHIC) {
-            projectionMatrix.identity().ortho(0, viewportWidth, viewportHeight, 0, nearPlane, farPlane);
+            // FIX: Use game resolution for pixel-perfect rendering
+            projectionMatrix.identity().ortho(0, gameWidth, gameHeight, 0, nearPlane, farPlane);
         } else {
             projectionMatrix.identity().perspective(
                     (float) Math.toRadians(fieldOfView),
@@ -186,7 +207,7 @@ public class Camera extends Component {
         if (this.projectionType != type) {
             this.projectionType = type;
             this.projectionDirty = true;
-            this.viewDirty = true; // View matrix formula depends on projection type
+            this.viewDirty = true;
         }
     }
 
@@ -270,12 +291,15 @@ public class Camera extends Component {
         return projectionDirty;
     }
 
+    /**
+     * FIX: Screen to world conversion now uses game resolution.
+     */
     public Vector3f screenToWorld(float screenX, float screenY, float depth) {
         if (projectionDirty) updateProjectionMatrix();
         if (viewDirty) updateViewMatrix();
 
-        float ndcX = (2.0f * screenX) / viewportWidth - 1.0f;
-        float ndcY = 1.0f - (2.0f * screenY) / viewportHeight;
+        float ndcX = (2.0f * screenX) / gameWidth - 1.0f;
+        float ndcY = 1.0f - (2.0f * screenY) / gameHeight;
 
         Matrix4f invProj = new Matrix4f(projectionMatrix).invert();
         Matrix4f invView = new Matrix4f(viewMatrix).invert();
@@ -289,7 +313,8 @@ public class Camera extends Component {
 
     @Override
     public String toString() {
-        return String.format("Camera[type=%s, clearColor=(%.2f,%.2f,%.2f,%.2f)]",
-                projectionType, clearColor.x, clearColor.y, clearColor.z, clearColor.w);
+        return String.format("Camera[type=%s, gameRes=%dx%d, clearColor=(%.2f,%.2f,%.2f,%.2f)]",
+                projectionType, gameWidth, gameHeight,
+                clearColor.x, clearColor.y, clearColor.z, clearColor.w);
     }
 }

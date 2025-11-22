@@ -221,20 +221,23 @@ public abstract class Scene {
 
     /**
      * Renders all sprites in the scene.
+     * Now uses Renderer.drawSpriteRenderer() which reads Transform directly.
      */
     void render() {
         if (renderer == null) return;
 
-        renderer.begin();
+        // Note: begin() is called by SceneManager.render() via beginWithCamera()
+        // We just render the sprite renderers here
 
         // Render all registered SpriteRenderers
         for (SpriteRenderer spriteRenderer : spriteRenderers) {
-            if (spriteRenderer.isEnabled() && spriteRenderer.getSprite() != null) {
-                renderer.drawSprite(spriteRenderer.getSprite());
+            if (spriteRenderer.isEnabled() &&
+                    spriteRenderer.getSprite() != null &&
+                    spriteRenderer.getGameObject() != null &&
+                    spriteRenderer.getGameObject().isEnabled()) {
+                renderer.drawSpriteRenderer(spriteRenderer);
             }
         }
-
-        renderer.end();
     }
 
     /**

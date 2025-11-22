@@ -1,7 +1,10 @@
 package com.pocket.rpg.rendering;
 
 import com.pocket.rpg.components.Camera;
+import com.pocket.rpg.components.SpriteRenderer;
+import com.pocket.rpg.components.Transform;
 import org.joml.Matrix4f;
+import org.joml.Vector3f;
 import org.joml.Vector4f;
 import org.lwjgl.system.MemoryUtil;
 
@@ -10,9 +13,9 @@ import java.nio.FloatBuffer;
 import static org.lwjgl.opengl.GL33.*;
 
 /**
- * A simple 2D sprite renderer with support for batching, transformations, and textures.
- * Uses an orthographic projection for 2D rendering.
- * Now handles camera clear color and OpenGL clear operations.
+ * A 2D sprite renderer that renders SpriteRenderer components.
+ * Handles transformations, textures, and camera operations.
+ * Uses orthographic projection for 2D rendering.
  */
 public class Renderer {
 
@@ -110,35 +113,31 @@ public class Renderer {
     }
 
     /**
-     * Renders a sprite with its UV coordinates.
+     * Renders a SpriteRenderer component.
+     * Reads Transform from the GameObject and Sprite from the component.
      *
-     * @param sprite The sprite to render
+     * @param spriteRenderer The SpriteRenderer component to render
      */
-    public void drawSprite(Sprite sprite) {
+    public void drawSpriteRenderer(SpriteRenderer spriteRenderer) {
+        if (spriteRenderer == null || spriteRenderer.getSprite() == null) {
+            return;
+        }
+
+        Sprite sprite = spriteRenderer.getSprite();
+        Transform transform = spriteRenderer.getGameObject().getTransform();
+
+        if (transform == null) {
+            return;
+        }
+
         // Update quad UVs for this sprite
         updateQuadUVs(sprite.getU0(), sprite.getV0(), sprite.getU1(), sprite.getV1());
 
         // Bind texture
         sprite.getTexture().bind(0);
 
-        // Build model matrix (TRS: Translate, Rotate, Scale)
-        modelMatrix.identity();
-
-        // Translate to position
-        modelMatrix.translate(sprite.getX(), sprite.getY(), 0);
-
-        // Rotate around origin
-        if (sprite.getRotation() != 0) {
-            float originX = sprite.getWidth() * sprite.getOriginX();
-            float originY = sprite.getHeight() * sprite.getOriginY();
-
-            modelMatrix.translate(originX, originY, 0);
-            modelMatrix.rotateZ((float) Math.toRadians(sprite.getRotation()));
-            modelMatrix.translate(-originX, -originY, 0);
-        }
-
-        // Scale to sprite size
-        modelMatrix.scale(sprite.getWidth(), sprite.getHeight(), 1);
+        // Build model matrix from Transform and Sprite
+        buildModelMatrix(sprite, transform, spriteRenderer);
 
         // Upload model matrix
         shader.uploadMat4f("model", modelMatrix);
@@ -150,6 +149,44 @@ public class Renderer {
 
         // Unbind texture
         Texture.unbind(0);
+    }
+
+    /**
+     * Builds the model matrix from Transform, Sprite, and SpriteRenderer.
+     * Applies: Translation -> Rotation (around origin) -> Scale
+     *
+     * @param sprite         The sprite (for size)
+     * @param transform      The transform (for position, rotation, scale)
+     * @param spriteRenderer The sprite renderer (for origin/pivot)
+     */
+    private void buildModelMatrix(Sprite sprite, Transform transform, SpriteRenderer spriteRenderer) {
+        Vector3f pos = transform.getPosition();
+        Vector3f rot = transform.getRotation();
+        Vector3f scale = transform.getScale();
+
+        // Calculate final size (sprite base size * transform scale)
+        float finalWidth = sprite.getWidth() * scale.x;
+        float finalHeight = sprite.getHeight() * scale.y;
+
+        // Calculate origin offset in pixels
+        float originX = finalWidth * spriteRenderer.getOriginX();
+        float originY = finalHeight * spriteRenderer.getOriginY();
+
+        // Build model matrix (TRS: Translate, Rotate, Scale)
+        modelMatrix.identity();
+
+        // 1. Translate to position
+        modelMatrix.translate(pos.x, pos.y, pos.z);
+
+        // 2. Rotate around origin (if rotation is not zero)
+        if (rot.z != 0) {
+            modelMatrix.translate(originX, originY, 0);
+            modelMatrix.rotateZ((float) Math.toRadians(rot.z));
+            modelMatrix.translate(-originX, -originY, 0);
+        }
+
+        // 3. Scale to final size
+        modelMatrix.scale(finalWidth, finalHeight, 1);
     }
 
     /**

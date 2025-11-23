@@ -113,7 +113,7 @@ public abstract class Window {
 
             // Update and render game
             try {
-                renderGame(Time.deltaTime());
+                update(Time.deltaTime());
             } catch (Exception e) {
                 System.err.println("ERROR in renderGame: " + e.getMessage());
                 e.printStackTrace();
@@ -136,7 +136,7 @@ public abstract class Window {
      *
      * @param deltaTime Time since last frame in seconds
      */
-    protected abstract void renderGame(float deltaTime);
+    protected abstract void update(float deltaTime);
 
 
     protected void destroy() {

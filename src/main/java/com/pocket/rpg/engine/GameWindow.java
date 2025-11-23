@@ -5,6 +5,7 @@ import com.pocket.rpg.postProcessing.postEffects.VignetteEffect;
 import com.pocket.rpg.rendering.CameraSystem;
 import com.pocket.rpg.rendering.RenderPipeline;
 import com.pocket.rpg.rendering.Renderer;
+import com.pocket.rpg.resources.AssetManager;
 import com.pocket.rpg.scenes.*;
 import com.pocket.rpg.utils.DefaultCallback;
 import com.pocket.rpg.utils.WindowConfig;
@@ -45,6 +46,9 @@ public class GameWindow extends Window {
         System.out.println("Initializing game systems...");
         System.out.println("Window size: " + getScreenWidth() + "x" + getScreenHeight());
         System.out.println("Game resolution: " + config.getGameWidth() + "x" + config.getGameHeight());
+
+        // Initialize AssetManager
+        AssetManager.initialize();
 
         CameraSystem.initialize(config.getGameWidth(), config.getGameHeight());
         CameraSystem cameraSystem = CameraSystem.getInstance();
@@ -98,8 +102,10 @@ public class GameWindow extends Window {
     }
 
     @Override
-    protected void renderGame(float deltaTime) {
+    protected void update(float deltaTime) {
         try {
+            // Update AssetManager
+            AssetManager.getInstance().update(deltaTime);
             // Update scene
             sceneManager.update(deltaTime);
 
@@ -126,6 +132,9 @@ public class GameWindow extends Window {
         }
 
         CameraSystem.destroy();
+
+        // Destroy AssetManager
+        AssetManager.destroy();
 
         System.out.println("Game systems destroyed");
     }

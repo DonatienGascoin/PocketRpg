@@ -1,6 +1,6 @@
 package com.pocket.rpg.utils;
 
-import com.pocket.rpg.rendering.CameraSystem;
+import com.pocket.rpg.input.InputManager;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,14 +32,17 @@ public class DefaultCallback implements ICallback {
 
     @Override
     public void mouseScrollCallback(long window, double xOffset, double yOffset) {
-        // Default implementation
+        // Forward to InputManager
+        InputManager.notifyScroll(xOffset, yOffset);
     }
 
     @Override
     public void keyCallback(long window, int key, int scanCode, int action, int mods) {
-        if (key == GLFW_KEY_ESCAPE && action == GLFW_RELEASE) {
-            glfwSetWindowShouldClose(window, true);
-        }
+        // InputManager is handling key events itself
+
+//        if (key == GLFW_KEY_ESCAPE && action == GLFW_RELEASE) {
+//            glfwSetWindowShouldClose(window, true);
+//        }
     }
 
     @Override

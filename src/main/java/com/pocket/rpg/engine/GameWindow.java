@@ -3,7 +3,6 @@ package com.pocket.rpg.engine;
 import com.pocket.rpg.postProcessing.PostProcessor;
 import com.pocket.rpg.postProcessing.postEffects.VignetteEffect;
 import com.pocket.rpg.rendering.CameraSystem;
-import com.pocket.rpg.rendering.ConsoleStatisticsReporter;
 import com.pocket.rpg.rendering.RenderPipeline;
 import com.pocket.rpg.rendering.Renderer;
 import com.pocket.rpg.scenes.*;
@@ -20,15 +19,13 @@ public class GameWindow extends Window {
 
     private Renderer renderer;
     private RenderPipeline renderPipeline;
-    private CameraSystem cameraSystem;
     private SceneManager sceneManager;
 
     public GameWindow() {
         super(WindowConfig.builder()
                 // Window size (can be resized by user)
-                .initialWidth(1280)
-                .initialHeight(960)
-
+                .initialWidth(640)
+                .initialHeight(480)
                 // Fixed game resolution (never changes)
                 .gameWidth(640)
                 .gameHeight(480)
@@ -49,9 +46,8 @@ public class GameWindow extends Window {
         System.out.println("Window size: " + getScreenWidth() + "x" + getScreenHeight());
         System.out.println("Game resolution: " + config.getGameWidth() + "x" + config.getGameHeight());
 
-        // FIX: Initialize CameraSystem with GAME resolution, not window size
         CameraSystem.initialize(config.getGameWidth(), config.getGameHeight());
-        cameraSystem = CameraSystem.getInstance();
+        CameraSystem cameraSystem = CameraSystem.getInstance();
 
         if (cameraSystem == null) {
             throw new IllegalStateException("Failed to initialize CameraSystem");
@@ -87,7 +83,8 @@ public class GameWindow extends Window {
         // Register test scenes
         sceneManager.registerScene(new SmallOptimizationTestScene());
         sceneManager.registerScene(new LargePerformanceBenchmarkScene());
-        sceneManager.registerScene(new ExampleScene());
+//        sceneManager.registerScene(new ExampleScene());
+        sceneManager.registerScene(new ExampleInputSystemScene());
 
         // Load first scene
         sceneManager.loadScene("ExampleScene");

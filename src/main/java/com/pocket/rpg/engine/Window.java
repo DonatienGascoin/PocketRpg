@@ -1,5 +1,6 @@
 package com.pocket.rpg.engine;
 
+import com.pocket.rpg.input.InputManager;
 import com.pocket.rpg.postProcessing.PostProcessor;
 import com.pocket.rpg.utils.PerformanceMonitor;
 import com.pocket.rpg.utils.Time;
@@ -51,6 +52,8 @@ public abstract class Window {
         glfwManager = new GlfwManager(config);
         glfwManager.init();
 
+        InputManager.initialize(getWindowHandle());
+
         initPostProcessing();
 
         performanceMonitor = new PerformanceMonitor();
@@ -85,6 +88,7 @@ public abstract class Window {
             if (!glfwManager.isVisible()) {
                 // Window is minimized - don't render, just poll events and sleep
                 glfwManager.pollEvents();
+                InputManager.poll();
                 
                 // Sleep to avoid busy-wait and save CPU/battery
                 try {
@@ -137,6 +141,8 @@ public abstract class Window {
         System.out.println("Destroying window...");
         
         destroyGame();
+
+        InputManager.destroy();
         
         if (postProcessor != null) {
             postProcessor.destroy();

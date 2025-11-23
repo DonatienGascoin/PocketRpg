@@ -131,11 +131,6 @@ public class LargePerformanceBenchmarkScene extends Scene {
         }
 
         @Override
-        public void startInternal() {
-            // Get window handle from somewhere - for now we'll handle this in update
-        }
-
-        @Override
         public void update(float deltaTime) {
             Transform transform = getTransform();
             Vector3f pos = transform.getPosition();

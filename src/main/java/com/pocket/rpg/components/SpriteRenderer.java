@@ -99,7 +99,7 @@ public class SpriteRenderer extends Component {
     }
 
     @Override
-    public void destroy() {
+    public void onDestroy() {
         // Note: We don't destroy the sprite's texture here as it might be shared
         // Texture cleanup should be handled by a resource manager
         sprite = null;

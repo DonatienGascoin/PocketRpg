@@ -65,7 +65,7 @@ public class Camera extends Component {
     }
 
     @Override
-    public void startInternal() {
+    public void onStart() {
         projectionDirty = true;
         viewDirty = true;
 
@@ -116,7 +116,7 @@ public class Camera extends Component {
     }
 
     @Override
-    public void destroy() {
+    public void onDestroy() {
         CameraSystem.unregisterCamera(this);
     }
 

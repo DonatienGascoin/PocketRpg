@@ -45,7 +45,7 @@ public class PerformanceMonitor {
 
         double currentTime = Time.getTime();
         if (currentTime - lastReportTime >= reportInterval) {
-            printStats();
+//            printStats();
             lastReportTime = currentTime;
         }
     }

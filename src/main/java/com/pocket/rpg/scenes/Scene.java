@@ -14,8 +14,9 @@ import java.util.Queue;
  * Scene holds and manages GameObjects.
  * Scenes can be loaded and unloaded by the SceneManager.
  * Provides list of SpriteRenderers for rendering pipeline.
- * 
+ *
  * FIXED: Now supports safe GameObject add/remove during update/render
+ * UPDATED: Now properly calls lateUpdate on all GameObjects
  */
 public abstract class Scene {
     @Getter
@@ -167,6 +168,7 @@ public abstract class Scene {
     /**
      * Called every frame to update all GameObjects.
      * FIX: Now uses safe iteration and processes deferred actions.
+     * UPDATED: Now calls both update() and lateUpdate() in proper order.
      */
     void update(float deltaTime) {
         isUpdating = true;
@@ -174,6 +176,7 @@ public abstract class Scene {
         // Create copy to avoid ConcurrentModificationException
         List<GameObject> gameObjectsToUpdate = new ArrayList<>(gameObjects);
 
+        // Phase 1: Regular update
         for (GameObject gameObject : gameObjectsToUpdate) {
             // Check if still in scene (might have been removed)
             if (!gameObjects.contains(gameObject)) {
@@ -185,9 +188,21 @@ public abstract class Scene {
             }
         }
 
+        // Phase 2: Late update (after all regular updates complete)
+        for (GameObject gameObject : gameObjectsToUpdate) {
+            // Check if still in scene (might have been removed during update)
+            if (!gameObjects.contains(gameObject)) {
+                continue;
+            }
+
+            if (gameObject.isEnabled()) {
+                gameObject.lateUpdate(deltaTime);
+            }
+        }
+
         isUpdating = false;
 
-        // Process deferred actions after update completes
+        // Process deferred actions after both update phases complete
         processDeferredActions();
     }
 
@@ -234,7 +249,7 @@ public abstract class Scene {
         for (GameObject gameObject : gameObjectsToDestroy) {
             gameObject.destroy();
         }
-        
+
         gameObjects.clear();
         spriteRenderers.clear();
         deferredActions.clear();

@@ -52,7 +52,7 @@ public class TranslationComponent extends Component {
     }
 
     @Override
-    public void start() {
+    public void onStart() {
         if (startPosition == null && gameObject != null) {
             startPosition = new Vector3f(gameObject.getTransform().getPosition());
         }

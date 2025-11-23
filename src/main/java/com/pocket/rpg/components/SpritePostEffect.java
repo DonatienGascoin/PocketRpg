@@ -63,7 +63,7 @@ public class SpritePostEffect extends Component {
     }
 
     @Override
-    public void startInternal() {
+    public void onStart() {
         initFramebuffers();
 
         compositeShader = new Shader("assets/shaders/sprite.glsl");
@@ -216,9 +216,7 @@ public class SpritePostEffect extends Component {
     }
 
     @Override
-    public void destroy() {
-        super.destroy();
-
+    public void onDestroy() {
         if (fbo1 != 0) glDeleteFramebuffers(fbo1);
         if (fbo2 != 0) glDeleteFramebuffers(fbo2);
         if (texture1 != 0) glDeleteTextures(texture1);

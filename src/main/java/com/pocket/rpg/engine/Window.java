@@ -88,7 +88,6 @@ public abstract class Window {
             if (!glfwManager.isVisible()) {
                 // Window is minimized - don't render, just poll events and sleep
                 glfwManager.pollEvents();
-                InputManager.poll();
                 
                 // Sleep to avoid busy-wait and save CPU/battery
                 try {
@@ -101,6 +100,9 @@ public abstract class Window {
                 Time.update();
                 continue; // Skip rendering
             }
+
+
+            InputManager.poll();
 
             // Normal rendering when window is visible
             postProcessor.beginCapture();

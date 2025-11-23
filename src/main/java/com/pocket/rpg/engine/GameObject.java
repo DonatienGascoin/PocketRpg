@@ -9,36 +9,35 @@ import lombok.Setter;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.Queue;
 
 /**
  * GameObject is the fundamental entity in the game.
  * It holds components that define its behavior and properties.
- * 
- * FIXED: Now supports safe component add/remove during update loop
  */
 public class GameObject {
     @Setter
     @Getter
     private String name;
-    @Setter
+
     @Getter
     private boolean enabled = true;
+
+    /**
+     * Internal method called by Scene when GameObject is added.
+     */
     @Setter
     @Getter
     private Scene scene;
 
-    private List<Component> components;
-    @Getter
-    private Transform transform;
-    @Getter
-    private boolean started = false;
+    private final List<Component> components;
 
-    // FIX: Deferred execution for safe add/remove during update
-    private Queue<Runnable> deferredActions = new LinkedList<>();
-    private boolean isUpdating = false;
+    /**
+     * -- GETTER --
+     * Gets the Transform component (always present).
+     */
+    @Getter
+    private Transform transform; // Cached reference to mandatory Transform
 
     public GameObject(String name) {
         this.name = name;
@@ -58,11 +57,38 @@ public class GameObject {
         addComponentInternal(transform);
     }
 
+    // =======================================================================
+    // GameObject State Management
+    // =======================================================================
+
+    /**
+     * Sets the enabled state of this GameObject.
+     * Propagates enable/disable callbacks to all components.
+     */
+    public void setEnabled(boolean enabled) {
+        if (this.enabled == enabled) return;
+
+        boolean wasEnabled = this.enabled;
+        this.enabled = enabled;
+
+        // Notify all components of state change
+        for (Component component : components) {
+            if (enabled && component.isEnabled()) {
+                // GameObject was disabled, now enabled - trigger onEnable
+                component.triggerEnable();
+            } else if (!enabled && wasEnabled && component.isEnabled()) {
+                // GameObject was enabled, now disabled - trigger onDisable
+                component.triggerDisable();
+            }
+        }
+    }
+
+    // =======================================================================
     // Component Management
+    // =======================================================================
 
     /**
      * Adds a component to this GameObject.
-     * Safe to call during update() - will be executed after update completes.
      * Note: Transform cannot be added this way as it's automatically created.
      */
     public <T extends Component> T addComponent(T component) {
@@ -71,31 +97,19 @@ public class GameObject {
             return component;
         }
 
-        if (isUpdating) {
-            // Defer execution until after update
-            deferredActions.add(() -> addComponentImmediate(component));
-        } else {
-            addComponentImmediate(component);
-        }
-
-        return component;
-    }
-
-    /**
-     * Internal method to immediately add a component.
-     */
-    private <T extends Component> void addComponentImmediate(T component) {
         addComponentInternal(component);
-
-        // FIX: Call start() if GameObject is already started and component is enabled
-        if (started && component.isEnabled()) {
-            component.start();
-        }
 
         // If adding to an active scene, notify the scene
         if (scene != null && component instanceof SpriteRenderer) {
             scene.registerSpriteRenderer((SpriteRenderer) component);
         }
+
+        // Auto-start if GameObject is already in active scene and enabled
+        if (scene != null && enabled) {
+            component.start();
+        }
+
+        return component;
     }
 
     /**
@@ -108,7 +122,6 @@ public class GameObject {
 
     /**
      * Removes a component from this GameObject.
-     * Safe to call during update() - will be executed after update completes.
      */
     public void removeComponent(Component component) {
         if (component == transform) {
@@ -116,31 +129,14 @@ public class GameObject {
             return;
         }
 
-        if (isUpdating) {
-            // Defer execution until after update
-            deferredActions.add(() -> removeComponentImmediate(component));
-        } else {
-            removeComponentImmediate(component);
-        }
-    }
-
-    /**
-     * Internal method to immediately remove a component.
-     */
-    private void removeComponentImmediate(Component component) {
-        if (!components.contains(component)) {
-            return; // Already removed
-        }
-
-        // FIX: Unregister from scene BEFORE destroying
-        if (scene != null && component instanceof SpriteRenderer) {
-            scene.unregisterSpriteRenderer((SpriteRenderer) component);
-        }
-
-        // Then remove and destroy
         if (components.remove(component)) {
             component.destroy();
             component.setGameObject(null);
+
+            // If removing from an active scene, notify the scene
+            if (scene != null && component instanceof SpriteRenderer) {
+                scene.unregisterSpriteRenderer((SpriteRenderer) component);
+            }
         }
     }
 
@@ -159,6 +155,7 @@ public class GameObject {
 
     /**
      * Gets all components of the specified type.
+     * Useful when multiple components of the same type exist.
      */
     @SuppressWarnings("unchecked")
     public <T extends Component> List<T> getComponents(Class<T> componentClass) {
@@ -171,43 +168,41 @@ public class GameObject {
         return result;
     }
 
+    /**
+     * Gets all components attached to this GameObject.
+     */
+    public List<Component> getAllComponents() {
+        return new ArrayList<>(components);
+    }
+
+    // =======================================================================
     // Lifecycle Methods
+    // =======================================================================
 
     /**
      * Called when the GameObject is added to a scene.
      */
     public void start() {
-        if (started) {
-            return; // Already started
-        }
+        // Create snapshot to avoid ConcurrentModificationException
+        List<Component> snapshot = new ArrayList<>(components);
 
-        for (Component component : components) {
+        for (Component component : snapshot) {
             if (component.isEnabled()) {
                 component.start();
             }
         }
-
-        started = true;
     }
 
     /**
      * Called every frame.
-     * FIX: Now uses safe iteration to prevent ConcurrentModificationException
      */
     public void update(float deltaTime) {
         if (!enabled) return;
 
-        isUpdating = true;
+        // Create snapshot to allow adding/removing components during update
+        List<Component> snapshot = new ArrayList<>(components);
 
-        // FIX: Create copy to avoid ConcurrentModificationException
-        List<Component> componentsToUpdate = new ArrayList<>(components);
-        
-        for (Component component : componentsToUpdate) {
-            // Check if component is still in list (might have been removed)
-            if (!components.contains(component)) {
-                continue;
-            }
-
+        for (Component component : snapshot) {
             if (component.isEnabled()) {
                 // Ensure start is called before first update
                 if (!component.isStarted()) {
@@ -216,20 +211,22 @@ public class GameObject {
                 component.update(deltaTime);
             }
         }
-
-        isUpdating = false;
-
-        // FIX: Process deferred actions after update completes
-        processDeferredActions();
     }
 
     /**
-     * Processes all deferred actions accumulated during update.
+     * Called every frame after all update() calls.
+     * Use this for operations that depend on other updates being complete.
      */
-    private void processDeferredActions() {
-        while (!deferredActions.isEmpty()) {
-            Runnable action = deferredActions.poll();
-            action.run();
+    public void lateUpdate(float deltaTime) {
+        if (!enabled) return;
+
+        // Create snapshot to avoid ConcurrentModificationException
+        List<Component> snapshot = new ArrayList<>(components);
+
+        for (Component component : snapshot) {
+            if (component.isEnabled()) {
+                component.lateUpdate(deltaTime);
+            }
         }
     }
 
@@ -237,12 +234,12 @@ public class GameObject {
      * Called when the GameObject is destroyed.
      */
     public void destroy() {
-        // Create copy to avoid modification during iteration
-        List<Component> componentsToDestroy = new ArrayList<>(components);
-        for (Component component : componentsToDestroy) {
+        // Create snapshot to avoid ConcurrentModificationException during destruction
+        List<Component> snapshot = new ArrayList<>(components);
+
+        for (Component component : snapshot) {
             component.destroy();
         }
         components.clear();
-        deferredActions.clear();
     }
 }

@@ -6,6 +6,10 @@ import com.pocket.rpg.rendering.CameraSystem;
 import com.pocket.rpg.rendering.RenderPipeline;
 import com.pocket.rpg.rendering.Renderer;
 import com.pocket.rpg.resources.AssetManager;
+import com.pocket.rpg.resources.loaders.ShaderLoader;
+import com.pocket.rpg.resources.loaders.SpriteLoader;
+import com.pocket.rpg.resources.loaders.SpriteSheetLoader;
+import com.pocket.rpg.resources.loaders.TextureLoader;
 import com.pocket.rpg.scenes.*;
 import com.pocket.rpg.utils.DefaultCallback;
 import com.pocket.rpg.utils.WindowConfig;
@@ -49,6 +53,12 @@ public class GameWindow extends Window {
 
         // Initialize AssetManager
         AssetManager.initialize();
+
+        AssetManager manager = AssetManager.getInstance();
+        manager.registerLoader("texture", new TextureLoader());
+        manager.registerLoader("shader", new ShaderLoader());
+        manager.registerLoader("sprite", new SpriteLoader());
+        manager.registerLoader("spritesheet", new SpriteSheetLoader());
 
         CameraSystem.initialize(config.getGameWidth(), config.getGameHeight());
         CameraSystem cameraSystem = CameraSystem.getInstance();

@@ -1,4 +1,4 @@
-package com.pocket.rpg.rendering;
+package com.pocket.rpg.rendering.renderers;
 
 import static org.lwjgl.opengl.GL33.*;
 

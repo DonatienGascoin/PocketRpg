@@ -1,4 +1,6 @@
-package com.pocket.rpg.rendering;
+package com.pocket.rpg.rendering.stats;
+
+import com.pocket.rpg.rendering.culling.CullingStatistics;
 
 /**
  * Reports culling statistics to the console at regular intervals.
@@ -6,14 +8,8 @@ package com.pocket.rpg.rendering;
 public class ConsoleStatisticsReporter implements StatisticsReporter {
 
     private final int reportInterval; // Report every N frames
-    private int frameCounter;
-
-    /**
-     * Creates a console reporter with default interval (60 frames).
-     */
-    public ConsoleStatisticsReporter() {
-        this(60);
-    }
+    private int cullingFrameCounter;
+    private int batchFrameCounter;
 
     /**
      * Creates a console reporter with specified interval.
@@ -22,23 +18,34 @@ public class ConsoleStatisticsReporter implements StatisticsReporter {
      */
     public ConsoleStatisticsReporter(int reportInterval) {
         this.reportInterval = Math.max(1, reportInterval);
-        this.frameCounter = 0;
+        this.cullingFrameCounter = 0;
+        this.batchFrameCounter = 0;
     }
 
     @Override
     public void report(CullingStatistics statistics) {
-        frameCounter++;
+        cullingFrameCounter++;
 
-        if (frameCounter >= reportInterval) {
-            printStatistics(statistics);
-            frameCounter = 0;
+        if (cullingFrameCounter >= reportInterval) {
+            printCullingStatistics(statistics);
+            cullingFrameCounter = 0;
+        }
+    }
+
+    @Override
+    public void report(BatchStatistics statistics) {
+        batchFrameCounter++;
+
+        if (batchFrameCounter >= reportInterval) {
+            printBatchStatistics(statistics);
+            batchFrameCounter = 0;
         }
     }
 
     /**
-     * Prints formatted statistics to console.
+     * Prints formatted culling statistics to console.
      */
-    private void printStatistics(CullingStatistics statistics) {
+    private void printCullingStatistics(CullingStatistics statistics) {
         System.out.println("╔══════════════════════════════════════════════════════════════╗");
         System.out.println("║              CULLING PERFORMANCE STATISTICS                  ║");
         System.out.println("╠══════════════════════════════════════════════════════════════╣");
@@ -64,6 +71,34 @@ public class ConsoleStatisticsReporter implements StatisticsReporter {
         System.out.printf("║   Avg Culled:        %-6.1f (%.1f%%)                        ║%n",
                 statistics.getAvgCulled(),
                 statistics.getAvgCullPercentage());
+
+        System.out.println("╚══════════════════════════════════════════════════════════════╝");
+        System.out.println();
+    }
+
+    /**
+     * Prints formatted batch statistics to console.
+     */
+    private void printBatchStatistics(BatchStatistics statistics) {
+        System.out.println("╔══════════════════════════════════════════════════════════════╗");
+        System.out.println("║              BATCH RENDERING STATISTICS                      ║");
+        System.out.println("╠══════════════════════════════════════════════════════════════╣");
+
+        System.out.printf("║ Total Sprites:       %-5d                                   ║%n",
+                statistics.totalSprites());
+        System.out.printf("║   Static:            %-5d                                   ║%n",
+                statistics.staticSprites());
+        System.out.printf("║   Dynamic:           %-5d                                   ║%n",
+                statistics.dynamicSprites());
+
+        System.out.println("║                                                              ║");
+
+        System.out.printf("║ Draw Calls:          %-5d                                   ║%n",
+                statistics.drawCalls());
+        System.out.printf("║ Sprites per Call:    %-6.1f                                 ║%n",
+                statistics.getSpritesPerCall());
+        System.out.printf("║ Sorting Strategy:    %-30s      ║%n",
+                statistics.sortingStrategy().toString());
 
         System.out.println("╚══════════════════════════════════════════════════════════════╝");
         System.out.println();

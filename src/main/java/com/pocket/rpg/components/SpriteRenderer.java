@@ -72,9 +72,9 @@ public class SpriteRenderer extends Component {
     /**
      * Creates a SpriteRenderer from a texture with custom size.
      *
-     * @param texture The texture to render
-     * @param width Sprite width
-     * @param height Sprite height
+     * @param texture  The texture to render
+     * @param width    Sprite width
+     * @param height   Sprite height
      * @param isStatic If true, this sprite is static (never moves)
      */
     public SpriteRenderer(Texture texture, float width, float height, boolean isStatic) {
@@ -126,6 +126,18 @@ public class SpriteRenderer extends Component {
      */
     public void setOriginBottomRight() {
         setOrigin(1f, 1f);
+    }
+
+    /**
+     * Called automatically when the GameObject's transform changes.
+     * If this is a static sprite, marks the batch as dirty so it will be rebuilt.
+     */
+    @Override
+    public void onTransformChanged() {
+        if (isStatic && gameObject != null && gameObject.getScene() != null) {
+            // Automatically mark the static batch as dirty
+            gameObject.getScene().markStaticBatchDirty();
+        }
     }
 
     @Override

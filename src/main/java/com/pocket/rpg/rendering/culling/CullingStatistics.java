@@ -1,4 +1,4 @@
-package com.pocket.rpg.rendering;
+package com.pocket.rpg.rendering.culling;
 
 import java.util.ArrayDeque;
 import java.util.Queue;

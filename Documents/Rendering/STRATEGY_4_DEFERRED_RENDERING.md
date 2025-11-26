@@ -290,105 +290,105 @@ package com.pocket.rpg.rendering;
 
 import com.pocket.rpg.components.Camera;
 import com.pocket.rpg.components.SpriteRenderer;
-import org.joml.Vector4f;
+import com.pocket.rpg.rendering.renderers.Renderer;
 
 public class DeferredRenderer extends Renderer {
-    
+
     private GBuffer gBuffer;
     private Shader deferredShader;
     private Shader compositingShader;
-    
+
     // Material effect shaders
     private MaterialEffectLibrary materialEffects;
-    
+
     @Override
     public void init(int viewportWidth, int viewportHeight) {
         super.init(viewportWidth, viewportHeight);
-        
+
         // Create G-Buffer
         gBuffer = new GBuffer(viewportWidth, viewportHeight);
-        
+
         // Load deferred shader
         deferredShader = new Shader("assets/shaders/spriteDeferred.glsl");
         deferredShader.compileAndLink();
-        
+
         // Load compositing shader
         compositingShader = new Shader("assets/shaders/deferredComposite.glsl");
         compositingShader.compileAndLink();
-        
+
         // Initialize material effects
         materialEffects = new MaterialEffectLibrary();
         materialEffects.init();
     }
-    
+
     /**
      * GEOMETRY PASS: Render all sprites to G-Buffer
      */
     public void beginGeometryPass(Camera camera) {
         gBuffer.bind();
         gBuffer.clear();
-        
+
         // Set up camera
         if (camera != null) {
             setViewMatrix(camera.getViewMatrix());
         } else {
             resetView();
         }
-        
+
         // Use deferred shader
         deferredShader.use();
         deferredShader.uploadMat4f("projection", getProjectionMatrix());
         deferredShader.uploadMat4f("view", getViewMatrix());
         deferredShader.uploadInt("textureSampler", 0);
     }
-    
+
     public void drawSpriteToGBuffer(SpriteRenderer spriteRenderer) {
         if (spriteRenderer == null || spriteRenderer.getSprite() == null) return;
-        
+
         // Upload material information
-        deferredShader.uploadInt("materialID", 
-            spriteRenderer.getMaterial().getId());
-        deferredShader.uploadFloat("materialStrength", 
-            spriteRenderer.getMaterialStrength());
-        
+        deferredShader.uploadInt("materialID",
+                spriteRenderer.getMaterial().getId());
+        deferredShader.uploadFloat("materialStrength",
+                spriteRenderer.getMaterialStrength());
+
         // Draw sprite normally (but outputs to G-Buffer)
         drawSpriteRenderer(spriteRenderer);
     }
-    
+
     public void endGeometryPass() {
         deferredShader.detach();
         gBuffer.unbind();
     }
-    
+
     /**
      * LIGHTING PASS: Apply material-specific effects and composite
      */
     public void applyMaterialEffects(int outputFBO) {
         glBindFramebuffer(GL_FRAMEBUFFER, outputFBO);
-        
+
         compositingShader.use();
-        
+
         // Bind G-Buffer textures
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, gBuffer.getColorTexture());
         compositingShader.uploadInt("gColor", 0);
-        
+
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, gBuffer.getNormalTexture());
         compositingShader.uploadInt("gNormal", 1);
-        
+
         glActiveTexture(GL_TEXTURE2);
         glBindTexture(GL_TEXTURE_2D, gBuffer.getMaterialTexture());
         compositingShader.uploadInt("gMaterial", 2);
-        
+
         // Render fullscreen quad
         renderFullscreenQuad();
-        
+
         // Cleanup
         compositingShader.detach();
         glBindTexture(GL_TEXTURE_2D, 0);
     }
-    
+
     @Override
     public void destroy() {
         super.destroy();

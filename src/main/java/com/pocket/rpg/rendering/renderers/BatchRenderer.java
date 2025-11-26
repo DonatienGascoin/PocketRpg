@@ -1,7 +1,12 @@
-package com.pocket.rpg.rendering;
+package com.pocket.rpg.rendering.renderers;
 
-import com.pocket.rpg.components.Camera;
 import com.pocket.rpg.components.SpriteRenderer;
+import com.pocket.rpg.rendering.Shader;
+import com.pocket.rpg.rendering.SpriteBatch;
+import com.pocket.rpg.rendering.stats.BatchStatistics;
+import com.pocket.rpg.rendering.stats.StatisticsReporter;
+import com.pocket.rpg.utils.WindowConfig;
+import lombok.Getter;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
 
@@ -13,18 +18,30 @@ import static org.lwjgl.opengl.GL33.*;
  */
 public class BatchRenderer extends Renderer {
 
+    @Getter
     private SpriteBatch batch;
     private Shader batchShader;
+    private StatisticsReporter statisticsReporter;
+    private int statisticsInterval;
+    private int frameCounter = 0;
+
 
     private Matrix4f projectionMatrix;
     private Matrix4f viewMatrix;
     private boolean projectionDirty = true;
     private boolean viewDirty = true;
 
+    public BatchRenderer(WindowConfig config) {
+        this.config = config;
+        if (config.isEnableStatistics()) {
+            this.statisticsReporter = config.getReporter();
+        }
+    }
+
     @Override
     public void init(int gameWidth, int gameHeight) {
         // Create batch
-        batch = new SpriteBatch();
+        batch = new SpriteBatch(config);
 
         // Create shader
         batchShader = new Shader("assets/shaders/batch_sprite.glsl");
@@ -41,6 +58,11 @@ public class BatchRenderer extends Renderer {
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
         System.out.println("BatchRenderer initialized with game resolution: " + gameWidth + "x" + gameHeight);
+    }
+
+    public void setStatisticsReporter(StatisticsReporter reporter, int intervalFrames) {
+        this.statisticsReporter = reporter;
+        this.statisticsInterval = intervalFrames;
     }
 
     @Override
@@ -106,6 +128,9 @@ public class BatchRenderer extends Renderer {
         batch.end();
 
         batchShader.detach();
+
+        // Report statistics if configured
+        reportStatistics();
     }
 
     @Override
@@ -119,20 +144,26 @@ public class BatchRenderer extends Renderer {
     }
 
     /**
-     * Gets the underlying SpriteBatch for configuration.
+     * Reports batch statistics using the configured reporter.
      */
-    public SpriteBatch getBatch() {
-        return batch;
-    }
+    private void reportStatistics() {
+        if (statisticsReporter == null) {
+            return;
+        }
 
-    /**
-     * Prints batch statistics.
-     */
-    public void printBatchStats() {
-        System.out.printf("Batch Stats: %d sprites in %d draw calls (%.1f sprites/call)%n",
-                batch.getTotalSprites(), batch.getDrawCalls(),
-                batch.getTotalSprites() / (float) Math.max(1, batch.getDrawCalls()));
-        System.out.printf("  Static: %d, Dynamic: %d%n",
-                batch.getStaticSprites(), batch.getDynamicSprites());
+        frameCounter++;
+        if (frameCounter >= statisticsInterval) {
+            // Create statistics object
+            BatchStatistics stats = new BatchStatistics(
+                    batch.getTotalSprites(),
+                    batch.getStaticSpritesRendered(),
+                    batch.getDynamicSpritesRendered(),
+                    batch.getDrawCalls(),
+                    batch.getSortingStrategy()
+            );
+
+            statisticsReporter.report(stats);
+            frameCounter = 0;
+        }
     }
 }

@@ -318,7 +318,7 @@ package com.pocket.rpg.rendering;
 
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.components.Transform;
-import org.joml.Matrix4f;
+import com.pocket.rpg.rendering.renderers.VertexLayout;
 import org.joml.Vector3f;
 import org.lwjgl.system.MemoryUtil;
 
@@ -332,32 +332,32 @@ import static org.lwjgl.opengl.GL33.*;
  * Supports depth sorting, static sprites, and configurable sorting strategies.
  */
 public class SpriteBatch {
-    
+
     // Maximum sprites per batch
     private static final int MAX_BATCH_SIZE = 10000;
-    
+
     // Batch data
     private final List<BatchItem> dynamicItems = new ArrayList<>(MAX_BATCH_SIZE);
     private final List<BatchItem> staticItems = new ArrayList<>(MAX_BATCH_SIZE);
     private final FloatBuffer vertexBuffer;
-    
+
     // OpenGL resources
     private int vao;
     private int vbo;
-    
+
     // Sorting strategy
     private SortingStrategy sortingStrategy = SortingStrategy.TEXTURE_PRIORITY;
-    
+
     // Current batch state
     private boolean isBatching = false;
     private boolean staticBatchDirty = true;
-    
+
     // Statistics
     private int drawCalls = 0;
     private int totalSprites = 0;
     private int staticSprites = 0;
     private int dynamicSprites = 0;
-    
+
     /**
      * Sorting strategies for batch rendering.
      */
@@ -368,14 +368,14 @@ public class SpriteBatch {
          * Best for: Games with few overlapping sprites
          */
         TEXTURE_PRIORITY,
-        
+
         /**
          * Prioritize correct depth rendering over batching.
          * Sort: Z-index → Y-position → Texture
          * Best for: Top-down games with overlapping sprites
          */
         DEPTH_PRIORITY,
-        
+
         /**
          * Balance between batching and depth.
          * Sort: Z-index → Texture (within tolerance) → Y-position
@@ -383,7 +383,7 @@ public class SpriteBatch {
          */
         BALANCED
     }
-    
+
     /**
      * Represents a sprite submitted to the batch.
      */
@@ -393,7 +393,7 @@ public class SpriteBatch {
         float zIndex;
         float yPosition;
         boolean isStatic;
-        
+
         BatchItem(SpriteRenderer spriteRenderer, int textureId, float zIndex, float yPosition, boolean isStatic) {
             this.spriteRenderer = spriteRenderer;
             this.textureId = textureId;
@@ -402,46 +402,46 @@ public class SpriteBatch {
             this.isStatic = isStatic;
         }
     }
-    
+
     public SpriteBatch() {
         // Allocate vertex buffer (off-heap for performance)
         int bufferSize = MAX_BATCH_SIZE * VertexLayout.FLOATS_PER_SPRITE;
         vertexBuffer = MemoryUtil.memAllocFloat(bufferSize);
-        
+
         initGL();
     }
-    
+
     /**
      * Initializes OpenGL resources.
      */
     private void initGL() {
         vao = glGenVertexArrays();
         vbo = glGenBuffers();
-        
+
         glBindVertexArray(vao);
         glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        
+
         // Allocate buffer (dynamic because we update every frame)
         int bufferSizeBytes = MAX_BATCH_SIZE * VertexLayout.BYTES_PER_SPRITE;
         glBufferData(GL_ARRAY_BUFFER, bufferSizeBytes, GL_DYNAMIC_DRAW);
-        
+
         // Setup vertex attributes using VertexLayout
         VertexLayout.setupVertexAttributes();
-        
+
         glBindVertexArray(0);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
-        
+
         System.out.println("SpriteBatch initialized:");
         System.out.println(VertexLayout.describe());
     }
-    
+
     /**
      * Sets the sorting strategy.
      */
     public void setSortingStrategy(SortingStrategy strategy) {
         this.sortingStrategy = strategy;
     }
-    
+
     /**
      * Begins a new batch.
      */
@@ -449,7 +449,7 @@ public class SpriteBatch {
         if (isBatching) {
             throw new IllegalStateException("Already batching! Call end() first.");
         }
-        
+
         dynamicItems.clear();
         drawCalls = 0;
         totalSprites = 0;
@@ -457,7 +457,7 @@ public class SpriteBatch {
         dynamicSprites = 0;
         isBatching = true;
     }
-    
+
     /**
      * Submits a sprite to the batch.
      */
@@ -465,22 +465,22 @@ public class SpriteBatch {
         if (!isBatching) {
             throw new IllegalStateException("Not batching! Call begin() first.");
         }
-        
+
         Sprite sprite = spriteRenderer.getSprite();
         if (sprite == null || sprite.getTexture() == null) {
             return;
         }
-        
+
         // Get sprite properties
         int textureId = sprite.getTexture().getId();
         Transform transform = spriteRenderer.getGameObject().getTransform();
         float zIndex = transform.getPosition().z;
         float yPosition = transform.getPosition().y;
         boolean isStatic = spriteRenderer.isStatic();
-        
+
         // Create batch item
         BatchItem item = new BatchItem(spriteRenderer, textureId, zIndex, yPosition, isStatic);
-        
+
         // Add to appropriate list
         if (isStatic) {
             // Static sprites only need to be added once
@@ -492,10 +492,10 @@ public class SpriteBatch {
             dynamicItems.add(item);
             dynamicSprites++;
         }
-        
+
         totalSprites++;
     }
-    
+
     /**
      * Marks the static batch as dirty, forcing a rebuild.
      * Call this when static sprites are added/removed/modified.
@@ -504,7 +504,7 @@ public class SpriteBatch {
         staticBatchDirty = true;
         staticItems.clear();
     }
-    
+
     /**
      * Ends batching and renders everything.
      */
@@ -512,7 +512,7 @@ public class SpriteBatch {
         if (!isBatching) {
             throw new IllegalStateException("Not batching! Call begin() first.");
         }
-        
+
         // Render static sprites (only rebuild if dirty)
         if (!staticItems.isEmpty()) {
             if (staticBatchDirty) {
@@ -521,16 +521,16 @@ public class SpriteBatch {
             }
             flushItems(staticItems);
         }
-        
+
         // Render dynamic sprites (always rebuild)
         if (!dynamicItems.isEmpty()) {
             sortItems(dynamicItems);
             flushItems(dynamicItems);
         }
-        
+
         isBatching = false;
     }
-    
+
     /**
      * Sorts batch items according to the current sorting strategy.
      */
@@ -541,86 +541,86 @@ public class SpriteBatch {
                 items.sort((a, b) -> {
                     int zCompare = Float.compare(a.zIndex, b.zIndex);
                     if (zCompare != 0) return zCompare;
-                    
+
                     int texCompare = Integer.compare(a.textureId, b.textureId);
                     if (texCompare != 0) return texCompare;
-                    
+
                     return Float.compare(a.yPosition, b.yPosition);
                 });
                 break;
-                
+
             case DEPTH_PRIORITY:
                 // Z-index → Y-position → Texture
                 items.sort((a, b) -> {
                     int zCompare = Float.compare(a.zIndex, b.zIndex);
                     if (zCompare != 0) return zCompare;
-                    
+
                     int yCompare = Float.compare(a.yPosition, b.yPosition);
                     if (yCompare != 0) return yCompare;
-                    
+
                     return Integer.compare(a.textureId, b.textureId);
                 });
                 break;
-                
+
             case BALANCED:
                 // Z-index → Texture (group nearby Y) → Y-position
                 items.sort((a, b) -> {
                     int zCompare = Float.compare(a.zIndex, b.zIndex);
                     if (zCompare != 0) return zCompare;
-                    
+
                     // Group sprites within 64 pixels Y-distance by texture
                     float yDiff = Math.abs(a.yPosition - b.yPosition);
                     if (yDiff > 64) {
                         return Float.compare(a.yPosition, b.yPosition);
                     }
-                    
+
                     int texCompare = Integer.compare(a.textureId, b.textureId);
                     if (texCompare != 0) return texCompare;
-                    
+
                     return Float.compare(a.yPosition, b.yPosition);
                 });
                 break;
         }
     }
-    
+
     /**
      * Flushes a list of items to the GPU.
      * Groups sprites by texture and renders each group.
      */
     private void flushItems(List<BatchItem> items) {
         if (items.isEmpty()) return;
-        
+
         int currentTextureId = -1;
         int batchStart = 0;
-        
+
         for (int i = 0; i <= items.size(); i++) {
             boolean needsFlush = false;
             int textureId = -1;
-            
+
             if (i < items.size()) {
                 textureId = items.get(i).textureId;
                 needsFlush = (textureId != currentTextureId && currentTextureId != -1);
             } else {
                 needsFlush = true; // Flush remaining items
             }
-            
+
             if (needsFlush) {
                 renderBatch(items, batchStart, i, currentTextureId);
                 batchStart = i;
             }
-            
+
             currentTextureId = textureId;
         }
     }
-    
+
     /**
      * Renders a subset of items with the same texture.
      */
     private void renderBatch(List<BatchItem> items, int start, int end, int textureId) {
         if (start >= end) return;
-        
+
         int count = end - start;
-        
+
         // Fill vertex buffer
         vertexBuffer.clear();
         for (int i = start; i < end; i++) {
@@ -628,88 +628,88 @@ public class SpriteBatch {
             addSpriteVertices(item.spriteRenderer);
         }
         vertexBuffer.flip();
-        
+
         // Upload to GPU
         glBindBuffer(GL_ARRAY_BUFFER, vbo);
         glBufferSubData(GL_ARRAY_BUFFER, 0, vertexBuffer);
-        
+
         // Bind texture
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, textureId);
-        
+
         // Draw
         glBindVertexArray(vao);
         glDrawArrays(GL_TRIANGLES, 0, count * VertexLayout.VERTICES_PER_SPRITE);
         glBindVertexArray(0);
-        
+
         drawCalls++;
     }
-    
+
     /**
      * Adds vertex data for a sprite to the vertex buffer.
      */
     private void addSpriteVertices(SpriteRenderer spriteRenderer) {
         Sprite sprite = spriteRenderer.getSprite();
         Transform transform = spriteRenderer.getGameObject().getTransform();
-        
+
         Vector3f pos = transform.getPosition();
         Vector3f scale = transform.getScale();
         Vector3f rotation = transform.getRotation();
-        
+
         // Calculate final dimensions
         float width = sprite.getWidth() * scale.x;
         float height = sprite.getHeight() * scale.y;
-        
+
         // Calculate origin offset
         float originX = width * spriteRenderer.getOriginX();
         float originY = height * spriteRenderer.getOriginY();
-        
+
         // Get UV coordinates
         float u0 = sprite.getU0();
         float v0 = sprite.getV0();
         float u1 = sprite.getU1();
         float v1 = sprite.getV1();
-        
+
         // Calculate corner positions (before rotation)
         float x0 = pos.x - originX;
         float y0 = pos.y - originY;
         float x1 = pos.x + (width - originX);
         float y1 = pos.y + (height - originY);
-        
+
         // Apply rotation if needed
         float angle = (float) Math.toRadians(rotation.z);
         if (angle != 0) {
             float centerX = pos.x;
             float centerY = pos.y;
-            
+
             // Rotate corners around center
             float[] corners = rotateQuad(x0, y0, x1, y1, centerX, centerY, angle);
-            
+
             // Triangle 1
             vertexBuffer.put(corners[0]).put(corners[1]).put(u0).put(v1); // Top-left
             vertexBuffer.put(corners[2]).put(corners[3]).put(u0).put(v0); // Bottom-left
             vertexBuffer.put(corners[4]).put(corners[5]).put(u1).put(v0); // Bottom-right
-            
+
             // Triangle 2
             vertexBuffer.put(corners[0]).put(corners[1]).put(u0).put(v1); // Top-left
             vertexBuffer.put(corners[4]).put(corners[5]).put(u1).put(v0); // Bottom-right
             vertexBuffer.put(corners[6]).put(corners[7]).put(u1).put(v1); // Top-right
-            
+
         } else {
             // No rotation - simple quad
-            
+
             // Triangle 1
             vertexBuffer.put(x0).put(y0).put(u0).put(v1); // Top-left
             vertexBuffer.put(x0).put(y1).put(u0).put(v0); // Bottom-left
             vertexBuffer.put(x1).put(y1).put(u1).put(v0); // Bottom-right
-            
+
             // Triangle 2
             vertexBuffer.put(x0).put(y0).put(u0).put(v1); // Top-left
             vertexBuffer.put(x1).put(y1).put(u1).put(v0); // Bottom-right
             vertexBuffer.put(x1).put(y0).put(u1).put(v1); // Top-right
         }
     }
-    
+
     /**
      * Rotates quad corners around a center point.
      */
@@ -717,36 +717,36 @@ public class SpriteBatch {
                                float centerX, float centerY, float angle) {
         float cos = (float) Math.cos(angle);
         float sin = (float) Math.sin(angle);
-        
+
         float[] corners = new float[8];
-        
+
         // Top-left
         corners[0] = rotateX(x0, y0, centerX, centerY, cos, sin);
         corners[1] = rotateY(x0, y0, centerX, centerY, cos, sin);
-        
+
         // Bottom-left
         corners[2] = rotateX(x0, y1, centerX, centerY, cos, sin);
         corners[3] = rotateY(x0, y1, centerX, centerY, cos, sin);
-        
+
         // Bottom-right
         corners[4] = rotateX(x1, y1, centerX, centerY, cos, sin);
         corners[5] = rotateY(x1, y1, centerX, centerY, cos, sin);
-        
+
         // Top-right
         corners[6] = rotateX(x1, y0, centerX, centerY, cos, sin);
         corners[7] = rotateY(x1, y0, centerX, centerY, cos, sin);
-        
+
         return corners;
     }
-    
+
     private float rotateX(float x, float y, float cx, float cy, float cos, float sin) {
         return cos * (x - cx) - sin * (y - cy) + cx;
     }
-    
+
     private float rotateY(float x, float y, float cx, float cy, float cos, float sin) {
         return sin * (x - cx) + cos * (y - cy) + cy;
     }
-    
+
     /**
      * Destroys OpenGL resources.
      */
@@ -761,13 +761,27 @@ public class SpriteBatch {
             MemoryUtil.memFree(vertexBuffer);
         }
     }
-    
+
     // Statistics
-    public int getDrawCalls() { return drawCalls; }
-    public int getTotalSprites() { return totalSprites; }
-    public int getStaticSprites() { return staticSprites; }
-    public int getDynamicSprites() { return dynamicSprites; }
-    public SortingStrategy getSortingStrategy() { return sortingStrategy; }
+    public int getDrawCalls() {
+        return drawCalls;
+    }
+
+    public int getTotalSprites() {
+        return totalSprites;
+    }
+
+    public int getStaticSprites() {
+        return staticSprites;
+    }
+
+    public int getDynamicSprites() {
+        return dynamicSprites;
+    }
+
+    public SortingStrategy getSortingStrategy() {
+        return sortingStrategy;
+    }
 }
 ```
 
@@ -1154,7 +1168,7 @@ package com.pocket.rpg.scenes;
 
 import com.pocket.rpg.components.*;
 import com.pocket.rpg.engine.GameObject;
-import com.pocket.rpg.rendering.BatchRenderer;
+import com.pocket.rpg.rendering.renderers.BatchRenderer;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -1163,50 +1177,50 @@ import java.util.List;
  * Enhanced Scene with component caching for performance.
  */
 public abstract class Scene {
-    
+
     private final String name;
     private final List<GameObject> gameObjects = new ArrayList<>();
-    
+
     // Component caches
     private final List<SpriteRenderer> spriteRenderers = new ArrayList<>();
     private final List<Camera> cameras = new ArrayList<>();
-    
+
     // Dirty flags
     private boolean renderListDirty = false;
-    
+
     protected BatchRenderer renderer;
-    
+
     public Scene(String name) {
         this.name = name;
     }
-    
+
     /**
      * Adds a GameObject to the scene and registers its components.
      */
     public void addGameObject(GameObject obj) {
         gameObjects.add(obj);
         obj.setScene(this);
-        
+
         // Register components
         for (Component component : obj.getAllComponents()) {
             registerComponent(component);
         }
     }
-    
+
     /**
      * Removes a GameObject from the scene and unregisters its components.
      */
     public void removeGameObject(GameObject obj) {
         gameObjects.remove(obj);
-        
+
         // Unregister components
         for (Component component : obj.getAllComponents()) {
             unregisterComponent(component);
         }
-        
+
         obj.setScene(null);
     }
-    
+
     /**
      * Registers a component in the appropriate cache.
      */
@@ -1217,10 +1231,10 @@ public abstract class Scene {
         } else if (component instanceof Camera) {
             cameras.add((Camera) component);
         }
-        
+
         // Add more component types as needed
     }
-    
+
     /**
      * Unregisters a component from caches.
      */
@@ -1232,7 +1246,7 @@ public abstract class Scene {
             cameras.remove(component);
         }
     }
-    
+
     /**
      * Marks the static sprite batch as dirty.
      * Call this when you modify a static sprite's transform.
@@ -1242,7 +1256,7 @@ public abstract class Scene {
             renderer.getBatch().markStaticBatchDirty();
         }
     }
-    
+
     /**
      * Updates all GameObjects in the scene.
      */
@@ -1253,14 +1267,14 @@ public abstract class Scene {
             }
         }
     }
-    
+
     /**
      * Renders all sprites in the scene.
      * Uses cached sprite renderer list for performance.
      */
     public void render() {
         if (renderer == null) return;
-        
+
         // Sort sprite renderers if needed
         if (renderListDirty) {
             // Optional: Pre-sort by Z-index for better batching
@@ -1271,24 +1285,24 @@ public abstract class Scene {
             });
             renderListDirty = false;
         }
-        
+
         // Get active camera
         Camera activeCamera = getActiveCamera();
-        
+
         // Begin rendering
         renderer.beginWithCamera(activeCamera);
-        
+
         // Render all sprites (FAST - uses cache!)
         for (SpriteRenderer sr : spriteRenderers) {
             if (sr.isEnabled()) {
                 renderer.drawSpriteRenderer(sr);
             }
         }
-        
+
         // End rendering
         renderer.end();
     }
-    
+
     /**
      * Gets the first enabled camera in the scene.
      */
@@ -1300,15 +1314,27 @@ public abstract class Scene {
         }
         return null;
     }
-    
+
     // Getters
-    public List<GameObject> getGameObjects() { return gameObjects; }
-    public List<SpriteRenderer> getSpriteRenderers() { return spriteRenderers; }
-    public List<Camera> getCameras() { return cameras; }
-    public String getName() { return name; }
-    
+    public List<GameObject> getGameObjects() {
+        return gameObjects;
+    }
+
+    public List<SpriteRenderer> getSpriteRenderers() {
+        return spriteRenderers;
+    }
+
+    public List<Camera> getCameras() {
+        return cameras;
+    }
+
+    public String getName() {
+        return name;
+    }
+
     // Abstract methods
     public abstract void onLoad() throws Exception;
+
     public abstract void onUnload();
 }
 ```
@@ -1374,6 +1400,7 @@ package com.pocket.rpg.rendering;
 
 import com.pocket.rpg.components.Camera;
 import com.pocket.rpg.components.SpriteRenderer;
+import com.pocket.rpg.rendering.renderers.Renderer;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
 
@@ -1384,91 +1411,91 @@ import static org.lwjgl.opengl.GL33.*;
  * Uses SpriteBatch internally for efficient rendering.
  */
 public class BatchRenderer extends Renderer {
-    
+
     private SpriteBatch batch;
     private Shader batchShader;
-    
+
     // Reuse projection/view from parent
     // But remove per-sprite model matrix uploads
-    
+
     @Override
     public void init(int viewportWidth, int viewportHeight) {
         // Create batch
         batch = new SpriteBatch();
-        
+
         // Create shader (same as before, but no model matrix)
         batchShader = new Shader("assets/shaders/batch_sprite.glsl");
         batchShader.compileAndLink();
-        
+
         // Initialize matrices
         projectionMatrix = new Matrix4f();
         viewMatrix = new Matrix4f();
-        
+
         setProjection(viewportWidth, viewportHeight);
-        
+
         // Enable blending
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     }
-    
+
     @Override
     public void beginWithCamera(Camera camera) {
         Vector4f clearColor = camera != null ? camera.getClearColor() : DEFAULT_CLEAR_COLOR;
         glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        
+
         // Update frustum bounds for culling (from Phase 1)
         updateCameraBounds(camera);
-        
+
         if (camera != null) {
             setViewMatrix(camera.getViewMatrix());
         } else {
             resetView();
         }
-        
+
         begin();
     }
-    
+
     @Override
     public void begin() {
         batchShader.use();
-        
+
         // Upload projection/view matrices once per frame
         if (projectionDirty) {
             batchShader.uploadMat4f("projection", projectionMatrix);
             projectionDirty = false;
         }
-        
+
         if (viewDirty) {
             batchShader.uploadMat4f("view", viewMatrix);
             viewDirty = false;
         }
-        
+
         batchShader.uploadInt("textureSampler", 0);
-        
+
         // Start batching
         batch.begin();
     }
-    
+
     @Override
     public void drawSpriteRenderer(SpriteRenderer spriteRenderer) {
         // Frustum culling (from Phase 1)
         if (!isVisible(spriteRenderer)) {
             return;
         }
-        
+
         // Submit to batch (no immediate rendering!)
         batch.submit(spriteRenderer);
     }
-    
+
     @Override
     public void end() {
         // Flush batch (renders everything)
         batch.end();
-        
+
         batchShader.detach();
     }
-    
+
     @Override
     public void destroy() {
         if (batch != null) {
@@ -1478,12 +1505,12 @@ public class BatchRenderer extends Renderer {
             batchShader.delete();
         }
     }
-    
+
     // Statistics
     public void printBatchStats() {
         System.out.printf("Batch Stats: %d sprites in %d draw calls (%.1f sprites/call)%n",
-            batch.getTotalSprites(), batch.getDrawCalls(),
-            batch.getTotalSprites() / (float) Math.max(1, batch.getDrawCalls()));
+                batch.getTotalSprites(), batch.getDrawCalls(),
+                batch.getTotalSprites() / (float) Math.max(1, batch.getDrawCalls()));
     }
 }
 ```

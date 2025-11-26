@@ -1,10 +1,7 @@
 package com.pocket.rpg.scenes;
 
-import com.pocket.rpg.components.Camera;
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.engine.GameObject;
-import com.pocket.rpg.rendering.BatchRenderer;
-import com.pocket.rpg.rendering.Renderer;
 import lombok.Getter;
 
 import java.util.ArrayList;
@@ -31,8 +28,9 @@ public abstract class Scene {
     private boolean isUpdating = false;
     private boolean isRendering = false;
 
-    // Renderer reference for static batch management
-    private Renderer renderer;
+    // Edge case: Allow the Renderer to rebuild the static SpriteRenderers if one is modified
+    @Getter
+    private boolean staticBatchDirty = false;
 
     public Scene(String name) {
         this.name = name;
@@ -53,14 +51,6 @@ public abstract class Scene {
         for (GameObject go : gameObjects) {
             go.start();
         }
-    }
-
-    /**
-     * Sets the renderer for this scene.
-     * Used for static batch management.
-     */
-    public void setRenderer(Renderer renderer) {
-        this.renderer = renderer;
     }
 
     /**
@@ -193,12 +183,11 @@ public abstract class Scene {
      * Only works if using BatchRenderer.
      */
     public void markStaticBatchDirty() {
-        if (renderer instanceof BatchRenderer) {
-            BatchRenderer batchRenderer = (BatchRenderer) renderer;
-            if (batchRenderer.getBatch() != null) {
-                batchRenderer.getBatch().markStaticBatchDirty();
-            }
-        }
+        staticBatchDirty = true;
+    }
+
+    public void clearStaticBatchDirty() {
+        staticBatchDirty = false;
     }
 
     /**

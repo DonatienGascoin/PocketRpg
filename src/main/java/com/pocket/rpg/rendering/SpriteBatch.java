@@ -2,11 +2,16 @@ package com.pocket.rpg.rendering;
 
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.rendering.renderers.VertexLayout;
+import com.pocket.rpg.utils.WindowConfig;
+import lombok.Getter;
+import lombok.Setter;
 import org.joml.Vector3f;
 import org.lwjgl.system.MemoryUtil;
 
 import java.nio.FloatBuffer;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.lwjgl.opengl.GL33.*;
 
@@ -17,29 +22,39 @@ import static org.lwjgl.opengl.GL33.*;
 public class SpriteBatch {
 
     // Maximum sprites per batch
-    private static final int MAX_BATCH_SIZE = 10000;
+    private final int maxBatchSize;
 
     // Batch data
-    private final List<BatchItem> dynamicItems = new ArrayList<>(MAX_BATCH_SIZE);
-    private final List<BatchItem> staticItems = new ArrayList<>(MAX_BATCH_SIZE);
+    private final List<BatchItem> dynamicItems;
+    private final List<BatchItem> staticItems;
     private final FloatBuffer vertexBuffer;
 
     // OpenGL resources
     private int vao;
     private int vbo;
 
+    /**
+     * -- SETTER --
+     * Sets the sorting strategy.
+     */
     // Sorting strategy
-    private SortingStrategy sortingStrategy = SortingStrategy.BALANCED;
+    @Getter
+    @Setter
+    private SortingStrategy sortingStrategy;
 
     // Current batch state
     private boolean isBatching = false;
     private boolean staticBatchDirty = true;
 
     // Statistics
+    @Getter
     private int drawCalls = 0;
+    @Getter
     private int totalSprites = 0;
-    private int staticSprites = 0;
-    private int dynamicSprites = 0;
+    @Getter
+    private int staticSpritesRendered = 0;  // FIXED: Track rendered count
+    @Getter
+    private int dynamicSpritesRendered = 0; // FIXED: Track rendered count
 
     /**
      * Sorting strategies for batch rendering.
@@ -86,9 +101,14 @@ public class SpriteBatch {
         }
     }
 
-    public SpriteBatch() {
+    public SpriteBatch(WindowConfig config) {
+        this.maxBatchSize = config.getMaxBatchSize();
+        this.sortingStrategy = config.getSortingStrategy();
+        dynamicItems = new ArrayList<>(maxBatchSize);
+        staticItems = new ArrayList<>(maxBatchSize);
+
         // Allocate vertex buffer (off-heap for performance)
-        int bufferSize = MAX_BATCH_SIZE * VertexLayout.FLOATS_PER_SPRITE;
+        int bufferSize = maxBatchSize * VertexLayout.FLOATS_PER_SPRITE;
         vertexBuffer = MemoryUtil.memAllocFloat(bufferSize);
 
         initGL();
@@ -105,7 +125,7 @@ public class SpriteBatch {
         glBindBuffer(GL_ARRAY_BUFFER, vbo);
 
         // Allocate buffer (dynamic because we update every frame)
-        int bufferSizeBytes = MAX_BATCH_SIZE * VertexLayout.BYTES_PER_SPRITE;
+        int bufferSizeBytes = maxBatchSize * VertexLayout.BYTES_PER_SPRITE;
         glBufferData(GL_ARRAY_BUFFER, bufferSizeBytes, GL_DYNAMIC_DRAW);
 
         // Setup vertex attributes using VertexLayout
@@ -119,13 +139,6 @@ public class SpriteBatch {
     }
 
     /**
-     * Sets the sorting strategy.
-     */
-    public void setSortingStrategy(SortingStrategy strategy) {
-        this.sortingStrategy = strategy;
-    }
-
-    /**
      * Begins a new batch.
      */
     public void begin() {
@@ -136,8 +149,8 @@ public class SpriteBatch {
         dynamicItems.clear();
         drawCalls = 0;
         totalSprites = 0;
-        staticSprites = 0;
-        dynamicSprites = 0;
+        staticSpritesRendered = 0;
+        dynamicSpritesRendered = 0;
         isBatching = true;
     }
 
@@ -169,11 +182,9 @@ public class SpriteBatch {
             // Static sprites only need to be added once
             if (staticBatchDirty) {
                 staticItems.add(item);
-                staticSprites++;
             }
         } else {
             dynamicItems.add(item);
-            dynamicSprites++;
         }
 
         totalSprites++;
@@ -202,12 +213,14 @@ public class SpriteBatch {
                 sortItems(staticItems);
                 staticBatchDirty = false;
             }
+            staticSpritesRendered = staticItems.size();
             flushItems(staticItems);
         }
 
         // Render dynamic sprites (always rebuild)
         if (!dynamicItems.isEmpty()) {
             sortItems(dynamicItems);
+            dynamicSpritesRendered = dynamicItems.size();
             flushItems(dynamicItems);
         }
 
@@ -277,7 +290,7 @@ public class SpriteBatch {
         int batchStart = 0;
 
         for (int i = 0; i <= items.size(); i++) {
-            boolean needsFlush = false;
+            boolean needsFlush;
             int textureId = -1;
 
             if (i < items.size()) {
@@ -444,11 +457,4 @@ public class SpriteBatch {
             MemoryUtil.memFree(vertexBuffer);
         }
     }
-
-    // Statistics
-    public int getDrawCalls() { return drawCalls; }
-    public int getTotalSprites() { return totalSprites; }
-    public int getStaticSprites() { return staticSprites; }
-    public int getDynamicSprites() { return dynamicSprites; }
-    public SortingStrategy getSortingStrategy() { return sortingStrategy; }
 }

@@ -4,11 +4,8 @@ import com.pocket.rpg.components.Camera;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.engine.GameObject;
-import com.pocket.rpg.input.InputAction;
 import com.pocket.rpg.input.InputManager;
-import com.pocket.rpg.rendering.BatchRenderer;
 import com.pocket.rpg.rendering.Sprite;
-import com.pocket.rpg.rendering.SpriteBatch;
 import com.pocket.rpg.rendering.Texture;
 import org.joml.Vector3f;
 
@@ -25,8 +22,6 @@ public class Phase2TestScene extends Scene {
     private static final int DYNAMIC_SPRITES = 20;  // 10% of total
     private static final int TEXTURES = 5;          // Different textures
 
-    private GameObject cameraObject;
-    private Camera camera;
     private int sortingStrategyIndex = 2; // Start with BALANCED
 
     public Phase2TestScene() {
@@ -87,8 +82,8 @@ public class Phase2TestScene extends Scene {
      * Creates camera.
      */
     private void createCamera() {
-        cameraObject = new GameObject("Camera", new Vector3f(0, 0, 0));
-        camera = new Camera(Camera.ProjectionType.ORTHOGRAPHIC);
+        GameObject cameraObject = new GameObject("Camera", new Vector3f(0, 0, 0));
+        Camera camera = new Camera(Camera.ProjectionType.ORTHOGRAPHIC);
         camera.setClearColor(0.1f, 0.1f, 0.15f, 1.0f);
         cameraObject.addComponent(camera);
 
@@ -101,7 +96,7 @@ public class Phase2TestScene extends Scene {
     /**
      * Loads test textures.
      */
-    private Texture[] loadTextures() throws Exception {
+    private Texture[] loadTextures() {
         Texture[] textures = new Texture[TEXTURES];
 
         // Load different textures (reuse player texture for demo)
@@ -124,7 +119,6 @@ public class Phase2TestScene extends Scene {
 
         for (int row = 0; row < rows; row++) {
             for (int col = 0; col < cols; col++) {
-                if (row * cols + col >= STATIC_SPRITES) break;
 
                 float x = col * 32 + 16;
                 float y = row * 32 + 16;
@@ -159,7 +153,7 @@ public class Phase2TestScene extends Scene {
 
         for (int i = 0; i < DYNAMIC_SPRITES; i++) {
             float x = 100 + (i % 10) * 60;
-            float y = 100 + (i / 10) * 60;
+            float y = 100 + ((float) i / 10) * 60;
             float z = 1; // Foreground layer
 
             GameObject obj = new GameObject("Dynamic_" + i,

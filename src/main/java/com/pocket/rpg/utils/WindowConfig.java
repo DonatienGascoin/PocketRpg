@@ -3,6 +3,8 @@ package com.pocket.rpg.utils;
 import com.pocket.rpg.postProcessing.PostEffect;
 import com.pocket.rpg.postProcessing.PostProcessor;
 import com.pocket.rpg.postProcessing.postEffects.VignetteEffect;
+import com.pocket.rpg.rendering.SpriteBatch;
+import com.pocket.rpg.rendering.stats.ConsoleStatisticsReporter;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -131,6 +133,7 @@ public class WindowConfig {
     @Builder.Default
     private float pillarboxAspectRatio = 0f; // 0 means auto-calculate from gameWidth/gameHeight
 
+
     /**
      * Gets the effective pillarbox aspect ratio.
      * If set to 0, calculates from game resolution.
@@ -141,4 +144,24 @@ public class WindowConfig {
         }
         return (float) gameWidth / gameHeight;
     }
+
+    @Builder.Default
+    private final int maxBatchSize = 10000;
+
+    @Builder.Default
+    private final SpriteBatch.SortingStrategy sortingStrategy = SpriteBatch.SortingStrategy.BALANCED;
+
+    @Builder.Default
+    private final boolean enableStatistics = true;
+
+    @Builder.Default
+    private final int statisticsInterval = 300; // frames
+
+    /**
+     * Statistics reporter (can be null if statistics disabled).
+     */
+    @Setter
+    @Getter
+    private ConsoleStatisticsReporter reporter;
+
 }

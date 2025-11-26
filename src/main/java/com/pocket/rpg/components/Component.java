@@ -143,6 +143,14 @@ public abstract class Component {
     }
 
     /**
+     * Called when the GameObject's transform changes.
+     * Override to respond to position, rotation, or scale changes.
+     */
+    public void onTransformChanged() {
+        // Override in subclasses if needed
+    }
+
+    /**
      * Called when the component becomes disabled.
      * This can be called multiple times if the component is disabled and re-enabled.
      */

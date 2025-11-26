@@ -1,7 +1,11 @@
-package com.pocket.rpg.rendering;
+package com.pocket.rpg.rendering.renderers;
 
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.rendering.Shader;
+import com.pocket.rpg.rendering.Sprite;
+import com.pocket.rpg.rendering.Texture;
+import com.pocket.rpg.utils.WindowConfig;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
@@ -17,6 +21,7 @@ import static org.lwjgl.opengl.GL33.*;
  */
 public class Renderer {
 
+    protected WindowConfig config;
     // FIX: Game resolution (fixed, never changes)
     private int gameWidth = 640;
     private int gameHeight = 480;

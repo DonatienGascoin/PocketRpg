@@ -1,7 +1,7 @@
 package com.pocket.rpg.components;
 
 import com.pocket.rpg.postProcessing.PostEffect;
-import com.pocket.rpg.rendering.Renderer;
+import com.pocket.rpg.rendering.renderers.Renderer;
 import com.pocket.rpg.rendering.Shader;
 import lombok.Getter;
 import lombok.Setter;

@@ -1,4 +1,4 @@
-package com.pocket.rpg.rendering;
+package com.pocket.rpg.rendering.culling;
 
 import com.pocket.rpg.components.Camera;
 import com.pocket.rpg.components.SpriteRenderer;

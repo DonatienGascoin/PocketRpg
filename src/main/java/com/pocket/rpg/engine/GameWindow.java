@@ -2,10 +2,10 @@ package com.pocket.rpg.engine;
 
 import com.pocket.rpg.postProcessing.PostProcessor;
 import com.pocket.rpg.postProcessing.postEffects.VignetteEffect;
-import com.pocket.rpg.rendering.BatchRenderer;
-import com.pocket.rpg.rendering.CameraSystem;
-import com.pocket.rpg.rendering.RenderPipeline;
-import com.pocket.rpg.rendering.Renderer;
+import com.pocket.rpg.rendering.*;
+import com.pocket.rpg.rendering.renderers.BatchRenderer;
+import com.pocket.rpg.rendering.renderers.Renderer;
+import com.pocket.rpg.rendering.stats.ConsoleStatisticsReporter;
 import com.pocket.rpg.resources.AssetManager;
 import com.pocket.rpg.resources.loaders.ShaderLoader;
 import com.pocket.rpg.resources.loaders.SpriteLoader;
@@ -76,12 +76,18 @@ public class GameWindow extends Window {
         // Set viewport to window size
         CameraSystem.setViewportSize(getScreenWidth(), getScreenHeight());
 
-        renderer = new BatchRenderer();
+        ConsoleStatisticsReporter reporter = null;
+        if (config.isEnableStatistics()) {
+            reporter = new ConsoleStatisticsReporter(config.getStatisticsInterval());
+        }
+        config.setReporter(reporter);
+
+        renderer = new BatchRenderer(config);
         renderer.init(config.getGameWidth(), config.getGameHeight());
 
         // Create render pipeline
-        renderPipeline = new RenderPipeline(renderer, cameraSystem);
-//        renderPipeline.setStatisticsReporter(new ConsoleStatisticsReporter(60));
+        renderPipeline = new RenderPipeline(renderer, cameraSystem, config);
+
 
         // Initialize scene manager
         sceneManager = new SceneManager();

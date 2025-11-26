@@ -175,6 +175,25 @@ public class GameObject {
     }
 
     // =======================================================================
+    // Transform Change Notification
+    // =======================================================================
+
+    /**
+     * Notifies all components that the transform has changed.
+     * Called automatically by Transform when position, rotation, or scale changes.
+     */
+    public void notifyTransformChanged() {
+        // Create snapshot to avoid ConcurrentModificationException
+        List<Component> snapshot = new ArrayList<>(components);
+
+        for (Component component : snapshot) {
+            if (component.isEnabled()) {
+                component.onTransformChanged();
+            }
+        }
+    }
+
+    // =======================================================================
     // Lifecycle Methods
     // =======================================================================
 

@@ -2,7 +2,12 @@ package com.pocket.rpg.rendering;
 
 import com.pocket.rpg.components.Camera;
 import com.pocket.rpg.components.SpriteRenderer;
+import com.pocket.rpg.rendering.culling.CullingSystem;
+import com.pocket.rpg.rendering.renderers.BatchRenderer;
+import com.pocket.rpg.rendering.renderers.Renderer;
+import com.pocket.rpg.rendering.stats.StatisticsReporter;
 import com.pocket.rpg.scenes.Scene;
+import com.pocket.rpg.utils.WindowConfig;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector4f;
@@ -20,7 +25,7 @@ import static org.lwjgl.opengl.GL33.glClearColor;
  * 2. Culling system updates
  * 3. Sprite rendering with culling
  * 4. Statistics reporting
- *
+ * <p>
  * UPDATED: Now supports BatchRenderer and passes renderer to scene
  */
 public class RenderPipeline {
@@ -36,10 +41,13 @@ public class RenderPipeline {
     /**
      * Creates a render pipeline with the specified components.
      */
-    public RenderPipeline(Renderer renderer, CameraSystem cameraSystem) {
+    public RenderPipeline(Renderer renderer, CameraSystem cameraSystem, WindowConfig config) {
         this.renderer = renderer;
-        this.cullingSystem = new CullingSystem();
         this.cameraSystem = cameraSystem;
+        this.cullingSystem = new CullingSystem();
+        if (config.isEnableStatistics()) {
+            this.statisticsReporter = config.getReporter();
+        }
     }
 
     /**
@@ -54,9 +62,6 @@ public class RenderPipeline {
         }
 
         try {
-            // Pass renderer to scene for static batch management
-            scene.setRenderer(renderer);
-
             // 1. Update camera system
             cameraSystem.updateFrame();
 
@@ -64,14 +69,20 @@ public class RenderPipeline {
             Camera activeCamera = cameraSystem.getActiveCamera();
             cullingSystem.updateFrame(activeCamera);
 
-            // 3. Get camera matrices and clear color
+            // 3. Check if static batch needs rebuilding (flag-based, no casting)
+            if (scene.isStaticBatchDirty()) {
+                handleStaticBatchDirty();
+                scene.clearStaticBatchDirty();
+            }
+
+            // 4. Get camera matrices and clear color
             Vector4f clearColor = cameraSystem.getClearColor();
 
-            // 4. Clear screen
+            // 5. Clear screen
             glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-            // 5. Begin rendering with camera matrices
+            // 6. Begin rendering with camera matrices
             renderer.beginWithMatrices(
                     cameraSystem.getProjectionMatrix(),
                     cameraSystem.getViewMatrix(),
@@ -81,7 +92,7 @@ public class RenderPipeline {
             // Notify scene that rendering is starting
             scene.beginRendering();
 
-            // 6. Render all sprite renderers with culling
+            // 7. Render all sprite renderers with culling
             List<SpriteRenderer> spriteRenderers = scene.getSpriteRenderers();
             for (SpriteRenderer spriteRenderer : spriteRenderers) {
                 if (shouldRenderSprite(spriteRenderer)) {
@@ -92,22 +103,16 @@ public class RenderPipeline {
                 }
             }
 
-            // 7. End rendering
+            // 8. End rendering
             renderer.end();
 
             // Notify scene that rendering is complete
             scene.endRendering();
 
-            // 8. Report statistics if reporter is set
+            // 9. Report statistics if reporter is set
             if (statisticsReporter != null) {
                 statisticsReporter.report(cullingSystem.getStatistics());
             }
-
-            // 9. Print batch stats if using BatchRenderer (periodically)
-            if (renderer instanceof BatchRenderer && shouldPrintBatchStats()) {
-                ((BatchRenderer) renderer).printBatchStats();
-            }
-
         } catch (Exception e) {
             System.err.println("ERROR during rendering: " + e.getMessage());
             e.printStackTrace();
@@ -115,20 +120,20 @@ public class RenderPipeline {
             // Ensure scene exits rendering state even on error
             try {
                 scene.endRendering();
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         }
     }
 
-    private int frameCounter = 0;
-    private static final int BATCH_STATS_INTERVAL = 300; // Print every 300 frames (5 seconds at 60fps)
-
-    private boolean shouldPrintBatchStats() {
-        frameCounter++;
-        if (frameCounter >= BATCH_STATS_INTERVAL) {
-            frameCounter = 0;
-            return true;
+    /**
+     * Handles static batch dirty flag.
+     * Uses polymorphism to avoid casting in main render method.
+     */
+    private void handleStaticBatchDirty() {
+        // Polymorphic call - BatchRenderer will handle it, Renderer will ignore it
+        if (renderer instanceof BatchRenderer batchRenderer) {
+            batchRenderer.getBatch().markStaticBatchDirty();
         }
-        return false;
     }
 
     /**

@@ -8,7 +8,7 @@ import lombok.Setter;
 /**
  * Component that renders a sprite at the GameObject's Transform position.
  * Holds the sprite reference and rendering properties (origin/pivot).
- *
+ * <p>
  * No longer needs update() - the Renderer reads Transform directly.
  */
 public class SpriteRenderer extends Component {
@@ -24,12 +24,29 @@ public class SpriteRenderer extends Component {
     private float originY = 0.5f;
 
     /**
+     * If true, this sprite is assumed to never move/rotate/scale.
+     * The renderer will cache its vertices for better performance.
+     * <p>
+     * IMPORTANT: If you modify a static sprite's transform, call
+     * scene.markStaticBatchDirty() to rebuild the cache!
+     */
+    @Getter
+    @Setter
+    private boolean isStatic = false;
+
+    /**
      * Creates a SpriteRenderer with a sprite.
      *
      * @param sprite The sprite to render
      */
     public SpriteRenderer(Sprite sprite) {
         this.sprite = sprite;
+    }
+
+
+    public SpriteRenderer(Sprite sprite, boolean isStatic) {
+        this.sprite = sprite;
+        this.isStatic = isStatic;
     }
 
     /**
@@ -50,6 +67,19 @@ public class SpriteRenderer extends Component {
      */
     public SpriteRenderer(Texture texture, float width, float height) {
         this.sprite = new Sprite(texture, width, height);
+    }
+
+    /**
+     * Creates a SpriteRenderer from a texture with custom size.
+     *
+     * @param texture The texture to render
+     * @param width Sprite width
+     * @param height Sprite height
+     * @param isStatic If true, this sprite is static (never moves)
+     */
+    public SpriteRenderer(Texture texture, float width, float height, boolean isStatic) {
+        this.sprite = new Sprite(texture, width, height);
+        this.isStatic = isStatic;
     }
 
     /**

@@ -2,6 +2,7 @@ package com.pocket.rpg.engine;
 
 import com.pocket.rpg.postProcessing.PostProcessor;
 import com.pocket.rpg.postProcessing.postEffects.VignetteEffect;
+import com.pocket.rpg.rendering.BatchRenderer;
 import com.pocket.rpg.rendering.CameraSystem;
 import com.pocket.rpg.rendering.RenderPipeline;
 import com.pocket.rpg.rendering.Renderer;
@@ -47,6 +48,11 @@ public class GameWindow extends Window {
 
     @Override
     protected void initGame() {
+        System.out.println("╔═══════════════════════════════════════════════════════════════╗");
+        System.out.println("║                       POCKET RPG ENGINE                       ║");
+        System.out.println("╠═══════════════════════════════════════════════════════════════╣");
+        System.out.println("║  Initializing game systems...                                 ║");
+        System.out.println("╚═══════════════════════════════════════════════════════════════╝");
         System.out.println("Initializing game systems...");
         System.out.println("Window size: " + getScreenWidth() + "x" + getScreenHeight());
         System.out.println("Game resolution: " + config.getGameWidth() + "x" + config.getGameHeight());
@@ -70,8 +76,7 @@ public class GameWindow extends Window {
         // Set viewport to window size
         CameraSystem.setViewportSize(getScreenWidth(), getScreenHeight());
 
-        // FIX: Initialize renderer with GAME resolution
-        renderer = new Renderer();
+        renderer = new BatchRenderer();
         renderer.init(config.getGameWidth(), config.getGameHeight());
 
         // Create render pipeline
@@ -99,9 +104,11 @@ public class GameWindow extends Window {
         sceneManager.registerScene(new LargePerformanceBenchmarkScene());
 //        sceneManager.registerScene(new ExampleScene());
         sceneManager.registerScene(new ExampleInputSystemScene());
+        sceneManager.registerScene(new Phase2TestScene());
 
         // Load first scene
-        sceneManager.loadScene("ExampleScene");
+//        sceneManager.loadScene("ExampleScene");
+        sceneManager.loadScene("Phase2Test");
 //        sceneManager.loadScene("LargePerformanceBenchmark");
 
         System.out.println("Game systems initialized successfully");

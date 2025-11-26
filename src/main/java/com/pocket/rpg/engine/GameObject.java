@@ -63,14 +63,13 @@ public class GameObject {
 
     /**
      * Sets the enabled state of this GameObject.
-     * Propagates enable/disable callbacks to all components.
      */
     public void setEnabled(boolean enabled) {
         if (this.enabled == enabled) return;
 
-        boolean wasEnabled = this.enabled;
+//        boolean wasEnabled = this.enabled;
         this.enabled = enabled;
-
+/*
         // Notify all components of state change
         for (Component component : components) {
             if (enabled && component.isEnabled()) {
@@ -80,7 +79,7 @@ public class GameObject {
                 // GameObject was enabled, now disabled - trigger onDisable
                 component.triggerDisable();
             }
-        }
+        }*/
     }
 
     // =======================================================================
@@ -208,7 +207,9 @@ public class GameObject {
                 if (!component.isStarted()) {
                     component.start();
                 }
-                component.update(deltaTime);
+                if (component.isEnabled()) {
+                    component.update(deltaTime);
+                }
             }
         }
     }

@@ -20,8 +20,8 @@ import static org.lwjgl.opengl.GL33.glClearColor;
  * 2. Culling system updates
  * 3. Sprite rendering with culling
  * 4. Statistics reporting
- * 
- * FIXED: Now notifies scene about rendering phase
+ *
+ * UPDATED: Now supports BatchRenderer and passes renderer to scene
  */
 public class RenderPipeline {
 
@@ -44,7 +44,6 @@ public class RenderPipeline {
 
     /**
      * Renders a scene with full pipeline (camera, culling, rendering).
-     * FIX: Now properly handles scene rendering phase
      *
      * @param scene The scene to render
      */
@@ -55,6 +54,9 @@ public class RenderPipeline {
         }
 
         try {
+            // Pass renderer to scene for static batch management
+            scene.setRenderer(renderer);
+
             // 1. Update camera system
             cameraSystem.updateFrame();
 
@@ -76,7 +78,7 @@ public class RenderPipeline {
                     clearColor
             );
 
-            // FIX: Notify scene that rendering is starting
+            // Notify scene that rendering is starting
             scene.beginRendering();
 
             // 6. Render all sprite renderers with culling
@@ -93,7 +95,7 @@ public class RenderPipeline {
             // 7. End rendering
             renderer.end();
 
-            // FIX: Notify scene that rendering is complete
+            // Notify scene that rendering is complete
             scene.endRendering();
 
             // 8. Report statistics if reporter is set
@@ -101,10 +103,15 @@ public class RenderPipeline {
                 statisticsReporter.report(cullingSystem.getStatistics());
             }
 
+            // 9. Print batch stats if using BatchRenderer (periodically)
+            if (renderer instanceof BatchRenderer && shouldPrintBatchStats()) {
+                ((BatchRenderer) renderer).printBatchStats();
+            }
+
         } catch (Exception e) {
             System.err.println("ERROR during rendering: " + e.getMessage());
             e.printStackTrace();
-            
+
             // Ensure scene exits rendering state even on error
             try {
                 scene.endRendering();
@@ -112,10 +119,21 @@ public class RenderPipeline {
         }
     }
 
+    private int frameCounter = 0;
+    private static final int BATCH_STATS_INTERVAL = 300; // Print every 300 frames (5 seconds at 60fps)
+
+    private boolean shouldPrintBatchStats() {
+        frameCounter++;
+        if (frameCounter >= BATCH_STATS_INTERVAL) {
+            frameCounter = 0;
+            return true;
+        }
+        return false;
+    }
+
     /**
      * Checks if a sprite should be considered for rendering.
      * Basic visibility checks before culling.
-     * FIX: Enhanced null safety
      */
     private boolean shouldRenderSprite(SpriteRenderer spriteRenderer) {
         if (spriteRenderer == null) {

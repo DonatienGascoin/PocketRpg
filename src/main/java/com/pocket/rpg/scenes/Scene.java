@@ -3,6 +3,8 @@ package com.pocket.rpg.scenes;
 import com.pocket.rpg.components.Camera;
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.engine.GameObject;
+import com.pocket.rpg.rendering.BatchRenderer;
+import com.pocket.rpg.rendering.Renderer;
 import lombok.Getter;
 
 import java.util.ArrayList;
@@ -15,8 +17,7 @@ import java.util.Queue;
  * Scenes can be loaded and unloaded by the SceneManager.
  * Provides list of SpriteRenderers for rendering pipeline.
  *
- * FIXED: Now supports safe GameObject add/remove during update/render
- * UPDATED: Now properly calls lateUpdate on all GameObjects
+ * UPDATED: Now supports static sprite batch management
  */
 public abstract class Scene {
     @Getter
@@ -25,10 +26,13 @@ public abstract class Scene {
     private final List<SpriteRenderer> spriteRenderers;
     private boolean initialized = false;
 
-    // FIX: Deferred execution for safe modifications during update/render
+    // Deferred execution for safe modifications during update/render
     private Queue<Runnable> deferredActions = new LinkedList<>();
     private boolean isUpdating = false;
     private boolean isRendering = false;
+
+    // Renderer reference for static batch management
+    private Renderer renderer;
 
     public Scene(String name) {
         this.name = name;
@@ -42,13 +46,21 @@ public abstract class Scene {
         // Default implementation
     }
 
-    void initialize() {
+    public void initialize() {
         this.initialized = true;
         onLoad();
 
         for (GameObject go : gameObjects) {
             go.start();
         }
+    }
+
+    /**
+     * Sets the renderer for this scene.
+     * Used for static batch management.
+     */
+    public void setRenderer(Renderer renderer) {
+        this.renderer = renderer;
     }
 
     /**
@@ -140,6 +152,11 @@ public abstract class Scene {
             } else {
                 spriteRenderers.add(spriteRenderer);
             }
+
+            // Mark static batch dirty if this is a static sprite
+            if (spriteRenderer.isStatic()) {
+                markStaticBatchDirty();
+            }
         }
     }
 
@@ -154,6 +171,11 @@ public abstract class Scene {
         } else {
             spriteRenderers.remove(spriteRenderer);
         }
+
+        // Mark static batch dirty if this was a static sprite
+        if (spriteRenderer.isStatic()) {
+            markStaticBatchDirty();
+        }
     }
 
     /**
@@ -166,11 +188,23 @@ public abstract class Scene {
     }
 
     /**
-     * Called every frame to update all GameObjects.
-     * FIX: Now uses safe iteration and processes deferred actions.
-     * UPDATED: Now calls both update() and lateUpdate() in proper order.
+     * Marks the static sprite batch as dirty, forcing a rebuild.
+     * Call this when you modify a static sprite's transform.
+     * Only works if using BatchRenderer.
      */
-    void update(float deltaTime) {
+    public void markStaticBatchDirty() {
+        if (renderer instanceof BatchRenderer) {
+            BatchRenderer batchRenderer = (BatchRenderer) renderer;
+            if (batchRenderer.getBatch() != null) {
+                batchRenderer.getBatch().markStaticBatchDirty();
+            }
+        }
+    }
+
+    /**
+     * Called every frame to update all GameObjects.
+     */
+    public void update(float deltaTime) {
         isUpdating = true;
 
         // Create copy to avoid ConcurrentModificationException
@@ -241,7 +275,7 @@ public abstract class Scene {
     /**
      * Destroys the scene and all its GameObjects.
      */
-    void destroy() {
+    public void destroy() {
         onUnload();
 
         // Create copy to avoid modification during iteration

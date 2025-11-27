@@ -1,7 +1,6 @@
 package com.pocket.rpg.engine;
 
 import com.pocket.rpg.components.Component;
-import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.components.Transform;
 import com.pocket.rpg.scenes.Scene;
 import lombok.Getter;
@@ -99,8 +98,8 @@ public class GameObject {
         addComponentInternal(component);
 
         // If adding to an active scene, notify the scene
-        if (scene != null && component instanceof SpriteRenderer) {
-            scene.registerSpriteRenderer((SpriteRenderer) component);
+        if (scene != null) {
+            scene.registerCachedComponent(component);
         }
 
         // Auto-start if GameObject is already in active scene and enabled
@@ -133,8 +132,8 @@ public class GameObject {
             component.setGameObject(null);
 
             // If removing from an active scene, notify the scene
-            if (scene != null && component instanceof SpriteRenderer) {
-                scene.unregisterSpriteRenderer((SpriteRenderer) component);
+            if (scene != null) {
+                scene.unregisterCachedComponent(component);
             }
         }
     }

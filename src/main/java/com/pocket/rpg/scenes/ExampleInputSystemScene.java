@@ -15,7 +15,7 @@ import java.util.List;
 
 /**
  * Example scene demonstrating the new InputManager system.
- *
+ * <p>
  * Controls:
  * - WASD: Move the player
  * - Q/E: Rotate the player
@@ -67,10 +67,10 @@ public class ExampleInputSystemScene extends Scene {
      * Creates camera with custom clear color
      */
     private void createCamera() {
-        GameObject cameraObj = new GameObject("MainCamera", new Vector3f(320, 240, 0));
-        Camera camera = new Camera(0.15f, 0.15f, 0.2f, 1.0f);
-        cameraObj.addComponent(camera);
-        addGameObject(cameraObj);
+//        Camera camera = new Camera();
+        camera.setClearColor(0.1f, 0.1f, 0.15f, 1.0f);
+        camera.setPosition(320, 240);
+
         System.out.println("✓ Camera created");
     }
 

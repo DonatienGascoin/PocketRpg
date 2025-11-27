@@ -42,7 +42,7 @@ public class GameWindow extends Window {
                 .enablePillarBox(true)
                 // Pillarbox aspect ratio will auto-calculate from game resolution (4:3)
                 .postProcessingEffects(List.of(new VignetteEffect(1f, 1.5f)))
-                .callback(new DefaultCallback().registerResizeCallback(CameraSystem::setViewportSize))
+                .callback(new DefaultCallback().registerResizeCallback(CameraManager::setViewportSize))
                 .build());
     }
 
@@ -66,15 +66,14 @@ public class GameWindow extends Window {
         manager.registerLoader("sprite", new SpriteLoader());
         manager.registerLoader("spritesheet", new SpriteSheetLoader());
 
-        CameraSystem.initialize(config.getGameWidth(), config.getGameHeight());
-        CameraSystem cameraSystem = CameraSystem.getInstance();
+        CameraManager cameraSystem = CameraManager.initialize(config.getGameWidth(), config.getGameHeight());
 
         if (cameraSystem == null) {
             throw new IllegalStateException("Failed to initialize CameraSystem");
         }
 
         // Set viewport to window size
-        CameraSystem.setViewportSize(getScreenWidth(), getScreenHeight());
+        CameraManager.setViewportSize(getScreenWidth(), getScreenHeight());
 
         ConsoleStatisticsReporter reporter = null;
         if (config.isEnableStatistics()) {
@@ -86,7 +85,7 @@ public class GameWindow extends Window {
         renderer.init(config.getGameWidth(), config.getGameHeight());
 
         // Create render pipeline
-        renderPipeline = new RenderPipeline(renderer, cameraSystem, config);
+        renderPipeline = new RenderPipeline(renderer, config);
 
 
         // Initialize scene manager
@@ -106,19 +105,13 @@ public class GameWindow extends Window {
         });
 
         // Register test scenes
-        sceneManager.registerScene(new SmallOptimizationTestScene());
-        sceneManager.registerScene(new LargePerformanceBenchmarkScene());
 //        sceneManager.registerScene(new ExampleScene());
         sceneManager.registerScene(new ExampleInputSystemScene());
-        sceneManager.registerScene(new Phase2TestScene());
 
         // Load first scene
-//        sceneManager.loadScene("ExampleScene");
-        sceneManager.loadScene("Phase2Test");
-//        sceneManager.loadScene("LargePerformanceBenchmark");
+        sceneManager.loadScene("ExampleScene");
 
         System.out.println("Game systems initialized successfully");
-        System.out.println("Active cameras: " + CameraSystem.getCameraCount());
         System.out.println("Pixel-perfect mode: ENABLED");
         System.out.println("  - Game renders at: " + config.getGameWidth() + "x" + config.getGameHeight());
         System.out.println("  - Window displays at: " + getScreenWidth() + "x" + getScreenHeight());
@@ -154,7 +147,7 @@ public class GameWindow extends Window {
             renderer.destroy();
         }
 
-        CameraSystem.destroy();
+        CameraManager.destroy();
 
         // Destroy AssetManager
         AssetManager.destroy();

@@ -1,7 +1,7 @@
 package com.pocket.rpg.rendering;
 
-import com.pocket.rpg.components.Camera;
 import com.pocket.rpg.components.SpriteRenderer;
+import com.pocket.rpg.engine.Camera;
 import com.pocket.rpg.rendering.culling.CullingSystem;
 import com.pocket.rpg.rendering.renderers.BatchRenderer;
 import com.pocket.rpg.rendering.renderers.Renderer;
@@ -10,6 +10,7 @@ import com.pocket.rpg.scenes.Scene;
 import com.pocket.rpg.utils.WindowConfig;
 import lombok.Getter;
 import lombok.Setter;
+import org.joml.Matrix4f;
 import org.joml.Vector4f;
 
 import java.util.List;
@@ -30,7 +31,6 @@ import static org.lwjgl.opengl.GL33.glClearColor;
  */
 public class RenderPipeline {
 
-    private final CameraSystem cameraSystem;
     @Getter
     private final CullingSystem cullingSystem;
     @Getter
@@ -41,9 +41,8 @@ public class RenderPipeline {
     /**
      * Creates a render pipeline with the specified components.
      */
-    public RenderPipeline(Renderer renderer, CameraSystem cameraSystem, WindowConfig config) {
+    public RenderPipeline(Renderer renderer, WindowConfig config) {
         this.renderer = renderer;
-        this.cameraSystem = cameraSystem;
         this.cullingSystem = new CullingSystem();
         if (config.isEnableStatistics()) {
             this.statisticsReporter = config.getReporter();
@@ -62,11 +61,14 @@ public class RenderPipeline {
         }
 
         try {
-            // 1. Update camera system
-            cameraSystem.updateFrame();
+            // 1. Get camera from scene (each scene owns its camera)
+            Camera activeCamera = scene.getCamera();
+            if (activeCamera == null) {
+                System.err.println("ERROR: Scene has no camera: " + scene.getName());
+                return;
+            }
 
             // 2. Update culling system
-            Camera activeCamera = cameraSystem.getActiveCamera();
             cullingSystem.updateFrame(activeCamera);
 
             // 3. Check if static batch needs rebuilding (flag-based, no casting)
@@ -75,8 +77,10 @@ public class RenderPipeline {
                 scene.clearStaticBatchDirty();
             }
 
-            // 4. Get camera matrices and clear color
-            Vector4f clearColor = cameraSystem.getClearColor();
+            // 4. Get rendering parameters
+            Matrix4f projectionMatrix = CameraManager.getProjectionMatrix();
+            Matrix4f viewMatrix = activeCamera.getViewMatrix();
+            Vector4f clearColor = activeCamera.getClearColor();
 
             // 5. Clear screen
             glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
@@ -84,8 +88,8 @@ public class RenderPipeline {
 
             // 6. Begin rendering with camera matrices
             renderer.beginWithMatrices(
-                    cameraSystem.getProjectionMatrix(),
-                    cameraSystem.getViewMatrix(),
+                    projectionMatrix,
+                    viewMatrix,
                     clearColor
             );
 

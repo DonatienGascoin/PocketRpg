@@ -1,6 +1,9 @@
 package com.pocket.rpg.scenes;
 
-import com.pocket.rpg.components.*;
+import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.SpritePostEffect;
+import com.pocket.rpg.components.SpriteRenderer;
+import com.pocket.rpg.components.TranslationComponent;
 import com.pocket.rpg.engine.GameObject;
 import com.pocket.rpg.postProcessing.BloomEffect;
 import com.pocket.rpg.rendering.Sprite;
@@ -57,10 +60,7 @@ public class ExampleScene extends Scene {
      * Creates camera with custom clear color
      */
     private void createCamera() {
-        GameObject cameraObj = new GameObject("MainCamera", new Vector3f(0, 0, 0));
-        Camera camera = new Camera(0.15f, 0.15f, 0.2f, 1.0f);
-        cameraObj.addComponent(camera);
-        addGameObject(cameraObj);
+        camera.setClearColor(0.15f, 0.15f, 0.2f, 1.0f);
         System.out.println("✓ Camera created");
     }
 

@@ -1,76 +1,44 @@
 package com.pocket.rpg.rendering.culling;
 
-import com.pocket.rpg.components.Camera;
 import com.pocket.rpg.components.SpriteRenderer;
-import com.pocket.rpg.rendering.CameraSystem;
+import com.pocket.rpg.engine.Camera;
 
 /**
  * Manages frustum culling for the rendering system.
- * Automatically switches between orthographic and perspective cullers.
- * Detects viewport changes and updates cullers accordingly.
+ * Since we only support 2D orthographic rendering, this is simplified
+ * to only use orthographic culling.
  */
 public class CullingSystem {
 
-    private FrustumCuller orthographicCuller;
-    private FrustumCuller perspectiveCuller;
-    private FrustumCuller activeCuller;
-
-    private int lastViewportWidth = -1;
-    private int lastViewportHeight = -1;
-    private Camera.ProjectionType lastProjectionType = null;
-
+    private OrthographicFrustumCuller culler;
     private CullingStatistics statistics;
 
     public CullingSystem() {
-        this.orthographicCuller = new OrthographicFrustumCuller();
-        this.perspectiveCuller = new PerspectiveFrustumCuller();
-        this.activeCuller = orthographicCuller; // Default to orthographic
+        this.culler = new OrthographicFrustumCuller();
         this.statistics = new CullingStatistics();
     }
 
     /**
      * Updates the culling system for the current frame.
-     * Detects camera/viewport changes and updates the active culler.
+     * Updates the culler with the camera's current state.
+     *
+     * @param camera The camera to use for culling
      */
     public void updateFrame(Camera camera) {
-
         if (camera == null) {
-            // No camera - use default orthographic culler
-            activeCuller = orthographicCuller;
+            System.err.println("WARNING: CullingSystem.updateFrame called with null camera");
             return;
         }
 
-        // Detect viewport changes
-        int currentWidth = CameraSystem.getViewportWidth();
-        int currentHeight = CameraSystem.getViewportHeight();
-        boolean viewportChanged = (currentWidth != lastViewportWidth ||
-                currentHeight != lastViewportHeight);
-
-        // Detect projection type changes
-        Camera.ProjectionType currentType = camera.getProjectionType();
-        boolean projectionChanged = (currentType != lastProjectionType);
-
-        // Switch culler if projection type changed
-        if (projectionChanged) {
-            activeCuller = (currentType == Camera.ProjectionType.ORTHOGRAPHIC)
-                    ? orthographicCuller
-                    : perspectiveCuller;
-            lastProjectionType = currentType;
-        }
-
-        // Update culler if camera or viewport changed
-        if (viewportChanged || projectionChanged || camera != activeCuller.camera) {
-            activeCuller.updateFromCamera(camera);
-            lastViewportWidth = currentWidth;
-            lastViewportHeight = currentHeight;
-        }
+        // Update culler with camera state
+        culler.updateFromCamera(camera);
 
         // Reset statistics for new frame
         statistics.startFrame();
     }
 
     /**
-     * Tests if a sprite should be rendered (is visible).
+     * Tests if a sprite should be rendered (is visible in camera frustum).
      * Updates culling statistics.
      *
      * @param spriteRenderer The sprite to test
@@ -79,7 +47,7 @@ public class CullingSystem {
     public boolean shouldRender(SpriteRenderer spriteRenderer) {
         statistics.incrementTotal();
 
-        boolean visible = activeCuller.isVisible(spriteRenderer);
+        boolean visible = culler.isVisible(spriteRenderer);
 
         if (visible) {
             statistics.incrementRendered();
@@ -98,19 +66,16 @@ public class CullingSystem {
     }
 
     /**
-     * Gets the currently active culler.
+     * Gets the active culler.
      */
-    public FrustumCuller getActiveCuller() {
-        return activeCuller;
+    public OrthographicFrustumCuller getCuller() {
+        return culler;
     }
 
     /**
      * Resets the culling system.
      */
     public void reset() {
-        lastViewportWidth = -1;
-        lastViewportHeight = -1;
-        lastProjectionType = null;
         statistics.reset();
     }
 }

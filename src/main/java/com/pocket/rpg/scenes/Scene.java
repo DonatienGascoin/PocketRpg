@@ -1,6 +1,8 @@
 package com.pocket.rpg.scenes;
 
+import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.SpriteRenderer;
+import com.pocket.rpg.engine.Camera;
 import com.pocket.rpg.engine.GameObject;
 import lombok.Getter;
 
@@ -12,19 +14,24 @@ import java.util.Queue;
 /**
  * Scene holds and manages GameObjects.
  * Scenes can be loaded and unloaded by the SceneManager.
- * Provides list of SpriteRenderers for rendering pipeline.
- *
- * UPDATED: Now supports static sprite batch management
  */
 public abstract class Scene {
     @Getter
     private final String name;
+
+    @Getter
+    protected final Camera camera;
+
     private final List<GameObject> gameObjects;
+
+    // GameObjects cached components for quick access
     private final List<SpriteRenderer> spriteRenderers;
+
+
     private boolean initialized = false;
 
     // Deferred execution for safe modifications during update/render
-    private Queue<Runnable> deferredActions = new LinkedList<>();
+    private final Queue<Runnable> deferredActions = new LinkedList<>();
     private boolean isUpdating = false;
     private boolean isRendering = false;
 
@@ -36,14 +43,16 @@ public abstract class Scene {
         this.name = name;
         this.gameObjects = new ArrayList<>();
         this.spriteRenderers = new ArrayList<>();
+        this.camera = new Camera();
     }
 
-    public abstract void onLoad();
+    // ===========================================
+    // Scene Lifecycle Management
+    // ===========================================
 
-    public void onUnload() {
-        // Default implementation
-    }
-
+    /**
+     * Initializes the scene and all its GameObjects. Called by SceneManager when loading the scene.
+     */
     public void initialize() {
         this.initialized = true;
         onLoad();
@@ -51,143 +60,6 @@ public abstract class Scene {
         for (GameObject go : gameObjects) {
             go.start();
         }
-    }
-
-    /**
-     * Adds a GameObject to the scene.
-     * Safe to call during update/render - will be executed after frame completes.
-     */
-    public void addGameObject(GameObject gameObject) {
-        if (isUpdating || isRendering) {
-            // Defer execution until after frame
-            deferredActions.add(() -> addGameObjectImmediate(gameObject));
-        } else {
-            addGameObjectImmediate(gameObject);
-        }
-    }
-
-    /**
-     * Internal method to immediately add a GameObject.
-     */
-    private void addGameObjectImmediate(GameObject gameObject) {
-        gameObject.setScene(this);
-        gameObjects.add(gameObject);
-
-        SpriteRenderer spriteRenderer = gameObject.getComponent(SpriteRenderer.class);
-        if (spriteRenderer != null && spriteRenderer.isEnabled() && gameObject.isEnabled()) {
-            registerSpriteRenderer(spriteRenderer);
-        }
-
-        if (initialized) {
-            gameObject.start();
-        }
-    }
-
-    /**
-     * Removes a GameObject from the scene.
-     * Safe to call during update/render - will be executed after frame completes.
-     */
-    public void removeGameObject(GameObject gameObject) {
-        if (isUpdating || isRendering) {
-            // Defer execution until after frame
-            deferredActions.add(() -> removeGameObjectImmediate(gameObject));
-        } else {
-            removeGameObjectImmediate(gameObject);
-        }
-    }
-
-    /**
-     * Internal method to immediately remove a GameObject.
-     */
-    private void removeGameObjectImmediate(GameObject gameObject) {
-        if (gameObjects.remove(gameObject)) {
-            SpriteRenderer spriteRenderer = gameObject.getComponent(SpriteRenderer.class);
-            if (spriteRenderer != null) {
-                unregisterSpriteRenderer(spriteRenderer);
-            }
-
-            gameObject.destroy();
-            gameObject.setScene(null);
-        }
-    }
-
-    /**
-     * Finds a GameObject by name.
-     */
-    public GameObject findGameObject(String name) {
-        for (GameObject go : gameObjects) {
-            if (go.getName().equals(name)) {
-                return go;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Gets all GameObjects (returns defensive copy).
-     */
-    public List<GameObject> getGameObjects() {
-        return new ArrayList<>(gameObjects);
-    }
-
-    /**
-     * Registers a SpriteRenderer for rendering.
-     * Safe to call anytime.
-     */
-    public void registerSpriteRenderer(SpriteRenderer spriteRenderer) {
-        if (!spriteRenderers.contains(spriteRenderer)) {
-            if (isRendering) {
-                // Defer until after rendering completes
-                deferredActions.add(() -> spriteRenderers.add(spriteRenderer));
-            } else {
-                spriteRenderers.add(spriteRenderer);
-            }
-
-            // Mark static batch dirty if this is a static sprite
-            if (spriteRenderer.isStatic()) {
-                markStaticBatchDirty();
-            }
-        }
-    }
-
-    /**
-     * Unregisters a SpriteRenderer from rendering.
-     * Safe to call anytime.
-     */
-    public void unregisterSpriteRenderer(SpriteRenderer spriteRenderer) {
-        if (isRendering) {
-            // Defer until after rendering completes
-            deferredActions.add(() -> spriteRenderers.remove(spriteRenderer));
-        } else {
-            spriteRenderers.remove(spriteRenderer);
-        }
-
-        // Mark static batch dirty if this was a static sprite
-        if (spriteRenderer.isStatic()) {
-            markStaticBatchDirty();
-        }
-    }
-
-    /**
-     * Gets all registered sprite renderers.
-     * Used by RenderPipeline for rendering.
-     * Returns defensive copy to prevent modification during iteration.
-     */
-    public List<SpriteRenderer> getSpriteRenderers() {
-        return new ArrayList<>(spriteRenderers);
-    }
-
-    /**
-     * Marks the static sprite batch as dirty, forcing a rebuild.
-     * Call this when you modify a static sprite's transform.
-     * Only works if using BatchRenderer.
-     */
-    public void markStaticBatchDirty() {
-        staticBatchDirty = true;
-    }
-
-    public void clearStaticBatchDirty() {
-        staticBatchDirty = false;
     }
 
     /**
@@ -229,6 +101,174 @@ public abstract class Scene {
         processDeferredActions();
     }
 
+
+    /**
+     * Destroys the scene and all its GameObjects.
+     */
+    public void destroy() {
+        onUnload();
+
+        // Create copy to avoid modification during iteration
+        List<GameObject> gameObjectsToDestroy = new ArrayList<>(gameObjects);
+        for (GameObject gameObject : gameObjectsToDestroy) {
+            gameObject.destroy();
+        }
+
+        gameObjects.clear();
+        spriteRenderers.clear();
+        deferredActions.clear();
+    }
+
+    /**
+     * Called when the scene is loaded. Implement scene-specific initialization here.
+     */
+    public abstract void onLoad();
+
+    /**
+     * Called when the scene is unloaded. Implement scene-specific cleanup here.
+     */
+    public void onUnload() {
+        // Default implementation
+    }
+
+
+    // ===========================================
+    // GameObject Management
+    // ===========================================
+
+    /**
+     * Adds a GameObject to the scene.
+     * Safe to call during update/render - will be executed after frame completes.
+     */
+    public void addGameObject(GameObject gameObject) {
+        if (isUpdating || isRendering) {
+            // Defer execution until after frame
+            deferredActions.add(() -> addGameObjectImmediate(gameObject));
+        } else {
+            addGameObjectImmediate(gameObject);
+        }
+    }
+
+    /**
+     * Internal method to immediately add a GameObject.
+     */
+    private void addGameObjectImmediate(GameObject gameObject) {
+        gameObject.setScene(this);
+        gameObjects.add(gameObject);
+
+        registerCachedComponent(gameObject);
+
+        if (initialized) {
+            gameObject.start();
+        }
+    }
+
+    /**
+     * Removes a GameObject from the scene.
+     * Safe to call during update/render - will be executed after frame completes.
+     */
+    public void removeGameObject(GameObject gameObject) {
+        if (isUpdating || isRendering) {
+            // Defer execution until after frame
+            deferredActions.add(() -> removeGameObjectImmediate(gameObject));
+        } else {
+            removeGameObjectImmediate(gameObject);
+        }
+    }
+
+    /**
+     * Internal method to immediately remove a GameObject.
+     */
+    private void removeGameObjectImmediate(GameObject gameObject) {
+        if (gameObjects.remove(gameObject)) {
+            unregisterCachedComponent(gameObject);
+
+            gameObject.destroy();
+            gameObject.setScene(null);
+        }
+    }
+
+    /**
+     * Finds a GameObject by name.
+     */
+    public GameObject findGameObject(String name) {
+        for (GameObject go : gameObjects) {
+            if (go.getName().equals(name)) {
+                return go;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Gets all GameObjects (returns defensive copy).
+     */
+    public List<GameObject> getGameObjects() {
+        return new ArrayList<>(gameObjects);
+    }
+
+
+    /**
+     * Registers cached components from a GameObject.
+     * Called when adding a GameObject to the scene.
+     */
+    public void registerCachedComponent(GameObject gameObject) {
+        var spriteRenderers = gameObject.getComponents(SpriteRenderer.class);
+        this.spriteRenderers.addAll(spriteRenderers);
+    }
+
+    /**
+     * Registers a single cached component.
+     */
+    public void registerCachedComponent(Component component) {
+        if (component instanceof SpriteRenderer spr && !this.spriteRenderers.contains(spr)) {
+            this.spriteRenderers.add(spr);
+        }
+    }
+
+    /**
+     * Unregisters cached components from a GameObject.
+     * Called when removing a GameObject from the scene.
+     */
+    public void unregisterCachedComponent(GameObject gameObject) {
+        var spriteRenderers = gameObject.getComponents(SpriteRenderer.class);
+        this.spriteRenderers.removeAll(spriteRenderers);
+    }
+
+    /**
+     * Unregisters a single cached component.
+     */
+    public void unregisterCachedComponent(Component component) {
+        if (component instanceof SpriteRenderer spr) {
+            this.spriteRenderers.remove(spr);
+        }
+    }
+
+    /**
+     * Gets all registered sprite renderers.
+     * Used by RenderPipeline for rendering.
+     * Returns defensive copy to prevent modification during iteration.
+     */
+    public List<SpriteRenderer> getSpriteRenderers() {
+        return new ArrayList<>(spriteRenderers);
+    }
+
+    /**
+     * Marks the static sprite batch as dirty, forcing a rebuild.
+     * Call this when you modify a static sprite's transform.
+     * Only works if using BatchRenderer.
+     * TODO: Needed ?
+     */
+    public void markStaticBatchDirty() {
+        staticBatchDirty = true;
+    }
+
+    //    TODO: Needed ?
+    public void clearStaticBatchDirty() {
+        staticBatchDirty = false;
+    }
+
+
     /**
      * Marks the scene as currently rendering.
      * Called by RenderPipeline before rendering.
@@ -248,6 +288,7 @@ public abstract class Scene {
 
     /**
      * Processes all deferred actions accumulated during update/render.
+     * TODO: Remove deffered actions
      */
     private void processDeferredActions() {
         while (!deferredActions.isEmpty()) {
@@ -259,22 +300,5 @@ public abstract class Scene {
                 e.printStackTrace();
             }
         }
-    }
-
-    /**
-     * Destroys the scene and all its GameObjects.
-     */
-    public void destroy() {
-        onUnload();
-
-        // Create copy to avoid modification during iteration
-        List<GameObject> gameObjectsToDestroy = new ArrayList<>(gameObjects);
-        for (GameObject gameObject : gameObjectsToDestroy) {
-            gameObject.destroy();
-        }
-
-        gameObjects.clear();
-        spriteRenderers.clear();
-        deferredActions.clear();
     }
 }

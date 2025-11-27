@@ -1,8 +1,8 @@
 package com.pocket.rpg.rendering.culling;
 
-import com.pocket.rpg.components.Camera;
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.engine.Camera;
 import com.pocket.rpg.rendering.Sprite;
 import org.joml.Vector3f;
 
@@ -17,6 +17,8 @@ public abstract class FrustumCuller {
     /**
      * Updates the culler from the camera's current state.
      * Called once per frame before culling tests.
+     *
+     * @param camera The camera to use for culling
      */
     public abstract void updateFromCamera(Camera camera);
 
@@ -32,7 +34,7 @@ public abstract class FrustumCuller {
      * Calculates an AABB (Axis-Aligned Bounding Box) for a sprite.
      * Accounts for sprite origin and scale, with optional rotation padding.
      *
-     * @param spriteRenderer The sprite to calculate bounds for
+     * @param spriteRenderer     The sprite to calculate bounds for
      * @param addRotationPadding Whether to add padding for rotation
      * @return AABB as [minX, minY, maxX, maxY]
      */
@@ -64,6 +66,7 @@ public abstract class FrustumCuller {
         if (addRotationPadding) {
             Vector3f rot = transform.getRotation();
             if (rot.z != 0) {
+                // Calculate diagonal distance (worst-case rotation)
                 float diagonal = (float) Math.sqrt(spriteWidth * spriteWidth + spriteHeight * spriteHeight);
                 float padding = (diagonal - Math.max(spriteWidth, spriteHeight)) / 2;
 
@@ -74,7 +77,7 @@ public abstract class FrustumCuller {
             }
         }
 
-        return new float[] { minX, minY, maxX, maxY };
+        return new float[]{minX, minY, maxX, maxY};
     }
 
     /**

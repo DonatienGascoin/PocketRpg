@@ -175,11 +175,11 @@ public class InputManager {
                 case GAMEPAD_LEFT_STICK_HORIZONTAL:
                     return instance.gamepadListener.getAxisRaw(GamepadListener.AXIS_LEFT_X);
                 case GAMEPAD_LEFT_STICK_VERTICAL:
-                    return -instance.gamepadListener.getAxisRaw(GamepadListener.AXIS_LEFT_Y);
+                    return instance.gamepadListener.getAxisRaw(GamepadListener.AXIS_LEFT_Y);
                 case GAMEPAD_RIGHT_STICK_HORIZONTAL:
                     return instance.gamepadListener.getAxisRaw(GamepadListener.AXIS_RIGHT_X);
                 case GAMEPAD_RIGHT_STICK_VERTICAL:
-                    return -instance.gamepadListener.getAxisRaw(GamepadListener.AXIS_RIGHT_Y);
+                    return instance.gamepadListener.getAxisRaw(GamepadListener.AXIS_RIGHT_Y);
             }
         }
 

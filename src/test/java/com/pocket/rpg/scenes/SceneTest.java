@@ -72,6 +72,61 @@ class SceneTest {
         assertTrue(component.updateCalled);
     }
 
+    @Test
+    public void testImmediateAddition() {
+
+        GameObject obj = new GameObject("Test");
+        scene.addGameObject(obj);
+
+        // Should be findable immediately
+        GameObject found = scene.findGameObject("Test");
+        assertNotNull(found);
+        assertEquals(obj, found);
+    }
+
+    @Test
+    public void testAddDuringUpdate() {
+        // GameObject that adds another GameObject in its update
+        GameObject spawner = new GameObject("Spawner");
+        spawner.addComponent(new Component() {
+            @Override
+            public void update(float dt) {
+                GameObject newObj = new GameObject("Spawned");
+                getGameObject().getScene().addGameObject(newObj);
+            }
+        });
+        scene.addGameObject(spawner);
+
+        // Should not throw ConcurrentModificationException
+        assertDoesNotThrow(() -> scene.update(0.016f));
+
+        // Spawned object should exist
+        assertNotNull(scene.findGameObject("Spawned"));
+    }
+
+    @Test
+    public void testRemoveDuringUpdate() {
+
+        GameObject obj1 = new GameObject("Obj1");
+        GameObject obj2 = new GameObject("Obj2");
+
+        obj1.addComponent(new Component() {
+            @Override
+            public void update(float dt) {
+                // Remove obj2 during update
+                getGameObject().getScene().removeGameObject(obj2);
+            }
+        });
+
+        scene.addGameObject(obj1);
+        scene.addGameObject(obj2);
+
+        scene.update(0.016f);
+
+        // obj2 should be removed
+        assertNull(scene.findGameObject("Obj2"));
+    }
+
     private static class TestScene extends Scene {
         boolean onLoadCalled = false;
 

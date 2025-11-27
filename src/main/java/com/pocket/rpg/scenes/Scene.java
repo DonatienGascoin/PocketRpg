@@ -7,9 +7,8 @@ import com.pocket.rpg.engine.GameObject;
 import lombok.Getter;
 
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.Queue;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Scene holds and manages GameObjects.
@@ -22,7 +21,8 @@ public abstract class Scene {
     @Getter
     protected final Camera camera;
 
-    private final List<GameObject> gameObjects;
+    private final CopyOnWriteArrayList<GameObject> gameObjects;
+
 
     // GameObjects cached components for quick access
     private final List<SpriteRenderer> spriteRenderers;
@@ -30,18 +30,14 @@ public abstract class Scene {
 
     private boolean initialized = false;
 
-    // Deferred execution for safe modifications during update/render
-    private final Queue<Runnable> deferredActions = new LinkedList<>();
-    private boolean isUpdating = false;
-    private boolean isRendering = false;
 
-    // Edge case: Allow the Renderer to rebuild the static SpriteRenderers if one is modified
+    // Edge case: Allow the Renderer to rebuild the static SpriteRenderers if one is modified TODO: Needed ?
     @Getter
     private boolean staticBatchDirty = false;
 
     public Scene(String name) {
         this.name = name;
-        this.gameObjects = new ArrayList<>();
+        this.gameObjects = new CopyOnWriteArrayList<>();
         this.spriteRenderers = new ArrayList<>();
         this.camera = new Camera();
     }
@@ -66,13 +62,9 @@ public abstract class Scene {
      * Called every frame to update all GameObjects.
      */
     public void update(float deltaTime) {
-        isUpdating = true;
-
-        // Create copy to avoid ConcurrentModificationException
-        List<GameObject> gameObjectsToUpdate = new ArrayList<>(gameObjects);
 
         // Phase 1: Regular update
-        for (GameObject gameObject : gameObjectsToUpdate) {
+        for (GameObject gameObject : gameObjects) {
             // Check if still in scene (might have been removed)
             if (!gameObjects.contains(gameObject)) {
                 continue;
@@ -84,7 +76,7 @@ public abstract class Scene {
         }
 
         // Phase 2: Late update (after all regular updates complete)
-        for (GameObject gameObject : gameObjectsToUpdate) {
+        for (GameObject gameObject : gameObjects) {
             // Check if still in scene (might have been removed during update)
             if (!gameObjects.contains(gameObject)) {
                 continue;
@@ -95,10 +87,6 @@ public abstract class Scene {
             }
         }
 
-        isUpdating = false;
-
-        // Process deferred actions after both update phases complete
-        processDeferredActions();
     }
 
 
@@ -116,7 +104,6 @@ public abstract class Scene {
 
         gameObjects.clear();
         spriteRenderers.clear();
-        deferredActions.clear();
     }
 
     /**
@@ -138,53 +125,33 @@ public abstract class Scene {
 
     /**
      * Adds a GameObject to the scene.
-     * Safe to call during update/render - will be executed after frame completes.
+     *
+     * @param obj The GameObject to add
      */
-    public void addGameObject(GameObject gameObject) {
-        if (isUpdating || isRendering) {
-            // Defer execution until after frame
-            deferredActions.add(() -> addGameObjectImmediate(gameObject));
-        } else {
-            addGameObjectImmediate(gameObject);
+    public void addGameObject(GameObject obj) {
+        if (obj.getScene() != null) {
+            throw new IllegalStateException(
+                    "GameObject '" + obj.getName() + "' already belongs to a scene"
+            );
         }
-    }
 
-    /**
-     * Internal method to immediately add a GameObject.
-     */
-    private void addGameObjectImmediate(GameObject gameObject) {
-        gameObject.setScene(this);
-        gameObjects.add(gameObject);
-
-        registerCachedComponent(gameObject);
+        gameObjects.add(obj); 
+        obj.setScene(this);
+        registerCachedComponent(obj);
 
         if (initialized) {
-            gameObject.start();
+            obj.start();
         }
     }
 
     /**
      * Removes a GameObject from the scene.
-     * Safe to call during update/render - will be executed after frame completes.
      */
-    public void removeGameObject(GameObject gameObject) {
-        if (isUpdating || isRendering) {
-            // Defer execution until after frame
-            deferredActions.add(() -> removeGameObjectImmediate(gameObject));
-        } else {
-            removeGameObjectImmediate(gameObject);
-        }
-    }
-
-    /**
-     * Internal method to immediately remove a GameObject.
-     */
-    private void removeGameObjectImmediate(GameObject gameObject) {
-        if (gameObjects.remove(gameObject)) {
-            unregisterCachedComponent(gameObject);
-
-            gameObject.destroy();
-            gameObject.setScene(null);
+    public void removeGameObject(GameObject obj) {
+        if (gameObjects.remove(obj)) {
+            obj.destroy();
+            unregisterCachedComponent(obj);
+            obj.setScene(null);
         }
     }
 
@@ -266,39 +233,5 @@ public abstract class Scene {
     //    TODO: Needed ?
     public void clearStaticBatchDirty() {
         staticBatchDirty = false;
-    }
-
-
-    /**
-     * Marks the scene as currently rendering.
-     * Called by RenderPipeline before rendering.
-     */
-    public void beginRendering() {
-        isRendering = true;
-    }
-
-    /**
-     * Marks the scene as finished rendering.
-     * Called by RenderPipeline after rendering.
-     */
-    public void endRendering() {
-        isRendering = false;
-        processDeferredActions();
-    }
-
-    /**
-     * Processes all deferred actions accumulated during update/render.
-     * TODO: Remove deffered actions
-     */
-    private void processDeferredActions() {
-        while (!deferredActions.isEmpty()) {
-            Runnable action = deferredActions.poll();
-            try {
-                action.run();
-            } catch (Exception e) {
-                System.err.println("Error executing deferred action: " + e.getMessage());
-                e.printStackTrace();
-            }
-        }
     }
 }

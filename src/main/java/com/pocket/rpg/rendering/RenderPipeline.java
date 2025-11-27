@@ -93,9 +93,6 @@ public class RenderPipeline {
                     clearColor
             );
 
-            // Notify scene that rendering is starting
-            scene.beginRendering();
-
             // 7. Render all sprite renderers with culling
             List<SpriteRenderer> spriteRenderers = scene.getSpriteRenderers();
             for (SpriteRenderer spriteRenderer : spriteRenderers) {
@@ -110,9 +107,6 @@ public class RenderPipeline {
             // 8. End rendering
             renderer.end();
 
-            // Notify scene that rendering is complete
-            scene.endRendering();
-
             // 9. Report statistics if reporter is set
             if (statisticsReporter != null) {
                 statisticsReporter.report(cullingSystem.getStatistics());
@@ -120,12 +114,6 @@ public class RenderPipeline {
         } catch (Exception e) {
             System.err.println("ERROR during rendering: " + e.getMessage());
             e.printStackTrace();
-
-            // Ensure scene exits rendering state even on error
-            try {
-                scene.endRendering();
-            } catch (Exception ignored) {
-            }
         }
     }
 

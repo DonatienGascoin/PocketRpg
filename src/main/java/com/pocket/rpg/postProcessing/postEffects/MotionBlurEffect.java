@@ -1,6 +1,6 @@
 package com.pocket.rpg.postProcessing.postEffects;
 
-import com.pocket.rpg.engine.Window;
+import com.pocket.rpg.core.AbstractWindow;
 import com.pocket.rpg.postProcessing.PostEffect;
 import com.pocket.rpg.rendering.Shader;
 import org.joml.Vector2f;
@@ -33,17 +33,17 @@ public class MotionBlurEffect implements PostEffect {
      * Creates a motion blur effect with specified parameters.
      *
      * @param blurDirection Direction of blur in screen space (normalized).
-     *                     Examples:
-     *                     - (1, 0) = horizontal right
-     *                     - (0, 1) = vertical up
-     *                     - (0.707, 0.707) = diagonal
+     *                      Examples:
+     *                      - (1, 0) = horizontal right
+     *                      - (0, 1) = vertical up
+     *                      - (0.707, 0.707) = diagonal
      * @param blurStrength  Length of blur streak (0.01 - 0.1).
-     *                     - 0.01 = subtle
-     *                     - 0.02 = moderate (recommended)
-     *                     - 0.05+ = extreme
-     * @param samples      Number of blur samples (4 - 16).
-     *                     More samples = smoother blur but slower.
-     *                     8 is a good balance.
+     *                      - 0.01 = subtle
+     *                      - 0.02 = moderate (recommended)
+     *                      - 0.05+ = extreme
+     * @param samples       Number of blur samples (4 - 16).
+     *                      More samples = smoother blur but slower.
+     *                      8 is a good balance.
      */
     public MotionBlurEffect(Vector2f blurDirection, float blurStrength, int samples) {
         this.blurDirection = blurDirection.normalize(new Vector2f());
@@ -59,8 +59,8 @@ public class MotionBlurEffect implements PostEffect {
     }
 
     @Override
-    public void init(Window window) {
-        motionBlurShader = new Shader("assets/shaders/motionBlur.glsl");
+    public void init() {
+        motionBlurShader = new Shader("gameData/assets/shaders/motionBlur.glsl");
         motionBlurShader.compileAndLink();
 
         motionBlurShader.use();

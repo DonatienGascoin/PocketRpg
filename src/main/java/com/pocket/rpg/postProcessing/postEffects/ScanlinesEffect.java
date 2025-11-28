@@ -1,6 +1,6 @@
 package com.pocket.rpg.postProcessing.postEffects;
 
-import com.pocket.rpg.engine.Window;
+import com.pocket.rpg.core.AbstractWindow;
 import com.pocket.rpg.postProcessing.PostEffect;
 import com.pocket.rpg.rendering.Shader;
 
@@ -30,13 +30,13 @@ public class ScanlinesEffect implements PostEffect {
      * Creates a scanlines effect with specified parameters.
      *
      * @param scanlineIntensity Darkness of the scanlines (0.0 - 1.0).
-     *                         - 0.0 = no effect
-     *                         - 0.3 = subtle (recommended)
-     *                         - 0.7 = pronounced
-     * @param scanlineCount    Number of scanlines across the screen.
-     *                         - 150 = thick lines
-     *                         - 300 = normal (recommended)
-     *                         - 600 = thin lines
+     *                          - 0.0 = no effect
+     *                          - 0.3 = subtle (recommended)
+     *                          - 0.7 = pronounced
+     * @param scanlineCount     Number of scanlines across the screen.
+     *                          - 150 = thick lines
+     *                          - 300 = normal (recommended)
+     *                          - 600 = thin lines
      */
     public ScanlinesEffect(float scanlineIntensity, float scanlineCount) {
         this.scanlineIntensity = scanlineIntensity;
@@ -44,8 +44,8 @@ public class ScanlinesEffect implements PostEffect {
     }
 
     @Override
-    public void init(Window window) {
-        scanlinesShader = new Shader("assets/shaders/scanlines.glsl");
+    public void init() {
+        scanlinesShader = new Shader("gameData/assets/shaders/scanlines.glsl");
         scanlinesShader.compileAndLink();
 
         scanlinesShader.use();

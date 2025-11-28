@@ -1,6 +1,6 @@
 package com.pocket.rpg.rendering;
 
-import com.pocket.rpg.engine.Camera;
+import com.pocket.rpg.core.Camera;
 import org.joml.Matrix4f;
 import org.joml.Vector2f;
 import org.joml.Vector3f;

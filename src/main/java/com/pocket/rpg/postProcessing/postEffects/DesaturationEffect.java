@@ -1,6 +1,6 @@
 package com.pocket.rpg.postProcessing.postEffects;
 
-import com.pocket.rpg.engine.Window;
+import com.pocket.rpg.core.AbstractWindow;
 import com.pocket.rpg.postProcessing.PostEffect;
 import com.pocket.rpg.rendering.Shader;
 
@@ -38,8 +38,8 @@ public class DesaturationEffect implements PostEffect {
     }
 
     @Override
-    public void init(Window window) {
-        desaturationShader = new Shader("assets/shaders/desaturation.glsl");
+    public void init() {
+        desaturationShader = new Shader("gameData/assets/shaders/desaturation.glsl");
         desaturationShader.compileAndLink();
 
         desaturationShader.use();

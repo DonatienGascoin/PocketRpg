@@ -3,7 +3,7 @@ package com.pocket.rpg.rendering;
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.components.Transform;
 import com.pocket.rpg.rendering.renderers.VertexLayout;
-import com.pocket.rpg.utils.WindowConfig;
+import com.pocket.rpg.config.WindowConfig;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector3f;

@@ -1,35 +1,32 @@
-package com.pocket.rpg.utils;
+package com.pocket.rpg.config;
 
 import com.pocket.rpg.postProcessing.PostEffect;
 import com.pocket.rpg.postProcessing.PostProcessor;
-import com.pocket.rpg.postProcessing.postEffects.VignetteEffect;
-import com.pocket.rpg.rendering.SpriteBatch;
-import com.pocket.rpg.rendering.stats.ConsoleStatisticsReporter;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.util.List;
 
-@Getter
+@Data
 @Builder
-public class WindowConfig {
+@NoArgsConstructor
+@AllArgsConstructor
+public class GameConfig {
 
-    @Builder.Default
     private String title = "Pocket Rpg";
 
     // ===== WINDOW RESOLUTION (physical window size) =====
     /**
      * The initial physical window width in pixels.
      */
-    @Builder.Default
-    private int initialWidth = 1280;
+    private int windowWidth = 1280;
 
     /**
      * The initial physical window height in pixels.
      */
-    @Builder.Default
-    private int initialHeight = 960;
+    private int windowHeight = 960;
 
     // ===== GAME RESOLUTION (fixed internal resolution) =====
     /**
@@ -37,7 +34,6 @@ public class WindowConfig {
      * All game logic and rendering happens at this resolution.
      * This is then scaled to fit the window.
      */
-    @Builder.Default
     private int gameWidth = 640;
 
     /**
@@ -45,24 +41,11 @@ public class WindowConfig {
      * All game logic and rendering happens at this resolution.
      * This is then scaled to fit the window.
      */
-    @Builder.Default
     private int gameHeight = 480;
 
-    @Builder.Default
     private boolean fullscreen = false;
-
-    @Builder.Default
     private boolean vsync = false;
 
-    @Setter
-    @Builder.Default
-    private ICallback callback = null;
-
-    /**
-     * List of post-processing effects to apply.
-     * Warning: Order matters! Effects are applied in the order listed.
-     */
-    @Builder.Default
     private List<PostEffect> postProcessingEffects = List.of(
             // Retro CRT Style
 //            new ScanlinesEffect(0.3f, 300.0f),
@@ -109,7 +92,6 @@ public class WindowConfig {
 //            new RadialBlurEffect(0.3f, 0.7f, 0.05f, 12),
 //            new DisplacementEffect(0.005f),
 //            new DisplacementEffect(0.01f, 0.002f, 0.002f),
-            new VignetteEffect(1f, 1.5f)
     );
 
     /**
@@ -117,22 +99,18 @@ public class WindowConfig {
      * MAINTAIN_ASPECT_RATIO: Keeps aspect ratio with black bars (like pillarbox)
      * STRETCH: Stretches image to fill window (may distort)
      */
-    @Builder.Default
     private PostProcessor.ScalingMode scalingMode = PostProcessor.ScalingMode.MAINTAIN_ASPECT_RATIO;
 
     /**
      * Whether to enable pillarboxing/letterboxing for aspect ratio preservation.
      */
-    @Builder.Default
     private boolean enablePillarBox = false;
 
     /**
      * Target aspect ratio for pillarbox (e.g., 16/9 = 1.777, 4/3 = 1.333).
      * Only used if enablePillarbox is true. Set to 0 for auto-calculation from game resolution.
      */
-    @Builder.Default
     private float pillarboxAspectRatio = 0f; // 0 means auto-calculate from gameWidth/gameHeight
-
 
     /**
      * Gets the effective pillarbox aspect ratio.
@@ -144,24 +122,4 @@ public class WindowConfig {
         }
         return (float) gameWidth / gameHeight;
     }
-
-    @Builder.Default
-    private final int maxBatchSize = 10000;
-
-    @Builder.Default
-    private final SpriteBatch.SortingStrategy sortingStrategy = SpriteBatch.SortingStrategy.BALANCED;
-
-    @Builder.Default
-    private final boolean enableStatistics = true;
-
-    @Builder.Default
-    private final int statisticsInterval = 300; // frames
-
-    /**
-     * Statistics reporter (can be null if statistics disabled).
-     */
-    @Setter
-    @Getter
-    private ConsoleStatisticsReporter reporter;
-
 }

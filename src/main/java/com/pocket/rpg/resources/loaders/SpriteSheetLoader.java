@@ -214,8 +214,8 @@ public class SpriteSheetLoader implements AssetLoader<SpriteSheetData> {
 
     /**
      * Resolves a relative path from a base file path.
-     * Example: base="assets/sheets/player.json", relative="textures/player.png"
-     * Result: "assets/sheets/textures/player.png"
+     * Example: base="gameData/assets/sheets/player.json", relative="textures/player.png"
+     * Result: "gameData/assets/sheets/textures/player.png"
      *
      * @param basePath     Base file path
      * @param relativePath Relative path to resolve

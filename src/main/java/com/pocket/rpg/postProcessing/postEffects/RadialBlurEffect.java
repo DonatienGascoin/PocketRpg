@@ -1,6 +1,6 @@
 package com.pocket.rpg.postProcessing.postEffects;
 
-import com.pocket.rpg.engine.Window;
+import com.pocket.rpg.core.AbstractWindow;
 import com.pocket.rpg.postProcessing.PostEffect;
 import com.pocket.rpg.rendering.Shader;
 import org.joml.Vector2f;
@@ -34,16 +34,16 @@ public class RadialBlurEffect implements PostEffect {
      * Creates a radial blur effect with specified parameters.
      *
      * @param blurCenter   Center point of the blur in UV space (0.0 - 1.0).
-     *                    (0.5, 0.5) = screen center
-     *                    (0, 0) = bottom-left corner
-     *                    (1, 1) = top-right corner
+     *                     (0.5, 0.5) = screen center
+     *                     (0, 0) = bottom-left corner
+     *                     (1, 1) = top-right corner
      * @param blurStrength Intensity of the radial blur (0.01 - 0.1).
-     *                    - 0.01 = subtle
-     *                    - 0.03 = moderate (recommended)
-     *                    - 0.07+ = extreme
-     * @param samples     Number of blur samples (6 - 16).
-     *                    More samples = smoother blur but slower.
-     *                    10 is recommended.
+     *                     - 0.01 = subtle
+     *                     - 0.03 = moderate (recommended)
+     *                     - 0.07+ = extreme
+     * @param samples      Number of blur samples (6 - 16).
+     *                     More samples = smoother blur but slower.
+     *                     10 is recommended.
      */
     public RadialBlurEffect(Vector2f blurCenter, float blurStrength, int samples) {
         this.blurCenter = blurCenter;
@@ -59,8 +59,8 @@ public class RadialBlurEffect implements PostEffect {
     }
 
     @Override
-    public void init(Window window) {
-        radialBlurShader = new Shader("assets/shaders/radialBlur.glsl");
+    public void init() {
+        radialBlurShader = new Shader("gameData/assets/shaders/radialBlur.glsl");
         radialBlurShader.compileAndLink();
 
         radialBlurShader.use();

@@ -1,6 +1,6 @@
 package com.pocket.rpg.postProcessing.postEffects;
 
-import com.pocket.rpg.engine.Window;
+import com.pocket.rpg.core.AbstractWindow;
 import com.pocket.rpg.postProcessing.PostEffect;
 import com.pocket.rpg.rendering.Shader;
 
@@ -18,8 +18,8 @@ public class PassThroughEffect implements PostEffect {
     private Shader passThroughShader;
 
     @Override
-    public void init(Window window) {
-        passThroughShader = new Shader("assets/shaders/passThrough.glsl");
+    public void init() {
+        passThroughShader = new Shader("gameData/assets/shaders/passThrough.glsl");
         passThroughShader.compileAndLink();
         passThroughShader.use();
         passThroughShader.uploadInt("screenTexture", 0);

@@ -5,7 +5,7 @@ import com.pocket.rpg.components.Transform;
 import com.pocket.rpg.rendering.Shader;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.Texture;
-import com.pocket.rpg.utils.WindowConfig;
+import com.pocket.rpg.config.WindowConfig;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
@@ -50,7 +50,7 @@ public class Renderer {
 
         System.out.println("Renderer initialized with game resolution: " + gameWidth + "x" + gameHeight);
 
-        shader = new Shader("assets/shaders/sprite.glsl");
+        shader = new Shader("gameData/assets/shaders/sprite.glsl");
         shader.compileAndLink();
 
         vertexBuffer = MemoryUtil.memAllocFloat(24);

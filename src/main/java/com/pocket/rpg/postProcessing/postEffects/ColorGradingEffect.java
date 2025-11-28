@@ -1,6 +1,6 @@
 package com.pocket.rpg.postProcessing.postEffects;
 
-import com.pocket.rpg.engine.Window;
+import com.pocket.rpg.core.AbstractWindow;
 import com.pocket.rpg.postProcessing.PostEffect;
 import com.pocket.rpg.rendering.Shader;
 import org.joml.Vector3f;
@@ -55,8 +55,8 @@ public class ColorGradingEffect implements PostEffect {
     }
 
     @Override
-    public void init(Window window) {
-        gradingShader = new Shader("assets/shaders/colorGrading.glsl");
+    public void init() {
+        gradingShader = new Shader("gameData/assets/shaders/colorGrading.glsl");
         gradingShader.compileAndLink();
 
         gradingShader.use();

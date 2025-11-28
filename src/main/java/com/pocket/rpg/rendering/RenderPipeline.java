@@ -1,13 +1,13 @@
 package com.pocket.rpg.rendering;
 
 import com.pocket.rpg.components.SpriteRenderer;
-import com.pocket.rpg.engine.Camera;
+import com.pocket.rpg.core.Camera;
 import com.pocket.rpg.rendering.culling.CullingSystem;
 import com.pocket.rpg.rendering.renderers.BatchRenderer;
 import com.pocket.rpg.rendering.renderers.Renderer;
 import com.pocket.rpg.rendering.stats.StatisticsReporter;
 import com.pocket.rpg.scenes.Scene;
-import com.pocket.rpg.utils.WindowConfig;
+import com.pocket.rpg.config.WindowConfig;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Matrix4f;

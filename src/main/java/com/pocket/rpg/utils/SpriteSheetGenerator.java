@@ -335,11 +335,11 @@ public class SpriteSheetGenerator {
         try {
             System.out.println("Generating sprite sheets...\n");
 
-            createTightlyPackedSheet("assets/sheet_tight.png");
-            createUniformSpacingSheet("assets/sheet_spacing.png");
-            createDifferentXYSpacingSheet("assets/sheet_xy_spacing.png");
-            createMarginSheet("assets/sheet_margin.png");
-            createComplexSheet("assets/sheet_complex.png");
+            createTightlyPackedSheet("gameData/assets/sheet_tight.png");
+            createUniformSpacingSheet("gameData/assets/sheet_spacing.png");
+            createDifferentXYSpacingSheet("gameData/assets/sheet_xy_spacing.png");
+            createMarginSheet("gameData/assets/sheet_margin.png");
+            createComplexSheet("gameData/assets/sheet_complex.png");
 
             System.out.println("\n✓ All 5 sprite sheets created successfully!");
             System.out.println("\nSprite sheet types:");

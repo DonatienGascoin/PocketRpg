@@ -16,7 +16,7 @@ public class TestTextureGenerator {
     /**
      * Creates a simple colored square with a border.
      *
-     * @param filepath   Output file path (e.g., "assets/player.png")
+     * @param filepath   Output file path (e.g., "gameData/assets/player.png")
      * @param size       Image size in pixels
      * @param color      Fill color
      * @param borderColor Border color
@@ -128,13 +128,13 @@ public class TestTextureGenerator {
             new File("assets").mkdirs();
 
             // Generate test textures
-            createColoredSquare("assets/player.png", 64,
+            createColoredSquare("gameData/assets/player.png", 64,
                     new Color(255, 100, 50), Color.BLACK);
 
-            createCheckerboard("assets/background.png", 256, 32,
+            createCheckerboard("gameData/assets/background.png", 256, 32,
                     new Color(100, 100, 100), new Color(150, 150, 150));
 
-            createGradientCircle("assets/particle.png", 64,
+            createGradientCircle("gameData/assets/particle.png", 64,
                     new Color(255, 200, 100));
 
             System.out.println("\nAll test textures created successfully!");

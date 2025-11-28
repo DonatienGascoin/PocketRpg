@@ -5,7 +5,7 @@ import com.pocket.rpg.rendering.Shader;
 import com.pocket.rpg.rendering.SpriteBatch;
 import com.pocket.rpg.rendering.stats.BatchStatistics;
 import com.pocket.rpg.rendering.stats.StatisticsReporter;
-import com.pocket.rpg.utils.WindowConfig;
+import com.pocket.rpg.config.WindowConfig;
 import lombok.Getter;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
@@ -44,7 +44,7 @@ public class BatchRenderer extends Renderer {
         batch = new SpriteBatch(config);
 
         // Create shader
-        batchShader = new Shader("assets/shaders/batch_sprite.glsl");
+        batchShader = new Shader("gameData/assets/shaders/batch_sprite.glsl");
         batchShader.compileAndLink();
 
         // Initialize matrices

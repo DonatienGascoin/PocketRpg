@@ -1167,7 +1167,7 @@ for (SpriteRenderer sr : spriteRenderers) {
 package com.pocket.rpg.scenes;
 
 import com.pocket.rpg.components.*;
-import com.pocket.rpg.engine.GameObject;
+import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.rendering.renderers.BatchRenderer;
 
 import java.util.ArrayList;

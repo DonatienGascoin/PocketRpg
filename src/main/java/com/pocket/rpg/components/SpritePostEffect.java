@@ -1,8 +1,8 @@
 package com.pocket.rpg.components;
 
 import com.pocket.rpg.postProcessing.PostEffect;
-import com.pocket.rpg.rendering.renderers.Renderer;
 import com.pocket.rpg.rendering.Shader;
+import com.pocket.rpg.rendering.renderers.Renderer;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Matrix4f;
@@ -17,10 +17,11 @@ import static org.lwjgl.opengl.GL33.*;
  * Component that applies post-processing effects to a single sprite.
  * The sprite is rendered to an offscreen framebuffer, effects are applied,
  * then the result is composited back to the scene.
- *
+ * <p>
  * STRATEGY 1: Component-Based Per-Sprite Effects
  * Best for: 1-5 special sprites (bosses, hero character, special items)
  * Performance: ~2-5ms per sprite with effects
+ * TODO: FIX ME- Not working
  */
 public class SpritePostEffect extends Component {
 
@@ -50,7 +51,7 @@ public class SpritePostEffect extends Component {
     public void addEffect(PostEffect effect) {
         effects.add(effect);
         if (initialized) {
-            effect.init(null);
+            effect.init();
         }
     }
 
@@ -66,11 +67,11 @@ public class SpritePostEffect extends Component {
     public void onStart() {
         initFramebuffers();
 
-        compositeShader = new Shader("assets/shaders/sprite.glsl");
+        compositeShader = new Shader("gameData/assets/shaders/sprite.glsl");
         compositeShader.compileAndLink();
 
         for (PostEffect effect : effects) {
-            effect.init(null);
+            effect.init();
         }
 
         initialized = true;

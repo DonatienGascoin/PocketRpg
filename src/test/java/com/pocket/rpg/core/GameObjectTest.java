@@ -1,7 +1,6 @@
-package com.pocket.rpg.engine;
+package com.pocket.rpg.core;
 
 import com.pocket.rpg.components.Component;
-import com.pocket.rpg.components.Transform;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

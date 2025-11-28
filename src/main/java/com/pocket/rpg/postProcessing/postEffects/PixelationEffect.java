@@ -1,6 +1,6 @@
 package com.pocket.rpg.postProcessing.postEffects;
 
-import com.pocket.rpg.engine.Window;
+import com.pocket.rpg.core.AbstractWindow;
 import com.pocket.rpg.postProcessing.PostEffect;
 import com.pocket.rpg.rendering.Shader;
 
@@ -38,8 +38,8 @@ public class PixelationEffect implements PostEffect {
     }
 
     @Override
-    public void init(Window window) {
-        pixelationShader = new Shader("assets/shaders/pixelation.glsl");
+    public void init() {
+        pixelationShader = new Shader("gameData/assets/shaders/pixelation.glsl");
         pixelationShader.compileAndLink();
 
         pixelationShader.use();

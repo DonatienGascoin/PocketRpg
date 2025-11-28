@@ -1,6 +1,6 @@
 package com.pocket.rpg.postProcessing.postEffects;
 
-import com.pocket.rpg.engine.Window;
+import com.pocket.rpg.core.AbstractWindow;
 import com.pocket.rpg.postProcessing.PostEffect;
 import com.pocket.rpg.rendering.Shader;
 import org.joml.Vector2f;
@@ -10,11 +10,11 @@ import static org.lwjgl.opengl.GL33.*;
 /**
  * Post-processing effect that composites emissive (glowing) sprites with bloom
  * onto the main scene.
- *
+ * <p>
  * STRATEGY 2: Emissive Masking
  * This effect should be used with EmissiveRenderer to create efficient
  * per-sprite bloom for many glowing objects.
- *
+ * <p>
  * Usage:
  * 1. Mark sprites as emissive using SpriteRenderer.setEmissive(true)
  * 2. Render normal scene
@@ -59,8 +59,8 @@ public class EmissiveCompositeEffect implements PostEffect {
     }
 
     @Override
-    public void init(Window window) {
-        compositeShader = new Shader("assets/shaders/emissiveComposite.glsl");
+    public void init() {
+        compositeShader = new Shader("gameData/assets/shaders/emissiveComposite.glsl");
         compositeShader.compileAndLink();
 
         compositeShader.use();
@@ -80,7 +80,7 @@ public class EmissiveCompositeEffect implements PostEffect {
             glBindFramebuffer(GL_FRAMEBUFFER, outputFboId);
 
             // Just copy input to output without compositing
-            Shader passthroughShader = new Shader("assets/shaders/passThrough.glsl");
+            Shader passthroughShader = new Shader("gameData/assets/shaders/passThrough.glsl");
             passthroughShader.compileAndLink();
             passthroughShader.use();
             passthroughShader.uploadInt("screenTexture", 0);

@@ -3,37 +3,46 @@ package com.pocket.rpg.input;
 import com.pocket.rpg.config.InputConfig;
 import org.joml.Vector2f;
 
+import java.util.Objects;
+
 /**
  * Static access point for input handling.
  */
-public record Input(InputInterface inputInterface) {
+public final class Input {
 
     private static Input instance;
+    private final InputConfig config;
+    private final InputInterface inputInterface;
 
-    private static InputConfig config;
 
-    public Input(/*InputConfig config,*/ InputInterface inputInterface) {
+    private Input(InputConfig config, InputInterface inputInterface) {
+        this.config = config;
         this.inputInterface = inputInterface;
         instance = this;
     }
 
-    public void endFrame() {
+    public static void init(InputConfig config, InputInterface inputInterface) {
+        if (instance != null) {
+            throw new IllegalStateException("Input has already been initialized.");
+        } else {
+            instance = new Input(config, inputInterface);
+        }
+    }
+
+    public static void endFrame() {
         instance.inputInterface.endFrame();
     }
 
     public static boolean wasPressedThisFrame(InputAction inputAction) {
-//        return instance.inputInterface.wasPressedThisFrame(config.getBindingForAction(inputAction));
-        return instance.inputInterface.wasPressedThisFrame(inputAction.getBinding());
+        return instance.inputInterface.wasPressedThisFrame(instance.config.getBindingForAction(inputAction));
     }
 
     public static boolean isPressed(InputAction inputAction) {
-//        return instance.inputInterface.isPressed(config.getBindingForAction(inputAction));
-        return instance.inputInterface.isPressed(inputAction.getBinding());
+        return instance.inputInterface.isPressed(instance.config.getBindingForAction(inputAction));
     }
 
     public static boolean wasReleasedThisFrame(InputAction inputAction) {
-//        return instance.inputInterface.wasReleasedThisFrame(config.getBindingForAction(inputAction));
-        return instance.inputInterface.wasReleasedThisFrame(inputAction.getBinding());
+        return instance.inputInterface.wasReleasedThisFrame(instance.config.getBindingForAction(inputAction));
     }
 
     public static Vector2f getMousePosition() {
@@ -61,5 +70,35 @@ public record Input(InputInterface inputInterface) {
     public static Vector2f getScroll() {
         return instance.inputInterface.getScroll();
     }
+
+    public InputConfig config() {
+        return config;
+    }
+
+    public InputInterface inputInterface() {
+        return inputInterface;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == this) return true;
+        if (obj == null || obj.getClass() != this.getClass()) return false;
+        var that = (Input) obj;
+        return Objects.equals(this.config, that.config) &&
+                Objects.equals(this.inputInterface, that.inputInterface);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(config, inputInterface);
+    }
+
+    @Override
+    public String toString() {
+        return "Input[" +
+                "config=" + config + ", " +
+                "inputInterface=" + inputInterface + ']';
+    }
+
 
 }

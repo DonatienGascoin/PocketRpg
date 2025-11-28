@@ -1,0 +1,9 @@
+{
+  "actionBindings": {
+    "Move_Left": 65,
+    "Move_Down": 83,
+    "Fire": 32,
+    "Move_Right": 68,
+    "Move_Up": 87
+  }
+}

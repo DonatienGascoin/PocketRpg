@@ -1,6 +1,6 @@
 package com.pocket.rpg.postProcessing.postEffects;
 
-import com.pocket.rpg.engine.Window;
+import com.pocket.rpg.core.AbstractWindow;
 import com.pocket.rpg.postProcessing.PostEffect;
 import com.pocket.rpg.rendering.Shader;
 import org.joml.Vector2f;
@@ -33,9 +33,9 @@ public class DisplacementEffect implements PostEffect {
      * Creates a displacement effect with specified strength.
      *
      * @param displacementStrength Overall strength of distortion (0.001 - 0.02).
-     *                            - 0.001 = very subtle waves
-     *                            - 0.005 = noticeable (recommended)
-     *                            - 0.01+ = strong distortion
+     *                             - 0.001 = very subtle waves
+     *                             - 0.005 = noticeable (recommended)
+     *                             - 0.01+ = strong distortion
      */
     public DisplacementEffect(float displacementStrength) {
         this(displacementStrength, DEFAULT_SHAKE_DIR);
@@ -45,12 +45,12 @@ public class DisplacementEffect implements PostEffect {
      * Creates a displacement effect with waves and directional shake.
      *
      * @param displacementStrength Strength of wave distortion (0.001 - 0.02).
-     * @param shakeDirection      Direction and strength of shake (x, y).
-     *                           Set to (0, 0) for waves only.
-     *                           Examples:
-     *                           - (0.002, 0) = horizontal shake
-     *                           - (0, 0.002) = vertical shake
-     *                           - (0.001, 0.001) = diagonal shake
+     * @param shakeDirection       Direction and strength of shake (x, y).
+     *                             Set to (0, 0) for waves only.
+     *                             Examples:
+     *                             - (0.002, 0) = horizontal shake
+     *                             - (0, 0.002) = vertical shake
+     *                             - (0.001, 0.001) = diagonal shake
      */
     public DisplacementEffect(float displacementStrength, Vector2f shakeDirection) {
         this.displacementStrength = displacementStrength;
@@ -65,8 +65,8 @@ public class DisplacementEffect implements PostEffect {
     }
 
     @Override
-    public void init(Window window) {
-        displacementShader = new Shader("assets/shaders/displacement.glsl");
+    public void init() {
+        displacementShader = new Shader("gameData/assets/shaders/displacement.glsl");
         displacementShader.compileAndLink();
 
         displacementShader.use();

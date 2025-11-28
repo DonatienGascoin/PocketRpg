@@ -1,6 +1,6 @@
 package com.pocket.rpg.postProcessing.postEffects;
 
-import com.pocket.rpg.engine.Window;
+import com.pocket.rpg.core.AbstractWindow;
 import com.pocket.rpg.postProcessing.PostEffect;
 import com.pocket.rpg.rendering.Shader;
 
@@ -38,8 +38,8 @@ public class ChromaticAberrationEffect implements PostEffect {
     }
 
     @Override
-    public void init(Window window) {
-        aberrationShader = new Shader("assets/shaders/chromaticAberration.glsl");
+    public void init() {
+        aberrationShader = new Shader("gameData/assets/shaders/chromaticAberration.glsl");
         aberrationShader.compileAndLink();
 
         aberrationShader.use();

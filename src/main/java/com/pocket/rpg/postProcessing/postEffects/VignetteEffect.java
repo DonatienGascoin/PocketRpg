@@ -1,6 +1,6 @@
 package com.pocket.rpg.postProcessing.postEffects;
 
-import com.pocket.rpg.engine.Window;
+import com.pocket.rpg.core.AbstractWindow;
 import com.pocket.rpg.postProcessing.PostEffect;
 import com.pocket.rpg.rendering.Shader;
 
@@ -47,8 +47,8 @@ public class VignetteEffect implements PostEffect {
     }
 
     @Override
-    public void init(Window window) {
-        vignetteShader = new Shader("assets/shaders/vignette.glsl");
+    public void init() {
+        vignetteShader = new Shader("gameData/assets/shaders/vignette.glsl");
         vignetteShader.compileAndLink();
 
         vignetteShader.use();

@@ -791,11 +791,11 @@ public class DeferredExecutionSystem {
     private Queue<Runnable> deferredActions = new LinkedList<>();
     private boolean isExecuting = false;
     
-    public void defer(Runnable action) {
+    public void defer(Runnable inputAction) {
         if (isExecuting) {
-            deferredActions.add(action);
+            deferredActions.add(inputAction);
         } else {
-            action.run();
+            inputAction.run();
         }
     }
     

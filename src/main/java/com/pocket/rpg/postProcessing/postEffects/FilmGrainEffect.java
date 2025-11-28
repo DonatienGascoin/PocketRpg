@@ -1,6 +1,6 @@
 package com.pocket.rpg.postProcessing.postEffects;
 
-import com.pocket.rpg.engine.Window;
+import com.pocket.rpg.core.AbstractWindow;
 import com.pocket.rpg.postProcessing.PostEffect;
 import com.pocket.rpg.rendering.Shader;
 
@@ -29,17 +29,17 @@ public class FilmGrainEffect implements PostEffect {
      * Creates a film grain effect with specified intensity.
      *
      * @param grainIntensity Strength of the grain noise (0.0 - 0.2).
-     *                      - 0.02 = very subtle
-     *                      - 0.05 = noticeable (recommended)
-     *                      - 0.1+ = heavy grain
+     *                       - 0.02 = very subtle
+     *                       - 0.05 = noticeable (recommended)
+     *                       - 0.1+ = heavy grain
      */
     public FilmGrainEffect(float grainIntensity) {
         this.grainIntensity = grainIntensity;
     }
 
     @Override
-    public void init(Window window) {
-        grainShader = new Shader("assets/shaders/filmGrain.glsl");
+    public void init() {
+        grainShader = new Shader("gameData/assets/shaders/filmGrain.glsl");
         grainShader.compileAndLink();
 
         grainShader.use();

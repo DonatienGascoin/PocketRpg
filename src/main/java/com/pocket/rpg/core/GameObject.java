@@ -1,4 +1,4 @@
-package com.pocket.rpg.engine;
+package com.pocket.rpg.core;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.Transform;

@@ -1,6 +1,6 @@
 package com.pocket.rpg.postProcessing.postEffects;
 
-import com.pocket.rpg.engine.Window;
+import com.pocket.rpg.core.AbstractWindow;
 import com.pocket.rpg.postProcessing.PostEffect;
 import com.pocket.rpg.rendering.Shader;
 import org.joml.Vector2f;
@@ -32,13 +32,13 @@ public class EdgeDetectionEffect implements PostEffect {
      * Creates an edge detection effect with specified parameters.
      *
      * @param edgeThreshold Sensitivity of edge detection (0.05 - 0.3).
-     *                     - 0.05 = detects subtle edges
-     *                     - 0.1 = moderate (recommended)
-     *                     - 0.2+ = only strong edges
-     * @param edgeColor    RGB color for detected edges (0.0 - 1.0 per channel).
-     *                     - (0, 0, 0) = black outlines (classic)
-     *                     - (1, 1, 1) = white outlines
-     *                     - (1, 0.5, 0) = orange outlines
+     *                      - 0.05 = detects subtle edges
+     *                      - 0.1 = moderate (recommended)
+     *                      - 0.2+ = only strong edges
+     * @param edgeColor     RGB color for detected edges (0.0 - 1.0 per channel).
+     *                      - (0, 0, 0) = black outlines (classic)
+     *                      - (1, 1, 1) = white outlines
+     *                      - (1, 0.5, 0) = orange outlines
      */
     public EdgeDetectionEffect(float edgeThreshold, Vector3f edgeColor) {
         this.edgeThreshold = edgeThreshold;
@@ -53,8 +53,8 @@ public class EdgeDetectionEffect implements PostEffect {
     }
 
     @Override
-    public void init(Window window) {
-        edgeShader = new Shader("assets/shaders/edgeDetection.glsl");
+    public void init() {
+        edgeShader = new Shader("gameData/assets/shaders/edgeDetection.glsl");
         edgeShader.compileAndLink();
 
         edgeShader.use();

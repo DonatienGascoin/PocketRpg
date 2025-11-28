@@ -4,7 +4,7 @@ import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.SpritePostEffect;
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.components.TranslationComponent;
-import com.pocket.rpg.engine.GameObject;
+import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.postProcessing.BloomEffect;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.SpriteSheet;
@@ -70,7 +70,7 @@ public class ExampleScene extends Scene {
     private void createPlayer() throws Exception {
         GameObject player = new GameObject("Player", new Vector3f(400, 50, 0));
 
-        Texture playerTexture = new Texture("assets/player.png");
+        Texture playerTexture = new Texture("gameData/assets/player.png");
         SpriteRenderer playerRenderer = new SpriteRenderer(playerTexture, 64, 64);
         playerRenderer.setOriginCenter();
         player.addComponent(playerRenderer);
@@ -93,7 +93,7 @@ public class ExampleScene extends Scene {
      * Constructor: new SpriteSheet(texture, 32, 32)
      */
     private void createTightlyPackedAnimation() throws Exception {
-        Texture texture = new Texture("assets/sheet_tight.png");
+        Texture texture = new Texture("gameData/assets/sheet_tight.png");
         SpriteSheet sheet = new SpriteSheet(texture, 32, 32);
 
         GameObject entity = new GameObject("TightPacked", new Vector3f(100, 150, 0));
@@ -117,7 +117,7 @@ public class ExampleScene extends Scene {
      * Constructor: new SpriteSheet(texture, 32, 32, 2)
      */
     private void createUniformSpacingAnimation() throws Exception {
-        Texture texture = new Texture("assets/sheet_spacing.png");
+        Texture texture = new Texture("gameData/assets/sheet_spacing.png");
         SpriteSheet sheet = new SpriteSheet(texture, 32, 32, 2);
 
         GameObject entity = new GameObject("UniformSpacing", new Vector3f(200, 150, 0));
@@ -139,7 +139,7 @@ public class ExampleScene extends Scene {
      * Constructor: new SpriteSheet(texture, 32, 32, spacingX, spacingY, 0, 0)
      */
     private void createXYSpacingAnimation() throws Exception {
-        Texture texture = new Texture("assets/sheet_xy_spacing.png");
+        Texture texture = new Texture("gameData/assets/sheet_xy_spacing.png");
         SpriteSheet sheet = new SpriteSheet(texture, 32, 32, 4, 2, 0, 0);
 
         GameObject entity = new GameObject("XYSpacing", new Vector3f(300, 150, 0));
@@ -161,7 +161,7 @@ public class ExampleScene extends Scene {
      * Constructor: new SpriteSheet(texture, 32, 32, 0, 0, offsetX, offsetY)
      */
     private void createMarginAnimation() throws Exception {
-        Texture texture = new Texture("assets/sheet_margin.png");
+        Texture texture = new Texture("gameData/assets/sheet_margin.png");
         SpriteSheet sheet = new SpriteSheet(texture, 32, 32, 0, 0, 8, 8);
 
         GameObject entity = new GameObject("Margin", new Vector3f(400, 150, 0));
@@ -183,7 +183,7 @@ public class ExampleScene extends Scene {
      * Constructor: new SpriteSheet(texture, 32, 32, spacingX, spacingY, offsetX, offsetY)
      */
     private void createComplexAnimation() throws Exception {
-        Texture texture = new Texture("assets/sheet_complex.png");
+        Texture texture = new Texture("gameData/assets/sheet_complex.png");
         SpriteSheet sheet = new SpriteSheet(texture, 32, 32, 2, 4, 8, 8);
 
         GameObject entity = new GameObject("Complex", new Vector3f(500, 150, 0));
@@ -205,7 +205,7 @@ public class ExampleScene extends Scene {
      * Multiple GameObjects share the same Sprite instances for efficiency
      */
     private void createSharedSpriteEntities() throws Exception {
-        Texture texture = new Texture("assets/sheet_tight.png");
+        Texture texture = new Texture("gameData/assets/sheet_tight.png");
         SpriteSheet sheet = new SpriteSheet(texture, 32, 32);
 
         // Generate sprites once

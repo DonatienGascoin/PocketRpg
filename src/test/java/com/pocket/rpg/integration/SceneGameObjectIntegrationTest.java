@@ -1,7 +1,7 @@
 package com.pocket.rpg.integration;
 
 import com.pocket.rpg.components.Component;
-import com.pocket.rpg.engine.GameObject;
+import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.scenes.Scene;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.BeforeEach;

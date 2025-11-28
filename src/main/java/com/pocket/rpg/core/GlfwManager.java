@@ -1,14 +1,11 @@
-package com.pocket.rpg.engine;
+package com.pocket.rpg.core;
 
-import com.pocket.rpg.utils.WindowConfig;
+import com.pocket.rpg.config.WindowConfig;
 import lombok.Getter;
-import org.lwjgl.BufferUtils;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.glfw.GLFWVidMode;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL33;
-
-import java.nio.IntBuffer;
 
 import static org.lwjgl.glfw.Callbacks.glfwFreeCallbacks;
 import static org.lwjgl.glfw.GLFW.*;
@@ -51,8 +48,8 @@ public class GlfwManager {
         setScreenSize();
         setHints();
 
-        windowHandle = glfwCreateWindow(config.getInitialWidth(),
-                config.getInitialHeight(),
+        windowHandle = glfwCreateWindow(config.getWindowWidth(),
+                config.getWindowHeight(),
                 config.getTitle(),
                 config.isFullscreen() ? glfwGetPrimaryMonitor() : NULL,
                 NULL);
@@ -61,19 +58,10 @@ public class GlfwManager {
             throw new RuntimeException("Failed to create the GLFW window");
         }
 
-        setCallbacks();
-
         glfwMakeContextCurrent(windowHandle);
         GL.createCapabilities(); // Initialize OpenGL capabilities
 
-        // Set resize callback after we make the current context
-        glfwSetWindowSizeCallback(windowHandle, this::resizeCallback);
-        
-        // FIX: Set iconify (minimize) callback
-        glfwSetWindowIconifyCallback(windowHandle, this::iconifyCallback);
-        
-        // FIX: Set focus callback
-        glfwSetWindowFocusCallback(windowHandle, this::focusCallback);
+        setCallbacks();
 
         glfwSwapInterval(config.isVsync() ? 1 : 0); // Enable v-sync
 
@@ -131,15 +119,24 @@ public class GlfwManager {
     }
 
     private void setCallbacks() {
-        glfwSetCursorPosCallback(windowHandle, config.getCallback()::mousePosCallback);
-        glfwSetMouseButtonCallback(windowHandle, config.getCallback()::mouseButtonCallback);
-        glfwSetScrollCallback(windowHandle, config.getCallback()::mouseScrollCallback);
-        glfwSetKeyCallback(windowHandle, config.getCallback()::keyCallback);
+//        glfwSetCursorPosCallback(windowHandle, config.getCallback()::mousePosCallback);
+//        glfwSetMouseButtonCallback(windowHandle, config.getCallback()::mouseButtonCallback);
+//        glfwSetScrollCallback(windowHandle, config.getCallback()::mouseScrollCallback);
+//        glfwSetKeyCallback(windowHandle, config.getCallback()::keyCallback);
+
+        // Set resize callback after we make the current context
+        glfwSetWindowSizeCallback(windowHandle, this::resizeCallback);
+
+        // FIX: Set iconify (minimize) callback
+        glfwSetWindowIconifyCallback(windowHandle, this::iconifyCallback);
+
+        // FIX: Set focus callback
+        glfwSetWindowFocusCallback(windowHandle, this::focusCallback);
     }
 
     private void setScreenSize() {
-        screenWidth = config.getInitialWidth();
-        screenHeight = config.getInitialHeight();
+        screenWidth = config.getWindowWidth();
+        screenHeight = config.getWindowHeight();
 
         if (config.isFullscreen()) {
             GLFWVidMode mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
@@ -153,11 +150,7 @@ public class GlfwManager {
         }
     }
 
-    /**
-     * FIX: Now validates dimensions before accepting resize
-     */
     private void resizeCallback(long window, int newWidth, int newHeight) {
-        // FIX: Better validation
         if (newHeight <= 0 || newWidth <= 0) {
             System.out.println("Window minimized or invalid size: " + newWidth + "x" + newHeight);
             return;
@@ -173,12 +166,9 @@ public class GlfwManager {
         screenHeight = newHeight;
 
         System.out.println("Window resized: " + newWidth + "x" + newHeight);
-        config.getCallback().windowResizeCallback(window, newWidth, newHeight);
+//        config.getCallback().windowResizeCallback(window, newWidth, newHeight);
     }
 
-    /**
-     * FIX: New callback for window minimization/iconification
-     */
     private void iconifyCallback(long window, boolean iconified) {
         isMinimized = iconified;
         
@@ -189,9 +179,6 @@ public class GlfwManager {
         }
     }
 
-    /**
-     * FIX: New callback for window focus
-     */
     private void focusCallback(long window, boolean focused) {
         isFocused = focused;
         

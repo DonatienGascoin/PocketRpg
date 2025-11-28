@@ -1,6 +1,5 @@
 package com.pocket.rpg.postProcessing;
 
-import com.pocket.rpg.engine.Window;
 import com.pocket.rpg.rendering.Shader;
 import org.joml.Vector2f;
 
@@ -42,8 +41,8 @@ public class BloomEffect implements PostEffect {
     }
 
     @Override
-    public void init(Window window) {
-        bloomShader = new Shader("assets/shaders/bloom.glsl");
+    public void init() {
+        bloomShader = new Shader("gameData/assets/shaders/bloom.glsl");
         bloomShader.compileAndLink();
 
         bloomShader.use();

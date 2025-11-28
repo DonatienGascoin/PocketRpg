@@ -1,8 +1,8 @@
 package com.pocket.rpg.postProcessing;
 
-import com.pocket.rpg.engine.Window;
+import com.pocket.rpg.config.WindowConfig;
+import com.pocket.rpg.core.AbstractWindow;
 import com.pocket.rpg.rendering.Shader;
-import com.pocket.rpg.utils.WindowConfig;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -38,7 +38,7 @@ public class PostProcessor {
 
     private final List<PostEffect> effects = new ArrayList<>();
     private PillarBox pillarBox;
-    private Window window;
+    private AbstractWindow window;
     private ScalingMode scalingMode = ScalingMode.MAINTAIN_ASPECT_RATIO;
 
     private Shader blitShader;
@@ -70,19 +70,19 @@ public class PostProcessor {
     /**
      * Initializes all OpenGL resources.
      */
-    public void init(Window window) {
+    public void init(AbstractWindow window) {
         this.window = window;
         setupFBOs();
         setupFullScreenQuad();
 
-        blitShader = new Shader("assets/shaders/passThrough.glsl");
+        blitShader = new Shader("gameData/assets/shaders/passThrough.glsl");
         blitShader.compileAndLink();
         blitShader.use();
         blitShader.uploadInt("screenTexture", 0);
         blitShader.detach();
 
         for (PostEffect effect : effects) {
-            effect.init(window);
+            effect.init();
         }
 
         if (pillarBox != null) {

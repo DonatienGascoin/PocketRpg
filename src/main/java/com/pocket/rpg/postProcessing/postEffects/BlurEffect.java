@@ -1,6 +1,6 @@
 package com.pocket.rpg.postProcessing.postEffects;
 
-import com.pocket.rpg.engine.Window;
+import com.pocket.rpg.core.AbstractWindow;
 import com.pocket.rpg.postProcessing.PostEffect;
 import com.pocket.rpg.rendering.Shader;
 
@@ -40,8 +40,8 @@ public class BlurEffect implements PostEffect {
     }
 
     @Override
-    public void init(Window window) {
-        blurShader = new Shader("assets/shaders/blurShader.glsl");
+    public void init() {
+        blurShader = new Shader("gameData/assets/shaders/blurShader.glsl");
         blurShader.compileAndLink();
         blurShader.use();
         blurShader.uploadInt("screenTexture", 0);

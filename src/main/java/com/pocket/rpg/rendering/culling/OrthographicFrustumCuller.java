@@ -1,7 +1,7 @@
 package com.pocket.rpg.rendering.culling;
 
 import com.pocket.rpg.components.SpriteRenderer;
-import com.pocket.rpg.engine.Camera;
+import com.pocket.rpg.core.Camera;
 import com.pocket.rpg.rendering.CameraManager;
 import org.joml.Vector3f;
 

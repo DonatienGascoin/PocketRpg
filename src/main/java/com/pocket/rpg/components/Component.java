@@ -1,6 +1,6 @@
 package com.pocket.rpg.components;
 
-import com.pocket.rpg.engine.GameObject;
+import com.pocket.rpg.core.GameObject;
 import lombok.Getter;
 
 /**

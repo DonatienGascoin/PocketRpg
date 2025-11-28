@@ -15,9 +15,9 @@ public class MouseListener {
     private double scrollX, scrollY;
     @Getter
     private double xPos, yPos, lastX, lastY;
-    private final boolean[] mouseButtonPressed = new boolean[NB_MOUSE_BUTTON];
-    private final boolean[] mouseButtonReleased = new boolean[NB_MOUSE_BUTTON];
-    private final boolean[] mouseButtonPressing = new boolean[NB_MOUSE_BUTTON];
+    private final boolean[] mouseButtonDown = new boolean[NB_MOUSE_BUTTON];
+    private final boolean[] mouseButtonUp = new boolean[NB_MOUSE_BUTTON];
+    private final boolean[] mouseButtonHeld = new boolean[NB_MOUSE_BUTTON];
 
     public void mousePosCallback( double xPos, double yPos) {
         // Store last positions
@@ -32,15 +32,15 @@ public class MouseListener {
     public void mouseButtonCallback(int button, int action, int mods) {
         if (action == GLFW_PRESS) {
             if (button < NB_MOUSE_BUTTON) {
-                mouseButtonPressed[button] = true;
-                mouseButtonPressing[button] = true;
+                mouseButtonDown[button] = true;
+                mouseButtonHeld[button] = true;
             }
         } else if (action == GLFW_RELEASE) {
             if (button < NB_MOUSE_BUTTON) {
-                mouseButtonPressed[button] = false;
-                mouseButtonPressing[button] = false;
+                mouseButtonDown[button] = false;
+                mouseButtonHeld[button] = false;
 
-                mouseButtonReleased[button] = true;
+                mouseButtonUp[button] = true;
             }
         }
     }
@@ -55,9 +55,9 @@ public class MouseListener {
         scrollY = 0;
 
         // Remove all released buttons
-        Arrays.fill(mouseButtonReleased, false);
+        Arrays.fill(mouseButtonUp, false);
         // Remove all pressed buttons
-        Arrays.fill(mouseButtonPressed, false);
+        Arrays.fill(mouseButtonDown, false);
     }
 
     public Vector2f getMousePosition() {
@@ -73,23 +73,23 @@ public class MouseListener {
     }
 
 
-    public boolean isMouseButtonPressing(int button) {
-        if (button < mouseButtonPressing.length) {
-            return mouseButtonPressing[button];
+    public boolean isMouseButtonPressed(int button) {
+        if (button < mouseButtonHeld.length) {
+            return mouseButtonHeld[button];
         }
         return false;
     }
 
     public boolean isMouseButtonDown(int button) {
-        if (button < mouseButtonPressed.length) {
-            return mouseButtonPressed[button];
+        if (button < mouseButtonDown.length) {
+            return mouseButtonDown[button];
         }
         return false;
     }
 
     public boolean isMouseButtonUp(int button) {
-        if (button < mouseButtonReleased.length) {
-            return mouseButtonReleased[button];
+        if (button < mouseButtonUp.length) {
+            return mouseButtonUp[button];
         }
         return false;
     }

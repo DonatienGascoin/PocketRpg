@@ -1,10 +1,9 @@
-package com.pocket.rpg.engine;
+package com.pocket.rpg.core;
 
-import com.pocket.rpg.input.InputManager;
 import com.pocket.rpg.postProcessing.PostProcessor;
 import com.pocket.rpg.utils.PerformanceMonitor;
 import com.pocket.rpg.utils.Time;
-import com.pocket.rpg.utils.WindowConfig;
+import com.pocket.rpg.config.WindowConfig;
 import lombok.Getter;
 
 import static org.lwjgl.opengl.GL11.GL_COLOR_BUFFER_BIT;
@@ -18,29 +17,23 @@ import static org.lwjgl.opengl.GL11.glClearColor;
 public abstract class Window {
 
     @Getter
-    protected final WindowConfig config;
+    protected WindowConfig config;
 
     protected GlfwManager glfwManager;
     private PostProcessor postProcessor;
     private PerformanceMonitor performanceMonitor;
 
     /**
-     * Creates a window with the specified internal game resolution.
-     *
-     * @param config Window configuration
-     */
-    public Window(WindowConfig config) {
-        this.config = config;
-    }
-
-    /**
      * Main entry point that runs the complete window lifecycle.
      */
     public void run() {
+        this.config = loadConfig();
         init();
         loop();
         destroy();
     }
+
+    protected abstract WindowConfig loadConfig();
 
     /**
      * Initializes the window and OpenGL context.
@@ -52,7 +45,7 @@ public abstract class Window {
         glfwManager = new GlfwManager(config);
         glfwManager.init();
 
-        InputManager.initialize(getWindowHandle());
+//        InputManager.initialize(getWindowHandle());
 
         initPostProcessing();
 
@@ -66,8 +59,8 @@ public abstract class Window {
     }
 
     private void initPostProcessing() {
-        postProcessor = new PostProcessor(config);
-        postProcessor.init(this);
+//        postProcessor = new PostProcessor(config);
+//        postProcessor.init(this);
     }
 
     /**
@@ -102,7 +95,7 @@ public abstract class Window {
             }
 
 
-            InputManager.poll();
+//            InputManager.poll();
 
             // Normal rendering when window is visible
             postProcessor.beginCapture();
@@ -144,7 +137,7 @@ public abstract class Window {
         
         destroyGame();
 
-        InputManager.destroy();
+//        InputManager.destroy();
         
         if (postProcessor != null) {
             postProcessor.destroy();

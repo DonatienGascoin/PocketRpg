@@ -1,6 +1,6 @@
 package com.pocket.rpg.postProcessing;
 
-import com.pocket.rpg.engine.Window;
+import com.pocket.rpg.core.AbstractWindow;
 import com.pocket.rpg.rendering.Shader;
 
 import static org.lwjgl.glfw.GLFW.glfwGetFramebufferSize;
@@ -31,9 +31,9 @@ public class PillarBox {
      *
      * @param window The game window
      */
-    public void init(Window window) {
+    public void init(AbstractWindow window) {
         this.windowHandle = window.getWindowHandle();
-        shader = new Shader("assets/shaders/pillarbox.glsl");
+        shader = new Shader("gameData/assets/shaders/pillarbox.glsl");
         shader.compileAndLink();
         shader.use();
         shader.uploadInt("screenTexture", 0);

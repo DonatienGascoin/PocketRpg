@@ -1,14 +1,12 @@
 package com.pocket.rpg.postProcessing;
 
-import com.pocket.rpg.engine.Window;
-
 public interface PostEffect {
 
     /**
      * Initializes OpenGL resources (e.g., compiles shaders).
      * This must be called after the OpenGL context is current.
      */
-    void init(Window window);
+    void init();
 
     /**
      * Gets the number of passes this effect requires.

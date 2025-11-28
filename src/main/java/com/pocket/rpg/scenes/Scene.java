@@ -2,8 +2,8 @@ package com.pocket.rpg.scenes;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.SpriteRenderer;
-import com.pocket.rpg.engine.Camera;
-import com.pocket.rpg.engine.GameObject;
+import com.pocket.rpg.core.Camera;
+import com.pocket.rpg.core.GameObject;
 import lombok.Getter;
 
 import java.util.ArrayList;
@@ -135,7 +135,7 @@ public abstract class Scene {
             );
         }
 
-        gameObjects.add(obj); 
+        gameObjects.add(obj);
         obj.setScene(this);
         registerCachedComponent(obj);
 

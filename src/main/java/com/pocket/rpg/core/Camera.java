@@ -1,4 +1,4 @@
-package com.pocket.rpg.engine;
+package com.pocket.rpg.core;
 
 import lombok.Getter;
 import org.joml.Matrix4f;

@@ -1,11 +1,11 @@
 package com.pocket.rpg;
 
 
-import com.pocket.rpg.engine.GameWindow;
+import com.pocket.rpg.core.GameApplication;
 
 public class Main {
     public static void main(String[] args) {
-        var gameWindow = new GameWindow();
-        gameWindow.run();
+        GameApplication app = new GameApplication();
+        app.run();
     }
 }

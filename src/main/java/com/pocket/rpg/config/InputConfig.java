@@ -1,6 +1,8 @@
-package com.pocket.rpg.input;
+package com.pocket.rpg.config;
 
+import com.pocket.rpg.input.InputAction;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -9,6 +11,7 @@ public class InputConfig {
     public Map<InputAction, List<Integer>> actionBindings;
 
     public InputConfig() {
+        actionBindings = new HashMap<>();
         loadDefaults();
     }
 

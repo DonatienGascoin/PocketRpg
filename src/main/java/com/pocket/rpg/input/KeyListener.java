@@ -1,113 +1,56 @@
 package com.pocket.rpg.input;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Arrays;
 
-import static org.lwjgl.glfw.GLFW.*;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_LAST;
+import static org.lwjgl.glfw.GLFW.GLFW_PRESS;
+import static org.lwjgl.glfw.GLFW.GLFW_RELEASE;
 
-/**
- * Handles keyboard input state tracking and action mapping.
- */
 public class KeyListener {
-    private long windowHandle;
-    private InputConfig config;
+    private final boolean[] keyPressed = new boolean[GLFW_KEY_LAST + 1];
+    private final boolean[] keyBeginPress = new boolean[GLFW_KEY_LAST + 1];
+    private final boolean[] keyEndPress = new boolean[GLFW_KEY_LAST + 1];
 
-    // Raw key states (GLFW keys -> state)
-    private Map<Integer, ActionState> keyStates = new HashMap<>();
-
-    // Action states (InputAction -> state)
-    private Map<InputAction, ActionState> actionStates = new HashMap<>();
-
-    public KeyListener(long windowHandle, InputConfig config) {
-        this.windowHandle = windowHandle;
-        this.config = config;
-    }
-
-    /**
-     * Poll keyboard state - called once per frame BEFORE game update.
-     */
-    public void poll() {
-        // Update all tracked raw keys
-        for (Map.Entry<Integer, ActionState> entry : keyStates.entrySet()) {
-            int key = entry.getKey();
-            ActionState state = entry.getValue();
-            boolean isPressed = glfwGetKey(windowHandle, key) == GLFW_PRESS;
-            state.update(isPressed);
-        }
-
-        // Update all KEYBOARD actions based on current bindings
-        for (InputAction action : InputAction.values()) {
-            // TYPE-SAFE CHECK - NO MAGIC STRING!
-            if (!action.isKeyboardAction()) {
-                continue; // Skip non-keyboard actions
+    public void keyCallback(int key, int scanCode, int action, int mods) {
+        if (isInRange(key)) {
+            if (action == GLFW_PRESS) {
+                keyPressed[key] = true;
+                keyBeginPress[key] = true;
+            } else if (action == GLFW_RELEASE) {
+                keyPressed[key] = false;
+                keyBeginPress[key] = false;
+                keyEndPress[key] = true;
             }
-
-            int boundKey = config.getBindingForAction(action);
-            ActionState keyState = keyStates.computeIfAbsent(boundKey, k -> new ActionState());
-
-            ActionState actionState = actionStates.computeIfAbsent(action, a -> new ActionState());
-            actionState.update(keyState.isPressed());
         }
     }
 
-    // ======================================================================
-    // RAW KEY API (for special cases)
-    // ======================================================================
-
-    public boolean isKeyPressedThisFrame(int key) {
-        return keyStates.getOrDefault(key, ActionState.INACTIVE).isPressedThisFrame();
+    public void endFrame() {
+        Arrays.fill(keyBeginPress, false);
+        Arrays.fill(keyEndPress, false);
     }
 
-    public boolean isKeyPressed(int key) {
-        return keyStates.getOrDefault(key, ActionState.INACTIVE).isPressed();
-    }
-
-    public boolean isKeyReleased(int key) {
-        return keyStates.getOrDefault(key, ActionState.INACTIVE).isReleased();
-    }
-
-    // ======================================================================
-    // ACTION API (RECOMMENDED)
-    // ======================================================================
-
-    public boolean isActionPressedThisFrame(InputAction action) {
-        if (!action.isKeyboardAction()) {
-            System.err.println("WARNING: " + action + " is not a keyboard action!");
-            return false;
+    public boolean isKeyPressed(int keyCode) {
+        if (isInRange(keyCode)) {
+            return keyPressed[keyCode];
         }
-        return actionStates.getOrDefault(action, ActionState.INACTIVE).isPressedThisFrame();
+        return false;
     }
 
-    public boolean isActionPressed(InputAction action) {
-        if (!action.isKeyboardAction()) {
-            System.err.println("WARNING: " + action + " is not a keyboard action!");
-            return false;
+    public boolean wasPressedThisFrame(int keyCode) {
+        if (isInRange(keyCode)) {
+            return keyBeginPress[keyCode];
         }
-        return actionStates.getOrDefault(action, ActionState.INACTIVE).isPressed();
+        return false;
     }
 
-    public boolean isActionReleased(InputAction action) {
-        if (!action.isKeyboardAction()) {
-            System.err.println("WARNING: " + action + " is not a keyboard action!");
-            return false;
+    public boolean wasReleasedThisFrame(int keyCode) {
+        if (isInRange(keyCode)) {
+            return keyEndPress[keyCode];
         }
-        return actionStates.getOrDefault(action, ActionState.INACTIVE).isReleased();
+        return false;
     }
 
-    /**
-     * Get axis value from two actions (-1 to 1).
-     */
-    public float getAxis(InputAction negative, InputAction positive) {
-        float value = 0f;
-        if (isActionPressed(negative)) value -= 1f;
-        if (isActionPressed(positive)) value += 1f;
-        return value;
-    }
-
-    /**
-     * Track a key for raw queries (optional optimization).
-     */
-    public void trackKey(int key) {
-        keyStates.putIfAbsent(key, new ActionState());
+    private static boolean isInRange(int keyCode) {
+        return keyCode <= GLFW_KEY_LAST && keyCode >= 0;
     }
 }

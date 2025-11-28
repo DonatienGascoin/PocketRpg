@@ -1,152 +1,102 @@
 package com.pocket.rpg.input;
 
+import lombok.Getter;
 import org.joml.Vector2f;
-import org.lwjgl.BufferUtils;
 
-import java.nio.DoubleBuffer;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Arrays;
 
-import static org.lwjgl.glfw.GLFW.*;
+import static org.lwjgl.glfw.GLFW.GLFW_PRESS;
+import static org.lwjgl.glfw.GLFW.GLFW_RELEASE;
 
-/**
- * Handles mouse input state tracking and action mapping.
- */
 public class MouseListener {
-    private long windowHandle;
-    private InputConfig config;
 
-    // Mouse position
-    private Vector2f screenPosition = new Vector2f();
-    private Vector2f previousScreenPosition = new Vector2f();
-    private Vector2f mouseDelta = new Vector2f();
+    private static final int NB_MOUSE_BUTTON = 9;
+    @Getter
+    private double scrollX, scrollY;
+    @Getter
+    private double xPos, yPos, lastX, lastY;
+    private final boolean[] mouseButtonPressed = new boolean[NB_MOUSE_BUTTON];
+    private final boolean[] mouseButtonReleased = new boolean[NB_MOUSE_BUTTON];
+    private final boolean[] mouseButtonPressing = new boolean[NB_MOUSE_BUTTON];
 
-    // Mouse button states (raw)
-    private Map<Integer, ActionState> buttonStates = new HashMap<>();
+    public void mousePosCallback( double xPos, double yPos) {
+        // Store last positions
+        lastX = xPos;
+        lastY = yPos;
 
-    // Mouse action states
-    private Map<InputAction, ActionState> mouseActionStates = new HashMap<>();
-
-    // Scroll
-    private Vector2f scrollDelta = new Vector2f();
-
-    public MouseListener(long windowHandle, InputConfig config) {
-        this.windowHandle = windowHandle;
-        this.config = config;
+        // Store new positions
+        this.xPos = xPos;
+        this.yPos = yPos;
     }
 
-    /**
-     * Poll mouse state - called once per frame.
-     */
-    public void poll() {
-        // Update position
-        previousScreenPosition.set(screenPosition);
-
-        DoubleBuffer xBuffer = BufferUtils.createDoubleBuffer(1);
-        DoubleBuffer yBuffer = BufferUtils.createDoubleBuffer(1);
-        glfwGetCursorPos(windowHandle, xBuffer, yBuffer);
-
-        screenPosition.set((float)xBuffer.get(0), (float)yBuffer.get(0));
-        mouseDelta.set(screenPosition).sub(previousScreenPosition);
-
-        // Update all tracked button states
-        for (Map.Entry<Integer, ActionState> entry : buttonStates.entrySet()) {
-            int button = entry.getKey();
-            ActionState state = entry.getValue();
-            boolean isPressed = glfwGetMouseButton(windowHandle, button) == GLFW_PRESS;
-            state.update(isPressed);
-        }
-
-        // Update all MOUSE actions based on current bindings
-        for (InputAction action : InputAction.values()) {
-            // TYPE-SAFE CHECK - NO MAGIC STRING!
-            if (!action.isMouseAction()) {
-                continue; // Skip non-mouse actions
+    public void mouseButtonCallback(int button, int action, int mods) {
+        if (action == GLFW_PRESS) {
+            if (button < NB_MOUSE_BUTTON) {
+                mouseButtonPressed[button] = true;
+                mouseButtonPressing[button] = true;
             }
+        } else if (action == GLFW_RELEASE) {
+            if (button < NB_MOUSE_BUTTON) {
+                mouseButtonPressed[button] = false;
+                mouseButtonPressing[button] = false;
 
-            int boundButton = config.getBindingForAction(action);
-            ActionState buttonState = buttonStates.computeIfAbsent(boundButton, k -> new ActionState());
-
-            ActionState actionState = mouseActionStates.computeIfAbsent(action, a -> new ActionState());
-            actionState.update(buttonState.isPressed());
+                mouseButtonReleased[button] = true;
+            }
         }
-
-        // Reset scroll delta (will be updated by callback if scrolling occurs)
-        scrollDelta.set(0, 0);
     }
 
-    // ======================================================================
-    // POSITION API
-    // ======================================================================
+    public void mouseScrollCallback( double xOffset, double yOffset) {
+        scrollX = xOffset;
+        scrollY = yOffset;
+    }
 
-    public Vector2f getScreenPosition() {
-        return new Vector2f(screenPosition);
+    public void endFrame() {
+        scrollX = 0;
+        scrollY = 0;
+
+        // Remove all released buttons
+        Arrays.fill(mouseButtonReleased, false);
+        // Remove all pressed buttons
+        Arrays.fill(mouseButtonPressed, false);
+    }
+
+    public Vector2f getMousePosition() {
+        return new Vector2f((float) xPos, (float) yPos);
     }
 
     public Vector2f getMouseDelta() {
-        return new Vector2f(mouseDelta);
+        return new Vector2f((float) (xPos - lastX), (float) (yPos - lastY));
     }
 
     public Vector2f getScrollDelta() {
-        return new Vector2f(scrollDelta);
+        return new Vector2f((float) scrollX, (float) scrollY);
     }
 
-    // ======================================================================
-    // RAW BUTTON API
-    // ======================================================================
 
-    public boolean isButtonPressedThisFrame(int button) {
-        return buttonStates.getOrDefault(button, ActionState.INACTIVE).isPressedThisFrame();
-    }
-
-    public boolean isButtonPressed(int button) {
-        return buttonStates.getOrDefault(button, ActionState.INACTIVE).isPressed();
-    }
-
-    public boolean isButtonReleased(int button) {
-        return buttonStates.getOrDefault(button, ActionState.INACTIVE).isReleased();
-    }
-
-    // ======================================================================
-    // ACTION API (RECOMMENDED)
-    // ======================================================================
-
-    public boolean isActionPressedThisFrame(InputAction action) {
-        if (!action.isMouseAction()) {
-            System.err.println("WARNING: " + action + " is not a mouse action!");
-            return false;
+    public boolean isMouseButtonPressing(int button) {
+        if (button < mouseButtonPressing.length) {
+            return mouseButtonPressing[button];
         }
-        return mouseActionStates.getOrDefault(action, ActionState.INACTIVE).isPressedThisFrame();
+        return false;
     }
 
-    public boolean isActionPressed(InputAction action) {
-        if (!action.isMouseAction()) {
-            System.err.println("WARNING: " + action + " is not a mouse action!");
-            return false;
+    public boolean isMouseButtonDown(int button) {
+        if (button < mouseButtonPressed.length) {
+            return mouseButtonPressed[button];
         }
-        return mouseActionStates.getOrDefault(action, ActionState.INACTIVE).isPressed();
+        return false;
     }
 
-    public boolean isActionReleased(InputAction action) {
-        if (!action.isMouseAction()) {
-            System.err.println("WARNING: " + action + " is not a mouse action!");
-            return false;
+    public boolean isMouseButtonUp(int button) {
+        if (button < mouseButtonReleased.length) {
+            return mouseButtonReleased[button];
         }
-        return mouseActionStates.getOrDefault(action, ActionState.INACTIVE).isReleased();
+        return false;
     }
 
-    /**
-     * Called by GLFW scroll callback.
-     * Package-private - only InputManager should call this.
-     */
-    void onScroll(double xOffset, double yOffset) {
-        scrollDelta.set((float)xOffset, (float)yOffset);
-    }
-
-    /**
-     * Track a button for raw queries (optional optimization).
-     */
-    public void trackButton(int button) {
-        buttonStates.putIfAbsent(button, new ActionState());
+    public boolean isDragging(int button) {
+        return isMouseButtonDown(button)
+                && lastX != xPos
+                || lastY != yPos;
     }
 }

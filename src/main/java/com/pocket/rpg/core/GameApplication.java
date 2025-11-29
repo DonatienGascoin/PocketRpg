@@ -6,6 +6,8 @@ import com.pocket.rpg.input.GlfwInput;
 import com.pocket.rpg.input.Input;
 import com.pocket.rpg.input.KeyListener;
 import com.pocket.rpg.input.MouseListener;
+import com.pocket.rpg.inputNew.InputManager;
+import com.pocket.rpg.inputNew.GLFWInputBackend;
 import com.pocket.rpg.postProcessing.PostProcessor;
 import com.pocket.rpg.postProcessing.postEffects.VignetteEffect;
 import com.pocket.rpg.rendering.CameraManager;
@@ -106,6 +108,7 @@ public class GameApplication {
         callbacks.addMouseScrollCallback(mouseListener::mouseScrollCallback);
 
         Input.init(new InputConfig(), new GlfwInput(keyListener, mouseListener)); // Use Glfw to retrieve inputs
+        InputManager.initialize(new GLFWInputBackend());
 
 //        audio = new NoOpAudioManager();
 //        audio.init();

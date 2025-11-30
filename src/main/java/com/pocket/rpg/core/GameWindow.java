@@ -6,7 +6,6 @@ import com.pocket.rpg.postProcessing.PostProcessor;
 import com.pocket.rpg.postProcessing.postEffects.VignetteEffect;
 import com.pocket.rpg.rendering.CameraManager;
 import com.pocket.rpg.serialization.Serializer;
-import com.pocket.rpg.utils.DefaultCallback;
 import com.pocket.rpg.utils.LogUtils;
 
 import java.util.List;
@@ -49,8 +48,9 @@ public class GameWindow extends Window {
         System.out.println("Window size: " + getScreenWidth() + "x" + getScreenHeight());
         System.out.println("Game resolution: " + config.getGameWidth() + "x" + config.getGameHeight());
 
-        // Set viewport to window size
-        CameraManager.setViewportSize(getScreenWidth(), getScreenHeight());
+// Already done     in GameEngine
+// Set viewport to window size
+//        CameraManager.setViewportSize(getScreenWidth(), getScreenHeight());
 
         // Create and initialize game engine
         gameEngine = new GameEngine(config);

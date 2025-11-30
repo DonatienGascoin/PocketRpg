@@ -1,6 +1,7 @@
 package com.pocket.rpg.rendering;
 
 import com.pocket.rpg.core.Camera;
+import com.pocket.rpg.glfw.InputCallbacks;
 import org.joml.Matrix4f;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
@@ -14,7 +15,7 @@ import org.joml.Vector4f;
  * 3. Build projection matrices from camera parameters + game resolution
  * 4. Coordinate conversion (viewport ↔ game ↔ world)
  */
-public class CameraManager {
+public class CameraManager implements InputCallbacks.WindowResizeCallback {
     private static CameraManager instance;
 
     // Fixed game resolution (internal rendering resolution)
@@ -371,5 +372,10 @@ public class CameraManager {
     public String toString() {
         return String.format("CameraManager[game=%dx%d, viewport=%dx%d, aspect=%.2f]",
                 gameWidth, gameHeight, viewportWidth, viewportHeight, getAspectRatio());
+    }
+
+    @Override
+    public void onWindowResize(int width, int height) {
+        setViewportSize(width, height);
     }
 }

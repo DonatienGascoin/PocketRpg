@@ -1,5 +1,6 @@
 package com.pocket.rpg.inputNew;
 
+import com.pocket.rpg.inputNew.events.*;
 import org.joml.Vector2f;
 
 import java.util.HashMap;
@@ -8,32 +9,20 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Unity-style input manager for LWJGL/GLFW.
- * Provides a static API for querying input state and virtual axes.
- * <p>
- * Features:
- * - Frame-perfect input detection (pressed vs held vs released)
- * - Smooth virtual axes with configurable interpolation
- * - Mouse position, delta, and scroll support
- * - Backend-agnostic design
- * <p>
- * Usage:
- * <pre>
- * // Initialize once at startup
- * InputManager.initialize(new LWJGLInputBackend());
+ * Unity-style input manager with event bus support.
+ * Provides both polling API and event-driven input.
  *
- * // In game loop, call once per frame
- * InputManager.update(deltaTime);
- *
- * // Query input in game code
+ * <h3>Polling API:</h3>
+ * <pre>{@code
  * if (InputManager.getKeyDown(KeyCode.SPACE)) {
  *     player.jump();
  * }
+ * }</pre>
  *
- * float h = InputManager.getAxis("Horizontal");
- * float v = InputManager.getAxis("Vertical");
- * player.move(h, v);
- * </pre>
+ * <h3>Event API:</h3>
+ * <pre>{@code
+ * InputManager.getEventBus().register(ui);
+ * }</pre>
  */
 public class InputManager {
 
@@ -41,6 +30,9 @@ public class InputManager {
 
     // Backend for platform-specific key mapping
     private InputBackend backend;
+
+    // Event bus for event-driven input
+    private final InputEventBus eventBus = new InputEventBus();
 
     // Key states
     private final Set<KeyCode> keysDown = new HashSet<>();
@@ -57,17 +49,17 @@ public class InputManager {
     // Virtual axes
     private final Map<String, AxisConfig> axisConfigs = new HashMap<>();
     private final Map<String, Float> axisValues = new HashMap<>();
+    private final Map<String, Float> previousAxisValues = new HashMap<>();
+
+    // Axis event threshold (how much change before firing event)
+    private float axisEventThreshold = 0.01f;
 
     private InputManager(InputBackend backend) {
         this.backend = backend;
-        registerDefaultAxes();
     }
 
     /**
      * Initializes the input manager with a backend.
-     * Must be called before using any input functions.
-     *
-     * @param backend The input backend (e.g., LWJGLInputBackend)
      */
     public static void initialize(InputBackend backend) {
         if (instance != null) {
@@ -76,7 +68,12 @@ public class InputManager {
         }
 
         instance = new InputManager(backend);
+        instance.registerDefaultAxes();
         System.out.println("InputManager initialized with backend: " + backend.getClass().getSimpleName());
+    }
+
+    public static void endFrame() {
+        // TODO
     }
 
     /**
@@ -90,18 +87,36 @@ public class InputManager {
     }
 
     /**
+     * Gets the event bus for registering event listeners.
+     */
+    public static InputEventBus getEventBus() {
+        return get().eventBus;
+    }
+
+    /**
+     * Convenience method to register an event listener.
+     */
+    public static void registerListener(InputEventListener listener) {
+        getEventBus().register(listener);
+    }
+
+    /**
+     * Convenience method to unregister an event listener.
+     */
+    public static void unregisterListener(InputEventListener listener) {
+        getEventBus().unregister(listener);
+    }
+
+    /**
      * Registers default axes (Horizontal, Vertical, Mouse X, Mouse Y).
      */
     private void registerDefaultAxes() {
-        // Horizontal: D/A + Right/Left arrows
         registerAxis("Horizontal", new AxisConfig(KeyCode.D, KeyCode.A)
                 .withAltKeys(KeyCode.RIGHT, KeyCode.LEFT));
 
-        // Vertical: W/S + Up/Down arrows
         registerAxis("Vertical", new AxisConfig(KeyCode.W, KeyCode.S)
                 .withAltKeys(KeyCode.UP, KeyCode.DOWN));
 
-        // Mouse axes (special handling in update)
         registerAxis("Mouse X", new AxisConfig(null, null));
         registerAxis("Mouse Y", new AxisConfig(null, null));
 
@@ -114,35 +129,52 @@ public class InputManager {
 
     /**
      * Called when a key is pressed.
-     * Should be called from GLFW key callback.
      */
     public static void onKeyPressed(int backendKeyCode) {
         InputManager manager = get();
-        KeyCode key = manager.backend.mapKeyCode(backendKeyCode);
+        KeyCode key = manager.backend.getKeyCode(backendKeyCode);
 
         if (key != KeyCode.UNKNOWN) {
             manager.keysPressed.add(key);
             manager.keysDown.add(key);
+
+            // Post key event
+            boolean shift = manager.keysDown.contains(KeyCode.LEFT_SHIFT) ||
+                    manager.keysDown.contains(KeyCode.RIGHT_SHIFT);
+            boolean control = manager.keysDown.contains(KeyCode.LEFT_CONTROL) ||
+                    manager.keysDown.contains(KeyCode.RIGHT_CONTROL);
+            boolean alt = manager.keysDown.contains(KeyCode.LEFT_ALT) ||
+                    manager.keysDown.contains(KeyCode.RIGHT_ALT);
+
+            manager.eventBus.post(new KeyEvent(key, KeyEvent.Action.PRESS, shift, control, alt));
         }
     }
 
     /**
      * Called when a key is released.
-     * Should be called from GLFW key callback.
      */
     public static void onKeyReleased(int backendKeyCode) {
         InputManager manager = get();
-        KeyCode key = manager.backend.mapKeyCode(backendKeyCode);
+        KeyCode key = manager.backend.getKeyCode(backendKeyCode);
 
         if (key != KeyCode.UNKNOWN) {
             manager.keysReleased.add(key);
             manager.keysDown.remove(key);
+
+            // Post key event
+            boolean shift = manager.keysDown.contains(KeyCode.LEFT_SHIFT) ||
+                    manager.keysDown.contains(KeyCode.RIGHT_SHIFT);
+            boolean control = manager.keysDown.contains(KeyCode.LEFT_CONTROL) ||
+                    manager.keysDown.contains(KeyCode.RIGHT_CONTROL);
+            boolean alt = manager.keysDown.contains(KeyCode.LEFT_ALT) ||
+                    manager.keysDown.contains(KeyCode.RIGHT_ALT);
+
+            manager.eventBus.post(new KeyEvent(key, KeyEvent.Action.RELEASE, shift, control, alt));
         }
     }
 
     /**
      * Called when mouse moves.
-     * Should be called from GLFW cursor position callback.
      */
     public static void onMouseMoved(double x, double y) {
         InputManager manager = get();
@@ -151,12 +183,56 @@ public class InputManager {
     }
 
     /**
+     * Called when mouse button is pressed.
+     */
+    public static void onMouseButtonPressed(int backendButtonCode) {
+        InputManager manager = get();
+        KeyCode button = manager.backend.getKeyCode(backendButtonCode);
+
+        if (button != KeyCode.UNKNOWN) {
+            manager.keysPressed.add(button);
+            manager.keysDown.add(button);
+
+            // Post mouse button event
+            manager.eventBus.post(new MouseButtonEvent(
+                    button,
+                    MouseButtonEvent.Action.PRESS,
+                    manager.mousePosition
+            ));
+        }
+    }
+
+    /**
+     * Called when mouse button is released.
+     */
+    public static void onMouseButtonReleased(int backendButtonCode) {
+        InputManager manager = get();
+        KeyCode button = manager.backend.getKeyCode(backendButtonCode);
+
+        if (button != KeyCode.UNKNOWN) {
+            manager.keysReleased.add(button);
+            manager.keysDown.remove(button);
+
+            // Post mouse button event
+            manager.eventBus.post(new MouseButtonEvent(
+                    button,
+                    MouseButtonEvent.Action.RELEASE,
+                    manager.mousePosition
+            ));
+        }
+    }
+
+    /**
      * Called when mouse scrolls.
-     * Should be called from GLFW scroll callback.
      */
     public static void onMouseScroll(double xOffset, double yOffset) {
         InputManager manager = get();
         manager.mouseScrollDelta = (float) yOffset;
+
+        // Post scroll event
+        if (yOffset != 0) {
+            manager.eventBus.post(new MouseScrollEvent((float) yOffset));
+        }
     }
 
     // ========================================
@@ -164,32 +240,40 @@ public class InputManager {
     // ========================================
 
     /**
-     * Updates input state. Call once per frame after polling GLFW events.
-     *
-     * @param deltaTime Time since last frame in seconds
+     * Updates input state and fires events.
+     * Call once per frame after polling GLFW events.
      */
     public static void update(float deltaTime) {
         InputManager manager = get();
 
-        // Clear frame-specific input
-        manager.keysPressed.clear();
-        manager.keysReleased.clear();
-
         // Calculate mouse delta
         manager.mouseDelta.x = manager.mousePosition.x - manager.lastMousePosition.x;
         manager.mouseDelta.y = manager.mousePosition.y - manager.lastMousePosition.y;
+
+        // Post mouse move event if moved
+        if (manager.mouseDelta.x != 0 || manager.mouseDelta.y != 0) {
+            manager.eventBus.post(new MouseMoveEvent(
+                    manager.mousePosition,
+                    manager.mouseDelta
+            ));
+        }
+
         manager.lastMousePosition.x = manager.mousePosition.x;
         manager.lastMousePosition.y = manager.mousePosition.y;
 
-        // Update all axes
+        // Update all axes and fire axis events
         manager.updateAxes(deltaTime);
+
+        // Clear frame-specific input AFTER events are posted
+        manager.keysPressed.clear();
+        manager.keysReleased.clear();
 
         // Reset scroll (one frame only)
         manager.mouseScrollDelta = 0f;
     }
 
     /**
-     * Updates all virtual axes with smooth interpolation.
+     * Updates all virtual axes with smooth interpolation and fires axis events.
      */
     private void updateAxes(float deltaTime) {
         for (Map.Entry<String, AxisConfig> entry : axisConfigs.entrySet()) {
@@ -197,23 +281,35 @@ public class InputManager {
             AxisConfig config = entry.getValue();
 
             float currentValue = axisValues.getOrDefault(axisName, 0f);
+            float previousValue = previousAxisValues.getOrDefault(axisName, 0f);
             float targetValue;
 
             // Special handling for mouse axes
             if (axisName.equals("Mouse X")) {
                 targetValue = mouseDelta.x * config.sensitivity();
                 axisValues.put(axisName, targetValue);
+
+                // Fire axis event if changed significantly
+                if (Math.abs(targetValue - previousValue) > axisEventThreshold) {
+                    eventBus.post(new AxisEvent(axisName, targetValue, previousValue));
+                    previousAxisValues.put(axisName, targetValue);
+                }
                 continue;
             } else if (axisName.equals("Mouse Y")) {
                 targetValue = mouseDelta.y * config.sensitivity();
                 axisValues.put(axisName, targetValue);
+
+                // Fire axis event if changed significantly
+                if (Math.abs(targetValue - previousValue) > axisEventThreshold) {
+                    eventBus.post(new AxisEvent(axisName, targetValue, previousValue));
+                    previousAxisValues.put(axisName, targetValue);
+                }
                 continue;
             }
 
             // Keyboard axis logic
             targetValue = 0f;
 
-            // Check primary keys
             if (config.positiveKey() != null && getKey(config.positiveKey())) {
                 targetValue += 1f;
             }
@@ -221,7 +317,6 @@ public class InputManager {
                 targetValue -= 1f;
             }
 
-            // Check alternative keys
             if (config.altPositiveKey() != null && getKey(config.altPositiveKey())) {
                 targetValue += 1f;
             }
@@ -229,7 +324,6 @@ public class InputManager {
                 targetValue -= 1f;
             }
 
-            // Clamp to [-1, 1]
             targetValue = Math.max(-1f, Math.min(1f, targetValue));
 
             // Snap: instant zero when reversing direction
@@ -247,12 +341,15 @@ public class InputManager {
             }
 
             axisValues.put(axisName, newValue);
+
+            // Fire axis event if changed significantly
+            if (Math.abs(newValue - previousValue) > axisEventThreshold) {
+                eventBus.post(new AxisEvent(axisName, newValue, previousValue));
+                previousAxisValues.put(axisName, newValue);
+            }
         }
     }
 
-    /**
-     * Moves a value towards target at specified speed.
-     */
     private static float moveTowards(float current, float target, float maxDelta) {
         if (Math.abs(target - current) <= maxDelta) {
             return target;
@@ -261,108 +358,66 @@ public class InputManager {
     }
 
     // ========================================
-    // Keyboard Input API
+    // Keyboard Input API (Polling)
     // ========================================
 
-    /**
-     * Returns true while the key is held down.
-     */
     public static boolean getKey(KeyCode key) {
         return get().keysDown.contains(key);
     }
 
-    /**
-     * Returns true during the frame the key was pressed.
-     */
     public static boolean getKeyDown(KeyCode key) {
         return get().keysPressed.contains(key);
     }
 
-    /**
-     * Returns true during the frame the key was released.
-     */
     public static boolean getKeyUp(KeyCode key) {
         return get().keysReleased.contains(key);
     }
 
-    /**
-     * Returns true if any key is currently held down.
-     */
     public static boolean anyKey() {
         return !get().keysDown.isEmpty();
     }
 
-    /**
-     * Returns true if any key was pressed this frame.
-     */
     public static boolean anyKeyDown() {
         return !get().keysPressed.isEmpty();
     }
 
     // ========================================
-    // Mouse Input API
+    // Mouse Input API (Polling)
     // ========================================
 
-    /**
-     * Gets the current mouse position in screen coordinates.
-     */
     public static Vector2f getMousePosition() {
         return new Vector2f(get().mousePosition);
     }
 
-    /**
-     * Gets the mouse movement since last frame.
-     */
     public static Vector2f getMouseDelta() {
         return new Vector2f(get().mouseDelta);
     }
 
-    /**
-     * Gets the mouse scroll delta (vertical only).
-     */
     public static float getMouseScrollDelta() {
         return get().mouseScrollDelta;
     }
 
-    /**
-     * Sets whether the cursor should be locked/hidden.
-     */
     public static void setCursorLocked(boolean locked) {
         get().cursorLocked = locked;
-        // Note: Actual cursor locking should be done in GLFW
-        // This is just for tracking state
     }
 
-    /**
-     * Gets whether the cursor is currently locked.
-     */
     public static boolean isCursorLocked() {
         return get().cursorLocked;
     }
 
     // ========================================
-    // Virtual Axes API
+    // Virtual Axes API (Polling)
     // ========================================
 
-    /**
-     * Gets the value of a virtual axis with smooth interpolation.
-     * Returns a value between -1 and 1.
-     */
     public static float getAxis(String axisName) {
         return get().axisValues.getOrDefault(axisName, 0f);
     }
 
-    /**
-     * Gets the raw value of a virtual axis without smoothing.
-     * Returns -1, 0, or 1.
-     */
     public static float getAxisRaw(String axisName) {
         InputManager manager = get();
         AxisConfig config = manager.axisConfigs.get(axisName);
 
-        if (config == null) {
-            return 0f;
-        }
+        if (config == null) return 0f;
 
         float value = 0f;
 
@@ -382,50 +437,53 @@ public class InputManager {
         return Math.max(-1f, Math.min(1f, value));
     }
 
-    /**
-     * Sets the value of a virtual axis manually (e.g., for gamepad input).
-     */
     public static void setAxisValue(String axisName, float value) {
         get().axisValues.put(axisName, value);
     }
 
-    /**
-     * Registers or updates a virtual axis configuration.
-     */
     public static void registerAxis(String axisName, AxisConfig config) {
         get().axisConfigs.put(axisName, config);
         get().axisValues.put(axisName, 0f);
+        get().previousAxisValues.put(axisName, 0f);
     }
 
-    /**
-     * Gets the configuration for a virtual axis.
-     */
     public static AxisConfig getAxisConfig(String axisName) {
         return get().axisConfigs.get(axisName);
     }
 
-    /**
-     * Removes a virtual axis.
-     */
     public static void removeAxis(String axisName) {
         get().axisConfigs.remove(axisName);
         get().axisValues.remove(axisName);
+        get().previousAxisValues.remove(axisName);
+    }
+
+    public static Set<String> getAxisNames() {
+        return new HashSet<>(get().axisConfigs.keySet());
+    }
+
+    // ========================================
+    // Configuration
+    // ========================================
+
+    /**
+     * Set the threshold for axis events.
+     * Events are only fired when axis value changes by at least this amount.
+     */
+    public static void setAxisEventThreshold(float threshold) {
+        get().axisEventThreshold = threshold;
     }
 
     /**
-     * Gets all registered axis names.
+     * Enable or disable debug mode for the event bus.
      */
-    public static Set<String> getAxisNames() {
-        return new HashSet<>(get().axisConfigs.keySet());
+    public static void setDebugMode(boolean debug) {
+        get().eventBus.setDebugMode(debug);
     }
 
     // ========================================
     // Utility Methods
     // ========================================
 
-    /**
-     * Clears all input state. Useful for scene transitions.
-     */
     public static void clear() {
         InputManager manager = get();
         manager.keysDown.clear();
@@ -437,28 +495,21 @@ public class InputManager {
 
         for (String axis : manager.axisValues.keySet()) {
             manager.axisValues.put(axis, 0f);
+            manager.previousAxisValues.put(axis, 0f);
         }
     }
 
-    /**
-     * Gets a human-readable name for a key.
-     */
     public static String getKeyName(KeyCode key) {
         return get().backend.getKeyName(key);
     }
 
-    /**
-     * Gets all currently pressed keys.
-     */
     public static Set<KeyCode> getPressedKeys() {
         return new HashSet<>(get().keysDown);
     }
 
-    /**
-     * Destroys the input manager.
-     */
     public static void destroy() {
         if (instance != null) {
+            instance.eventBus.clear();
             instance = null;
             System.out.println("InputManager destroyed");
         }

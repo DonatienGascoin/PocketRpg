@@ -1,19 +1,18 @@
 package com.pocket.rpg.core;
 
-import com.pocket.rpg.config.InputConfig;
 import com.pocket.rpg.config.WindowConfig;
-import com.pocket.rpg.input.GlfwInput;
+import com.pocket.rpg.glfw.DefaultCallback;
+import com.pocket.rpg.glfw.GLFWInputBackend;
+import com.pocket.rpg.glfw.GLFWWindow;
 import com.pocket.rpg.input.Input;
-import com.pocket.rpg.input.KeyListener;
-import com.pocket.rpg.input.MouseListener;
 import com.pocket.rpg.inputNew.InputManager;
-import com.pocket.rpg.inputNew.GLFWInputBackend;
+import com.pocket.rpg.inputNew.KeyListener;
+import com.pocket.rpg.inputNew.MouseListener;
 import com.pocket.rpg.postProcessing.PostProcessor;
 import com.pocket.rpg.postProcessing.postEffects.VignetteEffect;
 import com.pocket.rpg.rendering.CameraManager;
 import com.pocket.rpg.rendering.renderers.OpenGLRenderer;
 import com.pocket.rpg.rendering.renderers.RenderInterface;
-import com.pocket.rpg.utils.DefaultCallback;
 import com.pocket.rpg.utils.PerformanceMonitor;
 import com.pocket.rpg.utils.Time;
 
@@ -75,7 +74,7 @@ public class GameApplication {
 
         // 2. Create window
         System.out.println("Creating window...");
-        window = new GlfwWindow(config, callbacks);
+        window = new GLFWWindow(config, callbacks);
         window.init();
 
         // 3. Initialize platform systems (need OpenGL context from window)
@@ -101,22 +100,21 @@ public class GameApplication {
         // Renderer init happens in engine
 
         KeyListener keyListener = new KeyListener();
-        callbacks.addKeyCallback(keyListener::keyCallback);
+        callbacks.addKeyCallback(keyListener);
         MouseListener mouseListener = new MouseListener();
-        callbacks.addMouseButtonCallback(mouseListener::mouseButtonCallback);
-        callbacks.addMousePosCallback(mouseListener::mousePosCallback);
-        callbacks.addMouseScrollCallback(mouseListener::mouseScrollCallback);
+        callbacks.addMouseButtonCallback(mouseListener);
+        callbacks.addMousePosCallback(mouseListener);
+        callbacks.addMouseScrollCallback(mouseListener);
 
-        Input.init(new InputConfig(), new GlfwInput(keyListener, mouseListener)); // Use Glfw to retrieve inputs
         InputManager.initialize(new GLFWInputBackend());
-
 //        audio = new NoOpAudioManager();
 //        audio.init();
 
         // 3. Initialize camera system
         System.out.println("Initializing camera system...");
         cameraManager = CameraManager.initialize(config.getGameWidth(), config.getGameHeight());
-        CameraManager.setViewportSize(window.getScreenWidth(), window.getScreenHeight());
+        cameraManager.setViewportSize(window.getScreenWidth(), window.getScreenHeight());
+        callbacks.addWindowSizeCallback(cameraManager);
 
         // 4. Initialize post-processor
         postProcessor = new PostProcessor(config);

@@ -1,12 +1,14 @@
 package com.pocket.rpg.input;
 
+import com.pocket.rpg.inputNew.KeyListener;
+import com.pocket.rpg.inputNew.MouseListener;
 import org.joml.Vector2f;
 
 import java.util.List;
 import java.util.Objects;
 
-public final class GlfwInput implements InputInterface {
-    private final KeyListener keyListener;
+public final class GlfwInput/* implements InputInterface*/ {
+    /*private final KeyListener keyListener;
     private final MouseListener mouseListener;
 
     public GlfwInput(KeyListener keyListener, MouseListener mouseListener) {
@@ -102,6 +104,6 @@ public final class GlfwInput implements InputInterface {
         return "GlfwInput[" +
                 "keyListener=" + keyListener + ", " +
                 "mouseListener=" + mouseListener + ']';
-    }
+    }*/
 
 }

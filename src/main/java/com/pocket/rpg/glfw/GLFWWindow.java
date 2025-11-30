@@ -1,7 +1,7 @@
-package com.pocket.rpg.core;
+package com.pocket.rpg.glfw;
 
 import com.pocket.rpg.config.WindowConfig;
-import com.pocket.rpg.input.callbacks.InputCallback;
+import com.pocket.rpg.core.AbstractWindow;
 import com.pocket.rpg.utils.LogUtils;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.glfw.GLFWVidMode;
@@ -12,19 +12,21 @@ import static org.lwjgl.glfw.Callbacks.glfwFreeCallbacks;
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.system.MemoryUtil.NULL;
 
-public class GlfwWindow extends AbstractWindow {
+public class GLFWWindow extends AbstractWindow {
 
     private long windowHandle;
+    GLFWInputBackend inputBackend;
 
-    private final InputCallback callback;
+    private final DefaultCallback callback;
     private int screenWidth, screenHeight;
     private boolean isMinimized = false;
     private boolean isFocused = true;
 
 
-    public GlfwWindow(WindowConfig config, InputCallback callback) {
+    public GLFWWindow(WindowConfig config, DefaultCallback callback) {
         super(config);
         this.callback = callback;
+        this.inputBackend = new GLFWInputBackend();
     }
 
     @Override
@@ -135,10 +137,19 @@ public class GlfwWindow extends AbstractWindow {
     }
 
     private void setCallbacks() {
-        glfwSetCursorPosCallback(windowHandle, (w, x, y) -> callback.mousePosCallback(x, y));
-        glfwSetMouseButtonCallback(windowHandle, (w, b, a, m) -> callback.mouseButtonCallback(b, a, m));
-        glfwSetScrollCallback(windowHandle, (w, x, y) -> callback.mouseScrollCallback(x, y));
-        glfwSetKeyCallback(windowHandle, (w, k, s, a, m) -> callback.keyCallback(k, s, a, m));
+        glfwSetCursorPosCallback(windowHandle, (w, x, y) -> callback.onMouseMove(x, y));
+
+        glfwSetMouseButtonCallback(windowHandle, (w, b, a, m) -> callback.onMouseButton(
+                inputBackend.getKeyCode(b),
+                inputBackend.getMouseButtonAction(a))
+        );
+
+        glfwSetScrollCallback(windowHandle, (w, x, y) -> callback.onMouseScroll(x, y));
+
+        glfwSetKeyCallback(windowHandle, (w, k, s, a, m) -> callback.onKey(
+                inputBackend.getKeyCode(k),
+                inputBackend.getKeyAction(a))
+        );
 
         // Set resize callback after we make the current context
         glfwSetWindowSizeCallback(windowHandle, this::resizeCallback);
@@ -182,7 +193,7 @@ public class GlfwWindow extends AbstractWindow {
         screenHeight = newHeight;
 
         System.out.println("Window resized: " + newWidth + "x" + newHeight);
-        callback.windowResizeCallback(newWidth, newHeight);
+        callback.onWindowResize(newWidth, newHeight);
     }
 
     private void iconifyCallback(long window, boolean iconified) {

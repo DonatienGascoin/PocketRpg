@@ -9,7 +9,7 @@ public interface InputBackend {
      * @param backendKeyCode The key code from the backend (e.g., GLFW key code)
      * @return The corresponding KeyCode, or KeyCode.UNKNOWN if not mapped
      */
-    KeyCode mapKeyCode(int backendKeyCode);
+    KeyCode getKeyCode(int backendKeyCode);
 
     /**
      * Map our abstract KeyCode to a backend-specific key code.

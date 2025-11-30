@@ -52,8 +52,8 @@ public class GameEngine {
         manager.registerLoader("sprite", new SpriteLoader());
         manager.registerLoader("spritesheet", new SpriteSheetLoader());
 
-        // Set viewport to window size. TODO: Already done in GameApplication, where to put it?
-        CameraManager.setViewportSize(config.getWindowWidth(), config.getWindowHeight());
+//        // Set viewport to window size. TODO: Already done in GameApplication, where to put it?
+//        CameraManager.setViewportSize(config.getWindowWidth(), config.getWindowHeight());
 
         ConsoleStatisticsReporter reporter = null; // TODO: Merge with performance monitor?
         if (config.isEnableStatistics()) {

@@ -1,6 +1,9 @@
 package com.pocket.rpg.config;
 
 import com.pocket.rpg.input.InputAction;
+import com.pocket.rpg.input.InputAxis;
+import com.pocket.rpg.input.AxisConfig;
+import com.pocket.rpg.input.KeyCode;
 
 import java.util.HashMap;
 import java.util.List;
@@ -8,7 +11,8 @@ import java.util.Map;
 
 public class InputConfig {
 
-    public Map<InputAction, List<Integer>> actionBindings;
+    private final Map<String, AxisConfig> axisConfigs = new HashMap<>();
+    public Map<InputAction, List<KeyCode>> actionBindings;
 
     public InputConfig() {
         actionBindings = new HashMap<>();
@@ -22,13 +26,21 @@ public class InputConfig {
         for (InputAction inputAction : InputAction.values()) {
             bindAction(inputAction, inputAction.getBinding());
         }
+
+        for (InputAxis axis : InputAxis.values()) {
+            registerAxis(axis.name(), axis.getAxisConfig());
+        }
+    }
+
+    public synchronized void registerAxis(String axisName, AxisConfig config) {
+        axisConfigs.put(axisName, config);
     }
 
     /**
      * Bind an action to a specific key/button.
      * Thread-safe for runtime rebinding.
      */
-    public synchronized void bindAction(InputAction inputAction, List<Integer> binding) {
+    public synchronized void bindAction(InputAction inputAction, List<KeyCode> binding) {
         // Add new binding
         actionBindings.put(inputAction, binding);
     }
@@ -36,7 +48,7 @@ public class InputConfig {
     /**
      * Get the current binding for an action.
      */
-    public List<Integer> getBindingForAction(InputAction inputAction) {
+    public List<KeyCode> getBindingForAction(InputAction inputAction) {
         return actionBindings.getOrDefault(inputAction, inputAction.getBinding());
     }
 
@@ -45,21 +57,5 @@ public class InputConfig {
      */
     public boolean isBindingUsed(int binding) {
         return actionBindings.containsValue(binding);
-    }
-
-    /**
-     * Save bindings to file (JSON/Properties).
-     * TODO: Implement serialization
-     */
-    public void save(String filepath) {
-        System.out.println("TODO: Save input config to " + filepath);
-    }
-
-    /**
-     * Load bindings from file.
-     * TODO: Implement deserialization
-     */
-    public void load(String filepath) {
-        System.out.println("TODO: Load input config from " + filepath);
     }
 }

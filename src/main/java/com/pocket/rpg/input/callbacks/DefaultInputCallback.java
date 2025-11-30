@@ -1,15 +1,13 @@
-package com.pocket.rpg.glfw;
+package com.pocket.rpg.input.callbacks;
 
-import com.pocket.rpg.inputNew.KeyCode;
-import com.pocket.rpg.inputNew.events.KeyEvent;
-import com.pocket.rpg.inputNew.events.MouseButtonEvent;
+import com.pocket.rpg.input.KeyCode;
+import com.pocket.rpg.input.events.KeyEvent;
+import com.pocket.rpg.input.events.MouseButtonEvent;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static java.awt.SystemColor.control;
-
-public class DefaultCallback implements InputCallbacks.KeyCallback,
+public class DefaultInputCallback implements InputCallbacks.KeyCallback,
         InputCallbacks.MouseMoveCallback,
         InputCallbacks.MouseButtonCallback,
         InputCallbacks.MouseScrollCallback,

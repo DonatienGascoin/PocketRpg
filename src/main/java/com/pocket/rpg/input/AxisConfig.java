@@ -1,4 +1,4 @@
-package com.pocket.rpg.inputNew;
+package com.pocket.rpg.input;
 
 /**
  * Configuration for a virtual axis (e.g., "Horizontal", "Vertical").

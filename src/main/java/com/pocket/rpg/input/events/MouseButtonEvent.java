@@ -1,6 +1,6 @@
-package com.pocket.rpg.inputNew.events;
+package com.pocket.rpg.input.events;
 
-import com.pocket.rpg.inputNew.KeyCode;
+import com.pocket.rpg.input.KeyCode;
 import lombok.Getter;
 import org.joml.Vector2f;
 

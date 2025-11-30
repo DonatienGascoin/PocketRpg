@@ -1,6 +1,5 @@
 package com.pocket.rpg.config;
 
-import com.pocket.rpg.config.InputConfig;
 import com.pocket.rpg.utils.FileUtils;
 
 import java.io.File;

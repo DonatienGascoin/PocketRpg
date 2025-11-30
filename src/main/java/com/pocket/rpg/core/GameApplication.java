@@ -1,18 +1,18 @@
 package com.pocket.rpg.core;
 
+import com.pocket.rpg.config.ConfigLoader;
 import com.pocket.rpg.config.WindowConfig;
-import com.pocket.rpg.glfw.DefaultCallback;
-import com.pocket.rpg.glfw.GLFWInputBackend;
 import com.pocket.rpg.glfw.GLFWWindow;
-import com.pocket.rpg.input.Input;
-import com.pocket.rpg.inputNew.InputManager;
-import com.pocket.rpg.inputNew.KeyListener;
-import com.pocket.rpg.inputNew.MouseListener;
+import com.pocket.rpg.input.InputManager;
+import com.pocket.rpg.input.callbacks.DefaultInputCallback;
+import com.pocket.rpg.input.listeners.KeyListener;
+import com.pocket.rpg.input.listeners.MouseListener;
 import com.pocket.rpg.postProcessing.PostProcessor;
 import com.pocket.rpg.postProcessing.postEffects.VignetteEffect;
 import com.pocket.rpg.rendering.CameraManager;
 import com.pocket.rpg.rendering.renderers.OpenGLRenderer;
 import com.pocket.rpg.rendering.renderers.RenderInterface;
+import com.pocket.rpg.serialization.Serializer;
 import com.pocket.rpg.utils.PerformanceMonitor;
 import com.pocket.rpg.utils.Time;
 
@@ -37,13 +37,12 @@ public class GameApplication {
     private GameEngine engine;
 
     private RenderInterface renderer;
-    private Input input;
     //    private AudioInterface audio;
     private PostProcessor postProcessor;
     private CameraManager cameraManager;
     private PerformanceMonitor performanceMonitor;
 
-    private DefaultCallback callbacks;
+    private DefaultInputCallback callbacks;
 
     // Configuration
     private WindowConfig config;
@@ -56,6 +55,14 @@ public class GameApplication {
         System.out.println("║                     POCKET RPG ENGINE                         ║");
         System.out.println("║                   Application Starting                        ║");
         System.out.println("╚═══════════════════════════════════════════════════════════════╝");
+
+        Serializer.init();
+
+        // 0. Load configuration
+        var gameConfig = ConfigLoader.loadGameConfig();
+        var inputConfig = ConfigLoader.loadInputConfig();
+        ConfigLoader.saveWindowConfig(gameConfig);
+        ConfigLoader.saveInputConfig(inputConfig);
 
         // 1. Create window configuration
         config = WindowConfig.builder()
@@ -70,7 +77,7 @@ public class GameApplication {
                 .postProcessingEffects(List.of(new VignetteEffect(1f, 1.5f)))
                 .build();
 
-        callbacks = new DefaultCallback();
+        callbacks = new DefaultInputCallback();
 
         // 2. Create window
         System.out.println("Creating window...");
@@ -82,23 +89,60 @@ public class GameApplication {
         initSystems();
 
         // 4. Create game engine
-        System.out.println("Creating game engine...");
-        engine = new GameEngine(config);
-
-        // 5. Inject platform systems into engine
-        engine.setRenderer(renderer);
-        engine.setCameraManager(cameraManager);
-//        engine.setInput(input);
-//        engine.setAudio(audio);
-        engine.initialize();
+        initGameEngine();
 
         System.out.println("Application initialization complete");
     }
 
-    private void initSystems() {
-        renderer = new OpenGLRenderer(config);
-        // Renderer init happens in engine
+    private void initGameEngine() {
+        System.out.println("Creating game engine...");
+        engine = new GameEngine(config);
 
+        engine.setRenderer(renderer);
+        engine.setCameraManager(cameraManager);
+//        engine.setAudio(audio);
+        engine.initialize();
+    }
+
+    private void initSystems() {
+        initRenderer();
+        initInputs();
+        initAudio();
+        initCamera();
+        initPostProcessing();
+        initMonitoring();
+    }
+
+    private void initRenderer() {
+        renderer = new OpenGLRenderer(config);
+        // Init is called later in engine.initialize()
+    }
+
+    private void initAudio() {
+        //        audio = new NoOpAudioManager();
+        //        audio.init();
+    }
+
+    private void initMonitoring() {
+        performanceMonitor = new PerformanceMonitor();
+        performanceMonitor.setEnabled(ENABLE_PERFORMANCE_MONITOR);
+    }
+
+    private void initPostProcessing() {
+        // 4. Initialize post-processor
+        postProcessor = new PostProcessor(config);
+        postProcessor.init(window);
+    }
+
+    private void initCamera() {
+        // 3. Initialize camera system
+        System.out.println("Initializing camera system...");
+        cameraManager = CameraManager.initialize(config.getGameWidth(), config.getGameHeight());
+        CameraManager.setViewportSize(window.getScreenWidth(), window.getScreenHeight());
+        callbacks.addWindowSizeCallback(cameraManager);
+    }
+
+    private void initInputs() {
         KeyListener keyListener = new KeyListener();
         callbacks.addKeyCallback(keyListener);
         MouseListener mouseListener = new MouseListener();
@@ -106,22 +150,7 @@ public class GameApplication {
         callbacks.addMousePosCallback(mouseListener);
         callbacks.addMouseScrollCallback(mouseListener);
 
-        InputManager.initialize(new GLFWInputBackend());
-//        audio = new NoOpAudioManager();
-//        audio.init();
-
-        // 3. Initialize camera system
-        System.out.println("Initializing camera system...");
-        cameraManager = CameraManager.initialize(config.getGameWidth(), config.getGameHeight());
-        cameraManager.setViewportSize(window.getScreenWidth(), window.getScreenHeight());
-        callbacks.addWindowSizeCallback(cameraManager);
-
-        // 4. Initialize post-processor
-        postProcessor = new PostProcessor(config);
-        postProcessor.init(window);
-
-        performanceMonitor = new PerformanceMonitor();
-        performanceMonitor.setEnabled(ENABLE_PERFORMANCE_MONITOR);
+        InputManager.initialize(keyListener, mouseListener);
     }
 
     private void loop() {
@@ -166,7 +195,7 @@ public class GameApplication {
             window.swapBuffers();
             window.pollEvents();
 
-            Input.endFrame();
+            InputManager.endFrame();
 
             // Update time and performance, last things in loop
             Time.update();

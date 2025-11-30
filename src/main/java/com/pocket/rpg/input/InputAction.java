@@ -5,20 +5,14 @@ import lombok.Getter;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.lwjgl.glfw.GLFW.*;
-
 public enum InputAction {
 
-    Move_Up(GLFW_KEY_W),
-    Move_Down(GLFW_KEY_S),
-    Move_Left(GLFW_KEY_A),
-    Move_Right(GLFW_KEY_D),
-    Fire(GLFW_KEY_SPACE);
+    Fire(KeyCode.SPACE);
 
     @Getter
-    private final List<Integer> binding;
+    private final List<KeyCode> binding;
 
-    InputAction(Integer... glfwKey) {
+    InputAction(KeyCode... glfwKey) {
         binding = Arrays.asList(glfwKey);
     }
 }

@@ -1,7 +1,8 @@
-package com.pocket.rpg.inputNew;
+package com.pocket.rpg.input.listeners;
 
-import com.pocket.rpg.glfw.InputCallbacks;
-import com.pocket.rpg.inputNew.events.KeyEvent;
+import com.pocket.rpg.input.KeyCode;
+import com.pocket.rpg.input.callbacks.InputCallbacks;
+import com.pocket.rpg.input.events.KeyEvent;
 
 import java.util.EnumSet;
 import java.util.Set;

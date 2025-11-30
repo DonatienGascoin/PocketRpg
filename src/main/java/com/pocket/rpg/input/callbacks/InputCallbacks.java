@@ -1,26 +1,13 @@
-package com.pocket.rpg.glfw;
+package com.pocket.rpg.input.callbacks;
 
 
-import com.pocket.rpg.inputNew.KeyCode;
-import com.pocket.rpg.inputNew.events.KeyEvent;
-import com.pocket.rpg.inputNew.events.MouseButtonEvent;
+import com.pocket.rpg.input.KeyCode;
+import com.pocket.rpg.input.events.KeyEvent;
+import com.pocket.rpg.input.events.MouseButtonEvent;
 
 /**
- * Functional interfaces for input callbacks.
- * These interfaces can be used with lambda expressions for cleaner code.
- *
- * <h3>Usage Example:</h3>
- * <pre>{@code
- * // Lambda expression
- * InputCallbacks.KeyCallback keyCallback = (key, scancode, action, mods) -> {
- *     if (action == GLFW.GLFW_PRESS) {
- *         System.out.println("Key pressed: " + key);
- *     }
- * };
- *
- * // Method reference
- * InputCallbacks.MouseMoveCallback mouseCallback = this::handleMouseMove;
- * }</pre>
+ * Collection of input callback interfaces for handling various input events.
+ * Each interface defines a single method to be implemented for responding to specific input events.
  */
 public final class InputCallbacks {
 

@@ -52,9 +52,6 @@ public class GameEngine {
         manager.registerLoader("sprite", new SpriteLoader());
         manager.registerLoader("spritesheet", new SpriteSheetLoader());
 
-//        // Set viewport to window size. TODO: Already done in GameApplication, where to put it?
-//        CameraManager.setViewportSize(config.getWindowWidth(), config.getWindowHeight());
-
         ConsoleStatisticsReporter reporter = null; // TODO: Merge with performance monitor?
         if (config.isEnableStatistics()) {
             reporter = new ConsoleStatisticsReporter(config.getStatisticsInterval());
@@ -93,9 +90,8 @@ public class GameEngine {
      * Called every frame by the application.
      */
     public void update(float deltaTime) {
-        // Update AssetManager
         AssetManager.getInstance().update(deltaTime);
-//        if (audio != null) audio.update(deltaTime);
+//      audio.update(deltaTime);
         // Update scene
         sceneManager.update(deltaTime);
     }

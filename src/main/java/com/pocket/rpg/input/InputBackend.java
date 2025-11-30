@@ -1,4 +1,4 @@
-package com.pocket.rpg.inputNew;
+package com.pocket.rpg.input;
 
 /**
  * Interface that any input backend (GLFW, LWJGL, SDL, etc.) must implement.
@@ -24,15 +24,4 @@ public interface InputBackend {
      * @return The name of the key (e.g., "Space", "Left Shift")
      */
     String getKeyName(KeyCode keyCode);
-
-    /*void onKeyPressed(int backendKeyCode);
-
-    void onKeyReleased(int backendKeyCode);
-
-    void onMouseMoved(double x, double y);
-
-    void onMouseScroll(double xOffset, double yOffset);*/
-
-
-
 }

@@ -1,4 +1,4 @@
-package com.pocket.rpg.inputNew;
+package com.pocket.rpg.input;
 
 /**
  * Platform-independent key codes.

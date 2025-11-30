@@ -1,9 +1,9 @@
 package com.pocket.rpg.glfw;
 
-import com.pocket.rpg.inputNew.InputBackend;
-import com.pocket.rpg.inputNew.KeyCode;
-import com.pocket.rpg.inputNew.events.KeyEvent;
-import com.pocket.rpg.inputNew.events.MouseButtonEvent;
+import com.pocket.rpg.input.InputBackend;
+import com.pocket.rpg.input.KeyCode;
+import com.pocket.rpg.input.events.KeyEvent;
+import com.pocket.rpg.input.events.MouseButtonEvent;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.HashMap;

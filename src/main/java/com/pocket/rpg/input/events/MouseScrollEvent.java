@@ -1,4 +1,4 @@
-package com.pocket.rpg.inputNew.events;
+package com.pocket.rpg.input.events;
 
 /**
  * Event fired when the mouse wheel is scrolled.

@@ -2,6 +2,7 @@ package com.pocket.rpg.glfw;
 
 import com.pocket.rpg.config.WindowConfig;
 import com.pocket.rpg.core.AbstractWindow;
+import com.pocket.rpg.input.callbacks.DefaultInputCallback;
 import com.pocket.rpg.utils.LogUtils;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.glfw.GLFWVidMode;
@@ -17,13 +18,13 @@ public class GLFWWindow extends AbstractWindow {
     private long windowHandle;
     GLFWInputBackend inputBackend;
 
-    private final DefaultCallback callback;
+    private final DefaultInputCallback callback;
     private int screenWidth, screenHeight;
     private boolean isMinimized = false;
     private boolean isFocused = true;
 
 
-    public GLFWWindow(WindowConfig config, DefaultCallback callback) {
+    public GLFWWindow(WindowConfig config, DefaultInputCallback callback) {
         super(config);
         this.callback = callback;
         this.inputBackend = new GLFWInputBackend();

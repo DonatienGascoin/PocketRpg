@@ -5,40 +5,48 @@ import lombok.Getter;
 
 /**
  * Event fired when a key state changes.
- * Backend-agnostic - uses KeyCode enum instead of GLFW codes.
+ * Backend-agnostic - uses KeyCode enum instead of raw backend codes.
  */
-public class KeyEvent extends InputEvent {
+@Getter
+public class KeyEvent {
 
+    /**
+     * The type of key action.
+     */
     public enum Action {
-        PRESS,      // Key was just pressed this frame
-        RELEASE,    // Key was just released this frame
-        REPEAT      // Key is being held down (may not be needed with InputManager)
+        /**
+         * Key was just pressed this frame
+         */
+        PRESS,
+        /**
+         * Key was just released this frame
+         */
+        RELEASE,
+        /**
+         * Key is being held down (auto-repeat)
+         */
+        REPEAT
     }
 
-    @Getter
     private final KeyCode key;
-    @Getter
     private final Action action;
-    private final boolean shift;
-    private final boolean control;
-    private final boolean alt;
 
-    public KeyEvent(KeyCode key, Action action, boolean shift, boolean control, boolean alt) {
-        super();
+    public KeyEvent(KeyCode key, Action action) {
         this.key = key;
         this.action = action;
-        this.shift = shift;
-        this.control = control;
-        this.alt = alt;
     }
 
-    public boolean isPress() { return action == Action.PRESS; }
-    public boolean isRelease() { return action == Action.RELEASE; }
-    public boolean isRepeat() { return action == Action.REPEAT; }
+    public boolean isPress() {
+        return action == Action.PRESS;
+    }
 
-    public boolean isShiftDown() { return shift; }
-    public boolean isControlDown() { return control; }
-    public boolean isAltDown() { return alt; }
+    public boolean isRelease() {
+        return action == Action.RELEASE;
+    }
+
+    public boolean isRepeat() {
+        return action == Action.REPEAT;
+    }
 
     /**
      * Check if this event is for a specific key.
@@ -49,7 +57,6 @@ public class KeyEvent extends InputEvent {
 
     @Override
     public String toString() {
-        return String.format("KeyEvent{key=%s, action=%s, shift=%b, ctrl=%b, alt=%b}",
-                key, action, shift, control, alt);
+        return String.format("KeyEvent{key=%s, action=%s}", key, action);
     }
 }

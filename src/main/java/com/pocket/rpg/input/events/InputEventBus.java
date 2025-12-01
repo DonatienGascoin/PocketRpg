@@ -1,6 +1,7 @@
 package com.pocket.rpg.input.events;
 
 import com.pocket.rpg.input.KeyCode;
+import com.pocket.rpg.input.listeners.GamepadListener;
 import com.pocket.rpg.input.listeners.KeyListener;
 import com.pocket.rpg.input.listeners.MouseListener;
 import com.pocket.rpg.input.listeners.WindowResizeListener;
@@ -21,6 +22,7 @@ public class InputEventBus {
     // Listeners for different event types
     private final List<KeyListener> keyListeners = new ArrayList<>();
     private final List<MouseListener> mouseListeners = new ArrayList<>();
+    private final List<GamepadListener> gamepadListeners = new ArrayList<>();
     private final List<WindowResizeListener> resizeListeners = new ArrayList<>();
 
     // ========================================
@@ -49,6 +51,14 @@ public class InputEventBus {
 
     public void removeResizeListener(WindowResizeListener listener) {
         resizeListeners.remove(listener);
+    }
+
+    public void addGamepadListener(GamepadListener listener) {
+        gamepadListeners.add(listener);
+    }
+
+    public void removeGamepadListener(GamepadListener listener) {
+        gamepadListeners.remove(listener);
     }
 
     // ========================================

@@ -1,6 +1,18 @@
 {
   "axisConfigs": {
-    "Vertical": {
+    "HORIZONTAL": {
+      "type": "KEYBOARD",
+      "positiveKey": "D",
+      "negativeKey": "A",
+      "altPositiveKey": "RIGHT",
+      "altNegativeKey": "LEFT",
+      "sensitivity": 1.0,
+      "gravity": 3.0,
+      "deadZone": 0.001,
+      "snap": true
+    },
+    "VERTICAL": {
+      "type": "KEYBOARD",
       "positiveKey": "W",
       "negativeKey": "S",
       "altPositiveKey": "UP",
@@ -10,20 +22,51 @@
       "deadZone": 0.001,
       "snap": true
     },
-    "Horizontal": {
-      "positiveKey": "D",
-      "negativeKey": "A",
-      "altPositiveKey": "RIGHT",
-      "altNegativeKey": "LEFT",
+    "MOUSE_WHEEL": {
+      "type": "MOUSE_WHEEL",
       "sensitivity": 1.0,
-      "gravity": 3.0,
-      "deadZone": 0.001,
-      "snap": true
+      "gravity": 0.0,
+      "deadZone": 0.0,
+      "snap": false
+    },
+    "MOUSE_Y": {
+      "type": "MOUSE_DELTA",
+      "sensitivity": 1.0,
+      "gravity": 0.0,
+      "deadZone": 0.0,
+      "snap": false
+    },
+    "MOUSE_X": {
+      "type": "MOUSE_DELTA",
+      "sensitivity": 1.0,
+      "gravity": 0.0,
+      "deadZone": 0.0,
+      "snap": false
     }
   },
   "actionBindings": {
-    "Fire": [
+    "JUMP": [
       "SPACE"
+    ],
+    "INTERACT": [
+      "E"
+    ],
+    "PAUSE": [
+      "P",
+      "ESCAPE"
+    ],
+    "RELOAD": [
+      "R"
+    ],
+    "MENU": [
+      "ESCAPE"
+    ],
+    "FIRE": [
+      "SPACE",
+      "MOUSE_BUTTON_LEFT"
+    ],
+    "CROUCH": [
+      "LEFT_CONTROL"
     ]
   }
 }

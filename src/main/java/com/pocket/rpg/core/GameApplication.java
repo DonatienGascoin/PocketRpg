@@ -7,6 +7,7 @@ import com.pocket.rpg.input.Input;
 import com.pocket.rpg.input.InputBackend;
 import com.pocket.rpg.input.InputContext;
 import com.pocket.rpg.input.events.InputEventBus;
+import com.pocket.rpg.input.listeners.GamepadListener;
 import com.pocket.rpg.input.listeners.KeyListener;
 import com.pocket.rpg.input.listeners.MouseListener;
 import com.pocket.rpg.postProcessing.PostProcessor;
@@ -86,12 +87,14 @@ public class GameApplication {
 
         KeyListener keyListener = new KeyListener();
         MouseListener mouseListener = new MouseListener();
+        GamepadListener gamepadListener = new GamepadListener();
 
         inputEventBus.addKeyListener(keyListener);
         inputEventBus.addMouseListener(mouseListener);
+        inputEventBus.addGamepadListener(gamepadListener);
 
         // Create input context
-        InputContext realContext = new DefaultInputContext(config.getInput(), keyListener, mouseListener);
+        InputContext realContext = new DefaultInputContext(config.getInput(), keyListener, mouseListener, gamepadListener);
 
         // Initialize InputManager
         Input.initialize(realContext);

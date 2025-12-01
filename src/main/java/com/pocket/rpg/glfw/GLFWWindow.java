@@ -180,6 +180,8 @@ public class GLFWWindow extends AbstractWindow {
                 glfwInputBackend.getKeyAction(a))
         );
 
+        glfwSetCallbac
+
         // Set resize callback after we make the current context
         glfwSetWindowSizeCallback(windowHandle, this::resizeCallback);
 

@@ -187,11 +187,13 @@ public class GLFWInputBackend implements InputBackend {
         return keyNames.getOrDefault(keyCode, "Unknown");
     }
 
-    public KeyEvent.Action getKeyAction(int glfwAction) {
-        return glfwKeyActionToAction.getOrDefault(glfwAction, KeyEvent.Action.PRESS);
+    @Override
+    public KeyEvent.Action getKeyAction(int action) {
+        return glfwKeyActionToAction.getOrDefault(action, KeyEvent.Action.PRESS);
     }
 
-    public MouseButtonEvent.Action getMouseButtonAction(int glfwAction) {
-        return glfwMouseButtonToAction.getOrDefault(glfwAction, MouseButtonEvent.Action.PRESS);
+    @Override
+    public MouseButtonEvent.Action getMouseButtonAction(int action) {
+        return glfwMouseButtonToAction.getOrDefault(action, MouseButtonEvent.Action.PRESS);
     }
 }

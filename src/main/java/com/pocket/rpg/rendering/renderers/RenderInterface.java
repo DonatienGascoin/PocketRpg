@@ -22,4 +22,6 @@ public interface RenderInterface {
      * Clean up renderer resources.
      */
     void destroy();
+
+    void clear();
 }

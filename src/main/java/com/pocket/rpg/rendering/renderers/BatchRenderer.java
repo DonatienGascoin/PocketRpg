@@ -1,11 +1,11 @@
 package com.pocket.rpg.rendering.renderers;
 
 import com.pocket.rpg.components.SpriteRenderer;
+import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.rendering.Shader;
 import com.pocket.rpg.rendering.SpriteBatch;
 import com.pocket.rpg.rendering.stats.BatchStatistics;
 import com.pocket.rpg.rendering.stats.StatisticsReporter;
-import com.pocket.rpg.config.WindowConfig;
 import lombok.Getter;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
@@ -31,7 +31,7 @@ public class BatchRenderer extends Renderer {
     private boolean projectionDirty = true;
     private boolean viewDirty = true;
 
-    public BatchRenderer(WindowConfig config) {
+    public BatchRenderer(RenderingConfig config) {
         this.config = config;
         if (config.isEnableStatistics()) {
             this.statisticsReporter = config.getReporter();

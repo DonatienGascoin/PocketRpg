@@ -26,6 +26,9 @@ public class Serializer {
     }
 
     public static void init() {
+        if (instance != null) {
+            return;
+        }
         instance = new Serializer();
 
     }

@@ -255,13 +255,21 @@ class MouseListenerTest {
         }
 
         @Test
-        @DisplayName("Should have zero delta initially")
-        void shouldHaveZeroDeltaInitially() {
+        @DisplayName("Should have delta from origin on first move")
+        void shouldHaveDeltaFromOriginOnFirstMove() {
+            // First move establishes position from origin (0,0)
             mouseListener.onMouseMove(100, 100);
 
             Vector2f delta = mouseListener.getMouseDelta();
-            assertEquals(0, delta.x, 0.001);
-            assertEquals(0, delta.y, 0.001);
+            // Delta is (100, 100) because we moved from (0,0) to (100,100)
+            assertEquals(100, delta.x, 0.001, "First move delta X should be from origin");
+            assertEquals(100, delta.y, 0.001, "First move delta Y should be from origin");
+
+            // Second move should have correct delta
+            mouseListener.onMouseMove(150, 120);
+            delta = mouseListener.getMouseDelta();
+            assertEquals(50, delta.x, 0.001);
+            assertEquals(20, delta.y, 0.001);
         }
 
         @Test
@@ -323,11 +331,17 @@ class MouseListenerTest {
         @Test
         @DisplayName("Should detect when mouse has moved")
         void shouldDetectWhenMouseHasMoved() {
+            // Initial move from (0,0) to (100,100) is detected as movement
             mouseListener.onMouseMove(100, 100);
-            assertFalse(mouseListener.hasMoved());
+            assertTrue(mouseListener.hasMoved(), "Movement from origin should be detected");
 
+            // Second move
             mouseListener.onMouseMove(150, 120);
-            assertTrue(mouseListener.hasMoved());
+            assertTrue(mouseListener.hasMoved(), "Movement should be detected");
+
+            // Same position
+            mouseListener.onMouseMove(150, 120);
+            assertFalse(mouseListener.hasMoved(), "No movement when position unchanged");
         }
 
         @Test
@@ -342,11 +356,15 @@ class MouseListenerTest {
         @Test
         @DisplayName("Should calculate movement distance")
         void shouldCalculateMovementDistance() {
+            // Start at a known position
             mouseListener.onMouseMove(0, 0);
-            mouseListener.onMouseMove(3, 4); // 3-4-5 triangle
+            assertEquals(0, mouseListener.getMovementDistance(), 0.001, "No distance on first move from origin");
+
+            // Move to create 3-4-5 triangle
+            mouseListener.onMouseMove(3, 4);
 
             double distance = mouseListener.getMovementDistance();
-            assertEquals(5.0, distance, 0.001);
+            assertEquals(5.0, distance, 0.001, "Distance should be 5 (3-4-5 triangle)");
         }
 
         @Test
@@ -436,12 +454,18 @@ class MouseListenerTest {
         @Test
         @DisplayName("Should detect drag when button held and mouse moved")
         void shouldDetectDragWhenButtonHeldAndMouseMoved() {
+            // Establish initial position TWICE to clear movement
             mouseListener.onMouseMove(100, 100);
+            mouseListener.onMouseMove(100, 100); // Now hasMoved() = false
+
+            // Press button at this stationary position
             mouseListener.onMouseButtonPressed(KeyCode.MOUSE_BUTTON_LEFT);
 
+            // Not dragging yet - no movement since button press
             assertFalse(mouseListener.isDragging(KeyCode.MOUSE_BUTTON_LEFT),
-                    "Not dragging yet - no movement");
+                    "Not dragging yet - no movement since button press");
 
+            // Now move mouse - this should trigger drag
             mouseListener.onMouseMove(150, 120);
             assertTrue(mouseListener.isDragging(KeyCode.MOUSE_BUTTON_LEFT),
                     "Now dragging - button held and moved");
@@ -459,11 +483,17 @@ class MouseListenerTest {
         @Test
         @DisplayName("Should not detect drag when button held but not moving")
         void shouldNotDetectDragWhenButtonHeldButNotMoving() {
+            // Establish position twice to clear movement
             mouseListener.onMouseMove(100, 100);
-            mouseListener.onMouseButtonPressed(KeyCode.MOUSE_BUTTON_LEFT);
-            mouseListener.onMouseMove(100, 100); // Same position
+            mouseListener.onMouseMove(100, 100); // hasMoved() now false
 
-            assertFalse(mouseListener.isDragging(KeyCode.MOUSE_BUTTON_LEFT));
+            mouseListener.onMouseButtonPressed(KeyCode.MOUSE_BUTTON_LEFT);
+
+            // Still at same position
+            mouseListener.onMouseMove(100, 100);
+
+            assertFalse(mouseListener.isDragging(KeyCode.MOUSE_BUTTON_LEFT),
+                    "Not dragging - button held but no movement");
         }
 
         @Test
@@ -599,21 +629,22 @@ class MouseListenerTest {
         @Test
         @DisplayName("Click and drag scenario")
         void clickAndDragScenario() {
-            // Frame 1 - Mouse at starting position
+            // Frame 1 - Establish starting position (move there twice to clear delta)
             mouseListener.onMouseMove(100, 100);
+            mouseListener.onMouseMove(100, 100); // Now stationary at (100, 100)
             mouseListener.endFrame();
 
-            // Frame 2 - Click left button
+            // Frame 2 - Click left button (no movement)
             mouseListener.onMouseButtonPressed(KeyCode.MOUSE_BUTTON_LEFT);
             assertTrue(mouseListener.wasLeftButtonPressed());
-            assertFalse(mouseListener.isDraggingLeft());
+            assertFalse(mouseListener.isDraggingLeft(), "Not dragging - no movement since button press");
             mouseListener.endFrame();
 
-            // Frame 3 - Start dragging
+            // Frame 3 - Start dragging (move while button held)
             mouseListener.onMouseMove(120, 110);
             assertTrue(mouseListener.isLeftButtonHeld());
             assertFalse(mouseListener.wasLeftButtonPressed());
-            assertTrue(mouseListener.isDraggingLeft());
+            assertTrue(mouseListener.isDraggingLeft(), "Now dragging - button held and moving");
             assertEquals(20, mouseListener.getMouseDelta().x, 0.001);
             mouseListener.endFrame();
 

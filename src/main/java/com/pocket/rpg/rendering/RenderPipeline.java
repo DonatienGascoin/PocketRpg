@@ -1,13 +1,13 @@
 package com.pocket.rpg.rendering;
 
 import com.pocket.rpg.components.SpriteRenderer;
+import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.core.Camera;
 import com.pocket.rpg.rendering.culling.CullingSystem;
 import com.pocket.rpg.rendering.renderers.BatchRenderer;
 import com.pocket.rpg.rendering.renderers.Renderer;
 import com.pocket.rpg.rendering.stats.StatisticsReporter;
 import com.pocket.rpg.scenes.Scene;
-import com.pocket.rpg.config.WindowConfig;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Matrix4f;
@@ -41,7 +41,7 @@ public class RenderPipeline {
     /**
      * Creates a render pipeline with the specified components.
      */
-    public RenderPipeline(Renderer renderer, WindowConfig config) {
+    public RenderPipeline(Renderer renderer, RenderingConfig config) {
         this.renderer = renderer;
         this.cullingSystem = new CullingSystem();
         if (config.isEnableStatistics()) {

@@ -1,6 +1,6 @@
 package com.pocket.rpg.postProcessing;
 
-import com.pocket.rpg.config.WindowConfig;
+import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.core.AbstractWindow;
 import com.pocket.rpg.rendering.Shader;
 
@@ -13,7 +13,6 @@ import static org.lwjgl.opengl.GL33.*;
 /**
  * Manages the post-processing pipeline, coordinating multiple effects
  * and handling frame buffer ping-ponging between passes.
- * FIXED: Now properly uses fixed game resolution.
  */
 public class PostProcessor {
 
@@ -46,13 +45,12 @@ public class PostProcessor {
     /**
      * FIX: Creates a post processor with fixed game resolution.
      */
-    public PostProcessor(WindowConfig config) {
+    public PostProcessor(GameConfig config) {
         if (config.getGameWidth() <= 0 || config.getGameHeight() <= 0) {
             throw new IllegalArgumentException("Game resolution must be positive: " +
                     config.getGameWidth() + "x" + config.getGameHeight());
         }
 
-        // FIX: Use GAME resolution, not window size
         this.gameWidth = config.getGameWidth();
         this.gameHeight = config.getGameHeight();
 
@@ -345,19 +343,5 @@ public class PostProcessor {
         }
 
         System.out.println("PostProcessor destroyed");
-    }
-
-    /**
-     * Gets the fixed game width.
-     */
-    public int getGameWidth() {
-        return gameWidth;
-    }
-
-    /**
-     * Gets the fixed game height.
-     */
-    public int getGameHeight() {
-        return gameHeight;
     }
 }

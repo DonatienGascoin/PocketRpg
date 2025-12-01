@@ -1,8 +1,8 @@
 package com.pocket.rpg.config;
 
+import com.pocket.rpg.input.AxisConfig;
 import com.pocket.rpg.input.InputAction;
 import com.pocket.rpg.input.InputAxis;
-import com.pocket.rpg.input.AxisConfig;
 import com.pocket.rpg.input.KeyCode;
 
 import java.util.HashMap;
@@ -57,5 +57,9 @@ public class InputConfig {
      */
     public boolean isBindingUsed(int binding) {
         return actionBindings.containsValue(binding);
+    }
+
+    public AxisConfig getAxisConfig(InputAxis axis) {
+        return axisConfigs.get(axis.name());
     }
 }

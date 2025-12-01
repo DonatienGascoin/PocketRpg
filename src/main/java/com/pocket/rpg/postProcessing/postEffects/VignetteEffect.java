@@ -1,6 +1,5 @@
 package com.pocket.rpg.postProcessing.postEffects;
 
-import com.pocket.rpg.core.AbstractWindow;
 import com.pocket.rpg.postProcessing.PostEffect;
 import com.pocket.rpg.rendering.Shader;
 
@@ -77,6 +76,8 @@ public class VignetteEffect implements PostEffect {
 
     @Override
     public void destroy() {
-        vignetteShader.delete();
+        if (vignetteShader != null) {
+            vignetteShader.delete();
+        }
     }
 }

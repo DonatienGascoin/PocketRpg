@@ -1,22 +1,27 @@
 package com.pocket.rpg.glfw;
 
-import com.pocket.rpg.config.WindowConfig;
+import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.core.AbstractWindow;
+import com.pocket.rpg.input.InputBackend;
 import com.pocket.rpg.input.callbacks.DefaultInputCallback;
 import com.pocket.rpg.utils.LogUtils;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.glfw.GLFWVidMode;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL33;
+import org.lwjgl.system.MemoryStack;
+
+import java.nio.IntBuffer;
 
 import static org.lwjgl.glfw.Callbacks.glfwFreeCallbacks;
 import static org.lwjgl.glfw.GLFW.*;
+import static org.lwjgl.system.MemoryStack.stackPush;
 import static org.lwjgl.system.MemoryUtil.NULL;
 
 public class GLFWWindow extends AbstractWindow {
 
     private long windowHandle;
-    GLFWInputBackend inputBackend;
+    InputBackend glfwInputBackend;
 
     private final DefaultInputCallback callback;
     private int screenWidth, screenHeight;
@@ -24,10 +29,10 @@ public class GLFWWindow extends AbstractWindow {
     private boolean isFocused = true;
 
 
-    public GLFWWindow(WindowConfig config, DefaultInputCallback callback) {
+    public GLFWWindow(GameConfig config, InputBackend inputBackend, DefaultInputCallback callback) {
         super(config);
         this.callback = callback;
-        this.inputBackend = new GLFWInputBackend();
+        this.glfwInputBackend = inputBackend;
     }
 
     @Override
@@ -60,9 +65,32 @@ public class GLFWWindow extends AbstractWindow {
 
         glfwSwapInterval(config.isVsync() ? 1 : 0); // Enable v-sync
 
+        centerWindow();
+
         glfwShowWindow(windowHandle);
 
         System.out.println("GLFW window initialized: " + screenWidth + "x" + screenHeight);
+    }
+
+    private void centerWindow() {
+        // Get the thread stack and push a new frame
+        try ( MemoryStack stack = stackPush() ) {
+            IntBuffer pWidth = stack.mallocInt(1); // int*
+            IntBuffer pHeight = stack.mallocInt(1); // int*
+
+            // Get the window size passed to glfwCreateWindow
+            glfwGetWindowSize(windowHandle, pWidth, pHeight);
+
+            // Get the resolution of the primary monitor
+            GLFWVidMode vidmode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+
+            // Center the window
+            glfwSetWindowPos(
+                    windowHandle,
+                    (vidmode.width() - pWidth.get(0)) / 2,
+                    (vidmode.height() - pHeight.get(0)) / 2
+            );
+        } // the stack frame is popped automatically
     }
 
     @Override
@@ -141,15 +169,15 @@ public class GLFWWindow extends AbstractWindow {
         glfwSetCursorPosCallback(windowHandle, (w, x, y) -> callback.onMouseMove(x, y));
 
         glfwSetMouseButtonCallback(windowHandle, (w, b, a, m) -> callback.onMouseButton(
-                inputBackend.getKeyCode(b),
-                inputBackend.getMouseButtonAction(a))
+                glfwInputBackend.getKeyCode(b),
+                glfwInputBackend.getMouseButtonAction(a))
         );
 
         glfwSetScrollCallback(windowHandle, (w, x, y) -> callback.onMouseScroll(x, y));
 
         glfwSetKeyCallback(windowHandle, (w, k, s, a, m) -> callback.onKey(
-                inputBackend.getKeyCode(k),
-                inputBackend.getKeyAction(a))
+                glfwInputBackend.getKeyCode(k),
+                glfwInputBackend.getKeyAction(a))
         );
 
         // Set resize callback after we make the current context

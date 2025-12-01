@@ -1,18 +1,23 @@
 package com.pocket.rpg.rendering.renderers;
 
-import com.pocket.rpg.config.WindowConfig;
+import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.rendering.RenderPipeline;
 import com.pocket.rpg.scenes.Scene;
 import lombok.Getter;
 
+import static org.lwjgl.opengl.GL11.GL_COLOR_BUFFER_BIT;
+import static org.lwjgl.opengl.GL11.GL_DEPTH_BUFFER_BIT;
+import static org.lwjgl.opengl.GL11.glClear;
+import static org.lwjgl.opengl.GL11.glClearColor;
+
 public class OpenGLRenderer implements RenderInterface {
-    private final WindowConfig config;
+    private final RenderingConfig config;
     @Getter
     private Renderer renderer;
     @Getter
     private RenderPipeline renderPipeline;
 
-    public OpenGLRenderer(WindowConfig config) {
+    public OpenGLRenderer(RenderingConfig config) {
         this.config = config;
     }
 
@@ -44,6 +49,12 @@ public class OpenGLRenderer implements RenderInterface {
         }
 
         System.out.println("OpenGL renderer destroyed");
+    }
+
+    @Override
+    public void clear() {
+        glClearColor(1f, 0.8f, 0.8f, 1.0f); // TODO: Use config background color
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     }
 
 }

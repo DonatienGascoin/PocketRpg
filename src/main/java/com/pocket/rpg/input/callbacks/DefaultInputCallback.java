@@ -56,7 +56,7 @@ public class DefaultInputCallback implements InputCallbacks.KeyCallback,
     }
 
     // Add/remove methods for window size callbacks
-    public void addWindowSizeCallback(InputCallbacks.WindowResizeCallback callback) {
+    public void addWindowResizeCallback(InputCallbacks.WindowResizeCallback callback) {
         if (callback != null) {
             windowSizeCallbacks.add(callback);
         }

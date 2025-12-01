@@ -1,13 +1,11 @@
 package com.pocket.rpg.input;
 
+import com.pocket.rpg.config.InputConfig;
 import com.pocket.rpg.input.listeners.KeyListener;
 import com.pocket.rpg.input.listeners.MouseListener;
 import org.joml.Vector2f;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Unity-style input manager with event bus support.
@@ -23,6 +21,8 @@ public class InputManager {
 
     private static InputManager instance;
 
+    private final InputConfig inputConfig;
+
     // Listeners for state tracking
     private final KeyListener keyListener;
     private final MouseListener mouseListener;
@@ -35,7 +35,8 @@ public class InputManager {
     // Axis event threshold (how much change before firing event)
     private float axisEventThreshold = 0.01f; // TODO, Needed ? AxisConfig ?
 
-    private InputManager(KeyListener keyListener, MouseListener mouseListener) {
+    private InputManager(InputConfig config, KeyListener keyListener, MouseListener mouseListener) {
+        this.inputConfig = config;
         this.keyListener = keyListener;
         this.mouseListener = mouseListener;
     }
@@ -43,15 +44,22 @@ public class InputManager {
     /**
      * Initializes the input manager with a backend.
      */
-    public static void initialize(KeyListener keyListener, MouseListener mouseListener) {
+    public static void initialize(InputConfig config, KeyListener keyListener, MouseListener mouseListener) {
         if (instance != null) {
             System.err.println("WARNING: InputManager already initialized");
             return;
         }
 
-        instance = new InputManager(keyListener, mouseListener);
-        instance.registerDefaultAxes();
+        instance = new InputManager(config, keyListener, mouseListener);
+        instance.loadAxesFromConfig();
         System.out.println("InputManager initialized");
+    }
+
+    private void loadAxesFromConfig() {
+        // Load axes from InputConfig instead of hardcoding
+        for (InputAxis axis : InputAxis.values()) {
+            registerAxis(axis.name(), inputConfig.getAxisConfig(axis));
+        }
     }
 
     /**
@@ -62,22 +70,6 @@ public class InputManager {
             throw new IllegalStateException("InputManager not initialized. Call InputManager.initialize() first.");
         }
         return instance;
-    }
-
-    /**
-     * Registers default axes (Horizontal, Vertical, Mouse X, Mouse Y).
-     */
-    private void registerDefaultAxes() {
-        registerAxis("Horizontal", new AxisConfig(KeyCode.D, KeyCode.A)
-                .withAltKeys(KeyCode.RIGHT, KeyCode.LEFT));
-
-        registerAxis("Vertical", new AxisConfig(KeyCode.W, KeyCode.S)
-                .withAltKeys(KeyCode.UP, KeyCode.DOWN));
-
-        registerAxis("Mouse X", new AxisConfig(null, null));
-        registerAxis("Mouse Y", new AxisConfig(null, null));
-
-        System.out.println("Registered default axes: Horizontal, Vertical, Mouse X, Mouse Y");
     }
 
     // ========================================
@@ -185,6 +177,63 @@ public class InputManager {
             return target;
         }
         return current + Math.signum(target - current) * maxDelta;
+    }
+
+    // ========================================
+    // Action input API
+    // ========================================
+
+    /**
+     * Check if any key bound to this action is currently held.
+     */
+    public static boolean isActionHeld(InputAction action) {
+        List<KeyCode> bindings = get().inputConfig.getBindingForAction(action);
+        for (KeyCode key : bindings) {
+            if (getKey(key)) {
+                return true;  // Any binding held = action held
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Check if any key bound to this action was pressed this frame.
+     */
+    public static boolean isActionPressed(InputAction action) {
+        List<KeyCode> bindings = get().inputConfig.getBindingForAction(action);
+        for (KeyCode key : bindings) {
+            if (getKeyDown(key)) {
+                return true;  // Any binding pressed = action pressed
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Check if any key bound to this action was released this frame.
+     */
+    public static boolean isActionReleased(InputAction action) {
+        List<KeyCode> bindings = get().inputConfig.getBindingForAction(action);
+        for (KeyCode key : bindings) {
+            if (getKeyUp(key)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Get axis value using enum.
+     */
+    public static float getAxis(InputAxis axis) {
+        return getAxis(axis.name());
+    }
+
+    /**
+     * Get raw axis value using enum.
+     */
+    public static float getAxisRaw(InputAxis axis) {
+        return getAxisRaw(axis.name());
     }
 
     // ========================================

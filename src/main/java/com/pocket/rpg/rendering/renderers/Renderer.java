@@ -2,10 +2,10 @@ package com.pocket.rpg.rendering.renderers;
 
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.rendering.Shader;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.Texture;
-import com.pocket.rpg.config.WindowConfig;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
@@ -21,10 +21,10 @@ import static org.lwjgl.opengl.GL33.*;
  */
 public class Renderer {
 
-    protected WindowConfig config;
+    protected RenderingConfig config;
     // FIX: Game resolution (fixed, never changes)
-    private int gameWidth = 640;
-    private int gameHeight = 480;
+//    private int gameWidth = 640;
+//    private int gameHeight = 480;
 
     private Shader shader;
     private int quadVAO;
@@ -45,8 +45,8 @@ public class Renderer {
                     gameWidth + "x" + gameHeight);
         }
 
-        this.gameWidth = gameWidth;
-        this.gameHeight = gameHeight;
+//        this.gameWidth = gameWidth;
+//        this.gameHeight = gameHeight;
 
         System.out.println("Renderer initialized with game resolution: " + gameWidth + "x" + gameHeight);
 
@@ -77,8 +77,8 @@ public class Renderer {
             return;
         }
 
-        this.gameWidth = width;
-        this.gameHeight = height;
+//        this.gameWidth = width;
+//        this.gameHeight = height;
         projectionMatrix.identity().ortho(0, width, height, 0, -1, 1);
     }
 
@@ -251,19 +251,5 @@ public class Renderer {
         }
 
         System.out.println("Renderer destroyed and resources freed");
-    }
-
-    /**
-     * Gets the game width (fixed internal resolution).
-     */
-    public int getGameWidth() {
-        return gameWidth;
-    }
-
-    /**
-     * Gets the game height (fixed internal resolution).
-     */
-    public int getGameHeight() {
-        return gameHeight;
     }
 }

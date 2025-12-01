@@ -2,8 +2,8 @@ package com.pocket.rpg.rendering;
 
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.rendering.renderers.VertexLayout;
-import com.pocket.rpg.config.WindowConfig;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector3f;
@@ -101,7 +101,7 @@ public class SpriteBatch {
         }
     }
 
-    public SpriteBatch(WindowConfig config) {
+    public SpriteBatch(RenderingConfig config) {
         this.maxBatchSize = config.getMaxBatchSize();
         this.sortingStrategy = config.getSortingStrategy();
         dynamicItems = new ArrayList<>(maxBatchSize);

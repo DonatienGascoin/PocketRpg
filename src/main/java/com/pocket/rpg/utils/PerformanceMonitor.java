@@ -1,5 +1,6 @@
 package com.pocket.rpg.utils;
 
+import com.pocket.rpg.time.Time;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -31,7 +32,7 @@ public class PerformanceMonitor {
     public PerformanceMonitor(double reportInterval) {
         this.reportInterval = reportInterval;
         this.enabled = true;
-        this.lastReportTime = Time.getTime();
+        this.lastReportTime = Time.time();
     }
 
     /**
@@ -43,7 +44,7 @@ public class PerformanceMonitor {
             return;
         }
 
-        double currentTime = Time.getTime();
+        double currentTime = Time.time();
         if (currentTime - lastReportTime >= reportInterval) {
             printStats();
             lastReportTime = currentTime;
@@ -75,6 +76,6 @@ public class PerformanceMonitor {
      * Reset the report timer. Useful if you want to force a report soon.
      */
     public void resetTimer() {
-        this.lastReportTime = Time.getTime();
+        this.lastReportTime = Time.time();
     }
 }

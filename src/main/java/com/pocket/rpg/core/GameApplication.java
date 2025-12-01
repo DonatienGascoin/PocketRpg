@@ -12,9 +12,11 @@ import com.pocket.rpg.input.listeners.MouseListener;
 import com.pocket.rpg.postProcessing.PostProcessor;
 import com.pocket.rpg.rendering.renderers.RenderInterface;
 import com.pocket.rpg.serialization.Serializer;
+import com.pocket.rpg.time.DefaultTimeContext;
+import com.pocket.rpg.time.Time;
+import com.pocket.rpg.time.TimeContext;
 import com.pocket.rpg.utils.LogUtils;
 import com.pocket.rpg.utils.PerformanceMonitor;
-import com.pocket.rpg.utils.Time;
 
 /**
  * Main application class for the game.
@@ -26,7 +28,6 @@ public class GameApplication {
 
     // Platform systems
     private AbstractWindow window;
-    private InputBackend inputBackend;
     private GameEngine engine;
 
     private RenderInterface renderer;
@@ -49,6 +50,8 @@ public class GameApplication {
         // Load configuration
         config = EngineConfiguration.load();
         inputEventBus = new InputEventBus();
+        TimeContext timeContext = new DefaultTimeContext();
+        Time.initialize(timeContext);
 
         // Select platform
         platformFactory = selectPlatform();
@@ -102,7 +105,7 @@ public class GameApplication {
     private void createPlatformSystems() {
         System.out.println("Initializing platform systems...");
 
-        inputBackend = platformFactory.createInputBackend();
+        InputBackend inputBackend = platformFactory.createInputBackend();
 
         // Create window
         window = platformFactory.createWindow(config.getGame(), inputBackend, inputEventBus);
@@ -117,7 +120,6 @@ public class GameApplication {
         // Create post-processor
         postProcessor = platformFactory.createPostProcessor(config.getGame());
         postProcessor.init(window);
-
 
         // Create performance monitor
         performanceMonitor = new PerformanceMonitor();
@@ -147,7 +149,6 @@ public class GameApplication {
         try {
             init();
             loop();
-            destroy();
         } catch (Exception e) {
             System.err.println("Fatal error: " + e.getMessage());
             e.printStackTrace();

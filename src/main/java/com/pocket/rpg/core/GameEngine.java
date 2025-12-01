@@ -17,7 +17,6 @@ import com.pocket.rpg.scenes.SceneLifecycleListener;
 import com.pocket.rpg.scenes.SceneManager;
 import com.pocket.rpg.utils.LogUtils;
 import com.pocket.rpg.utils.PerformanceMonitor;
-import com.pocket.rpg.utils.Time;
 import lombok.Builder;
 import lombok.NonNull;
 
@@ -47,8 +46,6 @@ public class GameEngine {
      */
     public void initialize() {
         System.out.println(LogUtils.buildBox("Initializing Game Engine"));
-
-        Time.init();
 
         initAssetLoader();
 

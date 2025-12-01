@@ -1,0 +1,29 @@
+{
+  "axisConfigs": {
+    "Vertical": {
+      "positiveKey": "W",
+      "negativeKey": "S",
+      "altPositiveKey": "UP",
+      "altNegativeKey": "DOWN",
+      "sensitivity": 1.0,
+      "gravity": 3.0,
+      "deadZone": 0.001,
+      "snap": true
+    },
+    "Horizontal": {
+      "positiveKey": "D",
+      "negativeKey": "A",
+      "altPositiveKey": "RIGHT",
+      "altNegativeKey": "LEFT",
+      "sensitivity": 1.0,
+      "gravity": 3.0,
+      "deadZone": 0.001,
+      "snap": true
+    }
+  },
+  "actionBindings": {
+    "Fire": [
+      "SPACE"
+    ]
+  }
+}

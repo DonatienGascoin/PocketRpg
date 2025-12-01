@@ -8,28 +8,24 @@ package com.pocket.rpg.input;
  */
 public record AxisConfig(KeyCode positiveKey, KeyCode negativeKey, KeyCode altPositiveKey, KeyCode altNegativeKey, float sensitivity,
                          float gravity, float deadZone, boolean snap) {
+    
+
     /**
-     * Creates an axis configuration with primary keys only.
+     * Creates an axis configuration with all parameters.
      *
      * @param positiveKey Key for positive direction
      * @param negativeKey Key for negative direction
+     *                    <b>altPositiveKey</b> - No alternative key <br />
+     *                    <b>altNegativeKey</b> - No alternative key <br />
+     *                    <b>sensitivity</b>    - Default: 1.0 <br />
+     *                    <b>gravity</b>        - Default: 3.0 <br />
+     *                    <b>deadZone</b>       - Default: 0.001 <br />
+     *                    <b>snap</b>           - Default: true
      */
     public AxisConfig(KeyCode positiveKey, KeyCode negativeKey) {
         this(positiveKey, negativeKey, null, null, 1.0f, 3.0f, 0.001f, true);
     }
 
-    /**
-     * Creates an axis configuration with all parameters.
-     *
-     * @param positiveKey    Key for positive direction
-     * @param negativeKey    Key for negative direction
-     * @param altPositiveKey Alternative key for positive direction
-     * @param altNegativeKey Alternative key for negative direction
-     * @param sensitivity    Speed of value increase (default: 1.0)
-     * @param gravity        Speed of value decrease (default: 3.0)
-     * @param deadZone       Minimum threshold (default: 0.001)
-     * @param snap           Instant direction reversal (default: true)
-     */
     public AxisConfig {
     }
 

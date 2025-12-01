@@ -21,10 +21,12 @@ public class Input {
     /**
      * Initialize the input system with a context.
      * Called once during application startup.
+     * <p>
+     * Allow to swap context for testing or different modes.
      */
     public static void initialize(InputContext inputContext) {
-        if (context != null) {
-            System.err.println("WARNING: InputManager already initialized");
+        if (inputContext == null) {
+            throw new IllegalArgumentException("Input context cannot be null");
         }
         context = inputContext;
         System.out.println("InputManager initialized");

@@ -1,7 +1,6 @@
 package com.pocket.rpg.input.listeners;
 
 import com.pocket.rpg.input.KeyCode;
-import com.pocket.rpg.input.callbacks.InputCallbacks;
 import com.pocket.rpg.input.events.MouseButtonEvent;
 import lombok.Getter;
 import org.joml.Vector2f;
@@ -39,8 +38,10 @@ import java.util.Set;
  * // Call at end of frame
  * mouseListener.endFrame();
  * }</pre>
+ *
+ * Single threaded usage assumed.
  */
-public class MouseListener implements InputCallbacks.MouseMoveCallback, InputCallbacks.MouseButtonCallback, InputCallbacks.MouseScrollCallback {
+public class MouseListener {
     // Mouse button states - using KeyCode for buttons
     private final Set<KeyCode> buttonsHeld = EnumSet.noneOf(KeyCode.class);
     private final Set<KeyCode> buttonsPressed = EnumSet.noneOf(KeyCode.class);
@@ -63,7 +64,6 @@ public class MouseListener implements InputCallbacks.MouseMoveCallback, InputCal
      * @param action the action performed on the mouse button.
      *               See {@link MouseButtonEvent.Action} for possible actions.
      */
-    @Override
     public void onMouseButton(KeyCode button, MouseButtonEvent.Action action) {
         switch (action) {
             case PRESS -> onMouseButtonPressed(button);
@@ -76,7 +76,6 @@ public class MouseListener implements InputCallbacks.MouseMoveCallback, InputCal
      * @param x the new cursor x-coordinate, relative to the left edge of the content area
      * @param y the new cursor y-coordinate, relative to the top edge of the content area
      */
-    @Override
     public void onMouseMove(double x, double y) {
         this.lastX = this.xPos;
         this.lastY = this.yPos;
@@ -92,7 +91,6 @@ public class MouseListener implements InputCallbacks.MouseMoveCallback, InputCal
      * @param xOffset horizontal scroll offset
      * @param yOffset vertical scroll offset (positive = scroll up)
      */
-    @Override
     public void onMouseScroll(double xOffset, double yOffset) {
         this.scrollX = xOffset;
         this.scrollY = yOffset;

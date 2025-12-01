@@ -1,12 +1,7 @@
 package com.pocket.rpg.core;
 
-import com.pocket.rpg.config.GameConfig;
-import com.pocket.rpg.config.InputConfig;
-import com.pocket.rpg.config.RenderingConfig;
-import com.pocket.rpg.input.InputManager;
-import com.pocket.rpg.input.callbacks.DefaultInputCallback;
-import com.pocket.rpg.input.listeners.KeyListener;
-import com.pocket.rpg.input.listeners.MouseListener;
+import com.pocket.rpg.config.EngineConfiguration;
+import com.pocket.rpg.input.events.InputEventBus;
 import com.pocket.rpg.postProcessing.PostProcessor;
 import com.pocket.rpg.rendering.CameraManager;
 import com.pocket.rpg.rendering.renderers.RenderInterface;
@@ -30,11 +25,7 @@ import lombok.NonNull;
 public class GameEngine {
     // Configuration
     @NonNull
-    private final InputConfig inputConfig;
-    @NonNull
-    private final GameConfig gameConfig;
-    @NonNull
-    private final RenderingConfig renderingConfig;
+    private final EngineConfiguration config;
 
     // Platform-independent systems (owned by engine)
     private SceneManager sceneManager;
@@ -47,7 +38,7 @@ public class GameEngine {
     @NonNull
     private final RenderInterface renderer;
     @NonNull
-    private final DefaultInputCallback inputCallbacks;
+    private final InputEventBus inputEventBus;
     @NonNull
     private final PostProcessor postProcessor;
 
@@ -62,19 +53,13 @@ public class GameEngine {
         initAssetLoader();
 
         ConsoleStatisticsReporter reporter = null; // TODO: Merge with performance monitor?
-        if (renderingConfig.isEnableStatistics()) {
-            reporter = new ConsoleStatisticsReporter(renderingConfig.getStatisticsInterval());
+        if (config.getRendering().isEnableStatistics()) {
+            reporter = new ConsoleStatisticsReporter(config.getRendering().getStatisticsInterval());
         }
 
-
-        initInputSystem();
         initCameraSystem();
 
         // audio.initialize();
-        renderer.init(gameConfig.getGameWidth(), gameConfig.getGameHeight());
-        postProcessor.init(window);
-
-        initMonitoring();
 
         // Initialize scene manager
         initSceneManager();
@@ -84,55 +69,10 @@ public class GameEngine {
 
 
     /**
-     * Main application loop.
-     * Runs until the window is closed.
-     */
-    public void loop() {
-        System.out.println("Starting main loop...");
-
-        while (!window.shouldClose()) {
-            // Handle minimized window
-            if (handleMinimizedWindow()) {
-                continue;
-            }
-
-            // Begin post-processing capture
-            postProcessor.beginCapture();
-
-            // Clear screen
-            renderer.clear();
-
-            // Update and render game
-            try {
-                update(Time.deltaTime());
-                render();
-            } catch (Exception e) {
-                System.err.println("ERROR in game loop: " + e.getMessage());
-                e.printStackTrace();
-            }
-
-            // Apply post-processing
-            postProcessor.endCaptureAndApplyEffects();
-
-            // Swap buffers and poll events
-            window.swapBuffers();
-            window.pollEvents();
-
-            InputManager.endFrame();
-
-            // Update time and performance, last things in loop
-            Time.update();
-            performanceMonitor.update();
-        }
-
-        System.out.println("Exited main loop");
-    }
-
-    /**
      * Update game state.
      * Called every frame by the application.
      */
-    private void update(float deltaTime) {
+    public void update(float deltaTime) {
         AssetManager.getInstance().update(deltaTime);
 //      audio.update(deltaTime);
         // Update scene
@@ -143,7 +83,7 @@ public class GameEngine {
      * Render current scene.
      * Called every frame by the application.
      */
-    private void render() {
+    public void render() {
         if (sceneManager.getCurrentScene() != null) {
             renderer.render(sceneManager.getCurrentScene());
         }
@@ -159,39 +99,28 @@ public class GameEngine {
             sceneManager.destroy();
         }
 
-        renderer.destroy();
-        postProcessor.destroy();
-        window.destroy();
-
-        InputManager.destroy();
-
         CameraManager.destroy();
         AssetManager.destroy();
 
         System.out.println("Game engine destroyed");
     }
 
-    private boolean handleMinimizedWindow() {
-        if (!window.isVisible()) {
-            window.pollEvents();
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return true;
-            }
-            Time.update();
-            return true;
-        }
-        return false;
-    }
-
     private void initCameraSystem() {
         // 3. Initialize camera system
         System.out.println("Initializing camera system...");
-        cameraManager = CameraManager.initialize(gameConfig.getGameWidth(), gameConfig.getGameHeight());
+        cameraManager = CameraManager.initialize(config.getGame().getGameWidth(), config.getGame().getGameHeight());
         CameraManager.setViewportSize(window.getScreenWidth(), window.getScreenHeight());
-        inputCallbacks.addWindowResizeCallback(cameraManager);
+        inputEventBus.addResizeListener(this::onWindowResize);
+    }
+
+    /**
+     * Handle window resize events.
+     */
+    private void onWindowResize(int width, int height) {
+        // Handle window resize
+        if (cameraManager != null) {
+            cameraManager.setViewportSize(width, height);
+        }
     }
 
     private void initSceneManager() {
@@ -215,22 +144,6 @@ public class GameEngine {
 
         // Load first scene
         sceneManager.loadScene("ExampleScene");
-    }
-
-    private void initInputSystem() {
-        KeyListener keyListener = new KeyListener();
-        inputCallbacks.addKeyCallback(keyListener);
-        MouseListener mouseListener = new MouseListener();
-        inputCallbacks.addMouseButtonCallback(mouseListener);
-        inputCallbacks.addMousePosCallback(mouseListener);
-        inputCallbacks.addMouseScrollCallback(mouseListener);
-
-        InputManager.initialize(inputConfig, keyListener, mouseListener);
-    }
-
-    private void initMonitoring() {
-        performanceMonitor = new PerformanceMonitor();
-        performanceMonitor.setEnabled(renderingConfig.isEnableStatistics());
     }
 
     private static void initAssetLoader() {

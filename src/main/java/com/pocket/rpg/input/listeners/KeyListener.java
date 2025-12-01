@@ -1,7 +1,6 @@
 package com.pocket.rpg.input.listeners;
 
 import com.pocket.rpg.input.KeyCode;
-import com.pocket.rpg.input.callbacks.InputCallbacks;
 import com.pocket.rpg.input.events.KeyEvent;
 
 import java.util.EnumSet;
@@ -33,8 +32,10 @@ import java.util.Set;
  * // Call at end of frame
  * keyListener.endFrame();
  * }</pre>
+ * <p>
+ * Single threaded usage assumed.
  */
-public class KeyListener implements InputCallbacks.KeyCallback {
+public class KeyListener {
 
     // Use EnumSet for efficient storage and lookup
     private final Set<KeyCode> keysHeld = EnumSet.noneOf(KeyCode.class);
@@ -47,7 +48,7 @@ public class KeyListener implements InputCallbacks.KeyCallback {
      * @param key    the key code of the key event
      * @param action the action (PRESS or RELEASE)
      */
-    @Override
+
     public void onKey(KeyCode key, KeyEvent.Action action) {
         switch (action) {
             case PRESS -> onKeyPressed(key);

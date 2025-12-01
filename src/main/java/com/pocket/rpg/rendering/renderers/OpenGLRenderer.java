@@ -4,6 +4,7 @@ import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.rendering.RenderPipeline;
 import com.pocket.rpg.scenes.Scene;
 import lombok.Getter;
+import org.joml.Vector4f;
 
 import static org.lwjgl.opengl.GL11.GL_COLOR_BUFFER_BIT;
 import static org.lwjgl.opengl.GL11.GL_DEPTH_BUFFER_BIT;
@@ -17,8 +18,11 @@ public class OpenGLRenderer implements RenderInterface {
     @Getter
     private RenderPipeline renderPipeline;
 
+    private final Vector4f clearColor;
+
     public OpenGLRenderer(RenderingConfig config) {
         this.config = config;
+        this.clearColor = config.getClearColor();
     }
 
     @Override
@@ -53,7 +57,7 @@ public class OpenGLRenderer implements RenderInterface {
 
     @Override
     public void clear() {
-        glClearColor(1f, 0.8f, 0.8f, 1.0f); // TODO: Use config background color
+        glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     }
 

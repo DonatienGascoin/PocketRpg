@@ -13,6 +13,15 @@ public class ConfigLoader {
 
     private static final String CONFIG_DIR = "gameData/config";
 
+    public static <T> void saveConfigToFile(T config, ConfigType configType) {
+        configFiles.stream().filter(cf -> cf.type == configType)
+                .findFirst()
+                .ifPresentOrElse(cf -> saveConfigFile(cf.filePath, config),
+                        () -> {
+                            throw new IllegalArgumentException("Unknown config class: " + configType);
+                        });
+    }
+
     public enum ConfigType {
         GAME,
         INPUT,
@@ -28,7 +37,7 @@ public class ConfigLoader {
     /**
      * Load configuration of specified type.
      */
-    public static <T> T loadConfig(ConfigType type) {
+    public static <T> T getConfig(ConfigType type) {
         for (ConfigFile configFile : configFiles) {
             if (configFile.type == type) {
                 return (T) configFile.configInstance;
@@ -109,6 +118,7 @@ public class ConfigLoader {
 
     /**
      * Configuration file representation.
+     *
      * @param <T> Type of the configuration
      */
     private static class ConfigFile<T> {

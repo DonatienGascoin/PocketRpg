@@ -1,24 +1,29 @@
 package com.pocket.rpg.core;
 
-import com.pocket.rpg.config.ConfigLoader;
-import com.pocket.rpg.config.GameConfig;
-import com.pocket.rpg.config.InputConfig;
-import com.pocket.rpg.config.RenderingConfig;
-import com.pocket.rpg.glfw.GLFWInputBackend;
-import com.pocket.rpg.glfw.GLFWWindow;
+import com.pocket.rpg.config.EngineConfiguration;
+import com.pocket.rpg.glfw.GLFWPlatformFactory;
+import com.pocket.rpg.input.DefaultInputContext;
+import com.pocket.rpg.input.Input;
 import com.pocket.rpg.input.InputBackend;
-import com.pocket.rpg.input.callbacks.DefaultInputCallback;
+import com.pocket.rpg.input.InputContext;
+import com.pocket.rpg.input.events.InputEventBus;
+import com.pocket.rpg.input.listeners.KeyListener;
+import com.pocket.rpg.input.listeners.MouseListener;
 import com.pocket.rpg.postProcessing.PostProcessor;
-import com.pocket.rpg.rendering.renderers.OpenGLRenderer;
 import com.pocket.rpg.rendering.renderers.RenderInterface;
 import com.pocket.rpg.serialization.Serializer;
 import com.pocket.rpg.utils.LogUtils;
+import com.pocket.rpg.utils.PerformanceMonitor;
+import com.pocket.rpg.utils.Time;
 
 /**
  * Main application class for the game.
  * Initializes and runs all core systems.
  */
 public class GameApplication {
+
+    private PlatformFactory platformFactory;
+
     // Platform systems
     private AbstractWindow window;
     private InputBackend inputBackend;
@@ -28,12 +33,11 @@ public class GameApplication {
     //    private AudioInterface audio;
     private PostProcessor postProcessor;
 
-    private DefaultInputCallback callbacks;
+    private InputEventBus inputEventBus;
+    private PerformanceMonitor performanceMonitor;
 
     // Configuration
-    private GameConfig gameConfig;
-    private InputConfig inputConfig;
-    private RenderingConfig renderingConfig;
+    private EngineConfiguration config;
 
     /**
      * Initialize all systems.
@@ -43,49 +47,51 @@ public class GameApplication {
         System.out.println(LogUtils.buildBox("Application starting"));
 
         // Load configuration
-        loadConfigurationFiles();
+        config = EngineConfiguration.load();
+        inputEventBus = new InputEventBus();
 
-        createSystemDependantSystems();
+        // Select platform
+        platformFactory = selectPlatform();
+        System.out.println("Using platform: " + platformFactory.getPlatformName());
 
-        callbacks = new DefaultInputCallback();
+        // Create platform systems
+        createPlatformSystems();
 
-        // Create window
-        window = new GLFWWindow(gameConfig, inputBackend, callbacks);
-        window.init();
-
+        setupInputSystem();
 
         // Create game engine
-        initGameEngine();
+        createGameEngine();
 
         System.out.println("Application initialization complete");
     }
 
-    private void loadConfigurationFiles() {
-        ConfigLoader.loadAllConfigs();
+    private PlatformFactory selectPlatform() {
+        // Could read from config or environment variable
+        String platform = System.getProperty("game.platform", "glfw");
 
-        gameConfig = ConfigLoader.loadConfig(ConfigLoader.ConfigType.GAME);
-        inputConfig = ConfigLoader.loadConfig(ConfigLoader.ConfigType.INPUT);
-        renderingConfig = ConfigLoader.loadConfig(ConfigLoader.ConfigType.RENDERING);
-        ConfigLoader.saveAllConfigs();
+        return switch (platform.toLowerCase()) {
+            case "glfw" -> new GLFWPlatformFactory();
+            default -> {
+                System.out.println("Unknown platform: " + platform + ", using GLFW");
+                yield new GLFWPlatformFactory();
+            }
+        };
     }
 
-    /**
-     * Initialize the main game engine.
-     */
-    private void initGameEngine() {
-        System.out.println("Creating game engine...");
-        engine = GameEngine.builder()
-                .inputConfig(inputConfig)
-                .gameConfig(gameConfig)
-                .renderingConfig(renderingConfig)
-                .window(window)
-                .renderer(renderer)
-                .inputCallbacks(callbacks)
-                .inputConfig(inputConfig)
-                .postProcessor(postProcessor)
-                .build();
+    private void setupInputSystem() {
+        System.out.println("Setting up input system...");
 
-        engine.initialize();
+        KeyListener keyListener = new KeyListener();
+        MouseListener mouseListener = new MouseListener();
+
+        inputEventBus.addKeyListener(keyListener);
+        inputEventBus.addMouseListener(mouseListener);
+
+        // Create input context
+        InputContext realContext = new DefaultInputContext(config.getInput(), keyListener, mouseListener);
+
+        // Initialize InputManager
+        Input.initialize(realContext);
     }
 
     /**
@@ -93,12 +99,45 @@ public class GameApplication {
      * Ex. GLFW for window and input, OpenGL for rendering.
      * Initialization during GameEngine init.
      */
-    private void createSystemDependantSystems() {
+    private void createPlatformSystems() {
         System.out.println("Initializing platform systems...");
-        inputBackend = new GLFWInputBackend();
-        renderer = new OpenGLRenderer(renderingConfig);
+
+        inputBackend = platformFactory.createInputBackend();
+
+        // Create window
+        window = platformFactory.createWindow(config.getGame(), inputBackend, inputEventBus);
+        window.init();
+
+        // Create renderer
+        renderer = platformFactory.createRenderer(config.getRendering());
+        renderer.init(config.getGame().getGameWidth(), config.getGame().getGameHeight());
+
         //        audio = new NoOpAudioManager();
-        postProcessor = new PostProcessor(gameConfig);
+
+        // Create post-processor
+        postProcessor = platformFactory.createPostProcessor(config.getGame());
+        postProcessor.init(window);
+
+
+        // Create performance monitor
+        performanceMonitor = new PerformanceMonitor();
+        performanceMonitor.setEnabled(config.getRendering().isEnableStatistics());
+    }
+
+    /**
+     * Initialize the main game engine.
+     */
+    private void createGameEngine() {
+        System.out.println("Creating game engine...");
+        engine = GameEngine.builder()
+                .config(config)
+                .window(window)
+                .renderer(renderer)
+                .inputEventBus(inputEventBus)
+                .postProcessor(postProcessor)
+                .build();
+
+        engine.initialize();
     }
 
     /**
@@ -107,7 +146,7 @@ public class GameApplication {
     public void run() {
         try {
             init();
-            engine.loop();
+            loop();
             destroy();
         } catch (Exception e) {
             System.err.println("Fatal error: " + e.getMessage());
@@ -117,16 +156,95 @@ public class GameApplication {
         }
     }
 
+
+    /**
+     * Main application loop.
+     * Runs until the window is closed.
+     */
+    public void loop() {
+        System.out.println("Starting main loop...");
+
+        while (!window.shouldClose()) {
+            processFrame();
+        }
+
+        System.out.println("Exited main loop");
+    }
+
+    private void processFrame() {
+        // Handle minimized window
+        if (handleMinimizedWindow()) {
+            return;
+        }
+
+        // Begin post-processing capture
+        postProcessor.beginCapture();
+
+        // Clear screen
+        renderer.clear();
+
+        // Update and render game
+        try {
+            engine.update(Time.deltaTime());
+            engine.render();
+        } catch (Exception e) {
+            System.err.println("ERROR in game loop: " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        // Apply post-processing
+        postProcessor.endCaptureAndApplyEffects();
+
+        // Swap buffers and poll events
+        window.swapBuffers();
+        window.pollEvents();
+
+        Input.endFrame();
+
+        // Update time and performance, last things in loop
+        Time.update();
+        performanceMonitor.update();
+    }
+
     /**
      * Clean up all systems.
      */
     private void destroy() {
         System.out.println("Destroying application...");
 
+        // Destroy in reverse order of creation
         if (engine != null) {
             engine.destroy();
         }
 
+        Input.destroy();
+
+        // Destroy platform systems
+        if (postProcessor != null) {
+            postProcessor.destroy();
+        }
+        if (renderer != null) {
+            renderer.destroy();
+        }
+        if (window != null) {
+            window.destroy();
+        }
+
         System.out.println("Application destroyed");
+    }
+
+    private boolean handleMinimizedWindow() {
+        if (!window.isVisible()) {
+            window.pollEvents();
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return true;
+            }
+            Time.update();
+            return true;
+        }
+        return false;
     }
 }

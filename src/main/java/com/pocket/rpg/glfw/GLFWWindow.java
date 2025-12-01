@@ -3,7 +3,7 @@ package com.pocket.rpg.glfw;
 import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.core.AbstractWindow;
 import com.pocket.rpg.input.InputBackend;
-import com.pocket.rpg.input.callbacks.DefaultInputCallback;
+import com.pocket.rpg.input.events.InputEventBus;
 import com.pocket.rpg.utils.LogUtils;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.glfw.GLFWVidMode;
@@ -23,15 +23,15 @@ public class GLFWWindow extends AbstractWindow {
     private long windowHandle;
     InputBackend glfwInputBackend;
 
-    private final DefaultInputCallback callback;
+    private final InputEventBus eventBus;
     private int screenWidth, screenHeight;
     private boolean isMinimized = false;
     private boolean isFocused = true;
 
 
-    public GLFWWindow(GameConfig config, InputBackend inputBackend, DefaultInputCallback callback) {
+    public GLFWWindow(GameConfig config, InputBackend inputBackend, InputEventBus eventBus) {
         super(config);
-        this.callback = callback;
+        this.eventBus = eventBus;
         this.glfwInputBackend = inputBackend;
     }
 
@@ -74,7 +74,7 @@ public class GLFWWindow extends AbstractWindow {
 
     private void centerWindow() {
         // Get the thread stack and push a new frame
-        try ( MemoryStack stack = stackPush() ) {
+        try (MemoryStack stack = stackPush()) {
             IntBuffer pWidth = stack.mallocInt(1); // int*
             IntBuffer pHeight = stack.mallocInt(1); // int*
 
@@ -166,16 +166,16 @@ public class GLFWWindow extends AbstractWindow {
     }
 
     private void setCallbacks() {
-        glfwSetCursorPosCallback(windowHandle, (w, x, y) -> callback.onMouseMove(x, y));
+        glfwSetCursorPosCallback(windowHandle, (w, x, y) -> eventBus.dispatchMouseMoveEvent(x, y));
 
-        glfwSetMouseButtonCallback(windowHandle, (w, b, a, m) -> callback.onMouseButton(
+        glfwSetMouseButtonCallback(windowHandle, (w, b, a, m) -> eventBus.dispatchMouseButtonEvent(
                 glfwInputBackend.getKeyCode(b),
                 glfwInputBackend.getMouseButtonAction(a))
         );
 
-        glfwSetScrollCallback(windowHandle, (w, x, y) -> callback.onMouseScroll(x, y));
+        glfwSetScrollCallback(windowHandle, (w, x, y) -> eventBus.dispatchMouseScrollEvent(x, y));
 
-        glfwSetKeyCallback(windowHandle, (w, k, s, a, m) -> callback.onKey(
+        glfwSetKeyCallback(windowHandle, (w, k, s, a, m) -> eventBus.dispatchKeyEvent(
                 glfwInputBackend.getKeyCode(k),
                 glfwInputBackend.getKeyAction(a))
         );
@@ -222,7 +222,7 @@ public class GLFWWindow extends AbstractWindow {
         screenHeight = newHeight;
 
         System.out.println("Window resized: " + newWidth + "x" + newHeight);
-        callback.onWindowResize(newWidth, newHeight);
+        eventBus.dispatchWindowResizeEvent(newWidth, newHeight);
     }
 
     private void iconifyCallback(long window, boolean iconified) {

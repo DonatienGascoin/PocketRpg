@@ -1,9 +1,11 @@
 package com.pocket.rpg.core;
 
+import com.pocket.rpg.rendering.CameraSystem;
 import lombok.Getter;
+import lombok.Setter;
 import org.joml.Matrix4f;
+import org.joml.Vector2f;
 import org.joml.Vector3f;
-import org.joml.Vector4f;
 
 /**
  * Camera for 2D orthographic rendering.
@@ -12,8 +14,15 @@ import org.joml.Vector4f;
  */
 public class Camera {
 
-    // Clear color (RGBA, 0-1 range)
-    private Vector4f clearColor = new Vector4f(0.1f, 0.1f, 0.1f, 1.0f);
+    // Static reference to main camera (Unity's Camera.main equivalent)
+    @Getter
+    @Setter
+    private static Camera mainCamera;
+
+    // Reference to camera system for coordinate conversions
+    @Getter
+    @Setter
+    private CameraSystem cameraSystem;
 
     // Camera transform (position, rotation, zoom)
     private Vector3f position = new Vector3f(0, 0, 0);
@@ -49,8 +58,9 @@ public class Camera {
             lastPosition.set(position);
             lastRotation = rotation;
             lastZoom = zoom;
-            viewDirty = true;
         }
+
+        viewDirty = false;
     }
 
     /**
@@ -90,6 +100,116 @@ public class Camera {
      */
     public void markViewDirty() {
         this.viewDirty = true;
+    }
+
+    // ======================================================================
+    // COORDINATE CONVERSION - Unity-style API
+    // ======================================================================
+
+    /**
+     * Convert screen (viewport) coordinates to world coordinates.
+     * Unity equivalent: Camera.ScreenToWorldPoint()
+     * <p>
+     * Example usage:
+     * <pre>
+     * Vector2f mousePos = Input.getMousePosition();
+     * Vector3f worldPos = camera.screenToWorldPoint(mousePos.x, mousePos.y);
+     * </pre>
+     *
+     * @param screenX X coordinate in screen/viewport pixels
+     * @param screenY Y coordinate in screen/viewport pixels
+     * @param depth   Z-depth (typically 0 for 2D)
+     * @return Position in world space
+     */
+    public Vector3f screenToWorldPoint(float screenX, float screenY, float depth) {
+        if (cameraSystem == null) {
+            System.err.println("ERROR: CameraSystem not set on Camera. Call setCameraSystem() first.");
+            return new Vector3f(screenX, screenY, depth);
+        }
+        return cameraSystem.viewportToWorld(this, screenX, screenY, depth);
+    }
+
+    /**
+     * Convert screen (viewport) coordinates to world coordinates at Z=0.
+     * Convenience overload for 2D games.
+     *
+     * @param screenX X coordinate in screen/viewport pixels
+     * @param screenY Y coordinate in screen/viewport pixels
+     * @return Position in world space (Z=0)
+     */
+    public Vector3f screenToWorldPoint(float screenX, float screenY) {
+        return screenToWorldPoint(screenX, screenY, 0);
+    }
+
+    /**
+     * Convert screen (viewport) coordinates to world coordinates.
+     * Accepts Vector2f for convenience.
+     *
+     * @param screenPos Position in screen/viewport coordinates
+     * @return Position in world space (Z=0)
+     */
+    public Vector3f screenToWorldPoint(Vector2f screenPos) {
+        return screenToWorldPoint(screenPos.x, screenPos.y, 0);
+    }
+
+    /**
+     * Convert world coordinates to screen (viewport) coordinates.
+     * Unity equivalent: Camera.WorldToScreenPoint()
+     * <p>
+     * Example usage:
+     * <pre>
+     * Vector3f worldPos = new Vector3f(100, 200, 0);
+     * Vector2f screenPos = camera.worldToScreenPoint(worldPos);
+     * </pre>
+     *
+     * @param worldPos Position in world space
+     * @return Position in screen/viewport coordinates
+     */
+    public Vector2f worldToScreenPoint(Vector3f worldPos) {
+        if (cameraSystem == null) {
+            System.err.println("ERROR: CameraSystem not set on Camera. Call setCameraSystem() first.");
+            return new Vector2f(worldPos.x, worldPos.y);
+        }
+        return cameraSystem.worldToViewport(this, worldPos);
+    }
+
+    /**
+     * Convert world coordinates to screen coordinates.
+     * Convenience overload that takes separate coordinates.
+     *
+     * @param worldX X coordinate in world space
+     * @param worldY Y coordinate in world space
+     * @return Position in screen/viewport coordinates
+     */
+    public Vector2f worldToScreenPoint(float worldX, float worldY) {
+        return worldToScreenPoint(new Vector3f(worldX, worldY, 0));
+    }
+
+    /**
+     * Get the world-space bounds visible by this camera.
+     * Useful for culling, bounds checking, and positioning UI elements.
+     *
+     * @return Array of 4 corners: [topLeft, topRight, bottomRight, bottomLeft]
+     */
+    public Vector3f[] getWorldBounds() {
+        if (cameraSystem == null) {
+            System.err.println("ERROR: CameraSystem not set on Camera. Call setCameraSystem() first.");
+            return new Vector3f[0];
+        }
+        return cameraSystem.getWorldBounds(this);
+    }
+
+    /**
+     * Get the center of the visible world bounds.
+     *
+     * @return Center position in world space
+     */
+    public Vector3f getWorldCenter() {
+        if (cameraSystem == null) {
+            System.err.println("ERROR: CameraSystem not set on Camera. Call setCameraSystem() first.");
+            return new Vector3f(position);
+        }
+        return cameraSystem.getWorldCenter(this);
     }
 
     // ======================================================================
@@ -173,22 +293,6 @@ public class Camera {
         }
         this.zoom *= factor;
         viewDirty = true;
-    }
-
-    // ======================================================================
-    // RENDERING SETTINGS
-    // ======================================================================
-
-    public Vector4f getClearColor() {
-        return new Vector4f(clearColor);
-    }
-
-    public void setClearColor(float r, float g, float b, float a) {
-        this.clearColor.set(r, g, b, a);
-    }
-
-    public void setClearColor(Vector4f color) {
-        this.clearColor.set(color);
     }
 
     // ======================================================================

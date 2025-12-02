@@ -2,7 +2,7 @@ package com.pocket.rpg.rendering.culling;
 
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.core.Camera;
-import com.pocket.rpg.rendering.CameraManager;
+import com.pocket.rpg.rendering.CameraSystem;
 import org.joml.Vector3f;
 
 /**
@@ -16,6 +16,10 @@ public class OrthographicFrustumCuller extends FrustumCuller {
     private float worldRight;
     private float worldTop;
     private float worldBottom;
+
+    public OrthographicFrustumCuller(CameraSystem cameraSystem) {
+        super(cameraSystem);
+    }
 
     /**
      * Updates the orthographic frustum bounds from camera.
@@ -32,9 +36,9 @@ public class OrthographicFrustumCuller extends FrustumCuller {
         if (camera == null) {
             // Fallback: use game resolution as world bounds
             worldLeft = 0;
-            worldRight = CameraManager.getGameWidth();
+            worldRight = cameraSystem.getGameWidth();
             worldTop = 0;
-            worldBottom = CameraManager.getGameHeight();
+            worldBottom = cameraSystem.getGameHeight();
             return;
         }
 
@@ -43,8 +47,8 @@ public class OrthographicFrustumCuller extends FrustumCuller {
         float zoom = camera.getZoom();
 
         // Get game resolution
-        int gameWidth = CameraManager.getGameWidth();
-        int gameHeight = CameraManager.getGameHeight();
+        int gameWidth = cameraSystem.getGameWidth();
+        int gameHeight = cameraSystem.getGameHeight();
 
         // Calculate visible world size based on zoom
         // Zoom = 1.0 means 1 pixel = 1 world unit

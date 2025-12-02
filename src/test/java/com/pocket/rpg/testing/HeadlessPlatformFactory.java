@@ -10,6 +10,7 @@ import com.pocket.rpg.input.events.InputEventBus;
 import com.pocket.rpg.input.events.KeyEvent;
 import com.pocket.rpg.input.events.MouseButtonEvent;
 import com.pocket.rpg.postProcessing.PostProcessor;
+import com.pocket.rpg.rendering.CameraSystem;
 import com.pocket.rpg.rendering.renderers.RenderInterface;
 import com.pocket.rpg.scenes.Scene;
 
@@ -28,7 +29,7 @@ public class HeadlessPlatformFactory implements PlatformFactory {
     }
 
     @Override
-    public RenderInterface createRenderer(RenderingConfig config) {
+    public RenderInterface createRenderer(CameraSystem cameraSystem, RenderingConfig config) {
         return new MockRenderer();
     }
 
@@ -115,11 +116,6 @@ class MockRenderer implements RenderInterface {
     @Override
     public void init(int width, int height) {
         System.out.println("MockRenderer initialized: " + width + "x" + height);
-    }
-
-    @Override
-    public void clear() {
-        // No-op
     }
 
     @Override

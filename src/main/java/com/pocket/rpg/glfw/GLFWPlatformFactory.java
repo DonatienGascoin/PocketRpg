@@ -7,6 +7,7 @@ import com.pocket.rpg.core.PlatformFactory;
 import com.pocket.rpg.input.InputBackend;
 import com.pocket.rpg.input.events.InputEventBus;
 import com.pocket.rpg.postProcessing.PostProcessor;
+import com.pocket.rpg.rendering.CameraSystem;
 import com.pocket.rpg.rendering.renderers.OpenGLRenderer;
 import com.pocket.rpg.rendering.renderers.RenderInterface;
 
@@ -25,8 +26,8 @@ public class GLFWPlatformFactory implements PlatformFactory {
     }
 
     @Override
-    public RenderInterface createRenderer(RenderingConfig config) {
-        return new OpenGLRenderer(config);
+    public RenderInterface createRenderer(CameraSystem cameraSystem, RenderingConfig config) {
+        return new OpenGLRenderer(cameraSystem, config);
     }
 
     @Override

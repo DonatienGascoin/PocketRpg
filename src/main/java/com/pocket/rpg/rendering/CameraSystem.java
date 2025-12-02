@@ -1,81 +1,74 @@
 package com.pocket.rpg.rendering;
 
+import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.core.Camera;
+import lombok.Getter;
 import org.joml.Matrix4f;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 
 /**
- * CameraManager bridges camera parameters with game resolution.
+ * CameraSystem bridges camera parameters with game resolution.
+ * <p>
  * Responsibilities:
- * 1. Store fixed game resolution
+ * 1. Store fixed game resolution (internal rendering resolution)
  * 2. Manage viewport size (window dimensions)
- * 3. Build projection matrices from camera parameters + game resolution
+ * 3. Build projection matrices from game resolution
  * 4. Coordinate conversion (viewport ↔ game ↔ world)
+ * <p>
+ * KEY DESIGN CHANGE: This is NO LONGER a singleton.
+ * It's owned by GameEngine and injected where needed.
  */
-public class CameraManager {
-    private static CameraManager instance;
+public class CameraSystem {
 
     // Fixed game resolution (internal rendering resolution)
+    @Getter
     private final int gameWidth;
+    @Getter
     private final int gameHeight;
 
     // Physical window size (can change when window resizes)
+    @Getter
     private int viewportWidth;
+    @Getter
     private int viewportHeight;
 
     // Orthographic projection settings
+    @Getter
     private float nearPlane = -1.0f;
+    @Getter
     private float farPlane = 1.0f;
 
     // Cached projection matrix
-    private Matrix4f cachedProjectionMatrix = new Matrix4f();
+    private final Matrix4f cachedProjectionMatrix = new Matrix4f();
     private boolean projectionDirty = true;
 
-    private CameraManager(int gameWidth, int gameHeight) {
-        this.gameWidth = gameWidth;
-        this.gameHeight = gameHeight;
-        this.viewportWidth = gameWidth;
-        this.viewportHeight = gameHeight;
-        updateProjectionMatrix();
-    }
-
-    // ======================================================================
-    // INITIALIZATION
-    // ======================================================================
-
     /**
-     * Initialize CameraManager with fixed game resolution.
+     * Creates a CameraSystem with fixed game resolution.
      * This is the internal rendering resolution that never changes.
+     *
+     * @throws IllegalArgumentException if resolution is invalid
      */
-    public static CameraManager initialize(int gameWidth, int gameHeight) {
-        if (instance != null) {
-            System.err.println("WARNING: CameraManager already initialized");
-            return instance;
-        }
-
-        if (gameWidth <= 0 || gameHeight <= 0) {
+    public CameraSystem(GameConfig config) {
+        if (config.getGameWidth() <= 0 || config.getGameHeight() <= 0) {
             throw new IllegalArgumentException("Game resolution must be positive: " +
-                    gameWidth + "x" + gameHeight);
+                    config.getGameWidth() + "x" + config.getGameHeight());
         }
 
-        instance = new CameraManager(gameWidth, gameHeight);
-        System.out.println("CameraManager initialized with game resolution: " +
+        if (config.getWindowWidth() <= 0 || config.getWindowHeight() <= 0) {
+            throw new IllegalArgumentException("Window size must be positive: " +
+                    config.getWindowWidth() + "x" + config.getWindowHeight());
+        }
+        this.gameWidth = config.getGameWidth();
+        this.gameHeight = config.getGameHeight();
+        setViewportSize(config.getWindowWidth(), config.getWindowHeight());
+
+        updateProjectionMatrix();
+
+        System.out.println("CameraSystem created with game resolution: " +
                 gameWidth + "x" + gameHeight);
 
-        return instance;
-    }
-
-    public static CameraManager get() {
-        if (instance == null) {
-            throw new IllegalStateException("CameraManager not initialized. Call initialize() first.");
-        }
-        return instance;
-    }
-
-    public static boolean isInitialized() {
-        return instance != null;
     }
 
     // ======================================================================
@@ -101,13 +94,14 @@ public class CameraManager {
      * Get the projection matrix.
      * This is the same for all cameras since it's based on fixed game resolution.
      * Returns a copy to prevent external modification.
+     *
+     * @return A copy of the projection matrix
      */
-    public static Matrix4f getProjectionMatrix() {
-        CameraManager manager = get();
-        if (manager.projectionDirty) {
-            manager.updateProjectionMatrix();
+    public Matrix4f getProjectionMatrix() {
+        if (projectionDirty) {
+            updateProjectionMatrix();
         }
-        return new Matrix4f(manager.cachedProjectionMatrix);
+        return new Matrix4f(cachedProjectionMatrix);
     }
 
     /**
@@ -124,19 +118,21 @@ public class CameraManager {
     /**
      * Update viewport size when window resizes.
      * This does NOT affect game resolution or projection matrix.
+     *
+     * @param width  New viewport width in pixels
+     * @param height New viewport height in pixels
      */
-    public static void setViewportSize(int width, int height) {
+    public void setViewportSize(int width, int height) {
         if (width <= 0 || height <= 0) {
             System.err.println("WARNING: Invalid viewport size: " + width + "x" + height);
             return;
         }
 
-        CameraManager manager = get();
-        if (manager.viewportWidth != width || manager.viewportHeight != height) {
-            manager.viewportWidth = width;
-            manager.viewportHeight = height;
+        if (this.viewportWidth != width || this.viewportHeight != height) {
+            this.viewportWidth = width;
+            this.viewportHeight = height;
             System.out.println("Viewport size updated: " + width + "x" + height +
-                    " (game resolution: " + manager.gameWidth + "x" + manager.gameHeight + ")");
+                    " (game resolution: " + gameWidth + "x" + gameHeight + ")");
         }
     }
 
@@ -150,21 +146,27 @@ public class CameraManager {
      * <p>
      * Example: Window is 1920x1080, game is 640x480
      * Mouse at (960, 540) → Game coords (320, 240)
+     *
+     * @param viewportX X coordinate in viewport (window pixels)
+     * @param viewportY Y coordinate in viewport (window pixels)
+     * @return Position in game resolution coordinates
      */
-    public static Vector2f viewportToGame(float viewportX, float viewportY) {
-        CameraManager manager = get();
-        float gameX = (viewportX / manager.viewportWidth) * manager.gameWidth;
-        float gameY = (viewportY / manager.viewportHeight) * manager.gameHeight;
+    public Vector2f viewportToGame(float viewportX, float viewportY) {
+        float gameX = (viewportX / viewportWidth) * gameWidth;
+        float gameY = (viewportY / viewportHeight) * gameHeight;
         return new Vector2f(gameX, gameY);
     }
 
     /**
      * Convert game resolution coordinates to viewport screen coordinates.
+     *
+     * @param gameX X coordinate in game resolution
+     * @param gameY Y coordinate in game resolution
+     * @return Position in viewport coordinates
      */
-    public static Vector2f gameToViewport(float gameX, float gameY) {
-        CameraManager manager = get();
-        float viewportX = (gameX / manager.gameWidth) * manager.viewportWidth;
-        float viewportY = (gameY / manager.gameHeight) * manager.viewportHeight;
+    public Vector2f gameToViewport(float gameX, float gameY) {
+        float viewportX = (gameX / gameWidth) * viewportWidth;
+        float viewportY = (gameY / gameHeight) * viewportHeight;
         return new Vector2f(viewportX, viewportY);
     }
 
@@ -183,20 +185,18 @@ public class CameraManager {
      * @param depth  Z-depth (typically 0 for 2D)
      * @return Position in world space
      */
-    public static Vector3f gameToWorld(Camera camera, float gameX, float gameY, float depth) {
+    public Vector3f gameToWorld(Camera camera, float gameX, float gameY, float depth) {
         if (camera == null) {
             System.err.println("ERROR: Cannot convert to world - camera is null");
             return new Vector3f(gameX, gameY, depth);
         }
 
-        CameraManager manager = get();
-
         // Game coords → NDC (Normalized Device Coordinates)
-        float ndcX = (2.0f * gameX) / manager.gameWidth - 1.0f;
-        float ndcY = 1.0f - (2.0f * gameY) / manager.gameHeight;
+        float ndcX = (2.0f * gameX) / gameWidth - 1.0f;
+        float ndcY = 1.0f - (2.0f * gameY) / gameHeight;
 
         // Get inverse matrices
-        Matrix4f invProjection = new Matrix4f(manager.cachedProjectionMatrix).invert();
+        Matrix4f invProjection = new Matrix4f(cachedProjectionMatrix).invert();
         Matrix4f invView = new Matrix4f(camera.getViewMatrix()).invert();
 
         // NDC → Clip space → View space → World space
@@ -204,24 +204,26 @@ public class CameraManager {
         Vector4f viewCoords = invProjection.transform(clipCoords);
         Vector4f worldCoords = invView.transform(viewCoords);
 
-        return new Vector3f(worldCoords.x, worldCoords.y, worldCoords.z);
+        return new Vector3f(worldCoords.x, worldCoords.y, depth);
     }
 
     /**
      * Convert world coordinates to game resolution coordinates using camera.
      * <p>
      * Pipeline: World space → View space → Clip space → NDC → Game coords
+     *
+     * @param camera   The camera defining the view
+     * @param worldPos Position in world space
+     * @return Position in game resolution coordinates (with Z preserved)
      */
-    public static Vector3f worldToGame(Camera camera, Vector3f worldPos) {
+    public Vector3f worldToGame(Camera camera, Vector3f worldPos) {
         if (camera == null) {
             System.err.println("ERROR: Cannot convert to game - camera is null");
             return new Vector3f(worldPos.x, worldPos.y, worldPos.z);
         }
 
-        CameraManager manager = get();
-
         // Get matrices
-        Matrix4f projection = new Matrix4f(manager.cachedProjectionMatrix);
+        Matrix4f projection = new Matrix4f(cachedProjectionMatrix);
         Matrix4f view = camera.getViewMatrix();
 
         // World → View → Clip space
@@ -234,8 +236,8 @@ public class CameraManager {
         float ndcY = clipPos.y;
 
         // NDC → Game coords
-        float gameX = (ndcX + 1.0f) * 0.5f * manager.gameWidth;
-        float gameY = (1.0f - ndcY) * 0.5f * manager.gameHeight;
+        float gameX = (ndcX + 1.0f) * 0.5f * gameWidth;
+        float gameY = (1.0f - ndcY) * 0.5f * gameHeight;
 
         return new Vector3f(gameX, gameY, clipPos.z);
     }
@@ -256,7 +258,7 @@ public class CameraManager {
      * @param depth     Z-depth (typically 0 for 2D)
      * @return Position in world space
      */
-    public static Vector3f viewportToWorld(Camera camera, float viewportX, float viewportY, float depth) {
+    public Vector3f viewportToWorld(Camera camera, float viewportX, float viewportY, float depth) {
         // Step 1: Viewport → Game resolution
         Vector2f gameCoords = viewportToGame(viewportX, viewportY);
 
@@ -267,8 +269,12 @@ public class CameraManager {
     /**
      * Convert world coordinates directly to viewport coordinates.
      * Combines world→game and game→viewport conversions.
+     *
+     * @param camera   The camera defining the view
+     * @param worldPos Position in world space
+     * @return Position in viewport coordinates
      */
-    public static Vector2f worldToViewport(Camera camera, Vector3f worldPos) {
+    public Vector2f worldToViewport(Camera camera, Vector3f worldPos) {
         // Step 1: World → Game resolution (using camera)
         Vector3f gameCoords = worldToGame(camera, worldPos);
 
@@ -287,24 +293,24 @@ public class CameraManager {
      * @param camera The camera
      * @return Array of 4 corners: [topLeft, topRight, bottomRight, bottomLeft]
      */
-    public static Vector3f[] getWorldBounds(Camera camera) {
-        CameraManager manager = get();
-
+    public Vector3f[] getWorldBounds(Camera camera) {
         Vector3f topLeft = gameToWorld(camera, 0, 0, 0);
-        Vector3f topRight = gameToWorld(camera, manager.gameWidth, 0, 0);
-        Vector3f bottomRight = gameToWorld(camera, manager.gameWidth, manager.gameHeight, 0);
-        Vector3f bottomLeft = gameToWorld(camera, 0, manager.gameHeight, 0);
+        Vector3f topRight = gameToWorld(camera, gameWidth, 0, 0);
+        Vector3f bottomRight = gameToWorld(camera, gameWidth, gameHeight, 0);
+        Vector3f bottomLeft = gameToWorld(camera, 0, gameHeight, 0);
 
         return new Vector3f[]{topLeft, topRight, bottomRight, bottomLeft};
     }
 
     /**
      * Get the center of the visible world bounds.
+     *
+     * @param camera The camera
+     * @return Center position in world space
      */
-    public static Vector3f getWorldCenter(Camera camera) {
-        CameraManager manager = get();
-        float centerX = manager.gameWidth / 2.0f;
-        float centerY = manager.gameHeight / 2.0f;
+    public Vector3f getWorldCenter(Camera camera) {
+        float centerX = gameWidth / 2.0f;
+        float centerY = gameHeight / 2.0f;
         return gameToWorld(camera, centerX, centerY, 0);
     }
 
@@ -312,25 +318,11 @@ public class CameraManager {
     // GETTERS
     // ======================================================================
 
-    public static int getGameWidth() {
-        return get().gameWidth;
-    }
-
-    public static int getGameHeight() {
-        return get().gameHeight;
-    }
-
-    public static int getViewportWidth() {
-        return get().viewportWidth;
-    }
-
-    public static int getViewportHeight() {
-        return get().viewportHeight;
-    }
-
-    public static float getAspectRatio() {
-        CameraManager manager = get();
-        return (float) manager.gameWidth / (float) manager.gameHeight;
+    /**
+     * Get the game resolution aspect ratio.
+     */
+    public float getAspectRatio() {
+        return (float) gameWidth / (float) gameHeight;
     }
 
     // ======================================================================
@@ -340,40 +332,23 @@ public class CameraManager {
     /**
      * Set orthographic near/far planes.
      * Rarely needed for 2D games, but available for layering.
+     *
+     * @param near Near clipping plane
+     * @param far  Far clipping plane
      */
-    public static void setOrthographicPlanes(float near, float far) {
-        CameraManager manager = get();
-        manager.nearPlane = near;
-        manager.farPlane = far;
-        manager.markProjectionDirty();
-    }
-
-    public static float getNearPlane() {
-        return get().nearPlane;
-    }
-
-    public static float getFarPlane() {
-        return get().farPlane;
+    public void setOrthographicPlanes(float near, float far) {
+        this.nearPlane = near;
+        this.farPlane = far;
+        markProjectionDirty();
     }
 
     // ======================================================================
-    // LIFECYCLE
+    // DEBUGGING
     // ======================================================================
-
-    public static void destroy() {
-        if (instance != null) {
-            instance = null;
-            System.out.println("CameraManager destroyed");
-        }
-    }
 
     @Override
     public String toString() {
-        return String.format("CameraManager[game=%dx%d, viewport=%dx%d, aspect=%.2f]",
+        return String.format("CameraSystem[game=%dx%d, viewport=%dx%d, aspect=%.2f]",
                 gameWidth, gameHeight, viewportWidth, viewportHeight, getAspectRatio());
-    }
-
-    public void onWindowResize(int width, int height) {
-        setViewportSize(width, height);
     }
 }

@@ -1,7 +1,9 @@
 package com.pocket.rpg.scenes;
 
 import com.pocket.rpg.components.Component;
+import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.core.GameObject;
+import com.pocket.rpg.rendering.CameraSystem;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -54,7 +56,12 @@ class SceneTest {
 
     @Test
     void testInitialize() {
-        scene.initialize();
+        scene.initialize(new CameraSystem(GameConfig.builder()
+                .gameWidth(800)
+                .gameHeight(600)
+                .windowWidth(800)
+                .windowHeight(600)
+                .build()));
 
         assertTrue(scene.onLoadCalled);
     }
@@ -66,7 +73,12 @@ class SceneTest {
         go.addComponent(component);
 
         scene.addGameObject(go);
-        scene.initialize();
+        scene.initialize(new CameraSystem(GameConfig.builder()
+                .gameWidth(800)
+                .gameHeight(600)
+                .windowWidth(800)
+                .windowHeight(600)
+                .build()));
         scene.update(0.016f);
 
         assertTrue(component.updateCalled);

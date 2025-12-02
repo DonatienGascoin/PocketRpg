@@ -2,6 +2,7 @@ package com.pocket.rpg.rendering.culling;
 
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.core.Camera;
+import com.pocket.rpg.rendering.CameraSystem;
 
 /**
  * Manages frustum culling for the rendering system.
@@ -13,8 +14,8 @@ public class CullingSystem {
     private OrthographicFrustumCuller culler;
     private CullingStatistics statistics;
 
-    public CullingSystem() {
-        this.culler = new OrthographicFrustumCuller();
+    public CullingSystem(CameraSystem cameraSystem) {
+        this.culler = new OrthographicFrustumCuller(cameraSystem);
         this.statistics = new CullingStatistics();
     }
 

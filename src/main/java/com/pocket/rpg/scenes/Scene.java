@@ -4,6 +4,7 @@ import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.core.Camera;
 import com.pocket.rpg.core.GameObject;
+import com.pocket.rpg.rendering.CameraSystem;
 import lombok.Getter;
 
 import java.util.ArrayList;
@@ -20,6 +21,9 @@ public abstract class Scene {
 
     @Getter
     protected final Camera camera;
+
+    @Getter
+    private CameraSystem cameraSystem;
 
     private final CopyOnWriteArrayList<GameObject> gameObjects;
 
@@ -49,8 +53,14 @@ public abstract class Scene {
     /**
      * Initializes the scene and all its GameObjects. Called by SceneManager when loading the scene.
      */
-    public void initialize() {
+    public void initialize(CameraSystem cameraSystem) {
         this.initialized = true;
+        this.cameraSystem = cameraSystem;
+
+        // Set up camera with camera system for coordinate conversions
+        camera.setCameraSystem(cameraSystem);
+        Camera.setMainCamera(camera);
+
         onLoad();
 
         for (GameObject go : gameObjects) {

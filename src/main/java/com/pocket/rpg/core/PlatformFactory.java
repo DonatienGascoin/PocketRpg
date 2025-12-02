@@ -5,6 +5,7 @@ import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.input.InputBackend;
 import com.pocket.rpg.input.events.InputEventBus;
 import com.pocket.rpg.postProcessing.PostProcessor;
+import com.pocket.rpg.rendering.CameraSystem;
 import com.pocket.rpg.rendering.renderers.RenderInterface;
 
 /**
@@ -24,7 +25,7 @@ public interface PlatformFactory {
     /**
      * Create a renderer implementation for this platform.
      */
-    RenderInterface createRenderer(RenderingConfig config);
+    RenderInterface createRenderer(CameraSystem cameraSystem, RenderingConfig config);
 
     /**
      * Create an input backend for this platform.

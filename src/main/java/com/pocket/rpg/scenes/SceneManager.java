@@ -1,6 +1,9 @@
 package com.pocket.rpg.scenes;
 
+import com.pocket.rpg.core.Camera;
+import com.pocket.rpg.rendering.CameraSystem;
 import lombok.Getter;
+import lombok.NonNull;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -17,9 +20,12 @@ public class SceneManager {
     @Getter
     private Scene currentScene;
 
-    public SceneManager() {
+    private final CameraSystem cameraSystem;
+
+    public SceneManager(@NonNull CameraSystem cameraSystem) {
         this.scenes = new HashMap<>();
         this.lifecycleListeners = new ArrayList<>();
+        this.cameraSystem = cameraSystem;
     }
 
     public void registerScene(Scene scene) {
@@ -53,7 +59,7 @@ public class SceneManager {
         }
 
         currentScene = scene;
-        currentScene.initialize();
+        currentScene.initialize(cameraSystem);
         fireSceneLoaded(currentScene);
 
         System.out.println("Loaded scene: " + scene.getName());
@@ -70,6 +76,7 @@ public class SceneManager {
             currentScene.destroy();
             fireSceneUnloaded(currentScene);
         }
+        Camera.setMainCamera(null);
         scenes.clear();
         lifecycleListeners.clear();
     }

@@ -11,6 +11,7 @@ import com.pocket.rpg.input.listeners.GamepadListener;
 import com.pocket.rpg.input.listeners.KeyListener;
 import com.pocket.rpg.input.listeners.MouseListener;
 import com.pocket.rpg.postProcessing.PostProcessor;
+import com.pocket.rpg.rendering.CameraSystem;
 import com.pocket.rpg.rendering.renderers.RenderInterface;
 import com.pocket.rpg.serialization.Serializer;
 import com.pocket.rpg.time.DefaultTimeContext;
@@ -30,6 +31,7 @@ public class GameApplication {
     // Platform systems
     private AbstractWindow window;
     private GameEngine engine;
+    private CameraSystem cameraSystem;
 
     private RenderInterface renderer;
     //    private AudioInterface audio;
@@ -50,6 +52,7 @@ public class GameApplication {
 
         // Load configuration
         config = EngineConfiguration.load();
+
         inputEventBus = new InputEventBus();
         TimeContext timeContext = new DefaultTimeContext();
         Time.initialize(timeContext);
@@ -59,6 +62,7 @@ public class GameApplication {
         System.out.println("Using platform: " + platformFactory.getPlatformName());
 
         // Create platform systems
+        createCameraSystem();
         createPlatformSystems();
 
         setupInputSystem();
@@ -115,7 +119,7 @@ public class GameApplication {
         window.init();
 
         // Create renderer
-        renderer = platformFactory.createRenderer(config.getRendering());
+        renderer = platformFactory.createRenderer(cameraSystem, config.getRendering());
         renderer.init(config.getGame().getGameWidth(), config.getGame().getGameHeight());
 
         //        audio = new NoOpAudioManager();
@@ -140,6 +144,7 @@ public class GameApplication {
                 .renderer(renderer)
                 .inputEventBus(inputEventBus)
                 .postProcessor(postProcessor)
+                .cameraSystem(cameraSystem)
                 .build();
 
         engine.initialize();
@@ -183,9 +188,6 @@ public class GameApplication {
 
         // Begin post-processing capture
         postProcessor.beginCapture();
-
-        // Clear screen
-        renderer.clear();
 
         // Update and render game
         try {
@@ -250,5 +252,12 @@ public class GameApplication {
             return true;
         }
         return false;
+    }
+
+
+    private void createCameraSystem() {
+        System.out.println("Initializing camera system...");
+        cameraSystem = new CameraSystem(config.getGame());
+        inputEventBus.addResizeListener(cameraSystem::setViewportSize);
     }
 }

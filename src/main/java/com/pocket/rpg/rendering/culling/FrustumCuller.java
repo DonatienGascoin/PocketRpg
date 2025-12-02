@@ -3,7 +3,9 @@ package com.pocket.rpg.rendering.culling;
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.components.Transform;
 import com.pocket.rpg.core.Camera;
+import com.pocket.rpg.rendering.CameraSystem;
 import com.pocket.rpg.rendering.Sprite;
+import lombok.NonNull;
 import org.joml.Vector3f;
 
 /**
@@ -13,6 +15,12 @@ import org.joml.Vector3f;
 public abstract class FrustumCuller {
 
     protected Camera camera;
+    @NonNull
+    protected CameraSystem cameraSystem;
+
+    public FrustumCuller(CameraSystem cameraSystem) {
+        this.cameraSystem = cameraSystem;
+    }
 
     /**
      * Updates the culler from the camera's current state.

@@ -3,7 +3,7 @@ package com.pocket.rpg.core;
 import com.pocket.rpg.config.EngineConfiguration;
 import com.pocket.rpg.input.events.InputEventBus;
 import com.pocket.rpg.postProcessing.PostProcessor;
-import com.pocket.rpg.rendering.CameraManager;
+import com.pocket.rpg.rendering.CameraSystem;
 import com.pocket.rpg.rendering.renderers.RenderInterface;
 import com.pocket.rpg.rendering.stats.ConsoleStatisticsReporter;
 import com.pocket.rpg.resources.AssetManager;
@@ -28,10 +28,11 @@ public class GameEngine {
 
     // Platform-independent systems (owned by engine)
     private SceneManager sceneManager;
-    private CameraManager cameraManager;
     private PerformanceMonitor performanceMonitor;
 
-    // Platform-dependent systems (injected from outside)
+    // Systems injected from outside
+    @NonNull
+    private final CameraSystem cameraSystem;
     @NonNull
     private final AbstractWindow window;
     @NonNull
@@ -53,8 +54,6 @@ public class GameEngine {
         if (config.getRendering().isEnableStatistics()) {
             reporter = new ConsoleStatisticsReporter(config.getRendering().getStatisticsInterval());
         }
-
-        initCameraSystem();
 
         // audio.initialize();
 
@@ -96,32 +95,13 @@ public class GameEngine {
             sceneManager.destroy();
         }
 
-        CameraManager.destroy();
         AssetManager.destroy();
 
         System.out.println("Game engine destroyed");
     }
 
-    private void initCameraSystem() {
-        // 3. Initialize camera system
-        System.out.println("Initializing camera system...");
-        cameraManager = CameraManager.initialize(config.getGame().getGameWidth(), config.getGame().getGameHeight());
-        CameraManager.setViewportSize(window.getScreenWidth(), window.getScreenHeight());
-        inputEventBus.addResizeListener(this::onWindowResize);
-    }
-
-    /**
-     * Handle window resize events.
-     */
-    private void onWindowResize(int width, int height) {
-        // Handle window resize
-        if (cameraManager != null) {
-            cameraManager.setViewportSize(width, height);
-        }
-    }
-
     private void initSceneManager() {
-        sceneManager = new SceneManager();
+        sceneManager = new SceneManager(cameraSystem);
 
         // Add scene lifecycle listener
         sceneManager.addLifecycleListener(new SceneLifecycleListener() {

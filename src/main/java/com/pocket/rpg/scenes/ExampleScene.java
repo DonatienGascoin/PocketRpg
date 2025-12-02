@@ -32,8 +32,6 @@ public class ExampleScene extends Scene {
         System.out.println("Loading ExampleScene...");
 
         try {
-            // Create camera
-            createCamera();
 
             // Create player with rotation
             createPlayer();
@@ -56,13 +54,6 @@ public class ExampleScene extends Scene {
         }
     }
 
-    /**
-     * Creates camera with custom clear color
-     */
-    private void createCamera() {
-        camera.setClearColor(0.15f, 0.15f, 0.2f, 1.0f);
-        System.out.println("✓ Camera created");
-    }
 
     /**
      * Creates rotating player

@@ -1,5 +1,7 @@
 package com.pocket.rpg.scenes;
 
+import com.pocket.rpg.config.GameConfig;
+import com.pocket.rpg.rendering.CameraSystem;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -13,7 +15,12 @@ class SceneManagerTest {
 
     @BeforeEach
     void setUp() {
-        sceneManager = new SceneManager();
+        sceneManager = new SceneManager(new CameraSystem(GameConfig.builder()
+                .gameWidth(800)
+                .gameHeight(600)
+                .windowWidth(800)
+                .windowHeight(600)
+                .build()));
         scene1 = new TestScene("Scene1");
         scene2 = new TestScene("Scene2");
     }

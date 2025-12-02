@@ -35,15 +35,20 @@ public class RenderPipeline {
     private final CullingSystem cullingSystem;
     @Getter
     private final Renderer renderer;
+    private final CameraSystem cameraSystem;
     @Setter
     private StatisticsReporter statisticsReporter;
+
+    private final Vector4f clearColor;
 
     /**
      * Creates a render pipeline with the specified components.
      */
-    public RenderPipeline(Renderer renderer, RenderingConfig config) {
+    public RenderPipeline(Renderer renderer, CameraSystem cameraSystem, RenderingConfig config) {
         this.renderer = renderer;
-        this.cullingSystem = new CullingSystem();
+        this.cameraSystem = cameraSystem;
+        this.cullingSystem = new CullingSystem(cameraSystem);
+        this.clearColor = config.getClearColor();
         if (config.isEnableStatistics()) {
             this.statisticsReporter = config.getReporter();
         }
@@ -78,9 +83,8 @@ public class RenderPipeline {
             }
 
             // 4. Get rendering parameters
-            Matrix4f projectionMatrix = CameraManager.getProjectionMatrix();
+            Matrix4f projectionMatrix = cameraSystem.getProjectionMatrix();
             Matrix4f viewMatrix = activeCamera.getViewMatrix();
-            Vector4f clearColor = activeCamera.getClearColor();
 
             // 5. Clear screen
             glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);

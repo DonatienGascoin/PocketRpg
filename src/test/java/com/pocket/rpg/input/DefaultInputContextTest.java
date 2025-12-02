@@ -17,7 +17,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @DisplayName("DefaultInputContext Tests")
 class DefaultInputContextTest {
 
-    private InputConfig config;
     private KeyListener keyListener;
     private MouseListener mouseListener;
     private GamepadListener gamepadListener;
@@ -25,7 +24,7 @@ class DefaultInputContextTest {
 
     @BeforeEach
     void setUp() {
-        config = new InputConfig();
+        InputConfig config = new InputConfig();
         keyListener = new KeyListener();
         mouseListener = new MouseListener();
         gamepadListener = new GamepadListener();
@@ -370,9 +369,9 @@ class DefaultInputContextTest {
         @Test
         @DisplayName("Should allow manual axis setting")
         void shouldAllowManualAxisSetting() {
-            context.setAxisValue("Horizontal", 0.75f);
+            context.setAxisValue("CustomAxis", 0.75f);
 
-            assertEquals(0.75f, context.getAxis("Horizontal"), 0.001f);
+            assertEquals(0.75f, context.getAxis("CustomAxis"), 0.001f);
         }
     }
 

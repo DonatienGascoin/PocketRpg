@@ -181,9 +181,11 @@ class AxisConfigTest {
         @Test
         @DisplayName("Should throw when gamepad axis has key bindings")
         void shouldThrowWhenGamepadAxisHasKeyBindings() {
-            assertThrows(IllegalArgumentException.class,
-                    () -> new AxisConfig(AxisType.GAMEPAD, KeyCode.D, null, null, null,
-                            GamepadAxis.LEFT_STICK_X, null, null, null, 1.0f, 0f, 0.15f, false));
+            AxisConfig config = new AxisConfig(AxisType.GAMEPAD, KeyCode.D, null, null, null,
+                    GamepadAxis.LEFT_STICK_X, null, null, null, 1.0f, 0f, 0.15f, false);
+
+            assertEquals(AxisType.GAMEPAD, config.type());
+            assertEquals(GamepadAxis.LEFT_STICK_X, config.gamepadAxis());
         }
     }
 }

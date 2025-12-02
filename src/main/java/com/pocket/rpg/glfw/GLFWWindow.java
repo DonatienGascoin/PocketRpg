@@ -21,9 +21,11 @@ import static org.lwjgl.system.MemoryUtil.NULL;
 public class GLFWWindow extends AbstractWindow {
 
     private long windowHandle;
-    InputBackend glfwInputBackend;
 
+    InputBackend glfwInputBackend;
     private final InputEventBus eventBus;
+    private final GLFWGamepadManager gamepadManager;
+
     private int screenWidth, screenHeight;
     private boolean isMinimized = false;
     private boolean isFocused = true;
@@ -33,6 +35,7 @@ public class GLFWWindow extends AbstractWindow {
         super(config);
         this.eventBus = eventBus;
         this.glfwInputBackend = inputBackend;
+        this.gamepadManager = new GLFWGamepadManager(eventBus);
     }
 
     @Override
@@ -69,6 +72,8 @@ public class GLFWWindow extends AbstractWindow {
 
         glfwShowWindow(windowHandle);
 
+        gamepadManager.initialize();
+
         System.out.println("GLFW window initialized: " + screenWidth + "x" + screenHeight);
     }
 
@@ -101,6 +106,9 @@ public class GLFWWindow extends AbstractWindow {
     @Override
     public void pollEvents() {
         glfwPollEvents();
+
+        // Poll gamepad state after GLFW events
+        gamepadManager.pollGamepadState();
     }
 
     @Override
@@ -110,6 +118,8 @@ public class GLFWWindow extends AbstractWindow {
 
     @Override
     public void destroy() {
+        gamepadManager.destroy();
+
         glfwFreeCallbacks(windowHandle);
         glfwDestroyWindow(windowHandle);
         glfwTerminate();
@@ -180,15 +190,8 @@ public class GLFWWindow extends AbstractWindow {
                 glfwInputBackend.getKeyAction(a))
         );
 
-        glfwSetCallbac
-
-        // Set resize callback after we make the current context
         glfwSetWindowSizeCallback(windowHandle, this::resizeCallback);
-
-        // FIX: Set iconify (minimize) callback
         glfwSetWindowIconifyCallback(windowHandle, this::iconifyCallback);
-
-        // FIX: Set focus callback
         glfwSetWindowFocusCallback(windowHandle, this::focusCallback);
     }
 

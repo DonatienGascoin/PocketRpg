@@ -1,5 +1,7 @@
 package com.pocket.rpg.input.events;
 
+import com.pocket.rpg.input.GamepadAxis;
+import com.pocket.rpg.input.GamepadButton;
 import com.pocket.rpg.input.KeyCode;
 import com.pocket.rpg.input.listeners.GamepadListener;
 import com.pocket.rpg.input.listeners.KeyListener;
@@ -92,6 +94,34 @@ public class InputEventBus {
     public void dispatchWindowResizeEvent(int width, int height) {
         for (WindowResizeListener listener : resizeListeners) {
             listener.onWindowResize(width, height);
+        }
+    }
+
+    /**
+     * Dispatch gamepad button event.
+     *
+     * @param button    The button that changed state
+     * @param isPressed True if pressed, false if released
+     */
+    public void dispatchGamepadButtonEvent(GamepadButton button, boolean isPressed) {
+        for (GamepadListener listener : gamepadListeners) {
+            if (isPressed) {
+                listener.onButtonPressed(button);
+            } else {
+                listener.onButtonReleased(button);
+            }
+        }
+    }
+
+    /**
+     * Dispatch gamepad axis event.
+     *
+     * @param axis  The axis that changed
+     * @param value The new axis value
+     */
+    public void dispatchGamepadAxisEvent(GamepadAxis axis, float value) {
+        for (GamepadListener listener : gamepadListeners) {
+            listener.onAxisChanged(axis, value);
         }
     }
 

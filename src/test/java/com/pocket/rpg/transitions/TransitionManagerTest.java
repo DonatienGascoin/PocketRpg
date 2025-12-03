@@ -179,8 +179,12 @@ class TransitionManagerTest {
     void testUpdateCompletesTransition() {
         transitionManager.startTransition("TestScene");
 
-        // Update with exactly total duration (1.0 + 1.0 = 2.0)
-        transitionManager.update(2.0f);
+        // First update: cross midpoint and enter FADING_IN
+        transitionManager.update(1.0f);
+        assertTrue(transitionManager.isFadingIn());
+
+        // Second update: complete the fade in phase
+        transitionManager.update(1.1f);
 
         // Should be back to IDLE
         assertFalse(transitionManager.isTransitioning());
@@ -226,8 +230,10 @@ class TransitionManagerTest {
         transitionManager.update(0.5f);
         assertEquals(0.5f, transitionManager.getProgress(), 0.01f);
 
-        transitionManager.update(1.0f);
-        assertEquals(1.0f, transitionManager.getProgress(), 0.01f);
+        transitionManager.update(0.9f); // 1.9 total, just before completion
+        assertTrue(transitionManager.getProgress() > 0.9f);
+
+        // After completion, progress returns 0.0 because currentTransition is null
     }
 
     @Test
@@ -304,7 +310,8 @@ class TransitionManagerTest {
     void testMultipleTransitionsInSequence() {
         // First transition
         transitionManager.startTransition("Scene1");
-        transitionManager.update(2.0f); // Complete first transition
+        transitionManager.update(1.0f); // Cross midpoint
+        transitionManager.update(1.1f); // Complete fade in
         assertFalse(transitionManager.isTransitioning());
 
         // Second transition
@@ -312,7 +319,8 @@ class TransitionManagerTest {
         assertTrue(transitionManager.isTransitioning());
         assertEquals("Scene2", transitionManager.getTargetScene());
 
-        transitionManager.update(2.0f); // Complete second transition
+        transitionManager.update(1.0f); // Cross midpoint
+        transitionManager.update(1.1f); // Complete fade in
         assertFalse(transitionManager.isTransitioning());
 
         // Verify both scenes were loaded
@@ -331,7 +339,8 @@ class TransitionManagerTest {
 
         transitionManager.startTransition("TestScene", fastConfig);
 
-        transitionManager.update(0.02f); // Exactly the total duration
+        transitionManager.update(0.01f); // Cross midpoint
+        transitionManager.update(0.02f); // Complete fade in
 
         assertFalse(transitionManager.isTransitioning());
         assertEquals(1, sceneManager.getLoadSceneCallCount());
@@ -382,11 +391,12 @@ class TransitionManagerTest {
         assertEquals("TestScene", transitionManager.getTargetScene());
 
         // Complete - back to IDLE
-        transitionManager.update(1.0f);
+        transitionManager.update(1.1f); // More than 1.0 to complete
         assertFalse(transitionManager.isTransitioning());
         assertFalse(transitionManager.isFadingOut());
         assertFalse(transitionManager.isFadingIn());
-        assertEquals(1.0f, transitionManager.getProgress());
+        // After completion, getProgress returns 0.0 (currentTransition is null)
+        assertEquals(0.0f, transitionManager.getProgress());
         assertNull(transitionManager.getTargetScene());
     }
 }

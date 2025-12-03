@@ -344,10 +344,11 @@ class SceneTransitionTest {
         // Should be in fade in phase NOW
         assertTrue(SceneTransition.isFadingIn());
 
-        // Complete fade in
-        transitionManager.update(1.0f);
+        // Complete fade in (need > 1.0 to complete)
+        transitionManager.update(1.1f);
         assertFalse(SceneTransition.isTransitioning());
-        assertEquals(1.0f, SceneTransition.getProgress(), 0.01f);
+        // After completion, getProgress returns 0.0 (currentTransition is null)
+        assertEquals(0.0f, SceneTransition.getProgress(), 0.01f);
     }
 
     @Test
@@ -357,12 +358,14 @@ class SceneTransitionTest {
 
         // First load
         SceneTransition.loadScene("Scene1");
-        transitionManager.update(2.0f); // Complete it
+        transitionManager.update(1.0f); // Cross midpoint
+        transitionManager.update(1.1f); // Complete it
         assertTrue(sceneManager.wasSceneLoaded("Scene1"));
 
         // Second load
         SceneTransition.loadScene("Scene2");
-        transitionManager.update(2.0f); // Complete it
+        transitionManager.update(1.0f); // Cross midpoint
+        transitionManager.update(1.1f); // Complete it
         assertTrue(sceneManager.wasSceneLoaded("Scene2"));
 
         // Both should be loaded

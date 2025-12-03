@@ -66,11 +66,6 @@ public class FadeTransition implements ISceneTransition {
             float fadeOutProgress = currentTime / fadeOutDuration;
             alpha = easeInOut(fadeOutProgress);
         } else {
-            // Mark midpoint as reached
-            if (!midpointReached) {
-                midpointReached = true;
-            }
-
             // Fade IN phase: alpha decreases from 1 to 0
             float fadeInTime = currentTime - fadeOutDuration;
             if (fadeInTime < fadeInDuration) {
@@ -113,8 +108,11 @@ public class FadeTransition implements ISceneTransition {
 
     @Override
     public boolean isAtMidpoint() {
-        // Return true once when we've just reached the midpoint
-        return !midpointReached && currentTime >= fadeOutDuration;
+        if (!midpointReached && currentTime >= fadeOutDuration) {
+            midpointReached = true;  // Set it HERE when returning true
+            return true;
+        }
+        return false;
     }
 
     /**

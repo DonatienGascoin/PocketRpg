@@ -9,5 +9,17 @@
   "postProcessingEffects": [],
   "scalingMode": "MAINTAIN_ASPECT_RATIO",
   "enablePillarBox": false,
-  "pillarboxAspectRatio": 0.0
+  "pillarboxAspectRatio": 0.0,
+  "defaultTransitionConfig": {
+    "fadeOutDuration": 0.5,
+    "fadeInDuration": 0.5,
+    "fadeColor": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0,
+      "w": 1.0
+    },
+    "transitionText": "",
+    "type": "FADE"
+  }
 }

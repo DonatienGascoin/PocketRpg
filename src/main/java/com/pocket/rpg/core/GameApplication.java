@@ -12,6 +12,7 @@ import com.pocket.rpg.input.listeners.KeyListener;
 import com.pocket.rpg.input.listeners.MouseListener;
 import com.pocket.rpg.postProcessing.PostProcessor;
 import com.pocket.rpg.rendering.CameraSystem;
+import com.pocket.rpg.rendering.OverlayRenderer;
 import com.pocket.rpg.rendering.renderers.RenderInterface;
 import com.pocket.rpg.serialization.Serializer;
 import com.pocket.rpg.time.DefaultTimeContext;
@@ -36,9 +37,9 @@ public class GameApplication {
     private RenderInterface renderer;
     //    private AudioInterface audio;
     private PostProcessor postProcessor;
-
     private InputEventBus inputEventBus;
     private PerformanceMonitor performanceMonitor;
+    private OverlayRenderer overlayRenderer;
 
     // Configuration
     private EngineConfiguration config;
@@ -131,6 +132,9 @@ public class GameApplication {
         // Create performance monitor
         performanceMonitor = new PerformanceMonitor();
         performanceMonitor.setEnabled(config.getRendering().isEnableStatistics());
+
+        overlayRenderer = new OverlayRenderer(); // TODO: Should it be part of the platform factory ? Probably
+        overlayRenderer.init();
     }
 
     /**
@@ -145,6 +149,7 @@ public class GameApplication {
                 .inputEventBus(inputEventBus)
                 .postProcessor(postProcessor)
                 .cameraSystem(cameraSystem)
+                .overlayRenderer(overlayRenderer)
                 .build();
 
         engine.initialize();
@@ -226,6 +231,9 @@ public class GameApplication {
         Input.destroy();
 
         // Destroy platform systems
+        if (overlayRenderer != null) {
+            overlayRenderer.destroy();
+        }
         if (postProcessor != null) {
             postProcessor.destroy();
         }

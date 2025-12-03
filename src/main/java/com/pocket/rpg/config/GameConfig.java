@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.joml.Vector4f;
 
 import java.util.List;
 
@@ -15,17 +16,20 @@ import java.util.List;
 @AllArgsConstructor
 public class GameConfig {
 
+    @Builder.Default
     private String title = "Pocket Rpg";
 
     // ===== WINDOW RESOLUTION (physical window size) =====
     /**
      * The initial physical window width in pixels.
      */
+    @Builder.Default
     private int windowWidth = 1280;
 
     /**
      * The initial physical window height in pixels.
      */
+    @Builder.Default
     private int windowHeight = 960;
 
     // ===== GAME RESOLUTION (fixed internal resolution) =====
@@ -34,6 +38,7 @@ public class GameConfig {
      * All game logic and rendering happens at this resolution.
      * This is then scaled to fit the window.
      */
+    @Builder.Default
     private int gameWidth = 640;
 
     /**
@@ -41,11 +46,15 @@ public class GameConfig {
      * All game logic and rendering happens at this resolution.
      * This is then scaled to fit the window.
      */
+    @Builder.Default
     private int gameHeight = 480;
 
+    @Builder.Default
     private boolean fullscreen = false;
+    @Builder.Default
     private boolean vsync = false;
 
+    @Builder.Default
     private List<PostEffect> postProcessingEffects = List.of(
             // Retro CRT Style
 //            new ScanlinesEffect(0.3f, 300.0f),
@@ -99,18 +108,31 @@ public class GameConfig {
      * MAINTAIN_ASPECT_RATIO: Keeps aspect ratio with black bars (like pillarbox)
      * STRETCH: Stretches image to fill window (may distort)
      */
+    @Builder.Default
     private PostProcessor.ScalingMode scalingMode = PostProcessor.ScalingMode.MAINTAIN_ASPECT_RATIO;
 
     /**
      * Whether to enable pillarboxing/letterboxing for aspect ratio preservation.
      */
+    @Builder.Default
     private boolean enablePillarBox = false;
 
     /**
      * Target aspect ratio for pillarbox (e.g., 16/9 = 1.777, 4/3 = 1.333).
      * Only used if enablePillarbox is true. Set to 0 for auto-calculation from game resolution.
      */
+    @Builder.Default
     private float pillarboxAspectRatio = 0f; // 0 means auto-calculate from gameWidth/gameHeight
+
+    /**
+     * Configuration for transition between scene
+     */
+    @Builder.Default
+    private TransitionConfig defaultTransitionConfig = TransitionConfig.builder()
+            .fadeOutDuration(0.5f)
+            .fadeInDuration(0.5f)
+            .fadeColor(new Vector4f(0, 0, 0, 1))
+            .build();
 
     /**
      * Gets the effective pillarbox aspect ratio.

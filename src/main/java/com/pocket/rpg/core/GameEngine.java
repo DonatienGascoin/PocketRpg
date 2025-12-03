@@ -4,8 +4,8 @@ import com.pocket.rpg.config.EngineConfiguration;
 import com.pocket.rpg.input.events.InputEventBus;
 import com.pocket.rpg.postProcessing.PostProcessor;
 import com.pocket.rpg.rendering.CameraSystem;
+import com.pocket.rpg.rendering.OverlayRenderer;
 import com.pocket.rpg.rendering.renderers.RenderInterface;
-import com.pocket.rpg.rendering.stats.ConsoleStatisticsReporter;
 import com.pocket.rpg.resources.AssetManager;
 import com.pocket.rpg.resources.loaders.ShaderLoader;
 import com.pocket.rpg.resources.loaders.SpriteLoader;
@@ -15,6 +15,8 @@ import com.pocket.rpg.scenes.ExampleScene;
 import com.pocket.rpg.scenes.Scene;
 import com.pocket.rpg.scenes.SceneLifecycleListener;
 import com.pocket.rpg.scenes.SceneManager;
+import com.pocket.rpg.transitions.SceneTransition;
+import com.pocket.rpg.transitions.TransitionManager;
 import com.pocket.rpg.utils.LogUtils;
 import com.pocket.rpg.utils.PerformanceMonitor;
 import lombok.Builder;
@@ -28,6 +30,8 @@ public class GameEngine {
 
     // Platform-independent systems (owned by engine)
     private SceneManager sceneManager;
+    private TransitionManager transitionManager;
+
     private PerformanceMonitor performanceMonitor;
 
     // Systems injected from outside
@@ -41,6 +45,8 @@ public class GameEngine {
     private final InputEventBus inputEventBus;
     @NonNull
     private final PostProcessor postProcessor;
+    @NonNull
+    private final OverlayRenderer overlayRenderer;
 
     /**
      * Initializes the game engine and all its subsystems.
@@ -50,17 +56,28 @@ public class GameEngine {
 
         initAssetLoader();
 
-        ConsoleStatisticsReporter reporter = null; // TODO: Merge with performance monitor?
-        if (config.getRendering().isEnableStatistics()) {
-            reporter = new ConsoleStatisticsReporter(config.getRendering().getStatisticsInterval());
-        }
-
         // audio.initialize();
 
         // Initialize scene manager
         initSceneManager();
+        initTransitionSystem();
 
         System.out.println("Game engine initialized successfully");
+    }
+
+    private void initTransitionSystem() {
+        System.out.println("Initializing transition system...");
+
+        transitionManager = new TransitionManager(
+                sceneManager,
+                overlayRenderer,
+                config.getGame().getDefaultTransitionConfig()  // From GameConfig
+        );
+
+        // Initialize static API
+        SceneTransition.initialize(transitionManager);
+
+        System.out.println("Transition system initialized");
     }
 
 
@@ -71,8 +88,8 @@ public class GameEngine {
     public void update(float deltaTime) {
         AssetManager.getInstance().update(deltaTime);
 //      audio.update(deltaTime);
-        // Update scene
-        sceneManager.update(deltaTime);
+        transitionManager.update(deltaTime);  // Early returns if idle
+        sceneManager.update(deltaTime);       // Always updates current scene
     }
 
     /**
@@ -80,9 +97,13 @@ public class GameEngine {
      * Called every frame by the application.
      */
     public void render() {
+        // Always render scene
         if (sceneManager.getCurrentScene() != null) {
             renderer.render(sceneManager.getCurrentScene());
         }
+
+        // Always call transition render (it early-returns if idle)
+        transitionManager.render();
     }
 
     /**

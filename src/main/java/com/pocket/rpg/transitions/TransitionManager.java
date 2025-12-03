@@ -28,12 +28,6 @@ public class TransitionManager {
         FADING_IN    // Fading in to new scene
     }
 
-    /**
-     * -- GETTER --
-     *  Gets the current transition state.
-     *
-     * @return current state
-     */
     @Getter
     private State state = State.IDLE;
     private ISceneTransition currentTransition;
@@ -270,7 +264,14 @@ public class TransitionManager {
         return switch (config.getType()) {
             case FADE -> new FadeTransition(config);
             case FADE_WITH_TEXT -> new FadeWithTextTransition(config);
-            // Add more transition types here as they're implemented
+
+            // Wipe transitions
+            case WIPE_LEFT -> new WipeTransition(config, WipeTransition.WipeDirection.LEFT);
+            case WIPE_RIGHT -> new WipeTransition(config, WipeTransition.WipeDirection.RIGHT);
+            case WIPE_UP -> new WipeTransition(config, WipeTransition.WipeDirection.UP);
+            case WIPE_DOWN -> new WipeTransition(config, WipeTransition.WipeDirection.DOWN);
+            case WIPE_CIRCLE_IN -> new WipeTransition(config, WipeTransition.WipeDirection.CIRCLE_IN);
+            case WIPE_CIRCLE_OUT -> new WipeTransition(config, WipeTransition.WipeDirection.CIRCLE_OUT);
         };
     }
 

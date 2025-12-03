@@ -3,6 +3,8 @@ package com.pocket.rpg.postProcessing;
 import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.core.AbstractWindow;
 import com.pocket.rpg.rendering.Shader;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -13,8 +15,16 @@ import static org.lwjgl.opengl.GL33.*;
 /**
  * Manages the post-processing pipeline, coordinating multiple effects
  * and handling frame buffer ping-ponging between passes.
+ *
+ * <p>Supports dynamic effect management - effects can be added or removed at runtime.
+ * Effects are applied in the order they were added to the pipeline.
  */
 public class PostProcessor {
+
+    private boolean initialized = false;
+    @Getter
+    @Setter
+    private boolean enabled = true;
 
     /**
      * Scaling mode for rendering to screen when pillarbox is disabled.
@@ -87,11 +97,70 @@ public class PostProcessor {
             pillarBox.init(window);
         }
 
+        initialized = true;
         System.out.println("PostProcessor initialized with " + effects.size() + " effects");
     }
 
+    /**
+     * Adds a post-processing effect to the pipeline.
+     * The effect will be applied in the order it was added.
+     * If the processor is already initialized, the effect is initialized immediately.
+     *
+     * @param effect The effect to add
+     */
     public void addEffect(PostEffect effect) {
-        this.effects.add(effect);
+        if (effect == null) {
+            throw new IllegalArgumentException("Effect cannot be null");
+        }
+
+        effects.add(effect);
+
+        // If we're already initialized, initialize the effect now
+        if (initialized) {
+            effect.init();
+            System.out.println("Added effect: " + effect.getClass().getSimpleName());
+        }
+    }
+
+    /**
+     * Removes a post-processing effect from the pipeline.
+     *
+     * @param effect The effect to remove
+     * @return true if the effect was removed, false if it wasn't in the pipeline
+     */
+    public boolean removeEffect(PostEffect effect) {
+        if (effect == null) {
+            return false;
+        }
+
+        boolean removed = effects.remove(effect);
+        if (removed && initialized) {
+            effect.destroy();
+            System.out.println("Removed effect: " + effect.getClass().getSimpleName());
+        }
+        return removed;
+    }
+
+    /**
+     * Removes all post-processing effects from the pipeline.
+     */
+    public void clearEffects() {
+        if (initialized) {
+            for (PostEffect effect : effects) {
+                effect.destroy();
+            }
+        }
+        effects.clear();
+        System.out.println("Cleared all effects");
+    }
+
+    /**
+     * Gets the number of effects currently in the pipeline.
+     *
+     * @return The number of active effects
+     */
+    public int getEffectCount() {
+        return effects.size();
     }
 
     public void enablePillarBox(float aspectRatio) {
@@ -102,13 +171,15 @@ public class PostProcessor {
     }
 
     public void beginCapture() {
-        if (needsPostProcessing()) {
+        // Only capture if post-processing is enabled and needed
+        if (enabled && needsPostProcessing()) {
             bindFboA();
         }
     }
 
     public void endCaptureAndApplyEffects() {
-        if (needsPostProcessing()) {
+        // Only apply effects if enabled and needed
+        if (enabled && needsPostProcessing()) {
             applyEffects();
         }
     }
@@ -342,6 +413,7 @@ public class PostProcessor {
             pillarBox.destroy();
         }
 
+        initialized = false;
         System.out.println("PostProcessor destroyed");
     }
 }

@@ -10,9 +10,9 @@ import com.pocket.rpg.input.events.InputEventBus;
 import com.pocket.rpg.input.listeners.GamepadListener;
 import com.pocket.rpg.input.listeners.KeyListener;
 import com.pocket.rpg.input.listeners.MouseListener;
+import com.pocket.rpg.postProcessing.PostProcessing;
 import com.pocket.rpg.postProcessing.PostProcessor;
 import com.pocket.rpg.rendering.CameraSystem;
-import com.pocket.rpg.rendering.OverlayRenderer;
 import com.pocket.rpg.rendering.renderers.RenderInterface;
 import com.pocket.rpg.serialization.Serializer;
 import com.pocket.rpg.time.DefaultTimeContext;
@@ -39,7 +39,6 @@ public class GameApplication {
     private PostProcessor postProcessor;
     private InputEventBus inputEventBus;
     private PerformanceMonitor performanceMonitor;
-    private OverlayRenderer overlayRenderer;
 
     // Configuration
     private EngineConfiguration config;
@@ -119,7 +118,7 @@ public class GameApplication {
         window = platformFactory.createWindow(config.getGame(), inputBackend, inputEventBus);
         window.init();
 
-        // Create renderer
+        // Create renderer (now owns OverlayRenderer internally)
         renderer = platformFactory.createRenderer(cameraSystem, config.getRendering());
         renderer.init(config.getGame().getGameWidth(), config.getGame().getGameHeight());
 
@@ -128,13 +127,14 @@ public class GameApplication {
         // Create post-processor
         postProcessor = platformFactory.createPostProcessor(config.getGame());
         postProcessor.init(window);
+        PostProcessing.initialize(postProcessor);
 
         // Create performance monitor
         performanceMonitor = new PerformanceMonitor();
         performanceMonitor.setEnabled(config.getRendering().isEnableStatistics());
 
-        overlayRenderer = new OverlayRenderer(); // TODO: Should it be part of the platform factory ? Probably
-        overlayRenderer.init();
+        // OverlayRenderer is now created and owned by renderer
+        // No longer created here!
     }
 
     /**
@@ -149,7 +149,7 @@ public class GameApplication {
                 .inputEventBus(inputEventBus)
                 .postProcessor(postProcessor)
                 .cameraSystem(cameraSystem)
-                .overlayRenderer(overlayRenderer)
+                // OverlayRenderer is now obtained from renderer, not passed directly
                 .build();
 
         engine.initialize();
@@ -231,9 +231,7 @@ public class GameApplication {
         Input.destroy();
 
         // Destroy platform systems
-        if (overlayRenderer != null) {
-            overlayRenderer.destroy();
-        }
+        // OverlayRenderer is destroyed by renderer
         if (postProcessor != null) {
             postProcessor.destroy();
         }

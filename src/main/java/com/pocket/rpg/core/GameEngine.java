@@ -45,8 +45,6 @@ public class GameEngine {
     private final InputEventBus inputEventBus;
     @NonNull
     private final PostProcessor postProcessor;
-    @NonNull
-    private final OverlayRenderer overlayRenderer;
 
     /**
      * Initializes the game engine and all its subsystems.
@@ -60,6 +58,8 @@ public class GameEngine {
 
         // Initialize scene manager
         initSceneManager();
+
+        // Initialize transition system (gets OverlayRenderer from renderer)
         initTransitionSystem();
 
         System.out.println("Game engine initialized successfully");
@@ -68,10 +68,15 @@ public class GameEngine {
     private void initTransitionSystem() {
         System.out.println("Initializing transition system...");
 
+        // Get OverlayRenderer from renderer instead of receiving it via constructor
+        OverlayRenderer overlayRenderer = renderer.getOverlayRenderer();
+        overlayRenderer.init();
+        overlayRenderer.setScreenSize(window.getScreenWidth(), window.getScreenHeight());
+        inputEventBus.addResizeListener(overlayRenderer::setScreenSize);
         transitionManager = new TransitionManager(
                 sceneManager,
                 overlayRenderer,
-                config.getGame().getDefaultTransitionConfig()  // From GameConfig
+                config.getGame().getDefaultTransitionConfig()
         );
 
         // Initialize static API

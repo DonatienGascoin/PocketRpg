@@ -20,6 +20,7 @@
       "w": 1.0
     },
     "transitionText": "",
-    "type": "FADE"
+    "type": "FADE",
+    "wipeDirection": "LEFT"
   }
 }

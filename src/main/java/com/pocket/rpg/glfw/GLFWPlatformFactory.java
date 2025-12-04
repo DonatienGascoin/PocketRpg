@@ -10,6 +10,7 @@ import com.pocket.rpg.postProcessing.PostProcessor;
 import com.pocket.rpg.rendering.CameraSystem;
 import com.pocket.rpg.rendering.renderers.OpenGLRenderer;
 import com.pocket.rpg.rendering.renderers.RenderInterface;
+import com.pocket.rpg.ui.UIRenderer;
 
 /**
  * Platform factory for GLFW + OpenGL implementation.
@@ -28,6 +29,11 @@ public class GLFWPlatformFactory implements PlatformFactory {
     @Override
     public RenderInterface createRenderer(CameraSystem cameraSystem, RenderingConfig config) {
         return new OpenGLRenderer(cameraSystem, config);
+    }
+
+    @Override
+    public UIRenderer createUIRenderer() {
+        return new OpenGLUIRenderer();
     }
 
     @Override

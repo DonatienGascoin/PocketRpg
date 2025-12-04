@@ -1,7 +1,6 @@
 package com.pocket.rpg.core;
 
 import com.pocket.rpg.config.EngineConfiguration;
-import com.pocket.rpg.input.Input;
 import com.pocket.rpg.input.events.InputEventBus;
 import com.pocket.rpg.postProcessing.PostProcessor;
 import com.pocket.rpg.rendering.CameraSystem;
@@ -12,27 +11,29 @@ import com.pocket.rpg.resources.loaders.ShaderLoader;
 import com.pocket.rpg.resources.loaders.SpriteLoader;
 import com.pocket.rpg.resources.loaders.SpriteSheetLoader;
 import com.pocket.rpg.resources.loaders.TextureLoader;
-import com.pocket.rpg.scenes.*;
+import com.pocket.rpg.scenes.ExampleScene;
+import com.pocket.rpg.scenes.Scene;
+import com.pocket.rpg.scenes.SceneLifecycleListener;
+import com.pocket.rpg.scenes.SceneManager;
 import com.pocket.rpg.transitions.SceneTransition;
 import com.pocket.rpg.transitions.TransitionManager;
+import com.pocket.rpg.ui.UIRenderer;
 import com.pocket.rpg.utils.LogUtils;
 import com.pocket.rpg.utils.PerformanceMonitor;
 import lombok.Builder;
+import lombok.Getter;
 import lombok.NonNull;
 
 @Builder
 public class GameEngine {
-    // Configuration
     @NonNull
     private final EngineConfiguration config;
 
-    // Platform-independent systems (owned by engine)
     private SceneManager sceneManager;
     private TransitionManager transitionManager;
 
     private PerformanceMonitor performanceMonitor;
 
-    // Systems injected from outside
     @NonNull
     private final CameraSystem cameraSystem;
     @NonNull
@@ -44,41 +45,37 @@ public class GameEngine {
     @NonNull
     private final PostProcessor postProcessor;
 
-    /**
-     * Initializes the game engine and all its subsystems.
-     */
+    // UI System - injected via builder
+    @NonNull
+    @Getter
+    private final UIRenderer uiRenderer;
+
     public void initialize() {
         System.out.println(LogUtils.buildBox("Initializing Game Engine"));
 
         initAssetLoader();
-
-        // audio.initialize();
-
-        // Initialize scene manager
         initSceneManager();
-
-        // Initialize transition system (gets OverlayRenderer from renderer)
         initTransitionSystem();
-
-        validateStaticSystems();
+        initUISystem();
 
         System.out.println("Game engine initialized successfully");
     }
 
-    private void validateStaticSystems() {
-        if (!Input.hasContext()) {
-            throw new IllegalStateException("Input context not set");
-        }
+    private void initUISystem() {
+        System.out.println("Initializing UI system...");
 
-        if (!SceneTransition.hasContext()) {
-            throw new IllegalStateException("SceneTransition context not set");
-        }
+        uiRenderer.init();
+        uiRenderer.setScreenSize(window.getScreenWidth(), window.getScreenHeight());
+
+        // Listen for resize events
+        inputEventBus.addResizeListener(uiRenderer::setScreenSize);
+
+        System.out.println("UI system initialized");
     }
 
     private void initTransitionSystem() {
         System.out.println("Initializing transition system...");
 
-        // Get OverlayRenderer from renderer instead of receiving it via constructor
         OverlayRenderer overlayRenderer = renderer.getOverlayRenderer();
         overlayRenderer.init();
         overlayRenderer.setScreenSize(window.getScreenWidth(), window.getScreenHeight());
@@ -89,44 +86,38 @@ public class GameEngine {
                 config.getGame().getDefaultTransitionConfig()
         );
 
-        // Initialize static API
         SceneTransition.initialize(transitionManager);
 
         System.out.println("Transition system initialized");
     }
 
-
-    /**
-     * Update game state.
-     * Called every frame by the application.
-     */
     public void update(float deltaTime) {
-        Input.update(deltaTime);
         AssetManager.getInstance().update(deltaTime);
-//      audio.update(deltaTime);
-        transitionManager.update(deltaTime);  // Early returns if idle
-        sceneManager.update(deltaTime);       // Always updates current scene
+        transitionManager.update(deltaTime);
+        sceneManager.update(deltaTime);
     }
 
-    /**
-     * Render current scene.
-     * Called every frame by the application.
-     */
     public void render() {
-        // Always render scene
         if (sceneManager.getCurrentScene() != null) {
             renderer.render(sceneManager.getCurrentScene());
         }
-
-        // Always call transition render (it early-returns if idle)
         transitionManager.render();
     }
 
     /**
-     * Clean up all resources used by the game engine.
+     * Renders UI after post-processing.
+     * Called from GameApplication after postProcessor.endCaptureAndApplyEffects().
      */
+    public void renderUI() {
+        if (sceneManager.getCurrentScene() != null) {
+            uiRenderer.render(sceneManager.getCurrentScene().getUICanvases());
+        }
+    }
+
     public void destroy() {
         System.out.println("Destroying game engine...");
+
+        uiRenderer.destroy();
 
         if (sceneManager != null) {
             sceneManager.destroy();
@@ -140,7 +131,6 @@ public class GameEngine {
     private void initSceneManager() {
         sceneManager = new SceneManager(cameraSystem);
 
-        // Add scene lifecycle listener
         sceneManager.addLifecycleListener(new SceneLifecycleListener() {
             @Override
             public void onSceneLoaded(Scene scene) {
@@ -153,14 +143,8 @@ public class GameEngine {
             }
         });
 
-        // Register test scenes
         sceneManager.registerScene(new ExampleScene());
-        sceneManager.registerScene(new DemoScene());
-        sceneManager.registerScene(new DemoScene2());
-
-        // Load first scene
-//        sceneManager.loadScene("ExampleScene");
-        sceneManager.loadScene("Demo");
+        sceneManager.loadScene("ExampleScene");
     }
 
     private static void initAssetLoader() {

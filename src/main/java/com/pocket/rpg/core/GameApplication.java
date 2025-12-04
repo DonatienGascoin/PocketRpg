@@ -18,63 +18,51 @@ import com.pocket.rpg.serialization.Serializer;
 import com.pocket.rpg.time.DefaultTimeContext;
 import com.pocket.rpg.time.Time;
 import com.pocket.rpg.time.TimeContext;
+import com.pocket.rpg.ui.UIRenderer;
 import com.pocket.rpg.utils.LogUtils;
 import com.pocket.rpg.utils.PerformanceMonitor;
 
 /**
  * Main application class for the game.
- * Initializes and runs all core systems.
  */
 public class GameApplication {
 
     private PlatformFactory platformFactory;
 
-    // Platform systems
     private AbstractWindow window;
     private GameEngine engine;
     private CameraSystem cameraSystem;
 
     private RenderInterface renderer;
-    //    private AudioInterface audio;
+    private UIRenderer uiRenderer;
     private PostProcessor postProcessor;
     private InputEventBus inputEventBus;
     private PerformanceMonitor performanceMonitor;
 
-    // Configuration
     private EngineConfiguration config;
 
-    /**
-     * Initialize all systems.
-     */
     private void init() {
         Serializer.init();
         System.out.println(LogUtils.buildBox("Application starting"));
 
-        // Load configuration
         config = EngineConfiguration.load();
 
         inputEventBus = new InputEventBus();
         TimeContext timeContext = new DefaultTimeContext();
         Time.initialize(timeContext);
 
-        // Select platform
         platformFactory = selectPlatform();
         System.out.println("Using platform: " + platformFactory.getPlatformName());
 
-        // Create platform systems
         createCameraSystem();
         createPlatformSystems();
-
         setupInputSystem();
-
-        // Create game engine
         createGameEngine();
 
         System.out.println("Application initialization complete");
     }
 
     private PlatformFactory selectPlatform() {
-        // Could read from config or environment variable
         String platform = System.getProperty("game.platform", "glfw");
 
         return switch (platform.toLowerCase()) {
@@ -97,67 +85,47 @@ public class GameApplication {
         inputEventBus.addMouseListener(mouseListener);
         inputEventBus.addGamepadListener(gamepadListener);
 
-        // Create input context
         InputContext realContext = new DefaultInputContext(config.getInput(), keyListener, mouseListener, gamepadListener);
-
-        // Initialize InputManager
         Input.initialize(realContext);
     }
 
-    /**
-     * Create platform-dependent systems (window, renderer, audio, etc.)
-     * Ex. GLFW for window and input, OpenGL for rendering.
-     * Initialization during GameEngine init.
-     */
     private void createPlatformSystems() {
         System.out.println("Initializing platform systems...");
 
         InputBackend inputBackend = platformFactory.createInputBackend();
 
-        // Create window
         window = platformFactory.createWindow(config.getGame(), inputBackend, inputEventBus);
         window.init();
 
-        // Create renderer (now owns OverlayRenderer internally)
         renderer = platformFactory.createRenderer(cameraSystem, config.getRendering());
         renderer.init(config.getGame().getGameWidth(), config.getGame().getGameHeight());
 
-        //        audio = new NoOpAudioManager();
+        // Create UI renderer via platform factory
+        uiRenderer = platformFactory.createUIRenderer();
 
-        // Create post-processor
         postProcessor = platformFactory.createPostProcessor(config.getGame());
         postProcessor.init(window);
         PostProcessing.initialize(postProcessor);
 
-        // Create performance monitor
         performanceMonitor = new PerformanceMonitor();
         performanceMonitor.setEnabled(config.getRendering().isEnableStatistics());
-
-        // OverlayRenderer is now created and owned by renderer
-        // No longer created here!
     }
 
-    /**
-     * Initialize the main game engine.
-     */
     private void createGameEngine() {
         System.out.println("Creating game engine...");
         engine = GameEngine.builder()
                 .config(config)
                 .window(window)
                 .renderer(renderer)
+                .uiRenderer(uiRenderer)
                 .inputEventBus(inputEventBus)
                 .postProcessor(postProcessor)
                 .cameraSystem(cameraSystem)
-                // OverlayRenderer is now obtained from renderer, not passed directly
                 .build();
 
         engine.initialize();
     }
 
-    /**
-     * Run the application.
-     */
     public void run() {
         try {
             init();
@@ -170,11 +138,6 @@ public class GameApplication {
         }
     }
 
-
-    /**
-     * Main application loop.
-     * Runs until the window is closed.
-     */
     public void loop() {
         System.out.println("Starting main loop...");
 
@@ -186,7 +149,6 @@ public class GameApplication {
     }
 
     private void processFrame() {
-        // Handle minimized window
         if (handleMinimizedWindow()) {
             return;
         }
@@ -206,33 +168,33 @@ public class GameApplication {
         // Apply post-processing
         postProcessor.endCaptureAndApplyEffects();
 
-        Input.endFrame();
+        // Render UI AFTER post-processing (not affected by post-processing effects)
+        try {
+            engine.renderUI();
+        } catch (Exception e) {
+            System.err.println("ERROR in UI rendering: " + e.getMessage());
+            e.printStackTrace();
+        }
 
         // Swap buffers and poll events
         window.swapBuffers();
         window.pollEvents();
 
+        Input.endFrame();
 
-        // Update time and performance, last things in loop
         Time.update();
         performanceMonitor.update();
     }
 
-    /**
-     * Clean up all systems.
-     */
     private void destroy() {
         System.out.println("Destroying application...");
 
-        // Destroy in reverse order of creation
         if (engine != null) {
             engine.destroy();
         }
 
         Input.destroy();
 
-        // Destroy platform systems
-        // OverlayRenderer is destroyed by renderer
         if (postProcessor != null) {
             postProcessor.destroy();
         }
@@ -260,7 +222,6 @@ public class GameApplication {
         }
         return false;
     }
-
 
     private void createCameraSystem() {
         System.out.println("Initializing camera system...");

@@ -7,6 +7,7 @@ import com.pocket.rpg.input.events.InputEventBus;
 import com.pocket.rpg.postProcessing.PostProcessor;
 import com.pocket.rpg.rendering.CameraSystem;
 import com.pocket.rpg.rendering.renderers.RenderInterface;
+import com.pocket.rpg.ui.UIRenderer;
 
 /**
  * Factory for creating platform-specific implementations.
@@ -26,6 +27,11 @@ public interface PlatformFactory {
      * Create a renderer implementation for this platform.
      */
     RenderInterface createRenderer(CameraSystem cameraSystem, RenderingConfig config);
+
+    /**
+     * Create a UI renderer for this platform.
+     */
+    UIRenderer createUIRenderer();
 
     /**
      * Create an input backend for this platform.

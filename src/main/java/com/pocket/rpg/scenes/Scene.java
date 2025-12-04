@@ -5,15 +5,16 @@ import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.core.Camera;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.rendering.CameraSystem;
+import com.pocket.rpg.ui.UICanvas;
 import lombok.Getter;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Scene holds and manages GameObjects.
- * Scenes can be loaded and unloaded by the SceneManager.
  */
 public abstract class Scene {
     @Getter
@@ -27,15 +28,13 @@ public abstract class Scene {
 
     private final CopyOnWriteArrayList<GameObject> gameObjects;
 
-
-    // GameObjects cached components for quick access
+    // Cached components for quick access
     private final List<SpriteRenderer> spriteRenderers;
-
+    private final List<UICanvas> uiCanvases;  // Kept sorted by sortOrder
+    private boolean canvasSortDirty = false;
 
     private boolean initialized = false;
 
-
-    // Edge case: Allow the Renderer to rebuild the static SpriteRenderers if one is modified TODO: Needed ?
     @Getter
     private boolean staticBatchDirty = false;
 
@@ -43,6 +42,7 @@ public abstract class Scene {
         this.name = name;
         this.gameObjects = new CopyOnWriteArrayList<>();
         this.spriteRenderers = new ArrayList<>();
+        this.uiCanvases = new ArrayList<>();
         this.camera = new Camera();
     }
 
@@ -50,14 +50,10 @@ public abstract class Scene {
     // Scene Lifecycle Management
     // ===========================================
 
-    /**
-     * Initializes the scene and all its GameObjects. Called by SceneManager when loading the scene.
-     */
     public void initialize(CameraSystem cameraSystem) {
         this.initialized = true;
         this.cameraSystem = cameraSystem;
 
-        // Set up camera with camera system for coordinate conversions
         camera.setCameraSystem(cameraSystem);
         Camera.setMainCamera(camera);
 
@@ -68,45 +64,33 @@ public abstract class Scene {
         }
     }
 
-    /**
-     * Called every frame to update all GameObjects.
-     */
     public void update(float deltaTime) {
+        // Re-sort canvases if needed (deferred sorting)
+        if (canvasSortDirty) {
+            uiCanvases.sort(Comparator.comparingInt(UICanvas::getSortOrder));
+            canvasSortDirty = false;
+        }
 
         // Phase 1: Regular update
         for (GameObject gameObject : gameObjects) {
-            // Check if still in scene (might have been removed)
-            if (!gameObjects.contains(gameObject)) {
-                continue;
-            }
-
+            if (!gameObjects.contains(gameObject)) continue;
             if (gameObject.isEnabled()) {
                 gameObject.update(deltaTime);
             }
         }
 
-        // Phase 2: Late update (after all regular updates complete)
+        // Phase 2: Late update
         for (GameObject gameObject : gameObjects) {
-            // Check if still in scene (might have been removed during update)
-            if (!gameObjects.contains(gameObject)) {
-                continue;
-            }
-
+            if (!gameObjects.contains(gameObject)) continue;
             if (gameObject.isEnabled()) {
                 gameObject.lateUpdate(deltaTime);
             }
         }
-
     }
 
-
-    /**
-     * Destroys the scene and all its GameObjects.
-     */
     public void destroy() {
         onUnload();
 
-        // Create copy to avoid modification during iteration
         List<GameObject> gameObjectsToDestroy = new ArrayList<>(gameObjects);
         for (GameObject gameObject : gameObjectsToDestroy) {
             gameObject.destroy();
@@ -114,30 +98,18 @@ public abstract class Scene {
 
         gameObjects.clear();
         spriteRenderers.clear();
+        uiCanvases.clear();
     }
 
-    /**
-     * Called when the scene is loaded. Implement scene-specific initialization here.
-     */
     public abstract void onLoad();
 
-    /**
-     * Called when the scene is unloaded. Implement scene-specific cleanup here.
-     */
     public void onUnload() {
-        // Default implementation
     }
-
 
     // ===========================================
     // GameObject Management
     // ===========================================
 
-    /**
-     * Adds a GameObject to the scene.
-     *
-     * @param obj The GameObject to add
-     */
     public void addGameObject(GameObject obj) {
         if (obj.getScene() != null) {
             throw new IllegalStateException(
@@ -147,27 +119,21 @@ public abstract class Scene {
 
         gameObjects.add(obj);
         obj.setScene(this);
-        registerCachedComponent(obj);
+        registerCachedComponents(obj);
 
         if (initialized) {
             obj.start();
         }
     }
 
-    /**
-     * Removes a GameObject from the scene.
-     */
     public void removeGameObject(GameObject obj) {
         if (gameObjects.remove(obj)) {
             obj.destroy();
-            unregisterCachedComponent(obj);
+            unregisterCachedComponents(obj);
             obj.setScene(null);
         }
     }
 
-    /**
-     * Finds a GameObject by name.
-     */
     public GameObject findGameObject(String name) {
         for (GameObject go : gameObjects) {
             if (go.getName().equals(name)) {
@@ -177,70 +143,117 @@ public abstract class Scene {
         return null;
     }
 
-    /**
-     * Gets all GameObjects (returns defensive copy).
-     */
     public List<GameObject> getGameObjects() {
         return new ArrayList<>(gameObjects);
     }
 
+    // ===========================================
+    // Component Caching
+    // ===========================================
 
     /**
-     * Registers cached components from a GameObject.
-     * Called when adding a GameObject to the scene.
+     * Registers cached components from a GameObject and its children.
      */
-    public void registerCachedComponent(GameObject gameObject) {
-        var spriteRenderers = gameObject.getComponents(SpriteRenderer.class);
-        this.spriteRenderers.addAll(spriteRenderers);
-    }
+    public void registerCachedComponents(GameObject gameObject) {
+        // Sprite renderers
+        for (SpriteRenderer spr : gameObject.getComponents(SpriteRenderer.class)) {
+            if (!spriteRenderers.contains(spr)) {
+                spriteRenderers.add(spr);
+            }
+        }
 
-    /**
-     * Registers a single cached component.
-     */
-    public void registerCachedComponent(Component component) {
-        if (component instanceof SpriteRenderer spr && !this.spriteRenderers.contains(spr)) {
-            this.spriteRenderers.add(spr);
+        // UI canvases (insert sorted)
+        for (UICanvas canvas : gameObject.getComponents(UICanvas.class)) {
+            if (!uiCanvases.contains(canvas)) {
+                insertCanvasSorted(canvas);
+            }
+        }
+
+        // Register children recursively
+        for (GameObject child : gameObject.getChildren()) {
+            registerCachedComponents(child);
         }
     }
 
     /**
-     * Unregisters cached components from a GameObject.
-     * Called when removing a GameObject from the scene.
+     * Registers a single component.
      */
-    public void unregisterCachedComponent(GameObject gameObject) {
-        var spriteRenderers = gameObject.getComponents(SpriteRenderer.class);
-        this.spriteRenderers.removeAll(spriteRenderers);
+    public void registerCachedComponent(Component component) {
+        if (component instanceof SpriteRenderer spr && !spriteRenderers.contains(spr)) {
+            spriteRenderers.add(spr);
+        } else if (component instanceof UICanvas canvas && !uiCanvases.contains(canvas)) {
+            insertCanvasSorted(canvas);
+        }
     }
 
     /**
-     * Unregisters a single cached component.
+     * Unregisters cached components from a GameObject and its children.
+     */
+    public void unregisterCachedComponents(GameObject gameObject) {
+        spriteRenderers.removeAll(gameObject.getComponents(SpriteRenderer.class));
+        uiCanvases.removeAll(gameObject.getComponents(UICanvas.class));
+
+        for (GameObject child : gameObject.getChildren()) {
+            unregisterCachedComponents(child);
+        }
+    }
+
+    /**
+     * Unregisters a single component.
      */
     public void unregisterCachedComponent(Component component) {
         if (component instanceof SpriteRenderer spr) {
-            this.spriteRenderers.remove(spr);
+            spriteRenderers.remove(spr);
+        } else if (component instanceof UICanvas canvas) {
+            uiCanvases.remove(canvas);
         }
     }
 
     /**
-     * Gets all registered sprite renderers.
-     * Used by RenderPipeline for rendering.
-     * Returns defensive copy to prevent modification during iteration.
+     * Insert canvas in sorted position by sortOrder.
      */
+    private void insertCanvasSorted(UICanvas canvas) {
+        int insertIndex = 0;
+        for (int i = 0; i < uiCanvases.size(); i++) {
+            if (uiCanvases.get(i).getSortOrder() > canvas.getSortOrder()) {
+                break;
+            }
+            insertIndex = i + 1;
+        }
+        uiCanvases.add(insertIndex, canvas);
+    }
+
+    /**
+     * Mark canvas list as needing re-sort.
+     * Called when a canvas's sortOrder changes.
+     */
+    public void markCanvasSortDirty() {
+        canvasSortDirty = true;
+    }
+
+    // ===========================================
+    // Component Access
+    // ===========================================
+
     public List<SpriteRenderer> getSpriteRenderers() {
         return new ArrayList<>(spriteRenderers);
     }
 
     /**
-     * Marks the static sprite batch as dirty, forcing a rebuild.
-     * Call this when you modify a static sprite's transform.
-     * Only works if using BatchRenderer.
-     * TODO: Needed ?
+     * Returns canvases sorted by sortOrder (ascending).
      */
+    public List<UICanvas> getUICanvases() {
+        return new ArrayList<>(uiCanvases);
+    }
+
+    // ===========================================
+    // Static Batch Management
+    // ===========================================
+
     public void markStaticBatchDirty() {
         staticBatchDirty = true;
     }
 
-    //    TODO: Needed ?
     public void clearStaticBatchDirty() {
         staticBatchDirty = false;
     }

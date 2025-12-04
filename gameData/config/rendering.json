@@ -1,7 +1,7 @@
 {
   "maxBatchSize": 10000,
   "sortingStrategy": "BALANCED",
-  "enableStatistics": true,
+  "enableStatistics": false,
   "statisticsInterval": 300,
   "clearColor": {
     "x": 0.0,

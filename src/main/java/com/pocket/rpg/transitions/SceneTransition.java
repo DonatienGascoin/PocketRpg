@@ -32,13 +32,17 @@ public class SceneTransition {
 
     private static TransitionManager instance;
 
+    public static boolean hasContext() {
+        return instance != null;
+    }
+
     /**
      * Initializes the scene transition system.
      * Must be called once at application startup.
      *
      * @param manager the transition manager instance
      * @throws IllegalArgumentException if manager is null
-     * @throws IllegalStateException if already initialized
+     * @throws IllegalStateException    if already initialized
      */
     public static void initialize(TransitionManager manager) {
         if (manager == null) {
@@ -67,8 +71,8 @@ public class SceneTransition {
      * Loads a scene with a custom transition.
      *
      * @param sceneName name of the scene to load
-     * @param config transition configuration
-     * @throws IllegalStateException if not initialized
+     * @param config    transition configuration
+     * @throws IllegalStateException    if not initialized
      * @throws IllegalArgumentException if config is null
      */
     public static void loadScene(String sceneName, TransitionConfig config) {

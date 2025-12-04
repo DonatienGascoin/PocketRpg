@@ -1,7 +1,7 @@
 {
   "title": "Pocket Rpg",
-  "windowWidth": 1280,
-  "windowHeight": 960,
+  "windowWidth": 640,
+  "windowHeight": 480,
   "gameWidth": 640,
   "gameHeight": 480,
   "fullscreen": false,

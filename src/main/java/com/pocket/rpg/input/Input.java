@@ -18,6 +18,10 @@ public class Input {
     @Setter
     private static InputContext context;
 
+    public static boolean hasContext() {
+        return context != null;
+    }
+
     /**
      * Initialize the input system with a context.
      * Called once during application startup.

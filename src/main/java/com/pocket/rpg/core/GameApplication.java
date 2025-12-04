@@ -206,11 +206,12 @@ public class GameApplication {
         // Apply post-processing
         postProcessor.endCaptureAndApplyEffects();
 
+        Input.endFrame();
+
         // Swap buffers and poll events
         window.swapBuffers();
         window.pollEvents();
 
-        Input.endFrame();
 
         // Update time and performance, last things in loop
         Time.update();

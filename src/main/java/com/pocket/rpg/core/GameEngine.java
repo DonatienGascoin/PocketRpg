@@ -1,6 +1,7 @@
 package com.pocket.rpg.core;
 
 import com.pocket.rpg.config.EngineConfiguration;
+import com.pocket.rpg.input.Input;
 import com.pocket.rpg.input.events.InputEventBus;
 import com.pocket.rpg.postProcessing.PostProcessor;
 import com.pocket.rpg.rendering.CameraSystem;
@@ -11,10 +12,7 @@ import com.pocket.rpg.resources.loaders.ShaderLoader;
 import com.pocket.rpg.resources.loaders.SpriteLoader;
 import com.pocket.rpg.resources.loaders.SpriteSheetLoader;
 import com.pocket.rpg.resources.loaders.TextureLoader;
-import com.pocket.rpg.scenes.ExampleScene;
-import com.pocket.rpg.scenes.Scene;
-import com.pocket.rpg.scenes.SceneLifecycleListener;
-import com.pocket.rpg.scenes.SceneManager;
+import com.pocket.rpg.scenes.*;
 import com.pocket.rpg.transitions.SceneTransition;
 import com.pocket.rpg.transitions.TransitionManager;
 import com.pocket.rpg.utils.LogUtils;
@@ -62,7 +60,19 @@ public class GameEngine {
         // Initialize transition system (gets OverlayRenderer from renderer)
         initTransitionSystem();
 
+        validateStaticSystems();
+
         System.out.println("Game engine initialized successfully");
+    }
+
+    private void validateStaticSystems() {
+        if (!Input.hasContext()) {
+            throw new IllegalStateException("Input context not set");
+        }
+
+        if (!SceneTransition.hasContext()) {
+            throw new IllegalStateException("SceneTransition context not set");
+        }
     }
 
     private void initTransitionSystem() {
@@ -91,6 +101,7 @@ public class GameEngine {
      * Called every frame by the application.
      */
     public void update(float deltaTime) {
+        Input.update(deltaTime);
         AssetManager.getInstance().update(deltaTime);
 //      audio.update(deltaTime);
         transitionManager.update(deltaTime);  // Early returns if idle
@@ -144,9 +155,12 @@ public class GameEngine {
 
         // Register test scenes
         sceneManager.registerScene(new ExampleScene());
+        sceneManager.registerScene(new DemoScene());
+        sceneManager.registerScene(new DemoScene2());
 
         // Load first scene
-        sceneManager.loadScene("ExampleScene");
+//        sceneManager.loadScene("ExampleScene");
+        sceneManager.loadScene("Demo");
     }
 
     private static void initAssetLoader() {

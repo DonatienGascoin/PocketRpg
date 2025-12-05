@@ -12,7 +12,6 @@ import com.pocket.rpg.input.listeners.KeyListener;
 import com.pocket.rpg.input.listeners.MouseListener;
 import com.pocket.rpg.postProcessing.PostProcessing;
 import com.pocket.rpg.postProcessing.PostProcessor;
-import com.pocket.rpg.rendering.CameraSystem;
 import com.pocket.rpg.rendering.renderers.RenderInterface;
 import com.pocket.rpg.serialization.Serializer;
 import com.pocket.rpg.time.DefaultTimeContext;
@@ -41,7 +40,7 @@ public class GameApplication {
 
     private AbstractWindow window;
     private GameEngine engine;
-    private CameraSystem cameraSystem;
+    private ViewportConfig viewportConfig;
 
     private RenderInterface renderer;
     private UIRenderer uiRenderer;
@@ -67,7 +66,7 @@ public class GameApplication {
         platformFactory = selectPlatform();
         System.out.println("Using platform: " + platformFactory.getPlatformName());
 
-        createCameraSystem();
+        createViewportConfig();
         createPlatformSystems();
         setupInputSystem();
         createUIInputHandler();
@@ -116,7 +115,7 @@ public class GameApplication {
         window = platformFactory.createWindow(config.getGame(), inputBackend, inputEventBus);
         window.init();
 
-        renderer = platformFactory.createRenderer(cameraSystem, config.getRendering());
+        renderer = platformFactory.createRenderer(viewportConfig, config.getRendering());
         renderer.init(config.getGame().getGameWidth(), config.getGame().getGameHeight());
 
         // Create UI renderer via platform factory
@@ -139,7 +138,7 @@ public class GameApplication {
                 .uiRenderer(uiRenderer)
                 .inputEventBus(inputEventBus)
                 .postProcessor(postProcessor)
-                .cameraSystem(cameraSystem)
+                .viewportConfig(viewportConfig)
                 .build();
 
         // Set the UI input handler
@@ -274,8 +273,8 @@ public class GameApplication {
 
         // Convert screen coordinates to game coordinates
         // This accounts for pillarbox/letterbox scaling
-        float gameMouseX = cameraSystem.screenToGameX(screenMousePos.x);
-        float gameMouseY = cameraSystem.screenToGameY(screenMousePos.y);
+        float gameMouseX = viewportConfig.windowToGameX(screenMousePos.x);
+        float gameMouseY = viewportConfig.windowToGameY(screenMousePos.y);
 
         // Update UI input - this may set Input.mouseConsumed = true
         engine.updateUIInput(gameMouseX, gameMouseY);
@@ -318,9 +317,11 @@ public class GameApplication {
         return false;
     }
 
-    private void createCameraSystem() {
-        System.out.println("Initializing camera system...");
-        cameraSystem = new CameraSystem(config.getGame());
-        inputEventBus.addResizeListener(cameraSystem::setViewportSize);
+    private void createViewportConfig() {
+        System.out.println("Initializing viewport config...");
+        viewportConfig = new ViewportConfig(config.getGame());
+
+        // Register for window resize events
+        inputEventBus.addResizeListener(viewportConfig::setWindowSize);
     }
 }

@@ -1,7 +1,7 @@
 package com.pocket.rpg.rendering.renderers;
 
 import com.pocket.rpg.config.RenderingConfig;
-import com.pocket.rpg.rendering.CameraSystem;
+import com.pocket.rpg.core.ViewportConfig;
 import com.pocket.rpg.rendering.OpenGLOverlayRenderer;
 import com.pocket.rpg.rendering.OverlayRenderer;
 import com.pocket.rpg.rendering.RenderPipeline;
@@ -15,7 +15,7 @@ import lombok.Getter;
  * - Overlay renderer (OpenGLOverlayRenderer)
  */
 public class OpenGLRenderer implements RenderInterface {
-    private final CameraSystem cameraSystem;
+    private final ViewportConfig viewportConfig;
     private final RenderingConfig config;
 
     @Getter
@@ -26,8 +26,8 @@ public class OpenGLRenderer implements RenderInterface {
     // Overlay renderer owned by OpenGLRenderer
     private OpenGLOverlayRenderer overlayRenderer;
 
-    public OpenGLRenderer(CameraSystem cameraSystem, RenderingConfig config) {
-        this.cameraSystem = cameraSystem;
+    public OpenGLRenderer(ViewportConfig viewportConfig, RenderingConfig config) {
+        this.viewportConfig = viewportConfig;
         this.config = config;
     }
 
@@ -39,7 +39,7 @@ public class OpenGLRenderer implements RenderInterface {
         renderer = new BatchRenderer(config);
         renderer.init(width, height);
 
-        renderPipeline = new RenderPipeline(renderer, cameraSystem, config);
+        renderPipeline = new RenderPipeline(renderer, viewportConfig, config);
 
         // Initialize overlay renderer
         overlayRenderer = new OpenGLOverlayRenderer();

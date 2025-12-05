@@ -3,7 +3,7 @@ package com.pocket.rpg.integration;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.core.GameObject;
-import com.pocket.rpg.rendering.CameraSystem;
+import com.pocket.rpg.core.ViewportConfig;
 import com.pocket.rpg.scenes.Scene;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.BeforeEach;
@@ -13,13 +13,13 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class SceneGameObjectIntegrationTest {
 
-    private CameraSystem cameraSystem;
+    private ViewportConfig viewportConfig;
     private TestScene scene;
 
     @BeforeEach
     void setUp() {
         scene = new TestScene("TestScene");
-        cameraSystem = new CameraSystem(GameConfig.builder()
+        viewportConfig = new ViewportConfig(GameConfig.builder()
                 .gameWidth(800)
                 .gameHeight(600)
                 .windowWidth(800)
@@ -37,7 +37,7 @@ class SceneGameObjectIntegrationTest {
         scene.addGameObject(go2);
         scene.addGameObject(go3);
 
-        scene.initialize(cameraSystem);
+        scene.initialize(viewportConfig);
 
         assertEquals(3, scene.getGameObjects().size());
         assertTrue(go1.getTransform() != null);
@@ -52,7 +52,7 @@ class SceneGameObjectIntegrationTest {
         go.addComponent(component);
 
         scene.addGameObject(go);
-        scene.initialize(cameraSystem);
+        scene.initialize(viewportConfig);
 
         assertTrue(component.isStarted());
     }
@@ -69,7 +69,7 @@ class SceneGameObjectIntegrationTest {
 
         scene.addGameObject(go1);
         scene.addGameObject(go2);
-        scene.initialize(cameraSystem);
+        scene.initialize(viewportConfig);
 
         scene.update(0.016f);
 
@@ -86,7 +86,7 @@ class SceneGameObjectIntegrationTest {
         initial.addComponent(spawner);
 
         scene.addGameObject(initial);
-        scene.initialize(cameraSystem);
+        scene.initialize(viewportConfig);
 
         scene.update(0.016f);
 
@@ -103,7 +103,7 @@ class SceneGameObjectIntegrationTest {
 
         scene.addGameObject(go1);
         scene.addGameObject(go2);
-        scene.initialize(cameraSystem);
+        scene.initialize(viewportConfig);
 
         scene.update(0.016f);
 
@@ -123,7 +123,7 @@ class SceneGameObjectIntegrationTest {
 
         scene.addGameObject(go1);
         scene.addGameObject(go2);
-        scene.initialize(cameraSystem);
+        scene.initialize(viewportConfig);
 
         scene.destroy();
 
@@ -172,7 +172,7 @@ class SceneGameObjectIntegrationTest {
         go.addComponent(counter);
 
         scene.addGameObject(go);
-        scene.initialize(cameraSystem);
+        scene.initialize(viewportConfig);
 
         scene.update(0.016f);
         scene.update(0.016f);
@@ -194,7 +194,7 @@ class SceneGameObjectIntegrationTest {
 
         scene.addGameObject(go1);
         scene.addGameObject(go2);
-        scene.initialize(cameraSystem);
+        scene.initialize(viewportConfig);
 
         go2.setEnabled(false);
 

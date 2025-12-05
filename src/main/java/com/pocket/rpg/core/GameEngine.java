@@ -3,7 +3,6 @@ package com.pocket.rpg.core;
 import com.pocket.rpg.config.EngineConfiguration;
 import com.pocket.rpg.input.events.InputEventBus;
 import com.pocket.rpg.postProcessing.PostProcessor;
-import com.pocket.rpg.rendering.CameraSystem;
 import com.pocket.rpg.rendering.OverlayRenderer;
 import com.pocket.rpg.rendering.renderers.RenderInterface;
 import com.pocket.rpg.resources.AssetManager;
@@ -33,7 +32,7 @@ public class GameEngine {
     private PerformanceMonitor performanceMonitor;
 
     @NonNull
-    private final CameraSystem cameraSystem;
+    private final ViewportConfig viewportConfig;
     @NonNull
     private final AbstractWindow window;
     @NonNull
@@ -164,7 +163,7 @@ public class GameEngine {
     }
 
     private void initSceneManager() {
-        sceneManager = new SceneManager(cameraSystem);
+        sceneManager = new SceneManager(viewportConfig);
 
         sceneManager.addLifecycleListener(new SceneLifecycleListener() {
             @Override

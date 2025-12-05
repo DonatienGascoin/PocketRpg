@@ -2,71 +2,52 @@ package com.pocket.rpg.rendering.culling;
 
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.core.Camera;
-import com.pocket.rpg.rendering.CameraSystem;
-import org.joml.Vector3f;
 
 /**
  * Frustum culler for orthographic (2D) cameras.
- * Uses camera position and zoom to calculate world-space frustum bounds.
+ * Uses Camera.getWorldBounds() for frustum calculation.
+ * <p>
+ * Since Camera now has centered position, the bounds are calculated
+ * as position ± half visible area.
  */
 public class OrthographicFrustumCuller extends FrustumCuller {
 
     // Camera frustum bounds in world space
     private float worldLeft;
-    private float worldRight;
     private float worldTop;
+    private float worldRight;
     private float worldBottom;
 
-    public OrthographicFrustumCuller(CameraSystem cameraSystem) {
-        super(cameraSystem);
+    public OrthographicFrustumCuller() {
+        // Default constructor
     }
 
     /**
      * Updates the orthographic frustum bounds from camera.
-     * <p>
-     * The frustum bounds are calculated as:
-     * 1. Start with game resolution (e.g., 640x480 pixels)
-     * 2. Apply camera zoom (zoom > 1 = see less, zoom < 1 = see more)
-     * 3. Offset by camera position
+     * Uses Camera.getWorldBounds() which accounts for:
+     * - Camera position (center of view)
+     * - Camera zoom
+     * - Game resolution
      */
     @Override
     public void updateFromCamera(Camera camera) {
         this.camera = camera;
 
         if (camera == null) {
-            // Fallback: use game resolution as world bounds
-            worldLeft = 0;
-            worldRight = cameraSystem.getGameWidth();
-            worldTop = 0;
-            worldBottom = cameraSystem.getGameHeight();
+            // Fallback: no culling
+            worldLeft = Float.MIN_VALUE;
+            worldRight = Float.MAX_VALUE;
+            worldTop = Float.MIN_VALUE;
+            worldBottom = Float.MAX_VALUE;
             return;
         }
 
-        // Get camera parameters
-        Vector3f camPos = camera.getPosition();
-        float zoom = camera.getZoom();
-
-        // Get game resolution
-        int gameWidth = cameraSystem.getGameWidth();
-        int gameHeight = cameraSystem.getGameHeight();
-
-        // Calculate visible world size based on zoom
-        // Zoom = 1.0 means 1 pixel = 1 world unit
-        // Zoom = 2.0 means we see half the world (zoomed in)
-        // Zoom = 0.5 means we see twice the world (zoomed out)
-        float visibleWorldWidth = gameWidth / zoom;
-        float visibleWorldHeight = gameHeight / zoom;
-
-        // Calculate world-space frustum bounds
-        // Camera position is at top-left of view (matching screen space origin)
-        worldLeft = camPos.x;
-        worldRight = camPos.x + visibleWorldWidth;
-        worldTop = camPos.y;
-        worldBottom = camPos.y + visibleWorldHeight;
-
-        // Note: Camera rotation is not considered for culling
-        // This is conservative - rotated cameras may see slightly outside these bounds
-        // For tight culling with rotation, we'd need to transform the frustum corners
+        // Get bounds from camera (already accounts for centered position + zoom)
+        float[] bounds = camera.getWorldBounds();
+        worldLeft = bounds[0];
+        worldTop = bounds[1];
+        worldRight = bounds[2];
+        worldBottom = bounds[3];
     }
 
     /**

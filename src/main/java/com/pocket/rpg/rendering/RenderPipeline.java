@@ -3,6 +3,7 @@ package com.pocket.rpg.rendering;
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.core.Camera;
+import com.pocket.rpg.core.ViewportConfig;
 import com.pocket.rpg.rendering.culling.CullingSystem;
 import com.pocket.rpg.rendering.renderers.BatchRenderer;
 import com.pocket.rpg.rendering.renderers.Renderer;
@@ -22,12 +23,10 @@ import static org.lwjgl.opengl.GL33.glClearColor;
 
 /**
  * Orchestrates the complete rendering pipeline:
- * 1. Camera system updates
+ * 1. Camera updates
  * 2. Culling system updates
  * 3. Sprite rendering with culling
  * 4. Statistics reporting
- * <p>
- * UPDATED: Now supports BatchRenderer and passes renderer to scene
  */
 public class RenderPipeline {
 
@@ -35,7 +34,7 @@ public class RenderPipeline {
     private final CullingSystem cullingSystem;
     @Getter
     private final Renderer renderer;
-    private final CameraSystem cameraSystem;
+    private final ViewportConfig viewportConfig;
     @Setter
     private StatisticsReporter statisticsReporter;
 
@@ -44,10 +43,10 @@ public class RenderPipeline {
     /**
      * Creates a render pipeline with the specified components.
      */
-    public RenderPipeline(Renderer renderer, CameraSystem cameraSystem, RenderingConfig config) {
+    public RenderPipeline(Renderer renderer, ViewportConfig viewportConfig, RenderingConfig config) {
         this.renderer = renderer;
-        this.cameraSystem = cameraSystem;
-        this.cullingSystem = new CullingSystem(cameraSystem);
+        this.viewportConfig = viewportConfig;
+        this.cullingSystem = new CullingSystem();
         this.clearColor = config.getClearColor();
         if (config.isEnableStatistics()) {
             this.statisticsReporter = config.getReporter();
@@ -73,7 +72,7 @@ public class RenderPipeline {
                 return;
             }
 
-            // 2. Update culling system
+            // 2. Update culling system with camera bounds
             cullingSystem.updateFrame(activeCamera);
 
             // 3. Check if static batch needs rebuilding (flag-based, no casting)
@@ -82,8 +81,8 @@ public class RenderPipeline {
                 scene.clearStaticBatchDirty();
             }
 
-            // 4. Get rendering parameters
-            Matrix4f projectionMatrix = cameraSystem.getProjectionMatrix();
+            // 4. Get rendering matrices FROM CAMERA (not CameraSystem)
+            Matrix4f projectionMatrix = activeCamera.getProjectionMatrix();
             Matrix4f viewMatrix = activeCamera.getViewMatrix();
 
             // 5. Clear screen

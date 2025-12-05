@@ -4,7 +4,7 @@ import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.core.Camera;
 import com.pocket.rpg.core.GameObject;
-import com.pocket.rpg.rendering.CameraSystem;
+import com.pocket.rpg.core.ViewportConfig;
 import com.pocket.rpg.ui.UICanvas;
 import lombok.Getter;
 
@@ -15,16 +15,17 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Scene holds and manages GameObjects.
+ * Each Scene owns a Camera that defines the view into the world.
  */
 public abstract class Scene {
     @Getter
     private final String name;
 
     @Getter
-    protected final Camera camera;
+    protected Camera camera;
 
     @Getter
-    private CameraSystem cameraSystem;
+    private ViewportConfig viewportConfig;
 
     private final CopyOnWriteArrayList<GameObject> gameObjects;
 
@@ -43,18 +44,25 @@ public abstract class Scene {
         this.gameObjects = new CopyOnWriteArrayList<>();
         this.spriteRenderers = new ArrayList<>();
         this.uiCanvases = new ArrayList<>();
-        this.camera = new Camera();
+        // Camera created in initialize() when ViewportConfig is available
     }
 
     // ===========================================
     // Scene Lifecycle Management
     // ===========================================
 
-    public void initialize(CameraSystem cameraSystem) {
+    /**
+     * Initializes the scene with viewport configuration.
+     * Creates the camera and calls onLoad().
+     *
+     * @param viewportConfig Shared viewport configuration
+     */
+    public void initialize(ViewportConfig viewportConfig) {
         this.initialized = true;
-        this.cameraSystem = cameraSystem;
+        this.viewportConfig = viewportConfig;
 
-        camera.setCameraSystem(cameraSystem);
+        // Create camera with viewport config
+        this.camera = new Camera(viewportConfig);
         Camera.setMainCamera(camera);
 
         onLoad();
@@ -65,6 +73,11 @@ public abstract class Scene {
     }
 
     public void update(float deltaTime) {
+        // Update camera
+        if (camera != null) {
+            camera.update(deltaTime);
+        }
+
         // Re-sort canvases if needed (deferred sorting)
         if (canvasSortDirty) {
             uiCanvases.sort(Comparator.comparingInt(UICanvas::getSortOrder));

@@ -154,8 +154,33 @@ public class MockInputTesting implements InputContext {
     }
 
     @Override
+    public boolean getMouseButtonRaw(KeyCode button) {
+        return false;
+    }
+
+    @Override
+    public boolean getMouseButtonDownRaw(KeyCode button) {
+        return false;
+    }
+
+    @Override
+    public boolean getMouseButtonUpRaw(KeyCode button) {
+        return false;
+    }
+
+    @Override
     public boolean isMouseDragging(KeyCode button) {
         return keysDown.contains(button) && (mouseDelta.x != 0 || mouseDelta.y != 0);
+    }
+
+    @Override
+    public boolean isMouseConsumed() {
+        return false;
+    }
+
+    @Override
+    public void setMouseConsumed(boolean consumed) {
+
     }
 
     @Override

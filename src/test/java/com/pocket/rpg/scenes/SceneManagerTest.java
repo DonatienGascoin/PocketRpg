@@ -1,11 +1,12 @@
 package com.pocket.rpg.scenes;
 
 import com.pocket.rpg.config.GameConfig;
-import com.pocket.rpg.rendering.CameraSystem;
+import com.pocket.rpg.core.ViewportConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SceneManagerTest {
 
@@ -15,7 +16,7 @@ class SceneManagerTest {
 
     @BeforeEach
     void setUp() {
-        sceneManager = new SceneManager(new CameraSystem(GameConfig.builder()
+        sceneManager = new SceneManager(new ViewportConfig(GameConfig.builder()
                 .gameWidth(800)
                 .gameHeight(600)
                 .windowWidth(800)

@@ -2,20 +2,18 @@ package com.pocket.rpg.rendering.culling;
 
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.core.Camera;
-import com.pocket.rpg.rendering.CameraSystem;
 
 /**
  * Manages frustum culling for the rendering system.
- * Since we only support 2D orthographic rendering, this is simplified
- * to only use orthographic culling.
+ * Uses Camera's getWorldBounds() for culling calculations.
  */
 public class CullingSystem {
 
-    private OrthographicFrustumCuller culler;
-    private CullingStatistics statistics;
+    private final OrthographicFrustumCuller culler;
+    private final CullingStatistics statistics;
 
-    public CullingSystem(CameraSystem cameraSystem) {
-        this.culler = new OrthographicFrustumCuller(cameraSystem);
+    public CullingSystem() {
+        this.culler = new OrthographicFrustumCuller();
         this.statistics = new CullingStatistics();
     }
 

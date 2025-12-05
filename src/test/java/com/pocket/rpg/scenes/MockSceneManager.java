@@ -1,7 +1,7 @@
 package com.pocket.rpg.scenes;
 
 import com.pocket.rpg.config.GameConfig;
-import com.pocket.rpg.rendering.CameraSystem;
+import com.pocket.rpg.core.ViewportConfig;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -19,7 +19,7 @@ public class MockSceneManager extends SceneManager {
     private Scene currentScene;
 
     public MockSceneManager() {
-        super(new CameraSystem(GameConfig.builder().gameWidth(640).gameHeight(480).windowWidth(1280).windowHeight(960).build()));
+        super(new ViewportConfig(GameConfig.builder().gameWidth(640).gameHeight(480).windowWidth(1280).windowHeight(960).build()));
     }@Override
     public void registerScene(Scene scene) {
         registeredScenes.put(scene.getName(), scene);

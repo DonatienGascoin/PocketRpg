@@ -1,5 +1,6 @@
 package com.pocket.rpg.config;
 
+import com.pocket.rpg.transitions.WipeTransition;
 import org.joml.Vector4f;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
@@ -196,7 +197,8 @@ class TransitionConfigTest {
                 2.0f,
                 color,
                 "Loading",
-                TransitionConfig.TransitionType.FADE_WITH_TEXT
+                TransitionConfig.TransitionType.FADE_WITH_TEXT,
+                WipeTransition.WipeDirection.LEFT
         );
 
         assertEquals(1.0f, config.getFadeOutDuration());

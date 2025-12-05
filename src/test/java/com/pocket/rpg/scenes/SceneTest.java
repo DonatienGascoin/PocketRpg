@@ -3,7 +3,7 @@ package com.pocket.rpg.scenes;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.core.GameObject;
-import com.pocket.rpg.rendering.CameraSystem;
+import com.pocket.rpg.core.ViewportConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -56,7 +56,7 @@ class SceneTest {
 
     @Test
     void testInitialize() {
-        scene.initialize(new CameraSystem(GameConfig.builder()
+        scene.initialize(new ViewportConfig(GameConfig.builder()
                 .gameWidth(800)
                 .gameHeight(600)
                 .windowWidth(800)
@@ -73,7 +73,7 @@ class SceneTest {
         go.addComponent(component);
 
         scene.addGameObject(go);
-        scene.initialize(new CameraSystem(GameConfig.builder()
+        scene.initialize(new ViewportConfig(GameConfig.builder()
                 .gameWidth(800)
                 .gameHeight(600)
                 .windowWidth(800)

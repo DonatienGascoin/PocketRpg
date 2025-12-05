@@ -9,11 +9,8 @@ import com.pocket.rpg.postProcessing.BloomEffect;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.SpriteSheet;
 import com.pocket.rpg.rendering.Texture;
-import com.pocket.rpg.ui.UICanvas;
-import com.pocket.rpg.ui.UIImage;
-import com.pocket.rpg.ui.UIPanel;
+import com.pocket.rpg.ui.*;
 import org.joml.Vector3f;
-import org.joml.Vector4f;
 
 import java.util.List;
 
@@ -55,6 +52,170 @@ public class ExampleScene extends Scene {
     // ===========================================
 
     private void createUIDemo() {
+        System.out.println("Creating UI demo...");
+
+        // Create a Canvas (root UI element)
+        GameObject canvasGO = new GameObject("MainCanvas");
+        UICanvas canvas = new UICanvas(UICanvas.RenderMode.SCREEN_SPACE_OVERLAY, 0);
+        canvasGO.addComponent(canvas);
+        addGameObject(canvasGO);
+
+        // Create a semi-transparent dark panel at top-left (HUD background)
+        // Anchored to TOP_LEFT (0, 1) with offset down and right
+        GameObject hudPanel = new GameObject("HUDPanel");
+        UITransform hudTransform = new UITransform();
+        hudTransform.setAnchor(AnchorPreset.TOP_LEFT);
+        hudTransform.setOffset(10, -70);  // 10px right, 70px down from top
+        hudTransform.setSize(200, 60);
+        hudPanel.addComponent(hudTransform);
+        UIPanel panel = new UIPanel();
+        panel.setColor(0.1f, 0.1f, 0.1f, 0.7f);
+        hudPanel.addComponent(panel);
+        hudPanel.setParent(canvasGO);
+
+        // Create health bar background (red)
+        GameObject healthBarBg = new GameObject("HealthBarBg");
+        UITransform healthBgTransform = new UITransform();
+        healthBgTransform.setAnchor(AnchorPreset.TOP_LEFT);
+        healthBgTransform.setOffset(20, -30);
+        healthBgTransform.setSize(180, 20);
+        healthBarBg.addComponent(healthBgTransform);
+        UIPanel healthBg = new UIPanel();
+        healthBg.setColor(0.3f, 0.0f, 0.0f, 1.0f);
+        healthBarBg.addComponent(healthBg);
+        healthBarBg.setParent(canvasGO);
+
+        // Create health bar fill (green) - 80% filled
+        GameObject healthBarFill = new GameObject("HealthBarFill");
+        UITransform healthFillTransform = new UITransform();
+        healthFillTransform.setAnchor(AnchorPreset.TOP_LEFT);
+        healthFillTransform.setOffset(20, -30);
+        healthFillTransform.setSize(144, 20);  // 80% of 180
+        healthBarFill.addComponent(healthFillTransform);
+        UIPanel healthFill = new UIPanel();
+        healthFill.setColor(0.0f, 0.8f, 0.0f, 1.0f);
+        healthBarFill.addComponent(healthFill);
+        healthBarFill.setParent(canvasGO);
+
+        // Create mana bar background (dark blue)
+        GameObject manaBarBg = new GameObject("ManaBarBg");
+        UITransform manaBgTransform = new UITransform();
+        manaBgTransform.setAnchor(AnchorPreset.TOP_LEFT);
+        manaBgTransform.setOffset(20, -55);
+        manaBgTransform.setSize(180, 15);
+        manaBarBg.addComponent(manaBgTransform);
+        UIPanel manaBg = new UIPanel();
+        manaBg.setColor(0.0f, 0.0f, 0.3f, 1.0f);
+        manaBarBg.addComponent(manaBg);
+        manaBarBg.setParent(canvasGO);
+
+        // Create mana bar fill (bright blue) - 60% filled
+        GameObject manaBarFill = new GameObject("ManaBarFill");
+        UITransform manaFillTransform = new UITransform();
+        manaFillTransform.setAnchor(AnchorPreset.TOP_LEFT);
+        manaFillTransform.setOffset(20, -55);
+        manaFillTransform.setSize(108, 15);  // 60% of 180
+        manaBarFill.addComponent(manaFillTransform);
+        UIPanel manaFill = new UIPanel();
+        manaFill.setColor(0.2f, 0.4f, 1.0f, 1.0f);
+        manaBarFill.addComponent(manaFill);
+        manaBarFill.setParent(canvasGO);
+
+        // Create icon in bottom-right using UIImage (with texture)
+        try {
+            Texture iconTexture = new Texture("gameData/assets/player.png");
+
+            GameObject iconGO = new GameObject("PlayerIcon");
+            UITransform iconTransform = new UITransform();
+            iconTransform.setAnchor(AnchorPreset.BOTTOM_RIGHT);
+            iconTransform.setOffset(-74, 10);  // 74px from right, 10px up
+            iconTransform.setSize(64, 64);
+            iconGO.addComponent(iconTransform);
+            UIImage icon = new UIImage(iconTexture);
+            iconGO.addComponent(icon);
+            iconGO.setParent(canvasGO);
+
+            // Add pulsing animation to icon
+            iconGO.addComponent(new UIPulseComponent());
+
+        } catch (Exception e) {
+            System.err.println("Could not load icon texture: " + e.getMessage());
+        }
+
+        // Create a second canvas with higher sort order (renders on top)
+        GameObject overlayCanvas = new GameObject("OverlayCanvas");
+        UICanvas overlay = new UICanvas(UICanvas.RenderMode.SCREEN_SPACE_OVERLAY, 10);
+        overlayCanvas.addComponent(overlay);
+        addGameObject(overlayCanvas);
+
+        // Add a small notification badge at bottom-right
+        GameObject badge = new GameObject("NotificationBadge");
+        UITransform badgeTransform = new UITransform();
+        badgeTransform.setAnchor(AnchorPreset.BOTTOM_RIGHT);
+        badgeTransform.setOffset(-20, 54);  // Near the icon
+        badgeTransform.setSize(20, 20);
+        badge.addComponent(badgeTransform);
+        UIPanel badgePanel = new UIPanel();
+        badgePanel.setColor(1.0f, 0.2f, 0.2f, 1.0f);
+        badge.addComponent(badgePanel);
+        badge.setParent(overlayCanvas);
+
+        // ===========================================
+        // BUTTON DEMO (Phase 3)
+        // ===========================================
+
+        // Simple color button with default hover tint
+        GameObject playBtn = new GameObject("PlayButton");
+        UITransform playTransform = new UITransform();
+        playTransform.setAnchor(AnchorPreset.CENTER);
+        playTransform.setOffset(0, -100);
+        playTransform.setSize(150, 50);
+        playBtn.addComponent(playTransform);
+        UIButton playButton = new UIButton();
+        playButton.setColor(0.2f, 0.6f, 0.2f, 1f);  // Green
+        playButton.setOnClick(() -> System.out.println("Play button clicked!"));
+        playBtn.addComponent(playButton);
+        playBtn.setParent(canvasGO);
+
+        // Button with custom hover tint
+        GameObject optionsBtn = new GameObject("OptionsButton");
+        UITransform optionsTransform = new UITransform();
+        optionsTransform.setAnchor(AnchorPreset.CENTER);
+        optionsTransform.setOffset(0, -160);
+        optionsTransform.setSize(150, 50);
+        optionsBtn.addComponent(optionsTransform);
+        UIButton optionsButton = new UIButton();
+        optionsButton.setColor(0.3f, 0.3f, 0.6f, 1f);  // Blue-ish
+        optionsButton.setHoverTint(0.2f);  // 20% darker on hover
+        optionsButton.setOnClick(() -> System.out.println("Options button clicked!"));
+        optionsBtn.addComponent(optionsButton);
+        optionsBtn.setParent(canvasGO);
+
+        // Button with custom hover callback (no auto-tint)
+        GameObject quitBtn = new GameObject("QuitButton");
+        UITransform quitTransform = new UITransform();
+        quitTransform.setAnchor(AnchorPreset.CENTER);
+        quitTransform.setOffset(0, -220);
+        quitTransform.setSize(150, 50);
+        quitBtn.addComponent(quitTransform);
+        UIButton quitButton = new UIButton();
+        quitButton.setColor(0.6f, 0.2f, 0.2f, 1f);  // Red
+        // Custom hover callbacks disable auto-tint
+        quitButton.setOnHover(() -> {
+            System.out.println("Hovering over Quit...");
+            quitButton.setColor(1.0f, 0.3f, 0.3f, 1f);  // Brighter red
+        });
+        quitButton.setOnExit(() -> {
+            quitButton.setColor(0.6f, 0.2f, 0.2f, 1f);  // Back to normal
+        });
+        quitButton.setOnClick(() -> System.out.println("Quit button clicked!"));
+        quitBtn.addComponent(quitButton);
+        quitBtn.setParent(canvasGO);
+
+        System.out.println("✓ UI demo created");
+    }
+
+    /*private void createUIDemoOld() {
         System.out.println("Creating UI demo...");
 
         // Create a Canvas (root UI element)
@@ -137,7 +298,7 @@ public class ExampleScene extends Scene {
         badge.setParent(overlayCanvas);
 
         System.out.println("✓ UI demo created");
-    }
+    }*/
 
     /**
      * Component that pulses a UI element's alpha.

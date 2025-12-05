@@ -134,6 +134,34 @@ public class Input {
         return getContext().isMouseDragging(button);
     }
 
+    // ========================================
+    // Mouse Consumption (UI Input Blocking)
+    // ========================================
+
+    /**
+     * Returns true if mouse input was consumed by UI this frame.
+     * Game code should check this before processing mouse clicks.
+     *
+     * <p>Usage:
+     * <pre>{@code
+     * if (Input.getMouseButtonDown(KeyCode.MOUSE_BUTTON_LEFT) && !Input.isMouseConsumed()) {
+     *     // Safe to process game click - UI didn't consume it
+     *     handleGameClick();
+     * }
+     * }</pre>
+     */
+    public static boolean isMouseConsumed() {
+        return getContext().isMouseConsumed();
+    }
+
+    /**
+     * Sets the mouse consumed flag. Called by UIInputHandler.
+     * Game code should not call this directly.
+     */
+    public static void setMouseConsumed(boolean consumed) {
+        getContext().setMouseConsumed(consumed);
+    }
+
     // Axis API
     public static float getAxis(InputAxis axis) {
         return getContext().getAxis(axis);

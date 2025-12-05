@@ -1,5 +1,7 @@
 package com.pocket.rpg.ui;
 
+import com.pocket.rpg.config.GameConfig;
+
 import java.util.List;
 
 /**
@@ -9,14 +11,16 @@ import java.util.List;
 public interface UIRenderer {
 
     /**
-     * Initialize the UI renderer.
+     * Initialize the UI renderer with game configuration.
+     * Uses gameWidth/gameHeight for pillarbox/letterbox UI scaling.
      */
-    void init();
+    void init(GameConfig config);
 
     /**
-     * Update screen size for projection matrix.
+     * Update viewport size (window size, not game resolution).
+     * Used for calculating pillarbox/letterbox offset.
      */
-    void setScreenSize(int width, int height);
+    void setViewportSize(int width, int height);
 
     /**
      * Render all UI canvases.

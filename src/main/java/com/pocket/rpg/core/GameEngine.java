@@ -17,6 +17,7 @@ import com.pocket.rpg.scenes.SceneLifecycleListener;
 import com.pocket.rpg.scenes.SceneManager;
 import com.pocket.rpg.transitions.SceneTransition;
 import com.pocket.rpg.transitions.TransitionManager;
+import com.pocket.rpg.ui.UIInputHandler;
 import com.pocket.rpg.ui.UIRenderer;
 import com.pocket.rpg.utils.LogUtils;
 import com.pocket.rpg.utils.PerformanceMonitor;
@@ -50,6 +51,18 @@ public class GameEngine {
     @Getter
     private final UIRenderer uiRenderer;
 
+    // UI Input Handler - processes mouse input for UI (optional, can be set later)
+    @Getter
+    @Builder.Default
+    private UIInputHandler uiInputHandler = null;
+
+    /**
+     * Sets the UI input handler. Call after constructing GameEngine if not provided in builder.
+     */
+    public void setUIInputHandler(UIInputHandler handler) {
+        this.uiInputHandler = handler;
+    }
+
     public void initialize() {
         System.out.println(LogUtils.buildBox("Initializing Game Engine"));
 
@@ -64,11 +77,11 @@ public class GameEngine {
     private void initUISystem() {
         System.out.println("Initializing UI system...");
 
-        uiRenderer.init();
-        uiRenderer.setScreenSize(window.getScreenWidth(), window.getScreenHeight());
+        uiRenderer.init(config.getGame());
+        uiRenderer.setViewportSize(window.getScreenWidth(), window.getScreenHeight());
 
         // Listen for resize events
-        inputEventBus.addResizeListener(uiRenderer::setScreenSize);
+        inputEventBus.addResizeListener(uiRenderer::setViewportSize);
 
         System.out.println("UI system initialized");
     }
@@ -95,6 +108,31 @@ public class GameEngine {
         AssetManager.getInstance().update(deltaTime);
         transitionManager.update(deltaTime);
         sceneManager.update(deltaTime);
+    }
+
+    /**
+     * Updates UI input handling. Call BEFORE game input processing.
+     * Sets Input.mouseConsumed if UI elements are under cursor.
+     *
+     * @param mouseX Mouse X in game coordinates (not screen coordinates)
+     * @param mouseY Mouse Y in game coordinates (not screen coordinates)
+     */
+    public void updateUIInput(float mouseX, float mouseY) {
+        if (uiInputHandler == null) return;
+
+        Scene currentScene = sceneManager.getCurrentScene();
+        if (currentScene != null) {
+            uiInputHandler.update(currentScene.getUICanvases(), mouseX, mouseY);
+        }
+    }
+
+    /**
+     * Resets UI input state. Call when changing scenes.
+     */
+    public void resetUIInput() {
+        if (uiInputHandler != null) {
+            uiInputHandler.reset();
+        }
     }
 
     public void render() {

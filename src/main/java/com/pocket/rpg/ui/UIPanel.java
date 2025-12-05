@@ -1,42 +1,26 @@
 package com.pocket.rpg.ui;
 
 import lombok.Getter;
-import lombok.Setter;
+import org.joml.Vector2f;
 import org.joml.Vector4f;
 
 /**
- * UIPanel vs UIImage:
- * - UIImage: Requires a sprite/texture, used for icons, backgrounds with images
- * - UIPanel: Renders as solid color rectangle, no texture needed
+ * Renders a solid color rectangle in screen space.
+ * Requires UICanvas ancestor and UITransform on same GameObject.
  *
- * Use UIPanel for:
- * - Solid color backgrounds
- * - Debug rectangles
- * - Simple UI frames without texture
- * - Any case where you just need a colored rectangle
+ * UIPanel vs UIImage:
+ * - UIImage: Requires a sprite/texture
+ * - UIPanel: Solid color, no texture needed
  */
 public class UIPanel extends UIComponent {
 
     @Getter
     private final Vector4f color = new Vector4f(0.2f, 0.2f, 0.2f, 1f);  // Dark gray default
 
-    @Getter @Setter
-    private float width = 100;
-
-    @Getter @Setter
-    private float height = 100;
-
     public UIPanel() {
     }
 
-    public UIPanel(float width, float height) {
-        this.width = width;
-        this.height = height;
-    }
-
-    public UIPanel(float width, float height, Vector4f color) {
-        this.width = width;
-        this.height = height;
+    public UIPanel(Vector4f color) {
         this.color.set(color);
     }
 
@@ -52,21 +36,31 @@ public class UIPanel extends UIComponent {
         color.w = alpha;
     }
 
+    /**
+     * Convenience method to set size on UITransform.
+     */
     public void setSize(float width, float height) {
-        this.width = width;
-        this.height = height;
+        UITransform t = getUITransform();
+        if (t != null) {
+            t.setSize(width, height);
+        }
     }
 
     @Override
     public void render(UIRendererBackend backend) {
-        float x = gameObject.getTransform().getPosition().x;
-        float y = gameObject.getTransform().getPosition().y;
-        backend.drawQuad(x, y, width, height, color);
+        UITransform transform = getUITransform();
+        if (transform == null) return;
+
+        Vector2f pos = transform.getScreenPosition();
+        float w = transform.getWidth();
+        float h = transform.getHeight();
+
+        backend.drawQuad(pos.x, pos.y, w, h, color);
     }
 
     @Override
     public String toString() {
-        return String.format("UIPanel[size=%.0fx%.0f, color=(%.2f,%.2f,%.2f,%.2f)]",
-                width, height, color.x, color.y, color.z, color.w);
+        return String.format("UIPanel[color=(%.2f,%.2f,%.2f,%.2f)]",
+                color.x, color.y, color.z, color.w);
     }
 }

@@ -61,6 +61,7 @@ public class GameObject {
     /**
      * Sets the parent of this GameObject.
      * Automatically updates both parent's and previous parent's children lists.
+     * Handles scene registration when parented to an object in a scene.
      */
     public void setParent(GameObject newParent) {
         if (newParent == this) {
@@ -74,6 +75,8 @@ public class GameObject {
             return;
         }
 
+        Scene oldScene = this.scene;
+
         // Remove from old parent
         if (this.parent != null) {
             this.parent.children.remove(this);
@@ -85,12 +88,22 @@ public class GameObject {
         if (newParent != null) {
             newParent.children.add(this);
 
-            // Inherit scene from parent and register components
-            if (newParent.scene != null && this.scene == null) {
-                setSceneRecursive(newParent.scene);
-                // Register this object's components with the scene
-                newParent.scene.registerCachedComponents(this);
+            Scene newScene = newParent.scene;
+
+            // Handle scene changes
+            if (newScene != null && newScene != oldScene) {
+                // Moving to a different scene
+                if (oldScene != null) {
+                    oldScene.unregisterCachedComponents(this);
+                }
+                setSceneRecursive(newScene);
+                newScene.registerCachedComponents(this);
+            } else if (newScene != null && oldScene == null) {
+                // First time being added to a scene via parenting
+                setSceneRecursive(newScene);
+                newScene.registerCachedComponents(this);
             }
+            // If newScene == oldScene, components are already registered - do nothing
         }
     }
 

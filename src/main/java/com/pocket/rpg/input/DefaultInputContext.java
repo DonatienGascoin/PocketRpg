@@ -21,6 +21,7 @@ import java.util.Map;
  *   <li>Composite axes that combine multiple input sources</li>
  *   <li>Mouse delta tracking for camera control</li>
  *   <li>Action system with multiple key bindings</li>
+ *   <li>Mouse consumption for UI input blocking</li>
  * </ul>
  *
  * <p>Thread Safety: This class is designed for single-threaded use on the main game loop.
@@ -42,6 +43,9 @@ public class DefaultInputContext implements InputContext {
 
     // State for composite axis sources (maintains interpolation state per source config)
     private final Map<InputAxis, Map<AxisConfig, Float>> compositeSourceStates;
+
+    // Mouse consumption flag (for UI input blocking)
+    private boolean mouseConsumed = false;
 
     /**
      * Creates a new DefaultInputContext with the specified configuration and listeners.
@@ -86,6 +90,9 @@ public class DefaultInputContext implements InputContext {
 
     @Override
     public void update(float deltaTime) {
+        // Reset mouse consumed flag at start of frame
+        mouseConsumed = false;
+
         // Update all axes
         for (InputAxis axis : InputAxis.values()) {
             AxisConfig axisConfig = config.getAxisConfig(axis);
@@ -329,6 +336,7 @@ public class DefaultInputContext implements InputContext {
         }
 
         customAxisValues.clear();
+        mouseConsumed = false;
     }
 
     @Override
@@ -399,6 +407,18 @@ public class DefaultInputContext implements InputContext {
     @Override
     public boolean isMouseDragging(KeyCode button) {
         return mouseListener.isDragging(button);
+    }
+
+    // ========== Mouse Consumption (UI Input Blocking) ==========
+
+    @Override
+    public boolean isMouseConsumed() {
+        return mouseConsumed;
+    }
+
+    @Override
+    public void setMouseConsumed(boolean consumed) {
+        this.mouseConsumed = consumed;
     }
 
     // ========== Action System ==========

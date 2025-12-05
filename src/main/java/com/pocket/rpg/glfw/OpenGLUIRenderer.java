@@ -1,11 +1,9 @@
 package com.pocket.rpg.glfw;
 
+import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.rendering.Sprite;
-import com.pocket.rpg.ui.UICanvas;
-import com.pocket.rpg.ui.UIComponent;
-import com.pocket.rpg.ui.UIRenderer;
-import com.pocket.rpg.ui.UIRendererBackend;
+import com.pocket.rpg.ui.*;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
 import org.lwjgl.BufferUtils;
@@ -18,7 +16,8 @@ import static org.lwjgl.opengl.GL33.*;
 
 /**
  * OpenGL implementation of UIRenderer.
- * Renders UI components in screen space with origin at top-left.
+ * Renders UI in game resolution with bottom-left origin.
+ * Scales with pillarbox/letterbox to match game viewport.
  */
 public class OpenGLUIRenderer implements UIRenderer, UIRendererBackend {
 
@@ -26,8 +25,13 @@ public class OpenGLUIRenderer implements UIRenderer, UIRendererBackend {
     private int shaderProgram;
     private int whiteTexture;
 
-    private int screenWidth;
-    private int screenHeight;
+    // Game resolution (fixed, from config)
+    private int gameWidth;
+    private int gameHeight;
+
+    // Viewport size (changes on window resize)
+    private int viewportWidth;
+    private int viewportHeight;
 
     private final Matrix4f projectionMatrix = new Matrix4f();
     private final Matrix4f modelMatrix = new Matrix4f();
@@ -46,22 +50,34 @@ public class OpenGLUIRenderer implements UIRenderer, UIRendererBackend {
     private boolean initialized = false;
 
     @Override
-    public void init() {
+    public void init(GameConfig config) {
         if (initialized) return;
+
+        this.gameWidth = config.getGameWidth();
+        this.gameHeight = config.getGameHeight();
 
         createShader();
         createBuffers();
         createWhiteTexture();
 
+        // Initial projection with game resolution, bottom-left origin
+        updateProjection();
+
         initialized = true;
-        System.out.println("OpenGLUIRenderer initialized");
+        System.out.println("OpenGLUIRenderer initialized (game: " + gameWidth + "x" + gameHeight + ")");
     }
 
     @Override
-    public void setScreenSize(int width, int height) {
-        this.screenWidth = width;
-        this.screenHeight = height;
-        projectionMatrix.identity().ortho(0, width, height, 0, -1, 1);
+    public void setViewportSize(int width, int height) {
+        this.viewportWidth = width;
+        this.viewportHeight = height;
+        // Projection doesn't change - we always use game resolution
+        // The viewport/scissor will be set by the main renderer for pillarbox
+    }
+
+    private void updateProjection() {
+        // Bottom-left origin: (0,0) at bottom-left, (gameWidth, gameHeight) at top-right
+        projectionMatrix.identity().ortho(0, gameWidth, 0, gameHeight, -1, 1);
     }
 
     @Override
@@ -83,7 +99,7 @@ public class OpenGLUIRenderer implements UIRenderer, UIRendererBackend {
             if (!canvas.isEnabled()) continue;
             if (canvas.getRenderMode() != UICanvas.RenderMode.SCREEN_SPACE_OVERLAY) continue;
 
-            renderCanvasSubtree(canvas.getGameObject());
+            renderCanvasSubtree(canvas.getGameObject(), gameWidth, gameHeight);
         }
 
         glBindVertexArray(0);
@@ -91,16 +107,32 @@ public class OpenGLUIRenderer implements UIRenderer, UIRendererBackend {
         glEnable(GL_DEPTH_TEST);
     }
 
-    private void renderCanvasSubtree(GameObject root) {
-        renderGameObjectUI(root);
+    private void renderCanvasSubtree(GameObject root, float parentWidth, float parentHeight) {
+        renderGameObjectUI(root, parentWidth, parentHeight);
+
+        // Get this object's bounds for children
+        float childParentWidth = parentWidth;
+        float childParentHeight = parentHeight;
+
+        UITransform transform = root.getComponent(UITransform.class);
+        if (transform != null) {
+            childParentWidth = transform.getWidth();
+            childParentHeight = transform.getHeight();
+        }
 
         for (GameObject child : root.getChildren()) {
-            renderCanvasSubtree(child);
+            renderCanvasSubtree(child, childParentWidth, childParentHeight);
         }
     }
 
-    private void renderGameObjectUI(GameObject go) {
+    private void renderGameObjectUI(GameObject go, float parentWidth, float parentHeight) {
         if (!go.isEnabled()) return;
+
+        // Update UITransform with parent bounds
+        UITransform transform = go.getComponent(UITransform.class);
+        if (transform != null) {
+            transform.setParentBounds(parentWidth, parentHeight);
+        }
 
         // Get all UI components and render them
         for (var component : go.getAllComponents()) {
@@ -128,6 +160,7 @@ public class OpenGLUIRenderer implements UIRenderer, UIRendererBackend {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, whiteTexture);
 
+        // Build quad from bottom-left corner
         buildQuadVertices(0, 0, width, height, 0, 0, 1, 1);
         uploadVertices();
 
@@ -144,8 +177,9 @@ public class OpenGLUIRenderer implements UIRenderer, UIRendererBackend {
         if (sprite != null && sprite.getTexture() != null) {
             glUniform1i(uUseTexture, 1);
             sprite.getTexture().bind(0);
+            // Flip V coordinates for bottom-left origin
             buildQuadVertices(0, 0, width, height,
-                    sprite.getU0(), sprite.getV0(), sprite.getU1(), sprite.getV1());
+                    sprite.getU0(), sprite.getV1(), sprite.getU1(), sprite.getV0());
         } else {
             glUniform1i(uUseTexture, 0);
             glActiveTexture(GL_TEXTURE0);
@@ -163,26 +197,15 @@ public class OpenGLUIRenderer implements UIRenderer, UIRendererBackend {
 
     private void buildQuadVertices(float x, float y, float w, float h,
                                    float u0, float v0, float u1, float v1) {
-        // Top-left
-        vertices[0] = x;
-        vertices[1] = y;
-        vertices[2] = u0;
-        vertices[3] = v0;
-        // Top-right
-        vertices[4] = x + w;
-        vertices[5] = y;
-        vertices[6] = u1;
-        vertices[7] = v0;
-        // Bottom-right
-        vertices[8] = x + w;
-        vertices[9] = y + h;
-        vertices[10] = u1;
-        vertices[11] = v1;
+        // Bottom-left origin: build quad from (x,y) going right and up
         // Bottom-left
-        vertices[12] = x;
-        vertices[13] = y + h;
-        vertices[14] = u0;
-        vertices[15] = v1;
+        vertices[0] = x;      vertices[1] = y;      vertices[2] = u0; vertices[3] = v0;
+        // Bottom-right
+        vertices[4] = x + w;  vertices[5] = y;      vertices[6] = u1; vertices[7] = v0;
+        // Top-right
+        vertices[8] = x + w;  vertices[9] = y + h;  vertices[10] = u1; vertices[11] = v1;
+        // Top-left
+        vertices[12] = x;     vertices[13] = y + h; vertices[14] = u0; vertices[15] = v1;
     }
 
     private void uploadVertices() {
@@ -210,7 +233,7 @@ public class OpenGLUIRenderer implements UIRenderer, UIRendererBackend {
 
         ebo = glGenBuffers();
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-        int[] indices = {0, 1, 2, 2, 3, 0};
+        int[] indices = { 0, 1, 2, 2, 3, 0 };
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices, GL_STATIC_DRAW);
 
         glBindVertexArray(0);
@@ -233,40 +256,40 @@ public class OpenGLUIRenderer implements UIRenderer, UIRendererBackend {
 
     private void createShader() {
         String vertexSource = """
-                #version 330 core
-                layout (location = 0) in vec2 aPos;
-                layout (location = 1) in vec2 aUV;
-                
-                uniform mat4 uProjection;
-                uniform mat4 uModel;
-                
-                out vec2 vUV;
-                
-                void main() {
-                    gl_Position = uProjection * uModel * vec4(aPos, 0.0, 1.0);
-                    vUV = aUV;
-                }
-                """;
+            #version 330 core
+            layout (location = 0) in vec2 aPos;
+            layout (location = 1) in vec2 aUV;
+            
+            uniform mat4 uProjection;
+            uniform mat4 uModel;
+            
+            out vec2 vUV;
+            
+            void main() {
+                gl_Position = uProjection * uModel * vec4(aPos, 0.0, 1.0);
+                vUV = aUV;
+            }
+            """;
 
         String fragmentSource = """
-                #version 330 core
-                in vec2 vUV;
-                
-                uniform sampler2D uTexture;
-                uniform vec4 uColor;
-                uniform int uUseTexture;
-                
-                out vec4 FragColor;
-                
-                void main() {
-                    vec4 texColor = texture(uTexture, vUV);
-                    if (uUseTexture == 1) {
-                        FragColor = texColor * uColor;
-                    } else {
-                        FragColor = uColor;
-                    }
+            #version 330 core
+            in vec2 vUV;
+            
+            uniform sampler2D uTexture;
+            uniform vec4 uColor;
+            uniform int uUseTexture;
+            
+            out vec4 FragColor;
+            
+            void main() {
+                vec4 texColor = texture(uTexture, vUV);
+                if (uUseTexture == 1) {
+                    FragColor = texColor * uColor;
+                } else {
+                    FragColor = uColor;
                 }
-                """;
+            }
+            """;
 
         int vertexShader = glCreateShader(GL_VERTEX_SHADER);
         glShaderSource(vertexShader, vertexSource);

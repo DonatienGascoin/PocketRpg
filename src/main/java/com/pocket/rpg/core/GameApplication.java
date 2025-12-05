@@ -18,12 +18,22 @@ import com.pocket.rpg.serialization.Serializer;
 import com.pocket.rpg.time.DefaultTimeContext;
 import com.pocket.rpg.time.Time;
 import com.pocket.rpg.time.TimeContext;
+import com.pocket.rpg.ui.UIInputHandler;
 import com.pocket.rpg.ui.UIRenderer;
 import com.pocket.rpg.utils.LogUtils;
 import com.pocket.rpg.utils.PerformanceMonitor;
 
 /**
  * Main application class for the game.
+ * <p>
+ * Game Loop Order:
+ * 1. Poll window events (keyboard, mouse, gamepad)
+ * 2. Update UI input (sets mouse consumed flag)
+ * 3. Update game logic (respects mouse consumption)
+ * 4. Render game world
+ * 5. Apply post-processing
+ * 6. Render UI (on top, unaffected by post-processing)
+ * 7. Swap buffers
  */
 public class GameApplication {
 
@@ -38,6 +48,9 @@ public class GameApplication {
     private PostProcessor postProcessor;
     private InputEventBus inputEventBus;
     private PerformanceMonitor performanceMonitor;
+
+    // UI Input Handler - processes mouse input for UI elements
+    private UIInputHandler uiInputHandler;
 
     private EngineConfiguration config;
 
@@ -57,6 +70,7 @@ public class GameApplication {
         createCameraSystem();
         createPlatformSystems();
         setupInputSystem();
+        createUIInputHandler();
         createGameEngine();
 
         System.out.println("Application initialization complete");
@@ -87,6 +101,11 @@ public class GameApplication {
 
         InputContext realContext = new DefaultInputContext(config.getInput(), keyListener, mouseListener, gamepadListener);
         Input.initialize(realContext);
+    }
+
+    private void createUIInputHandler() {
+        System.out.println("Creating UI input handler...");
+        uiInputHandler = new UIInputHandler(config.getGame());
     }
 
     private void createPlatformSystems() {
@@ -123,6 +142,9 @@ public class GameApplication {
                 .cameraSystem(cameraSystem)
                 .build();
 
+        // Set the UI input handler
+        engine.setUIInputHandler(uiInputHandler);
+
         engine.initialize();
     }
 
@@ -148,27 +170,79 @@ public class GameApplication {
         System.out.println("Exited main loop");
     }
 
+    /**
+     * Main game loop frame processing.
+     * <p>
+     * Order of operations:
+     * 1. Handle minimized window (skip rendering)
+     * 2. Poll events (populates Input state)
+     * 3. Update UI input FIRST (sets mouse consumed flag)
+     * 4. Update game logic (Input methods respect consumption)
+     * 5. Render game world to framebuffer
+     * 6. Apply post-processing effects
+     * 7. Render UI (not affected by post-processing)
+     * 8. Swap buffers and end frame
+     */
     private void processFrame() {
         if (handleMinimizedWindow()) {
             return;
         }
 
-        // Begin post-processing capture
+        // ============================================
+        // 1. POLL EVENTS
+        // ============================================
+        // This updates keyboard, mouse, gamepad state
+        window.pollEvents();
+
+        // ============================================
+        // 2. UPDATE UI INPUT (BEFORE GAME LOGIC)
+        // ============================================
+        // This must happen BEFORE game update so that:
+        // - UI can consume mouse input
+        // - Game code using Input.getMouseButtonDown() automatically
+        //   gets false if UI consumed the input
+        updateUIInput();
+
+        // ============================================
+        // 3. BEGIN POST-PROCESSING CAPTURE
+        // ============================================
         postProcessor.beginCapture();
 
-        // Update and render game
+        // ============================================
+        // 4. UPDATE GAME LOGIC
+        // ============================================
+        // At this point, if UI consumed mouse input:
+        // - Input.getMouseButtonDown() returns false
+        // - Input.getMouseButton() returns false
+        // - Input.getMouseButtonUp() returns false
+        // Game code doesn't need to check isMouseConsumed()!
         try {
             engine.update(Time.deltaTime());
-            engine.render();
         } catch (Exception e) {
-            System.err.println("ERROR in game loop: " + e.getMessage());
+            System.err.println("ERROR in game update: " + e.getMessage());
             e.printStackTrace();
         }
 
-        // Apply post-processing
+        // ============================================
+        // 5. RENDER GAME WORLD
+        // ============================================
+        try {
+            engine.render();
+        } catch (Exception e) {
+            System.err.println("ERROR in game render: " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        // ============================================
+        // 6. APPLY POST-PROCESSING
+        // ============================================
         postProcessor.endCaptureAndApplyEffects();
 
-        // Render UI AFTER post-processing (not affected by post-processing effects)
+        // ============================================
+        // 7. RENDER UI (AFTER POST-PROCESSING)
+        // ============================================
+        // UI is rendered AFTER post-processing so it's not
+        // affected by blur, bloom, color grading, etc.
         try {
             engine.renderUI();
         } catch (Exception e) {
@@ -176,14 +250,35 @@ public class GameApplication {
             e.printStackTrace();
         }
 
-        // Swap buffers and poll events
+        // ============================================
+        // 8. SWAP BUFFERS AND END FRAME
+        // ============================================
         window.swapBuffers();
-        window.pollEvents();
 
+        // Clear per-frame input state (pressed/released flags)
         Input.endFrame();
 
+        // Update time for next frame
         Time.update();
         performanceMonitor.update();
+    }
+
+    /**
+     * Updates UI input handling.
+     * Converts screen mouse coordinates to game coordinates and
+     * processes UI hover/click events.
+     */
+    private void updateUIInput() {
+        // Get screen mouse position
+        var screenMousePos = Input.getMousePosition();
+
+        // Convert screen coordinates to game coordinates
+        // This accounts for pillarbox/letterbox scaling
+        float gameMouseX = cameraSystem.screenToGameX(screenMousePos.x);
+        float gameMouseY = cameraSystem.screenToGameY(screenMousePos.y);
+
+        // Update UI input - this may set Input.mouseConsumed = true
+        engine.updateUIInput(gameMouseX, gameMouseY);
     }
 
     private void destroy() {

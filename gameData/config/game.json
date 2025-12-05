@@ -22,5 +22,6 @@
     "transitionText": "",
     "type": "FADE",
     "wipeDirection": "LEFT"
-  }
+  },
+  "uiButtonHoverTint": 0.1
 }

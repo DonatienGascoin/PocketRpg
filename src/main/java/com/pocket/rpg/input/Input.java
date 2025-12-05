@@ -6,12 +6,28 @@ import org.joml.Vector2f;
 /**
  * Service locator for InputManager.
  * Provides Unity-style static API while maintaining testability.
- * <p>
- * Usage in gameplay code:
- * if (Input.getKeyDown(KeyCode.W)) { ... }
- * <p>
- * Usage in tests:
+ *
+ * <h3>Mouse Button Methods:</h3>
+ * <ul>
+ *   <li><b>Normal methods</b> (getMouseButton, getMouseButtonDown, getMouseButtonUp):
+ *       Automatically return false if mouse is consumed by UI. Use these in game code.</li>
+ *   <li><b>Raw methods</b> (getMouseButtonRaw, getMouseButtonDownRaw, getMouseButtonUpRaw):
+ *       Return actual state regardless of consumption. For UI system internal use.</li>
+ * </ul>
+ *
+ * <h3>Usage in gameplay code:</h3>
+ * <pre>{@code
+ * // No need to check isMouseConsumed() - it's automatic!
+ * if (Input.getMouseButtonDown(KeyCode.MOUSE_BUTTON_LEFT)) {
+ *     // This only triggers if UI didn't consume the click
+ *     handleGameClick();
+ * }
+ * }</pre>
+ *
+ * <h3>Usage in tests:</h3>
+ * <pre>{@code
  * InputManager.setContext(mockInputManager);
+ * }</pre>
  */
 public class Input {
 
@@ -105,7 +121,7 @@ public class Input {
         return getContext().isActionReleased(action);
     }
 
-    // Mouse API
+    // Mouse Position API
     public static Vector2f getMousePosition() {
         return getContext().getMousePosition();
     }
@@ -118,16 +134,82 @@ public class Input {
         return getContext().getMouseScrollDelta();
     }
 
+    // ========================================
+    // Mouse Button API (Consumption-Aware)
+    // ========================================
+    // These automatically return false if UI consumed the mouse input.
+    // Use these in game code - no need to check isMouseConsumed() separately!
+
+    /**
+     * Returns true if mouse button is held, UNLESS mouse is consumed by UI.
+     * Use this in game code - UI consumption is handled automatically.
+     *
+     * @param button the mouse button to check
+     * @return true if held and not consumed by UI
+     */
     public static boolean getMouseButton(KeyCode button) {
         return getContext().getMouseButton(button);
     }
 
+    /**
+     * Returns true if mouse button was just pressed, UNLESS mouse is consumed by UI.
+     * Use this in game code - UI consumption is handled automatically.
+     *
+     * @param button the mouse button to check
+     * @return true if just pressed and not consumed by UI
+     */
     public static boolean getMouseButtonDown(KeyCode button) {
         return getContext().getMouseButtonDown(button);
     }
 
+    /**
+     * Returns true if mouse button was just released, UNLESS mouse is consumed by UI.
+     * Use this in game code - UI consumption is handled automatically.
+     *
+     * @param button the mouse button to check
+     * @return true if just released and not consumed by UI
+     */
     public static boolean getMouseButtonUp(KeyCode button) {
         return getContext().getMouseButtonUp(button);
+    }
+
+    // ========================================
+    // Mouse Button API (Raw - For UI System)
+    // ========================================
+    // These return the actual state regardless of consumption.
+    // Only use these if you need the raw input state (e.g., in UI system).
+
+    /**
+     * Returns true if mouse button is held, regardless of UI consumption.
+     * For UI system internal use only - game code should use getMouseButton().
+     *
+     * @param button the mouse button to check
+     * @return true if held (ignores consumption)
+     */
+    public static boolean getMouseButtonRaw(KeyCode button) {
+        return getContext().getMouseButtonRaw(button);
+    }
+
+    /**
+     * Returns true if mouse button was just pressed, regardless of UI consumption.
+     * For UI system internal use only - game code should use getMouseButtonDown().
+     *
+     * @param button the mouse button to check
+     * @return true if just pressed (ignores consumption)
+     */
+    public static boolean getMouseButtonDownRaw(KeyCode button) {
+        return getContext().getMouseButtonDownRaw(button);
+    }
+
+    /**
+     * Returns true if mouse button was just released, regardless of UI consumption.
+     * For UI system internal use only - game code should use getMouseButtonUp().
+     *
+     * @param button the mouse button to check
+     * @return true if just released (ignores consumption)
+     */
+    public static boolean getMouseButtonUpRaw(KeyCode button) {
+        return getContext().getMouseButtonUpRaw(button);
     }
 
     public static boolean isMouseDragging(KeyCode button) {
@@ -140,15 +222,19 @@ public class Input {
 
     /**
      * Returns true if mouse input was consumed by UI this frame.
-     * Game code should check this before processing mouse clicks.
      *
-     * <p>Usage:
-     * <pre>{@code
-     * if (Input.getMouseButtonDown(KeyCode.MOUSE_BUTTON_LEFT) && !Input.isMouseConsumed()) {
-     *     // Safe to process game click - UI didn't consume it
-     *     handleGameClick();
-     * }
-     * }</pre>
+     * <p>Note: You typically don't need to check this manually anymore!
+     * The normal mouse button methods (getMouseButton, getMouseButtonDown,
+     * getMouseButtonUp) automatically return false when consumed.
+     *
+     * <p>This method is mainly useful for:
+     * <ul>
+     *   <li>Checking if UI is under the cursor (for cursor changes)</li>
+     *   <li>Debugging</li>
+     *   <li>Special cases where you need to know consumption separately</li>
+     * </ul>
+     *
+     * @return true if UI consumed mouse input this frame
      */
     public static boolean isMouseConsumed() {
         return getContext().isMouseConsumed();
@@ -157,6 +243,8 @@ public class Input {
     /**
      * Sets the mouse consumed flag. Called by UIInputHandler.
      * Game code should not call this directly.
+     *
+     * @param consumed true if mouse input was consumed
      */
     public static void setMouseConsumed(boolean consumed) {
         getContext().setMouseConsumed(consumed);

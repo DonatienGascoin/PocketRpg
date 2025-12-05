@@ -24,6 +24,12 @@ import java.util.Map;
  *   <li>Mouse consumption for UI input blocking</li>
  * </ul>
  *
+ * <p>Mouse Button Methods:
+ * <ul>
+ *   <li>Normal methods automatically return false if mouse is consumed by UI</li>
+ *   <li>Raw methods return actual state regardless of consumption (for UI system)</li>
+ * </ul>
+ *
  * <p>Thread Safety: This class is designed for single-threaded use on the main game loop.
  *
  * @see InputContext
@@ -372,20 +378,64 @@ public class DefaultInputContext implements InputContext {
         return keyListener.wasAnyKeyPressed();
     }
 
-    // ========== Mouse Input ==========
+    // ========== Mouse Input (Consumption-Aware) ==========
 
+    /**
+     * Returns true if mouse button is held, UNLESS mouse is consumed by UI.
+     * For game code - automatically respects UI input blocking.
+     */
     @Override
     public boolean getMouseButton(KeyCode button) {
+        if (mouseConsumed) return false;
         return mouseListener.isButtonHeld(button);
     }
 
+    /**
+     * Returns true if mouse button was just pressed, UNLESS mouse is consumed by UI.
+     * For game code - automatically respects UI input blocking.
+     */
     @Override
     public boolean getMouseButtonDown(KeyCode button) {
+        if (mouseConsumed) return false;
         return mouseListener.wasButtonPressed(button);
     }
 
+    /**
+     * Returns true if mouse button was just released, UNLESS mouse is consumed by UI.
+     * For game code - automatically respects UI input blocking.
+     */
     @Override
     public boolean getMouseButtonUp(KeyCode button) {
+        if (mouseConsumed) return false;
+        return mouseListener.wasButtonReleased(button);
+    }
+
+    // ========== Mouse Input (Raw - For UI System) ==========
+
+    /**
+     * Returns true if mouse button is held, regardless of UI consumption.
+     * For UI system internal use only.
+     */
+    @Override
+    public boolean getMouseButtonRaw(KeyCode button) {
+        return mouseListener.isButtonHeld(button);
+    }
+
+    /**
+     * Returns true if mouse button was just pressed, regardless of UI consumption.
+     * For UI system internal use only.
+     */
+    @Override
+    public boolean getMouseButtonDownRaw(KeyCode button) {
+        return mouseListener.wasButtonPressed(button);
+    }
+
+    /**
+     * Returns true if mouse button was just released, regardless of UI consumption.
+     * For UI system internal use only.
+     */
+    @Override
+    public boolean getMouseButtonUpRaw(KeyCode button) {
         return mouseListener.wasButtonReleased(button);
     }
 
@@ -465,10 +515,14 @@ public class DefaultInputContext implements InputContext {
 
     /**
      * Checks if a key or mouse button is currently held.
+     * Note: For actions, we use raw mouse state to allow actions bound to mouse
+     * to work even when UI has consumed. This can be changed if needed.
      */
     private boolean isHeld(KeyCode key) {
         if (key.ordinal() >= KeyCode.MOUSE_BUTTON_LEFT.ordinal() &&
                 key.ordinal() <= KeyCode.MOUSE_BUTTON_8.ordinal()) {
+            // For actions, respect consumption
+            if (mouseConsumed) return false;
             return mouseListener.isButtonHeld(key);
         } else {
             return keyListener.isKeyHeld(key);
@@ -481,6 +535,8 @@ public class DefaultInputContext implements InputContext {
     private boolean wasPressed(KeyCode key) {
         if (key.ordinal() >= KeyCode.MOUSE_BUTTON_LEFT.ordinal() &&
                 key.ordinal() <= KeyCode.MOUSE_BUTTON_8.ordinal()) {
+            // For actions, respect consumption
+            if (mouseConsumed) return false;
             return mouseListener.wasButtonPressed(key);
         } else {
             return keyListener.wasKeyPressed(key);
@@ -493,6 +549,8 @@ public class DefaultInputContext implements InputContext {
     private boolean wasReleased(KeyCode key) {
         if (key.ordinal() >= KeyCode.MOUSE_BUTTON_LEFT.ordinal() &&
                 key.ordinal() <= KeyCode.MOUSE_BUTTON_8.ordinal()) {
+            // For actions, respect consumption
+            if (mouseConsumed) return false;
             return mouseListener.wasButtonReleased(key);
         } else {
             return keyListener.wasKeyReleased(key);

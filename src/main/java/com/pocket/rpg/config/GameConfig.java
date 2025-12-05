@@ -135,6 +135,18 @@ public class GameConfig {
             .build();
 
     /**
+     * Default hover tint for UI buttons.
+     * When a button is hovered and no custom onHover callback is set,
+     * the button color is darkened by this factor.
+     * <p>
+     * 0.0 = no darkening
+     * 0.1 = 10% darker (default)
+     * 0.2 = 20% darker
+     * 1.0 = completely black
+     */
+    private float uiButtonHoverTint = 0.1f;
+
+    /**
      * Gets the effective pillarbox aspect ratio.
      * If set to 0, calculates from game resolution.
      */

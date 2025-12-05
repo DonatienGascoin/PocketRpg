@@ -111,6 +111,131 @@ public class CameraSystem {
         this.projectionDirty = true;
     }
 
+    /**
+     * Converts screen X coordinate to game X coordinate.
+     * Accounts for pillarbox/letterbox scaling.
+     *
+     * @param screenX X coordinate in screen/window pixels
+     * @return X coordinate in game resolution pixels
+     */
+    public float screenToGameX(float screenX) {
+        // Calculate the viewport offset and scale
+        float windowAspect = (float) viewportWidth / viewportHeight;
+        float gameAspect = (float) gameWidth / gameHeight;
+
+        float scale;
+        float offsetX = 0;
+
+        if (windowAspect > gameAspect) {
+            // Window is wider than game - pillarbox (black bars on sides)
+            scale = (float) viewportHeight / gameHeight;
+            float scaledWidth = gameWidth * scale;
+            offsetX = (viewportWidth - scaledWidth) / 2f;
+        } else {
+            // Window is taller than game - letterbox (black bars on top/bottom)
+            scale = (float) viewportWidth / gameWidth;
+        }
+
+        // Convert screen coordinate to game coordinate
+        return (screenX - offsetX) / scale;
+    }
+
+    /**
+     * Converts screen Y coordinate to game Y coordinate.
+     * Accounts for pillarbox/letterbox scaling.
+     *
+     * Note: Screen Y is typically top-down (0 = top), but game Y is bottom-up (0 = bottom).
+     * This method handles the conversion.
+     *
+     * @param screenY Y coordinate in screen/window pixels (0 = top)
+     * @return Y coordinate in game resolution pixels (0 = bottom)
+     */
+    public float screenToGameY(float screenY) {
+        // Calculate the viewport offset and scale
+        float windowAspect = (float) viewportWidth / viewportHeight;
+        float gameAspect = (float) gameWidth / gameHeight;
+
+        float scale;
+        float offsetY = 0;
+
+        if (windowAspect > gameAspect) {
+            // Window is wider than game - pillarbox
+            scale = (float) viewportHeight / gameHeight;
+        } else {
+            // Window is taller than game - letterbox (black bars on top/bottom)
+            scale = (float) viewportWidth / gameWidth;
+            float scaledHeight = gameHeight * scale;
+            offsetY = (viewportHeight - scaledHeight) / 2f;
+        }
+
+        // Convert screen coordinate to game coordinate
+        // Also flip Y axis (screen Y=0 is top, game Y=0 is bottom)
+        float gameY = (screenY - offsetY) / scale;
+        return gameHeight - gameY;  // Flip Y axis
+    }
+
+    /**
+     * Converts screen coordinates to game coordinates.
+     * Convenience method that returns both X and Y.
+     *
+     * @param screenX X coordinate in screen pixels
+     * @param screenY Y coordinate in screen pixels
+     * @return Vector2f with game coordinates
+     */
+    public Vector2f screenToGame(float screenX, float screenY) {
+        return new Vector2f(screenToGameX(screenX), screenToGameY(screenY));
+    }
+
+    /**
+     * Converts game X coordinate to screen X coordinate.
+     *
+     * @param gameX X coordinate in game resolution pixels
+     * @return X coordinate in screen/window pixels
+     */
+    public float gameToScreenX(float gameX) {
+        float windowAspect = (float) viewportWidth / viewportHeight;
+        float gameAspect = (float) gameWidth / gameHeight;
+
+        float scale;
+        float offsetX = 0;
+
+        if (windowAspect > gameAspect) {
+            scale = (float) viewportHeight / gameHeight;
+            float scaledWidth = gameWidth * scale;
+            offsetX = (viewportWidth - scaledWidth) / 2f;
+        } else {
+            scale = (float) viewportWidth / gameWidth;
+        }
+
+        return gameX * scale + offsetX;
+    }
+
+    /**
+     * Converts game Y coordinate to screen Y coordinate.
+     *
+     * @param gameY Y coordinate in game resolution pixels (0 = bottom)
+     * @return Y coordinate in screen/window pixels (0 = top)
+     */
+    public float gameToScreenY(float gameY) {
+        float windowAspect = (float) viewportWidth / viewportHeight;
+        float gameAspect = (float) gameWidth / gameHeight;
+
+        float scale;
+        float offsetY = 0;
+
+        if (windowAspect > gameAspect) {
+            scale = (float) viewportHeight / gameHeight;
+        } else {
+            scale = (float) viewportWidth / gameWidth;
+            float scaledHeight = gameHeight * scale;
+            offsetY = (viewportHeight - scaledHeight) / 2f;
+        }
+
+        // Flip Y axis and apply scale/offset
+        float flippedGameY = gameHeight - gameY;
+        return flippedGameY * scale + offsetY;
+    }
+
     // ======================================================================
     // VIEWPORT MANAGEMENT
     // ======================================================================

@@ -11,10 +11,7 @@ import com.pocket.rpg.resources.loaders.ShaderLoader;
 import com.pocket.rpg.resources.loaders.SpriteLoader;
 import com.pocket.rpg.resources.loaders.SpriteSheetLoader;
 import com.pocket.rpg.resources.loaders.TextureLoader;
-import com.pocket.rpg.scenes.ExampleScene;
-import com.pocket.rpg.scenes.Scene;
-import com.pocket.rpg.scenes.SceneLifecycleListener;
-import com.pocket.rpg.scenes.SceneManager;
+import com.pocket.rpg.scenes.*;
 import com.pocket.rpg.transitions.SceneTransition;
 import com.pocket.rpg.transitions.TransitionManager;
 import com.pocket.rpg.ui.UIInputHandler;
@@ -182,7 +179,9 @@ public class GameEngine {
         });
 
         sceneManager.registerScene(new ExampleScene());
-        sceneManager.loadScene("ExampleScene");
+        sceneManager.registerScene(new DemoScene());
+//        sceneManager.loadScene("ExampleScene");
+        sceneManager.loadScene("Demo");
     }
 
     private static void initAssetLoader() {

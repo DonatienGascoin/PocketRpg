@@ -12,9 +12,30 @@ import java.util.List;
  * Handles mouse input for UI elements.
  * Processes hover states, clicks, and sets input consumption flag.
  *
- * Usage:
- * - Create once, call update() each frame before game input processing
- * - After update(), check Input.isMouseConsumed() in game code
+ * <h3>Usage:</h3>
+ * <pre>{@code
+ * // Create once during initialization
+ * UIInputHandler uiInputHandler = new UIInputHandler(gameConfig);
+ * gameEngine.setUIInputHandler(uiInputHandler);
+ *
+ * // In game loop, before game input processing:
+ * float gameMouseX = convertToGameX(Input.getMousePosition().x);
+ * float gameMouseY = convertToGameY(Input.getMousePosition().y);
+ * gameEngine.updateUIInput(gameMouseX, gameMouseY);
+ *
+ * // In game code - no manual consumption check needed!
+ * if (Input.getMouseButtonDown(KeyCode.MOUSE_BUTTON_LEFT)) {
+ *     // Automatically false if UI consumed the click
+ *     handleGameClick();
+ * }
+ * }</pre>
+ *
+ * <h3>How it works:</h3>
+ * <ol>
+ *   <li>UIInputHandler uses raw mouse methods to see actual input state</li>
+ *   <li>If UI element handles the input, setMouseConsumed(true) is called</li>
+ *   <li>Normal mouse methods in Input class return false when consumed</li>
+ * </ol>
  *
  * Hit testing is done in reverse render order (top elements first).
  */
@@ -43,7 +64,7 @@ public class UIInputHandler {
      * @param mouseY Mouse Y in game coordinates
      */
     public void update(List<UICanvas> canvases, float mouseX, float mouseY) {
-        // Reset consumed state
+        // Reset consumed state at start of frame
         Input.setMouseConsumed(false);
 
         // Collect all buttons from canvases (in render order)
@@ -79,8 +100,8 @@ public class UIInputHandler {
             hoveredButton = newHovered;
         }
 
-        // Handle mouse press
-        if (Input.getMouseButtonDown(KeyCode.MOUSE_BUTTON_LEFT)) {
+        // Handle mouse press - use RAW method to see actual input
+        if (Input.getMouseButtonDownRaw(KeyCode.MOUSE_BUTTON_LEFT)) {
             if (hoveredButton != null) {
                 hoveredButton.setPressedInternal(true);
                 pressedButton = hoveredButton;
@@ -88,8 +109,8 @@ public class UIInputHandler {
             }
         }
 
-        // Handle mouse release
-        if (Input.getMouseButtonUp(KeyCode.MOUSE_BUTTON_LEFT)) {
+        // Handle mouse release - use RAW method to see actual input
+        if (Input.getMouseButtonUpRaw(KeyCode.MOUSE_BUTTON_LEFT)) {
             if (pressedButton != null) {
                 pressedButton.setPressedInternal(false);
 

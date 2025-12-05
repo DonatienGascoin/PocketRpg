@@ -1,5 +1,6 @@
 package com.pocket.rpg.scenes;
 
+import com.pocket.rpg.components.PlayerCameraFollow;
 import com.pocket.rpg.components.PlayerMovement;
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.core.GameObject;
@@ -29,9 +30,10 @@ public class DemoScene extends Scene {
 
         SpriteRenderer spriteRenderer = new SpriteRenderer(sprites.get(0));
 
-        GameObject gameObject = new GameObject("Player", new Vector3f(400, 50, 0));
+        GameObject gameObject = new GameObject("Player", new Vector3f(0, 0, 0));
         gameObject.addComponent(spriteRenderer);
         gameObject.addComponent(new PlayerMovement());
+        gameObject.addComponent(new PlayerCameraFollow());
 
         addGameObject(gameObject);
     }

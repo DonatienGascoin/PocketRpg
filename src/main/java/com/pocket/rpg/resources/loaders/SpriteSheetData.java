@@ -9,14 +9,14 @@ import java.util.Set;
 
 /**
  * Wrapper for SpriteSheet that provides named access to sprites.
- * 
+ * <p>
  * Instead of accessing sprites by index, you can use meaningful names:
  * <pre>
  * SpriteSheetData sheet = ...;
  * Sprite idleSprite = sheet.getSprite("idle");
  * Sprite attackSprite = sheet.getSprite("attack");
  * </pre>
- * 
+ * <p>
  * This class is typically created by SpriteSheetLoader from JSON definitions.
  */
 public class SpriteSheetData {

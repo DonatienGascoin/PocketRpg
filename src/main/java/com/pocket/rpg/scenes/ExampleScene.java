@@ -1,9 +1,6 @@
 package com.pocket.rpg.scenes;
 
-import com.pocket.rpg.components.Component;
-import com.pocket.rpg.components.SpritePostEffect;
-import com.pocket.rpg.components.SpriteRenderer;
-import com.pocket.rpg.components.TranslationComponent;
+import com.pocket.rpg.components.*;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.postProcessing.BloomEffect;
 import com.pocket.rpg.rendering.Sprite;
@@ -35,7 +32,6 @@ public class ExampleScene extends Scene {
             createMarginAnimation();
             createComplexAnimation();
             createSharedSpriteEntities();
-
             // === UI DEMO ===
             createUIDemo();
 
@@ -425,6 +421,67 @@ public class ExampleScene extends Scene {
         System.out.println("✓ Complex animation");
     }
 
+
+    private void visualizeSpriteSheet(
+            List<Sprite> frames,
+            float screenWidth,
+            float screenHeight,
+            float padding) {
+
+        if (frames == null || frames.isEmpty()) return;
+        if (screenWidth <= 0) screenWidth = 640f; // fallback if caller passed 0
+
+        // use sprite render sizes (float)
+        float spriteW = frames.get(0).getWidth();
+        float spriteH = frames.get(0).getHeight();
+        float stepX = spriteW + padding;
+        float stepY = spriteH + padding;
+
+        // compute spritesPerRow. If screenHeight > 0 we will consider vertical fit later;
+        // we always force at least one column.
+        int spritesPerRow = Math.max(1, (int) Math.floor(screenWidth / stepX));
+
+        // if screenHeight provided and tiny, try to compute a better spritesPerRow so it fits vertically too
+        if (screenHeight > 0) {
+            int maxRows = Math.max(1, (int) Math.floor(screenHeight / stepY));
+            // If rows would exceed number of sprites, we can try to make a squarer grid:
+            int idealPerRow = (int) Math.ceil((double) frames.size() / (double) maxRows);
+            spritesPerRow = Math.max(1, Math.min(spritesPerRow, idealPerRow));
+        }
+
+        // compute grid size for centering
+        int cols = spritesPerRow;
+        int rows = (int) Math.ceil((double) frames.size() / cols);
+        float gridWidth = cols * stepX - padding;
+        float gridHeight = rows * stepY - padding;
+
+        // starting origin: center the grid horizontally and place near top (or centered vertically if screenHeight set)
+        float startX = Math.max(0, (screenWidth - gridWidth) / 2f);
+        float startY;
+        if (screenHeight > 0) {
+            startY = Math.max(0, (screenHeight - gridHeight) / 2f);
+        } else {
+            startY = 20f; // small top margin if no height provided
+        }
+
+        for (int i = 0; i < frames.size(); i++) {
+            Sprite sprite = frames.get(i);
+            int col = i % cols;
+            int row = i / cols;
+
+            float x = startX + col * stepX;
+            float y = startY + row * stepY;
+
+            GameObject entity = new GameObject("Sprite_" + i, new Vector3f(x + spriteW / 2f, y + spriteH / 2f, 0f));
+            SpriteRenderer renderer = new SpriteRenderer(sprite);
+            renderer.setOriginCenter(); // keep consistent origin
+            entity.addComponent(renderer);
+
+            addGameObject(entity);
+        }
+    }
+
+
     private void createSharedSpriteEntities() throws Exception {
         Texture texture = new Texture("gameData/assets/sheet_tight.png");
         SpriteSheet sheet = new SpriteSheet(texture, 32, 32);
@@ -477,29 +534,4 @@ public class ExampleScene extends Scene {
         }
     }
 
-    private static class FrameAnimationComponent extends Component {
-        private final List<Sprite> frames;
-        private final float frameTime;
-        private int currentFrame = 0;
-        private float timer = 0;
-
-        public FrameAnimationComponent(List<Sprite> frames, float frameTime) {
-            this.frames = frames;
-            this.frameTime = frameTime;
-        }
-
-        @Override
-        public void update(float deltaTime) {
-            SpriteRenderer renderer = gameObject.getComponent(SpriteRenderer.class);
-            if (renderer == null || frames.isEmpty()) return;
-
-            timer += deltaTime;
-
-            if (timer >= frameTime) {
-                timer -= frameTime;
-                currentFrame = (currentFrame + 1) % frames.size();
-                renderer.setSprite(frames.get(currentFrame));
-            }
-        }
-    }
 }

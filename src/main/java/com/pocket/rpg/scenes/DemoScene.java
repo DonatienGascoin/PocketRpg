@@ -27,16 +27,18 @@ public class DemoScene extends Scene {
 
         SpriteSheet levelSheet = new SpriteSheet(outdoorTex.getTexture(), 16, 16);
         var sprites = levelSheet.generateAllSprites();
-
+        GameObject level = new GameObject("Level");
+        level.getTransform().setScale(2, 2, 2);
         for (int i = -10; i < 10; i++) {
             for (int j = -10; j < 10; j++) {
                 SpriteRenderer tileSprite = new SpriteRenderer(sprites.get(new Random().nextInt(7)));
                 GameObject gameObject = new GameObject("Tile_" + i + "_" + j,
                         new Vector3f(i * tileSprite.getSprite().getWidth(), j * tileSprite.getSprite().getHeight(), 0));
                 gameObject.addComponent(tileSprite);
-                addGameObject(gameObject);
+                gameObject.setParent(level);
             }
         }
+        addGameObject(level);
     }
 
     private void createPlayer() {
@@ -49,7 +51,8 @@ public class DemoScene extends Scene {
         SpriteRenderer spriteRenderer = new SpriteRenderer(sprites.get(0));
 
         GameObject gameObject = new GameObject("Player", new Vector3f(0, 0, 0));
-        gameObject.getTransform().setPosition(gameObject.getTransform().getPosition().add(new Vector3f(0,0,1)));
+        gameObject.getTransform().setPosition(gameObject.getTransform().getPosition().add(new Vector3f(0, 0, 1)));
+        gameObject.getTransform().setScale(2, 2, 2);
         gameObject.addComponent(spriteRenderer);
         gameObject.addComponent(new PlayerMovement());
         gameObject.addComponent(new PlayerCameraFollow());

@@ -51,7 +51,8 @@ public class DemoScene extends Scene {
         font = new Font("E:\\Projects\\PocketRpg\\gameData\\assets\\fonts\\zelda.ttf", 18);
         createHUD();
         createLevel();
-        createPlayer();
+        createPlayerAboveLevel();
+        createPlayerBelowLevel();
     }
 
     @Override
@@ -105,7 +106,35 @@ public class DemoScene extends Scene {
      * - Player sprite = 2×2 world units
      * - zIndex=1 ensures player renders above tiles (zIndex=0)
      */
-    private void createPlayer() {
+    private void createPlayerBelowLevel() {
+        var resource = AssetManager.getInstance().<Sprite>load("gameData/assets/sprites/Char1_32x32.png");
+        var playerTex = resource.get();
+
+        // 32×32 pixel sprites with PPU=16 → each frame is 2×2 world units
+        SpriteSheet playerSheet = new SpriteSheet(playerTex.getTexture(), 32, 32, 0, 0, 0, 16);
+        var sprites = playerSheet.generateAllSprites();
+
+        SpriteRenderer spriteRenderer = new SpriteRenderer(sprites.get(10));
+        spriteRenderer.setZIndex(-1);  // Render below tiles (zIndex=0)
+
+        // Player at world origin (Z not used for sorting anymore)
+        GameObject player = new GameObject("Player", new Vector3f(-50, -50, 0));
+
+        player.addComponent(spriteRenderer);
+        player.addComponent(new PlayerMovement());
+        player.addComponent(new PlayerCameraFollow());
+
+        addGameObject(player);
+    }
+
+    /**
+     * Creates the player character at world origin.
+     * <p>
+     * With 32×32 pixel sprite and PPU=16:
+     * - Player sprite = 2×2 world units
+     * - zIndex=1 ensures player renders above tiles (zIndex=0)
+     */
+    private void createPlayerAboveLevel() {
         var resource = AssetManager.getInstance().<Sprite>load("gameData/assets/sprites/Char1_32x32.png");
         var playerTex = resource.get();
 
@@ -117,7 +146,7 @@ public class DemoScene extends Scene {
         spriteRenderer.setZIndex(1);  // Render above tiles (zIndex=0)
 
         // Player at world origin (Z not used for sorting anymore)
-        GameObject player = new GameObject("Player", new Vector3f(0, 0, 0));
+        GameObject player = new GameObject("Player", new Vector3f(50, 50, 0));
 
         player.addComponent(spriteRenderer);
         player.addComponent(new PlayerMovement());

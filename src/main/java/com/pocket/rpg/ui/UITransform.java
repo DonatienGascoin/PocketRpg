@@ -9,25 +9,28 @@ import org.joml.Vector2f;
  * Transform component for UI elements.
  * Uses anchor-based positioning relative to parent bounds.
  *
- * Coordinate system:
- * - Anchor (0,0) = bottom-left of parent
- * - Anchor (1,1) = top-right of parent
- * - Offset is in pixels from anchor point
+ * Coordinate system (matches Camera):
+ * - Origin (0,0) = TOP-LEFT of parent
+ * - Anchor (1,1) = BOTTOM-RIGHT of parent
+ * - Positive X offset = move RIGHT
+ * - Positive Y offset = move DOWN
  *
- * MANDATORY for all UI components (UIImage, UIPanel, etc.)
+ * MANDATORY for all UI components (UIImage, UIPanel, UIText, etc.)
  */
 public class UITransform extends Component {
 
     // Anchor point relative to parent (0-1)
+    // (0,0) = top-left, (1,1) = bottom-right
     @Getter
     private final Vector2f anchor = new Vector2f(0, 0);
 
     // Offset from anchor point in pixels
+    // Positive X = right, Positive Y = down
     @Getter
     private final Vector2f offset = new Vector2f(0, 0);
 
     // Pivot point for this element (0-1 relative to own size)
-    // (0,0) = bottom-left, (0.5,0.5) = center, (1,1) = top-right
+    // (0,0) = top-left, (0.5,0.5) = center, (1,1) = bottom-right
     @Getter
     private final Vector2f pivot = new Vector2f(0, 0);
 
@@ -38,7 +41,7 @@ public class UITransform extends Component {
     @Getter @Setter
     private float height = 100;
 
-    // Cached calculated position
+    // Cached calculated position (top-left corner of element)
     private final Vector2f calculatedPosition = new Vector2f();
     private boolean positionDirty = true;
 
@@ -77,6 +80,10 @@ public class UITransform extends Component {
     // Offset
     // ========================================
 
+    /**
+     * Sets offset from anchor point.
+     * Positive X = right, Positive Y = down.
+     */
     public void setOffset(float x, float y) {
         offset.set(x, y);
         positionDirty = true;
@@ -91,6 +98,10 @@ public class UITransform extends Component {
     // Pivot
     // ========================================
 
+    /**
+     * Sets pivot point (0-1 relative to own size).
+     * (0,0) = top-left, (0.5,0.5) = center, (1,1) = bottom-right.
+     */
     public void setPivot(float x, float y) {
         pivot.set(x, y);
         positionDirty = true;
@@ -141,16 +152,16 @@ public class UITransform extends Component {
     }
 
     /**
-     * Gets the calculated screen position (bottom-left corner of this element).
+     * Gets the calculated screen position (top-left corner of this element).
      * Call setParentBounds() first.
      *
-     * @return Screen position in pixels, origin at bottom-left
+     * @return Screen position in pixels, origin at top-left
      */
     public Vector2f getScreenPosition() {
         if (positionDirty) {
             calculatePosition();
         }
-        return calculatedPosition;
+        return new Vector2f(calculatedPosition);
     }
 
     private void calculatePosition() {
@@ -158,7 +169,7 @@ public class UITransform extends Component {
         float anchorX = anchor.x * parentWidth;
         float anchorY = anchor.y * parentHeight;
 
-        // Apply offset
+        // Apply offset (positive Y = down)
         float posX = anchorX + offset.x;
         float posY = anchorY + offset.y;
 
@@ -196,6 +207,15 @@ public class UITransform extends Component {
         setAnchor(preset);
         setOffset(offsetX, offsetY);
         setSize(width, height);
+    }
+
+    /**
+     * Gets the bounds of this element as [x, y, width, height].
+     * Useful for hit testing.
+     */
+    public float[] getBounds() {
+        Vector2f pos = getScreenPosition();
+        return new float[] { pos.x, pos.y, width, height };
     }
 
     @Override

@@ -7,18 +7,36 @@ import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.SpriteSheet;
 import com.pocket.rpg.resources.AssetManager;
+import com.pocket.rpg.ui.AnchorPreset;
+import com.pocket.rpg.ui.UIButton;
+import com.pocket.rpg.ui.UICanvas;
+import com.pocket.rpg.ui.UITransform;
+import com.pocket.rpg.ui.text.Font;
+import com.pocket.rpg.ui.text.HorizontalAlignment;
+import com.pocket.rpg.ui.text.UIText;
+import com.pocket.rpg.ui.text.VerticalAlignment;
 import org.joml.Random;
 import org.joml.Vector3f;
+import org.joml.Vector4f;
 
 public class DemoScene extends Scene {
+    private Font font;
+
     public DemoScene() {
         super("Demo");
     }
 
     @Override
     public void onLoad() {
+        font = new Font("E:\\Projects\\PocketRpg\\gameData\\assets\\fonts\\zelda.ttf", 18);
+        createHUD();
         createPlayer();
         createLevel();
+    }
+
+    @Override
+    public void onUnload() {
+        font.destroy();
     }
 
     private void createLevel() {
@@ -58,5 +76,49 @@ public class DemoScene extends Scene {
         gameObject.addComponent(new PlayerCameraFollow());
 
         addGameObject(gameObject);
+    }
+
+    private void createHUD() {
+        // Create a Canvas (root UI element)
+        GameObject canvasGO = new GameObject("MainCanvas");
+        UICanvas canvas = new UICanvas(UICanvas.RenderMode.SCREEN_SPACE_OVERLAY, 0);
+        canvasGO.addComponent(canvas);
+        addGameObject(canvasGO);
+
+        createButton(canvasGO);
+    }
+
+    private void createButton(GameObject canvasGO) {
+        GameObject buttonObj = new GameObject("Start Button");
+
+// Transform
+        UITransform btnTransform = new UITransform(150, 40);
+        btnTransform.setAnchor(AnchorPreset.BOTTOM_RIGHT);
+        btnTransform.setOffset(-85, -30);
+        btnTransform.setPivotCenter();
+        buttonObj.addComponent(btnTransform);
+
+// Button component
+        UIButton button = new UIButton();
+        button.setColor(new Vector4f(0.6f, 0.6f, 0.6f, 1f));
+        button.setHoverTint(.2f);
+        button.setOnClick(() -> System.out.println("Button clicked!"));
+        buttonObj.addComponent(button);
+
+// Button text (child)
+        GameObject textObj = new GameObject("Button Text");
+        UITransform textTransform = new UITransform(0, 0);
+        textTransform.setAnchor(AnchorPreset.CENTER);
+        textTransform.setPivotCenter();
+        textObj.addComponent(textTransform);
+
+        UIText btnText = new UIText(font, "START");
+        btnText.setHorizontalAlignment(HorizontalAlignment.CENTER);
+        btnText.setVerticalAlignment(VerticalAlignment.MIDDLE);
+        btnText.setColor(.2f,.2f,.2f);
+        textObj.addComponent(btnText);
+        buttonObj.addChild(textObj);
+
+        canvasGO.addChild(buttonObj);
     }
 }

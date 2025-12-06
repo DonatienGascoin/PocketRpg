@@ -4,9 +4,9 @@
   "enableStatistics": false,
   "statisticsInterval": 300,
   "clearColor": {
-    "x": 0.1,
-    "y": 0.2,
-    "z": 0.2,
+    "x": 0.63,
+    "y": 0.04,
+    "z": 0.34,
     "w": 1.0
   }
 }

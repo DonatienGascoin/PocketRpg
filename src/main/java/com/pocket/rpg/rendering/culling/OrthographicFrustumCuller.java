@@ -7,16 +7,21 @@ import com.pocket.rpg.core.Camera;
  * Frustum culler for orthographic (2D) cameras.
  * Uses Camera.getWorldBounds() for frustum calculation.
  * <p>
- * Since Camera now has centered position, the bounds are calculated
- * as position ± half visible area.
+ * Coordinate system (Y-up):
+ * <ul>
+ *   <li>bounds[0] = left (min X)</li>
+ *   <li>bounds[1] = bottom (min Y)</li>
+ *   <li>bounds[2] = right (max X)</li>
+ *   <li>bounds[3] = top (max Y)</li>
+ * </ul>
  */
 public class OrthographicFrustumCuller extends FrustumCuller {
 
-    // Camera frustum bounds in world space
+    // Camera frustum bounds in world space (Y-up)
     private float worldLeft;
-    private float worldTop;
-    private float worldRight;
     private float worldBottom;
+    private float worldRight;
+    private float worldTop;
 
     public OrthographicFrustumCuller() {
         // Default constructor
@@ -27,7 +32,7 @@ public class OrthographicFrustumCuller extends FrustumCuller {
      * Uses Camera.getWorldBounds() which accounts for:
      * - Camera position (center of view)
      * - Camera zoom
-     * - Game resolution
+     * - Orthographic size
      */
     @Override
     public void updateFromCamera(Camera camera) {
@@ -37,17 +42,17 @@ public class OrthographicFrustumCuller extends FrustumCuller {
             // Fallback: no culling
             worldLeft = Float.MIN_VALUE;
             worldRight = Float.MAX_VALUE;
-            worldTop = Float.MIN_VALUE;
-            worldBottom = Float.MAX_VALUE;
+            worldBottom = Float.MIN_VALUE;
+            worldTop = Float.MAX_VALUE;
             return;
         }
 
-        // Get bounds from camera (already accounts for centered position + zoom)
+        // Get bounds from camera [left, bottom, right, top] (Y-up)
         float[] bounds = camera.getWorldBounds();
         worldLeft = bounds[0];
-        worldTop = bounds[1];
+        worldBottom = bounds[1];
         worldRight = bounds[2];
-        worldBottom = bounds[3];
+        worldTop = bounds[3];
     }
 
     /**
@@ -63,14 +68,15 @@ public class OrthographicFrustumCuller extends FrustumCuller {
         }
 
         // Calculate sprite AABB with rotation padding (conservative)
+        // Returns [minX, minY, maxX, maxY]
         float[] spriteAABB = calculateAABB(spriteRenderer, true);
         if (spriteAABB == null) {
             return false;
         }
 
-        // Camera frustum AABB
+        // Camera frustum AABB [minX, minY, maxX, maxY]
         float[] cameraAABB = new float[]{
-                worldLeft, worldTop, worldRight, worldBottom
+                worldLeft, worldBottom, worldRight, worldTop
         };
 
         // Test intersection
@@ -81,10 +87,10 @@ public class OrthographicFrustumCuller extends FrustumCuller {
      * Gets the camera frustum bounds in world space.
      * Useful for debugging and visualization.
      *
-     * @return [left, top, right, bottom] in world coordinates
+     * @return [left, bottom, right, top] in world coordinates (Y-up)
      */
     public float[] getFrustumBounds() {
-        return new float[]{worldLeft, worldTop, worldRight, worldBottom};
+        return new float[]{worldLeft, worldBottom, worldRight, worldTop};
     }
 
     /**
@@ -98,13 +104,13 @@ public class OrthographicFrustumCuller extends FrustumCuller {
      * Gets the visible world height.
      */
     public float getVisibleHeight() {
-        return worldBottom - worldTop;
+        return worldTop - worldBottom;
     }
 
     @Override
     public String toString() {
         return String.format("OrthographicFrustumCuller[bounds=(%.1f, %.1f) to (%.1f, %.1f), size=%.1fx%.1f]",
-                worldLeft, worldTop, worldRight, worldBottom,
+                worldLeft, worldBottom, worldRight, worldTop,
                 getVisibleWidth(), getVisibleHeight());
     }
 }

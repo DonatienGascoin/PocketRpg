@@ -45,6 +45,7 @@ public class PostProcessor {
     private int rbo;
     private int quadVAO;
 
+    @Getter
     private final List<PostEffect> effects = new ArrayList<>();
     private PillarBox pillarBox;
     private AbstractWindow window;

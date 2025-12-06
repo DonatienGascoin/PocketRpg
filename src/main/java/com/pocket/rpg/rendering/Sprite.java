@@ -1,33 +1,67 @@
 package com.pocket.rpg.rendering;
 
+import com.pocket.rpg.config.ConfigLoader;
+import com.pocket.rpg.config.RenderingConfig;
 import lombok.Getter;
 import lombok.Setter;
 
 /**
  * Represents a 2D sprite - a pure visual definition.
- * Contains only texture data, UV coordinates, and base size.
+ * Contains texture data, UV coordinates, and base size in pixels.
  * Position, rotation, and scaling are handled by Transform component.
- *
+ * <p>
  * This class is designed to be shared across multiple GameObjects,
  * making it ideal for sprite caching in SpriteSheet.
+ *
+ * <h2>World Unit System</h2>
+ * Sprites store their size in pixels but expose world-space dimensions
+ * via {@link #getWorldWidth()} and {@link #getWorldHeight()}.
+ * The conversion uses Pixels Per Unit (PPU) from {@link RenderingConfig}.
+ * <p>
+ * Individual sprites can override the global PPU using
+ * {@link #setPixelsPerUnitOverride(Float)}.
+ *
+ * @see RenderingConfig#getPixelsPerUnit()
  */
 @Getter
 public class Sprite {
 
     private final Texture texture;
+
     @Setter
     private String name;
 
+    /**
+     * Base width in pixels (texture space).
+     * For world-space width, use {@link #getWorldWidth()}.
+     */
     @Setter
-    private float width;   // Base width in pixels
+    private float width;
+
+    /**
+     * Base height in pixels (texture space).
+     * For world-space height, use {@link #getWorldHeight()}.
+     */
     @Setter
-    private float height;  // Base height in pixels
+    private float height;
 
     // UV coordinates (texture coordinates, normalized 0-1)
     private float u0;  // Left U coordinate
     private float v0;  // Top V coordinate
     private float u1;  // Right U coordinate
     private float v1;  // Bottom V coordinate
+
+    /**
+     * Optional per-sprite PPU override.
+     * When null, uses the global PPU from RenderingConfig.
+     * When set, this sprite uses the specified PPU regardless of global setting.
+     */
+    @Setter
+    private Float pixelsPerUnitOverride = null;
+
+    // ========================================================================
+    // CONSTRUCTORS
+    // ========================================================================
 
     /**
      * Creates a sprite with the full texture.
@@ -54,11 +88,11 @@ public class Sprite {
     }
 
     /**
-     * Creates a sprite with custom size.
+     * Creates a sprite with custom pixel size.
      *
      * @param texture The texture to render
-     * @param width   Sprite base width
-     * @param height  Sprite base height
+     * @param width   Sprite base width in pixels
+     * @param height  Sprite base height in pixels
      */
     public Sprite(Texture texture, float width, float height) {
         this.texture = texture;
@@ -69,11 +103,11 @@ public class Sprite {
     }
 
     /**
-     * Creates a sprite with custom size and name.
+     * Creates a sprite with custom pixel size and name.
      *
      * @param texture The texture to render
-     * @param width   Sprite base width
-     * @param height  Sprite base height
+     * @param width   Sprite base width in pixels
+     * @param height  Sprite base height in pixels
      * @param name    Name for debugging
      */
     public Sprite(Texture texture, float width, float height, String name) {
@@ -85,8 +119,8 @@ public class Sprite {
      * Creates a sprite from a sprite sheet region.
      *
      * @param texture     The sprite sheet texture
-     * @param width       Sprite base width
-     * @param height      Sprite base height
+     * @param width       Sprite base width in pixels
+     * @param height      Sprite base height in pixels
      * @param sheetX      X position in sprite sheet (pixels)
      * @param sheetY      Y position in sprite sheet (pixels)
      * @param sheetWidth  Width of region in sprite sheet (pixels)
@@ -105,8 +139,8 @@ public class Sprite {
      * Creates a sprite from a sprite sheet region with a name.
      *
      * @param texture     The sprite sheet texture
-     * @param width       Sprite base width
-     * @param height      Sprite base height
+     * @param width       Sprite base width in pixels
+     * @param height      Sprite base height in pixels
      * @param sheetX      X position in sprite sheet (pixels)
      * @param sheetY      Y position in sprite sheet (pixels)
      * @param sheetWidth  Width of region in sprite sheet (pixels)
@@ -118,6 +152,66 @@ public class Sprite {
         this(texture, width, height, sheetX, sheetY, sheetWidth, sheetHeight);
         this.name = name;
     }
+
+    // ========================================================================
+    // WORLD UNIT METHODS
+    // ========================================================================
+
+    /**
+     * Gets the effective Pixels Per Unit for this sprite.
+     * <p>
+     * Returns the per-sprite override if set, otherwise returns
+     * the global PPU from RenderingConfig.
+     *
+     * @return The PPU value to use for world-space calculations
+     */
+    public float getPixelsPerUnit() {
+        if (pixelsPerUnitOverride != null) {
+            return pixelsPerUnitOverride;
+        }
+        // Get from config
+        RenderingConfig config = ConfigLoader.getConfig(ConfigLoader.ConfigType.RENDERING);
+        return config.getPixelsPerUnit();
+    }
+
+    /**
+     * Gets the sprite width in world units.
+     * <p>
+     * This is the size used for rendering and physics calculations.
+     * Calculated as: {@code pixelWidth / pixelsPerUnit}
+     *
+     * <h3>Example</h3>
+     * <pre>
+     * // 16×16 pixel sprite with PPU=16
+     * sprite.getWorldWidth();  // Returns 1.0
+     *
+     * // 32×32 pixel sprite with PPU=16
+     * sprite.getWorldWidth();  // Returns 2.0
+     * </pre>
+     *
+     * @return Width in world units
+     * @see #getPixelsPerUnit()
+     */
+    public float getWorldWidth() {
+        return width / getPixelsPerUnit();
+    }
+
+    /**
+     * Gets the sprite height in world units.
+     * <p>
+     * This is the size used for rendering and physics calculations.
+     * Calculated as: {@code pixelHeight / pixelsPerUnit}
+     *
+     * @return Height in world units
+     * @see #getPixelsPerUnit()
+     */
+    public float getWorldHeight() {
+        return height / getPixelsPerUnit();
+    }
+
+    // ========================================================================
+    // UV METHODS
+    // ========================================================================
 
     /**
      * Sets UV coordinates (normalized 0-1).
@@ -153,10 +247,10 @@ public class Sprite {
     }
 
     /**
-     * Sets the sprite's base size.
+     * Sets the sprite's base size in pixels.
      *
-     * @param width  New width
-     * @param height New height
+     * @param width  New width in pixels
+     * @param height New height in pixels
      */
     public void setSize(float width, float height) {
         this.width = width;
@@ -165,7 +259,7 @@ public class Sprite {
 
     @Override
     public String toString() {
-        return String.format("Sprite[name=%s, size=%.0fx%.0f, uv=(%.2f,%.2f)-(%.2f,%.2f)]",
-                name, width, height, u0, v0, u1, v1);
+        return String.format("Sprite[name=%s, pixels=%.0fx%.0f, world=%.2fx%.2f, ppu=%.0f, uv=(%.2f,%.2f)-(%.2f,%.2f)]",
+                name, width, height, getWorldWidth(), getWorldHeight(), getPixelsPerUnit(), u0, v0, u1, v1);
     }
 }

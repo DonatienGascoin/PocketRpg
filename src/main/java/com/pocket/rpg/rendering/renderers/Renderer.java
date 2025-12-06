@@ -17,14 +17,14 @@ import static org.lwjgl.opengl.GL33.*;
 
 /**
  * A 2D sprite renderer focused purely on rendering.
- * FIXED: Now uses fixed game resolution for pixel-perfect rendering.
+ * Uses world units for all position and size calculations.
+ * <p>
+ * Note: For batched rendering (production use), use {@link BatchRenderer} instead.
+ * This class is primarily for simple/debug rendering.
  */
 public class Renderer {
 
     protected RenderingConfig config;
-    // FIX: Game resolution (fixed, never changes)
-//    private int gameWidth = 640;
-//    private int gameHeight = 480;
 
     private Shader shader;
     private int quadVAO;
@@ -37,16 +37,14 @@ public class Renderer {
     private FloatBuffer vertexBuffer;
 
     /**
-     * FIX: Initialize with game resolution (fixed internal resolution).
+     * Initialize with game resolution.
+     * Note: The projection is typically overridden by Camera matrices via beginWithMatrices().
      */
     public void init(int gameWidth, int gameHeight) {
         if (gameWidth <= 0 || gameHeight <= 0) {
             throw new IllegalArgumentException("Game resolution must be positive: " +
                     gameWidth + "x" + gameHeight);
         }
-
-//        this.gameWidth = gameWidth;
-//        this.gameHeight = gameHeight;
 
         System.out.println("Renderer initialized with game resolution: " + gameWidth + "x" + gameHeight);
 
@@ -61,6 +59,7 @@ public class Renderer {
         viewMatrix = new Matrix4f();
         modelMatrix = new Matrix4f();
 
+        // Default projection (will be overridden by Camera)
         setProjection(gameWidth, gameHeight);
 
         glEnable(GL_BLEND);
@@ -68,22 +67,22 @@ public class Renderer {
     }
 
     /**
-     * FIX: Sets projection using game resolution.
-     * This should match the camera's projection.
+     * Sets a default pixel-based projection.
+     * Note: This is typically overridden by Camera matrices.
      */
     public void setProjection(int width, int height) {
         if (width <= 0 || height <= 0) {
             System.err.println("WARNING: Invalid projection dimensions: " + width + "x" + height);
             return;
         }
-
-//        this.gameWidth = width;
-//        this.gameHeight = height;
-        projectionMatrix.identity().ortho(0, width, height, 0, -1, 1);
+        // Default fallback projection (centered, Y-up, in pixels)
+        float halfW = width / 2f;
+        float halfH = height / 2f;
+        projectionMatrix.identity().ortho(-halfW, halfW, -halfH, halfH, -1, 1);
     }
 
     /**
-     * Begins rendering with explicit matrices.
+     * Begins rendering with explicit matrices from Camera.
      * Called by RenderPipeline.
      */
     public void beginWithMatrices(Matrix4f projection, Matrix4f view, Vector4f clearColor) {
@@ -109,7 +108,7 @@ public class Renderer {
     }
 
     /**
-     * Draws a sprite renderer.
+     * Draws a sprite renderer using world units.
      */
     public void drawSpriteRenderer(SpriteRenderer spriteRenderer) {
         if (spriteRenderer == null) {
@@ -155,27 +154,34 @@ public class Renderer {
         Texture.unbind(0);
     }
 
+    /**
+     * Builds the model matrix using world units.
+     */
     private void buildModelMatrix(Sprite sprite, Transform transform, SpriteRenderer spriteRenderer) {
         Vector3f pos = transform.getPosition();
         Vector3f rot = transform.getRotation();
         Vector3f scale = transform.getScale();
 
-        float finalWidth = sprite.getWidth() * scale.x;
-        float finalHeight = sprite.getHeight() * scale.y;
+        // Use WORLD UNITS for dimensions
+        float finalWidth = sprite.getWorldWidth() * scale.x;
+        float finalHeight = sprite.getWorldHeight() * scale.y;
 
         float originX = finalWidth * spriteRenderer.getOriginX();
         float originY = finalHeight * spriteRenderer.getOriginY();
 
         modelMatrix.identity();
 
+        // Translate to position
         modelMatrix.translate(pos.x, pos.y, pos.z);
 
+        // Apply rotation around origin point
         if (rot.z != 0) {
             modelMatrix.translate(originX, originY, 0);
             modelMatrix.rotateZ((float) Math.toRadians(rot.z));
             modelMatrix.translate(-originX, -originY, 0);
         }
 
+        // Scale to final world size
         modelMatrix.scale(finalWidth, finalHeight, 1);
     }
 
@@ -183,6 +189,11 @@ public class Renderer {
         shader.detach();
     }
 
+    /**
+     * Creates the unit quad mesh.
+     * Vertices are in [0,1] range, scaled by model matrix.
+     * Y-up coordinate system: (0,0) bottom-left, (1,1) top-right.
+     */
     private void createQuadMesh() {
         quadVAO = glGenVertexArrays();
         quadVBO = glGenBuffers();
@@ -203,6 +214,10 @@ public class Renderer {
         updateQuadUVs(0, 0, 1, 1);
     }
 
+    /**
+     * Updates quad UVs and vertex positions.
+     * UV mapping accounts for stbi_set_flip_vertically_on_load(true).
+     */
     private void updateQuadUVs(float u0, float v0, float u1, float v1) {
         if (vertexBuffer == null) {
             System.err.println("ERROR: vertexBuffer is null");
@@ -211,10 +226,13 @@ public class Renderer {
 
         vertexBuffer.clear();
 
+        // Match original working UV mapping
+        // Triangle 1
         vertexBuffer.put(0.0f).put(0.0f).put(u0).put(v1);
         vertexBuffer.put(0.0f).put(1.0f).put(u0).put(v0);
         vertexBuffer.put(1.0f).put(1.0f).put(u1).put(v0);
 
+        // Triangle 2
         vertexBuffer.put(0.0f).put(0.0f).put(u0).put(v1);
         vertexBuffer.put(1.0f).put(1.0f).put(u1).put(v0);
         vertexBuffer.put(1.0f).put(0.0f).put(u1).put(v1);

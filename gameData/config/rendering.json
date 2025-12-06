@@ -8,5 +8,7 @@
     "y": 0.04,
     "z": 0.34,
     "w": 1.0
-  }
+  },
+  "pixelsPerUnit": 16.0,
+  "defaultOrthographicSize": 30.0
 }

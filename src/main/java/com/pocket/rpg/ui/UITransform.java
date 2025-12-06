@@ -34,14 +34,16 @@ public class UITransform extends Component {
     @Getter
     private final Vector2f pivot = new Vector2f(0, 0);
 
-    // Size in pixels
-    @Getter
+    // Size in pixels (ignored if fillParent is true)
     @Setter
     private float width = 100;
 
-    @Getter
     @Setter
     private float height = 100;
+
+    // When true, this element uses parent's size instead of its own
+    @Getter
+    private boolean fillParent = false;
 
     // Cached calculated position (top-left corner of element in SCREEN coordinates)
     private final Vector2f calculatedPosition = new Vector2f();
@@ -131,13 +133,28 @@ public class UITransform extends Component {
     public void setSize(float width, float height) {
         this.width = width;
         this.height = height;
+        this.fillParent = false;  // Explicit size disables fillParent
         positionDirty = true;
     }
 
     public void setSize(Vector2f size) {
-        this.width = size.x;
-        this.height = size.y;
-        positionDirty = true;
+        setSize(size.x, size.y);
+    }
+
+    /**
+     * Gets the effective width of this element.
+     * Returns parent's width if fillParent is true, otherwise returns own width.
+     */
+    public float getWidth() {
+        return fillParent ? parentWidth : width;
+    }
+
+    /**
+     * Gets the effective height of this element.
+     * Returns parent's height if fillParent is true, otherwise returns own height.
+     */
+    public float getHeight() {
+        return fillParent ? parentHeight : height;
     }
 
     // ========================================
@@ -164,6 +181,28 @@ public class UITransform extends Component {
     }
 
     /**
+     * Legacy method for backwards compatibility.
+     * Sets parent position to (0,0).
+     */
+    public void setParentBounds(float parentWidth, float parentHeight) {
+        setParentBounds(0, 0, parentWidth, parentHeight);
+    }
+
+    /**
+     * Gets the parent's width. Useful for components that need parent dimensions.
+     */
+    public float getParentWidth() {
+        return parentWidth;
+    }
+
+    /**
+     * Gets the parent's height. Useful for components that need parent dimensions.
+     */
+    public float getParentHeight() {
+        return parentHeight;
+    }
+
+    /**
      * Gets the calculated screen position (top-left corner of this element).
      * This is an ABSOLUTE screen position, not relative to parent.
      * Call setParentBounds() first.
@@ -178,6 +217,9 @@ public class UITransform extends Component {
     }
 
     private void calculatePosition() {
+        float effectiveWidth = getWidth();
+        float effectiveHeight = getHeight();
+
         // Anchor position in parent's local space
         float anchorX = anchor.x * parentWidth;
         float anchorY = anchor.y * parentHeight;
@@ -187,8 +229,8 @@ public class UITransform extends Component {
         float localY = anchorY + offset.y;
 
         // Apply pivot (shift so pivot point is at anchor+offset)
-        localX -= pivot.x * width;
-        localY -= pivot.y * height;
+        localX -= pivot.x * effectiveWidth;
+        localY -= pivot.y * effectiveHeight;
 
         // Convert to absolute screen position by adding parent's position
         calculatedPosition.set(parentX + localX, parentY + localY);
@@ -229,11 +271,15 @@ public class UITransform extends Component {
      */
     public float[] getBounds() {
         Vector2f pos = getScreenPosition();
-        return new float[]{pos.x, pos.y, width, height};
+        return new float[]{pos.x, pos.y, getWidth(), getHeight()};
     }
 
     @Override
     public String toString() {
+        if (fillParent) {
+            return String.format("UITransform[fillParent, anchor=(%.2f,%.2f), offset=(%.0f,%.0f)]",
+                    anchor.x, anchor.y, offset.x, offset.y);
+        }
         return String.format("UITransform[anchor=(%.2f,%.2f), offset=(%.0f,%.0f), size=%.0fx%.0f]",
                 anchor.x, anchor.y, offset.x, offset.y, width, height);
     }

@@ -9,6 +9,8 @@ import org.joml.Vector3f;
 /**
  * Abstract base class for frustum culling implementations.
  * Provides shared AABB (Axis-Aligned Bounding Box) intersection logic.
+ * <p>
+ * Uses world units for all calculations.
  */
 public abstract class FrustumCuller {
 
@@ -31,12 +33,15 @@ public abstract class FrustumCuller {
     public abstract boolean isVisible(SpriteRenderer spriteRenderer);
 
     /**
-     * Calculates an AABB (Axis-Aligned Bounding Box) for a sprite.
+     * Calculates an AABB (Axis-Aligned Bounding Box) for a sprite in world units.
      * Accounts for sprite origin and scale, with optional rotation padding.
+     * <p>
+     * Uses {@link Sprite#getWorldWidth()} and {@link Sprite#getWorldHeight()}
+     * for world-unit dimensions.
      *
      * @param spriteRenderer     The sprite to calculate bounds for
      * @param addRotationPadding Whether to add padding for rotation
-     * @return AABB as [minX, minY, maxX, maxY]
+     * @return AABB as [minX, minY, maxX, maxY] in world units
      */
     protected float[] calculateAABB(SpriteRenderer spriteRenderer, boolean addRotationPadding) {
         if (spriteRenderer == null || spriteRenderer.getSprite() == null) {
@@ -48,15 +53,15 @@ public abstract class FrustumCuller {
         Vector3f pos = transform.getPosition();
         Vector3f scale = transform.getScale();
 
-        // Calculate sprite bounds
-        float spriteWidth = sprite.getWidth() * scale.x;
-        float spriteHeight = sprite.getHeight() * scale.y;
+        // Calculate sprite bounds in WORLD UNITS
+        float spriteWidth = sprite.getWorldWidth() * scale.x;
+        float spriteHeight = sprite.getWorldHeight() * scale.y;
 
         // Account for origin (rotation/scale pivot point)
         float originOffsetX = spriteWidth * spriteRenderer.getOriginX();
         float originOffsetY = spriteHeight * spriteRenderer.getOriginY();
 
-        // Calculate base AABB
+        // Calculate base AABB (Y-up coordinate system)
         float minX = pos.x - originOffsetX;
         float maxX = pos.x + (spriteWidth - originOffsetX);
         float minY = pos.y - originOffsetY;

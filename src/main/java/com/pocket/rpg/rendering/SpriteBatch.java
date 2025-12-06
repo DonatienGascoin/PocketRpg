@@ -18,6 +18,9 @@ import static org.lwjgl.opengl.GL33.*;
 /**
  * Batches sprites by texture to minimize draw calls.
  * Supports depth sorting, static sprites, and configurable sorting strategies.
+ * <p>
+ * Uses world units for all position and size calculations.
+ * Sprite dimensions come from {@link Sprite#getWorldWidth()} and {@link Sprite#getWorldHeight()}.
  */
 public class SpriteBatch {
 
@@ -52,9 +55,9 @@ public class SpriteBatch {
     @Getter
     private int totalSprites = 0;
     @Getter
-    private int staticSpritesRendered = 0;  // FIXED: Track rendered count
+    private int staticSpritesRendered = 0;
     @Getter
-    private int dynamicSpritesRendered = 0; // FIXED: Track rendered count
+    private int dynamicSpritesRendered = 0;
 
     /**
      * Sorting strategies for batch rendering.
@@ -170,7 +173,9 @@ public class SpriteBatch {
         // Get sprite properties
         int textureId = sprite.getTexture().getTextureId();
         Transform transform = spriteRenderer.getGameObject().getTransform();
-        float zIndex = transform.getPosition().z;
+
+        // Use SpriteRenderer.zIndex for sorting (NOT transform.position.z!)
+        float zIndex = spriteRenderer.getZIndex();
         float yPosition = transform.getPosition().y;
         boolean isStatic = spriteRenderer.isStatic();
 
@@ -260,13 +265,14 @@ public class SpriteBatch {
 
             case BALANCED:
                 // Z-index → Texture (group nearby Y) → Y-position
+                // Note: tolerance is now in world units (was 64 pixels, now ~4 world units)
                 items.sort((a, b) -> {
                     int zCompare = Float.compare(a.zIndex, b.zIndex);
                     if (zCompare != 0) return zCompare;
 
-                    // Group sprites within 64 pixels Y-distance by texture
+                    // Group sprites within 4 world units Y-distance by texture
                     float yDiff = Math.abs(a.yPosition - b.yPosition);
-                    if (yDiff > 64) {
+                    if (yDiff > 4f) {
                         return Float.compare(a.yPosition, b.yPosition);
                     }
 
@@ -343,6 +349,10 @@ public class SpriteBatch {
 
     /**
      * Adds vertex data for a sprite to the vertex buffer.
+     * <p>
+     * Uses world units for all calculations:
+     * - Position from Transform (world units)
+     * - Size from Sprite.getWorldWidth/Height() (world units)
      */
     private void addSpriteVertices(SpriteRenderer spriteRenderer) {
         Sprite sprite = spriteRenderer.getSprite();
@@ -352,11 +362,11 @@ public class SpriteBatch {
         Vector3f scale = transform.getScale();
         Vector3f rotation = transform.getRotation();
 
-        // Calculate final dimensions
-        float width = sprite.getWidth() * scale.x;
-        float height = sprite.getHeight() * scale.y;
+        // Calculate final dimensions in WORLD UNITS
+        float width = sprite.getWorldWidth() * scale.x;
+        float height = sprite.getWorldHeight() * scale.y;
 
-        // Calculate origin offset
+        // Calculate origin offset in world units
         float originX = width * spriteRenderer.getOriginX();
         float originY = height * spriteRenderer.getOriginY();
 
@@ -367,6 +377,9 @@ public class SpriteBatch {
         float v1 = sprite.getV1();
 
         // Calculate corner positions (before rotation)
+        // With Y-up coordinate system:
+        // - Origin offset subtracts from position
+        // - Height goes UP (positive Y)
         float x0 = pos.x - originX;
         float y0 = pos.y - originY;
         float x1 = pos.x + (width - originX);
@@ -393,13 +406,15 @@ public class SpriteBatch {
 
         } else {
             // No rotation - simple quad
+            // UV mapping accounts for stbi_set_flip_vertically_on_load(true)
+            // v1 = top of sprite (after flip), v0 = bottom of sprite (after flip)
 
-            // Triangle 1
-            vertexBuffer.put(x0).put(y0).put(u0).put(v1); // Top-left
+            // Triangle 1: top-left, bottom-left, bottom-right
+            vertexBuffer.put(x0).put(y0).put(u0).put(v1); // Top-left (min Y in Y-down)
             vertexBuffer.put(x0).put(y1).put(u0).put(v0); // Bottom-left
             vertexBuffer.put(x1).put(y1).put(u1).put(v0); // Bottom-right
 
-            // Triangle 2
+            // Triangle 2: top-left, bottom-right, top-right
             vertexBuffer.put(x0).put(y0).put(u0).put(v1); // Top-left
             vertexBuffer.put(x1).put(y1).put(u1).put(v0); // Bottom-right
             vertexBuffer.put(x1).put(y0).put(u1).put(v1); // Top-right
@@ -408,6 +423,7 @@ public class SpriteBatch {
 
     /**
      * Rotates quad corners around a center point.
+     * Returns corners in order: [bottom-left, top-left, top-right, bottom-right]
      */
     private float[] rotateQuad(float x0, float y0, float x1, float y1,
                                float centerX, float centerY, float angle) {
@@ -416,19 +432,19 @@ public class SpriteBatch {
 
         float[] corners = new float[8];
 
-        // Top-left
+        // Bottom-left (x0, y0)
         corners[0] = rotateX(x0, y0, centerX, centerY, cos, sin);
         corners[1] = rotateY(x0, y0, centerX, centerY, cos, sin);
 
-        // Bottom-left
+        // Top-left (x0, y1)
         corners[2] = rotateX(x0, y1, centerX, centerY, cos, sin);
         corners[3] = rotateY(x0, y1, centerX, centerY, cos, sin);
 
-        // Bottom-right
+        // Top-right (x1, y1)
         corners[4] = rotateX(x1, y1, centerX, centerY, cos, sin);
         corners[5] = rotateY(x1, y1, centerX, centerY, cos, sin);
 
-        // Top-right
+        // Bottom-right (x1, y0)
         corners[6] = rotateX(x1, y0, centerX, centerY, cos, sin);
         corners[7] = rotateY(x1, y0, centerX, centerY, cos, sin);
 

@@ -7,31 +7,56 @@ import lombok.Setter;
 
 /**
  * Component that renders a sprite at the GameObject's Transform position.
- * Holds the sprite reference and rendering properties (origin/pivot).
+ * Holds the sprite reference and rendering properties.
  * <p>
- * No longer needs update() - the Renderer reads Transform directly.
+ * Z-ordering uses {@link #zIndex} (not Transform.position.z):
+ * - Lower zIndex renders first (background)
+ * - Higher zIndex renders on top (foreground)
+ * - Default is 0
  */
 public class SpriteRenderer extends Component {
+
     @Getter
     @Setter
     private Sprite sprite;
 
-    // Rotation/scale origin (0-1, relative to sprite size)
-    // (0.5, 0.5) = center, (0, 0) = top-left, (1, 1) = bottom-right
+    /**
+     * Rotation/scale origin X (0-1, relative to sprite size).
+     * 0 = left edge, 0.5 = center, 1 = right edge.
+     */
     @Getter
     private float originX = 0.5f;
+
+    /**
+     * Rotation/scale origin Y (0-1, relative to sprite size).
+     * 0 = top edge, 0.5 = center, 1 = bottom edge.
+     */
     @Getter
     private float originY = 0.5f;
 
     /**
-     * If true, this sprite is assumed to never move/rotate/scale.
-     * The renderer will cache its vertices for better performance.
+     * Sorting order for rendering. Higher values render on top.
+     * This is independent of Transform.position.z.
      * <p>
-     * IMPORTANT: If you modify a static sprite's transform, call
-     * scene.markStaticBatchDirty() to rebuild the cache!
+     * Typical usage:
+     * - Background tiles: 0
+     * - Ground objects: 10
+     * - Characters: 20
+     * - Foreground effects: 30
+     * - UI elements: 100
      */
     @Getter
     @Setter
+    private int zIndex = 0;
+
+    /**
+     * If true, this sprite's vertices are cached (not recalculated each frame).
+     * Use for sprites that never move, rotate, or scale (background tiles, buildings).
+     * <p>
+     * WARNING: If you modify a static sprite's transform, call
+     * scene.markStaticBatchDirty() to rebuild the cache!
+     */
+    @Getter
     private boolean isStatic = false;
 
     /**
@@ -43,14 +68,8 @@ public class SpriteRenderer extends Component {
         this.sprite = sprite;
     }
 
-
-    public SpriteRenderer(Sprite sprite, boolean isStatic) {
-        this.sprite = sprite;
-        this.isStatic = isStatic;
-    }
-
     /**
-     * Creates a SpriteRenderer from a texture (creates a sprite automatically).
+     * Creates a SpriteRenderer from a texture.
      *
      * @param texture The texture to render
      */
@@ -67,19 +86,6 @@ public class SpriteRenderer extends Component {
      */
     public SpriteRenderer(Texture texture, float width, float height) {
         this.sprite = new Sprite(texture, width, height);
-    }
-
-    /**
-     * Creates a SpriteRenderer from a texture with custom size.
-     *
-     * @param texture  The texture to render
-     * @param width    Sprite width
-     * @param height   Sprite height
-     * @param isStatic If true, this sprite is static (never moves)
-     */
-    public SpriteRenderer(Texture texture, float width, float height, boolean isStatic) {
-        this.sprite = new Sprite(texture, width, height);
-        this.isStatic = isStatic;
     }
 
     /**
@@ -129,27 +135,29 @@ public class SpriteRenderer extends Component {
     }
 
     /**
-     * Called automatically when the GameObject's transform changes.
-     * If this is a static sprite, marks the batch as dirty so it will be rebuilt.
+     * Marks this sprite as static for vertex caching.
+     *
+     * @param isStatic true to enable caching
      */
-    @Override
-    public void onTransformChanged() {
-        if (isStatic && gameObject != null && gameObject.getScene() != null) {
-            // Automatically mark the static batch as dirty
-            gameObject.getScene().markStaticBatchDirty();
+    public void setStatic(boolean isStatic) {
+        if (this.isStatic != isStatic) {
+            this.isStatic = isStatic;
+
+            // Notify scene to rebuild static batch
+            if (gameObject != null && gameObject.getScene() != null) {
+                gameObject.getScene().markStaticBatchDirty();
+            }
         }
     }
 
     @Override
     public void onDestroy() {
-        // Note: We don't destroy the sprite's texture here as it might be shared
-        // Texture cleanup should be handled by a resource manager
         sprite = null;
     }
 
     @Override
     public String toString() {
-        return String.format("SpriteRenderer[sprite=%s, origin=(%.2f,%.2f)]",
-                sprite != null ? sprite.getName() : "null", originX, originY);
+        return String.format("SpriteRenderer[sprite=%s, origin=(%.2f,%.2f), zIndex=%d, static=%b]",
+                sprite != null ? sprite.getName() : "null", originX, originY, zIndex, isStatic);
     }
 }

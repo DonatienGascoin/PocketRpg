@@ -18,18 +18,19 @@ import static org.lwjgl.opengl.GL11.*;
  * - Single-line and multi-line text
  * - Horizontal alignment (LEFT, CENTER, RIGHT)
  * - Vertical alignment (TOP, MIDDLE, BOTTOM)
- * - Word wrapping (optional, based on UITransform width)
+ * - Word wrapping (optional)
+ * - Auto-fit scaling to parent bounds (automatically uses parent size)
+ * - Drop shadow effect
  * - Color tinting
  * <p>
  * Usage:
  * GameObject textObj = new GameObject("Label");
- * UITransform transform = new UITransform(200, 50);
- * transform.setAnchor(AnchorPreset.TOP_CENTER);
- * textObj.addComponent(transform);
+ * textObj.addComponent(new UITransform());  // Size doesn't matter for autoFit
  * <p>
- * UIText text = new UIText(font);
- * text.setText("Hello World");
+ * UIText text = new UIText(font, "Hello World");
  * text.setHorizontalAlignment(HorizontalAlignment.CENTER);
+ * text.setVerticalAlignment(VerticalAlignment.MIDDLE);
+ * text.setAutoFit(true);  // Automatically fills parent
  * textObj.addComponent(text);
  */
 public class UIText extends UIComponent {
@@ -57,10 +58,54 @@ public class UIText extends UIComponent {
     @Setter
     private boolean wordWrap = false;
 
-    // Cached layout data
+    // ==================== Auto-fit ====================
+
+    /**
+     * When true, text scales to fit within parent bounds.
+     * Automatically uses parent's dimensions instead of UITransform's size.
+     */
+    @Getter
+    @Setter
+    private boolean autoFit = false;
+
+    /** Minimum scale factor (default 0.5 = don't shrink below 50%) */
+    @Getter
+    @Setter
+    private float minScale = 0.5f;
+
+    /** Maximum scale factor (default 1.0 = don't grow beyond 100%) */
+    @Getter
+    @Setter
+    private float maxScale = 1.0f;
+
+    /** When true, scales uniformly. When false, can stretch to fill. */
+    @Getter
+    @Setter
+    private boolean maintainAspectRatio = true;
+
+    // ==================== Shadow ====================
+
+    /** When true, renders a drop shadow behind text */
+    @Getter
+    @Setter
+    private boolean shadow = false;
+
+    /** Shadow color (default: semi-transparent black) */
+    @Getter
+    private Vector4f shadowColor = new Vector4f(0, 0, 0, 0.5f);
+
+    /** Shadow offset in pixels (default: 2, 2) */
+    @Getter
+    private Vector2f shadowOffset = new Vector2f(2, 2);
+
+    // ==================== Layout Cache ====================
+
     private String[] lines;
     private float[] lineWidths;
-    private float totalHeight;
+    private float naturalWidth;     // Width at scale 1.0
+    private float naturalHeight;    // Height at scale 1.0
+    private float computedScaleX = 1.0f;
+    private float computedScaleY = 1.0f;
     private boolean layoutDirty = true;
 
     public UIText() {
@@ -100,6 +145,34 @@ public class UIText extends UIComponent {
         setColor(r, g, b, 1);
     }
 
+    /**
+     * Sets shadow color from RGBA components (0-1 range).
+     */
+    public void setShadowColor(float r, float g, float b, float a) {
+        shadowColor.set(r, g, b, a);
+    }
+
+    /**
+     * Sets shadow color.
+     */
+    public void setShadowColor(Vector4f color) {
+        shadowColor.set(color);
+    }
+
+    /**
+     * Sets shadow offset in pixels.
+     */
+    public void setShadowOffset(float x, float y) {
+        shadowOffset.set(x, y);
+    }
+
+    /**
+     * Sets shadow offset.
+     */
+    public void setShadowOffset(Vector2f offset) {
+        shadowOffset.set(offset);
+    }
+
     @Override
     public void render(UIRendererBackend backend) {
         if (font == null || text.isEmpty()) return;
@@ -107,17 +180,43 @@ public class UIText extends UIComponent {
         UITransform transform = getUITransform();
         if (transform == null) return;
 
-        // Recalculate layout if needed
-        if (layoutDirty) {
-            calculateLayout(transform.getWidth());
+        // Determine box dimensions:
+        // - autoFit mode: use PARENT bounds (text fills parent)
+        // - normal mode: use own UITransform size
+        float boxWidth;
+        float boxHeight;
+        float boxX;
+        float boxY;
+
+        if (autoFit) {
+            // Use parent's bounds - text fills the parent container
+            boxWidth = transform.getParentWidth();
+            boxHeight = transform.getParentHeight();
+            // Position at parent's top-left (ignore own transform position for autoFit)
+            Vector2f parentPos = getParentPosition(transform);
+            boxX = parentPos.x;
+            boxY = parentPos.y;
+        } else {
+            // Use own transform's size and position
+            boxWidth = transform.getWidth();
+            boxHeight = transform.getHeight();
+            Vector2f pos = transform.getScreenPosition();
+            boxX = pos.x;
+            boxY = pos.y;
         }
 
-        Vector2f pos = transform.getScreenPosition();
-        float boxWidth = transform.getWidth();
-        float boxHeight = transform.getHeight();
+        // Recalculate layout if needed
+        if (layoutDirty) {
+            calculateLayout(boxWidth);
+        }
 
-        // Calculate vertical starting position
-        float startY = calculateVerticalStart(pos.y, boxHeight);
+        // Calculate auto-fit scale
+        if (autoFit) {
+            calculateAutoFitScale(boxWidth, boxHeight);
+        } else {
+            computedScaleX = 1.0f;
+            computedScaleY = 1.0f;
+        }
 
         // Setup OpenGL state for font atlas (single channel)
         glEnable(GL_BLEND);
@@ -127,51 +226,140 @@ public class UIText extends UIComponent {
         font.bind(0);
         backend.beginBatch(null);  // We manually bound the texture
 
-        // Render each line
+        // Render shadow first (if enabled)
+        if (shadow) {
+            renderTextPass(backend, boxX + shadowOffset.x, boxY + shadowOffset.y,
+                    boxWidth, boxHeight, shadowColor);
+        }
+
+        // Render main text
+        renderTextPass(backend, boxX, boxY, boxWidth, boxHeight, color);
+
+        backend.endBatch();
+    }
+
+    /**
+     * Gets the parent's screen position from the transform's cached parent bounds.
+     */
+    private Vector2f getParentPosition(UITransform transform) {
+        // The parent position is stored in UITransform when setParentBounds is called
+        // We can derive it: screenPosition = parentPos + localOffset
+        // So: parentPos = screenPosition - localOffset (when at anchor 0,0 with no pivot)
+
+        // Actually simpler: parent position is passed to setParentBounds as parentX, parentY
+        // We need to expose that or calculate it differently
+
+        // The cleanest way: when anchor=(0,0), offset=(0,0), pivot=(0,0):
+        // screenPosition == parentPosition
+        // For autoFit, we want text at parent's top-left, so we can use:
+        Vector2f screenPos = transform.getScreenPosition();
+
+        // Calculate what the offset would contribute
+        float anchorX = transform.getAnchor().x * transform.getParentWidth();
+        float anchorY = transform.getAnchor().y * transform.getParentHeight();
+        float offsetX = transform.getOffset().x;
+        float offsetY = transform.getOffset().y;
+        float pivotX = transform.getPivot().x * transform.getWidth();
+        float pivotY = transform.getPivot().y * transform.getHeight();
+
+        // Reverse the position calculation to get parent position
+        float parentX = screenPos.x - anchorX - offsetX + pivotX;
+        float parentY = screenPos.y - anchorY - offsetY + pivotY;
+
+        return new Vector2f(parentX, parentY);
+    }
+
+    /**
+     * Renders a single pass of text (used for both shadow and main text).
+     */
+    private void renderTextPass(UIRendererBackend backend, float baseX, float baseY,
+                                float boxWidth, float boxHeight, Vector4f textColor) {
+
+        float scaledHeight = naturalHeight * computedScaleY;
+        float startY = calculateVerticalStart(baseY, boxHeight, scaledHeight);
+
         float lineY = startY;
+        float scaledLineHeight = font.getLineHeight() * computedScaleY;
+        float scaledAscent = font.getAscent() * computedScaleY;
+
         for (int lineIndex = 0; lineIndex < lines.length; lineIndex++) {
             String line = lines[lineIndex];
-            float lineWidth = lineWidths[lineIndex];
+            float scaledLineWidth = lineWidths[lineIndex] * computedScaleX;
 
             // Calculate horizontal starting position for this line
-            float lineX = calculateHorizontalStart(pos.x, boxWidth, lineWidth);
+            float lineX = calculateHorizontalStart(baseX, boxWidth, scaledLineWidth);
 
             // Render glyphs
             float cursorX = lineX;
-            float baseline = lineY + font.getAscent();
+            float baseline = lineY + scaledAscent;
 
             for (int i = 0; i < line.length(); i++) {
                 char c = line.charAt(i);
                 Glyph glyph = font.getGlyph(c);
 
                 if (glyph != null && !glyph.isWhitespace()) {
-                    float glyphX = cursorX + glyph.bearingX;
-                    float glyphY = baseline - glyph.bearingY;
+                    float glyphX = cursorX + glyph.bearingX * computedScaleX;
+                    float glyphY = baseline - glyph.bearingY * computedScaleY;
+                    float glyphW = glyph.width * computedScaleX;
+                    float glyphH = glyph.height * computedScaleY;
 
                     backend.batchSprite(
                             glyphX, glyphY,
-                            glyph.width, glyph.height,
+                            glyphW, glyphH,
                             glyph.u0, glyph.v0, glyph.u1, glyph.v1,
-                            color
+                            textColor
                     );
                 }
 
                 if (glyph != null) {
-                    cursorX += glyph.advance;
+                    cursorX += glyph.advance * computedScaleX;
                 }
             }
 
-            lineY += font.getLineHeight();
+            // Move to next line
+            lineY += scaledLineHeight;
+        }
+    }
+
+    /**
+     * Calculates the scale factors for auto-fit mode.
+     */
+    private void calculateAutoFitScale(float boxWidth, float boxHeight) {
+        if (naturalWidth <= 0 || naturalHeight <= 0) {
+            computedScaleX = 1.0f;
+            computedScaleY = 1.0f;
+            return;
         }
 
-        backend.endBatch();
+        float scaleX = boxWidth / naturalWidth;
+        float scaleY = boxHeight / naturalHeight;
+
+        if (maintainAspectRatio) {
+            // Use uniform scale (smallest to fit both dimensions)
+            float uniformScale = Math.min(scaleX, scaleY);
+            uniformScale = clampScale(uniformScale);
+            computedScaleX = uniformScale;
+            computedScaleY = uniformScale;
+        } else {
+            // Independent scaling (stretch to fill)
+            computedScaleX = clampScale(scaleX);
+            computedScaleY = clampScale(scaleY);
+        }
+    }
+
+    /**
+     * Clamps scale to min/max range.
+     */
+    private float clampScale(float scale) {
+        return Math.max(minScale, Math.min(maxScale, scale));
     }
 
     private void calculateLayout(float maxWidth) {
         if (text.isEmpty()) {
             lines = new String[0];
             lineWidths = new float[0];
-            totalHeight = 0;
+            naturalWidth = 0;
+            naturalHeight = 0;
             layoutDirty = false;
             return;
         }
@@ -191,11 +379,13 @@ public class UIText extends UIComponent {
         lines = rawLines;
         lineWidths = new float[lines.length];
 
+        naturalWidth = 0;
         for (int i = 0; i < lines.length; i++) {
             lineWidths[i] = font.getStringWidth(lines[i]);
+            naturalWidth = Math.max(naturalWidth, lineWidths[i]);
         }
 
-        totalHeight = lines.length * font.getLineHeight();
+        calculateNaturalHeight();
     }
 
     private void calculateWrappedLayout(float maxWidth) {
@@ -245,11 +435,36 @@ public class UIText extends UIComponent {
 
         lines = wrappedLines.toArray(new String[0]);
         lineWidths = new float[widths.size()];
+
+        naturalWidth = 0;
         for (int i = 0; i < widths.size(); i++) {
             lineWidths[i] = widths.get(i);
+            naturalWidth = Math.max(naturalWidth, lineWidths[i]);
         }
 
-        totalHeight = lines.length * font.getLineHeight();
+        calculateNaturalHeight();
+    }
+
+    /**
+     * Calculate natural height at scale 1.0.
+     * Visual height = ascent + |descent| for single line
+     * Multi-line includes lineHeight spacing between lines.
+     */
+    private void calculateNaturalHeight() {
+        if (lines.length == 0) {
+            naturalHeight = 0;
+            return;
+        }
+
+        // Single line visual height = ascent + |descent|
+        int singleLineVisualHeight = font.getAscent() - font.getDescent();
+
+        if (lines.length == 1) {
+            naturalHeight = singleLineVisualHeight;
+        } else {
+            // Multiple lines: (n-1) * lineHeight + last line visual height
+            naturalHeight = (lines.length - 1) * font.getLineHeight() + singleLineVisualHeight;
+        }
     }
 
     private float calculateHorizontalStart(float boxX, float boxWidth, float lineWidth) {
@@ -260,30 +475,48 @@ public class UIText extends UIComponent {
         };
     }
 
-    private float calculateVerticalStart(float boxY, float boxHeight) {
+    private float calculateVerticalStart(float boxY, float boxHeight, float textHeight) {
         return switch (verticalAlignment) {
             case TOP -> boxY;
-            case MIDDLE -> boxY + (boxHeight - totalHeight) / 2;
-            case BOTTOM -> boxY + boxHeight - totalHeight;
+            case MIDDLE -> boxY + (boxHeight - textHeight) / 2;
+            case BOTTOM -> boxY + boxHeight - textHeight;
         };
     }
 
     /**
      * Marks layout as needing recalculation.
-     * Call after changing font or alignment.
+     * Call after changing font or when bounds change.
      */
     public void markLayoutDirty() {
         layoutDirty = true;
     }
 
     /**
-     * Gets the calculated height of the text.
+     * Gets the natural width of the text (at scale 1.0).
      */
-    public float getTextHeight() {
+    public float getNaturalWidth() {
         if (layoutDirty && font != null) {
-            calculateLayout(getTransform() != null ? getUITransform().getWidth() : 0);
+            calculateLayout(getUITransform() != null ? getUITransform().getWidth() : 0);
         }
-        return totalHeight;
+        return naturalWidth;
+    }
+
+    /**
+     * Gets the natural height of the text (at scale 1.0).
+     */
+    public float getNaturalHeight() {
+        if (layoutDirty && font != null) {
+            calculateLayout(getUITransform() != null ? getUITransform().getWidth() : 0);
+        }
+        return naturalHeight;
+    }
+
+    /**
+     * Gets the current computed scale (after auto-fit).
+     * Returns 1.0 if auto-fit is disabled.
+     */
+    public float getComputedScale() {
+        return Math.min(computedScaleX, computedScaleY);
     }
 
     /**
@@ -291,7 +524,7 @@ public class UIText extends UIComponent {
      */
     public int getLineCount() {
         if (layoutDirty && font != null) {
-            calculateLayout(getTransform() != null ? getUITransform().getWidth() : 0);
+            calculateLayout(getUITransform() != null ? getUITransform().getWidth() : 0);
         }
         return lines != null ? lines.length : 0;
     }

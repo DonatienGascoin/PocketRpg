@@ -2,6 +2,8 @@ package com.pocket.rpg.postProcessing;
 
 import lombok.Setter;
 
+import java.util.List;
+
 /**
  * Service locator for PostProcessor.
  * Provides a Unity-style static API while maintaining testability.
@@ -65,6 +67,15 @@ public class PostProcessing {
     // ========================================
     // STATIC API (Unity-style convenience)
     // ========================================
+
+    /**
+     * Get all current effects
+     *
+     * @return
+     */
+    public static List<PostEffect> getEffects() {
+        return getProcessor().getEffects();
+    }
 
     /**
      * Adds a post-processing effect to the pipeline.

@@ -1,6 +1,5 @@
 package com.pocket.rpg.ui.text;
 
-import com.pocket.rpg.rendering.Texture;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.stb.STBTTFontinfo;
 import org.lwjgl.stb.STBTTPackContext;
@@ -170,8 +169,10 @@ public class Font {
             STBTTPackedchar pc = packedChars.get(i);
             int codepoint = FIRST_CHAR + i;
 
-            int width = pc.x1() - pc.x0();
-            int height = pc.y1() - pc.y0();
+            // Use xoff2/yoff2 for correct screen-space dimensions
+            // (x1-x0 and y1-y0 are atlas pixels, which are scaled by oversampling)
+            float width = pc.xoff2() - pc.xoff();
+            float height = pc.yoff2() - pc.yoff();
 
             float u0 = (float) pc.x0() / atlasWidth;
             float v0 = (float) pc.y0() / atlasHeight;
@@ -180,9 +181,9 @@ public class Font {
 
             // STB uses xoff/yoff relative to cursor position
             // xoff = bearingX, yoff = offset from baseline to top of glyph
-            int bearingX = Math.round(pc.xoff());
-            int bearingY = -Math.round(pc.yoff());  // Convert to "up from baseline"
-            int advance = Math.round(pc.xadvance());
+            float bearingX = pc.xoff();
+            float bearingY = -pc.yoff();  // Convert to "up from baseline"
+            float advance = pc.xadvance();
 
             Glyph glyph = new Glyph(codepoint, width, height,
                     bearingX, bearingY, advance,

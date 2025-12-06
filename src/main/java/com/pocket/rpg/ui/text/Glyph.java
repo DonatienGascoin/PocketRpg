@@ -14,25 +14,25 @@ public class Glyph {
     public final int codepoint;
 
     /** Width of the glyph in pixels */
-    public final int width;
+    public final float width;
 
     /** Height of the glyph in pixels */
-    public final int height;
+    public final float height;
 
     /** Horizontal offset from cursor to left edge of glyph */
-    public final int bearingX;
+    public final float bearingX;
 
     /** Vertical offset from baseline to top edge of glyph */
-    public final int bearingY;
+    public final float bearingY;
 
     /** How far to advance cursor after this glyph (in pixels) */
-    public final int advance;
+    public final float advance;
 
     /** UV coordinates in atlas (0-1 range) */
     public final float u0, v0, u1, v1;
 
-    public Glyph(int codepoint, int width, int height,
-                 int bearingX, int bearingY, int advance,
+    public Glyph(int codepoint, float width, float height,
+                 float bearingX, float bearingY, float advance,
                  float u0, float v0, float u1, float v1) {
         this.codepoint = codepoint;
         this.width = width;
@@ -50,14 +50,14 @@ public class Glyph {
      * Checks if this is a whitespace character (no visible rendering).
      */
     public boolean isWhitespace() {
-        return width == 0 || height == 0;
+        return width <= 0 || height <= 0;
     }
 
     @Override
     public String toString() {
         char c = (char) codepoint;
         String charStr = Character.isISOControl(c) ? "0x" + Integer.toHexString(codepoint) : String.valueOf(c);
-        return String.format("Glyph['%s' size=%dx%d bearing=(%d,%d) advance=%d]",
+        return String.format("Glyph['%s' size=%.1fx%.1f bearing=(%.1f,%.1f) advance=%.1f]",
                 charStr, width, height, bearingX, bearingY, advance);
     }
 }

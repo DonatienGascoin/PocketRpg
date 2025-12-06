@@ -11,10 +11,7 @@ import com.pocket.rpg.ui.AnchorPreset;
 import com.pocket.rpg.ui.UIButton;
 import com.pocket.rpg.ui.UICanvas;
 import com.pocket.rpg.ui.UITransform;
-import com.pocket.rpg.ui.text.Font;
-import com.pocket.rpg.ui.text.HorizontalAlignment;
-import com.pocket.rpg.ui.text.UIText;
-import com.pocket.rpg.ui.text.VerticalAlignment;
+import com.pocket.rpg.ui.text.*;
 import org.joml.Random;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
@@ -125,10 +122,21 @@ public class DemoScene extends Scene {
 
         UIText btnText = new UIText(font, "START");
         btnText.setHorizontalAlignment(HorizontalAlignment.CENTER);
-        btnText.setVerticalAlignment(VerticalAlignment.BOTTOM);
+        btnText.setVerticalAlignment(VerticalAlignment.TOP);
         btnText.setColor(.2f, .2f, .2f);
         textObj.addComponent(btnText);
         buttonObj.addChild(textObj);
+
+        System.out.println("Font metrics - ascent: " + font.getAscent() +
+                ", descent: " + font.getDescent() +
+                ", lineHeight: " + font.getLineHeight() +
+                ", pixelSize: " + font.getSize());
+
+        Glyph glyph = font.getGlyph('A');
+        System.out.println("Glyph A - bearingX: " + glyph.bearingX +
+                ", bearingY: " + glyph.bearingY +
+                ", width: " + glyph.width +
+                ", height: " + glyph.height);
 
         canvasGO.addChild(buttonObj);
     }

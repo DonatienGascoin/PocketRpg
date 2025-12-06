@@ -144,8 +144,6 @@ public class GameEngine {
      */
     public void renderUI() {
         if (sceneManager.getCurrentScene() != null) {
-            System.out.println("UI Canvases count: " + sceneManager.getCurrentScene().getUICanvases().size());
-            System.out.println("Sprite renderers count: " + sceneManager.getCurrentScene().getSpriteRenderers().size());
             uiRenderer.render(sceneManager.getCurrentScene().getUICanvases());
         }
     }

@@ -91,31 +91,42 @@ public class DemoScene extends Scene {
     private void createButton(GameObject canvasGO) {
         GameObject buttonObj = new GameObject("Start Button");
 
-// Transform
+        // Button Transform - anchored to bottom-right corner
         UITransform btnTransform = new UITransform(150, 40);
         btnTransform.setAnchor(AnchorPreset.BOTTOM_RIGHT);
         btnTransform.setOffset(-85, -30);
         btnTransform.setPivotCenter();
         buttonObj.addComponent(btnTransform);
 
-// Button component
+        // Button component
         UIButton button = new UIButton();
         button.setColor(new Vector4f(0.6f, 0.6f, 0.6f, 1f));
         button.setHoverTint(.2f);
         button.setOnClick(() -> System.out.println("Button clicked!"));
         buttonObj.addComponent(button);
 
-// Button text (child)
+        // Button text (child)
+        // Text fills the button entirely, alignment handles centering
         GameObject textObj = new GameObject("Button Text");
-        UITransform textTransform = new UITransform(0, 0);
-        textTransform.setAnchor(AnchorPreset.CENTER);
-        textTransform.setPivotCenter();
+
+        // Option 1: Fill parent completely (anchor all corners)
+        UITransform textTransform = new UITransform(150, 40);
+        textTransform.setAnchor(AnchorPreset.TOP_LEFT);  // Anchor to parent's top-left
+        textTransform.setOffset(0, 0);                    // No offset
+        textTransform.setPivot(0, 0);                     // Pivot at top-left
         textObj.addComponent(textTransform);
+
+        // Alternative Option 2 (also works): Center in parent with matching size
+        // UITransform textTransform = new UITransform(150, 40);
+        // textTransform.setAnchor(AnchorPreset.CENTER);
+        // textTransform.setOffset(0, 0);
+        // textTransform.setPivotCenter();
+        // textObj.addComponent(textTransform);
 
         UIText btnText = new UIText(font, "START");
         btnText.setHorizontalAlignment(HorizontalAlignment.CENTER);
-        btnText.setVerticalAlignment(VerticalAlignment.MIDDLE);
-        btnText.setColor(.2f,.2f,.2f);
+        btnText.setVerticalAlignment(VerticalAlignment.BOTTOM);
+        btnText.setColor(.2f, .2f, .2f);
         textObj.addComponent(btnText);
         buttonObj.addChild(textObj);
 

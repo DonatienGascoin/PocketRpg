@@ -8,13 +8,13 @@ import org.joml.Vector2f;
 /**
  * Transform component for UI elements.
  * Uses anchor-based positioning relative to parent bounds.
- *
+ * <p>
  * Coordinate system (matches Camera):
- * - Origin (0,0) = TOP-LEFT of parent
+ * - Origin (0,0) = TOP-LEFT of screen
  * - Anchor (1,1) = BOTTOM-RIGHT of parent
  * - Positive X offset = move RIGHT
  * - Positive Y offset = move DOWN
- *
+ * <p>
  * MANDATORY for all UI components (UIImage, UIPanel, UIText, etc.)
  */
 public class UITransform extends Component {
@@ -35,19 +35,23 @@ public class UITransform extends Component {
     private final Vector2f pivot = new Vector2f(0, 0);
 
     // Size in pixels
-    @Getter @Setter
+    @Getter
+    @Setter
     private float width = 100;
 
-    @Getter @Setter
+    @Getter
+    @Setter
     private float height = 100;
 
-    // Cached calculated position (top-left corner of element)
+    // Cached calculated position (top-left corner of element in SCREEN coordinates)
     private final Vector2f calculatedPosition = new Vector2f();
     private boolean positionDirty = true;
 
     // Parent bounds cache (set by renderer before calculating)
-    private float parentWidth;
-    private float parentHeight;
+    private float parentX;      // Parent's absolute X position on screen
+    private float parentY;      // Parent's absolute Y position on screen
+    private float parentWidth;  // Parent's width
+    private float parentHeight; // Parent's height
 
     public UITransform() {
     }
@@ -141,10 +145,18 @@ public class UITransform extends Component {
     // ========================================
 
     /**
-     * Updates parent bounds. Called by renderer before getScreenPosition().
+     * Updates parent bounds and position. Called by renderer before getScreenPosition().
+     *
+     * @param parentX      Parent's absolute X position on screen
+     * @param parentY      Parent's absolute Y position on screen
+     * @param parentWidth  Parent's width in pixels
+     * @param parentHeight Parent's height in pixels
      */
-    public void setParentBounds(float parentWidth, float parentHeight) {
-        if (this.parentWidth != parentWidth || this.parentHeight != parentHeight) {
+    public void setParentBounds(float parentX, float parentY, float parentWidth, float parentHeight) {
+        if (this.parentX != parentX || this.parentY != parentY ||
+                this.parentWidth != parentWidth || this.parentHeight != parentHeight) {
+            this.parentX = parentX;
+            this.parentY = parentY;
             this.parentWidth = parentWidth;
             this.parentHeight = parentHeight;
             positionDirty = true;
@@ -153,9 +165,10 @@ public class UITransform extends Component {
 
     /**
      * Gets the calculated screen position (top-left corner of this element).
+     * This is an ABSOLUTE screen position, not relative to parent.
      * Call setParentBounds() first.
      *
-     * @return Screen position in pixels, origin at top-left
+     * @return Screen position in pixels, origin at top-left of screen
      */
     public Vector2f getScreenPosition() {
         if (positionDirty) {
@@ -165,19 +178,20 @@ public class UITransform extends Component {
     }
 
     private void calculatePosition() {
-        // Anchor position in parent space
+        // Anchor position in parent's local space
         float anchorX = anchor.x * parentWidth;
         float anchorY = anchor.y * parentHeight;
 
         // Apply offset (positive Y = down)
-        float posX = anchorX + offset.x;
-        float posY = anchorY + offset.y;
+        float localX = anchorX + offset.x;
+        float localY = anchorY + offset.y;
 
         // Apply pivot (shift so pivot point is at anchor+offset)
-        posX -= pivot.x * width;
-        posY -= pivot.y * height;
+        localX -= pivot.x * width;
+        localY -= pivot.y * height;
 
-        calculatedPosition.set(posX, posY);
+        // Convert to absolute screen position by adding parent's position
+        calculatedPosition.set(parentX + localX, parentY + localY);
         positionDirty = false;
     }
 
@@ -215,7 +229,7 @@ public class UITransform extends Component {
      */
     public float[] getBounds() {
         Vector2f pos = getScreenPosition();
-        return new float[] { pos.x, pos.y, width, height };
+        return new float[]{pos.x, pos.y, width, height};
     }
 
     @Override

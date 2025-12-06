@@ -6,6 +6,7 @@ import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.Texture;
 import com.pocket.rpg.ui.*;
 import org.joml.Matrix4f;
+import org.joml.Vector2f;
 import org.joml.Vector4f;
 import org.lwjgl.BufferUtils;
 
@@ -29,6 +30,7 @@ import static org.lwjgl.opengl.GL33.*;
  * - Immediate mode rendering (drawQuad, drawSprite)
  * - Batched rendering for text/particles (beginBatch, batchSprite, endBatch)
  * - Single-channel font atlas textures (alpha from red channel)
+ * - Hierarchical positioning (children inherit parent's screen position)
  */
 public class OpenGLUIRenderer implements UIRenderer, UIRendererBackend {
 
@@ -118,51 +120,62 @@ public class OpenGLUIRenderer implements UIRenderer, UIRendererBackend {
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glDisable(GL_DEPTH_TEST);
 
-        glUseProgram(shaderProgram);
-        glUniformMatrix4fv(uProjection, false, projectionMatrix.get(new float[16]));
-
-        glBindVertexArray(vao);
-
         // Canvases are pre-sorted by Scene
         for (UICanvas canvas : canvases) {
             if (!canvas.isEnabled()) continue;
             if (canvas.getRenderMode() != UICanvas.RenderMode.SCREEN_SPACE_OVERLAY) continue;
 
-            renderCanvasSubtree(canvas.getGameObject(), gameWidth, gameHeight);
+            // Canvas root starts at (0,0) with full game resolution as bounds
+            renderCanvasSubtree(canvas.getGameObject(), 0, 0, gameWidth, gameHeight);
         }
 
-        glBindVertexArray(0);
-        glUseProgram(0);
         glEnable(GL_DEPTH_TEST);
     }
 
-    private void renderCanvasSubtree(GameObject root, float parentWidth, float parentHeight) {
-        renderGameObjectUI(root, parentWidth, parentHeight);
+    /**
+     * Recursively renders a UI subtree.
+     *
+     * @param root         The GameObject to render
+     * @param parentX      Parent's absolute X position on screen
+     * @param parentY      Parent's absolute Y position on screen
+     * @param parentWidth  Parent's width in pixels
+     * @param parentHeight Parent's height in pixels
+     */
+    private void renderCanvasSubtree(GameObject root, float parentX, float parentY,
+                                     float parentWidth, float parentHeight) {
+        if (!root.isEnabled()) return;
 
-        // Get this object's bounds for children
+        // Update UITransform with parent bounds AND position
+        UITransform transform = root.getComponent(UITransform.class);
+        if (transform != null) {
+            transform.setParentBounds(parentX, parentY, parentWidth, parentHeight);
+        }
+
+        // Render this object's UI components
+        renderGameObjectUI(root);
+
+        // Calculate this object's bounds for children
+        float childParentX = parentX;
+        float childParentY = parentY;
         float childParentWidth = parentWidth;
         float childParentHeight = parentHeight;
 
-        UITransform transform = root.getComponent(UITransform.class);
         if (transform != null) {
+            // Children use this object's screen position and size as their parent bounds
+            Vector2f screenPos = transform.getScreenPosition();
+            childParentX = screenPos.x;
+            childParentY = screenPos.y;
             childParentWidth = transform.getWidth();
             childParentHeight = transform.getHeight();
         }
 
+        // Render children
         for (GameObject child : root.getChildren()) {
-            renderCanvasSubtree(child, childParentWidth, childParentHeight);
+            renderCanvasSubtree(child, childParentX, childParentY, childParentWidth, childParentHeight);
         }
     }
 
-    private void renderGameObjectUI(GameObject go, float parentWidth, float parentHeight) {
-        if (!go.isEnabled()) return;
-
-        // Update UITransform with parent bounds
-        UITransform transform = go.getComponent(UITransform.class);
-        if (transform != null) {
-            transform.setParentBounds(parentWidth, parentHeight);
-        }
-
+    private void renderGameObjectUI(GameObject go) {
         // Get all UI components and render them
         for (var component : go.getAllComponents()) {
             if (component instanceof UIComponent uiComp && uiComp.isEnabled()) {
@@ -180,6 +193,12 @@ public class OpenGLUIRenderer implements UIRenderer, UIRendererBackend {
 
     @Override
     public void drawQuad(float x, float y, float width, float height, Vector4f color) {
+        // Self-contained: bind our own shader and VAO
+        glUseProgram(shaderProgram);
+        glBindVertexArray(vao);
+
+        glUniformMatrix4fv(uProjection, false, projectionMatrix.get(new float[16]));
+
         modelMatrix.identity().translate(x, y, 0);
         glUniformMatrix4fv(uModel, false, modelMatrix.get(new float[16]));
 
@@ -194,10 +213,20 @@ public class OpenGLUIRenderer implements UIRenderer, UIRendererBackend {
         uploadVertices();
 
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+        // Clean up
+        glBindVertexArray(0);
+        glUseProgram(0);
     }
 
     @Override
     public void drawSprite(float x, float y, float width, float height, Sprite sprite, Vector4f tint) {
+        // Self-contained: bind our own shader and VAO
+        glUseProgram(shaderProgram);
+        glBindVertexArray(vao);
+
+        glUniformMatrix4fv(uProjection, false, projectionMatrix.get(new float[16]));
+
         modelMatrix.identity().translate(x, y, 0);
         glUniformMatrix4fv(uModel, false, modelMatrix.get(new float[16]));
 
@@ -218,6 +247,10 @@ public class OpenGLUIRenderer implements UIRenderer, UIRendererBackend {
 
         uploadVertices();
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+        // Clean up
+        glBindVertexArray(0);
+        glUseProgram(0);
     }
 
     // =========================================
@@ -316,8 +349,10 @@ public class OpenGLUIRenderer implements UIRenderer, UIRendererBackend {
         glBindBuffer(GL_ARRAY_BUFFER, batchVbo);
         glBufferSubData(GL_ARRAY_BUFFER, 0, batchVertexBuffer);
 
-        // Bind shader and set uniforms
+        // Self-contained: bind batch shader and VAO
         glUseProgram(batchShaderProgram);
+        glBindVertexArray(batchVao);
+
         glUniformMatrix4fv(batchUProjection, false, projectionMatrix.get(new float[16]));
         glUniform1i(batchUIsText, batchIsText ? 1 : 0);
 
@@ -331,9 +366,11 @@ public class OpenGLUIRenderer implements UIRenderer, UIRendererBackend {
         // For text mode, texture is already bound by UIText.font.bind()
 
         // Draw
-        glBindVertexArray(batchVao);
         glDrawElements(GL_TRIANGLES, batchSpriteCount * INDICES_PER_SPRITE, GL_UNSIGNED_INT, 0);
+
+        // Clean up
         glBindVertexArray(0);
+        glUseProgram(0);
 
         // Reset for next batch
         batchSpriteCount = 0;

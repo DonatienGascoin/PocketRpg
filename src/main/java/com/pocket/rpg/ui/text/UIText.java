@@ -13,25 +13,30 @@ import static org.lwjgl.opengl.GL11.*;
 /**
  * UI component for rendering text.
  * Requires UITransform on the same GameObject.
- * <p>
- * Features:
- * - Single-line and multi-line text
- * - Horizontal alignment (LEFT, CENTER, RIGHT)
- * - Vertical alignment (TOP, MIDDLE, BOTTOM)
- * - Word wrapping (optional)
- * - Auto-fit scaling to parent bounds (automatically uses parent size)
- * - Drop shadow effect
- * - Color tinting
- * <p>
- * Usage:
+ *
+ * <h2>Features</h2>
+ * <ul>
+ *   <li>Single-line and multi-line text</li>
+ *   <li>Horizontal alignment (LEFT, CENTER, RIGHT)</li>
+ *   <li>Vertical alignment (TOP, MIDDLE, BOTTOM)</li>
+ *   <li>Word wrapping (optional)</li>
+ *   <li>Auto-fit scaling to UITransform bounds</li>
+ *   <li>Drop shadow effect</li>
+ *   <li>Color tinting</li>
+ * </ul>
+ *
+ * <h2>Usage</h2>
+ * <pre>{@code
  * GameObject textObj = new GameObject("Label");
- * textObj.addComponent(new UITransform());  // Size doesn't matter for autoFit
- * <p>
+ * UITransform transform = new UITransform(200, 50);  // Width x Height
+ * textObj.addComponent(transform);
+ *
  * UIText text = new UIText(font, "Hello World");
  * text.setHorizontalAlignment(HorizontalAlignment.CENTER);
  * text.setVerticalAlignment(VerticalAlignment.MIDDLE);
- * text.setAutoFit(true);  // Automatically fills parent
+ * text.setAutoFit(true);  // Scale to fit UITransform bounds
  * textObj.addComponent(text);
+ * }</pre>
  */
 public class UIText extends UIComponent {
 
@@ -61,40 +66,51 @@ public class UIText extends UIComponent {
     // ==================== Auto-fit ====================
 
     /**
-     * When true, text scales to fit within parent bounds.
-     * Automatically uses parent's dimensions instead of UITransform's size.
+     * When true, text scales to fit within UITransform bounds.
      */
     @Getter
     @Setter
     private boolean autoFit = false;
 
-    /** Minimum scale factor (default 0.5 = don't shrink below 50%) */
+    /**
+     * Minimum scale factor (default 0.5 = don't shrink below 50%)
+     */
     @Getter
     @Setter
     private float minScale = 0.5f;
 
-    /** Maximum scale factor (default 1.0 = don't grow beyond 100%) */
+    /**
+     * Maximum scale factor (default 1.0 = don't grow beyond 100%)
+     */
     @Getter
     @Setter
     private float maxScale = 1.0f;
 
-    /** When true, scales uniformly. When false, can stretch to fill. */
+    /**
+     * When true, scales uniformly. When false, can stretch to fill.
+     */
     @Getter
     @Setter
     private boolean maintainAspectRatio = true;
 
     // ==================== Shadow ====================
 
-    /** When true, renders a drop shadow behind text */
+    /**
+     * When true, renders a drop shadow behind text
+     */
     @Getter
     @Setter
     private boolean shadow = false;
 
-    /** Shadow color (default: semi-transparent black) */
+    /**
+     * Shadow color (default: semi-transparent black)
+     */
     @Getter
     private Vector4f shadowColor = new Vector4f(0, 0, 0, 0.5f);
 
-    /** Shadow offset in pixels (default: 2, 2) */
+    /**
+     * Shadow offset in pixels (default: 2, 2)
+     */
     @Getter
     private Vector2f shadowOffset = new Vector2f(2, 2);
 
@@ -108,6 +124,10 @@ public class UIText extends UIComponent {
     private float computedScaleY = 1.0f;
     private boolean layoutDirty = true;
 
+    // ========================================================================
+    // CONSTRUCTORS
+    // ========================================================================
+
     public UIText() {
     }
 
@@ -120,6 +140,10 @@ public class UIText extends UIComponent {
         setText(text);
     }
 
+    // ========================================================================
+    // TEXT
+    // ========================================================================
+
     /**
      * Sets the text to display. Marks layout as needing recalculation.
      */
@@ -130,6 +154,10 @@ public class UIText extends UIComponent {
             layoutDirty = true;
         }
     }
+
+    // ========================================================================
+    // COLOR
+    // ========================================================================
 
     /**
      * Sets color from RGBA components (0-1 range).
@@ -144,6 +172,10 @@ public class UIText extends UIComponent {
     public void setColor(float r, float g, float b) {
         setColor(r, g, b, 1);
     }
+
+    // ========================================================================
+    // SHADOW
+    // ========================================================================
 
     /**
      * Sets shadow color from RGBA components (0-1 range).
@@ -173,6 +205,10 @@ public class UIText extends UIComponent {
         shadowOffset.set(offset);
     }
 
+    // ========================================================================
+    // RENDERING
+    // ========================================================================
+
     @Override
     public void render(UIRendererBackend backend) {
         if (font == null || text.isEmpty()) return;
@@ -180,30 +216,12 @@ public class UIText extends UIComponent {
         UITransform transform = getUITransform();
         if (transform == null) return;
 
-        // Determine box dimensions:
-        // - autoFit mode: use PARENT bounds (text fills parent)
-        // - normal mode: use own UITransform size
-        float boxWidth;
-        float boxHeight;
-        float boxX;
-        float boxY;
-
-        if (autoFit) {
-            // Use parent's bounds - text fills the parent container
-            boxWidth = transform.getParentWidth();
-            boxHeight = transform.getParentHeight();
-            // Position at parent's top-left (ignore own transform position for autoFit)
-            Vector2f parentPos = getParentPosition(transform);
-            boxX = parentPos.x;
-            boxY = parentPos.y;
-        } else {
-            // Use own transform's size and position
-            boxWidth = transform.getWidth();
-            boxHeight = transform.getHeight();
-            Vector2f pos = transform.getScreenPosition();
-            boxX = pos.x;
-            boxY = pos.y;
-        }
+        // Get bounds from UITransform
+        Vector2f pos = transform.getScreenPosition();
+        float boxX = pos.x;
+        float boxY = pos.y;
+        float boxWidth = transform.getWidth();
+        float boxHeight = transform.getHeight();
 
         // Recalculate layout if needed
         if (layoutDirty) {
@@ -236,37 +254,6 @@ public class UIText extends UIComponent {
         renderTextPass(backend, boxX, boxY, boxWidth, boxHeight, color);
 
         backend.endBatch();
-    }
-
-    /**
-     * Gets the parent's screen position from the transform's cached parent bounds.
-     */
-    private Vector2f getParentPosition(UITransform transform) {
-        // The parent position is stored in UITransform when setParentBounds is called
-        // We can derive it: screenPosition = parentPos + localOffset
-        // So: parentPos = screenPosition - localOffset (when at anchor 0,0 with no pivot)
-
-        // Actually simpler: parent position is passed to setParentBounds as parentX, parentY
-        // We need to expose that or calculate it differently
-
-        // The cleanest way: when anchor=(0,0), offset=(0,0), pivot=(0,0):
-        // screenPosition == parentPosition
-        // For autoFit, we want text at parent's top-left, so we can use:
-        Vector2f screenPos = transform.getScreenPosition();
-
-        // Calculate what the offset would contribute
-        float anchorX = transform.getAnchor().x * transform.getParentWidth();
-        float anchorY = transform.getAnchor().y * transform.getParentHeight();
-        float offsetX = transform.getOffset().x;
-        float offsetY = transform.getOffset().y;
-        float pivotX = transform.getPivot().x * transform.getWidth();
-        float pivotY = transform.getPivot().y * transform.getHeight();
-
-        // Reverse the position calculation to get parent position
-        float parentX = screenPos.x - anchorX - offsetX + pivotX;
-        float parentY = screenPos.y - anchorY - offsetY + pivotY;
-
-        return new Vector2f(parentX, parentY);
     }
 
     /**
@@ -482,6 +469,10 @@ public class UIText extends UIComponent {
             case BOTTOM -> boxY + boxHeight - textHeight;
         };
     }
+
+    // ========================================================================
+    // LAYOUT INFO
+    // ========================================================================
 
     /**
      * Marks layout as needing recalculation.

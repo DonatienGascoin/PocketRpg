@@ -85,7 +85,7 @@ public class DemoScene extends Scene {
             for (int j = -10; j < 10; j++) {
                 // Random tile selection for visual variety
                 SpriteRenderer tileSprite = new SpriteRenderer(sprites.get(random.nextInt(7)));
-
+                tileSprite.setStatic(false);
                 // Position at integer world coordinates
                 // With Y-up: j=-10 is bottom, j=+9 is top
                 GameObject tile = new GameObject("Tile_" + i + "_" + j,
@@ -114,15 +114,15 @@ public class DemoScene extends Scene {
         SpriteSheet playerSheet = new SpriteSheet(playerTex.getTexture(), 32, 32, 0, 0, 0, 16);
         var sprites = playerSheet.generateAllSprites();
 
-        SpriteRenderer spriteRenderer = new SpriteRenderer(sprites.get(10));
+        SpriteRenderer spriteRenderer = new SpriteRenderer(playerSheet.getSprite(0));
         spriteRenderer.setZIndex(-1);  // Render below tiles (zIndex=0)
 
         // Player at world origin (Z not used for sorting anymore)
-        GameObject player = new GameObject("Player", new Vector3f(-50, -50, 0));
+        GameObject player = new GameObject("Player", new Vector3f(-5, -5, 0));
 
         player.addComponent(spriteRenderer);
         player.addComponent(new PlayerMovement());
-        player.addComponent(new PlayerCameraFollow());
+//        player.addComponent(new PlayerCameraFollow());
 
         addGameObject(player);
     }
@@ -135,22 +135,18 @@ public class DemoScene extends Scene {
      * - zIndex=1 ensures player renders above tiles (zIndex=0)
      */
     private void createPlayerAboveLevel() {
-        var resource = AssetManager.getInstance().<Sprite>load("gameData/assets/sprites/Char1_32x32.png");
-        var playerTex = resource.get();
+        var resource = AssetManager.getInstance().<Sprite>load("gameData/assets/player.png");
+        var playerSprite = resource.get();
 
-        // 32×32 pixel sprites with PPU=16 → each frame is 2×2 world units
-        SpriteSheet playerSheet = new SpriteSheet(playerTex.getTexture(), 32, 32, 0, 0, 0, 16);
-        var sprites = playerSheet.generateAllSprites();
-
-        SpriteRenderer spriteRenderer = new SpriteRenderer(sprites.get(0));
+        SpriteRenderer spriteRenderer = new SpriteRenderer(playerSprite);
         spriteRenderer.setZIndex(1);  // Render above tiles (zIndex=0)
 
         // Player at world origin (Z not used for sorting anymore)
-        GameObject player = new GameObject("Player", new Vector3f(50, 50, 0));
+        GameObject player = new GameObject("Player", new Vector3f(5, 5, 0));
 
         player.addComponent(spriteRenderer);
         player.addComponent(new PlayerMovement());
-        player.addComponent(new PlayerCameraFollow());
+//        player.addComponent(new PlayerCameraFollow());
 
         addGameObject(player);
     }

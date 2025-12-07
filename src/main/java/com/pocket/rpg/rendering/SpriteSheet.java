@@ -123,7 +123,7 @@ public class SpriteSheet {
 
         // Convert top-based Y to bottom-based Y for renderer/UVs
         int py = texture.getHeight() - (pyTop + spriteHeight);
-
+//        int py = pyTop;
         Sprite sprite = new Sprite(texture, width, height,
                 px, py, spriteWidth, spriteHeight,
                 "Frame_" + frameIndex);

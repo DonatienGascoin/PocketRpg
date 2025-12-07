@@ -278,7 +278,6 @@ public class SpriteBatch {
 
                     int texCompare = Integer.compare(a.textureId, b.textureId);
                     if (texCompare != 0) return texCompare;
-
                     return Float.compare(a.yPosition, b.yPosition);
                 });
                 break;
@@ -320,7 +319,6 @@ public class SpriteBatch {
      */
     private void renderBatch(List<BatchItem> items, int start, int end, int textureId) {
         if (start >= end) return;
-
         int count = end - start;
 
         // Fill vertex buffer
@@ -395,29 +393,30 @@ public class SpriteBatch {
             float[] corners = rotateQuad(x0, y0, x1, y1, centerX, centerY, angle);
 
             // Triangle 1
-            vertexBuffer.put(corners[0]).put(corners[1]).put(u0).put(v1); // Top-left
-            vertexBuffer.put(corners[2]).put(corners[3]).put(u0).put(v0); // Bottom-left
-            vertexBuffer.put(corners[4]).put(corners[5]).put(u1).put(v0); // Bottom-right
+            vertexBuffer.put(x0).put(y0).put(u0).put(v0); // Bottom-left
+            vertexBuffer.put(x0).put(y1).put(u0).put(v1); // Top-left
+            vertexBuffer.put(x1).put(y1).put(u1).put(v1); // Top-right
 
-            // Triangle 2
-            vertexBuffer.put(corners[0]).put(corners[1]).put(u0).put(v1); // Top-left
-            vertexBuffer.put(corners[4]).put(corners[5]).put(u1).put(v0); // Bottom-right
-            vertexBuffer.put(corners[6]).put(corners[7]).put(u1).put(v1); // Top-right
+// Triangle 2
+            vertexBuffer.put(x0).put(y0).put(u0).put(v0); // Bottom-left
+            vertexBuffer.put(x1).put(y1).put(u1).put(v1); // Top-right
+            vertexBuffer.put(x1).put(y0).put(u1).put(v0); // Bottom-right
 
         } else {
             // No rotation - simple quad
-            // UV mapping accounts for stbi_set_flip_vertically_on_load(true)
-            // v1 = top of sprite (after flip), v0 = bottom of sprite (after flip)
+            // Y-up world coordinates + stbi_flip means:
+            // - y0 = bottom of quad → should get v0 (bottom of texture)
+            // - y1 = top of quad → should get v1 (top of texture)
 
-            // Triangle 1: top-left, bottom-left, bottom-right
-            vertexBuffer.put(x0).put(y0).put(u0).put(v1); // Top-left (min Y in Y-down)
-            vertexBuffer.put(x0).put(y1).put(u0).put(v0); // Bottom-left
-            vertexBuffer.put(x1).put(y1).put(u1).put(v0); // Bottom-right
+            // Triangle 1
+            vertexBuffer.put(x0).put(y0).put(u0).put(v0); // Bottom-left
+            vertexBuffer.put(x0).put(y1).put(u0).put(v1); // Top-left
+            vertexBuffer.put(x1).put(y1).put(u1).put(v1); // Top-right
 
-            // Triangle 2: top-left, bottom-right, top-right
-            vertexBuffer.put(x0).put(y0).put(u0).put(v1); // Top-left
-            vertexBuffer.put(x1).put(y1).put(u1).put(v0); // Bottom-right
-            vertexBuffer.put(x1).put(y0).put(u1).put(v1); // Top-right
+            // Triangle 2
+            vertexBuffer.put(x0).put(y0).put(u0).put(v0); // Bottom-left
+            vertexBuffer.put(x1).put(y1).put(u1).put(v1); // Top-right
+            vertexBuffer.put(x1).put(y0).put(u1).put(v0); // Bottom-right
         }
     }
 

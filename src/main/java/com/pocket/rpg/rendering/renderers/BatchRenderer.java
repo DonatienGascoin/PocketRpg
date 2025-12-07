@@ -93,6 +93,7 @@ public class BatchRenderer extends Renderer {
 
     @Override
     public void begin() {
+        glDisable(GL_DEPTH_TEST);
         batchShader.use();
 
         // Upload projection/view matrices once per frame

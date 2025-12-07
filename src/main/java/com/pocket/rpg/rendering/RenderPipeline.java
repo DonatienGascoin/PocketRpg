@@ -1,6 +1,7 @@
 package com.pocket.rpg.rendering;
 
 import com.pocket.rpg.components.SpriteRenderer;
+import com.pocket.rpg.components.TilemapRenderer;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.core.Camera;
 import com.pocket.rpg.core.ViewportConfig;
@@ -25,8 +26,19 @@ import static org.lwjgl.opengl.GL33.glClearColor;
  * Orchestrates the complete rendering pipeline:
  * 1. Camera updates
  * 2. Culling system updates
- * 3. Sprite rendering with culling
+ * 3. Renderable rendering with culling (sprites, tilemaps, etc.)
  * 4. Statistics reporting
+ *
+ * <h2>Render Order</h2>
+ * Renderables are processed in zIndex order (ascending).
+ * Lower zIndex renders first (background), higher renders on top.
+ *
+ * <h2>Type Dispatch</h2>
+ * The pipeline uses instanceof checks to dispatch to type-specific rendering:
+ * <ul>
+ *   <li>{@link SpriteRenderer} → {@link Renderer#drawSpriteRenderer(SpriteRenderer)}</li>
+ *   <li>Tilemap → (Phase 4: drawTilemap)</li>
+ * </ul>
  */
 public class RenderPipeline {
 
@@ -96,15 +108,10 @@ public class RenderPipeline {
                     clearColor
             );
 
-            // 7. Render all sprite renderers with culling
-            List<SpriteRenderer> spriteRenderers = scene.getSpriteRenderers();
-            for (SpriteRenderer spriteRenderer : spriteRenderers) {
-                if (shouldRenderSprite(spriteRenderer)) {
-                    // Sprite is visible - render it
-                    if (cullingSystem.shouldRender(spriteRenderer)) {
-                        renderer.drawSpriteRenderer(spriteRenderer);
-                    }
-                }
+            // 7. Render all renderables (sorted by zIndex)
+            List<Renderable> renderables = scene.getRenderers();
+            for (Renderable renderable : renderables) {
+                renderRenderable(renderable);
             }
 
             // 8. End rendering
@@ -121,6 +128,80 @@ public class RenderPipeline {
     }
 
     /**
+     * Dispatches rendering to type-specific handlers.
+     * Uses instanceof for simplicity (acceptable for 2-3 renderable types).
+     *
+     * <p>For many types, consider the Visitor pattern instead:
+     * each Renderable would implement accept(RenderableVisitor),
+     * and this class would implement RenderableVisitor with
+     * visit(SpriteRenderer), visit(Tilemap), etc.</p>
+     *
+     * @param renderable The renderable to dispatch
+     */
+    private void renderRenderable(Renderable renderable) {
+        // Quick visibility check (enabled, gameObject exists, has data)
+        if (!renderable.isRenderVisible()) {
+            return;
+        }
+
+        // Type-specific dispatch
+        if (renderable instanceof SpriteRenderer spriteRenderer) {
+            renderSpriteRenderer(spriteRenderer);
+        } else if (renderable instanceof TilemapRenderer tilemapRenderer) {
+            renderTilemap(tilemapRenderer);
+        } else {
+            // Unknown renderable type - log warning in debug builds
+            System.err.println("WARNING: Unknown Renderable type: " + renderable.getClass().getSimpleName());
+        }
+    }
+
+    /**
+     * Renders a SpriteRenderer with culling.
+     *
+     * @param spriteRenderer The sprite renderer to render
+     */
+    private void renderSpriteRenderer(SpriteRenderer spriteRenderer) {
+        // Frustum culling
+        if (cullingSystem.shouldRender(spriteRenderer)) {
+            renderer.drawSpriteRenderer(spriteRenderer);
+        }
+    }
+
+    /**
+     * Renders a Tilemap with chunk-level culling.
+     *
+     * @param tilemapRenderer The tilemap to render
+     */
+    private void renderTilemap(TilemapRenderer tilemapRenderer) {
+        // Get visible chunks from culling system
+        List<long[]> visibleChunks = cullingSystem.getVisibleChunks(tilemapRenderer);
+
+        if (visibleChunks.isEmpty()) {
+            return;
+        }
+
+        // Dispatch to BatchRenderer if available
+        if (renderer instanceof BatchRenderer batchRenderer) {
+            batchRenderer.drawTilemap(tilemapRenderer, visibleChunks);
+        } else {
+            // Fallback: render tiles individually via base Renderer
+            // This is less efficient but ensures compatibility
+            renderTilemapFallback(tilemapRenderer, visibleChunks);
+        }
+    }
+
+    /**
+     * Fallback tilemap rendering for non-batched renderers.
+     * Renders each tile as an individual sprite.
+     */
+    private void renderTilemapFallback(TilemapRenderer tilemapRenderer, List<long[]> visibleChunks) {
+        // Not implemented - BatchRenderer is the expected path
+        // If needed, could create temporary SpriteRenderers or
+        // add drawTile() method to base Renderer
+        System.err.println("WARNING: Tilemap rendering requires BatchRenderer");
+    }
+
+    /**
      * Handles static batch dirty flag.
      * Uses polymorphism to avoid casting in main render method.
      */
@@ -129,33 +210,5 @@ public class RenderPipeline {
         if (renderer instanceof BatchRenderer batchRenderer) {
             batchRenderer.getBatch().markStaticBatchDirty();
         }
-    }
-
-    /**
-     * Checks if a sprite should be considered for rendering.
-     * Basic visibility checks before culling.
-     */
-    private boolean shouldRenderSprite(SpriteRenderer spriteRenderer) {
-        if (spriteRenderer == null) {
-            return false;
-        }
-
-        if (!spriteRenderer.isEnabled()) {
-            return false;
-        }
-
-        if (spriteRenderer.getSprite() == null) {
-            return false;
-        }
-
-        if (spriteRenderer.getGameObject() == null) {
-            return false;
-        }
-
-        if (!spriteRenderer.getGameObject().isEnabled()) {
-            return false;
-        }
-
-        return true;
     }
 }

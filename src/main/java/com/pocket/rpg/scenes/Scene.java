@@ -2,9 +2,11 @@ package com.pocket.rpg.scenes;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.SpriteRenderer;
+import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.core.Camera;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.core.ViewportConfig;
+import com.pocket.rpg.rendering.Renderable;
 import com.pocket.rpg.ui.UICanvas;
 import lombok.Getter;
 
@@ -29,9 +31,12 @@ public abstract class Scene {
 
     private final CopyOnWriteArrayList<GameObject> gameObjects;
 
-    // Cached components for quick access
-    private final List<SpriteRenderer> spriteRenderers;
-    private final List<UICanvas> uiCanvases;  // Kept sorted by sortOrder
+    // Cached renderables for quick access (sorted by zIndex)
+    private final List<Renderable> renderables;
+    private boolean renderableSortDirty = false;
+
+    // UI canvases (kept sorted by sortOrder)
+    private final List<UICanvas> uiCanvases;
     private boolean canvasSortDirty = false;
 
     private boolean initialized = false;
@@ -42,7 +47,7 @@ public abstract class Scene {
     public Scene(String name) {
         this.name = name;
         this.gameObjects = new CopyOnWriteArrayList<>();
-        this.spriteRenderers = new ArrayList<>();
+        this.renderables = new ArrayList<>();
         this.uiCanvases = new ArrayList<>();
         // Camera created in initialize() when ViewportConfig is available
     }
@@ -55,14 +60,14 @@ public abstract class Scene {
      * Initializes the scene with viewport configuration.
      * Creates the camera and calls onLoad().
      *
-     * @param viewportConfig Shared viewport configuration
+     * @param viewportConfig  Shared viewport configuration
+     * @param renderingConfig
      */
-    public void initialize(ViewportConfig viewportConfig) {
+    public void initialize(ViewportConfig viewportConfig, RenderingConfig renderingConfig) {
         this.initialized = true;
         this.viewportConfig = viewportConfig;
-
         // Create camera with viewport config
-        this.camera = new Camera(viewportConfig);
+        this.camera = new Camera(viewportConfig, renderingConfig.getDefaultOrthographicSize(viewportConfig.getGameHeight()));
         Camera.setMainCamera(camera);
 
         onLoad();
@@ -82,6 +87,12 @@ public abstract class Scene {
         if (canvasSortDirty) {
             uiCanvases.sort(Comparator.comparingInt(UICanvas::getSortOrder));
             canvasSortDirty = false;
+        }
+
+        // Re-sort renderables if needed (deferred sorting)
+        if (renderableSortDirty) {
+            renderables.sort(Comparator.comparingInt(Renderable::getZIndex));
+            renderableSortDirty = false;
         }
 
         // Phase 1: Regular update
@@ -110,7 +121,7 @@ public abstract class Scene {
         }
 
         gameObjects.clear();
-        spriteRenderers.clear();
+        renderables.clear();
         uiCanvases.clear();
     }
 
@@ -168,10 +179,13 @@ public abstract class Scene {
      * Registers cached components from a GameObject and its children.
      */
     public void registerCachedComponents(GameObject gameObject) {
-        // Sprite renderers
-        for (SpriteRenderer spr : gameObject.getComponents(SpriteRenderer.class)) {
-            if (!spriteRenderers.contains(spr)) {
-                spriteRenderers.add(spr);
+        // Register all Renderable components
+        for (Component component : gameObject.getAllComponents()) {
+            if (component instanceof Renderable renderable) {
+                if (!renderables.contains(renderable)) {
+                    renderables.add(renderable);
+                    renderableSortDirty = true;
+                }
             }
         }
 
@@ -192,9 +206,11 @@ public abstract class Scene {
      * Registers a single component.
      */
     public void registerCachedComponent(Component component) {
-        if (component instanceof SpriteRenderer spr && !spriteRenderers.contains(spr)) {
-            spriteRenderers.add(spr);
-        } else if (component instanceof UICanvas canvas && !uiCanvases.contains(canvas)) {
+        if (component instanceof Renderable renderable && !renderables.contains(renderable)) {
+            renderables.add(renderable);
+            renderableSortDirty = true;
+        }
+        if (component instanceof UICanvas canvas && !uiCanvases.contains(canvas)) {
             insertCanvasSorted(canvas);
         }
     }
@@ -203,7 +219,11 @@ public abstract class Scene {
      * Unregisters cached components from a GameObject and its children.
      */
     public void unregisterCachedComponents(GameObject gameObject) {
-        spriteRenderers.removeAll(gameObject.getComponents(SpriteRenderer.class));
+        for (Component component : gameObject.getAllComponents()) {
+            if (component instanceof Renderable) {
+                renderables.remove(component);
+            }
+        }
         uiCanvases.removeAll(gameObject.getComponents(UICanvas.class));
 
         for (GameObject child : gameObject.getChildren()) {
@@ -215,9 +235,10 @@ public abstract class Scene {
      * Unregisters a single component.
      */
     public void unregisterCachedComponent(Component component) {
-        if (component instanceof SpriteRenderer spr) {
-            spriteRenderers.remove(spr);
-        } else if (component instanceof UICanvas canvas) {
+        if (component instanceof Renderable) {
+            renderables.remove(component);
+        }
+        if (component instanceof UICanvas canvas) {
             uiCanvases.remove(canvas);
         }
     }
@@ -244,12 +265,47 @@ public abstract class Scene {
         canvasSortDirty = true;
     }
 
+    /**
+     * Mark renderable list as needing re-sort.
+     * Called when a renderable's zIndex changes.
+     */
+    public void markRenderableSortDirty() {
+        renderableSortDirty = true;
+    }
+
     // ===========================================
-    // Component Access
+    // Renderable Access
     // ===========================================
 
+    /**
+     * Returns all renderables sorted by zIndex (ascending).
+     * Lower zIndex renders first (behind higher values).
+     *
+     * @return Sorted list of renderables
+     */
+    public List<Renderable> getRenderers() {
+        // Ensure sorted before returning
+        if (renderableSortDirty) {
+            renderables.sort(Comparator.comparingInt(Renderable::getZIndex));
+            renderableSortDirty = false;
+        }
+        return new ArrayList<>(renderables);
+    }
+
+    /**
+     * Returns sprite renderers only.
+     *
+     * @deprecated Use {@link #getRenderers()} for unified rendering pipeline.
+     */
+    @Deprecated
     public List<SpriteRenderer> getSpriteRenderers() {
-        return new ArrayList<>(spriteRenderers);
+        List<SpriteRenderer> result = new ArrayList<>();
+        for (Renderable renderable : renderables) {
+            if (renderable instanceof SpriteRenderer sr) {
+                result.add(sr);
+            }
+        }
+        return result;
     }
 
     /**

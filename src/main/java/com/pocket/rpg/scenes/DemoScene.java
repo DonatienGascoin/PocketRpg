@@ -1,10 +1,9 @@
 package com.pocket.rpg.scenes;
 
-import com.pocket.rpg.components.PlayerCameraFollow;
 import com.pocket.rpg.components.PlayerMovement;
 import com.pocket.rpg.components.SpriteRenderer;
+import com.pocket.rpg.components.TilemapRenderer;
 import com.pocket.rpg.core.GameObject;
-import com.pocket.rpg.postProcessing.BloomEffect;
 import com.pocket.rpg.postProcessing.PostEffect;
 import com.pocket.rpg.postProcessing.PostProcessing;
 import com.pocket.rpg.postProcessing.postEffects.VignetteEffect;
@@ -49,10 +48,10 @@ public class DemoScene extends Scene {
     @Override
     public void onLoad() {
         font = new Font("E:\\Projects\\PocketRpg\\gameData\\assets\\fonts\\zelda.ttf", 18);
+//        createLevelOld();
+        createTilemapLevel();
+        createPlayer();
         createHUD();
-        createLevel();
-        createPlayerAboveLevel();
-        createPlayerBelowLevel();
     }
 
     @Override
@@ -66,18 +65,12 @@ public class DemoScene extends Scene {
      * Tiles are placed at integer coordinates from (-10, -10) to (9, 9),
      * creating a 20×20 tile grid centered around the origin.
      */
-    private void createLevel() {
-        var resource = AssetManager.getInstance().<Sprite>load("gameData/assets/sprites/Outdoors_misc.png");
-        var outdoorTex = resource.get();
-
-        // 16×16 pixel tiles with PPU=16 → each tile is 1×1 world units
-        SpriteSheet levelSheet = new SpriteSheet(outdoorTex.getTexture(), 16, 16);
-        var sprites = levelSheet.generateAllSprites();
+    private void createLevelOld() {
+        var sprites = getOutdoorSprites();
 
         // Parent container for all tiles
         // Note: Parent scale would affect children once transform hierarchy is implemented (Phase 2)
         GameObject level = new GameObject("Level");
-
         Random random = new Random();
 
         // Create 20×20 tile grid centered at origin
@@ -85,12 +78,11 @@ public class DemoScene extends Scene {
             for (int j = -10; j < 10; j++) {
                 // Random tile selection for visual variety
                 SpriteRenderer tileSprite = new SpriteRenderer(sprites.get(random.nextInt(7)));
-                tileSprite.setStatic(false);
+                tileSprite.setStatic(false); // TODO: BUG when true, the zIndex is broken
                 // Position at integer world coordinates
                 // With Y-up: j=-10 is bottom, j=+9 is top
                 GameObject tile = new GameObject("Tile_" + i + "_" + j,
                         new Vector3f(i, j, 0));  // Clean integer world-unit positions!
-
                 tile.addComponent(tileSprite);
                 tile.setParent(level);
             }
@@ -99,6 +91,46 @@ public class DemoScene extends Scene {
         addGameObject(level);
     }
 
+    private void createTilemapLevel() {
+        var sprites = getOutdoorSprites();
+        Random random = new Random();
+
+        GameObject tilemapObj = new GameObject("Tilemap", new Vector3f(0, 0, 0));
+        var tilemap = tilemapObj.addComponent(new TilemapRenderer());
+        tilemap.setZIndex(-1);
+        for (int i = -10; i < 10; i++) {
+            for (int j = -10; j < 10; j++) {
+                tilemap.set(i, j, new TilemapRenderer.Tile("Tile_" + i + "_" + j, sprites.get(random.nextInt(7))));
+            }
+        }
+        var tilemap2 = tilemapObj.addComponent(new TilemapRenderer());
+        tilemap2.setZIndex(0);
+        for (int i = -10; i < 10; i++) {
+            for (int j = -10; j < 10; j++) {
+                if (random.nextInt(10) >= 8) {
+                    tilemap2.set(i, j, new TilemapRenderer.Tile("Tile_" + i + "_" + j, sprites.get(getRandomNumber(16, 40))));
+                }
+            }
+        }
+
+        addGameObject(tilemapObj);
+    }
+
+    public int getRandomNumber(int min, int max) {
+        return (int) ((Math.random() * (max - min)) + min);
+    }
+
+    private static List<Sprite> getOutdoorSprites() {
+        var resource = AssetManager.getInstance().<Sprite>load("gameData/assets/sprites/Outdoors_misc.png");
+        var outdoorTex = resource.get();
+
+        // 16×16 pixel tiles with PPU=16 → each tile is 1×1 world units
+        SpriteSheet levelSheet = new SpriteSheet(outdoorTex.getTexture(), 16, 16);
+        var sprites = levelSheet.generateAllSprites();
+        return sprites;
+    }
+
+
     /**
      * Creates the player character at world origin.
      * <p>
@@ -106,7 +138,8 @@ public class DemoScene extends Scene {
      * - Player sprite = 2×2 world units
      * - zIndex=1 ensures player renders above tiles (zIndex=0)
      */
-    private void createPlayerBelowLevel() {
+    private void createPlayer() {
+
         var resource = AssetManager.getInstance().<Sprite>load("gameData/assets/sprites/Char1_32x32.png");
         var playerTex = resource.get();
 
@@ -114,31 +147,7 @@ public class DemoScene extends Scene {
         SpriteSheet playerSheet = new SpriteSheet(playerTex.getTexture(), 32, 32, 0, 0, 0, 16);
         var sprites = playerSheet.generateAllSprites();
 
-        SpriteRenderer spriteRenderer = new SpriteRenderer(playerSheet.getSprite(0));
-        spriteRenderer.setZIndex(-1);  // Render below tiles (zIndex=0)
-
-        // Player at world origin (Z not used for sorting anymore)
-        GameObject player = new GameObject("Player", new Vector3f(-5, -5, 0));
-
-        player.addComponent(spriteRenderer);
-        player.addComponent(new PlayerMovement());
-//        player.addComponent(new PlayerCameraFollow());
-
-        addGameObject(player);
-    }
-
-    /**
-     * Creates the player character at world origin.
-     * <p>
-     * With 32×32 pixel sprite and PPU=16:
-     * - Player sprite = 2×2 world units
-     * - zIndex=1 ensures player renders above tiles (zIndex=0)
-     */
-    private void createPlayerAboveLevel() {
-        var resource = AssetManager.getInstance().<Sprite>load("gameData/assets/player.png");
-        var playerSprite = resource.get();
-
-        SpriteRenderer spriteRenderer = new SpriteRenderer(playerSprite);
+        SpriteRenderer spriteRenderer = new SpriteRenderer(sprites.get(0));
         spriteRenderer.setZIndex(1);  // Render above tiles (zIndex=0)
 
         // Player at world origin (Z not used for sorting anymore)
@@ -156,6 +165,7 @@ public class DemoScene extends Scene {
         GameObject canvasGO = new GameObject("MainCanvas");
         UICanvas canvas = new UICanvas(UICanvas.RenderMode.SCREEN_SPACE_OVERLAY, 0);
         canvasGO.addComponent(canvas);
+        canvasGO.getTransform().setScale(2, 2, 2); // Does not work, is it ok ?
         addGameObject(canvasGO);
 
         createButton(canvasGO);
@@ -179,7 +189,7 @@ public class DemoScene extends Scene {
             List<PostEffect> effects = PostProcessing.getEffects();
             if (effects.isEmpty()) {
 //                PostProcessing.addEffect(new BloomEffect());
-                PostProcessing.addEffect(new VignetteEffect());
+                PostProcessing.addEffect(new VignetteEffect(.5f,.75f));
             } else {
                 PostProcessing.clearEffects();
             }
@@ -189,7 +199,7 @@ public class DemoScene extends Scene {
 
         // Button text (child) - autoFit automatically uses parent bounds
         GameObject textObj = new GameObject("Button Text");
-        textObj.addComponent(new UITransform());  // Size doesn't matter!
+        textObj.addComponent(new UITransform(150,40));  // Size doesn't matter!
 
         UIText btnText = new UIText(font, "START");
         btnText.setAutoFit(true);  // Automatically fills parent button

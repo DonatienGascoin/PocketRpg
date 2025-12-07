@@ -1,5 +1,6 @@
 package com.pocket.rpg.scenes;
 
+import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.core.Camera;
 import com.pocket.rpg.core.ViewportConfig;
 import lombok.Getter;
@@ -21,11 +22,13 @@ public class SceneManager {
     private Scene currentScene;
 
     private final ViewportConfig viewportConfig;
+    private final RenderingConfig renderingConfig;
 
-    public SceneManager(@NonNull ViewportConfig viewportConfig) {
+    public SceneManager(@NonNull ViewportConfig viewportConfig, @NonNull RenderingConfig renderingConfig) {
         this.scenes = new HashMap<>();
         this.lifecycleListeners = new ArrayList<>();
         this.viewportConfig = viewportConfig;
+        this.renderingConfig = renderingConfig;
     }
 
     /**
@@ -87,7 +90,7 @@ public class SceneManager {
         }
 
         currentScene = scene;
-        currentScene.initialize(viewportConfig);
+        currentScene.initialize(viewportConfig, renderingConfig);
         fireSceneLoaded(currentScene);
 
         System.out.println("Loaded scene: " + scene.getName());

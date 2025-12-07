@@ -2,6 +2,7 @@ package com.pocket.rpg.scenes;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.config.GameConfig;
+import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.core.ViewportConfig;
 import org.junit.jupiter.api.BeforeEach;
@@ -61,7 +62,7 @@ class SceneTest {
                 .gameHeight(600)
                 .windowWidth(800)
                 .windowHeight(600)
-                .build()));
+                .build()), RenderingConfig.builder().defaultOrthographicSize(7.5f).build());
 
         assertTrue(scene.onLoadCalled);
     }
@@ -78,7 +79,7 @@ class SceneTest {
                 .gameHeight(600)
                 .windowWidth(800)
                 .windowHeight(600)
-                .build()));
+                .build()), RenderingConfig.builder().defaultOrthographicSize(7.5f).build());
         scene.update(0.016f);
 
         assertTrue(component.updateCalled);

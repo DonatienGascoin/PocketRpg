@@ -2,6 +2,7 @@ package com.pocket.rpg.integration;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.config.GameConfig;
+import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.core.ViewportConfig;
 import com.pocket.rpg.scenes.Scene;
@@ -37,7 +38,7 @@ class SceneGameObjectIntegrationTest {
         scene.addGameObject(go2);
         scene.addGameObject(go3);
 
-        scene.initialize(viewportConfig);
+        scene.initialize(viewportConfig, RenderingConfig.builder().defaultOrthographicSize(7.5f).build());
 
         assertEquals(3, scene.getGameObjects().size());
         assertTrue(go1.getTransform() != null);
@@ -52,7 +53,7 @@ class SceneGameObjectIntegrationTest {
         go.addComponent(component);
 
         scene.addGameObject(go);
-        scene.initialize(viewportConfig);
+        scene.initialize(viewportConfig, RenderingConfig.builder().defaultOrthographicSize(7.5f).build());
 
         assertTrue(component.isStarted());
     }
@@ -69,7 +70,7 @@ class SceneGameObjectIntegrationTest {
 
         scene.addGameObject(go1);
         scene.addGameObject(go2);
-        scene.initialize(viewportConfig);
+        scene.initialize(viewportConfig, RenderingConfig.builder().defaultOrthographicSize(7.5f).build());
 
         scene.update(0.016f);
 
@@ -86,7 +87,7 @@ class SceneGameObjectIntegrationTest {
         initial.addComponent(spawner);
 
         scene.addGameObject(initial);
-        scene.initialize(viewportConfig);
+        scene.initialize(viewportConfig, RenderingConfig.builder().defaultOrthographicSize(7.5f).build());
 
         scene.update(0.016f);
 
@@ -103,7 +104,7 @@ class SceneGameObjectIntegrationTest {
 
         scene.addGameObject(go1);
         scene.addGameObject(go2);
-        scene.initialize(viewportConfig);
+        scene.initialize(viewportConfig, RenderingConfig.builder().defaultOrthographicSize(7.5f).build());
 
         scene.update(0.016f);
 
@@ -123,7 +124,7 @@ class SceneGameObjectIntegrationTest {
 
         scene.addGameObject(go1);
         scene.addGameObject(go2);
-        scene.initialize(viewportConfig);
+        scene.initialize(viewportConfig, RenderingConfig.builder().defaultOrthographicSize(7.5f).build());
 
         scene.destroy();
 
@@ -172,7 +173,7 @@ class SceneGameObjectIntegrationTest {
         go.addComponent(counter);
 
         scene.addGameObject(go);
-        scene.initialize(viewportConfig);
+        scene.initialize(viewportConfig, RenderingConfig.builder().defaultOrthographicSize(7.5f).build());
 
         scene.update(0.016f);
         scene.update(0.016f);
@@ -194,7 +195,7 @@ class SceneGameObjectIntegrationTest {
 
         scene.addGameObject(go1);
         scene.addGameObject(go2);
-        scene.initialize(viewportConfig);
+        scene.initialize(viewportConfig, RenderingConfig.builder().defaultOrthographicSize(7.5f).build());
 
         go2.setEnabled(false);
 

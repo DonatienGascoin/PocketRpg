@@ -1279,8 +1279,8 @@ function initializeAssetSystem() {
     // ════════════════════════════════════════════
     
     registerJSONType<Tilemap>(
-        "tilemap",
-        [".tilemap.json", ".tmx"],
+        "tilemapRenderer",
+        [".tilemapRenderer.json", ".tmx"],
         {
             width: 32,
             height: 32,
@@ -1362,7 +1362,7 @@ class EditorMenuBar {
                 "Animation": ["spritesheet", "animation", "animator"],
                 "AI": ["statemachine", "dialogue"],
                 "Gameplay": ["quest", "prefab"],
-                "Level": ["tilemap"],
+                "Level": ["tilemapRenderer"],
                 "Effects": ["particles", "shader"],
                 "Audio": ["audiomixer"]
             }

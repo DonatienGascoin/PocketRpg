@@ -1,5 +1,6 @@
 package com.pocket.rpg.components;
 
+import com.pocket.rpg.rendering.Renderable;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.Texture;
 import lombok.Getter;
@@ -14,7 +15,7 @@ import lombok.Setter;
  * - Higher zIndex renders on top (foreground)
  * - Default is 0
  */
-public class SpriteRenderer extends Component {
+public class SpriteRenderer extends Component implements Renderable {
 
     @Getter
     @Setter
@@ -88,6 +89,33 @@ public class SpriteRenderer extends Component {
         this.sprite = new Sprite(texture, width, height);
     }
 
+    // ========================================================================
+    // RENDERABLE IMPLEMENTATION
+    // ========================================================================
+
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Checks component enabled state, GameObject enabled state, and sprite validity.
+     */
+    @Override
+    public boolean isRenderVisible() {
+        if (!isEnabled()) {
+            return false;
+        }
+        if (gameObject == null || !gameObject.isEnabled()) {
+            return false;
+        }
+        if (sprite == null) {
+            return false;
+        }
+        return true;
+    }
+
+    // ========================================================================
+    // ORIGIN CONFIGURATION
+    // ========================================================================
+
     /**
      * Sets the rotation/scale origin point.
      *
@@ -134,6 +162,10 @@ public class SpriteRenderer extends Component {
         setOrigin(1f, 1f);
     }
 
+    // ========================================================================
+    // STATIC BATCHING
+    // ========================================================================
+
     /**
      * Marks this sprite as static for vertex caching.
      *
@@ -149,6 +181,10 @@ public class SpriteRenderer extends Component {
             }
         }
     }
+
+    // ========================================================================
+    // LIFECYCLE
+    // ========================================================================
 
     @Override
     public void onDestroy() {

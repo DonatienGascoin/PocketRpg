@@ -1,6 +1,7 @@
 package com.pocket.rpg.rendering;
 
 import com.pocket.rpg.components.SpriteRenderer;
+import com.pocket.rpg.components.TilemapRenderer;
 import com.pocket.rpg.components.Transform;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.rendering.renderers.VertexLayout;
@@ -21,6 +22,10 @@ import static org.lwjgl.opengl.GL33.*;
  * <p>
  * Uses world units for all position and size calculations.
  * Sprite dimensions come from {@link Sprite#getWorldWidth()} and {@link Sprite#getWorldHeight()}.
+ *
+ * <h2>Tilemap Support</h2>
+ * Tilemaps can submit tiles via {@link #submitTile(TilemapRenderer, int, int, TilemapRenderer.Tile)}.
+ * Tiles are batched alongside regular sprites and sorted by zIndex.
  */
 public class SpriteBatch {
 
@@ -89,18 +94,46 @@ public class SpriteBatch {
      * Represents a sprite submitted to the batch.
      */
     private static class BatchItem {
+        // For SpriteRenderer-based items
         SpriteRenderer spriteRenderer;
+
+        // For tile-based items (when spriteRenderer is null)
+        Sprite tileSprite;
+        float tileX;
+        float tileY;
+        float tileWidth;
+        float tileHeight;
+
+        // Common fields
         int textureId;
         float zIndex;
         float yPosition;
         boolean isStatic;
+        boolean isTile;
 
+        // Constructor for SpriteRenderer
         BatchItem(SpriteRenderer spriteRenderer, int textureId, float zIndex, float yPosition, boolean isStatic) {
             this.spriteRenderer = spriteRenderer;
             this.textureId = textureId;
             this.zIndex = zIndex;
             this.yPosition = yPosition;
             this.isStatic = isStatic;
+            this.isTile = false;
+        }
+
+        // Constructor for Tile
+        BatchItem(Sprite sprite, float x, float y, float width, float height,
+                  int textureId, float zIndex, boolean isStatic) {
+            this.tileSprite = sprite;
+            this.tileX = x;
+            this.tileY = y;
+            this.tileWidth = width;
+            this.tileHeight = height;
+            this.textureId = textureId;
+            this.zIndex = zIndex;
+            this.yPosition = y;
+            this.isStatic = isStatic;
+            this.isTile = true;
         }
     }
 
@@ -193,6 +226,128 @@ public class SpriteBatch {
         }
 
         totalSprites++;
+    }
+
+    // ========================================================================
+    // TILEMAP SUPPORT
+    // ========================================================================
+
+    /**
+     * Submits a single tile to the batch.
+     * Called by the rendering pipeline for each visible tile.
+     *
+     * @param tilemapRenderer The tilemap containing the tile
+     * @param tileX   Tile X coordinate (in tile space)
+     * @param tileY   Tile Y coordinate (in tile space)
+     * @param tile    The tile data
+     */
+    public void submitTile(TilemapRenderer tilemapRenderer, int tileX, int tileY, TilemapRenderer.Tile tile) {
+        if (!isBatching) {
+            throw new IllegalStateException("Not batching! Call begin() first.");
+        }
+
+        if (tile == null || tile.sprite() == null || tile.sprite().getTexture() == null) {
+            return;
+        }
+
+        Sprite sprite = tile.sprite();
+        int textureId = sprite.getTexture().getTextureId();
+
+        // Calculate world position
+        Vector3f tilemapPos = tilemapRenderer.getGameObject().getTransform().getPosition();
+        float tileSize = tilemapRenderer.getTileSize();
+
+        float worldX = tilemapPos.x + (tileX * tileSize);
+        float worldY = tilemapPos.y + (tileY * tileSize);
+
+        // Tile dimensions in world units
+        float width = sprite.getWorldWidth();
+        float height = sprite.getWorldHeight();
+
+        // If sprite size doesn't match tile size, scale to fit
+        // This allows using sprites of any size as tiles
+        if (Math.abs(width - tileSize) > 0.001f || Math.abs(height - tileSize) > 0.001f) {
+            width = tileSize;
+            height = tileSize;
+        }
+
+        float zIndex = tilemapRenderer.getZIndex();
+        boolean isStatic = tilemapRenderer.isStatic();
+
+        BatchItem item = new BatchItem(sprite, worldX, worldY, width, height,
+                textureId, zIndex, isStatic);
+
+        if (isStatic) {
+            if (staticBatchDirty) {
+                staticItems.add(item);
+            }
+        } else {
+            dynamicItems.add(item);
+        }
+
+        totalSprites++;
+    }
+
+    /**
+     * Submits all tiles from a chunk to the batch.
+     * More efficient than calling submitTile for each tile individually.
+     *
+     * @param tilemapRenderer The tilemap
+     * @param cx      Chunk X coordinate
+     * @param cy      Chunk Y coordinate
+     */
+    public void submitChunk(TilemapRenderer tilemapRenderer, int cx, int cy) {
+        if (!isBatching) {
+            throw new IllegalStateException("Not batching! Call begin() first.");
+        }
+
+        TilemapRenderer.TileChunk chunk = tilemapRenderer.getChunk(cx, cy);
+        if (chunk == null || chunk.isEmpty()) {
+            return;
+        }
+
+        Vector3f tilemapPos = tilemapRenderer.getGameObject().getTransform().getPosition();
+        float tileSize = tilemapRenderer.getTileSize();
+        float zIndex = tilemapRenderer.getZIndex();
+        boolean isStatic = tilemapRenderer.isStatic();
+
+        int chunkSize = TilemapRenderer.TileChunk.CHUNK_SIZE;
+        int baseX = cx * chunkSize;
+        int baseY = cy * chunkSize;
+
+        TilemapRenderer.Tile[][] tiles = chunk.getTiles();
+
+        for (int tx = 0; tx < chunkSize; tx++) {
+            for (int ty = 0; ty < chunkSize; ty++) {
+                TilemapRenderer.Tile tile = tiles[tx][ty];
+                if (tile == null || tile.sprite() == null || tile.sprite().getTexture() == null) {
+                    continue;
+                }
+
+                Sprite sprite = tile.sprite();
+                int textureId = sprite.getTexture().getTextureId();
+
+                int tileX = baseX + tx;
+                int tileY = baseY + ty;
+
+                float worldX = tilemapPos.x + (tileX * tileSize);
+                float worldY = tilemapPos.y + (tileY * tileSize);
+
+                // Use tile size for dimensions (sprites are scaled to fit)
+                BatchItem item = new BatchItem(sprite, worldX, worldY, tileSize, tileSize,
+                        textureId, zIndex, isStatic);
+
+                if (isStatic) {
+                    if (staticBatchDirty) {
+                        staticItems.add(item);
+                    }
+                } else {
+                    dynamicItems.add(item);
+                }
+
+                totalSprites++;
+            }
+        }
     }
 
     /**
@@ -325,7 +480,11 @@ public class SpriteBatch {
         vertexBuffer.clear();
         for (int i = start; i < end; i++) {
             BatchItem item = items.get(i);
-            addSpriteVertices(item.spriteRenderer);
+            if (item.isTile) {
+                addTileVertices(item);
+            } else {
+                addSpriteVertices(item.spriteRenderer);
+            }
         }
         vertexBuffer.flip();
 
@@ -343,6 +502,34 @@ public class SpriteBatch {
         glBindVertexArray(0);
 
         drawCalls++;
+    }
+
+    /**
+     * Adds vertex data for a tile to the vertex buffer.
+     * Tiles are axis-aligned (no rotation) and use bottom-left origin.
+     */
+    private void addTileVertices(BatchItem item) {
+        Sprite sprite = item.tileSprite;
+
+        float x0 = item.tileX;
+        float y0 = item.tileY;
+        float x1 = item.tileX + item.tileWidth;
+        float y1 = item.tileY + item.tileHeight;
+
+        float u0 = sprite.getU0();
+        float v0 = sprite.getV0();
+        float u1 = sprite.getU1();
+        float v1 = sprite.getV1();
+
+        // Triangle 1
+        vertexBuffer.put(x0).put(y0).put(u0).put(v0); // Bottom-left
+        vertexBuffer.put(x0).put(y1).put(u0).put(v1); // Top-left
+        vertexBuffer.put(x1).put(y1).put(u1).put(v1); // Top-right
+
+        // Triangle 2
+        vertexBuffer.put(x0).put(y0).put(u0).put(v0); // Bottom-left
+        vertexBuffer.put(x1).put(y1).put(u1).put(v1); // Top-right
+        vertexBuffer.put(x1).put(y0).put(u1).put(v0); // Bottom-right
     }
 
     /**
@@ -393,14 +580,14 @@ public class SpriteBatch {
             float[] corners = rotateQuad(x0, y0, x1, y1, centerX, centerY, angle);
 
             // Triangle 1
-            vertexBuffer.put(x0).put(y0).put(u0).put(v0); // Bottom-left
-            vertexBuffer.put(x0).put(y1).put(u0).put(v1); // Top-left
-            vertexBuffer.put(x1).put(y1).put(u1).put(v1); // Top-right
+            vertexBuffer.put(corners[0]).put(corners[1]).put(u0).put(v0); // Bottom-left
+            vertexBuffer.put(corners[2]).put(corners[3]).put(u0).put(v1); // Top-left
+            vertexBuffer.put(corners[4]).put(corners[5]).put(u1).put(v1); // Top-right
 
-// Triangle 2
-            vertexBuffer.put(x0).put(y0).put(u0).put(v0); // Bottom-left
-            vertexBuffer.put(x1).put(y1).put(u1).put(v1); // Top-right
-            vertexBuffer.put(x1).put(y0).put(u1).put(v0); // Bottom-right
+            // Triangle 2
+            vertexBuffer.put(corners[0]).put(corners[1]).put(u0).put(v0); // Bottom-left
+            vertexBuffer.put(corners[4]).put(corners[5]).put(u1).put(v1); // Top-right
+            vertexBuffer.put(corners[6]).put(corners[7]).put(u1).put(v0); // Bottom-right
 
         } else {
             // No rotation - simple quad

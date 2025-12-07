@@ -163,7 +163,7 @@ public class GameEngine {
     }
 
     private void initSceneManager() {
-        sceneManager = new SceneManager(viewportConfig);
+        sceneManager = new SceneManager(viewportConfig, config.getRendering());
 
         sceneManager.addLifecycleListener(new SceneLifecycleListener() {
             @Override

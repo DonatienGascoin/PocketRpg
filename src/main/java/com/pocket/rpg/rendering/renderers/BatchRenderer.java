@@ -1,6 +1,7 @@
 package com.pocket.rpg.rendering.renderers;
 
 import com.pocket.rpg.components.SpriteRenderer;
+import com.pocket.rpg.components.TilemapRenderer;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.rendering.Shader;
 import com.pocket.rpg.rendering.SpriteBatch;
@@ -10,11 +11,19 @@ import lombok.Getter;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
 
+import java.util.List;
+
 import static org.lwjgl.opengl.GL33.*;
 
 /**
  * Batched renderer that extends the original Renderer.
  * Uses SpriteBatch internally for efficient rendering.
+ *
+ * <h2>Supported Renderables</h2>
+ * <ul>
+ *   <li>{@link SpriteRenderer} - Individual sprites</li>
+ *   <li>{@link TilemapRenderer} - Tile-based maps (rendered via chunk submission)</li>
+ * </ul>
  */
 public class BatchRenderer extends Renderer {
 
@@ -24,7 +33,6 @@ public class BatchRenderer extends Renderer {
     private StatisticsReporter statisticsReporter;
     private int statisticsInterval;
     private int frameCounter = 0;
-
 
     private Matrix4f projectionMatrix;
     private Matrix4f viewMatrix;
@@ -121,6 +129,61 @@ public class BatchRenderer extends Renderer {
 
         // Submit to batch (no immediate rendering!)
         batch.submit(spriteRenderer);
+    }
+
+    // ========================================================================
+    // TILEMAP RENDERING
+    // ========================================================================
+
+    /**
+     * Renders visible chunks of a tilemap.
+     * Called by RenderPipeline after chunk culling.
+     *
+     * @param tilemapRenderer       The tilemap to render
+     * @param visibleChunks List of visible chunk coordinates [cx, cy]
+     */
+    public void drawTilemap(TilemapRenderer tilemapRenderer, List<long[]> visibleChunks) {
+        if (tilemapRenderer == null || visibleChunks == null || visibleChunks.isEmpty()) {
+            return;
+        }
+
+        for (long[] chunkCoord : visibleChunks) {
+            int cx = (int) chunkCoord[0];
+            int cy = (int) chunkCoord[1];
+
+            // Submit entire chunk to batch
+            batch.submitChunk(tilemapRenderer, cx, cy);
+
+            // Clear dirty flag for this chunk (if using static batching)
+            if (tilemapRenderer.isStatic()) {
+                tilemapRenderer.clearChunkDirty(cx, cy);
+            }
+        }
+    }
+
+    /**
+     * Renders a single chunk of a tilemap.
+     * Useful for manual chunk rendering or debugging.
+     *
+     * @param tilemapRenderer The tilemap
+     * @param cx      Chunk X coordinate
+     * @param cy      Chunk Y coordinate
+     */
+    public void drawTilemapChunk(TilemapRenderer tilemapRenderer, int cx, int cy) {
+        if (tilemapRenderer == null) {
+            return;
+        }
+
+        TilemapRenderer.TileChunk chunk = tilemapRenderer.getChunk(cx, cy);
+        if (chunk == null || chunk.isEmpty()) {
+            return;
+        }
+
+        batch.submitChunk(tilemapRenderer, cx, cy);
+
+        if (tilemapRenderer.isStatic()) {
+            tilemapRenderer.clearChunkDirty(cx, cy);
+        }
     }
 
     @Override

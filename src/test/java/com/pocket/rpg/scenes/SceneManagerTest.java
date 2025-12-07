@@ -1,6 +1,7 @@
 package com.pocket.rpg.scenes;
 
 import com.pocket.rpg.config.GameConfig;
+import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.core.ViewportConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,7 +22,7 @@ class SceneManagerTest {
                 .gameHeight(600)
                 .windowWidth(800)
                 .windowHeight(600)
-                .build()));
+                .build()), RenderingConfig.builder().defaultOrthographicSize(7.5f).build());
         scene1 = new TestScene("Scene1");
         scene2 = new TestScene("Scene2");
     }

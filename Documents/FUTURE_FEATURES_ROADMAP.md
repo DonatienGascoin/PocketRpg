@@ -448,16 +448,16 @@ Essential for 2D RPG/platformer games.
 
 - **Tilemap Component**
   ```java
-  Tilemap tilemap = new Tilemap(32, 32); // Tile size
-  tilemap.setTile(0, 0, grassTile);
-  tilemap.setTile(1, 0, waterTile);
+  Tilemap tilemapRenderer = new Tilemap(32, 32); // Tile size
+  tilemapRenderer.setTile(0, 0, grassTile);
+  tilemapRenderer.setTile(1, 0, waterTile);
   ```
 
 - **Tile Layers**
   - Background layers
   - Foreground layers
   - Collision layer
-  - Multiple layers per tilemap
+  - Multiple layers per tilemapRenderer
   
 - **Tile Properties**
   - Collision flags

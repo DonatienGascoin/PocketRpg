@@ -1,6 +1,7 @@
 package com.pocket.rpg.scenes;
 
 import com.pocket.rpg.config.GameConfig;
+import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.core.ViewportConfig;
 
 import java.util.ArrayList;
@@ -19,7 +20,7 @@ public class MockSceneManager extends SceneManager {
     private Scene currentScene;
 
     public MockSceneManager() {
-        super(new ViewportConfig(GameConfig.builder().gameWidth(640).gameHeight(480).windowWidth(1280).windowHeight(960).build()));
+        super(new ViewportConfig(GameConfig.builder().gameWidth(640).gameHeight(480).windowWidth(1280).windowHeight(960).build()), RenderingConfig.builder().defaultOrthographicSize(7.5f).build());
     }@Override
     public void registerScene(Scene scene) {
         registeredScenes.put(scene.getName(), scene);

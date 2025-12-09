@@ -31,7 +31,7 @@ public class DemoScene2 extends Scene {
 
         GameObject gameObject = new GameObject("Player", new Vector3f(200, 200, 0));
         gameObject.addComponent(spriteRenderer);
-        gameObject.addComponent(new PlayerMovement());
+//        gameObject.addComponent(new PlayerMovement());
 
         addGameObject(gameObject);
     }

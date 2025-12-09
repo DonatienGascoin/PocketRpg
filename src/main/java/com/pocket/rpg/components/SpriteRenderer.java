@@ -14,6 +14,13 @@ import lombok.Setter;
  * - Lower zIndex renders first (background)
  * - Higher zIndex renders on top (foreground)
  * - Default is 0
+ *
+ * <h2>Origin/Pivot</h2>
+ * The origin point for positioning and rotation can be set in two ways:
+ * <ul>
+ *   <li>Use sprite's pivot: Set {@link #useSpritePivot} to true (default)</li>
+ *   <li>Override manually: Set {@link #useSpritePivot} to false and use {@link #setOrigin(float, float)}</li>
+ * </ul>
  */
 public class SpriteRenderer extends Component implements Renderable {
 
@@ -22,15 +29,25 @@ public class SpriteRenderer extends Component implements Renderable {
     private Sprite sprite;
 
     /**
+     * If true, uses the sprite's pivot point. If false, uses originX/originY.
+     * Default is true.
+     */
+    @Getter
+    @Setter
+    private boolean useSpritePivot = true;
+
+    /**
      * Rotation/scale origin X (0-1, relative to sprite size).
      * 0 = left edge, 0.5 = center, 1 = right edge.
+     * Only used when {@link #useSpritePivot} is false.
      */
     @Getter
     private float originX = 0.5f;
 
     /**
      * Rotation/scale origin Y (0-1, relative to sprite size).
-     * 0 = top edge, 0.5 = center, 1 = bottom edge.
+     * 0 = bottom edge, 0.5 = center, 1 = top edge.
+     * Only used when {@link #useSpritePivot} is false.
      */
     @Getter
     private float originY = 0.5f;
@@ -113,11 +130,39 @@ public class SpriteRenderer extends Component implements Renderable {
     }
 
     // ========================================================================
+    // EFFECTIVE ORIGIN (resolves sprite pivot vs override)
+    // ========================================================================
+
+    /**
+     * Gets the effective origin X, considering sprite pivot and override.
+     *
+     * @return Origin X (0-1)
+     */
+    public float getEffectiveOriginX() {
+        if (useSpritePivot && sprite != null) {
+            return sprite.getPivotX();
+        }
+        return originX;
+    }
+
+    /**
+     * Gets the effective origin Y, considering sprite pivot and override.
+     *
+     * @return Origin Y (0-1)
+     */
+    public float getEffectiveOriginY() {
+        if (useSpritePivot && sprite != null) {
+            return sprite.getPivotY();
+        }
+        return originY;
+    }
+
+    // ========================================================================
     // ORIGIN CONFIGURATION
     // ========================================================================
 
     /**
-     * Sets the rotation/scale origin point.
+     * Sets the rotation/scale origin point and disables sprite pivot.
      *
      * @param originX X origin (0-1, where 0.5 is center)
      * @param originY Y origin (0-1, where 0.5 is center)
@@ -125,17 +170,18 @@ public class SpriteRenderer extends Component implements Renderable {
     public void setOrigin(float originX, float originY) {
         this.originX = originX;
         this.originY = originY;
+        this.useSpritePivot = false;
     }
 
     /**
      * Sets the origin to top-left corner.
      */
     public void setOriginTopLeft() {
-        setOrigin(0f, 0f);
+        setOrigin(0f, 1f);
     }
 
     /**
-     * Sets the origin to center (default).
+     * Sets the origin to center.
      */
     public void setOriginCenter() {
         setOrigin(0.5f, 0.5f);
@@ -145,21 +191,28 @@ public class SpriteRenderer extends Component implements Renderable {
      * Sets the origin to bottom-left corner.
      */
     public void setOriginBottomLeft() {
-        setOrigin(0f, 1f);
+        setOrigin(0f, 0f);
+    }
+
+    /**
+     * Sets the origin to bottom-center (good for characters on tiles).
+     */
+    public void setOriginBottomCenter() {
+        setOrigin(0.5f, 0f);
     }
 
     /**
      * Sets the origin to top-right corner.
      */
     public void setOriginTopRight() {
-        setOrigin(1f, 0f);
+        setOrigin(1f, 1f);
     }
 
     /**
      * Sets the origin to bottom-right corner.
      */
     public void setOriginBottomRight() {
-        setOrigin(1f, 1f);
+        setOrigin(1f, 0f);
     }
 
     // ========================================================================
@@ -193,7 +246,9 @@ public class SpriteRenderer extends Component implements Renderable {
 
     @Override
     public String toString() {
-        return String.format("SpriteRenderer[sprite=%s, origin=(%.2f,%.2f), zIndex=%d, static=%b]",
-                sprite != null ? sprite.getName() : "null", originX, originY, zIndex, isStatic);
+        return String.format("SpriteRenderer[sprite=%s, origin=(%.2f,%.2f), useSpritePivot=%b, zIndex=%d, static=%b]",
+                sprite != null ? sprite.getName() : "null",
+                getEffectiveOriginX(), getEffectiveOriginY(),
+                useSpritePivot, zIndex, isStatic);
     }
 }

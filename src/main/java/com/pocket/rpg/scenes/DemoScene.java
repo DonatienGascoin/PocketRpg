@@ -1,5 +1,6 @@
 package com.pocket.rpg.scenes;
 
+import com.pocket.rpg.components.GridMovement;
 import com.pocket.rpg.components.PlayerMovement;
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.components.TilemapRenderer;
@@ -40,6 +41,7 @@ import java.util.List;
  */
 public class DemoScene extends Scene {
     private Font font;
+    private TilemapRenderer tilemap;
 
     public DemoScene() {
         super("Demo");
@@ -96,7 +98,7 @@ public class DemoScene extends Scene {
         Random random = new Random();
 
         GameObject tilemapObj = new GameObject("Tilemap", new Vector3f(0, 0, 0));
-        var tilemap = tilemapObj.addComponent(new TilemapRenderer());
+        tilemap = tilemapObj.addComponent(new TilemapRenderer());
         tilemap.setZIndex(-1);
         for (int i = -10; i < 10; i++) {
             for (int j = -10; j < 10; j++) {
@@ -149,13 +151,17 @@ public class DemoScene extends Scene {
 
         SpriteRenderer spriteRenderer = new SpriteRenderer(sprites.get(0));
         spriteRenderer.setZIndex(1);  // Render above tiles (zIndex=0)
-
+        spriteRenderer.setOriginBottomCenter();
         // Player at world origin (Z not used for sorting anymore)
         GameObject player = new GameObject("Player", new Vector3f(5, 5, 0));
 
         player.addComponent(spriteRenderer);
-        player.addComponent(new PlayerMovement());
 //        player.addComponent(new PlayerCameraFollow());
+
+        GridMovement movement = player.addComponent(new GridMovement(tilemap));
+        movement.setGridPosition(5, 5);
+        movement.setMoveSpeed(4f); // 4 tiles/second
+        player.addComponent(new PlayerMovement(movement));
 
         addGameObject(player);
     }
@@ -189,7 +195,7 @@ public class DemoScene extends Scene {
             List<PostEffect> effects = PostProcessing.getEffects();
             if (effects.isEmpty()) {
 //                PostProcessing.addEffect(new BloomEffect());
-                PostProcessing.addEffect(new VignetteEffect(.5f,.75f));
+                PostProcessing.addEffect(new VignetteEffect(.5f, .75f));
             } else {
                 PostProcessing.clearEffects();
             }
@@ -199,7 +205,7 @@ public class DemoScene extends Scene {
 
         // Button text (child) - autoFit automatically uses parent bounds
         GameObject textObj = new GameObject("Button Text");
-        textObj.addComponent(new UITransform(150,40));  // Size doesn't matter!
+        textObj.addComponent(new UITransform(150, 40));  // Size doesn't matter!
 
         UIText btnText = new UIText(font, "START");
         btnText.setAutoFit(true);  // Automatically fills parent button

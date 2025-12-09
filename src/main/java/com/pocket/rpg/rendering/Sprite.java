@@ -21,6 +21,16 @@ import lombok.Setter;
  * Individual sprites can override the global PPU using
  * {@link #setPixelsPerUnitOverride(Float)}.
  *
+ * <h2>Pivot Point</h2>
+ * The pivot point ({@link #pivotX}, {@link #pivotY}) defines the sprite's
+ * origin for positioning and rotation. Values are normalized (0-1):
+ * <ul>
+ *   <li>(0, 0) = bottom-left</li>
+ *   <li>(0.5, 0.5) = center (default)</li>
+ *   <li>(0.5, 0) = bottom-center (good for characters standing on tiles)</li>
+ *   <li>(1, 1) = top-right</li>
+ * </ul>
+ *
  * @see RenderingConfig#getPixelsPerUnit()
  */
 @Getter
@@ -50,6 +60,20 @@ public class Sprite {
     private float v0;  // Top V coordinate
     private float u1;  // Right U coordinate
     private float v1;  // Bottom V coordinate
+
+    /**
+     * Pivot X coordinate (0-1). 0 = left edge, 0.5 = center, 1 = right edge.
+     * Used as default origin for SpriteRenderer.
+     */
+    @Setter
+    private float pivotX = 0.5f;
+
+    /**
+     * Pivot Y coordinate (0-1). 0 = bottom edge, 0.5 = center, 1 = top edge.
+     * Used as default origin for SpriteRenderer.
+     */
+    @Setter
+    private float pivotY = 0.5f;
 
     /**
      * Optional per-sprite PPU override.
@@ -151,6 +175,50 @@ public class Sprite {
                   int sheetX, int sheetY, int sheetWidth, int sheetHeight, String name) {
         this(texture, width, height, sheetX, sheetY, sheetWidth, sheetHeight);
         this.name = name;
+    }
+
+    // ========================================================================
+    // PIVOT METHODS
+    // ========================================================================
+
+    /**
+     * Sets the pivot point.
+     *
+     * @param pivotX X pivot (0-1, where 0.5 is center)
+     * @param pivotY Y pivot (0-1, where 0.5 is center)
+     */
+    public void setPivot(float pivotX, float pivotY) {
+        this.pivotX = pivotX;
+        this.pivotY = pivotY;
+    }
+
+    /**
+     * Sets pivot to center (default).
+     */
+    public void setPivotCenter() {
+        setPivot(0.5f, 0.5f);
+    }
+
+    /**
+     * Sets pivot to bottom-center.
+     * Ideal for characters standing on tiles.
+     */
+    public void setPivotBottomCenter() {
+        setPivot(0.5f, 0f);
+    }
+
+    /**
+     * Sets pivot to bottom-left.
+     */
+    public void setPivotBottomLeft() {
+        setPivot(0f, 0f);
+    }
+
+    /**
+     * Sets pivot to top-left.
+     */
+    public void setPivotTopLeft() {
+        setPivot(0f, 1f);
     }
 
     // ========================================================================
@@ -259,7 +327,7 @@ public class Sprite {
 
     @Override
     public String toString() {
-        return String.format("Sprite[name=%s, pixels=%.0fx%.0f, world=%.2fx%.2f, ppu=%.0f, uv=(%.2f,%.2f)-(%.2f,%.2f)]",
-                name, width, height, getWorldWidth(), getWorldHeight(), getPixelsPerUnit(), u0, v0, u1, v1);
+        return String.format("Sprite[name=%s, pixels=%.0fx%.0f, world=%.2fx%.2f, pivot=(%.2f,%.2f), ppu=%.0f, uv=(%.2f,%.2f)-(%.2f,%.2f)]",
+                name, width, height, getWorldWidth(), getWorldHeight(), pivotX, pivotY, getPixelsPerUnit(), u0, v0, u1, v1);
     }
 }

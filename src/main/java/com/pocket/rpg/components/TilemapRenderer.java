@@ -90,9 +90,9 @@ public class TilemapRenderer extends Component implements Renderable {
      * @return New Tilemap with calculated tile size
      */
     public static TilemapRenderer withPixelsPerUnit(float pixelsPerUnit) {
-        TilemapRenderer tilemapRenderer = new TilemapRenderer();
-        tilemapRenderer.tileSize = 1.0f; // 1 world unit per tile at given PPU
-        return tilemapRenderer;
+        TilemapRenderer tilemap = new TilemapRenderer();
+        tilemap.tileSize = 1.0f; // 1 world unit per tile at given PPU
+        return tilemap;
     }
 
     /**
@@ -396,6 +396,33 @@ public class TilemapRenderer extends Component implements Renderable {
     // ========================================================================
 
     /**
+     * Direction a ledge can be jumped from.
+     * In Pokémon, ledges are one-way - you can only jump DOWN them.
+     */
+    public enum LedgeDirection {
+        /**
+         * Not a ledge - normal tile
+         */
+        NONE,
+        /**
+         * Can jump down (from top to bottom)
+         */
+        DOWN,
+        /**
+         * Can jump up (from bottom to top)
+         */
+        UP,
+        /**
+         * Can jump left (from right to left)
+         */
+        LEFT,
+        /**
+         * Can jump right (from left to right)
+         */
+        RIGHT
+    }
+
+    /**
      * A chunk of tiles. Chunks are {@value #CHUNK_SIZE}x{@value #CHUNK_SIZE} tiles.
      */
     @Getter
@@ -404,16 +431,7 @@ public class TilemapRenderer extends Component implements Renderable {
 
         private final int chunkX;
         private final int chunkY;
-        /**
-         * -- GETTER --
-         *  Returns the raw tile array.
-         *  Use with caution - modifications bypass dirty tracking.
-         */
         private final Tile[][] tiles;
-        /**
-         * -- GETTER --
-         *  Returns the number of non-null tiles in this chunk.
-         */
         private int tileCount = 0;
 
         public TileChunk(int chunkX, int chunkY) {
@@ -453,27 +471,108 @@ public class TilemapRenderer extends Component implements Renderable {
         }
 
         /**
+         * Returns the number of non-null tiles in this chunk.
+         */
+        public int getTileCount() {
+            return tileCount;
+        }
+
+        /**
          * Checks if this chunk is empty (no tiles).
          */
         public boolean isEmpty() {
             return tileCount == 0;
         }
 
+        /**
+         * Returns the raw tile array.
+         * Use with caution - modifications bypass dirty tracking.
+         */
+        public Tile[][] getTiles() {
+            return tiles;
+        }
     }
 
     /**
      * Represents a single tile's data.
-     * Immutable record containing sprite and metadata.
+     * Contains visual (sprite) and collision information.
+     *
+     * @param name           Tile identifier for debugging
+     * @param sprite         Visual representation
+     * @param solid          If true, entities cannot walk through this tile
+     * @param ledgeDirection Direction this tile can be jumped from (NONE if not a ledge)
      */
     public record Tile(
             String name,
-            Sprite sprite
+            Sprite sprite,
+            boolean solid,
+            LedgeDirection ledgeDirection
     ) {
         /**
-         * Creates a tile with just a sprite (name derived from sprite).
+         * Creates a walkable tile with just a sprite.
          */
         public Tile(Sprite sprite) {
-            this(sprite != null ? sprite.getName() : "empty", sprite);
+            this(sprite != null ? sprite.getName() : "empty", sprite, false, LedgeDirection.NONE);
+        }
+
+        /**
+         * Creates a tile with sprite and name.
+         */
+        public Tile(String name, Sprite sprite) {
+            this(name, sprite, false, LedgeDirection.NONE);
+        }
+
+        /**
+         * Creates a solid (blocking) tile.
+         */
+        public static Tile solid(String name, Sprite sprite) {
+            return new Tile(name, sprite, true, LedgeDirection.NONE);
+        }
+
+        /**
+         * Creates a solid tile from just a sprite.
+         */
+        public static Tile solid(Sprite sprite) {
+            return new Tile(sprite != null ? sprite.getName() : "solid", sprite, true, LedgeDirection.NONE);
+        }
+
+        /**
+         * Creates a ledge tile that can be jumped in the specified direction.
+         * Ledges are not solid - you can walk onto them, but can only exit by jumping.
+         */
+        public static Tile ledge(String name, Sprite sprite, LedgeDirection direction) {
+            return new Tile(name, sprite, false, direction);
+        }
+
+        /**
+         * Creates a ledge tile from just a sprite.
+         */
+        public static Tile ledge(Sprite sprite, LedgeDirection direction) {
+            return new Tile(sprite != null ? sprite.getName() : "ledge", sprite, false, direction);
+        }
+
+        /**
+         * Checks if this tile blocks movement.
+         */
+        public boolean blocksMovement() {
+            return solid;
+        }
+
+        /**
+         * Checks if this tile is a ledge.
+         */
+        public boolean isLedge() {
+            return ledgeDirection != LedgeDirection.NONE;
+        }
+
+        /**
+         * Checks if a jump in the given direction is allowed from this tile.
+         *
+         * @param moveDirection The direction the entity wants to move
+         * @return true if jumping is allowed
+         */
+        public boolean canJumpInDirection(LedgeDirection moveDirection) {
+            return ledgeDirection == moveDirection;
         }
     }
 }

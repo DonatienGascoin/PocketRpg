@@ -19,6 +19,14 @@ public class PlayerMovement extends Component {
     public void update(float deltaTime) {
         gridMovement(deltaTime);
 //        freeMovement(deltaTime);
+
+        if (Input.getKeyDown(KeyCode.SPACE)) {
+            if (getGameObject().getScene().getName().equals("Demo")) {
+                SceneTransition.loadScene("Demo2");
+            } else {
+                SceneTransition.loadScene("Demo");
+            }
+        }
     }
 
     private void gridMovement(float deltaTime) {
@@ -37,14 +45,6 @@ public class PlayerMovement extends Component {
         if (hor != 0 || ver != 0) {
 //            getTransform().setPosition(getTransform().getPosition().add(speed * hor * deltaTime, speed * ver * deltaTime, 0f));
             getTransform().setPosition(getTransform().getPosition().add(new Vector3f(hor, ver, 0).normalize().mul(speed * deltaTime)));
-        }
-
-        if (Input.getKeyDown(KeyCode.SPACE)) {
-            if (getGameObject().getScene().getName().equals("Demo")) {
-                SceneTransition.loadScene("Demo2");
-            } else {
-                SceneTransition.loadScene("Demo");
-            }
         }
     }
 }

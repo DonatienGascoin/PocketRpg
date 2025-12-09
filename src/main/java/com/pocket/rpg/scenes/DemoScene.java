@@ -1,10 +1,8 @@
 package com.pocket.rpg.scenes;
 
-import com.pocket.rpg.components.GridMovement;
-import com.pocket.rpg.components.PlayerMovement;
-import com.pocket.rpg.components.SpriteRenderer;
-import com.pocket.rpg.components.TilemapRenderer;
+import com.pocket.rpg.components.*;
 import com.pocket.rpg.core.GameObject;
+import com.pocket.rpg.levels.VillageLevelGenerator;
 import com.pocket.rpg.postProcessing.PostEffect;
 import com.pocket.rpg.postProcessing.PostProcessing;
 import com.pocket.rpg.postProcessing.postEffects.VignetteEffect;
@@ -51,7 +49,8 @@ public class DemoScene extends Scene {
     public void onLoad() {
         font = new Font("E:\\Projects\\PocketRpg\\gameData\\assets\\fonts\\zelda.ttf", 18);
 //        createLevelOld();
-        createTilemapLevel();
+//        createTilemapLevel();
+        createVillage();
         createPlayer();
         createHUD();
     }
@@ -59,38 +58,6 @@ public class DemoScene extends Scene {
     @Override
     public void onUnload() {
         font.destroy();
-    }
-
-    /**
-     * Creates the tile-based level using world-unit positioning.
-     * <p>
-     * Tiles are placed at integer coordinates from (-10, -10) to (9, 9),
-     * creating a 20×20 tile grid centered around the origin.
-     */
-    private void createLevelOld() {
-        var sprites = getOutdoorSprites();
-
-        // Parent container for all tiles
-        // Note: Parent scale would affect children once transform hierarchy is implemented (Phase 2)
-        GameObject level = new GameObject("Level");
-        Random random = new Random();
-
-        // Create 20×20 tile grid centered at origin
-        for (int i = -10; i < 10; i++) {
-            for (int j = -10; j < 10; j++) {
-                // Random tile selection for visual variety
-                SpriteRenderer tileSprite = new SpriteRenderer(sprites.get(random.nextInt(7)));
-                tileSprite.setStatic(false); // TODO: BUG when true, the zIndex is broken
-                // Position at integer world coordinates
-                // With Y-up: j=-10 is bottom, j=+9 is top
-                GameObject tile = new GameObject("Tile_" + i + "_" + j,
-                        new Vector3f(i, j, 0));  // Clean integer world-unit positions!
-                tile.addComponent(tileSprite);
-                tile.setParent(level);
-            }
-        }
-
-        addGameObject(level);
     }
 
     private void createTilemapLevel() {
@@ -118,8 +85,62 @@ public class DemoScene extends Scene {
         addGameObject(tilemapObj);
     }
 
-    public int getRandomNumber(int min, int max) {
-        return (int) ((Math.random() * (max - min)) + min);
+    private void createVillage() {
+        VillageLevelGenerator generator = new VillageLevelGenerator();
+        generator.setSprites(
+                getOutdoorSprites(),
+                getRoad(),
+                getTrees(),
+                getWater(),
+                getHouses(),
+                getFences()
+        );
+        addGameObject(generator.generate());
+    }
+
+    private List<Sprite> getRoad() {
+        var resource = AssetManager.getInstance().<Sprite>load("gameData/assets/sprites/Road_16x16.png");
+        var sprite = resource.get();
+
+        // 16×16 pixel tiles with PPU=16 → each tile is 1×1 world units
+        SpriteSheet sheet = new SpriteSheet(sprite.getTexture(), 16, 16);
+        return sheet.generateAllSprites();
+    }
+
+    private List<Sprite> getTrees() {
+        var resource = AssetManager.getInstance().<Sprite>load("gameData/assets/sprites/trees.png");
+        var sprite = resource.get();
+
+        // 16×16 pixel tiles with PPU=16 → each tile is 1×1 world units
+        SpriteSheet sheet = new SpriteSheet(sprite.getTexture(), 32, 48);
+        return sheet.generateAllSprites();
+    }
+
+    private List<Sprite> getWater() {
+        var resource = AssetManager.getInstance().<Sprite>load("gameData/assets/sprites/water.png");
+        var sprite = resource.get();
+
+        // 16×16 pixel tiles with PPU=16 → each tile is 1×1 world units
+        SpriteSheet sheet = new SpriteSheet(sprite.getTexture(), 16, 16);
+        return sheet.generateAllSprites();
+    }
+
+    private List<Sprite> getHouses() {
+        var resource = AssetManager.getInstance().<Sprite>load("gameData/assets/sprites/Building6_64x96.png");
+        var sprite = resource.get();
+
+        // 16×16 pixel tiles with PPU=16 → each tile is 1×1 world units
+        SpriteSheet sheet = new SpriteSheet(sprite.getTexture(), 64, 96);
+        return sheet.generateAllSprites();
+    }
+
+    private List<Sprite> getFences() {
+        var resource = AssetManager.getInstance().<Sprite>load("gameData/assets/sprites/Fence.png");
+        var sprite = resource.get();
+
+        // 16×16 pixel tiles with PPU=16 → each tile is 1×1 world units
+        SpriteSheet sheet = new SpriteSheet(sprite.getTexture(), 16, 16);
+        return sheet.generateAllSprites();
     }
 
     private static List<Sprite> getOutdoorSprites() {
@@ -130,6 +151,10 @@ public class DemoScene extends Scene {
         SpriteSheet levelSheet = new SpriteSheet(outdoorTex.getTexture(), 16, 16);
         var sprites = levelSheet.generateAllSprites();
         return sprites;
+    }
+
+    public int getRandomNumber(int min, int max) {
+        return (int) ((Math.random() * (max - min)) + min);
     }
 
 
@@ -156,7 +181,7 @@ public class DemoScene extends Scene {
         GameObject player = new GameObject("Player", new Vector3f(5, 5, 0));
 
         player.addComponent(spriteRenderer);
-//        player.addComponent(new PlayerCameraFollow());
+        player.addComponent(new PlayerCameraFollow());
 
         GridMovement movement = player.addComponent(new GridMovement(tilemap));
         movement.setGridPosition(5, 5);
@@ -228,4 +253,5 @@ public class DemoScene extends Scene {
 
         canvasGO.addChild(buttonObj);
     }
+
 }

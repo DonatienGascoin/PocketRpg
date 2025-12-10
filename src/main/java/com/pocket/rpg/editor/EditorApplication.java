@@ -269,8 +269,8 @@ public class EditorApplication {
             statusBar.showMessage("Eraser Tool");
         }
 
-        // Brush size adjustment with [ and ]
-        if (ImGui.isKeyPressed(ImGuiKey.LeftBracket)) {
+        // Brush size adjustment with - and = (+ without shift)
+        if (ImGui.isKeyPressed(ImGuiKey.Minus) || ImGui.isKeyPressed(ImGuiKey.KeypadSubtract)) {
             int size = brushTool.getBrushSize();
             if (size > 1) {
                 brushTool.setBrushSize(size - 1);
@@ -278,7 +278,7 @@ public class EditorApplication {
                 statusBar.showMessage("Brush Size: " + (size - 1));
             }
         }
-        if (ImGui.isKeyPressed(ImGuiKey.RightBracket)) {
+        if (ImGui.isKeyPressed(ImGuiKey.Equal) || ImGui.isKeyPressed(ImGuiKey.KeypadAdd)) {
             int size = brushTool.getBrushSize();
             if (size < 10) {
                 brushTool.setBrushSize(size + 1);
@@ -394,7 +394,7 @@ public class EditorApplication {
 
             ImGui.separator();
             ImGui.textDisabled("Shortcuts:");
-            ImGui.textDisabled("[/] - Brush size");
+            ImGui.textDisabled("-/+ - Brush size");
             ImGui.textDisabled("B - Brush tool");
             ImGui.textDisabled("E - Eraser tool");
         }
@@ -519,15 +519,10 @@ public class EditorApplication {
         layerPanel.setScene(currentScene);
         tilesetPalette.setScene(currentScene);
 
-        // Recreate tools with new scene
-        brushTool = new TileBrushTool(currentScene);
-        eraserTool = new TileEraserTool(currentScene);
+        // Update tools with new scene (don't recreate them)
+        brushTool.setScene(currentScene);
+        eraserTool.setScene(currentScene);
 
-        toolManager = new ToolManager();
-        toolManager.registerTool(brushTool);
-        toolManager.registerTool(eraserTool);
-
-        sceneViewport.setToolManager(toolManager);
         tilesetPalette.setBrushTool(brushTool);
     }
 

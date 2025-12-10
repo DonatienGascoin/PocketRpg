@@ -6,46 +6,42 @@ import com.pocket.rpg.editor.tools.TileBrushTool;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.SpriteSheet;
 import imgui.ImGui;
-import lombok.Getter;
+import imgui.ImVec2;
+import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiStyleVar;
 import lombok.Setter;
 
 /**
- * ImGui panel for selecting tiles from the active layer's spritesheet.
- * 
- * Displays tiles in a grid. Click to select a tile for painting.
- * 
- * Phase 3a: Basic implementation - shows tiles from active layer's spritesheet
- * Phase 3b: Will add multi-tile selection, spritesheet switching, etc.
+ * Panel for selecting tiles from the active layer's spritesheet.
+ *
+ * Features:
+ * - Displays tiles as a clickable grid
+ * - Highlights selected tile
+ * - Shows tile info on hover
+ * - Adjustable tile display size
  */
 public class TilesetPalettePanel {
-    
+
     @Setter
     private EditorScene scene;
-    
+
     @Setter
     private TileBrushTool brushTool;
-    
-    /** Currently selected tile index */
-    @Getter
-    private int selectedTileIndex = 0;
-    
-    /** Size of each tile button in the palette (pixels) */
-    private float tileButtonSize = 32f;
-    
-    /** Padding between tile buttons */
-    private float tilePadding = 2f;
-    
-    /**
-     * Renders the tileset palette panel.
-     */
+
+    /** Size of tile display in pixels */
+    private int tileDisplaySize = 32;
+
+    /** Number of columns in the grid (0 = auto-fit) */
+    private int columns = 0;
+
     public void render() {
-        if (ImGui.begin("Tileset Palette")) {
+        if (ImGui.begin("Tileset")) {
             if (scene == null) {
                 ImGui.textDisabled("No scene loaded");
                 ImGui.end();
                 return;
             }
-            
+
             TilemapLayer activeLayer = scene.getActiveLayer();
             if (activeLayer == null) {
                 ImGui.textDisabled("No layer selected");
@@ -53,114 +49,128 @@ public class TilesetPalettePanel {
                 ImGui.end();
                 return;
             }
-            
+
             SpriteSheet sheet = activeLayer.getSpriteSheet();
             if (sheet == null) {
-                ImGui.textDisabled("Layer has no tileset");
+                ImGui.textDisabled("Layer has no spritesheet");
                 ImGui.end();
                 return;
             }
-            
-            // Header
+
+            // Layer info
             ImGui.text("Layer: " + activeLayer.getName());
-            ImGui.text("Tiles: " + sheet.getTotalFrames() + 
-                " (" + sheet.getColumns() + "x" + sheet.getRows() + ")");
-            
+            ImGui.text("Tiles: " + activeLayer.getTileCount());
+
+            ImGui.separator();
+
             // Tile size slider
-            float[] size = {tileButtonSize};
-            if (ImGui.sliderFloat("Tile Size", size, 16f, 64f, "%.0f")) {
-                tileButtonSize = size[0];
+            int[] sizeArr = {tileDisplaySize};
+            if (ImGui.sliderInt("Tile Size", sizeArr, 16, 64)) {
+                tileDisplaySize = sizeArr[0];
             }
-            
+
             ImGui.separator();
-            
-            // Selected tile info
-            ImGui.text("Selected: " + selectedTileIndex);
-            
+
+            // Current selection info
+            int selectedIndex = brushTool != null ? brushTool.getSelectedTileIndex() : 0;
+            ImGui.text("Selected: " + selectedIndex);
+
             ImGui.separator();
-            
-            // Tile grid
-            renderTileGrid(sheet, activeLayer);
+
+            // Render tile grid
+            renderTileGrid(activeLayer, selectedIndex);
         }
         ImGui.end();
     }
-    
+
     /**
      * Renders the tile selection grid.
      */
-    private void renderTileGrid(SpriteSheet sheet, TilemapLayer layer) {
-        // Calculate columns based on available width
+    private void renderTileGrid(TilemapLayer layer, int selectedIndex) {
+        int tileCount = layer.getTileCount();
+        if (tileCount == 0) {
+            ImGui.textDisabled("No tiles in spritesheet");
+            return;
+        }
+
+        // Calculate number of columns based on panel width
         float availableWidth = ImGui.getContentRegionAvailX();
-        int columns = Math.max(1, (int) (availableWidth / (tileButtonSize + tilePadding)));
-        
-        int totalTiles = sheet.getTotalFrames();
-        
-        for (int i = 0; i < totalTiles; i++) {
+        float tileSlotSize = tileDisplaySize + 4; // tile + padding
+        int cols = columns > 0 ? columns : Math.max(1, (int)(availableWidth / tileSlotSize));
+
+        // Reduce item spacing for tight grid
+        ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, 2, 2);
+
+        var drawList = ImGui.getWindowDrawList();
+
+        for (int i = 0; i < tileCount; i++) {
             Sprite sprite = layer.getSprite(i);
-            if (sprite == null) continue;
-            
+            if (sprite == null || sprite.getTexture() == null) continue;
+
             // Start new row if needed
-            if (i % columns != 0) {
-                ImGui.sameLine(0, tilePadding);
+            if (i % cols != 0) {
+                ImGui.sameLine();
             }
-            
-            ImGui.pushID(i);
-            
-            // Determine if this tile is selected
-            boolean isSelected = (i == selectedTileIndex);
-            
-            // Style selected tile differently
-            if (isSelected) {
-                ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, 0.3f, 0.6f, 1.0f, 1.0f);
-                ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, 0.4f, 0.7f, 1.0f, 1.0f);
-                ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonActive, 0.2f, 0.5f, 0.9f, 1.0f);
-            }
-            
-            // Render tile as image button
+
+            boolean isSelected = (i == selectedIndex);
+
+            // Get texture and UV coordinates
             int textureId = sprite.getTexture().getTextureId();
             float u0 = sprite.getU0();
             float v0 = sprite.getV0();
             float u1 = sprite.getU1();
             float v1 = sprite.getV1();
-            
-            // Note: ImGui expects v0 < v1 (top to bottom), but our sprites might have
-            // v0 > v1 due to OpenGL's coordinate system. Check and swap if needed.
-            float actualV0 = Math.min(v0, v1);
-            float actualV1 = Math.max(v0, v1);
-            
-            if (ImGui.imageButton("tile" + i, textureId, tileButtonSize, tileButtonSize,
-                    u0, actualV0, u1, actualV1)) {
-                selectedTileIndex = i;
-                
-                // Update brush tool
+
+            // Draw tile button
+            ImGui.pushID(i);
+
+            if (isSelected) {
+                ImGui.pushStyleColor(ImGuiCol.Button, ImGui.colorConvertFloat4ToU32(1.0f, 0.5f, 0.0f, 1.0f));
+            }
+
+            // Use ImageButton - returns true when clicked
+            if (ImGui.imageButton("##tile", textureId, tileDisplaySize, tileDisplaySize,
+                    u0, v0, u1, v1)) {
+                // Tile clicked - select it
                 if (brushTool != null) {
                     brushTool.setSelectedTileIndex(i);
                 }
             }
-            
+
+            // Draw selection highlight AFTER the button (so we have correct position)
             if (isSelected) {
-                ImGui.popStyleColor(3);
+                ImGui.popStyleColor();
+//                ImVec2 itemMin = ImGui.getItemRectMin();
+//                ImVec2 itemMax = ImGui.getItemRectMax();
+//
+//                // Bright orange selection border
+//                int selectColor = ImGui.colorConvertFloat4ToU32(1.0f, 0.5f, 0.0f, 1.0f);
+//                float thickness = 3.0f;
+//                drawList.addRect(
+//                        itemMin.x - thickness,
+//                        itemMin.y - thickness,
+//                        itemMax.x + thickness,
+//                        itemMax.y + thickness,
+//                        selectColor,
+//                        2.0f, // rounded corners
+//                        0,    // flags
+//                        thickness
+//                );
             }
-            
-            // Tooltip with tile info
+
+            ImGui.popID();
+
+            // Tooltip on hover
             if (ImGui.isItemHovered()) {
                 ImGui.beginTooltip();
                 ImGui.text("Tile " + i);
-                ImGui.text(String.format("UV: (%.2f, %.2f) - (%.2f, %.2f)", u0, v0, u1, v1));
+
+                // Show larger preview
+                ImGui.image(textureId, 64, 64, u0, v0, u1, v1);
                 ImGui.endTooltip();
             }
-            
-            ImGui.popID();
         }
-    }
-    
-    /**
-     * Sets the selected tile index.
-     */
-    public void setSelectedTileIndex(int index) {
-        this.selectedTileIndex = index;
-        if (brushTool != null) {
-            brushTool.setSelectedTileIndex(index);
-        }
+
+        ImGui.popStyleVar();
     }
 }

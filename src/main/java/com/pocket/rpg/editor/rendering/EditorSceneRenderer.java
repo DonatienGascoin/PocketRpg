@@ -17,7 +17,7 @@ import static org.lwjgl.opengl.GL33.*;
 
 /**
  * Renders EditorScene content to the editor framebuffer.
- * 
+ *
  * Handles:
  * - Rendering tilemap layers with visibility mode support
  * - Layer opacity based on visibility mode (All/Selected/Dimmed)
@@ -25,16 +25,16 @@ import static org.lwjgl.opengl.GL33.*;
  * - Frustum culling for tilemaps
  */
 public class EditorSceneRenderer {
-    
+
     private final EditorFramebuffer framebuffer;
     private final RenderingConfig renderingConfig;
-    
+
     private BatchRenderer batchRenderer;
     private boolean initialized = false;
 
     /**
      * Creates an EditorSceneRenderer.
-     * 
+     *
      * @param framebuffer Framebuffer to render to
      * @param renderingConfig Rendering configuration
      */
@@ -48,18 +48,18 @@ public class EditorSceneRenderer {
      */
     public void init() {
         if (initialized) return;
-        
+
         // Initialize batch renderer with config
         batchRenderer = new BatchRenderer(renderingConfig);
         batchRenderer.init(framebuffer.getWidth(), framebuffer.getHeight());
-        
+
         initialized = true;
         System.out.println("EditorSceneRenderer initialized");
     }
 
     /**
      * Renders the editor scene to the framebuffer.
-     * 
+     *
      * @param scene EditorScene to render
      * @param camera Editor camera for view/projection matrices
      */
@@ -67,28 +67,27 @@ public class EditorSceneRenderer {
         if (!initialized) {
             init();
         }
-        
+
         // Bind framebuffer
         framebuffer.bind();
-        
-        // Clear with background color
-        Vector4f clearColor = renderingConfig != null ? 
-            renderingConfig.getClearColor() : new Vector4f(0.1f, 0.1f, 0.1f, 1.0f);
-        framebuffer.clear(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
-        
+
+        // Clear with dark gray (editor background)
+        // Using a fixed color instead of game config for clarity
+        framebuffer.clear(0.15f, 0.15f, 0.15f, 1.0f);
+
         // Enable blending for sprites
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        
+
         // Get camera matrices
         Matrix4f projectionMatrix = camera.getProjectionMatrix();
         Matrix4f viewMatrix = camera.getViewMatrix();
-        
+
         // Render scene content
         if (scene != null) {
             renderSceneContent(scene, projectionMatrix, viewMatrix, camera);
         }
-        
+
         // Unbind framebuffer
         framebuffer.unbind();
     }
@@ -97,60 +96,79 @@ public class EditorSceneRenderer {
      * Renders scene layers.
      */
     private void renderSceneContent(EditorScene scene, Matrix4f projection, Matrix4f view, EditorCamera camera) {
-        // Get layers sorted by zIndex
-        List<TilemapLayer> layers = scene.getLayers();
-        layers.sort(Comparator.comparingInt(TilemapLayer::getZIndex));
-        
+        int layerCount = scene.getLayerCount();
+        if (layerCount == 0) return;
+
+        // Build list of (layerIndex, zIndex) pairs for sorting
+        List<int[]> layerOrder = new ArrayList<>();
+        for (int i = 0; i < layerCount; i++) {
+            TilemapLayer layer = scene.getLayer(i);
+            if (layer != null) {
+                layerOrder.add(new int[]{i, layer.getZIndex()});
+            }
+        }
+
+        // Sort by zIndex (lower zIndex renders first = behind)
+        layerOrder.sort(Comparator.comparingInt(a -> a[1]));
+
         // Begin batch with camera matrices
         batchRenderer.beginWithMatrices(projection, view, null);
-        
-        // Render each layer
-        for (int i = 0; i < layers.size(); i++) {
-            TilemapLayer layer = layers.get(i);
-            
-            // Check visibility
-            if (!scene.isLayerVisible(i)) {
+
+        // Render each layer in zIndex order
+        for (int[] pair : layerOrder) {
+            int layerIndex = pair[0];
+
+            // Check visibility using ORIGINAL index
+            if (!scene.isLayerVisible(layerIndex)) {
                 continue;
             }
-            
+
+            TilemapLayer layer = scene.getLayer(layerIndex);
+            if (layer == null) continue;
+
             // Get opacity based on visibility mode
-            float opacity = scene.getLayerOpacity(i);
-            
+            float opacity = scene.getLayerOpacity(layerIndex);
+
             // Render tilemap
             renderTilemap(layer.getTilemap(), camera, opacity);
         }
-        
+
         // End batch
         batchRenderer.end();
     }
 
     /**
      * Renders a tilemap with frustum culling.
-     * 
+     *
      * @param tilemap TilemapRenderer to render
      * @param camera Editor camera
      * @param opacity Layer opacity (0.0 - 1.0)
      */
     private void renderTilemap(TilemapRenderer tilemap, EditorCamera camera, float opacity) {
         if (tilemap == null) return;
-        
+
+        // Check if tilemap has any chunks
+        if (tilemap.allChunks().isEmpty()) {
+            return;
+        }
+
         // Get visible bounds
         float[] bounds = camera.getWorldBounds();
         float left = bounds[0];
         float bottom = bounds[1];
         float right = bounds[2];
         float top = bounds[3];
-        
+
         // Calculate visible chunks
         float tileSize = tilemap.getTileSize();
         int chunkSize = TilemapRenderer.TileChunk.CHUNK_SIZE;
         float chunkWorldSize = chunkSize * tileSize;
-        
+
         int startCX = (int) Math.floor(left / chunkWorldSize);
         int startCY = (int) Math.floor(bottom / chunkWorldSize);
         int endCX = (int) Math.ceil(right / chunkWorldSize);
         int endCY = (int) Math.ceil(top / chunkWorldSize);
-        
+
         // Collect visible chunks
         List<long[]> visibleChunks = new ArrayList<>();
         for (int cy = startCY; cy <= endCY; cy++) {
@@ -160,10 +178,9 @@ public class EditorSceneRenderer {
                 }
             }
         }
-        
+
         // Render visible chunks
         // TODO: Apply opacity when rendering (requires BatchRenderer modification)
-        // For now, render at full opacity - opacity support will be added in Phase 3b
         if (!visibleChunks.isEmpty()) {
             batchRenderer.drawTilemap(tilemap, visibleChunks);
         }

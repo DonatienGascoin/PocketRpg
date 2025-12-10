@@ -11,58 +11,58 @@ import java.util.List;
 
 /**
  * Wraps a tilemap layer for editor use.
- * 
+ *
  * Each layer consists of:
  * - A GameObject with a TilemapRenderer component
  * - A SpriteSheet providing the available tiles
  * - Editor-specific metadata (name, visibility, etc.)
- * 
+ *
  * The layer stores tile indices (into the spritesheet) rather than
  * direct Sprite references, enabling serialization.
  */
 @Getter
 public class TilemapLayer {
-    
+
     /** The underlying GameObject */
     private final GameObject gameObject;
-    
+
     /** The TilemapRenderer component */
     private final TilemapRenderer tilemap;
-    
+
     /** Display name in the editor */
     @Setter
     private String name;
-    
+
     /** Whether this layer is visible in the editor */
     @Setter
     private boolean visible = true;
-    
+
     /** Whether this layer is locked (cannot be edited) */
     @Setter
     private boolean locked = false;
-    
+
     /** The spritesheet used for this layer's tiles */
     @Setter
     private SpriteSheet spriteSheet;
-    
+
     /** Path to the spritesheet image (for serialization) */
     @Setter
     private String spriteSheetPath;
-    
+
     /** Sprite width in pixels (for SpriteSheet reconstruction) */
     @Setter
     private int spriteWidth = 16;
-    
+
     /** Sprite height in pixels (for SpriteSheet reconstruction) */
     @Setter
     private int spriteHeight = 16;
-    
+
     /** Cached sprites from the spritesheet */
     private List<Sprite> sprites;
 
     /**
      * Creates a new tilemap layer.
-     * 
+     *
      * @param name Display name
      * @param zIndex Render order (lower = behind)
      */
@@ -71,12 +71,17 @@ public class TilemapLayer {
         this.gameObject = new GameObject(name);
         this.tilemap = new TilemapRenderer(1.0f); // 1 world unit per tile
         this.tilemap.setZIndex(zIndex);
+
+        // IMPORTANT: Set to non-static for editor so tiles render immediately
+        // Static batching caches tiles and won't show new ones until rebatch
+        this.tilemap.setStatic(false);
+
         this.gameObject.addComponent(tilemap);
     }
 
     /**
      * Creates a layer from an existing GameObject with TilemapRenderer.
-     * 
+     *
      * @param gameObject Existing GameObject
      * @param name Display name
      */
@@ -87,6 +92,9 @@ public class TilemapLayer {
             throw new IllegalArgumentException("GameObject must have a TilemapRenderer component");
         }
         this.name = name;
+
+        // Set non-static for editor
+        this.tilemap.setStatic(false);
     }
 
     // ========================================================================
@@ -106,7 +114,7 @@ public class TilemapLayer {
 
     /**
      * Gets a sprite by index from the spritesheet.
-     * 
+     *
      * @param index Tile index
      * @return Sprite at that index, or null if invalid
      */
@@ -130,7 +138,7 @@ public class TilemapLayer {
 
     /**
      * Sets a tile at the given position.
-     * 
+     *
      * @param tileX Tile X coordinate
      * @param tileY Tile Y coordinate
      * @param tileIndex Index into the spritesheet (-1 to clear)
@@ -148,7 +156,7 @@ public class TilemapLayer {
 
     /**
      * Gets the tile index at the given position.
-     * 
+     *
      * @param tileX Tile X coordinate
      * @param tileY Tile Y coordinate
      * @return Tile index, or -1 if empty
@@ -158,7 +166,7 @@ public class TilemapLayer {
         if (tile == null || tile.sprite() == null) {
             return -1;
         }
-        
+
         // Find sprite index in our list
         if (sprites != null) {
             for (int i = 0; i < sprites.size(); i++) {
@@ -167,7 +175,7 @@ public class TilemapLayer {
                 }
             }
         }
-        
+
         return -1; // Sprite not found in our sheet
     }
 
@@ -215,7 +223,7 @@ public class TilemapLayer {
     @Override
     public String toString() {
         return String.format("TilemapLayer[name=%s, zIndex=%d, visible=%b, locked=%b, tiles=%d]",
-            name, getZIndex(), visible, locked, 
-            spriteSheet != null ? spriteSheet.getTotalFrames() : 0);
+                name, getZIndex(), visible, locked,
+                spriteSheet != null ? spriteSheet.getTotalFrames() : 0);
     }
 }

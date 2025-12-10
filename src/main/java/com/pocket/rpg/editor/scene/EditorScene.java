@@ -1,10 +1,16 @@
 package com.pocket.rpg.editor.scene;
 
+import com.pocket.rpg.components.TilemapRenderer;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.rendering.Renderable;
-import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.SpriteSheet;
+import com.pocket.rpg.rendering.Sprite;
+import com.pocket.rpg.rendering.Texture;
 import com.pocket.rpg.resources.AssetManager;
+import com.pocket.rpg.scenes.RuntimeScene;
+import com.pocket.rpg.scenes.Scene;
+import com.pocket.rpg.serialization.SceneData;
+import com.pocket.rpg.serialization.GameObjectData;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -14,14 +20,14 @@ import java.util.List;
 
 /**
  * Represents a scene being edited in the Scene Editor.
- * <p>
+ *
  * Manages:
  * - Tilemap layers (TilemapLayer wrappers)
  * - Layer visibility mode
  * - Active layer selection
  * - Conversion to/from SceneData for serialization
  * - Live Scene for rendering
- * <p>
+ *
  * Architecture:
  * - EditorScene holds SceneData (source of truth for saving)
  * - EditorScene maintains a live Scene for rendering
@@ -50,9 +56,7 @@ public class EditorScene {
     @Setter
     private LayerVisibilityMode visibilityMode = LayerVisibilityMode.ALL;
 
-    /**
-     * Opacity for dimmed layers (0.0 - 1.0)
-     */
+    /** Opacity for dimmed layers (0.0 - 1.0) */
     @Getter
     @Setter
     private float dimmedOpacity = 0.3f;
@@ -110,10 +114,8 @@ public class EditorScene {
         TilemapLayer layer = new TilemapLayer(layerName, zIndex);
         layers.add(layer);
 
-        // Auto-select if first layer
-        if (activeLayerIndex < 0) {
-            activeLayerIndex = 0;
-        }
+        // Always select the newly created layer
+        activeLayerIndex = layers.size() - 1;
 
         markDirty();
         return layer;

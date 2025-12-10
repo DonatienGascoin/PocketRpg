@@ -3,6 +3,8 @@ package com.pocket.rpg.editor.ui;
 import com.pocket.rpg.editor.camera.EditorCamera;
 import com.pocket.rpg.editor.core.EditorConfig;
 import com.pocket.rpg.editor.rendering.EditorFramebuffer;
+import com.pocket.rpg.editor.tools.TileBrushTool;
+import com.pocket.rpg.editor.tools.TileEraserTool;
 import com.pocket.rpg.editor.tools.ToolManager;
 import imgui.ImGui;
 import imgui.ImVec2;
@@ -39,7 +41,7 @@ public class SceneViewport {
 
     // Framebuffer for scene rendering
     private EditorFramebuffer framebuffer;
-    
+
     // Tool system
     @Setter
     private ToolManager toolManager;
@@ -56,7 +58,7 @@ public class SceneViewport {
 
     // Mouse state for camera dragging
     private boolean isDraggingCamera = false;
-    
+
     // Current hovered tile
     @Getter
     private int hoveredTileX = Integer.MIN_VALUE;
@@ -160,7 +162,7 @@ public class SceneViewport {
 
         return isFocused;
     }
-    
+
     /**
      * Updates the currently hovered tile coordinates.
      */
@@ -170,14 +172,14 @@ public class SceneViewport {
             hoveredTileY = Integer.MIN_VALUE;
             return;
         }
-        
+
         ImVec2 mousePos = ImGui.getMousePos();
         float localX = mousePos.x - viewportX;
         float localY = mousePos.y - viewportY;
-        
+
         // Convert to world coordinates
         Vector3f worldPos = camera.screenToWorld(localX, localY);
-        
+
         // Calculate tile coordinates
         hoveredTileX = (int) Math.floor(worldPos.x);
         hoveredTileY = (int) Math.floor(worldPos.y);
@@ -192,7 +194,7 @@ public class SceneViewport {
         // Calculate visible bounds in world space
         Vector3f worldMinVec = camera.screenToWorld(0, viewportHeight);
         Vector3f worldMaxVec = camera.screenToWorld(viewportWidth, 0);
-        
+
         float worldMinX = worldMinVec.x;
         float worldMinY = worldMinVec.y;
         float worldMaxX = worldMaxVec.x;
@@ -295,9 +297,9 @@ public class SceneViewport {
         );
 
         // Text
-        String toolName = (toolManager != null && toolManager.getActiveTool() != null) 
-            ? toolManager.getActiveTool().getName() : "None";
-        
+        String toolName = (toolManager != null && toolManager.getActiveTool() != null)
+                ? toolManager.getActiveTool().getName() : "None";
+
         String coordText = String.format("Tool: %s | World: (%.2f, %.2f) | Tile: (%d, %d) | Zoom: %.0f%%",
                 toolName, worldPos.x, worldPos.y, hoveredTileX, hoveredTileY, camera.getZoom() * 100);
 
@@ -313,7 +315,7 @@ public class SceneViewport {
      */
     private void handleInput() {
         float deltaTime = ImGui.getIO().getDeltaTime();
-        
+
         ImVec2 mousePos = ImGui.getMousePos();
         float screenX = mousePos.x - viewportX;
         float screenY = mousePos.y - viewportY;
@@ -321,10 +323,10 @@ public class SceneViewport {
         // =====================================================================
         // CAMERA CONTROLS
         // =====================================================================
-        
+
         // Keyboard pan (WASD / Arrow keys)
         float moveX = 0, moveY = 0;
-        
+
         if (ImGui.isKeyDown(ImGuiKey.W) || ImGui.isKeyDown(ImGuiKey.UpArrow)) {
             moveY = 1;
         }
@@ -337,7 +339,7 @@ public class SceneViewport {
         if (ImGui.isKeyDown(ImGuiKey.D) || ImGui.isKeyDown(ImGuiKey.RightArrow)) {
             moveX = 1;
         }
-        
+
         if (moveX != 0 || moveY != 0) {
             camera.updateKeyboardPan(moveX, moveY, deltaTime);
         }
@@ -362,16 +364,16 @@ public class SceneViewport {
             camera.updatePan(screenX, screenY);
         }
 
-        // Scroll wheel to zoom
+        // Scroll wheel to zoom - INCREASED MULTIPLIER from 0.1 to 1.0
         float scroll = ImGui.getIO().getMouseWheel();
         if (scroll != 0 && isHovered) {
-            camera.zoomToward(screenX, screenY, scroll * 0.1f);
+            camera.zoomToward(screenX, screenY, scroll * 1.0f);
         }
-        
+
         // =====================================================================
         // TOOL INPUT (only when not camera dragging)
         // =====================================================================
-        
+
         if (toolManager != null && !isDraggingCamera && isHovered) {
             // Left mouse button
             if (ImGui.isMouseClicked(ImGuiMouseButton.Left)) {
@@ -380,7 +382,7 @@ public class SceneViewport {
             if (ImGui.isMouseReleased(ImGuiMouseButton.Left)) {
                 toolManager.handleMouseUp(hoveredTileX, hoveredTileY, 0);
             }
-            
+
             // Right mouse button
             if (ImGui.isMouseClicked(ImGuiMouseButton.Right)) {
                 toolManager.handleMouseDown(hoveredTileX, hoveredTileY, 1);
@@ -388,27 +390,31 @@ public class SceneViewport {
             if (ImGui.isMouseReleased(ImGuiMouseButton.Right)) {
                 toolManager.handleMouseUp(hoveredTileX, hoveredTileY, 1);
             }
-            
+
             // Mouse move (for drag and hover)
             toolManager.handleMouseMove(hoveredTileX, hoveredTileY);
         }
     }
-    
+
     /**
      * Renders tool overlays (call after scene rendering).
      */
     public void renderToolOverlay() {
         if (toolManager != null && isHovered) {
-            // Pass viewport position to tools for overlay rendering
-            if (toolManager.getActiveTool() instanceof com.pocket.rpg.editor.tools.TileBrushTool brush) {
+            // Pass viewport position and size to tools for overlay rendering
+            if (toolManager.getActiveTool() instanceof TileBrushTool brush) {
                 brush.setViewportX(viewportX);
                 brush.setViewportY(viewportY);
+                brush.setViewportWidth(viewportWidth);
+                brush.setViewportHeight(viewportHeight);
             }
-            if (toolManager.getActiveTool() instanceof com.pocket.rpg.editor.tools.TileEraserTool eraser) {
+            if (toolManager.getActiveTool() instanceof TileEraserTool eraser) {
                 eraser.setViewportX(viewportX);
                 eraser.setViewportY(viewportY);
+                eraser.setViewportWidth(viewportWidth);
+                eraser.setViewportHeight(viewportHeight);
             }
-            
+
             toolManager.renderOverlay(camera, hoveredTileX, hoveredTileY);
         }
     }

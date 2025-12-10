@@ -1,5 +1,10 @@
 package com.pocket.rpg.resources;
 
+import com.pocket.rpg.resources.loaders.ShaderLoader;
+import com.pocket.rpg.resources.loaders.SpriteLoader;
+import com.pocket.rpg.resources.loaders.SpriteSheetLoader;
+import com.pocket.rpg.resources.loaders.TextureLoader;
+
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
@@ -95,9 +100,18 @@ public class AssetManager {
         synchronized (LOCK) {
             if (instance == null) {
                 instance = new AssetManager();
+                registerLoaders();
                 System.out.println("AssetManager initialized");
             }
         }
+    }
+
+    private static void registerLoaders() {
+        AssetManager manager = AssetManager.getInstance();
+        manager.registerLoader("texture", new TextureLoader());
+        manager.registerLoader("shader", new ShaderLoader());
+        manager.registerLoader("sprite", new SpriteLoader());
+        manager.registerLoader("spritesheet", new SpriteSheetLoader());
     }
 
     /**

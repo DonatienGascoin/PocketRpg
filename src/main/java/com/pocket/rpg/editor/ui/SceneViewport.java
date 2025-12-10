@@ -3,24 +3,34 @@ package com.pocket.rpg.editor.ui;
 import com.pocket.rpg.editor.camera.EditorCamera;
 import com.pocket.rpg.editor.core.EditorConfig;
 import com.pocket.rpg.editor.rendering.EditorFramebuffer;
+import com.pocket.rpg.editor.tools.ToolManager;
 import imgui.ImGui;
 import imgui.ImVec2;
 import imgui.flag.ImGuiKey;
+import imgui.flag.ImGuiMouseButton;
 import imgui.flag.ImGuiWindowFlags;
+import lombok.Getter;
+import lombok.Setter;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
 
 /**
  * Scene viewport panel that displays the rendered scene.
  *
- * Renders the scene to a framebuffer and displays the resulting texture in ImGui.
- * Grid overlay is drawn using ImGui draw lists.
+ * Handles:
+ * - Displaying framebuffer texture
+ * - Camera controls (pan, zoom)
+ * - Grid overlay
+ * - Tool input routing
+ * - Coordinate display
  *
  * Controls:
  * - WASD/Arrow keys: Pan camera
  * - Middle mouse drag: Pan camera
  * - Scroll wheel: Zoom
  * - Home: Reset camera
+ * - Left click: Tool primary action
+ * - Right click: Tool secondary action
  */
 public class SceneViewport {
 
@@ -29,18 +39,34 @@ public class SceneViewport {
 
     // Framebuffer for scene rendering
     private EditorFramebuffer framebuffer;
+    
+    // Tool system
+    @Setter
+    private ToolManager toolManager;
 
     // Viewport state
+    @Getter
     private float viewportX, viewportY;
+    @Getter
     private float viewportWidth, viewportHeight;
+    @Getter
     private boolean isHovered = false;
+    @Getter
     private boolean isFocused = false;
 
-    // Mouse state for dragging
-    private boolean isDragging = false;
+    // Mouse state for camera dragging
+    private boolean isDraggingCamera = false;
+    
+    // Current hovered tile
+    @Getter
+    private int hoveredTileX = Integer.MIN_VALUE;
+    @Getter
+    private int hoveredTileY = Integer.MIN_VALUE;
 
     // Grid settings
+    @Setter
     private boolean showGrid = true;
+    @Setter
     private boolean showCoordinates = true;
 
     public SceneViewport(EditorCamera camera, EditorConfig config) {
@@ -112,6 +138,9 @@ public class SceneViewport {
             );
         }
 
+        // Update hovered tile
+        updateHoveredTile();
+
         // Draw grid overlay on top
         if (showGrid) {
             drawGridOverlay();
@@ -123,13 +152,35 @@ public class SceneViewport {
         }
 
         // Handle input
-        if (isHovered || isDragging) {
+        if (isHovered || isDraggingCamera) {
             handleInput();
         }
 
         ImGui.end();
 
         return isFocused;
+    }
+    
+    /**
+     * Updates the currently hovered tile coordinates.
+     */
+    private void updateHoveredTile() {
+        if (!isHovered) {
+            hoveredTileX = Integer.MIN_VALUE;
+            hoveredTileY = Integer.MIN_VALUE;
+            return;
+        }
+        
+        ImVec2 mousePos = ImGui.getMousePos();
+        float localX = mousePos.x - viewportX;
+        float localY = mousePos.y - viewportY;
+        
+        // Convert to world coordinates
+        Vector3f worldPos = camera.screenToWorld(localX, localY);
+        
+        // Calculate tile coordinates
+        hoveredTileX = (int) Math.floor(worldPos.x);
+        hoveredTileY = (int) Math.floor(worldPos.y);
     }
 
     /**
@@ -231,10 +282,6 @@ public class SceneViewport {
         // Convert to world coordinates
         Vector3f worldPos = camera.screenToWorld(localX, localY);
 
-        // Calculate tile coordinates
-        int tileX = (int) Math.floor(worldPos.x);
-        int tileY = (int) Math.floor(worldPos.y);
-
         // Draw info bar at bottom
         var drawList = ImGui.getWindowDrawList();
         float barHeight = 20;
@@ -248,8 +295,11 @@ public class SceneViewport {
         );
 
         // Text
-        String coordText = String.format("World: (%.2f, %.2f)  Tile: (%d, %d)  Zoom: %.0f%%",
-                worldPos.x, worldPos.y, tileX, tileY, camera.getZoom() * 100);
+        String toolName = (toolManager != null && toolManager.getActiveTool() != null) 
+            ? toolManager.getActiveTool().getName() : "None";
+        
+        String coordText = String.format("Tool: %s | World: (%.2f, %.2f) | Tile: (%d, %d) | Zoom: %.0f%%",
+                toolName, worldPos.x, worldPos.y, hoveredTileX, hoveredTileY, camera.getZoom() * 100);
 
         drawList.addText(
                 viewportX + 5, barY + 3,
@@ -263,7 +313,15 @@ public class SceneViewport {
      */
     private void handleInput() {
         float deltaTime = ImGui.getIO().getDeltaTime();
+        
+        ImVec2 mousePos = ImGui.getMousePos();
+        float screenX = mousePos.x - viewportX;
+        float screenY = mousePos.y - viewportY;
 
+        // =====================================================================
+        // CAMERA CONTROLS
+        // =====================================================================
+        
         // Keyboard pan (WASD / Arrow keys)
         float moveX = 0, moveY = 0;
         
@@ -289,22 +347,18 @@ public class SceneViewport {
             camera.reset();
         }
 
-        // Middle mouse drag to pan
-        ImVec2 mousePos = ImGui.getMousePos();
-        float screenX = mousePos.x - viewportX;
-        float screenY = mousePos.y - viewportY;
-
-        if (ImGui.isMouseClicked(2)) { // Middle button
-            isDragging = true;
+        // Middle mouse drag to pan camera
+        if (ImGui.isMouseClicked(ImGuiMouseButton.Middle)) {
+            isDraggingCamera = true;
             camera.startPan(screenX, screenY);
         }
 
-        if (ImGui.isMouseReleased(2)) {
-            isDragging = false;
+        if (ImGui.isMouseReleased(ImGuiMouseButton.Middle)) {
+            isDraggingCamera = false;
             camera.endPan();
         }
 
-        if (isDragging && ImGui.isMouseDown(2)) {
+        if (isDraggingCamera && ImGui.isMouseDown(ImGuiMouseButton.Middle)) {
             camera.updatePan(screenX, screenY);
         }
 
@@ -313,38 +367,58 @@ public class SceneViewport {
         if (scroll != 0 && isHovered) {
             camera.zoomToward(screenX, screenY, scroll * 0.1f);
         }
+        
+        // =====================================================================
+        // TOOL INPUT (only when not camera dragging)
+        // =====================================================================
+        
+        if (toolManager != null && !isDraggingCamera && isHovered) {
+            // Left mouse button
+            if (ImGui.isMouseClicked(ImGuiMouseButton.Left)) {
+                toolManager.handleMouseDown(hoveredTileX, hoveredTileY, 0);
+            }
+            if (ImGui.isMouseReleased(ImGuiMouseButton.Left)) {
+                toolManager.handleMouseUp(hoveredTileX, hoveredTileY, 0);
+            }
+            
+            // Right mouse button
+            if (ImGui.isMouseClicked(ImGuiMouseButton.Right)) {
+                toolManager.handleMouseDown(hoveredTileX, hoveredTileY, 1);
+            }
+            if (ImGui.isMouseReleased(ImGuiMouseButton.Right)) {
+                toolManager.handleMouseUp(hoveredTileX, hoveredTileY, 1);
+            }
+            
+            // Mouse move (for drag and hover)
+            toolManager.handleMouseMove(hoveredTileX, hoveredTileY);
+        }
+    }
+    
+    /**
+     * Renders tool overlays (call after scene rendering).
+     */
+    public void renderToolOverlay() {
+        if (toolManager != null && isHovered) {
+            // Pass viewport position to tools for overlay rendering
+            if (toolManager.getActiveTool() instanceof com.pocket.rpg.editor.tools.TileBrushTool brush) {
+                brush.setViewportX(viewportX);
+                brush.setViewportY(viewportY);
+            }
+            if (toolManager.getActiveTool() instanceof com.pocket.rpg.editor.tools.TileEraserTool eraser) {
+                eraser.setViewportX(viewportX);
+                eraser.setViewportY(viewportY);
+            }
+            
+            toolManager.renderOverlay(camera, hoveredTileX, hoveredTileY);
+        }
     }
 
     // ========================================================================
     // GETTERS / SETTERS
     // ========================================================================
 
-    public boolean isHovered() {
-        return isHovered;
-    }
-
-    public boolean isFocused() {
-        return isFocused;
-    }
-
-    public float getViewportWidth() {
-        return viewportWidth;
-    }
-
-    public float getViewportHeight() {
-        return viewportHeight;
-    }
-
-    public void setShowGrid(boolean showGrid) {
-        this.showGrid = showGrid;
-    }
-
     public boolean isShowGrid() {
         return showGrid;
-    }
-
-    public void setShowCoordinates(boolean showCoordinates) {
-        this.showCoordinates = showCoordinates;
     }
 
     public boolean isShowCoordinates() {

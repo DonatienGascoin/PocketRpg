@@ -1,16 +1,28 @@
 package com.pocket.rpg.editor;
 
+import com.pocket.rpg.config.ConfigLoader;
+import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.editor.camera.EditorCamera;
 import com.pocket.rpg.editor.core.EditorConfig;
 import com.pocket.rpg.editor.core.EditorWindow;
 import com.pocket.rpg.editor.core.FileDialogs;
 import com.pocket.rpg.editor.core.ImGuiLayer;
+import com.pocket.rpg.editor.panels.LayerPanel;
+import com.pocket.rpg.editor.panels.TilesetPalettePanel;
+import com.pocket.rpg.editor.rendering.EditorFramebuffer;
+import com.pocket.rpg.editor.rendering.EditorSceneRenderer;
 import com.pocket.rpg.editor.scene.EditorScene;
+import com.pocket.rpg.editor.tools.TileBrushTool;
+import com.pocket.rpg.editor.tools.TileEraserTool;
+import com.pocket.rpg.editor.tools.ToolManager;
 import com.pocket.rpg.editor.ui.EditorMenuBar;
 import com.pocket.rpg.editor.ui.SceneViewport;
 import com.pocket.rpg.editor.ui.StatusBar;
+import com.pocket.rpg.resources.AssetManager;
+import com.pocket.rpg.serialization.Serializer;
 import imgui.ImGui;
 import imgui.flag.ImGuiDockNodeFlags;
+import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiWindowFlags;
 
@@ -22,39 +34,46 @@ import static org.lwjgl.opengl.GL33.glClearColor;
 /**
  * Main application class for the PocketRPG Scene Editor.
  * <p>
- * Phase 1 Implementation:
- * - Fullscreen window with ImGui integration
- * - Free camera with pan/zoom controls
- * - File menu (New/Open/Save/Exit) with NFD dialogs
- * - Scene viewport with grid overlay
- * - Status bar
- * <p>
- * Entry point: {@link #main(String[])}
+ * Phase 3a Implementation:
+ * - Layer management (add/delete/rename/reorder)
+ * - Layer visibility modes (All/Selected/Dimmed)
+ * - Tool system (Brush, Eraser)
+ * - Tileset palette for tile selection
+ * - Tile painting on active layer
  */
 public class EditorApplication {
 
     // Core systems
     private EditorConfig config;
+    private RenderingConfig renderingConfig;
     private EditorWindow window;
     private ImGuiLayer imGuiLayer;
 
     // Camera
     private EditorCamera camera;
 
-    // Current scene
+    // Scene and rendering
     private EditorScene currentScene;
+    private EditorSceneRenderer sceneRenderer;
+
+    // Tools
+    private ToolManager toolManager;
+    private TileBrushTool brushTool;
+    private TileEraserTool eraserTool;
 
     // UI Components
     private EditorMenuBar menuBar;
     private SceneViewport sceneViewport;
     private StatusBar statusBar;
+    private LayerPanel layerPanel;
+    private TilesetPalettePanel tilesetPalette;
 
     // State
     private boolean running = true;
 
     public static void main(String[] args) {
         System.out.println("===========================================");
-        System.out.println("    PocketRPG Scene Editor - Phase 1");
+        System.out.println("    PocketRPG Scene Editor - Phase 3a");
         System.out.println("===========================================");
 
         EditorApplication app = new EditorApplication();
@@ -75,9 +94,11 @@ public class EditorApplication {
 
     private void init() {
         System.out.println("Initializing Scene Editor...");
-
+        Serializer.init();
         // Load configuration
         config = EditorConfig.createDefault();
+        ConfigLoader.loadAllConfigs();
+        renderingConfig = ConfigLoader.getConfig(ConfigLoader.ConfigType.RENDERING);
 
         // Create window
         window = new EditorWindow(config);
@@ -88,6 +109,9 @@ public class EditorApplication {
         imGuiLayer = new ImGuiLayer();
         imGuiLayer.init(window.getWindowHandle(), true);
 
+        // Initialize AssetManager
+        AssetManager.initialize();
+
         // Create camera
         camera = new EditorCamera(config);
         camera.setViewportSize(window.getWidth(), window.getHeight());
@@ -95,10 +119,37 @@ public class EditorApplication {
         // Create scene
         currentScene = new EditorScene("Untitled");
 
+        // Create viewport and framebuffer
+        sceneViewport = new SceneViewport(camera, config);
+        sceneViewport.init(window.getWidth(), window.getHeight());
+
+        // Create scene renderer
+        EditorFramebuffer framebuffer = sceneViewport.getFramebuffer();
+        sceneRenderer = new EditorSceneRenderer(framebuffer, renderingConfig);
+        sceneRenderer.init();
+
+        // Create tools
+        createTools();
+
         // Create UI components
         createUIComponents();
 
         System.out.println("Scene Editor initialized successfully");
+    }
+
+    private void createTools() {
+        toolManager = new ToolManager();
+
+        // Brush tool
+        brushTool = new TileBrushTool(currentScene);
+        toolManager.registerTool(brushTool);
+
+        // Eraser tool
+        eraserTool = new TileEraserTool(currentScene);
+        toolManager.registerTool(eraserTool);
+
+        // Set viewport's tool manager
+        sceneViewport.setToolManager(toolManager);
     }
 
     private void createUIComponents() {
@@ -111,13 +162,19 @@ public class EditorApplication {
         menuBar.setOnSaveSceneAs(this::saveSceneAs);
         menuBar.setOnExit(this::requestExit);
 
-        // Scene viewport
-        sceneViewport = new SceneViewport(camera, config);
-
         // Status bar
         statusBar = new StatusBar();
         statusBar.setCamera(camera);
         statusBar.setCurrentScene(currentScene);
+
+        // Layer panel
+        layerPanel = new LayerPanel();
+        layerPanel.setScene(currentScene);
+
+        // Tileset palette
+        tilesetPalette = new TilesetPalettePanel();
+        tilesetPalette.setScene(currentScene);
+        tilesetPalette.setBrushTool(brushTool);
     }
 
     private void loop() {
@@ -151,10 +208,16 @@ public class EditorApplication {
     }
 
     private void update() {
-        // Update scene (animations, etc.)
         float deltaTime = ImGui.getIO().getDeltaTime();
+
+        // Update scene
         if (currentScene != null) {
             currentScene.update(deltaTime);
+        }
+
+        // Update tools
+        if (toolManager != null) {
+            toolManager.update(deltaTime);
         }
     }
 
@@ -168,11 +231,17 @@ public class EditorApplication {
         );
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        // Render scene to framebuffer
+        if (sceneRenderer != null && currentScene != null) {
+            sceneRenderer.render(currentScene, camera);
+        }
+
         // Begin ImGui frame
         imGuiLayer.newFrame();
 
         // Process keyboard shortcuts
         menuBar.processShortcuts();
+        processToolShortcuts();
 
         // Setup docking
         setupDocking();
@@ -182,6 +251,41 @@ public class EditorApplication {
 
         // End ImGui frame
         imGuiLayer.render();
+    }
+
+    /**
+     * Process tool switching shortcuts.
+     */
+    private void processToolShortcuts() {
+        if (!sceneViewport.isFocused()) return;
+
+        // Tool shortcuts
+        if (ImGui.isKeyPressed(ImGuiKey.B)) {
+            toolManager.setActiveTool("Brush");
+            statusBar.showMessage("Brush Tool");
+        }
+        if (ImGui.isKeyPressed(ImGuiKey.E)) {
+            toolManager.setActiveTool("Eraser");
+            statusBar.showMessage("Eraser Tool");
+        }
+
+        // Brush size adjustment with [ and ]
+        if (ImGui.isKeyPressed(ImGuiKey.LeftBracket)) {
+            int size = brushTool.getBrushSize();
+            if (size > 1) {
+                brushTool.setBrushSize(size - 1);
+                eraserTool.setEraserSize(size - 1);
+                statusBar.showMessage("Brush Size: " + (size - 1));
+            }
+        }
+        if (ImGui.isKeyPressed(ImGuiKey.RightBracket)) {
+            int size = brushTool.getBrushSize();
+            if (size < 10) {
+                brushTool.setBrushSize(size + 1);
+                eraserTool.setEraserSize(size + 1);
+                statusBar.showMessage("Brush Size: " + (size + 1));
+            }
+        }
     }
 
     private void setupDocking() {
@@ -220,14 +324,81 @@ public class EditorApplication {
         // Scene viewport (central panel)
         sceneViewport.render();
 
-        // Placeholder panels for future phases
+        // Tool overlays (rendered after scene, uses ImGui draw lists)
+        sceneViewport.renderToolOverlay();
+
+        // Layer panel
+        layerPanel.render();
+
+        // Tileset palette
+        tilesetPalette.render();
+
+        // Tool settings panel
+        renderToolPanel();
+
+        // Placeholder panels
         renderPlaceholderPanels();
 
         // Status bar
         statusBar.render(window.getHeight());
+    }
 
-        // Demo window for testing (can be removed)
-        // ImGui.showDemoWindow();
+    /**
+     * Renders the tool settings panel.
+     */
+    private void renderToolPanel() {
+        if (ImGui.begin("Tools")) {
+            // Tool buttons
+            for (var tool : toolManager.getTools()) {
+                boolean isActive = toolManager.getActiveTool() == tool;
+
+                if (isActive) {
+                    ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, 0.3f, 0.6f, 1.0f, 1.0f);
+                }
+
+                String label = tool.getName();
+                String shortcut = tool.getShortcutKey();
+                if (shortcut != null) {
+                    label += " (" + shortcut + ")";
+                }
+
+                if (ImGui.button(label, 100, 0)) {
+                    toolManager.setActiveTool(tool);
+                }
+
+                if (isActive) {
+                    ImGui.popStyleColor();
+                }
+            }
+
+            ImGui.separator();
+
+            // Tool-specific settings
+            if (toolManager.getActiveTool() == brushTool) {
+                ImGui.text("Brush Settings");
+
+                int[] size = {brushTool.getBrushSize()};
+                if (ImGui.sliderInt("Size", size, 1, 10)) {
+                    brushTool.setBrushSize(size[0]);
+                }
+
+                ImGui.text("Selected Tile: " + brushTool.getSelectedTileIndex());
+            } else if (toolManager.getActiveTool() == eraserTool) {
+                ImGui.text("Eraser Settings");
+
+                int[] size = {eraserTool.getEraserSize()};
+                if (ImGui.sliderInt("Size", size, 1, 10)) {
+                    eraserTool.setEraserSize(size[0]);
+                }
+            }
+
+            ImGui.separator();
+            ImGui.textDisabled("Shortcuts:");
+            ImGui.textDisabled("[/] - Brush size");
+            ImGui.textDisabled("B - Brush tool");
+            ImGui.textDisabled("E - Eraser tool");
+        }
+        ImGui.end();
     }
 
     private void renderPlaceholderPanels() {
@@ -235,11 +406,11 @@ public class EditorApplication {
         if (ImGui.begin("Hierarchy")) {
             ImGui.text("Scene Hierarchy");
             ImGui.separator();
-            ImGui.textDisabled("(Coming in Phase 2)");
+            ImGui.textDisabled("(Coming in Phase 5)");
 
             if (currentScene != null) {
                 ImGui.text("Scene: " + currentScene.getName());
-                ImGui.text("Objects: " + currentScene.getObjectCount());
+                ImGui.text("Layers: " + currentScene.getLayerCount());
             }
         }
         ImGui.end();
@@ -250,26 +421,6 @@ public class EditorApplication {
             ImGui.separator();
             ImGui.textDisabled("(Coming in Phase 5)");
             ImGui.textDisabled("Select an object to inspect");
-        }
-        ImGui.end();
-
-        // Tileset panel (placeholder)
-        if (ImGui.begin("Tileset Palette")) {
-            ImGui.text("Tileset Palette");
-            ImGui.separator();
-            ImGui.textDisabled("(Coming in Phase 3)");
-            ImGui.textDisabled("Load a tileset to begin painting");
-        }
-        ImGui.end();
-
-        // Layers panel (placeholder)
-        if (ImGui.begin("Layers")) {
-            ImGui.text("Layers");
-            ImGui.separator();
-            ImGui.textDisabled("(Coming in Phase 3)");
-            ImGui.text("Ground Layer");
-            ImGui.text("Objects Layer");
-            ImGui.text("Collision Layer");
         }
         ImGui.end();
     }
@@ -286,10 +437,11 @@ public class EditorApplication {
         }
 
         currentScene = new EditorScene("Untitled");
-        menuBar.setCurrentScene(currentScene);
-        statusBar.setCurrentScene(currentScene);
-        camera.reset();
 
+        // Update references
+        updateSceneReferences();
+
+        camera.reset();
         statusBar.showMessage("New scene created");
     }
 
@@ -314,10 +466,10 @@ public class EditorApplication {
         }
         currentScene.setName(fileName);
 
-        menuBar.setCurrentScene(currentScene);
-        statusBar.setCurrentScene(currentScene);
-        camera.reset();
+        // Update references
+        updateSceneReferences();
 
+        camera.reset();
         statusBar.showMessage("Opened: " + fileName);
     }
 
@@ -328,7 +480,7 @@ public class EditorApplication {
 
         System.out.println("Saving scene: " + currentScene.getFilePath());
 
-        // TODO: Implement scene saving in Phase 2
+        // TODO: Implement scene saving with SceneSerializer
 
         currentScene.clearDirty();
         statusBar.showMessage("Saved: " + currentScene.getName());
@@ -351,11 +503,32 @@ public class EditorApplication {
         }
         currentScene.setName(fileName);
 
-        // TODO: Implement scene saving in Phase 2
+        // TODO: Implement scene saving with SceneSerializer
 
         currentScene.clearDirty();
         menuBar.setCurrentScene(currentScene);
         statusBar.showMessage("Saved: " + fileName);
+    }
+
+    /**
+     * Updates all components that reference the current scene.
+     */
+    private void updateSceneReferences() {
+        menuBar.setCurrentScene(currentScene);
+        statusBar.setCurrentScene(currentScene);
+        layerPanel.setScene(currentScene);
+        tilesetPalette.setScene(currentScene);
+
+        // Recreate tools with new scene
+        brushTool = new TileBrushTool(currentScene);
+        eraserTool = new TileEraserTool(currentScene);
+
+        toolManager = new ToolManager();
+        toolManager.registerTool(brushTool);
+        toolManager.registerTool(eraserTool);
+
+        sceneViewport.setToolManager(toolManager);
+        tilesetPalette.setBrushTool(brushTool);
     }
 
     private void requestExit() {
@@ -368,6 +541,10 @@ public class EditorApplication {
 
     private void onWindowResize() {
         camera.setViewportSize(window.getWidth(), window.getHeight());
+
+        if (sceneRenderer != null) {
+            sceneRenderer.onResize(window.getWidth(), window.getHeight());
+        }
     }
 
     // ========================================================================
@@ -377,11 +554,20 @@ public class EditorApplication {
     private void destroy() {
         System.out.println("Shutting down Scene Editor...");
 
+        if (sceneRenderer != null) {
+            sceneRenderer.destroy();
+        }
+
+        if (sceneViewport != null) {
+            sceneViewport.destroy();
+        }
+
         if (currentScene != null) {
             currentScene.destroy();
         }
 
         FileDialogs.cleanup();
+        AssetManager.destroy();
 
         if (imGuiLayer != null) {
             imGuiLayer.destroy();

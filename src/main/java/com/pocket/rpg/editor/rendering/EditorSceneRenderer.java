@@ -1,12 +1,11 @@
 package com.pocket.rpg.editor.rendering;
 
-import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.components.TilemapRenderer;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.editor.camera.EditorCamera;
-import com.pocket.rpg.rendering.Renderable;
+import com.pocket.rpg.editor.scene.EditorScene;
+import com.pocket.rpg.editor.scene.TilemapLayer;
 import com.pocket.rpg.rendering.renderers.BatchRenderer;
-import com.pocket.rpg.scenes.Scene;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
 
@@ -17,17 +16,13 @@ import java.util.List;
 import static org.lwjgl.opengl.GL33.*;
 
 /**
- * Renders scene content to the editor framebuffer.
+ * Renders EditorScene content to the editor framebuffer.
  * 
  * Handles:
- * - Rendering a live Scene to the framebuffer
- * - Sorting renderables by zIndex
- * - Grid overlay rendering (delegated to SceneViewport)
- * 
- * Uses the existing BatchRenderer for actual sprite/tilemap rendering.
- * 
- * Note: The editor maintains a live Scene instance for rendering purposes.
- * Edits are made to SceneData (source of truth) and synced to the live Scene.
+ * - Rendering tilemap layers with visibility mode support
+ * - Layer opacity based on visibility mode (All/Selected/Dimmed)
+ * - Sprite rendering for entities
+ * - Frustum culling for tilemaps
  */
 public class EditorSceneRenderer {
     
@@ -63,12 +58,12 @@ public class EditorSceneRenderer {
     }
 
     /**
-     * Renders the live scene to the framebuffer.
+     * Renders the editor scene to the framebuffer.
      * 
-     * @param scene Live Scene instance to render (can be null for empty view)
+     * @param scene EditorScene to render
      * @param camera Editor camera for view/projection matrices
      */
-    public void render(Scene scene, EditorCamera camera) {
+    public void render(EditorScene scene, EditorCamera camera) {
         if (!initialized) {
             init();
         }
@@ -99,24 +94,30 @@ public class EditorSceneRenderer {
     }
 
     /**
-     * Renders scene GameObjects using the live Scene's renderable cache.
+     * Renders scene layers.
      */
-    private void renderSceneContent(Scene scene, Matrix4f projection, Matrix4f view, EditorCamera camera) {
-        // Get renderables from scene (already sorted by zIndex)
-        List<Renderable> renderables = scene.getRenderers();
+    private void renderSceneContent(EditorScene scene, Matrix4f projection, Matrix4f view, EditorCamera camera) {
+        // Get layers sorted by zIndex
+        List<TilemapLayer> layers = scene.getLayers();
+        layers.sort(Comparator.comparingInt(TilemapLayer::getZIndex));
         
         // Begin batch with camera matrices
         batchRenderer.beginWithMatrices(projection, view, null);
         
-        // Render each renderable
-        for (Renderable renderable : renderables) {
-            if (!renderable.isRenderVisible()) continue;
+        // Render each layer
+        for (int i = 0; i < layers.size(); i++) {
+            TilemapLayer layer = layers.get(i);
             
-            if (renderable instanceof SpriteRenderer spriteRenderer) {
-                batchRenderer.drawSpriteRenderer(spriteRenderer);
-            } else if (renderable instanceof TilemapRenderer tilemapRenderer) {
-                renderTilemap(tilemapRenderer, camera);
+            // Check visibility
+            if (!scene.isLayerVisible(i)) {
+                continue;
             }
+            
+            // Get opacity based on visibility mode
+            float opacity = scene.getLayerOpacity(i);
+            
+            // Render tilemap
+            renderTilemap(layer.getTilemap(), camera, opacity);
         }
         
         // End batch
@@ -125,8 +126,14 @@ public class EditorSceneRenderer {
 
     /**
      * Renders a tilemap with frustum culling.
+     * 
+     * @param tilemap TilemapRenderer to render
+     * @param camera Editor camera
+     * @param opacity Layer opacity (0.0 - 1.0)
      */
-    private void renderTilemap(TilemapRenderer tilemap, EditorCamera camera) {
+    private void renderTilemap(TilemapRenderer tilemap, EditorCamera camera, float opacity) {
+        if (tilemap == null) return;
+        
         // Get visible bounds
         float[] bounds = camera.getWorldBounds();
         float left = bounds[0];
@@ -155,6 +162,8 @@ public class EditorSceneRenderer {
         }
         
         // Render visible chunks
+        // TODO: Apply opacity when rendering (requires BatchRenderer modification)
+        // For now, render at full opacity - opacity support will be added in Phase 3b
         if (!visibleChunks.isEmpty()) {
             batchRenderer.drawTilemap(tilemap, visibleChunks);
         }

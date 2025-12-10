@@ -62,7 +62,6 @@ public class GameEngine {
     public void initialize() {
         System.out.println(LogUtils.buildBox("Initializing Game Engine"));
 
-        initAssetLoader();
         initSceneManager();
         initTransitionSystem();
         initUISystem();
@@ -181,15 +180,5 @@ public class GameEngine {
         sceneManager.registerScene(new DemoScene());
 //        sceneManager.loadScene("ExampleScene");
         sceneManager.loadScene("Demo");
-    }
-
-    private static void initAssetLoader() {
-        AssetManager.initialize();
-
-        AssetManager manager = AssetManager.getInstance();
-        manager.registerLoader("texture", new TextureLoader());
-        manager.registerLoader("shader", new ShaderLoader());
-        manager.registerLoader("sprite", new SpriteLoader());
-        manager.registerLoader("spritesheet", new SpriteSheetLoader());
     }
 }

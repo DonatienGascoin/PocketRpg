@@ -1,117 +1,113 @@
 package com.pocket.rpg.editor.rendering;
 
+import lombok.Getter;
+
 import static org.lwjgl.opengl.GL33.*;
 
 /**
- * OpenGL framebuffer for rendering the scene to a texture.
+ * OpenGL framebuffer for rendering the scene in the editor.
  * 
- * The scene is rendered to this framebuffer, then the resulting texture
- * is displayed in the ImGui viewport panel.
- * 
- * Supports dynamic resizing when the viewport panel changes size.
+ * The scene is rendered to this framebuffer, then displayed
+ * as an ImGui image in the viewport panel.
  */
 public class EditorFramebuffer {
-    
-    private int fboId;
-    private int textureId;
-    private int depthRboId;
-    
+
+    @Getter
     private int width;
+    
+    @Getter
     private int height;
     
+    @Getter
+    private int fboId;
+    
+    @Getter
+    private int textureId;
+    
+    private int rboId; // Depth/stencil renderbuffer
+    
+    @Getter
     private boolean initialized = false;
 
     /**
-     * Creates a framebuffer with the specified dimensions.
-     * 
-     * @param width Initial width in pixels
-     * @param height Initial height in pixels
+     * Creates a framebuffer with initial dimensions.
      */
     public EditorFramebuffer(int width, int height) {
-        this.width = width;
-        this.height = height;
+        this.width = Math.max(1, width);
+        this.height = Math.max(1, height);
     }
 
     /**
-     * Initializes the OpenGL framebuffer resources.
-     * Must be called on the OpenGL thread after context creation.
+     * Initializes OpenGL resources.
      */
     public void init() {
-        if (initialized) {
-            return;
-        }
-
-        // Create framebuffer object
+        if (initialized) return;
+        
+        // Create framebuffer
         fboId = glGenFramebuffers();
         glBindFramebuffer(GL_FRAMEBUFFER, fboId);
-
-        // Create color texture attachment
+        
+        // Create color texture
         textureId = glGenTextures();
         glBindTexture(GL_TEXTURE_2D, textureId);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, 
+            GL_RGBA, GL_UNSIGNED_BYTE, (java.nio.ByteBuffer) null);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureId, 0);
-
-        // Create depth/stencil renderbuffer attachment
-        depthRboId = glGenRenderbuffers();
-        glBindRenderbuffer(GL_RENDERBUFFER, depthRboId);
+        
+        // Create depth/stencil renderbuffer
+        rboId = glGenRenderbuffers();
+        glBindRenderbuffer(GL_RENDERBUFFER, rboId);
         glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
-        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, depthRboId);
-
-        // Check framebuffer completeness
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, 
+            GL_RENDERBUFFER, rboId);
+        
+        // Check completeness
         if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
             throw new RuntimeException("Framebuffer is not complete!");
         }
-
+        
         // Unbind
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glBindTexture(GL_TEXTURE_2D, 0);
         glBindRenderbuffer(GL_RENDERBUFFER, 0);
-
+        
         initialized = true;
         System.out.println("EditorFramebuffer initialized: " + width + "x" + height);
     }
 
     /**
-     * Resizes the framebuffer to new dimensions.
-     * Recreates texture and renderbuffer attachments.
-     * 
-     * @param newWidth New width in pixels
-     * @param newHeight New height in pixels
+     * Resizes the framebuffer.
      */
     public void resize(int newWidth, int newHeight) {
-        if (newWidth <= 0 || newHeight <= 0) {
+        if (newWidth <= 0 || newHeight <= 0) return;
+        if (newWidth == width && newHeight == height) return;
+        
+        this.width = newWidth;
+        this.height = newHeight;
+        
+        if (!initialized) {
+            init();
             return;
         }
         
-        if (newWidth == this.width && newHeight == this.height) {
-            return;
-        }
-
-        this.width = newWidth;
-        this.height = newHeight;
-
-        if (!initialized) {
-            return;
-        }
-
-        // Resize color texture
+        // Resize texture
         glBindTexture(GL_TEXTURE_2D, textureId);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0,
+            GL_RGBA, GL_UNSIGNED_BYTE, (java.nio.ByteBuffer) null);
         glBindTexture(GL_TEXTURE_2D, 0);
-
-        // Resize depth/stencil renderbuffer
-        glBindRenderbuffer(GL_RENDERBUFFER, depthRboId);
+        
+        // Resize renderbuffer
+        glBindRenderbuffer(GL_RENDERBUFFER, rboId);
         glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
         glBindRenderbuffer(GL_RENDERBUFFER, 0);
     }
 
     /**
-     * Binds this framebuffer for rendering.
-     * After calling this, all draw calls render to the framebuffer texture.
+     * Binds the framebuffer for rendering.
      */
     public void bind() {
         if (!initialized) {
@@ -122,7 +118,7 @@ public class EditorFramebuffer {
     }
 
     /**
-     * Unbinds this framebuffer, restoring the default framebuffer.
+     * Unbinds the framebuffer (returns to default).
      */
     public void unbind() {
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -130,12 +126,6 @@ public class EditorFramebuffer {
 
     /**
      * Clears the framebuffer with the specified color.
-     * Call this after binding and before rendering.
-     * 
-     * @param r Red component (0-1)
-     * @param g Green component (0-1)
-     * @param b Blue component (0-1)
-     * @param a Alpha component (0-1)
      */
     public void clear(float r, float g, float b, float a) {
         glClearColor(r, g, b, a);
@@ -143,58 +133,20 @@ public class EditorFramebuffer {
     }
 
     /**
-     * Returns the texture ID for rendering in ImGui.
-     * Use this with ImGui.image() to display the framebuffer contents.
-     */
-    public int getTextureId() {
-        return textureId;
-    }
-
-    /**
-     * Returns the framebuffer width.
-     */
-    public int getWidth() {
-        return width;
-    }
-
-    /**
-     * Returns the framebuffer height.
-     */
-    public int getHeight() {
-        return height;
-    }
-
-    /**
-     * Returns the aspect ratio (width / height).
-     */
-    public float getAspectRatio() {
-        return (float) width / height;
-    }
-
-    /**
-     * Checks if the framebuffer is initialized.
-     */
-    public boolean isInitialized() {
-        return initialized;
-    }
-
-    /**
-     * Destroys the framebuffer and releases OpenGL resources.
+     * Destroys OpenGL resources.
      */
     public void destroy() {
-        if (!initialized) {
-            return;
-        }
-
+        if (!initialized) return;
+        
         glDeleteFramebuffers(fboId);
         glDeleteTextures(textureId);
-        glDeleteRenderbuffers(depthRboId);
-
+        glDeleteRenderbuffers(rboId);
+        
         fboId = 0;
         textureId = 0;
-        depthRboId = 0;
+        rboId = 0;
         initialized = false;
-
+        
         System.out.println("EditorFramebuffer destroyed");
     }
 }

@@ -1,10 +1,10 @@
 package com.pocket.rpg.editor.scene;
 
-import com.pocket.rpg.core.Camera;
 import com.pocket.rpg.core.GameObject;
-import com.pocket.rpg.core.ViewportConfig;
-import com.pocket.rpg.editor.camera.EditorCamera;
 import com.pocket.rpg.rendering.Renderable;
+import com.pocket.rpg.rendering.Sprite;
+import com.pocket.rpg.rendering.SpriteSheet;
+import com.pocket.rpg.resources.AssetManager;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -14,10 +14,18 @@ import java.util.List;
 
 /**
  * Represents a scene being edited in the Scene Editor.
- * Contains GameObjects, tilemaps, collision data, and entity placements.
- * 
- * This is a simplified scene representation for editing purposes.
- * The game loads scenes via SceneLoader which creates proper runtime Scenes.
+ * <p>
+ * Manages:
+ * - Tilemap layers (TilemapLayer wrappers)
+ * - Layer visibility mode
+ * - Active layer selection
+ * - Conversion to/from SceneData for serialization
+ * - Live Scene for rendering
+ * <p>
+ * Architecture:
+ * - EditorScene holds SceneData (source of truth for saving)
+ * - EditorScene maintains a live Scene for rendering
+ * - Edits update both SceneData and live Scene
  */
 public class EditorScene {
 
@@ -32,9 +40,22 @@ public class EditorScene {
     @Getter
     private boolean dirty = false;
 
-    // Scene content
-    private final List<GameObject> gameObjects = new ArrayList<>();
-    private final List<Renderable> renderables = new ArrayList<>();
+    // Layer management
+    private final List<TilemapLayer> layers = new ArrayList<>();
+
+    @Getter
+    private int activeLayerIndex = -1;
+
+    @Getter
+    @Setter
+    private LayerVisibilityMode visibilityMode = LayerVisibilityMode.ALL;
+
+    /**
+     * Opacity for dimmed layers (0.0 - 1.0)
+     */
+    @Getter
+    @Setter
+    private float dimmedOpacity = 0.3f;
 
     // Editor state
     @Getter
@@ -73,93 +94,238 @@ public class EditorScene {
     }
 
     // ========================================================================
-    // GAME OBJECTS
+    // LAYER MANAGEMENT
     // ========================================================================
 
     /**
-     * Adds a GameObject to the scene.
+     * Adds a new tilemap layer.
+     *
+     * @param layerName Display name for the layer
+     * @return The created layer
      */
-    public void addGameObject(GameObject gameObject) {
-        if (gameObject == null) return;
-        
-        gameObjects.add(gameObject);
-        gameObject.setScene(null); // Editor scenes don't have a runtime Scene
-        
-        // Check if it's a renderable
-        for (var component : gameObject.getAllComponents()) {
-            if (component instanceof Renderable renderable) {
-                renderables.add(renderable);
-            }
+    public TilemapLayer addLayer(String layerName) {
+        // Calculate zIndex (each new layer goes on top)
+        int zIndex = layers.isEmpty() ? 0 : layers.get(layers.size() - 1).getZIndex() + 1;
+
+        TilemapLayer layer = new TilemapLayer(layerName, zIndex);
+        layers.add(layer);
+
+        // Auto-select if first layer
+        if (activeLayerIndex < 0) {
+            activeLayerIndex = 0;
         }
-        
-        sortRenderables();
+
+        markDirty();
+        return layer;
+    }
+
+    /**
+     * Adds a layer with a specific spritesheet.
+     */
+    public TilemapLayer addLayer(String layerName, String spritesheetPath, int spriteWidth, int spriteHeight) {
+        TilemapLayer layer = addLayer(layerName);
+
+        // Load sprite and create spritesheet
+        var resource = AssetManager.getInstance().<Sprite>load(spritesheetPath);
+        Sprite sprite = resource.get();
+
+        if (sprite == null) {
+            System.err.println("Failed to load sprite: " + spritesheetPath);
+            return layer;
+        }
+
+        SpriteSheet sheet = new SpriteSheet(sprite.getTexture(), spriteWidth, spriteHeight);
+        layer.setSpriteSheet(sheet, spritesheetPath, spriteWidth, spriteHeight);
+
+        return layer;
+    }
+
+    /**
+     * Removes a layer by index.
+     */
+    public void removeLayer(int index) {
+        if (index < 0 || index >= layers.size()) return;
+
+        TilemapLayer layer = layers.remove(index);
+        layer.getGameObject().destroy();
+
+        // Adjust active layer index
+        if (activeLayerIndex >= layers.size()) {
+            activeLayerIndex = layers.size() - 1;
+        }
+
         markDirty();
     }
 
     /**
-     * Removes a GameObject from the scene.
+     * Gets a layer by index.
      */
-    public void removeGameObject(GameObject gameObject) {
-        if (gameObject == null) return;
-        
-        gameObjects.remove(gameObject);
-        
-        // Remove associated renderables
-        for (var component : gameObject.getAllComponents()) {
-            if (component instanceof Renderable renderable) {
-                renderables.remove(renderable);
-            }
+    public TilemapLayer getLayer(int index) {
+        if (index < 0 || index >= layers.size()) return null;
+        return layers.get(index);
+    }
+
+    /**
+     * Gets the currently active layer.
+     */
+    public TilemapLayer getActiveLayer() {
+        if (activeLayerIndex < 0 || activeLayerIndex >= layers.size()) return null;
+        return layers.get(activeLayerIndex);
+    }
+
+    /**
+     * Sets the active layer by index.
+     */
+    public void setActiveLayer(int index) {
+        if (index >= 0 && index < layers.size()) {
+            activeLayerIndex = index;
         }
-        
-        if (selectedObject == gameObject) {
-            selectedObject = null;
+    }
+
+    /**
+     * Gets all layers (copy).
+     */
+    public List<TilemapLayer> getLayers() {
+        return new ArrayList<>(layers);
+    }
+
+    /**
+     * Gets the number of layers.
+     */
+    public int getLayerCount() {
+        return layers.size();
+    }
+
+    /**
+     * Moves a layer up in the list (increases zIndex).
+     */
+    public void moveLayerUp(int index) {
+        if (index < 0 || index >= layers.size() - 1) return;
+
+        swapLayers(index, index + 1);
+    }
+
+    /**
+     * Moves a layer down in the list (decreases zIndex).
+     */
+    public void moveLayerDown(int index) {
+        if (index <= 0 || index >= layers.size()) return;
+
+        swapLayers(index, index - 1);
+    }
+
+    /**
+     * Swaps two layers and their zIndex values.
+     */
+    public void swapLayers(int indexA, int indexB) {
+        if (indexA < 0 || indexA >= layers.size()) return;
+        if (indexB < 0 || indexB >= layers.size()) return;
+        if (indexA == indexB) return;
+
+        TilemapLayer layerA = layers.get(indexA);
+        TilemapLayer layerB = layers.get(indexB);
+
+        // Swap zIndex
+        int tempZ = layerA.getZIndex();
+        layerA.setZIndex(layerB.getZIndex());
+        layerB.setZIndex(tempZ);
+
+        // Swap in list
+        layers.set(indexA, layerB);
+        layers.set(indexB, layerA);
+
+        // Update active layer index if needed
+        if (activeLayerIndex == indexA) {
+            activeLayerIndex = indexB;
+        } else if (activeLayerIndex == indexB) {
+            activeLayerIndex = indexA;
         }
-        
+
         markDirty();
     }
 
     /**
-     * Gets all GameObjects in the scene.
+     * Renames a layer.
      */
-    public List<GameObject> getGameObjects() {
-        return new ArrayList<>(gameObjects);
-    }
-
-    /**
-     * Finds a GameObject by name.
-     */
-    public GameObject findGameObject(String name) {
-        for (GameObject go : gameObjects) {
-            if (go.getName().equals(name)) {
-                return go;
-            }
+    public void renameLayer(int index, String newName) {
+        TilemapLayer layer = getLayer(index);
+        if (layer != null) {
+            layer.setName(newName);
+            layer.getGameObject().setName(newName);
+            markDirty();
         }
-        return null;
     }
 
     // ========================================================================
-    // RENDERING
+    // LAYER VISIBILITY
     // ========================================================================
 
     /**
-     * Gets all renderables sorted by zIndex.
+     * Checks if a layer should be rendered based on visibility mode.
+     */
+    public boolean isLayerVisible(int index) {
+        TilemapLayer layer = getLayer(index);
+        if (layer == null || !layer.isVisible()) {
+            return false;
+        }
+
+        switch (visibilityMode) {
+            case ALL:
+                return true;
+            case SELECTED_ONLY:
+                return index == activeLayerIndex;
+            case SELECTED_DIMMED:
+                return true; // All visible, but non-active are dimmed
+            default:
+                return true;
+        }
+    }
+
+    /**
+     * Gets the opacity multiplier for a layer based on visibility mode.
+     */
+    public float getLayerOpacity(int index) {
+        if (!isLayerVisible(index)) {
+            return 0f;
+        }
+
+        if (visibilityMode == LayerVisibilityMode.SELECTED_DIMMED && index != activeLayerIndex) {
+            return dimmedOpacity;
+        }
+
+        return 1.0f;
+    }
+
+    // ========================================================================
+    // RENDERING SUPPORT
+    // ========================================================================
+
+    /**
+     * Gets all renderables sorted by zIndex, respecting visibility mode.
      */
     public List<Renderable> getRenderables() {
+        List<Renderable> renderables = new ArrayList<>();
+
+        for (int i = 0; i < layers.size(); i++) {
+            if (isLayerVisible(i)) {
+                TilemapLayer layer = layers.get(i);
+                renderables.add(layer.getTilemap());
+            }
+        }
+
+        renderables.sort(Comparator.comparingInt(Renderable::getZIndex));
         return renderables;
     }
 
     /**
-     * Sorts renderables by zIndex.
+     * Gets all GameObjects from layers.
      */
-    private void sortRenderables() {
-        renderables.sort(Comparator.comparingInt(Renderable::getZIndex));
-    }
-
-    /**
-     * Notifies that a renderable's zIndex changed.
-     */
-    public void onZIndexChanged() {
-        sortRenderables();
+    public List<GameObject> getGameObjects() {
+        List<GameObject> objects = new ArrayList<>();
+        for (TilemapLayer layer : layers) {
+            objects.add(layer.getGameObject());
+        }
+        return objects;
     }
 
     // ========================================================================
@@ -170,9 +336,9 @@ public class EditorScene {
      * Updates the scene (for animations, etc.).
      */
     public void update(float deltaTime) {
-        for (GameObject go : gameObjects) {
-            if (go.isEnabled()) {
-                go.update(deltaTime);
+        for (TilemapLayer layer : layers) {
+            if (layer.isVisible() && layer.getGameObject().isEnabled()) {
+                layer.getGameObject().update(deltaTime);
             }
         }
     }
@@ -181,13 +347,11 @@ public class EditorScene {
      * Clears all scene content.
      */
     public void clear() {
-        // Destroy all game objects
-        for (GameObject go : new ArrayList<>(gameObjects)) {
-            go.destroy();
+        for (TilemapLayer layer : new ArrayList<>(layers)) {
+            layer.getGameObject().destroy();
         }
-        
-        gameObjects.clear();
-        renderables.clear();
+        layers.clear();
+        activeLayerIndex = -1;
         selectedObject = null;
         dirty = false;
     }
@@ -209,7 +373,6 @@ public class EditorScene {
     public String getDisplayName() {
         String displayName = name;
         if (filePath != null) {
-            // Extract filename from path
             int lastSep = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'));
             if (lastSep >= 0) {
                 displayName = filePath.substring(lastSep + 1);
@@ -228,15 +391,15 @@ public class EditorScene {
     }
 
     /**
-     * Gets the number of GameObjects.
+     * Gets the number of objects (layers).
      */
     public int getObjectCount() {
-        return gameObjects.size();
+        return layers.size();
     }
 
     @Override
     public String toString() {
-        return String.format("EditorScene[name=%s, objects=%d, dirty=%b]",
-            name, gameObjects.size(), dirty);
+        return String.format("EditorScene[name=%s, layers=%d, activeLayer=%d, dirty=%b]",
+                name, layers.size(), activeLayerIndex, dirty);
     }
 }

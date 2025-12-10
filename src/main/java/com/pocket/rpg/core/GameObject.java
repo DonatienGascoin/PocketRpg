@@ -230,6 +230,15 @@ public class GameObject {
         return result;
     }
 
+    @SuppressWarnings("unchecked")
+    public <T extends Component> List<T> getComponents() {
+        List<T> result = new ArrayList<>();
+        for (Component component : components) {
+                result.add((T) component);
+        }
+        return result;
+    }
+
     public List<Component> getAllComponents() {
         return new ArrayList<>(components);
     }

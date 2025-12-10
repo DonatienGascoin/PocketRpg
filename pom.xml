@@ -15,7 +15,7 @@
         <lwjgl.version>3.3.6</lwjgl.version>
         <lwjgl.natives>natives-linux</lwjgl.natives>
 
-        <imgui.java.app.version>1.90.0</imgui.java.app.version>
+        <imgui.java.version>1.90.0</imgui.java.version>
 
         <joml.version>1.10.8</joml.version>
 
@@ -141,9 +141,28 @@
 
         <dependency>
             <groupId>io.github.spair</groupId>
-            <artifactId>imgui-java-app</artifactId>
-            <version>${imgui.java.app.version}</version>
+            <artifactId>imgui-java-binding</artifactId>
+            <version>${imgui.java.version}</version>
         </dependency>
+        <dependency>
+            <groupId>io.github.spair</groupId>
+            <artifactId>imgui-java-lwjgl3</artifactId>
+            <version>${imgui.java.version}</version>
+        </dependency>
+        <!-- Native libraries - add for each platform you support -->
+        <dependency>
+            <groupId>io.github.spair</groupId>
+            <artifactId>imgui-java-natives-linux</artifactId>
+            <version>${imgui.java.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.github.spair</groupId>
+            <artifactId>imgui-java-natives-windows</artifactId>
+            <version>${imgui.java.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+
 
         <dependency>
             <groupId>org.jbox2d</groupId>

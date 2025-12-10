@@ -1,19 +1,22 @@
 package com.pocket.rpg.rendering;
 
+import lombok.Getter;
 import org.lwjgl.stb.STBImage;
-import org.lwjgl.system.MemoryStack;
 
 import java.nio.ByteBuffer;
-import java.nio.IntBuffer;
 
 import static org.lwjgl.opengl.GL33.*;
-import static org.lwjgl.stb.STBImage.*;
+import static org.lwjgl.stb.STBImage.stbi_failure_reason;
+import static org.lwjgl.stb.STBImage.stbi_image_free;
+import static org.lwjgl.stb.STBImage.stbi_load;
 
 /**
  * Represents an OpenGL texture loaded from an image file.
  * Supports common image formats (PNG, JPG, BMP, etc.) via STB Image.
  */
 public class Texture {
+    @Getter
+    private final String filePath;
     private final int textureId;
     private final int width;
     private final int height;
@@ -26,6 +29,7 @@ public class Texture {
      * @throws RuntimeException if the image fails to load
      */
     public Texture(String filepath) {
+        this.filePath = filepath;
         // Flip image vertically (OpenGL expects bottom-left origin)
         STBImage.stbi_set_flip_vertically_on_load(true);
 

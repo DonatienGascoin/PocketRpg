@@ -8,12 +8,13 @@ import imgui.ImVec2;
 import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiWindowFlags;
 import org.joml.Vector2f;
+import org.joml.Vector3f;
 
 /**
  * Scene viewport panel that displays the rendered scene.
  *
- * Phase 2 update: Now renders the scene to a framebuffer and displays
- * the resulting texture in ImGui. Grid overlay is drawn using ImGui draw lists.
+ * Renders the scene to a framebuffer and displays the resulting texture in ImGui.
+ * Grid overlay is drawn using ImGui draw lists.
  *
  * Controls:
  * - WASD/Arrow keys: Pan camera
@@ -37,7 +38,6 @@ public class SceneViewport {
 
     // Mouse state for dragging
     private boolean isDragging = false;
-    private float lastMouseX, lastMouseY;
 
     // Grid settings
     private boolean showGrid = true;
@@ -139,12 +139,17 @@ public class SceneViewport {
         var drawList = ImGui.getWindowDrawList();
 
         // Calculate visible bounds in world space
-        Vector2f worldMin = camera.screenToWorld(0, viewportHeight);
-        Vector2f worldMax = camera.screenToWorld(viewportWidth, 0);
+        Vector3f worldMinVec = camera.screenToWorld(0, viewportHeight);
+        Vector3f worldMaxVec = camera.screenToWorld(viewportWidth, 0);
+        
+        float worldMinX = worldMinVec.x;
+        float worldMinY = worldMinVec.y;
+        float worldMaxX = worldMaxVec.x;
+        float worldMaxY = worldMaxVec.y;
 
         // Determine grid spacing based on zoom
         float baseSpacing = 1.0f; // 1 world unit
-        float pixelsPerUnit = viewportWidth / (worldMax.x - worldMin.x);
+        float pixelsPerUnit = viewportWidth / (worldMaxX - worldMinX);
 
         // Adaptive spacing: ensure grid lines are 20-100 pixels apart
         float spacing = baseSpacing;
@@ -158,8 +163,8 @@ public class SceneViewport {
         int majorColor = ImGui.colorConvertFloat4ToU32(0.4f, 0.4f, 0.4f, 0.5f);
 
         // Draw vertical lines
-        float startX = (float) (Math.floor(worldMin.x / spacing) * spacing);
-        for (float worldX = startX; worldX <= worldMax.x; worldX += spacing) {
+        float startX = (float) (Math.floor(worldMinX / spacing) * spacing);
+        for (float worldX = startX; worldX <= worldMaxX; worldX += spacing) {
             Vector2f screenPos = camera.worldToScreen(worldX, 0);
             float screenX = viewportX + screenPos.x;
 
@@ -175,10 +180,10 @@ public class SceneViewport {
         }
 
         // Draw horizontal lines
-        float startY = (float) (Math.floor(worldMin.y / spacing) * spacing);
-        for (float worldY = startY; worldY <= worldMax.y; worldY += spacing) {
+        float startY = (float) (Math.floor(worldMinY / spacing) * spacing);
+        for (float worldY = startY; worldY <= worldMaxY; worldY += spacing) {
             Vector2f screenPos = camera.worldToScreen(0, worldY);
-            float screenY = viewportY + viewportHeight - screenPos.y; // Flip Y
+            float screenY = viewportY + screenPos.y;
 
             boolean isMajor = Math.abs(worldY) < 0.001f ||
                     Math.abs(worldY % (spacing * majorInterval)) < 0.001f;
@@ -194,7 +199,7 @@ public class SceneViewport {
         // Draw origin crosshair
         Vector2f originScreen = camera.worldToScreen(0, 0);
         float originX = viewportX + originScreen.x;
-        float originY = viewportY + viewportHeight - originScreen.y;
+        float originY = viewportY + originScreen.y;
 
         int xAxisColor = ImGui.colorConvertFloat4ToU32(0.8f, 0.2f, 0.2f, 0.8f);
         int yAxisColor = ImGui.colorConvertFloat4ToU32(0.2f, 0.8f, 0.2f, 0.8f);
@@ -224,7 +229,7 @@ public class SceneViewport {
         float localY = mousePos.y - viewportY;
 
         // Convert to world coordinates
-        Vector2f worldPos = camera.screenToWorld(localX, localY);
+        Vector3f worldPos = camera.screenToWorld(localX, localY);
 
         // Calculate tile coordinates
         int tileX = (int) Math.floor(worldPos.x);
@@ -260,19 +265,23 @@ public class SceneViewport {
         float deltaTime = ImGui.getIO().getDeltaTime();
 
         // Keyboard pan (WASD / Arrow keys)
-        float panSpeed = config.getCameraPanSpeed() / camera.getZoom();
-
+        float moveX = 0, moveY = 0;
+        
         if (ImGui.isKeyDown(ImGuiKey.W) || ImGui.isKeyDown(ImGuiKey.UpArrow)) {
-            camera.pan(0, panSpeed * deltaTime);
+            moveY = 1;
         }
         if (ImGui.isKeyDown(ImGuiKey.S) || ImGui.isKeyDown(ImGuiKey.DownArrow)) {
-            camera.pan(0, -panSpeed * deltaTime);
+            moveY = -1;
         }
         if (ImGui.isKeyDown(ImGuiKey.A) || ImGui.isKeyDown(ImGuiKey.LeftArrow)) {
-            camera.pan(-panSpeed * deltaTime, 0);
+            moveX = -1;
         }
         if (ImGui.isKeyDown(ImGuiKey.D) || ImGui.isKeyDown(ImGuiKey.RightArrow)) {
-            camera.pan(panSpeed * deltaTime, 0);
+            moveX = 1;
+        }
+        
+        if (moveX != 0 || moveY != 0) {
+            camera.updateKeyboardPan(moveX, moveY, deltaTime);
         }
 
         // Home key - reset camera
@@ -282,39 +291,27 @@ public class SceneViewport {
 
         // Middle mouse drag to pan
         ImVec2 mousePos = ImGui.getMousePos();
+        float screenX = mousePos.x - viewportX;
+        float screenY = mousePos.y - viewportY;
 
         if (ImGui.isMouseClicked(2)) { // Middle button
             isDragging = true;
-            lastMouseX = mousePos.x;
-            lastMouseY = mousePos.y;
+            camera.startPan(screenX, screenY);
         }
 
         if (ImGui.isMouseReleased(2)) {
             isDragging = false;
+            camera.endPan();
         }
 
         if (isDragging && ImGui.isMouseDown(2)) {
-            float deltaX = mousePos.x - lastMouseX;
-            float deltaY = mousePos.y - lastMouseY;
-
-            // Convert screen delta to world delta
-            float worldDeltaX = -deltaX / (viewportWidth / (camera.getVisibleWidth()));
-            float worldDeltaY = deltaY / (viewportHeight / (camera.getVisibleHeight()));
-
-            camera.pan(worldDeltaX, worldDeltaY);
-
-            lastMouseX = mousePos.x;
-            lastMouseY = mousePos.y;
+            camera.updatePan(screenX, screenY);
         }
 
         // Scroll wheel to zoom
         float scroll = ImGui.getIO().getMouseWheel();
         if (scroll != 0 && isHovered) {
-            // Zoom toward mouse position
-            float localX = mousePos.x - viewportX;
-            float localY = mousePos.y - viewportY;
-
-            camera.zoomToward(scroll * 0.1f, localX, localY);
+            camera.zoomToward(screenX, screenY, scroll * 0.1f);
         }
     }
 

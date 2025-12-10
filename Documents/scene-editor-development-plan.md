@@ -26,73 +26,122 @@ Game: SceneLoader reads .scene files → builds Scene with GameObjects
 
 ---
 
-## Phase 1: Foundation
+## Phase 1: Foundation ✅ COMPLETED
 
-**Goal:** Editor launches, renders a scene, ImGui works.
+**Status:** Implemented on 2025-12-09
 
-### 1.1 ImGui Integration
-- Add ImGui-java to GLFW window context
-- Create `EditorWindow extends AbstractWindow` with ImGui initialization
-- Input routing: ImGui consumes first, then editor tools
-- Leverage existing `imgui-java-app` dependency in pom.xml
+### Implementation Notes
 
-### 1.2 Editor Application Shell
-```java
-public class EditorApplication {
-    private EditorWindow window;
-    private EditorRenderer renderer;      // Reuses BatchRenderer
-    private Camera editorCamera;          // Free-moving camera (WASD + mouse drag)
-    private Scene currentScene;           // Loaded scene (no update loop)
-    
-    public void run() {
-        init();
-        while (!window.shouldClose()) {
-            pollInput();
-            editorUpdate();       // Camera, tools, ImGui
-            render();             // World + ImGui overlay
-            swap();
-        }
-        destroy();
-    }
-}
-```
+**Configuration Decisions Made:**
+- Window mode: Maximized windowed (with decorations/title bar), not true fullscreen
+- Uses `imgui-java-binding` + `imgui-java-lwjgl3` (1.90.0) for full ImGuiKey support
+- Manual ImGui integration with existing GLFW (for full control)
+- ImGuiKey for shortcuts (1.90.0 has full keyboard enum)
 
-### 1.3 Editor Camera
-- WASD movement (not grid-locked)
-- Mouse drag to pan (middle mouse button)
-- Scroll wheel zoom (adjusts orthographicSize)
-- No game logic dependency
-- Reuses existing `Camera` class
-
-### 1.4 Basic File Menu
-- New Scene
-- Open Scene (file dialog via LWJGL NFD - already in dependencies)
-- Save / Save As
-- Recent files list
-
-### 1.5 Files to Create
-
+**Files Created:**
 ```
 src/main/java/com/pocket/rpg/editor/
-├── EditorApplication.java      # Main entry point
-├── EditorWindow.java           # GLFW + ImGui window
-├── EditorCamera.java           # Free camera controls (wraps Camera)
-└── EditorInputHandler.java     # Routes input: ImGui → Tools → Camera
+├── EditorApplication.java      # Main entry point with docking layout
+├── core/
+│   ├── EditorConfig.java       # @Builder configuration
+│   ├── EditorWindow.java       # GLFW window + input state
+│   ├── ImGuiLayer.java         # ImGui initialization and rendering
+│   └── FileDialogs.java        # NFD native file dialogs
+├── camera/
+│   └── EditorCamera.java       # Free camera (pan/zoom)
+├── scene/
+│   └── EditorScene.java        # Scene data model (placeholder)
+└── ui/
+    ├── EditorMenuBar.java      # File/Edit/View/Help menus + shortcuts
+    ├── SceneViewport.java      # Grid overlay, coordinate display
+    └── StatusBar.java          # Tool/message/zoom/FPS display
 ```
 
-**Deliverables:**
-- Editor launches separately from game (`EditorApplication.main()`)
-- Can create empty scene and save to JSON
-- Camera moves freely with WASD/mouse
-- ImGui renders basic menu bar and test window
+**Controls:**
+- Pan: WASD/Arrow keys (speed adjusted by zoom)
+- Pan (drag): Middle mouse button
+- Zoom: Scroll wheel (toward mouse position)
+- Reset: Home key
+- Shortcuts: Ctrl+N (New), Ctrl+O (Open), Ctrl+S (Save), Ctrl+Shift+S (Save As)
+
+**What Works:**
+- ✅ Maximized windowed mode with decorations (like IntelliJ)
+- ✅ ImGui docking layout with central viewport
+- ✅ Free camera with smooth pan/zoom
+- ✅ Native file dialogs (NFD)
+- ✅ Grid overlay in viewport
+- ✅ Status bar with FPS
+- ✅ Unsaved changes dialog
+
+**What's Stubbed (for Phase 2):**
+- Save/Load only shows dialogs, no actual serialization
+- Hierarchy/Inspector/Tileset/Layers panels are placeholders
+- No actual scene rendering (just grid)
+
+**Known Issues Fixed:**
+- Borderless fullscreen hides window controls → use maximized windowed instead
+- Updated to imgui-java 1.90.0 for full ImGuiKey keyboard support
 
 ---
 
-## Phase 2: Scene Serialization
+## Phase 2: Scene Serialization ✅ COMPLETED
+
+**Status:** Implemented on 2025-12-09
 
 **Goal:** Round-trip scene data: Editor saves → Game loads.
 
-### 2.1 Scene File Format
+### Implementation Notes
+
+**Architecture Decisions:**
+- Generic component serialization via Gson TypeAdapters (not per-component)
+- `ComponentSerializer`/`ComponentDeserializer` wraps components with type info
+- Asset references (Sprite, Texture) serialize to file paths, resolve via AssetManager
+- Hierarchy preserved by nesting children in `GameObjectData.children`
+- Code-based prefabs via `PrefabRegistry` (JSON prefabs deferred to Phase 7+)
+
+**Files Created:**
+```
+src/main/java/com/pocket/rpg/
+├── serialization/
+│   ├── ComponentSerializer.java      # Gson serializer for Component polymorphism
+│   ├── ComponentDeserializer.java    # Gson deserializer
+│   ├── SpriteTypeAdapter.java        # Sprite ↔ JSON with asset paths
+│   ├── TextureTypeAdapter.java       # Texture ↔ path string  
+│   ├── Vector2fTypeAdapter.java      # JOML Vector2f ↔ [x, y]
+│   ├── Vector3fTypeAdapter.java      # JOML Vector3f ↔ [x, y, z]
+│   ├── Vector4fTypeAdapter.java      # JOML Vector4f ↔ [x, y, z, w]
+│   ├── SceneData.java                # Root scene structure
+│   ├── GameObjectData.java           # GameObject with components + children
+│   ├── SceneSerializer.java          # Save/load entry point
+│   └── SceneLoader.java              # Game-side instantiation
+├── prefabs/
+│   ├── PrefabRegistry.java           # Code-based prefab factories
+│   └── GamePrefabs.java              # Example prefab definitions
+└── editor/rendering/
+    ├── EditorFramebuffer.java        # OpenGL FBO for scene rendering
+    └── EditorSceneRenderer.java      # Renders SceneData to framebuffer
+```
+
+**Required Changes to Existing Code:**
+1. Add `transient` to Component.gameObject and other runtime fields
+2. Add no-arg constructors to all Component subclasses
+3. Add `setGameObject()` setter to Component base class
+
+**What Works:**
+- ✅ Any Component subclass serializes automatically
+- ✅ Sprite/Texture references resolve via AssetManager  
+- ✅ Parent-child hierarchy preserved
+- ✅ Scene save/load round-trip
+- ✅ Framebuffer rendering infrastructure
+- ✅ PrefabRegistry for code-based prefabs
+
+**Deferred to Later Phases:**
+- Tilemap chunk serialization (Phase 3)
+- CollisionMap layer (Phase 4)
+- Inspector panel for editing (Phase 5)
+- JSON-based prefabs (Phase 7+)
+
+### 2.1 Scene File Format (Updated)
 
 ```json
 {
@@ -1964,22 +2013,47 @@ Inspector would auto-generate UI based on schema.
 
 ## Implementation Order Summary
 
-| Phase | Effort | Dependency | Description |
-|-------|--------|------------|-------------|
-| 1. Foundation | Medium | None | Editor shell, ImGui, camera |
-| 2. Serialization | Medium | Phase 1 | Scene file format, save/load |
-| 3. Tilemap Painting | Large | Phase 2 | Brush tools, layers, palette |
-| 4. Collision Editing | Small | Phase 3 | Collision layer painting |
-| 5. Entity Placement | Medium | Phase 2 | Prefab browser, placement, inspector |
-| 6. UX Polish | Medium | Phase 3, 5 | Undo/redo, shortcuts, menus |
-| 7. Advanced | Large | All above | Triggers, copy/paste, auto-tile |
+| Phase | Status | Effort | Dependency | Description |
+|-------|--------|--------|------------|-------------|
+| 1. Foundation | ✅ Done | Medium | None | Editor shell, ImGui, camera |
+| 2. Serialization | ✅ Done | Medium | Phase 1 | Scene file format, save/load, framebuffer |
+| 3. Tilemap Painting | Pending | Large | Phase 2 | Brush tools, layers, palette |
+| 4. Collision Editing | Pending | Small | Phase 3 | Collision layer painting |
+| 5. Entity Placement | Pending | Medium | Phase 2 | Prefab browser, placement, inspector |
+| 6. UX Polish | Pending | Medium | Phase 3, 5 | Undo/redo, shortcuts, menus |
+| 7. Advanced | Pending | Large | All above | Triggers, copy/paste, auto-tile |
 
 **Recommended implementation order:**
-1. Phase 1 → Phase 2 → Phase 3 (gives you a usable tilemap editor)
-2. Phase 5 (entity placement)
+1. ~~Phase 1 → Phase 2~~ ✅ Complete → Phase 3 (gives you a usable tilemap editor)
+2. Phase 5 (entity placement + inspector)
 3. Phase 4 (collision - small effort, high value)
 4. Phase 6 (polish)
 5. Phase 7 (as needed)
+
+---
+
+## Deferred Features (Future Phases)
+
+Features discussed but deferred for future implementation:
+
+### Phase 7+ Additions
+
+**JSON-based Prefabs**
+- Load prefab definitions from JSON files instead of code
+- Allow editing prefabs in the editor
+- Hot-reload prefab changes
+
+**Inspector Enhancements**
+- `@EditorRange(min, max)` annotation for slider controls
+- `@EditorHidden` to exclude from inspector (but still serialize)
+- `@EditorReadOnly` for display-only fields
+- `@EditorLabel("Display Name")` for custom labels
+- Auto-generate UI based on property schemas per prefab type
+
+**Component Registry with Reflection**
+- Scan classpath at startup to find all Component subclasses
+- Cache results for "Add Component" dropdown
+- One-time cost, acceptable slowness at startup
 
 ---
 

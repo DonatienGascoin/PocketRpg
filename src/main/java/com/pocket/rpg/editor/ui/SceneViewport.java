@@ -3,9 +3,7 @@ package com.pocket.rpg.editor.ui;
 import com.pocket.rpg.editor.camera.EditorCamera;
 import com.pocket.rpg.editor.core.EditorConfig;
 import com.pocket.rpg.editor.rendering.EditorFramebuffer;
-import com.pocket.rpg.editor.tools.TileBrushTool;
-import com.pocket.rpg.editor.tools.TileEraserTool;
-import com.pocket.rpg.editor.tools.ToolManager;
+import com.pocket.rpg.editor.tools.*;
 import imgui.ImGui;
 import imgui.ImVec2;
 import imgui.flag.ImGuiKey;
@@ -18,14 +16,14 @@ import org.joml.Vector3f;
 
 /**
  * Scene viewport panel that displays the rendered scene.
- *
+ * <p>
  * Handles:
  * - Displaying framebuffer texture
  * - Camera controls (pan, zoom)
  * - Grid overlay
  * - Tool input routing
  * - Coordinate display
- *
+ * <p>
  * Controls:
  * - WASD/Arrow keys: Pan camera
  * - Middle mouse drag: Pan camera
@@ -402,17 +400,33 @@ public class SceneViewport {
     public void renderToolOverlay() {
         if (toolManager != null && isHovered) {
             // Pass viewport position and size to tools for overlay rendering
-            if (toolManager.getActiveTool() instanceof TileBrushTool brush) {
+            var activeTool = toolManager.getActiveTool();
+
+            if (activeTool instanceof TileBrushTool brush) {
                 brush.setViewportX(viewportX);
                 brush.setViewportY(viewportY);
                 brush.setViewportWidth(viewportWidth);
                 brush.setViewportHeight(viewportHeight);
-            }
-            if (toolManager.getActiveTool() instanceof TileEraserTool eraser) {
+            } else if (activeTool instanceof TileEraserTool eraser) {
                 eraser.setViewportX(viewportX);
                 eraser.setViewportY(viewportY);
                 eraser.setViewportWidth(viewportWidth);
                 eraser.setViewportHeight(viewportHeight);
+            } else if (activeTool instanceof TileFillTool fill) {
+                fill.setViewportX(viewportX);
+                fill.setViewportY(viewportY);
+                fill.setViewportWidth(viewportWidth);
+                fill.setViewportHeight(viewportHeight);
+            } else if (activeTool instanceof TileRectangleTool rectangle) {
+                rectangle.setViewportX(viewportX);
+                rectangle.setViewportY(viewportY);
+                rectangle.setViewportWidth(viewportWidth);
+                rectangle.setViewportHeight(viewportHeight);
+            } else if (activeTool instanceof TilePickerTool picker) {
+                picker.setViewportX(viewportX);
+                picker.setViewportY(viewportY);
+                picker.setViewportWidth(viewportWidth);
+                picker.setViewportHeight(viewportHeight);
             }
 
             toolManager.renderOverlay(camera, hoveredTileX, hoveredTileY);

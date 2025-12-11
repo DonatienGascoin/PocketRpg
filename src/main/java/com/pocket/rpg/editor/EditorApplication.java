@@ -13,9 +13,7 @@ import com.pocket.rpg.editor.rendering.EditorFramebuffer;
 import com.pocket.rpg.editor.rendering.EditorSceneRenderer;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.tileset.TilesetRegistry;
-import com.pocket.rpg.editor.tools.TileBrushTool;
-import com.pocket.rpg.editor.tools.TileEraserTool;
-import com.pocket.rpg.editor.tools.ToolManager;
+import com.pocket.rpg.editor.tools.*;
 import com.pocket.rpg.editor.ui.EditorMenuBar;
 import com.pocket.rpg.editor.ui.SceneViewport;
 import com.pocket.rpg.editor.ui.StatusBar;
@@ -36,12 +34,11 @@ import static org.lwjgl.opengl.GL33.glClearColor;
 /**
  * Main application class for the PocketRPG Scene Editor.
  * <p>
- * Phase 3b Implementation:
- * - TilesetRegistry for managing .spritesheet files
- * - Multi-tile selection (patterns)
- * - Tileset dropdown in palette
- * - Create new spritesheet dialog
- * - Paint patterns from any tileset onto any layer
+ * Phase 3c Implementation:
+ * - TileFillTool for flood fill (2000 tile limit)
+ * - TileRectangleTool for rectangle fill
+ * - TilePickerTool for eyedropper (single + pattern picking)
+ * - Tool shortcuts: B, E, F, R, I
  */
 public class EditorApplication {
 
@@ -62,6 +59,9 @@ public class EditorApplication {
     private ToolManager toolManager;
     private TileBrushTool brushTool;
     private TileEraserTool eraserTool;
+    private TileFillTool fillTool;
+    private TileRectangleTool rectangleTool;
+    private TilePickerTool pickerTool;
 
     // UI Components
     private EditorMenuBar menuBar;
@@ -75,7 +75,7 @@ public class EditorApplication {
 
     public static void main(String[] args) {
         System.out.println("===========================================");
-        System.out.println("    PocketRPG Scene Editor - Phase 3b");
+        System.out.println("    PocketRPG Scene Editor - Phase 3c");
         System.out.println("===========================================");
 
         EditorApplication app = new EditorApplication();
@@ -160,6 +160,18 @@ public class EditorApplication {
         eraserTool = new TileEraserTool(currentScene);
         toolManager.registerTool(eraserTool);
 
+        // Fill tool
+        fillTool = new TileFillTool(currentScene);
+        toolManager.registerTool(fillTool);
+
+        // Rectangle tool
+        rectangleTool = new TileRectangleTool(currentScene);
+        toolManager.registerTool(rectangleTool);
+
+        // Picker tool
+        pickerTool = new TilePickerTool(currentScene);
+        toolManager.registerTool(pickerTool);
+
         // Set viewport's tool manager
         sceneViewport.setToolManager(toolManager);
     }
@@ -187,6 +199,18 @@ public class EditorApplication {
         tilesetPalette = new TilesetPalettePanel();
         tilesetPalette.setScene(currentScene);
         tilesetPalette.setBrushTool(brushTool);
+        tilesetPalette.setFillTool(fillTool);
+        tilesetPalette.setRectangleTool(rectangleTool);
+
+        // Setup picker callback to update brush tool and sync to other tools
+        pickerTool.setOnTilesPicked(selection -> {
+            brushTool.setSelection(selection);
+            fillTool.setSelection(selection);
+            rectangleTool.setSelection(selection);
+            tilesetPalette.setExternalSelection(selection);
+            toolManager.setActiveTool(brushTool);
+            statusBar.showMessage("Picked tiles - switched to Brush");
+        });
     }
 
     private void loop() {
@@ -279,6 +303,18 @@ public class EditorApplication {
         if (ImGui.isKeyPressed(ImGuiKey.E)) {
             toolManager.setActiveTool("Eraser");
             statusBar.showMessage("Eraser Tool");
+        }
+        if (ImGui.isKeyPressed(ImGuiKey.F)) {
+            toolManager.setActiveTool("Fill");
+            statusBar.showMessage("Fill Tool");
+        }
+        if (ImGui.isKeyPressed(ImGuiKey.R)) {
+            toolManager.setActiveTool("Rectangle");
+            statusBar.showMessage("Rectangle Tool");
+        }
+        if (ImGui.isKeyPressed(ImGuiKey.I)) {
+            toolManager.setActiveTool("Picker");
+            statusBar.showMessage("Picker Tool");
         }
 
         // Brush size adjustment with - and = (+ without shift)
@@ -412,13 +448,28 @@ public class EditorApplication {
                 if (ImGui.sliderInt("Size", size, 1, 10)) {
                     eraserTool.setEraserSize(size[0]);
                 }
+            } else if (toolManager.getActiveTool() == fillTool) {
+                ImGui.text("Fill Settings");
+                ImGui.textDisabled("Click to flood fill");
+                ImGui.textDisabled("Max: 2000 tiles");
+            } else if (toolManager.getActiveTool() == rectangleTool) {
+                ImGui.text("Rectangle Settings");
+                ImGui.textDisabled("Drag to define area");
+                ImGui.textDisabled("Release to fill");
+            } else if (toolManager.getActiveTool() == pickerTool) {
+                ImGui.text("Picker Settings");
+                ImGui.textDisabled("Click: Pick tile");
+                ImGui.textDisabled("Shift+Drag: Pick pattern");
             }
 
             ImGui.separator();
             ImGui.textDisabled("Shortcuts:");
             ImGui.textDisabled("-/+ - Brush size");
-            ImGui.textDisabled("B - Brush tool");
-            ImGui.textDisabled("E - Eraser tool");
+            ImGui.textDisabled("B - Brush");
+            ImGui.textDisabled("E - Eraser");
+            ImGui.textDisabled("F - Fill");
+            ImGui.textDisabled("R - Rectangle");
+            ImGui.textDisabled("I - Picker");
         }
         ImGui.end();
     }
@@ -544,6 +595,9 @@ public class EditorApplication {
         // Update tools with new scene (don't recreate them)
         brushTool.setScene(currentScene);
         eraserTool.setScene(currentScene);
+        fillTool.setScene(currentScene);
+        rectangleTool.setScene(currentScene);
+        pickerTool.setScene(currentScene);
 
         tilesetPalette.setBrushTool(brushTool);
     }

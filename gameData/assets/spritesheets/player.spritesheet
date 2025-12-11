@@ -1,0 +1,6 @@
+{
+  "texture": "sprites/characters/Char1_32x32.png",
+  "spriteWidth": 32,
+  "spriteHeight": 32,
+  "offsetY": 16
+}

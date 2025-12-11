@@ -1,6 +1,7 @@
 package com.pocket.rpg.resources.loaders;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.pocket.rpg.resources.AssetLoader;
@@ -13,10 +14,10 @@ import java.util.function.Function;
 /**
  * Generic loader for JSON-based assets.
  * Allows creating custom asset types without writing a full loader implementation.
- * 
+ *
  * This is the most flexible loader - you can use it to load any JSON-based asset
  * by just providing a constructor function.
- * 
+ *
  * Example - Animation System:
  * <pre>
  * // Define your data class
@@ -24,52 +25,66 @@ import java.util.function.Function;
  *     String name;
  *     float duration;
  *     List&lt;Keyframe&gt; keyframes;
- *     
+ *
  *     static Animation fromJSON(JsonObject json) {
  *         // Parse JSON into Animation
  *         return new Animation(json);
  *     }
  * }
- * 
+ *
  * // Register with AssetManager
- * AssetManager manager = AssetManager.getInstance();
- * manager.registerLoader("animation",
- *     new GenericJSONLoader&lt;&gt;(
+ * // Load-only (simple)
+ * manager.registerLoader(
+ *     Animation.class,
+ *     new GenericJSONLoader<>(
  *         Animation::fromJSON,
- *         new String[]{".anim", ".animation.json"}
+ *         new String[]{".anim"}
  *     )
  * );
- * 
+ *
+ * // Load + Save (full support)
+ * manager.registerLoader(
+ *     Quest.class,
+ *     new GenericJSONLoader<>(
+ *         Quest::fromJSON,     // Load function
+ *         Quest::toJSON,       // Save function
+ *         new String[]{".quest.json"}
+ *     )
+ * );
+ *
  * // Use it
- * ResourceHandle&lt;Animation&gt; anim = manager.load("player_walk.anim");
+ * Animation anim = Assets.load("player_walk.anim");
  * </pre>
- * 
+ *
  * @param <T> The type of asset this loader creates
  */
 public class GenericJSONLoader<T> implements AssetLoader<T> {
 
     private final Function<JsonObject, T> constructor;
+    private final Function<T, JsonObject> serializer;  // Optional for saving
     private final String[] extensions;
-    private final String typeName;
+    private final Gson gson;
 
     /**
-     * Creates a generic JSON loader.
+     * Creates a generic JSON loader (load-only).
      *
      * @param constructor Function that creates T from JsonObject
      * @param extensions  Supported file extensions
      */
     public GenericJSONLoader(Function<JsonObject, T> constructor, String[] extensions) {
-        this(constructor, extensions, null);
+        this(constructor, null, extensions);
     }
 
     /**
-     * Creates a generic JSON loader with explicit type name.
+     * Creates a generic JSON loader with save support.
      *
      * @param constructor Function that creates T from JsonObject
+     * @param serializer  Function that converts T to JsonObject (for saving)
      * @param extensions  Supported file extensions
-     * @param typeName    Type name for registration (e.g., "animation")
      */
-    public GenericJSONLoader(Function<JsonObject, T> constructor, String[] extensions, String typeName) {
+    public GenericJSONLoader(Function<JsonObject, T> constructor,
+                             Function<T, JsonObject> serializer,
+                             String[] extensions) {
         if (constructor == null) {
             throw new IllegalArgumentException("Constructor function cannot be null");
         }
@@ -78,8 +93,9 @@ public class GenericJSONLoader<T> implements AssetLoader<T> {
         }
 
         this.constructor = constructor;
+        this.serializer = serializer;
         this.extensions = extensions;
-        this.typeName = typeName;
+        this.gson = new GsonBuilder().setPrettyPrinting().create();
     }
 
     /**
@@ -111,25 +127,36 @@ public class GenericJSONLoader<T> implements AssetLoader<T> {
     }
 
     /**
-     * Unloads an asset.
-     * Default implementation does nothing - override if cleanup is needed.
+     * Saves an asset to a JSON file.
+     * Requires serializer function provided in constructor.
      *
-     * @param resource The asset to unload
+     * @param resource The asset to save
+     * @param path Path to save to
+     * @throws IOException if saving fails
+     * @throws UnsupportedOperationException if no serializer was provided
      */
     @Override
-    public void unload(T resource) {
-        // Generic unload - nothing to clean up for most JSON assets
-        // If your asset needs cleanup, use a custom loader instead
-    }
+    public void save(T resource, String path) throws IOException {
+        if (serializer == null) {
+            throw new UnsupportedOperationException(
+                    "Saving not supported - no serializer function provided");
+        }
 
-    /**
-     * Returns supported file extensions.
-     *
-     * @return Array of extensions
-     */
-    @Override
-    public String[] getSupportedExtensions() {
-        return extensions;
+        try {
+            // Convert resource to JSON
+            JsonObject json = serializer.apply(resource);
+
+            if (json == null) {
+                throw new IOException("Serializer returned null for: " + path);
+            }
+
+            // Write to file
+            String jsonString = gson.toJson(json);
+            Files.write(Paths.get(path), jsonString.getBytes());
+
+        } catch (Exception e) {
+            throw new IOException("Failed to save JSON asset: " + path, e);
+        }
     }
 
     /**
@@ -141,6 +168,16 @@ public class GenericJSONLoader<T> implements AssetLoader<T> {
     @Override
     public T getPlaceholder() {
         return null;
+    }
+
+    /**
+     * Returns supported file extensions.
+     *
+     * @return Array of extensions
+     */
+    @Override
+    public String[] getSupportedExtensions() {
+        return extensions;
     }
 
     /**
@@ -166,38 +203,5 @@ public class GenericJSONLoader<T> implements AssetLoader<T> {
     public T reload(T existing, String path) throws IOException {
         // Just load fresh - most JSON assets are lightweight
         return load(path);
-    }
-
-    /**
-     * Estimates asset memory usage.
-     * Generic estimate - most JSON assets are small.
-     *
-     * @param resource The asset to measure
-     * @return Estimated size in bytes
-     */
-    @Override
-    public long estimateSize(T resource) {
-        // Generic estimate: 1KB for most JSON assets
-        return 1024;
-    }
-
-    /**
-     * Gets the loader type name.
-     *
-     * @return Type name, or generated from extensions
-     */
-    @Override
-    public String getTypeName() {
-        if (typeName != null) {
-            return typeName;
-        }
-
-        // Generate from first extension
-        if (extensions.length > 0) {
-            String ext = extensions[0];
-            return ext.replace(".", "").toLowerCase();
-        }
-
-        return "json";
     }
 }

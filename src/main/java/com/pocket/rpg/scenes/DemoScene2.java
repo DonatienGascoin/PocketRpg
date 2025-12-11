@@ -6,6 +6,7 @@ import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.SpriteSheet;
 import com.pocket.rpg.resources.AssetManager;
+import com.pocket.rpg.resources.Assets;
 import org.joml.Vector3f;
 
 public class DemoScene2 extends Scene {
@@ -19,12 +20,11 @@ public class DemoScene2 extends Scene {
     }
 
     private void createPlayer() {
-        var resource = AssetManager.getInstance().<Sprite>load("gameData/assets/sprites/Char1_32x32.png");
-        var playerTex = resource.get();
+        var playerSprite = Assets.<Sprite>load("gameData/assets/sprites/Char1_32x32.png");
 
-        System.out.println("Player:" + playerTex);
+        System.out.println("Player:" + playerSprite);
 
-        SpriteSheet playerSheet = new SpriteSheet(playerTex.getTexture(), 32, 32, 0, 0, 0, 0);
+        SpriteSheet playerSheet = new SpriteSheet(playerSprite.getTexture(), 32, 32, 0, 0, 0, 0);
         var sprites = playerSheet.generateAllSprites();
 
         SpriteRenderer spriteRenderer = new SpriteRenderer(sprites.get(5));

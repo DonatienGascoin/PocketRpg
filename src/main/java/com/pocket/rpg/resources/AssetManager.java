@@ -1,552 +1,393 @@
 package com.pocket.rpg.resources;
 
+import com.pocket.rpg.rendering.Shader;
+import com.pocket.rpg.rendering.Sprite;
+import com.pocket.rpg.rendering.SpriteSheet;
+import com.pocket.rpg.rendering.Texture;
 import com.pocket.rpg.resources.loaders.ShaderLoader;
 import com.pocket.rpg.resources.loaders.SpriteLoader;
 import com.pocket.rpg.resources.loaders.SpriteSheetLoader;
 import com.pocket.rpg.resources.loaders.TextureLoader;
+import lombok.Getter;
+import lombok.Setter;
 
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 
 /**
- * Central manager for all game assets.
- * Provides unified API for loading, caching, and managing resources.
- * <p>
- * Features:
- * - Automatic caching with LRU eviction
- * - Async loading support
- * - Reference counting for lifecycle management
- * - Pluggable loader system for extensibility
- * - Thread-safe operations
- * <p>
- * Usage:
- * <pre>
- * // Initialize once at startup
- * AssetManager.initialize();
- *
- * // Register loaders
- * AssetManager.getInstance().registerLoader("texture", new TextureLoader());
- *
- * // Load resources
- * ResourceHandle&lt;Texture&gt; texture = AssetManager.load("player.png");
- *
- * // Update each frame
- * AssetManager.getInstance().update(deltaTime);
- * </pre>
+ * Default implementation of AssetContext.
+ * Manages asset loading, caching, and persistence.
  */
-public class AssetManager {
+public class AssetManager implements AssetContext {
 
-    private static volatile AssetManager instance = null;
-    private static final Object LOCK = new Object();
-
-    // Core components
+    @Getter
     private final ResourceCache cache;
-    private final Map<String, AssetLoader<?>> loadersByType;
-    private final Map<String, String> extensionToType;
+    private final Map<Class<?>, AssetLoader<?>> loaders;
+    private final Map<String, Class<?>> extensionMap;
+    private final Map<Object, String> resourcePaths;  // For persistence
 
-    // Async loading
-    private final ExecutorService loadQueue;
-    private final Set<String> currentlyLoading;
-
-    // Statistics
-    private long totalLoadsStarted;
-    private long totalLoadsCompleted;
-    private long totalLoadsFailed;
-
-    // Configuration
-    private static final int DEFAULT_CACHE_SIZE = 1000;
-    private static final int DEFAULT_THREAD_POOL_SIZE = 4;
-    private static final long DEFAULT_CLEANUP_INTERVAL_MS = 5000; // 5 seconds
-    private static final long DEFAULT_EVICTION_THRESHOLD_MS = 60000; // 1 minute
-
-    private long lastCleanupTime;
+    @Getter
+    private String assetRoot = "gameData/assets/";
+    @Getter
+    private ErrorMode errorMode = ErrorMode.USE_PLACEHOLDER;
+    @Setter
+    @Getter
+    private boolean statisticsEnabled = true;
 
     /**
-     * Private constructor for singleton pattern.
+     * Creates a new AssetManager with default loaders pre-registered.
      */
-    private AssetManager() {
-        this.cache = new ResourceCache(DEFAULT_CACHE_SIZE);
-        this.loadersByType = new ConcurrentHashMap<>();
-        this.extensionToType = new ConcurrentHashMap<>();
-        this.loadQueue = Executors.newFixedThreadPool(DEFAULT_THREAD_POOL_SIZE, r -> {
-            Thread thread = new Thread(r, "AssetManager-Loader");
-            thread.setDaemon(true);
-            return thread;
-        });
-        this.currentlyLoading = Collections.synchronizedSet(new HashSet<>());
-        this.lastCleanupTime = System.currentTimeMillis();
-        this.totalLoadsStarted = 0;
-        this.totalLoadsCompleted = 0;
-        this.totalLoadsFailed = 0;
+    public AssetManager() {
+        this.cache = new ResourceCache();
+        this.loaders = new ConcurrentHashMap<>();
+        this.extensionMap = new ConcurrentHashMap<>();
+        this.resourcePaths = new ConcurrentHashMap<>();
+
+        // Auto-register default loaders
+        registerDefaultLoaders();
     }
 
     /**
-     * Initializes the AssetManager singleton.
-     * Must be called before any other AssetManager operations.
+     * Registers default loaders automatically.
      */
-    public static void initialize() {
-        if (instance != null) {
-            System.err.println("WARNING: AssetManager already initialized");
-            return;
+    private void registerDefaultLoaders() {
+        registerLoader(Texture.class, new TextureLoader());
+        registerLoader(Shader.class, new ShaderLoader());
+        registerLoader(Sprite.class, new SpriteLoader());
+        registerLoader(SpriteSheet.class, new SpriteSheetLoader());
+    }
+
+    /**
+     * Registers a loader for a type.
+     * Automatically registers extensions from getSupportedExtensions().
+     *
+     * @param type   Resource type class
+     * @param loader Loader for that type
+     * @param <T>    Resource type
+     */
+    public <T> void registerLoader(Class<T> type, AssetLoader<T> loader) {
+        loaders.put(type, loader);
+
+        // Auto-register extensions
+        for (String ext : loader.getSupportedExtensions()) {
+            extensionMap.put(ext.toLowerCase(), type);
         }
 
-        synchronized (LOCK) {
-            if (instance == null) {
-                instance = new AssetManager();
-                registerLoaders();
-                System.out.println("AssetManager initialized");
-            }
-        }
+        System.out.println("Registered loader: " + type.getSimpleName() +
+                " (" + String.join(", ", loader.getSupportedExtensions()) + ")");
     }
 
-    private static void registerLoaders() {
-        AssetManager manager = AssetManager.getInstance();
-        manager.registerLoader("texture", new TextureLoader());
-        manager.registerLoader("shader", new ShaderLoader());
-        manager.registerLoader("sprite", new SpriteLoader());
-        manager.registerLoader("spritesheet", new SpriteSheetLoader());
-    }
-
-    /**
-     * Gets the AssetManager singleton instance.
-     *
-     * @return The AssetManager instance
-     * @throws IllegalStateException if not initialized
-     */
-    public static AssetManager getInstance() {
-        if (instance == null) {
-            throw new IllegalStateException(
-                    "AssetManager not initialized. Call AssetManager.initialize() first."
-            );
-        }
-        return instance;
-    }
-
-    /**
-     * Loads a resource synchronously.
-     * If already cached, returns cached handle immediately.
-     *
-     * @param path Path to the resource
-     * @param <T>  Resource type
-     * @return Handle to the resource
-     */
-    public <T> ResourceHandle<T> load(String path) {
-        return load(path, null);
-    }
-
-    /**
-     * Loads a resource with explicit type.
-     * Useful when file extension doesn't match or is ambiguous.
-     *
-     * @param path     Path to the resource
-     * @param typeName Explicit type name (e.g., "texture", "sprite")
-     * @param <T>      Resource type
-     * @return Handle to the resource
-     */
+    @Override
     @SuppressWarnings("unchecked")
-    public <T> ResourceHandle<T> load(String path, String typeName) {
-        if (path == null || path.trim().isEmpty()) {
-            throw new IllegalArgumentException("Resource path cannot be null or empty");
-        }
-
+    public <T> T load(String path) {
         // Normalize path
-        path = normalizePath(path);
-        String resourceId = generateResourceId(path, typeName);
+        String normalizedPath = normalizePath(path);
 
         // Check cache first
-        ResourceHandle<T> cachedHandle = cache.get(resourceId);
-        if (cachedHandle != null) {
-            cachedHandle.retain();
-            return cachedHandle;
+        T cached = cache.get(normalizedPath);
+        if (cached != null) {
+            return cached;
         }
 
-        // Determine type if not specified
-        if (typeName == null) {
-            typeName = getTypeFromPath(path);
-            if (typeName == null) {
-                throw new IllegalArgumentException(
-                        "Cannot determine asset type for: " + path +
-                                ". Use load(path, typeName) to specify explicitly."
-                );
-            }
+        if (statisticsEnabled) {
+            cache.getStats().recordLoad();
         }
 
-        // Get loader
-        AssetLoader<T> loader = (AssetLoader<T>) loadersByType.get(typeName);
+        // Determine type from extension
+        Class<?> type = getTypeFromExtension(normalizedPath);
+        if (type == null) {
+            throw new IllegalArgumentException("Unknown file extension for: " + path);
+        }
+
+        return (T) loadWithType(normalizedPath, type);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> T load(String path, Class<T> type) {
+        // Normalize path
+        String normalizedPath = normalizePath(path);
+
+        // Check cache first
+        T cached = cache.get(normalizedPath);
+        if (cached != null) {
+            return cached;
+        }
+
+        if (statisticsEnabled) {
+            cache.getStats().recordLoad();
+        }
+
+        return (T) loadWithType(normalizedPath, type);
+    }
+
+    /**
+     * Internal load method with type specified.
+     */
+    @SuppressWarnings("unchecked")
+    private <T> T loadWithType(String normalizedPath, Class<T> type) {
+        // Get loader for type
+        AssetLoader<T> loader = (AssetLoader<T>) loaders.get(type);
         if (loader == null) {
-            throw new IllegalArgumentException(
-                    "No loader registered for type: " + typeName
-            );
+            throw new IllegalArgumentException("No loader registered for type: " + type.getSimpleName());
         }
 
-        // Create handle with placeholder
-        ResourceHandle<T> handle = new ResourceHandle<>(resourceId, ResourceState.LOADING);
-        T placeholder = loader.getPlaceholder();
-        if (placeholder != null) {
-            handle.setData(placeholder);
-        }
+        // Resolve full path for actual file system access
+        String fullPath = resolvePath(normalizedPath);
 
-        // Store in cache
-        cache.store(resourceId, handle);
-        handle.retain();
-
-        // Load synchronously
-        totalLoadsStarted++;
         try {
-            T resource = loader.load(path);
-            handle.setData(resource);
-            totalLoadsCompleted++;
-        } catch (Exception e) {
-            handle.setError(e);
-            totalLoadsFailed++;
-            System.err.println("Failed to load resource: " + path);
-            e.printStackTrace();
-        }
+            // Load resource - pass FULL PATH to loader
+            T resource = loader.load(fullPath);
 
-        return handle;
-    }
+            // Cache it with NORMALIZED PATH as key
+            cache.put(normalizedPath, resource);
 
-    /**
-     * Loads a resource asynchronously.
-     * Handle is returned immediately in LOADING state.
-     *
-     * @param path     Path to the resource
-     * @param callback Optional callback when loading completes
-     * @param <T>      Resource type
-     * @return Handle to the resource (may not be ready yet)
-     */
-    public <T> ResourceHandle<T> loadAsync(String path, Consumer<ResourceHandle<T>> callback) {
-        return loadAsync(path, null, callback);
-    }
+            // Track normalized path for persistence
+            resourcePaths.put(resource, normalizedPath);
 
-    /**
-     * Loads a resource asynchronously with explicit type.
-     *
-     * @param path     Path to the resource
-     * @param typeName Explicit type name
-     * @param callback Optional callback when loading completes
-     * @param <T>      Resource type
-     * @return Handle to the resource (may not be ready yet)
-     */
-    @SuppressWarnings("unchecked")
-    public <T> ResourceHandle<T> loadAsync(String path, String typeName, Consumer<ResourceHandle<T>> callback) {
-        if (path == null || path.trim().isEmpty()) {
-            throw new IllegalArgumentException("Resource path cannot be null or empty");
-        }
+            return resource;
 
-        // Normalize path
-        path = normalizePath(path);
-        String resourceId = generateResourceId(path, typeName);
+        } catch (IOException e) {
+            // Handle error based on mode
+            if (errorMode == ErrorMode.THROW_EXCEPTION) {
+                throw new RuntimeException("Failed to load: " + normalizedPath, e);
+            } else {
+                // Use placeholder
+                System.err.println("WARNING: Failed to load '" + normalizedPath + "', using placeholder. Error: " + e.getMessage());
+                T placeholder = loader.getPlaceholder();
 
-        // Check cache first
-        ResourceHandle<T> cachedHandle = cache.get(resourceId);
-        if (cachedHandle != null) {
-            cachedHandle.retain();
-
-            // If already ready, invoke callback immediately
-            if (callback != null && cachedHandle.isReady()) {
-                callback.accept(cachedHandle);
-            } else if (callback != null) {
-                cachedHandle.onReady(callback);
-            }
-
-            return cachedHandle;
-        }
-
-        // Check if already loading
-        if (currentlyLoading.contains(resourceId)) {
-            // Return the handle that's being loaded
-            cachedHandle = cache.get(resourceId);
-            if (cachedHandle != null) {
-                cachedHandle.retain();
-                if (callback != null) {
-                    cachedHandle.onReady(callback);
+                if (placeholder != null) {
+                    cache.put(normalizedPath, placeholder);
+                    resourcePaths.put(placeholder, normalizedPath);
                 }
-                return cachedHandle;
+
+                return placeholder;
             }
         }
+    }
 
-        // Determine type if not specified
-        if (typeName == null) {
-            typeName = getTypeFromPath(path);
-            if (typeName == null) {
-                throw new IllegalArgumentException(
-                        "Cannot determine asset type for: " + path
-                );
-            }
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> T get(String path) {
+        String normalizedPath = normalizePath(path);
+        return cache.get(normalizedPath);
+    }
+
+    @Override
+    public <T> List<T> getAll(Class<T> type) {
+        return cache.getAllOfType(type);
+    }
+
+    @Override
+    public boolean isLoaded(String path) {
+        String normalizedPath = normalizePath(path);
+        return cache.contains(normalizedPath);
+    }
+
+    @Override
+    public Set<String> getLoadedPaths() {
+        return cache.getPaths();
+    }
+
+    @Override
+    public void persist(Object resource) {
+        String path = resourcePaths.get(resource);
+        if (path == null) {
+            throw new IllegalArgumentException("Resource has no associated path. Use persist(resource, path) instead.");
+        }
+        persist(resource, path);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public void persist(Object resource, String path) {
+        if (resource == null) {
+            throw new IllegalArgumentException("Cannot persist null resource");
         }
 
-        // Get loader
-        AssetLoader<T> loader = (AssetLoader<T>) loadersByType.get(typeName);
+        Class<?> type = resource.getClass();
+        AssetLoader loader = loaders.get(type);
+
         if (loader == null) {
-            throw new IllegalArgumentException(
-                    "No loader registered for type: " + typeName
-            );
+            throw new IllegalArgumentException("No loader registered for type: " + type.getSimpleName());
         }
 
-        // Create handle with placeholder
-        ResourceHandle<T> handle = new ResourceHandle<>(resourceId, ResourceState.LOADING);
-        T placeholder = loader.getPlaceholder();
-        if (placeholder != null) {
-            handle.setData(placeholder);
-            handle.setState(ResourceState.LOADING); // Reset state after placeholder
-        }
+        String normalizedPath = normalizePath(path);
+        String fullPath = resolvePath(normalizedPath);
 
-        // Store in cache
-        cache.store(resourceId, handle);
-        handle.retain();
-
-        // Register callback if provided
-        if (callback != null) {
-            handle.onReady(callback);
-        }
-
-        // Mark as loading
-        currentlyLoading.add(resourceId);
-
-        // Load asynchronously
-        final String finalPath = path;
-        final String finalType = typeName;
-        totalLoadsStarted++;
-
-        loadQueue.submit(() -> {
-            try {
-                T resource = loader.load(finalPath);
-                handle.setData(resource);
-                totalLoadsCompleted++;
-            } catch (Exception e) {
-                handle.setError(e);
-                totalLoadsFailed++;
-                System.err.println("Failed to load resource asynchronously: " + finalPath);
-                e.printStackTrace();
-            } finally {
-                currentlyLoading.remove(resourceId);
-            }
-        });
-
-        return handle;
-    }
-
-    /**
-     * Unloads a resource from the cache.
-     *
-     * @param path Path to the resource
-     */
-    public void unload(String path) {
-        unload(path, null);
-    }
-
-    /**
-     * Unloads a resource with explicit type.
-     *
-     * @param path     Path to the resource
-     * @param typeName Type name
-     */
-    public void unload(String path, String typeName) {
-        path = normalizePath(path);
-        String resourceId = generateResourceId(path, typeName);
-        cache.remove(resourceId);
-    }
-
-    /**
-     * Marks a handle as retained (never auto-evicted).
-     *
-     * @param handle Handle to retain
-     */
-    public void retain(ResourceHandle<?> handle) {
-        if (handle == null) return;
-        handle.markRetained();
-        cache.markRetained(handle.getResourceId());
-    }
-
-    /**
-     * Unmarks a handle as retained.
-     *
-     * @param handle Handle to release from retention
-     */
-    public void release(ResourceHandle<?> handle) {
-        if (handle == null) return;
-        handle.unmarkRetained();
-        cache.unmarkRetained(handle.getResourceId());
-    }
-
-    /**
-     * Registers an asset loader.
-     *
-     * @param typeName Type name (e.g., "texture", "sprite")
-     * @param loader   The loader implementation
-     */
-    public void registerLoader(String typeName, AssetLoader<?> loader) {
-        if (typeName == null || loader == null) {
-            throw new IllegalArgumentException("Type name and loader cannot be null");
-        }
-
-        loadersByType.put(typeName.toLowerCase(), loader);
-
-        // Register extensions
-        for (String extension : loader.getSupportedExtensions()) {
-            extensionToType.put(extension.toLowerCase(), typeName.toLowerCase());
-        }
-
-        System.out.println("Registered loader: " + typeName + " (" +
-                String.join(", ", loader.getSupportedExtensions()) + ")");
-    }
-
-    /**
-     * Updates the asset manager.
-     * Should be called once per frame to handle cleanup and maintenance.
-     *
-     * @param deltaTime Time since last update in seconds
-     */
-    public void update(float deltaTime) {
-        long now = System.currentTimeMillis();
-
-        // Periodic cleanup
-        if (now - lastCleanupTime > DEFAULT_CLEANUP_INTERVAL_MS) {
-            cache.cleanupUnused(DEFAULT_EVICTION_THRESHOLD_MS);
-            lastCleanupTime = now;
-        }
-    }
-
-    /**
-     * Gets loading progress for debugging/UI.
-     *
-     * @return Fraction of loads completed (0.0 to 1.0)
-     */
-    public float getLoadingProgress() {
-        if (totalLoadsStarted == 0) return 1.0f;
-        return (float) totalLoadsCompleted / totalLoadsStarted;
-    }
-
-    /**
-     * Checks if any resources are currently loading.
-     *
-     * @return true if loads are in progress
-     */
-    public boolean isLoading() {
-        return !currentlyLoading.isEmpty();
-    }
-
-    /**
-     * Clears all cached resources.
-     * Warning: Does not unload resources, just removes from cache.
-     */
-    public void clearCache() {
-        cache.clear();
-    }
-
-    /**
-     * Destroys the AssetManager and releases all resources.
-     */
-    public static void destroy() {
-        synchronized (LOCK) {
-            if (instance != null) {
-                instance.shutdown();
-                instance = null;
-                System.out.println("AssetManager destroyed");
-            }
-        }
-    }
-
-    /**
-     * Internal shutdown method.
-     */
-    private void shutdown() {
-        // Shutdown thread pool
-        loadQueue.shutdown();
         try {
-            if (!loadQueue.awaitTermination(5, TimeUnit.SECONDS)) {
-                loadQueue.shutdownNow();
-            }
-        } catch (InterruptedException e) {
-            loadQueue.shutdownNow();
-            Thread.currentThread().interrupt();
-        }
+            loader.save(resource, fullPath);
+            System.out.println("Saved: " + normalizedPath);
 
-        // Clear cache
-        cache.clear();
-        loadersByType.clear();
-        extensionToType.clear();
-        currentlyLoading.clear();
+            // Update cache and path tracking
+            cache.put(normalizedPath, resource);
+            resourcePaths.put(resource, normalizedPath);
+
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to save: " + normalizedPath, e);
+        }
     }
 
-    // Helper methods
+    @Override
+    public ConfigBuilder configure() {
+        return new ConfigBuilder(this);
+    }
+
+    @Override
+    public CacheStats getStats() {
+        return cache.getStats();
+    }
+
+    @Override
+    public List<String> scanByType(Class<?> type) {
+        // Get loader for type
+        AssetLoader<?> loader = loaders.get(type);
+        if (loader == null) {
+            return new ArrayList<>();  // No loader, return empty
+        }
+
+        // Get extensions from loader
+        String[] extensions = loader.getSupportedExtensions();
+
+        // Scan for files with those extensions
+        return scanDirectory(assetRoot, extensions);
+    }
+
+    @Override
+    public List<String> scanAll() {
+        // Collect all extensions from all loaders
+        Set<String> allExtensions = new HashSet<>();
+        for (AssetLoader<?> loader : loaders.values()) {
+            for (String ext : loader.getSupportedExtensions()) {
+                allExtensions.add(ext.toLowerCase());
+            }
+        }
+
+        // Scan for all extensions
+        return scanDirectory(assetRoot, allExtensions.toArray(new String[0]));
+    }
 
     /**
-     * Normalizes a file path (forward slashes, no trailing slashes).
+     * Recursively scans a directory for files with specified extensions.
+     * Returns paths relative to asset root.
+     */
+    private List<String> scanDirectory(String directory, String[] extensions) {
+        List<String> results = new ArrayList<>();
+
+        try {
+            Path dirPath = Paths.get(directory);
+            if (!Files.exists(dirPath) || !Files.isDirectory(dirPath)) {
+                return results;  // Directory doesn't exist
+            }
+
+            // Convert extensions to lowercase set for fast lookup
+            Set<String> extSet = new HashSet<>();
+            for (String ext : extensions) {
+                extSet.add(ext.toLowerCase());
+            }
+
+            // Walk directory tree
+            Files.walk(dirPath)
+                    .filter(Files::isRegularFile)
+                    .forEach(path -> {
+                        String fileName = path.getFileName().toString();
+
+                        // Check if file has matching extension
+                        for (String ext : extSet) {
+                            if (fileName.toLowerCase().endsWith(ext)) {
+                                // Convert to relative path from asset root
+                                String relativePath = dirPath.relativize(path).toString();
+                                // Normalize path separators to forward slashes
+                                relativePath = relativePath.replace('\\', '/');
+                                results.add(relativePath);
+                                break;
+                            }
+                        }
+                    });
+
+        } catch (IOException e) {
+            System.err.println("Error scanning directory: " + directory + " - " + e.getMessage());
+        }
+
+        return results;
+    }
+
+    /**
+     * Normalizes a path (removes ./ and ../, converts backslashes).
      */
     private String normalizePath(String path) {
-        return path.replace('\\', '/').trim();
+        if (path == null || path.isEmpty()) {
+            throw new IllegalArgumentException("Path cannot be null or empty");
+        }
+
+        // Convert backslashes to forward slashes
+        path = path.replace('\\', '/');
+
+        // Remove leading ./
+        if (path.startsWith("./")) {
+            path = path.substring(2);
+        }
+
+        return path;
     }
 
     /**
-     * Generates a unique resource ID from path and type.
+     * Resolves a path relative to asset root.
+     * If path is absolute or starts with /, uses it directly.
+     * Otherwise, prepends asset root.
      */
-    private String generateResourceId(String path, String typeName) {
-        if (typeName == null) {
+    private String resolvePath(String path) {
+        // Check if absolute path (starts with / or contains :)
+        if (path.startsWith("/") || path.contains(":")) {
             return path;
         }
-        return typeName + ":" + path;
+
+        // Relative path - prepend asset root
+        String root = assetRoot;
+        if (!root.endsWith("/")) {
+            root += "/";
+        }
+
+        return root + path;
     }
 
     /**
-     * Determines asset type from file extension.
+     * Determines type from file extension.
      */
-    private String getTypeFromPath(String path) {
+    private Class<?> getTypeFromExtension(String path) {
         int lastDot = path.lastIndexOf('.');
-        if (lastDot == -1) return null;
+        if (lastDot == -1) {
+            return null;
+        }
 
         String extension = path.substring(lastDot).toLowerCase();
-        return extensionToType.get(extension);
+        return extensionMap.get(extension);
     }
 
-    // Getters for statistics and configuration
+    // Getters and setters for configuration
 
-    public ResourceCache getCache() {
-        return cache;
+    public void setAssetRoot(String assetRoot) {
+        if (assetRoot == null || assetRoot.isEmpty()) {
+            throw new IllegalArgumentException("Asset root cannot be null or empty");
+        }
+        this.assetRoot = assetRoot;
+        System.out.println("Asset root set to: " + assetRoot);
     }
 
-    public int getCacheSize() {
-        return cache.getCurrentSize();
-    }
-
-    public int getMaxCacheSize() {
-        return cache.getMaxCacheSize();
-    }
-
-    public void setMaxCacheSize(int size) {
-        cache.setMaxCacheSize(size);
-    }
-
-    public long getTotalLoadsStarted() {
-        return totalLoadsStarted;
-    }
-
-    public long getTotalLoadsCompleted() {
-        return totalLoadsCompleted;
-    }
-
-    public long getTotalLoadsFailed() {
-        return totalLoadsFailed;
-    }
-
-    public Set<String> getRegisteredTypes() {
-        return new HashSet<>(loadersByType.keySet());
+    public void setErrorMode(ErrorMode errorMode) {
+        if (errorMode == null) {
+            throw new IllegalArgumentException("Error mode cannot be null");
+        }
+        this.errorMode = errorMode;
     }
 
     @Override
     public String toString() {
-        return String.format(
-                "AssetManager[cache=%s, loaders=%d, loading=%d, stats=(%d started, %d completed, %d failed)]",
-                cache.toString(), loadersByType.size(), currentlyLoading.size(),
-                totalLoadsStarted, totalLoadsCompleted, totalLoadsFailed
-        );
+        return String.format("AssetManager[root=%s, errorMode=%s, %s]",
+                assetRoot, errorMode, cache);
     }
 }

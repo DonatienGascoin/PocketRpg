@@ -5,11 +5,8 @@ import com.pocket.rpg.input.events.InputEventBus;
 import com.pocket.rpg.postProcessing.PostProcessor;
 import com.pocket.rpg.rendering.OverlayRenderer;
 import com.pocket.rpg.rendering.renderers.RenderInterface;
-import com.pocket.rpg.resources.AssetManager;
-import com.pocket.rpg.resources.loaders.ShaderLoader;
-import com.pocket.rpg.resources.loaders.SpriteLoader;
-import com.pocket.rpg.resources.loaders.SpriteSheetLoader;
-import com.pocket.rpg.resources.loaders.TextureLoader;
+import com.pocket.rpg.resources.Assets;
+import com.pocket.rpg.resources.ErrorMode;
 import com.pocket.rpg.scenes.*;
 import com.pocket.rpg.transitions.SceneTransition;
 import com.pocket.rpg.transitions.TransitionManager;
@@ -62,6 +59,11 @@ public class GameEngine {
     public void initialize() {
         System.out.println(LogUtils.buildBox("Initializing Game Engine"));
 
+        Assets.initialize();
+        Assets.configure()
+                .setAssetRoot("gameData/assets/")
+                .setErrorMode(ErrorMode.USE_PLACEHOLDER)
+                .apply();
         initSceneManager();
         initTransitionSystem();
         initUISystem();
@@ -100,7 +102,6 @@ public class GameEngine {
     }
 
     public void update(float deltaTime) {
-        AssetManager.getInstance().update(deltaTime);
         transitionManager.update(deltaTime);
         sceneManager.update(deltaTime);
     }
@@ -155,8 +156,6 @@ public class GameEngine {
         if (sceneManager != null) {
             sceneManager.destroy();
         }
-
-        AssetManager.destroy();
 
         System.out.println("Game engine destroyed");
     }

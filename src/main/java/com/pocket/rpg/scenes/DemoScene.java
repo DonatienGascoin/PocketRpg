@@ -8,7 +8,7 @@ import com.pocket.rpg.postProcessing.PostProcessing;
 import com.pocket.rpg.postProcessing.postEffects.VignetteEffect;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.SpriteSheet;
-import com.pocket.rpg.resources.AssetManager;
+import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.ui.AnchorPreset;
 import com.pocket.rpg.ui.UIButton;
 import com.pocket.rpg.ui.UICanvas;
@@ -99,56 +99,58 @@ public class DemoScene extends Scene {
     }
 
     private List<Sprite> getRoad() {
-        var resource = AssetManager.getInstance().<Sprite>load("gameData/assets/sprites/Road_16x16.png");
-        var sprite = resource.get();
+        var sprite = Assets.<Sprite>load("sprites/Road_16x16.png");
 
         // 16×16 pixel tiles with PPU=16 → each tile is 1×1 world units
         SpriteSheet sheet = new SpriteSheet(sprite.getTexture(), 16, 16);
+        Assets.persist(sheet, "spritesheets/roads.spritesheet");
         return sheet.generateAllSprites();
     }
 
     private List<Sprite> getTrees() {
-        var resource = AssetManager.getInstance().<Sprite>load("gameData/assets/sprites/trees.png");
-        var sprite = resource.get();
+        var sprite = Assets.<Sprite>load("sprites/trees.png");
 
         // 16×16 pixel tiles with PPU=16 → each tile is 1×1 world units
         SpriteSheet sheet = new SpriteSheet(sprite.getTexture(), 32, 48);
+        Assets.persist(sheet, "spritesheets/trees.spritesheet");
         return sheet.generateAllSprites();
     }
 
     private List<Sprite> getWater() {
-        var resource = AssetManager.getInstance().<Sprite>load("gameData/assets/sprites/water.png");
-        var sprite = resource.get();
+        var sprite = Assets.<Sprite>load("sprites/water.png");
 
         // 16×16 pixel tiles with PPU=16 → each tile is 1×1 world units
         SpriteSheet sheet = new SpriteSheet(sprite.getTexture(), 16, 16);
+        Assets.persist(sheet, "spritesheets/water.spritesheet");
         return sheet.generateAllSprites();
     }
 
     private List<Sprite> getHouses() {
-        var resource = AssetManager.getInstance().<Sprite>load("gameData/assets/sprites/Building6_64x96.png");
-        var sprite = resource.get();
+        var sprite = Assets.<Sprite>load("sprites/Building6_64x96.png");
 
         // 16×16 pixel tiles with PPU=16 → each tile is 1×1 world units
         SpriteSheet sheet = new SpriteSheet(sprite.getTexture(), 64, 96);
+        Assets.persist(sheet, "spritesheets/buildings6.spritesheet");
         return sheet.generateAllSprites();
     }
 
     private List<Sprite> getFences() {
-        var resource = AssetManager.getInstance().<Sprite>load("gameData/assets/sprites/Fence.png");
-        var sprite = resource.get();
+        var sprite = Assets.<Sprite>load("sprites/Fence.png");
 
         // 16×16 pixel tiles with PPU=16 → each tile is 1×1 world units
         SpriteSheet sheet = new SpriteSheet(sprite.getTexture(), 16, 16);
+        Assets.persist(sheet, "spritesheets/fences.spritesheet");
         return sheet.generateAllSprites();
     }
 
     private static List<Sprite> getOutdoorSprites() {
-        var resource = AssetManager.getInstance().<Sprite>load("gameData/assets/sprites/Outdoors_misc.png");
-        var outdoorTex = resource.get();
+        Sprite sprite = Assets.load("sprites/Outdoors_misc.png", Sprite.class);
+        System.out.println("Success: " + sprite);
+        var outdoorTex = Assets.<Sprite>load("sprites/Outdoors_misc.png");
 
         // 16×16 pixel tiles with PPU=16 → each tile is 1×1 world units
         SpriteSheet levelSheet = new SpriteSheet(outdoorTex.getTexture(), 16, 16);
+        Assets.persist(levelSheet, "spritesheets/outdoor.spritesheet");
         var sprites = levelSheet.generateAllSprites();
         return sprites;
     }
@@ -167,12 +169,12 @@ public class DemoScene extends Scene {
      */
     private void createPlayer() {
 
-        var resource = AssetManager.getInstance().<Sprite>load("gameData/assets/sprites/Char1_32x32.png");
-        var playerTex = resource.get();
+        var playerTex = Assets.<Sprite>load("sprites/characters/Char1_32x32.png");
 
         // 32×32 pixel sprites with PPU=16 → each frame is 2×2 world units
         SpriteSheet playerSheet = new SpriteSheet(playerTex.getTexture(), 32, 32, 0, 0, 0, 16);
         var sprites = playerSheet.generateAllSprites();
+        Assets.persist(playerSheet, "spritesheets/player.spritesheet");
 
         SpriteRenderer spriteRenderer = new SpriteRenderer(sprites.get(0));
         spriteRenderer.setZIndex(1);  // Render above tiles (zIndex=0)

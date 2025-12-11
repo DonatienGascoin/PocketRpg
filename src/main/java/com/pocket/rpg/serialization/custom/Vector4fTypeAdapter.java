@@ -1,4 +1,4 @@
-package com.pocket.rpg.serialization;
+package com.pocket.rpg.serialization.custom;
 
 import com.google.gson.*;
 import org.joml.Vector4f;

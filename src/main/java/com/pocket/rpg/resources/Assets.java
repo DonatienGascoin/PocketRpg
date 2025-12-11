@@ -1,5 +1,6 @@
 package com.pocket.rpg.resources;
 
+import lombok.Getter;
 import lombok.Setter;
 
 import java.util.List;
@@ -28,6 +29,7 @@ import java.util.Set;
 public final class Assets {
 
     @Setter
+    @Getter
     private static AssetContext context;
 
     private Assets() {

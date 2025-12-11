@@ -59,11 +59,6 @@ public class GameEngine {
     public void initialize() {
         System.out.println(LogUtils.buildBox("Initializing Game Engine"));
 
-        Assets.initialize();
-        Assets.configure()
-                .setAssetRoot("gameData/assets/")
-                .setErrorMode(ErrorMode.USE_PLACEHOLDER)
-                .apply();
         initSceneManager();
         initTransitionSystem();
         initUISystem();

@@ -8,16 +8,17 @@ import com.pocket.rpg.resources.AssetLoader;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.function.Function;
 
 /**
  * Generic loader for JSON-based assets.
  * Allows creating custom asset types without writing a full loader implementation.
- *
+ * <p>
  * This is the most flexible loader - you can use it to load any JSON-based asset
  * by just providing a constructor function.
- *
+ * <p>
  * Example - Animation System:
  * <pre>
  * // Define your data class
@@ -131,8 +132,8 @@ public class GenericJSONLoader<T> implements AssetLoader<T> {
      * Requires serializer function provided in constructor.
      *
      * @param resource The asset to save
-     * @param path Path to save to
-     * @throws IOException if saving fails
+     * @param path     Path to save to
+     * @throws IOException                   if saving fails
      * @throws UnsupportedOperationException if no serializer was provided
      */
     @Override
@@ -152,7 +153,15 @@ public class GenericJSONLoader<T> implements AssetLoader<T> {
 
             // Write to file
             String jsonString = gson.toJson(json);
-            Files.write(Paths.get(path), jsonString.getBytes());
+            Path filePath = Paths.get(path);
+
+            // Create parent directories if they don't exist
+            Path parentDir = filePath.getParent();
+            if (parentDir != null && !Files.exists(parentDir)) {
+                Files.createDirectories(parentDir);
+            }
+
+            Files.write(filePath, jsonString.getBytes());
 
         } catch (Exception e) {
             throw new IOException("Failed to save JSON asset: " + path, e);

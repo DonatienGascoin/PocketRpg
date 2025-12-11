@@ -11,7 +11,7 @@ import imgui.glfw.ImGuiImplGlfw;
 /**
  * ImGui integration layer for the Scene Editor.
  * Handles ImGui initialization, frame management, and rendering.
- *
+ * <p>
  * Compatible with imgui-java 1.90.0+
  */
 public class ImGuiLayer {
@@ -24,7 +24,7 @@ public class ImGuiLayer {
     /**
      * Initializes ImGui with the given GLFW window.
      *
-     * @param windowHandle GLFW window handle
+     * @param windowHandle     GLFW window handle
      * @param installCallbacks Whether to install GLFW callbacks
      */
     public void init(long windowHandle, boolean installCallbacks) {

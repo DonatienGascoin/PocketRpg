@@ -13,6 +13,8 @@ import com.pocket.rpg.input.listeners.MouseListener;
 import com.pocket.rpg.postProcessing.PostProcessing;
 import com.pocket.rpg.postProcessing.PostProcessor;
 import com.pocket.rpg.rendering.renderers.RenderInterface;
+import com.pocket.rpg.resources.Assets;
+import com.pocket.rpg.resources.ErrorMode;
 import com.pocket.rpg.serialization.Serializer;
 import com.pocket.rpg.time.DefaultTimeContext;
 import com.pocket.rpg.time.Time;
@@ -54,7 +56,12 @@ public class GameApplication {
     private EngineConfiguration config;
 
     private void init() {
-        Serializer.init();
+        Assets.initialize();
+        Assets.configure()
+                .setAssetRoot("gameData/assets/")
+                .setErrorMode(ErrorMode.USE_PLACEHOLDER)
+                .apply();
+        Serializer.init(Assets.getContext());
         System.out.println(LogUtils.buildBox("Application starting"));
 
         config = EngineConfiguration.load();

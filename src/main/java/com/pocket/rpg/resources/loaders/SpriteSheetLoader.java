@@ -11,6 +11,7 @@ import com.pocket.rpg.resources.Assets;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 
 /**
@@ -42,9 +43,9 @@ public class SpriteSheetLoader implements AssetLoader<SpriteSheet> {
         String jsonContent = new String(Files.readAllBytes(Paths.get(path)));
         JsonObject json = JsonParser.parseString(jsonContent).getAsJsonObject();
 
-        // Parse texture path (relative to sprite sheet file)
+        // Parse texture path (relative to asset root, NOT to sprite sheet file)
         String texturePath = json.get("texture").getAsString();
-        texturePath = resolveRelativePath(path, texturePath);
+        // Assets.load() will resolve this relative to the asset root
 
         // Load texture through Assets
         Texture texture = Assets.load(texturePath, Texture.class);
@@ -100,7 +101,15 @@ public class SpriteSheetLoader implements AssetLoader<SpriteSheet> {
 
         // Write to file
         String jsonString = gson.toJson(json);
-        Files.write(Paths.get(path), jsonString.getBytes());
+        Path filePath = Paths.get(path);
+
+        // Create parent directories if they don't exist
+        Path parentDir = filePath.getParent();
+        if (parentDir != null && !Files.exists(parentDir)) {
+            Files.createDirectories(parentDir);
+        }
+
+        Files.write(filePath, jsonString.getBytes());
     }
 
     @Override
@@ -126,31 +135,6 @@ public class SpriteSheetLoader implements AssetLoader<SpriteSheet> {
         }
         // Load fresh
         return load(path);
-    }
-
-    /**
-     * Resolves a relative path from a base file path.
-     * Example: base="assets/sheets/player.spritesheet", relative="textures/player.png"
-     * Result: "assets/sheets/textures/player.png"
-     */
-    private String resolveRelativePath(String basePath, String relativePath) {
-        // If relative path is already absolute, return it
-        if (relativePath.startsWith("/") || relativePath.contains(":")) {
-            return relativePath;
-        }
-
-        // Get directory of base path
-        int lastSlash = basePath.lastIndexOf('/');
-        if (lastSlash == -1) {
-            lastSlash = basePath.lastIndexOf('\\');
-        }
-
-        if (lastSlash != -1) {
-            String baseDir = basePath.substring(0, lastSlash + 1);
-            return baseDir + relativePath;
-        }
-
-        return relativePath;
     }
 
     /**

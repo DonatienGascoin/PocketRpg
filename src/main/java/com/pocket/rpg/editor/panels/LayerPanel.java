@@ -20,6 +20,9 @@ import lombok.Setter;
  * - Toggle lock state
  * - Reorder layers (move up/down)
  * - Visibility mode selection (All/Selected/Dimmed)
+ *
+ * Note: Layers no longer require a spritesheet at creation.
+ * Tiles from any tileset can be placed on any layer.
  */
 public class LayerPanel {
 
@@ -29,9 +32,6 @@ public class LayerPanel {
     // Add layer dialog state
     private boolean showAddLayerDialog = false;
     private ImString newLayerName = new ImString("New Layer", 64);
-    private ImString spritesheetPath = new ImString("gameData/assets/sprites/Road_16x16.png", 256);
-    private imgui.type.ImInt spriteWidth = new imgui.type.ImInt(16);
-    private imgui.type.ImInt spriteHeight = new imgui.type.ImInt(16);
     private boolean focusNameInput = false;
 
     // Rename dialog state
@@ -214,10 +214,7 @@ public class LayerPanel {
             int inputFlags = ImGuiInputTextFlags.EnterReturnsTrue;
             boolean enterPressed = ImGui.inputText("Name", newLayerName, inputFlags);
 
-            ImGui.inputText("Spritesheet", spritesheetPath);
-
-            ImGui.inputInt("Sprite Width", spriteWidth);
-            ImGui.inputInt("Sprite Height", spriteHeight);
+            ImGui.textDisabled("Tiles from any tileset can be placed on this layer.");
 
             ImGui.separator();
 
@@ -226,7 +223,7 @@ public class LayerPanel {
             if (shouldCreate) {
                 String name = newLayerName.get().trim();
                 if (!name.isEmpty()) {
-                    scene.addLayer(name, spritesheetPath.get(), spriteWidth.get(), spriteHeight.get());
+                    scene.addLayer(name);
                     showAddLayerDialog = false;
                     ImGui.closeCurrentPopup();
                 }

@@ -12,13 +12,15 @@ import com.pocket.rpg.editor.panels.TilesetPalettePanel;
 import com.pocket.rpg.editor.rendering.EditorFramebuffer;
 import com.pocket.rpg.editor.rendering.EditorSceneRenderer;
 import com.pocket.rpg.editor.scene.EditorScene;
+import com.pocket.rpg.editor.tileset.TilesetRegistry;
 import com.pocket.rpg.editor.tools.TileBrushTool;
 import com.pocket.rpg.editor.tools.TileEraserTool;
 import com.pocket.rpg.editor.tools.ToolManager;
 import com.pocket.rpg.editor.ui.EditorMenuBar;
 import com.pocket.rpg.editor.ui.SceneViewport;
 import com.pocket.rpg.editor.ui.StatusBar;
-import com.pocket.rpg.resources.AssetManager;
+import com.pocket.rpg.resources.Assets;
+import com.pocket.rpg.resources.ErrorMode;
 import com.pocket.rpg.serialization.Serializer;
 import imgui.ImGui;
 import imgui.flag.ImGuiDockNodeFlags;
@@ -34,12 +36,12 @@ import static org.lwjgl.opengl.GL33.glClearColor;
 /**
  * Main application class for the PocketRPG Scene Editor.
  * <p>
- * Phase 3a Implementation:
- * - Layer management (add/delete/rename/reorder)
- * - Layer visibility modes (All/Selected/Dimmed)
- * - Tool system (Brush, Eraser)
- * - Tileset palette for tile selection
- * - Tile painting on active layer
+ * Phase 3b Implementation:
+ * - TilesetRegistry for managing .spritesheet files
+ * - Multi-tile selection (patterns)
+ * - Tileset dropdown in palette
+ * - Create new spritesheet dialog
+ * - Paint patterns from any tileset onto any layer
  */
 public class EditorApplication {
 
@@ -73,7 +75,7 @@ public class EditorApplication {
 
     public static void main(String[] args) {
         System.out.println("===========================================");
-        System.out.println("    PocketRPG Scene Editor - Phase 3a");
+        System.out.println("    PocketRPG Scene Editor - Phase 3b");
         System.out.println("===========================================");
 
         EditorApplication app = new EditorApplication();
@@ -94,7 +96,15 @@ public class EditorApplication {
 
     private void init() {
         System.out.println("Initializing Scene Editor...");
-        Serializer.init();
+        // Initialize Assets system
+        Assets.initialize();
+        Assets.configure()
+                .setAssetRoot("gameData/assets/")
+                .setErrorMode(ErrorMode.THROW_EXCEPTION)
+                .apply();
+        // Initialize serialization
+        Serializer.init(Assets.getContext());
+
         // Load configuration
         config = EditorConfig.createDefault();
         ConfigLoader.loadAllConfigs();
@@ -109,8 +119,10 @@ public class EditorApplication {
         imGuiLayer = new ImGuiLayer();
         imGuiLayer.init(window.getWindowHandle(), true);
 
-        // Initialize AssetManager
-        AssetManager.initialize();
+
+        // Initialize TilesetRegistry and load all .spritesheet files
+        TilesetRegistry.initialize();
+        TilesetRegistry.getInstance().scanAndLoad();
 
         // Create camera
         camera = new EditorCamera(config);
@@ -377,12 +389,22 @@ public class EditorApplication {
             if (toolManager.getActiveTool() == brushTool) {
                 ImGui.text("Brush Settings");
 
-                int[] size = {brushTool.getBrushSize()};
-                if (ImGui.sliderInt("Size", size, 1, 10)) {
-                    brushTool.setBrushSize(size[0]);
-                }
+                // Show selection info
+                var selection = brushTool.getSelection();
+                if (selection == null) {
+                    ImGui.textDisabled("No tile selected");
+                } else if (selection.isPattern()) {
+                    ImGui.text("Pattern: " + selection.getWidth() + "x" + selection.getHeight());
+                    ImGui.textDisabled("Click to stamp");
+                } else {
+                    ImGui.text("Tile: " + selection.getFirstTileIndex());
 
-                ImGui.text("Selected Tile: " + brushTool.getSelectedTileIndex());
+                    // Brush size only for single tile
+                    int[] size = {brushTool.getBrushSize()};
+                    if (ImGui.sliderInt("Size", size, 1, 10)) {
+                        brushTool.setBrushSize(size[0]);
+                    }
+                }
             } else if (toolManager.getActiveTool() == eraserTool) {
                 ImGui.text("Eraser Settings");
 
@@ -561,8 +583,8 @@ public class EditorApplication {
             currentScene.destroy();
         }
 
+        TilesetRegistry.destroy();
         FileDialogs.cleanup();
-        AssetManager.destroy();
 
         if (imGuiLayer != null) {
             imGuiLayer.destroy();

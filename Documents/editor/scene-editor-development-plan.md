@@ -26,6 +26,23 @@ Game: SceneLoader reads .scene files → builds Scene with GameObjects
 
 ---
 
+## Terminology
+
+To ensure clarity throughout the codebase and documentation:
+
+| Term | Definition |
+|------|------------|
+| **Sprite** | A single image region from a texture, with UV coordinates and optional pivot |
+| **SpriteSheet** | A texture divided into a grid of sprites (rows, cols, spacing, offset) |
+| **Tileset** | A SpriteSheet used specifically for tilemap painting (same class, different context) |
+| **Tile** | A single cell in a tilemap, references a Sprite |
+| **Tilemap** | A grid data structure holding Tiles, managed by TilemapRenderer |
+| **TilemapLayer** | Editor wrapper around a GameObject with TilemapRenderer component |
+| **Layer** | In editor context, synonymous with TilemapLayer |
+| **CollisionMap** | Separate grid storing collision types (not visual, not part of TilemapRenderer) |
+
+---
+
 ## Phase 1: Foundation ✅ COMPLETED
 
 **Status:** Implemented on 2025-12-09
@@ -73,15 +90,6 @@ src/main/java/com/pocket/rpg/editor/
 - ✅ Status bar with FPS
 - ✅ Unsaved changes dialog
 
-**What's Stubbed (for Phase 2):**
-- Save/Load only shows dialogs, no actual serialization
-- Hierarchy/Inspector/Tileset/Layers panels are placeholders
-- No actual scene rendering (just grid)
-
-**Known Issues Fixed:**
-- Borderless fullscreen hides window controls → use maximized windowed instead
-- Updated to imgui-java 1.90.0 for full ImGuiKey keyboard support
-
 ---
 
 ## Phase 2: Scene Serialization ✅ COMPLETED
@@ -122,26 +130,22 @@ src/main/java/com/pocket/rpg/
     └── EditorSceneRenderer.java      # Renders SceneData to framebuffer
 ```
 
-**Required Changes to Existing Code:**
-1. Add `transient` to Component.gameObject and other runtime fields
-2. Add no-arg constructors to all Component subclasses
-3. Add `setGameObject()` setter to Component base class
-
 **What Works:**
 - ✅ Any Component subclass serializes automatically
-- ✅ Sprite/Texture references resolve via AssetManager  
+- ✅ Sprite/Texture references resolve via AssetManager
 - ✅ Parent-child hierarchy preserved
 - ✅ Scene save/load round-trip
 - ✅ Framebuffer rendering infrastructure
 - ✅ PrefabRegistry for code-based prefabs
 
 **Deferred to Later Phases:**
-- Tilemap chunk serialization (Phase 3)
+- EditorScene ↔ SceneData conversion (Phase 3.5)
+- Complete save/load workflow in editor (Phase 3.5)
 - CollisionMap layer (Phase 4)
 - Inspector panel for editing (Phase 5)
 - JSON-based prefabs (Phase 7+)
 
-### 2.1 Scene File Format (Updated)
+### 2.1 Scene File Format
 
 ```json
 {
@@ -165,26 +169,11 @@ src/main/java/com/pocket/rpg/
           "chunks": {
             "0,0": {
               "tiles": [
-                [0, 1, 2, -1, 3, ...],
-                [4, 5, 6, 7, 8, ...]
+                [0, 1, 2, -1, 3],
+                [4, 5, 6, 7, 8]
               ]
-            },
-            "1,0": { ... }
+            }
           }
-        }
-      }
-    },
-    {
-      "name": "ObjectsLayer",
-      "position": [0, 0, 0],
-      "components": {
-        "TilemapRenderer": {
-          "zIndex": 0,
-          "tileSize": 1.0,
-          "tilesetPath": "gameData/assets/sprites/objects.png",
-          "tilesetCols": 8,
-          "tilesetRows": 8,
-          "chunks": { ... }
         }
       }
     }
@@ -195,25 +184,17 @@ src/main/java/com/pocket/rpg/
       "name": "Player",
       "position": [5, 5, 0],
       "properties": {}
-    },
-    {
-      "prefabId": "NPC",
-      "name": "Villager_01",
-      "position": [10, 8, 0],
-      "properties": {
-        "dialogueId": "villager_01",
-        "facing": "DOWN"
-      }
     }
   ],
-  "collisionLayer": {
+  "collision": {
     "tileSize": 1.0,
-    "chunks": {
-      "0,0": {
-        "data": [
-          [0, 0, 1, 1, 0, ...],
-          [0, 0, 1, 1, 0, ...]
-        ]
+    "layers": {
+      "0": {
+        "chunks": {
+          "0,0": {
+            "data": [[0, 0, 1, 1], [0, 0, 1, 1]]
+          }
+        }
       }
     }
   },
@@ -231,877 +212,1171 @@ src/main/java/com/pocket/rpg/
 }
 ```
 
-**Notes:**
-- `tiles` array uses tileset indices; `-1` means empty
-- `collisionLayer.data` uses: `0` = passable, `1` = solid, `2` = water, `3` = ledge, etc.
-- Each tilemap layer is a separate GameObject with TilemapRenderer component
-- `triggers` for scene transitions and events
-
-### 2.2 Data Classes
-
-```java
-// Scene structure
-public record SceneData(
-    String name,
-    int version,
-    CameraData camera,
-    List<GameObjectData> gameObjects,
-    List<EntityData> entities,
-    CollisionLayerData collisionLayer,
-    List<TriggerData> triggers
-) {}
-
-public record CameraData(
-    float[] position,
-    float orthographicSize
-) {}
-
-public record GameObjectData(
-    String name,
-    float[] position,
-    Map<String, ComponentData> components
-) {}
-
-public record TilemapComponentData(
-    int zIndex,
-    float tileSize,
-    String tilesetPath,
-    int tilesetCols,
-    int tilesetRows,
-    Map<String, ChunkData> chunks
-) implements ComponentData {}
-
-public record ChunkData(
-    int[][] tiles
-) {}
-
-public record EntityData(
-    String prefabId,
-    String name,
-    float[] position,
-    Map<String, Object> properties
-) {}
-
-public record CollisionLayerData(
-    float tileSize,
-    Map<String, CollisionChunkData> chunks
-) {}
-
-public record CollisionChunkData(
-    int[][] data
-) {}
-
-public record TriggerData(
-    String name,
-    String type,
-    float[] bounds,
-    Map<String, Object> properties
-) {}
-```
-
-### 2.3 SceneSerializer
-
-```java
-public class SceneSerializer {
-    
-    public static void save(EditorScene scene, Path path) {
-        SceneData data = convertToData(scene);
-        String json = Serializer.toJson(data, true);
-        Files.writeString(path, json);
-    }
-    
-    public static SceneData load(Path path) {
-        String json = Files.readString(path);
-        return Serializer.fromJson(json, SceneData.class);
-    }
-    
-    private static SceneData convertToData(EditorScene scene) {
-        // Convert live scene to serializable data
-    }
-}
-```
-
-### 2.4 SceneLoader (Game-side)
-
-```java
-public class SceneLoader {
-    private final PrefabRegistry prefabs;
-    private final AssetManager assets;
-    
-    public Scene load(String scenePath, ViewportConfig viewport, RenderingConfig config) {
-        SceneData data = SceneSerializer.load(Path.of(scenePath));
-        
-        // Create scene
-        Scene scene = new RuntimeScene(data.name());
-        
-        // Build tilemap GameObjects
-        for (GameObjectData goData : data.gameObjects()) {
-            GameObject go = buildGameObject(goData);
-            scene.addGameObject(go);
-        }
-        
-        // Instantiate entities from prefabs
-        for (EntityData entity : data.entities()) {
-            GameObject go = prefabs.instantiate(
-                entity.prefabId(),
-                entity.name(),
-                new Vector3f(entity.position()[0], entity.position()[1], entity.position()[2])
-            );
-            applyProperties(go, entity.properties());
-            scene.addGameObject(go);
-        }
-        
-        // Build collision data (stored separately, used by GridMovement)
-        CollisionMap collision = buildCollisionMap(data.collisionLayer());
-        scene.setCollisionMap(collision);
-        
-        // Build triggers
-        for (TriggerData trigger : data.triggers()) {
-            scene.addTrigger(buildTrigger(trigger));
-        }
-        
-        return scene;
-    }
-    
-    private GameObject buildGameObject(GameObjectData data) {
-        GameObject go = new GameObject(data.name());
-        go.getTransform().setPosition(data.position()[0], data.position()[1], data.position()[2]);
-        
-        for (Map.Entry<String, ComponentData> entry : data.components().entrySet()) {
-            Component component = buildComponent(entry.getKey(), entry.getValue());
-            if (component != null) {
-                go.addComponent(component);
-            }
-        }
-        
-        return go;
-    }
-    
-    private TilemapRenderer buildTilemapRenderer(TilemapComponentData data) {
-        // Load tileset
-        Sprite tilesetSprite = assets.load(data.tilesetPath()).get();
-        SpriteSheet tileset = new SpriteSheet(
-            tilesetSprite.getTexture(),
-            (int)(data.tileSize() * 16),  // Assuming 16 PPU
-            (int)(data.tileSize() * 16)
-        );
-        List<Sprite> tileSprites = tileset.generateAllSprites();
-        
-        // Create tilemap
-        TilemapRenderer tilemap = new TilemapRenderer(data.tileSize());
-        tilemap.setZIndex(data.zIndex());
-        
-        // Populate chunks
-        for (Map.Entry<String, ChunkData> chunkEntry : data.chunks().entrySet()) {
-            String[] coords = chunkEntry.getKey().split(",");
-            int cx = Integer.parseInt(coords[0]);
-            int cy = Integer.parseInt(coords[1]);
-            
-            int[][] tiles = chunkEntry.getValue().tiles();
-            int chunkSize = TilemapRenderer.TileChunk.CHUNK_SIZE;
-            
-            for (int ty = 0; ty < tiles.length && ty < chunkSize; ty++) {
-                for (int tx = 0; tx < tiles[ty].length && tx < chunkSize; tx++) {
-                    int tileIndex = tiles[ty][tx];
-                    if (tileIndex >= 0 && tileIndex < tileSprites.size()) {
-                        int worldX = cx * chunkSize + tx;
-                        int worldY = cy * chunkSize + ty;
-                        tilemap.set(worldX, worldY, 
-                            new TilemapRenderer.Tile(tileSprites.get(tileIndex)));
-                    }
-                }
-            }
-        }
-        
-        return tilemap;
-    }
-}
-```
-
-### 2.5 PrefabRegistry (Game-side)
-
-```java
-public class PrefabRegistry {
-    private final Map<String, PrefabFactory> prefabs = new HashMap<>();
-    
-    @FunctionalInterface
-    public interface PrefabFactory {
-        GameObject create(String name, Vector3f position);
-    }
-    
-    public void register(String id, PrefabFactory factory) {
-        prefabs.put(id, factory);
-    }
-    
-    public GameObject instantiate(String id, String name, Vector3f position) {
-        PrefabFactory factory = prefabs.get(id);
-        if (factory == null) {
-            System.err.println("Unknown prefab: " + id);
-            return new GameObject(name, position);  // Empty placeholder
-        }
-        return factory.create(name, position);
-    }
-    
-    public Set<String> getRegisteredPrefabs() {
-        return prefabs.keySet();
-    }
-}
-
-// Usage in game initialization:
-public class GamePrefabs {
-    public static void register(PrefabRegistry registry, AssetManager assets) {
-        
-        // Player prefab
-        registry.register("Player", (name, pos) -> {
-            GameObject player = new GameObject(name, pos);
-            
-            SpriteSheet sheet = loadPlayerSheet(assets);
-            SpriteRenderer renderer = new SpriteRenderer(sheet.getSprite(0));
-            renderer.setZIndex(1);
-            renderer.setOriginBottomCenter();
-            player.addComponent(renderer);
-            
-            GridMovement movement = new GridMovement();
-            movement.setGridPosition((int)pos.x, (int)pos.y);
-            player.addComponent(movement);
-            
-            player.addComponent(new PlayerMovement(movement));
-            player.addComponent(new PlayerCameraFollow());
-            
-            return player;
-        });
-        
-        // NPC prefab
-        registry.register("NPC", (name, pos) -> {
-            GameObject npc = new GameObject(name, pos);
-            
-            SpriteSheet sheet = loadNPCSheet(assets);
-            SpriteRenderer renderer = new SpriteRenderer(sheet.getSprite(0));
-            renderer.setZIndex(1);
-            renderer.setOriginBottomCenter();
-            npc.addComponent(renderer);
-            
-            npc.addComponent(new NPCBehavior());
-            npc.addComponent(new Interactable());
-            
-            return npc;
-        });
-        
-        // Sign prefab
-        registry.register("Sign", (name, pos) -> {
-            GameObject sign = new GameObject(name, pos);
-            // ... components
-            return sign;
-        });
-    }
-}
-```
-
-### 2.6 Files to Create
-
-```
-src/main/java/com/pocket/rpg/
-├── editor/
-│   └── EditorScene.java            # Editor's scene representation
-├── serialization/
-│   ├── SceneSerializer.java
-│   ├── scene/
-│   │   ├── SceneData.java
-│   │   ├── CameraData.java
-│   │   ├── GameObjectData.java
-│   │   ├── ComponentData.java
-│   │   ├── TilemapComponentData.java
-│   │   ├── ChunkData.java
-│   │   ├── EntityData.java
-│   │   ├── CollisionLayerData.java
-│   │   ├── CollisionChunkData.java
-│   │   └── TriggerData.java
-│   └── custom/
-│       └── SceneDataTypeAdapter.java   # If needed for polymorphic components
-├── scenes/
-│   ├── SceneLoader.java            # Game-side loader
-│   └── RuntimeScene.java           # Scene subclass for loaded scenes
-└── prefabs/
-    ├── PrefabRegistry.java
-    └── GamePrefabs.java            # Game-specific prefab definitions
-```
-
-**Deliverables:**
-- Save scene to JSON from editor
-- Load scene from JSON in game
-- Prefab system for code-defined entity templates
-- Round-trip test: create in editor → play in game
-- Tilemap data preserved as TilemapRenderer components on GameObjects
-
 ---
 
-## Phase 3: Tilemap Painting
+## Phase 3: Tilemap Painting ✅ COMPLETED
+
+**Status:** Implemented on 2025-12-10
 
 **Goal:** Visual tile placement with brush tools.
 
-### 3.1 Tileset Palette Panel
+### Implementation Notes
 
-```java
-public class TilesetPalettePanel {
-    private SpriteSheet currentTileset;
-    private int selectedTileIndex = -1;
-    private int selectionStartX, selectionStartY;
-    private int selectionEndX, selectionEndY;
-    
-    public void render() {
-        ImGui.begin("Tileset");
-        
-        // Tileset selector dropdown
-        if (ImGui.beginCombo("Tileset", currentTilesetName)) {
-            for (String name : availableTilesets) {
-                if (ImGui.selectable(name)) {
-                    loadTileset(name);
-                }
-            }
-            ImGui.endCombo();
-        }
-        
-        // Render tileset as clickable grid
-        if (currentTileset != null) {
-            renderTilesetGrid();
-        }
-        
-        ImGui.end();
-    }
-    
-    private void renderTilesetGrid() {
-        // Use ImGui.image() for each tile
-        // Handle click for selection
-        // Handle drag for multi-tile selection
-    }
-    
-    public int getSelectedTileIndex() {
-        return selectedTileIndex;
-    }
-    
-    public int[] getSelectedTileRegion() {
-        // Returns [startX, startY, width, height] for multi-tile selection
-    }
-}
-```
-
-### 3.2 Tool System
-
-```java
-public interface EditorTool {
-    String getName();
-    String getIcon();  // For toolbar
-    KeyCode getShortcut();
-    
-    void onActivate();
-    void onDeactivate();
-    
-    void onMouseDown(int tileX, int tileY, int button);
-    void onMouseDrag(int tileX, int tileY, int button);
-    void onMouseUp(int tileX, int tileY, int button);
-    void onMouseMove(int tileX, int tileY);
-    
-    void renderOverlay(Camera camera);  // Preview, guides
-}
-
-public class ToolManager {
-    private final List<EditorTool> tools = new ArrayList<>();
-    private EditorTool activeTool;
-    private final CommandHistory commandHistory;
-    
-    public void registerTool(EditorTool tool) {
-        tools.add(tool);
-    }
-    
-    public void setActiveTool(EditorTool tool) {
-        if (activeTool != null) {
-            activeTool.onDeactivate();
-        }
-        activeTool = tool;
-        if (activeTool != null) {
-            activeTool.onActivate();
-        }
-    }
-    
-    public void handleInput(int tileX, int tileY, InputEvent event) {
-        if (activeTool == null) return;
-        // Route to active tool
-    }
-}
-```
-
-### 3.3 Tile Brush Tool
-
-```java
-public class TileBrushTool implements EditorTool {
-    private final TilesetPalettePanel palette;
-    private final EditorScene scene;
-    private final CommandHistory history;
-    
-    private int brushSize = 1;
-    private boolean isPainting = false;
-    private PaintTilesCommand currentCommand;
-    
-    @Override
-    public void onMouseDown(int tileX, int tileY, int button) {
-        if (button == GLFW_MOUSE_BUTTON_LEFT) {
-            isPainting = true;
-            currentCommand = new PaintTilesCommand(scene.getActiveLayer());
-            paintAt(tileX, tileY);
-        }
-    }
-    
-    @Override
-    public void onMouseDrag(int tileX, int tileY, int button) {
-        if (isPainting) {
-            paintAt(tileX, tileY);
-        }
-    }
-    
-    @Override
-    public void onMouseUp(int tileX, int tileY, int button) {
-        if (isPainting) {
-            isPainting = false;
-            if (currentCommand.hasChanges()) {
-                history.execute(currentCommand);
-            }
-            currentCommand = null;
-        }
-    }
-    
-    private void paintAt(int tileX, int tileY) {
-        int tileIndex = palette.getSelectedTileIndex();
-        if (tileIndex < 0) return;
-        
-        TilemapRenderer tilemap = scene.getActiveLayer();
-        
-        // Apply brush size
-        int halfBrush = brushSize / 2;
-        for (int dy = -halfBrush; dy <= halfBrush; dy++) {
-            for (int dx = -halfBrush; dx <= halfBrush; dx++) {
-                int tx = tileX + dx;
-                int ty = tileY + dy;
-                
-                // Record old tile for undo
-                currentCommand.recordChange(tx, ty, tilemap.get(tx, ty));
-                
-                // Set new tile
-                Sprite tileSprite = palette.getTileSprite(tileIndex);
-                tilemap.set(tx, ty, new TilemapRenderer.Tile(tileSprite));
-            }
-        }
-    }
-    
-    @Override
-    public void renderOverlay(Camera camera) {
-        // Draw brush preview at cursor position
-        // Highlight tiles that would be affected
-    }
-}
-```
-
-### 3.4 Other Tile Tools
-
-```java
-public class TileEraserTool implements EditorTool {
-    // Similar to brush, but sets tiles to null
-    // Supports brush size
-}
-
-public class TileFillTool implements EditorTool {
-    // Flood fill algorithm
-    // Fill connected tiles of same type with selected tile
-    
-    private void floodFill(int startX, int startY, int newTileIndex) {
-        TilemapRenderer tilemap = scene.getActiveLayer();
-        TilemapRenderer.Tile targetTile = tilemap.get(startX, startY);
-        
-        // BFS flood fill
-        Queue<int[]> queue = new LinkedList<>();
-        Set<Long> visited = new HashSet<>();
-        queue.add(new int[]{startX, startY});
-        
-        while (!queue.isEmpty()) {
-            int[] pos = queue.poll();
-            int x = pos[0], y = pos[1];
-            
-            long key = ((long)x << 32) | (y & 0xFFFFFFFFL);
-            if (visited.contains(key)) continue;
-            visited.add(key);
-            
-            TilemapRenderer.Tile current = tilemap.get(x, y);
-            if (!tilesMatch(current, targetTile)) continue;
-            
-            // Paint this tile
-            currentCommand.recordChange(x, y, current);
-            tilemap.set(x, y, new TilemapRenderer.Tile(palette.getTileSprite(newTileIndex)));
-            
-            // Add neighbors
-            queue.add(new int[]{x + 1, y});
-            queue.add(new int[]{x - 1, y});
-            queue.add(new int[]{x, y + 1});
-            queue.add(new int[]{x, y - 1});
-        }
-    }
-}
-
-public class TileRectangleTool implements EditorTool {
-    private int startX, startY;
-    private boolean isDragging = false;
-    
-    // Click to start rectangle, drag to size, release to fill
-    
-    @Override
-    public void renderOverlay(Camera camera) {
-        if (isDragging) {
-            // Draw rectangle preview from start to current cursor
-        }
-    }
-}
-
-public class TilePickerTool implements EditorTool {
-    // Click on tile to select it in palette
-    // "Eyedropper" functionality
-    
-    @Override
-    public void onMouseDown(int tileX, int tileY, int button) {
-        TilemapRenderer.Tile tile = scene.getActiveLayer().get(tileX, tileY);
-        if (tile != null) {
-            palette.selectTile(tile.sprite());
-            toolManager.setActiveTool(brushTool);  // Switch back to brush
-        }
-    }
-}
-```
-
-### 3.5 Layer Management Panel
-
-```java
-public class LayerPanel {
-    private final EditorScene scene;
-    
-    public void render() {
-        ImGui.begin("Layers");
-        
-        // Add layer button
-        if (ImGui.button("+ Add Layer")) {
-            scene.addTilemapLayer("NewLayer");
-        }
-        
-        ImGui.separator();
-        
-        // Layer list (reversed - top layer first visually)
-        List<TilemapLayer> layers = scene.getLayers();
-        for (int i = layers.size() - 1; i >= 0; i--) {
-            TilemapLayer layer = layers.get(i);
-            
-            ImGui.pushID(i);
-            
-            // Visibility toggle
-            boolean visible = layer.isVisible();
-            if (ImGui.checkbox("##visible", visible)) {
-                layer.setVisible(!visible);
-            }
-            
-            ImGui.sameLine();
-            
-            // Selectable layer name
-            boolean isActive = scene.getActiveLayerIndex() == i;
-            if (ImGui.selectable(layer.getName(), isActive)) {
-                scene.setActiveLayer(i);
-            }
-            
-            // Context menu
-            if (ImGui.beginPopupContextItem()) {
-                if (ImGui.menuItem("Rename")) {
-                    // Open rename dialog
-                }
-                if (ImGui.menuItem("Delete")) {
-                    scene.removeLayer(i);
-                }
-                if (ImGui.menuItem("Move Up") && i < layers.size() - 1) {
-                    scene.swapLayers(i, i + 1);
-                }
-                if (ImGui.menuItem("Move Down") && i > 0) {
-                    scene.swapLayers(i, i - 1);
-                }
-                ImGui.endPopup();
-            }
-            
-            ImGui.popID();
-        }
-        
-        ImGui.end();
-    }
-}
-
-// Editor's layer wrapper
-public class TilemapLayer {
-    private final GameObject gameObject;
-    private final TilemapRenderer tilemap;
-    private boolean visible = true;
-    private String name;
-    
-    public TilemapRenderer getTilemap() {
-        return tilemap;
-    }
-    
-    public void setVisible(boolean visible) {
-        this.visible = visible;
-        gameObject.setEnabled(visible);
-    }
-}
-```
-
-### 3.6 Grid Overlay Rendering
-
-```java
-public class EditorOverlayRenderer {
-    private final Shader gridShader;
-    private int gridVAO, gridVBO;
-    
-    public void renderGrid(Camera camera, float tileSize) {
-        float[] bounds = camera.getWorldBounds();
-        float left = bounds[0], bottom = bounds[1], right = bounds[2], top = bounds[3];
-        
-        // Snap to grid
-        int startX = (int) Math.floor(left / tileSize);
-        int startY = (int) Math.floor(bottom / tileSize);
-        int endX = (int) Math.ceil(right / tileSize);
-        int endY = (int) Math.ceil(top / tileSize);
-        
-        // Draw grid lines
-        gridShader.use();
-        gridShader.uploadMat4f("projection", camera.getProjectionMatrix());
-        gridShader.uploadMat4f("view", camera.getViewMatrix());
-        gridShader.uploadVec4f("color", new Vector4f(1, 1, 1, 0.2f));
-        
-        // Generate line vertices and draw
-        // ...
-    }
-    
-    public void renderTileHighlight(Camera camera, int tileX, int tileY, float tileSize, Vector4f color) {
-        // Highlight single tile (for cursor position)
-    }
-    
-    public void renderBrushPreview(Camera camera, int tileX, int tileY, int brushSize, float tileSize) {
-        // Show affected area for current brush
-    }
-    
-    public void renderSelection(Camera camera, int x1, int y1, int x2, int y2, float tileSize) {
-        // Selection rectangle for rectangle tool
-    }
-}
-```
-
-### 3.7 Files to Create
-
+**Files Created:**
 ```
 src/main/java/com/pocket/rpg/editor/
 ├── tools/
-│   ├── EditorTool.java
-│   ├── ToolManager.java
-│   ├── TileBrushTool.java
-│   ├── TileEraserTool.java
-│   ├── TileFillTool.java
-│   ├── TileRectangleTool.java
-│   └── TilePickerTool.java
+│   ├── EditorTool.java         # Interface
+│   ├── ToolManager.java        # Tool switching, input routing
+│   ├── TileBrushTool.java      # Paint tiles (single + pattern)
+│   ├── TileEraserTool.java     # Erase tiles
+│   ├── TileFillTool.java       # Flood fill (2000 tile limit)
+│   ├── TileRectangleTool.java  # Rectangle fill
+│   └── TilePickerTool.java     # Eyedropper (single + pattern)
 ├── panels/
-│   ├── TilesetPalettePanel.java
-│   └── LayerPanel.java
-├── scene/
-│   ├── TilemapLayer.java
-│   └── EditorScene.java (updated)
-└── rendering/
-    └── EditorOverlayRenderer.java
+│   ├── TilesetPalettePanel.java  # Tile selection grid
+│   └── LayerPanel.java           # Layer management
+├── tileset/
+│   ├── TileSelection.java        # Single or pattern selection
+│   ├── TilesetRegistry.java      # Loaded tileset management
+│   └── CreateSpritesheetDialog.java  # Create .spritesheet files
+└── scene/
+    ├── TilemapLayer.java         # Layer wrapper
+    └── LayerVisibilityMode.java  # ALL/SELECTED_ONLY/SELECTED_DIMMED
 ```
 
-**Deliverables:**
-- Paint tiles with brush (variable size)
-- Erase tiles
-- Fill tool (flood fill)
-- Rectangle tool
-- Tile picker (eyedropper)
-- Multiple tilemap layers as separate GameObjects
-- Layer visibility toggle
-- Grid visualization
-- Cursor/brush preview
+**What Works:**
+- ✅ Paint tiles with brush (single tile or pattern stamp)
+- ✅ Variable brush size (1-10)
+- ✅ Erase tiles
+- ✅ Fill tool (flood fill with 2000 tile safety limit)
+- ✅ Rectangle tool (drag to define, fill on release)
+- ✅ Picker tool (click for single, shift+drag for pattern)
+- ✅ Multiple tilemap layers as separate GameObjects
+- ✅ Layer visibility toggle
+- ✅ Layer lock
+- ✅ Layer reordering (move up/down)
+- ✅ Grid visualization
+- ✅ Cursor/brush preview overlay
+- ✅ Spritesheet creation dialog
+- ✅ Visual tile selection in palette (single + rectangle)
+
+**Tool Shortcuts:**
+- B - Brush
+- E - Eraser
+- F - Fill
+- R - Rectangle
+- I - Picker (eyedropper)
+- -/+ - Adjust brush size
+
+**Known Issues (to fix in Phase 3.5):**
+- Tool shortcuts only work when viewport is focused
+- Fill tool can fill unbounded areas (needs boundary check)
+- Picker tool needs visual feedback when Shift is held
+- Layer creation requires naming popup (should be instant)
+- SELECTED_DIMMED mode doesn't actually dim (needs vertex colors)
+
+---
+
+## Phase 3.5: Consolidation
+
+**Goal:** Fix outstanding issues from Phases 1-3, complete the save/load workflow, and improve editor usability before adding new features.
+
+### 3.5.1 EditorScene Serialization
+
+**Problem:** `SceneLoader` works with `Scene` (game runtime), but the editor uses `EditorScene`. Need bidirectional conversion.
+
+**Solution:** Create `EditorSceneSerializer` that converts between `EditorScene` and `SceneData`.
+
+```java
+/**
+ * Handles conversion between EditorScene (editor runtime) and SceneData (serialization).
+ */
+public class EditorSceneSerializer {
+    
+    /**
+     * Converts EditorScene to SceneData for saving.
+     */
+    public static SceneData toSceneData(EditorScene editorScene) {
+        SceneData data = new SceneData(editorScene.getName());
+        
+        // Convert camera
+        data.setCamera(new SceneData.CameraData(0, 0, 0, 15f));
+        
+        // Convert tilemap layers to GameObjectData
+        for (TilemapLayer layer : editorScene.getLayers()) {
+            GameObjectData goData = convertTilemapLayer(layer);
+            data.addGameObject(goData);
+        }
+        
+        // Convert collision map
+        if (editorScene.getCollisionMap() != null) {
+            data.setCollision(convertCollisionMap(editorScene.getCollisionMap()));
+        }
+        
+        // Convert entities (Phase 5)
+        // Convert triggers (Phase 7)
+        
+        return data;
+    }
+    
+    /**
+     * Converts SceneData to EditorScene for editing.
+     */
+    public static EditorScene fromSceneData(SceneData data, String filePath) {
+        EditorScene scene = new EditorScene(data.getName());
+        scene.setFilePath(filePath);
+        
+        // Convert GameObjects with TilemapRenderer to TilemapLayers
+        for (GameObjectData goData : data.getGameObjects()) {
+            if (hasTilemapRenderer(goData)) {
+                TilemapLayer layer = convertToTilemapLayer(goData);
+                scene.addExistingLayer(layer);
+            }
+        }
+        
+        // Load collision map
+        if (data.getCollision() != null) {
+            scene.setCollisionMap(convertToCollisionMap(data.getCollision()));
+        }
+        
+        scene.clearDirty();
+        return scene;
+    }
+    
+    private static GameObjectData convertTilemapLayer(TilemapLayer layer) {
+        GameObjectData goData = new GameObjectData();
+        goData.setName(layer.getName());
+        goData.setPosition(new float[]{0, 0, 0});
+        
+        TilemapRenderer tilemap = layer.getTilemap();
+        TilemapComponentData tilemapData = new TilemapComponentData();
+        tilemapData.setZIndex(tilemap.getZIndex());
+        tilemapData.setTileSize(tilemap.getTileSize());
+        
+        // Serialize chunks with tileset references
+        Map<String, ChunkData> chunks = new HashMap<>();
+        for (var entry : tilemap.allChunks().entrySet()) {
+            long key = entry.getKey();
+            int cx = (int)(key >> 32);
+            int cy = (int)(key & 0xFFFFFFFFL);
+            
+            TilemapRenderer.TileChunk chunk = entry.getValue();
+            ChunkData chunkData = convertChunk(chunk);
+            chunks.put(cx + "," + cy, chunkData);
+        }
+        tilemapData.setChunks(chunks);
+        
+        goData.getComponents().put("TilemapRenderer", tilemapData);
+        return goData;
+    }
+}
+```
+
+**Files to Create:**
+```
+src/main/java/com/pocket/rpg/editor/serialization/
+├── EditorSceneSerializer.java    # EditorScene ↔ SceneData conversion
+├── TilemapComponentData.java     # Tilemap serialization format
+└── ChunkData.java                # Chunk serialization format
+```
+
+### 3.5.2 Complete Save/Load Workflow
+
+**Update EditorApplication methods:**
+
+```java
+private void saveScene() {
+    if (currentScene == null) return;
+    
+    if (currentScene.getFilePath() == null) {
+        saveSceneAs();
+        return;
+    }
+    
+    try {
+        SceneData data = EditorSceneSerializer.toSceneData(currentScene);
+        String json = Serializer.toJson(data, true);
+        Files.writeString(Path.of(currentScene.getFilePath()), json);
+        
+        currentScene.clearDirty();
+        statusBar.showMessage("Saved: " + currentScene.getName());
+    } catch (IOException e) {
+        statusBar.showMessage("Error saving: " + e.getMessage());
+        e.printStackTrace();
+    }
+}
+
+private void saveSceneAs() {
+    String path = FileDialogs.saveFile("scene", "Scene Files", "*.scene");
+    if (path == null) return;
+    
+    if (!path.endsWith(".scene")) {
+        path += ".scene";
+    }
+    
+    currentScene.setFilePath(path);
+    String fileName = Path.of(path).getFileName().toString();
+    currentScene.setName(fileName.replace(".scene", ""));
+    
+    saveScene();
+}
+
+private void openScene() {
+    if (currentScene != null && currentScene.hasUnsavedChanges()) {
+        // Show unsaved changes dialog
+    }
+    
+    String path = FileDialogs.openFile("scene", "Scene Files", "*.scene");
+    if (path == null) return;
+    
+    try {
+        String json = Files.readString(Path.of(path));
+        SceneData data = Serializer.fromJson(json, SceneData.class);
+        
+        if (currentScene != null) {
+            currentScene.destroy();
+        }
+        
+        currentScene = EditorSceneSerializer.fromSceneData(data, path);
+        updateSceneReferences();
+        
+        camera.reset();
+        statusBar.showMessage("Opened: " + currentScene.getName());
+    } catch (Exception e) {
+        statusBar.showMessage("Error loading: " + e.getMessage());
+        e.printStackTrace();
+    }
+}
+```
+
+### 3.5.3 Layout Persistence
+
+**Problem:** Editor layout resets every startup because `io.setIniFilename(null)` disables ImGui's layout saving.
+
+**Solution:** Use ImGui's built-in INI persistence with a custom path, plus a default layout builder for first run.
+
+```java
+// In ImGuiLayer.init()
+public void init(long windowHandle, boolean installCallbacks) {
+    ImGui.createContext();
+    ImGuiIO io = ImGui.getIO();
+    
+    io.addConfigFlags(ImGuiConfigFlags.DockingEnable);
+    io.addConfigFlags(ImGuiConfigFlags.NavEnableKeyboard);
+    
+    // Enable layout persistence
+    io.setIniFilename("editor_layout.ini");
+    
+    // ... rest of init
+}
+
+// In EditorApplication, build default layout on first run
+private boolean firstFrame = true;
+
+private void setupDocking() {
+    // ... existing docking setup ...
+    
+    if (firstFrame && !Files.exists(Path.of("editor_layout.ini"))) {
+        buildDefaultLayout();
+    }
+    firstFrame = false;
+}
+
+private void buildDefaultLayout() {
+    int dockspaceId = ImGui.getID("EditorDockSpace");
+    
+    ImGui.dockBuilderRemoveNode(dockspaceId);
+    ImGui.dockBuilderAddNode(dockspaceId, ImGuiDockNodeFlags.DockSpace);
+    ImGui.dockBuilderSetNodeSize(dockspaceId, window.getWidth(), window.getHeight());
+    
+    // Split: left panel (20%), center (60%), right panel (20%)
+    int leftId = ImGui.dockBuilderSplitNode(dockspaceId, ImGuiDir.Left, 0.20f, null, dockspaceId);
+    int rightId = ImGui.dockBuilderSplitNode(dockspaceId, ImGuiDir.Right, 0.25f, null, dockspaceId);
+    int rightTopId = ImGui.dockBuilderSplitNode(rightId, ImGuiDir.Up, 0.5f, null, rightId);
+    
+    // Dock windows
+    ImGui.dockBuilderDockWindow("Hierarchy", leftId);
+    ImGui.dockBuilderDockWindow("Tileset", leftId);
+    ImGui.dockBuilderDockWindow("Scene", dockspaceId);
+    ImGui.dockBuilderDockWindow("Inspector", rightTopId);
+    ImGui.dockBuilderDockWindow("Layers", rightId);
+    ImGui.dockBuilderDockWindow("Tools", rightId);
+    
+    ImGui.dockBuilderFinish(dockspaceId);
+}
+```
+
+**Menu option to reset layout:**
+```java
+if (ImGui.menuItem("Reset Layout")) {
+    Files.deleteIfExists(Path.of("editor_layout.ini"));
+}
+```
+
+### 3.5.4 Dimmed Layer Opacity (Vertex Colors)
+
+**Problem:** SELECTED_DIMMED visibility mode doesn't render dimmed because BatchRenderer doesn't support per-sprite opacity.
+
+**Solution:** Add RGBA vertex colors to the batch rendering system.
+
+#### SpriteBatch Changes
+
+```java
+// Updated vertex format: [posX, posY, u, v, r, g, b, a] = 8 floats per vertex
+private static final int FLOATS_PER_VERTEX = 8;  // Was 4
+private static final int FLOATS_PER_SPRITE = 48; // Was 24
+
+public void submit(SpriteRenderer spriteRenderer, float opacity) {
+    buildVertexData(sprite, transform, renderer, opacity);
+}
+
+public void submitChunk(TilemapRenderer tilemap, int cx, int cy, float opacity) {
+    // Pass opacity to vertex building
+}
+
+private void buildVertexData(..., float opacity) {
+    // ... existing position/UV calculations ...
+    
+    // Add color data for each vertex
+    float r = 1.0f, g = 1.0f, b = 1.0f, a = opacity;
+    
+    vertexData[offset++] = r;
+    vertexData[offset++] = g;
+    vertexData[offset++] = b;
+    vertexData[offset++] = a;
+}
+
+// Update VAO setup
+private void setupVAO() {
+    // Position (location 0)
+    glVertexAttribPointer(0, 2, GL_FLOAT, false, 8 * Float.BYTES, 0);
+    glEnableVertexAttribArray(0);
+    
+    // UV (location 1)
+    glVertexAttribPointer(1, 2, GL_FLOAT, false, 8 * Float.BYTES, 2 * Float.BYTES);
+    glEnableVertexAttribArray(1);
+    
+    // Color (location 2) - NEW
+    glVertexAttribPointer(2, 4, GL_FLOAT, false, 8 * Float.BYTES, 4 * Float.BYTES);
+    glEnableVertexAttribArray(2);
+}
+```
+
+#### Shader Changes (batch_sprite.glsl)
+
+```glsl
+// Vertex shader
+layout (location = 0) in vec2 aPos;
+layout (location = 1) in vec2 aTexCoord;
+layout (location = 2) in vec4 aColor;  // NEW
+
+out vec2 TexCoord;
+out vec4 Color;
+
+void main() {
+    gl_Position = projection * view * model * vec4(aPos, 0.0, 1.0);
+    TexCoord = aTexCoord;
+    Color = aColor;
+}
+
+// Fragment shader
+in vec2 TexCoord;
+in vec4 Color;
+
+out vec4 FragColor;
+
+uniform sampler2D textureSampler;
+
+void main() {
+    vec4 texColor = texture(textureSampler, TexCoord);
+    FragColor = texColor * Color;  // Multiply by vertex color
+}
+```
+
+#### Future: Tint Color Support
+
+With RGBA vertex colors, adding tint support is trivial:
+
+```java
+// In SpriteRenderer
+@Getter @Setter
+private Vector4f tintColor = new Vector4f(1, 1, 1, 1);
+
+// In SpriteBatch.buildVertexData()
+float r = renderer.getTintColor().x;
+float g = renderer.getTintColor().y;
+float b = renderer.getTintColor().z;
+float a = renderer.getTintColor().w * opacity;
+```
+
+### 3.5.5 Unlimited Batch Size
+
+**Problem:** SpriteBatch has fixed buffer size (MAX_SPRITES = 10000). Large scenes can overflow.
+
+**Solution:** Deferred submission with auto-flush when buffer is full, maintaining correct z-order.
+
+```java
+private static class SpriteSubmission {
+    final Sprite sprite;
+    final Transform transform;
+    final SpriteRenderer renderer;
+    final float opacity;
+    final int zIndex;
+}
+
+private static class ChunkSubmission {
+    final TilemapRenderer tilemap;
+    final int cx, cy;
+    final float opacity;
+    final int zIndex;
+}
+
+private List<SpriteSubmission> spriteSubmissions = new ArrayList<>();
+private List<ChunkSubmission> chunkSubmissions = new ArrayList<>();
+
+public void submit(SpriteRenderer spriteRenderer, float opacity) {
+    spriteSubmissions.add(new SpriteSubmission(...));
+}
+
+public void end() {
+    processBatches();
+    spriteSubmissions.clear();
+    chunkSubmissions.clear();
+}
+
+private void processBatches() {
+    // Combine all submissions
+    List<Object> allSubmissions = new ArrayList<>();
+    allSubmissions.addAll(spriteSubmissions);
+    allSubmissions.addAll(chunkSubmissions);
+    
+    // Sort globally by zIndex
+    allSubmissions.sort((a, b) -> Integer.compare(getZIndex(a), getZIndex(b)));
+    
+    // Process in sorted order, auto-flush when buffer full
+    for (Object sub : allSubmissions) {
+        if (sub instanceof SpriteSubmission s) {
+            if (spriteCount >= maxSprites) flush();
+            buildVertexData(s);
+            spriteCount++;
+        } else if (sub instanceof ChunkSubmission c) {
+            addChunkToBatch(c);  // Handles per-tile flush
+        }
+    }
+    
+    flush();
+}
+```
+
+### 3.5.6 Tool Improvements
+
+#### Global Tool Shortcuts
+
+```java
+private void processToolShortcuts() {
+    // Don't process when typing in text fields
+    if (ImGui.getIO().getWantTextInput()) {
+        return;
+    }
+    
+    // Shortcuts work globally now
+    if (ImGui.isKeyPressed(ImGuiKey.B)) {
+        toolManager.setActiveTool("Brush");
+    }
+    // ...
+}
+```
+
+#### Fill Tool Boundary Check
+
+```java
+public class TileFillTool implements EditorTool {
+    
+    private static final int MAX_FILL_TILES = 2000;
+    
+    @Override
+    public void onMouseDown(int tileX, int tileY, int button) {
+        if (button == 0) {
+            BoundaryCheckResult result = checkBoundaries(tileX, tileY);
+            
+            if (result == BoundaryCheckResult.UNBOUNDED) {
+                statusBar.showMessage("Cannot fill: area has no boundaries");
+                return;
+            }
+            
+            if (result == BoundaryCheckResult.TOO_LARGE) {
+                statusBar.showMessage("Cannot fill: area too large");
+                return;
+            }
+            
+            floodFill(tileX, tileY);
+        }
+    }
+    
+    private enum BoundaryCheckResult {
+        BOUNDED, UNBOUNDED, TOO_LARGE
+    }
+    
+    private BoundaryCheckResult checkBoundaries(int startX, int startY) {
+        // Quick BFS to check if area is bounded
+        // Returns early if limit exceeded
+    }
+}
+```
+
+#### Picker Tool Shift Visual Feedback
+
+```java
+@Override
+public void renderOverlay(EditorCamera camera, int hoveredTileX, int hoveredTileY) {
+    boolean shiftHeld = ImGui.isKeyDown(ImGuiKey.LeftShift) || ImGui.isKeyDown(ImGuiKey.RightShift);
+    
+    int color;
+    if (shiftHeld) {
+        color = ImGui.colorConvertFloat4ToU32(0.3f, 1.0f, 0.3f, 0.6f);  // Green
+        drawList.addText(viewportX + 10, viewportY + viewportHeight - 30,
+            ImGui.colorConvertFloat4ToU32(0.3f, 1.0f, 0.3f, 1.0f),
+            "Shift+Drag to pick pattern");
+    } else {
+        color = ImGui.colorConvertFloat4ToU32(1.0f, 0.8f, 0.3f, 0.6f);  // Orange
+    }
+    
+    drawTileHighlight(drawList, camera, hoveredTileX, hoveredTileY, color, true);
+}
+```
+
+#### Layer Quick Create
+
+```java
+// In LayerPanel
+if (ImGui.button("+ Add Layer")) {
+    String autoName = "Layer " + (scene.getLayerCount() + 1);
+    scene.addLayer(autoName);
+    statusBar.showMessage("Created: " + autoName);
+    // No popup
+}
+```
+
+### 3.5.7 Files to Create/Modify
+
+**New Files:**
+```
+src/main/java/com/pocket/rpg/editor/serialization/
+├── EditorSceneSerializer.java
+├── TilemapComponentData.java
+└── ChunkData.java
+```
+
+**Modified Files:**
+```
+src/main/java/com/pocket/rpg/
+├── editor/
+│   ├── EditorApplication.java       # Save/load workflow, layout
+│   ├── core/ImGuiLayer.java         # Layout persistence
+│   ├── tools/TileFillTool.java      # Boundary check
+│   ├── tools/TilePickerTool.java    # Shift visual
+│   └── panels/LayerPanel.java       # Quick create
+└── rendering/
+    ├── SpriteBatch.java             # Vertex colors, unlimited size
+    └── renderers/BatchRenderer.java # Opacity parameter
+```
+
+### 3.5.8 Testing Checklist
+
+- [ ] Save scene to .scene file
+- [ ] Load scene from .scene file
+- [ ] Round-trip: create → save → close → load → verify identical
+- [ ] Layout persists across editor restarts
+- [ ] "Reset Layout" menu option works
+- [ ] SELECTED_DIMMED mode actually dims non-active layers
+- [ ] Large tilemap (>10000 tiles) renders without errors
+- [ ] Z-index ordering correct across multiple batches
+- [ ] Tool shortcuts work globally (except in text fields)
+- [ ] Fill tool rejects unbounded areas
+- [ ] Picker shows green overlay when Shift held
+- [ ] Layer creation is instant (no popup)
 
 ---
 
 ## Phase 4: Collision Editing
 
-**Goal:** Paint collision data separately from visuals.
+**Goal:** Paint collision data with a flexible, extensible system that supports multiple collision types, Z-levels, and custom behaviors.
 
-### 4.1 Collision Layer Data Structure
+### 4.1 Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         SERIALIZED                              │
+│  (stored in .scene file)                                        │
+├─────────────────────────────────────────────────────────────────┤
+│  CollisionMap                                                   │
+│  ├── tileSize: 1.0                                              │
+│  └── zLayers                                                    │
+│      ├── 0 (ground): CollisionLayer → chunks of int IDs        │
+│      └── 1 (elevated): CollisionLayer → chunks of int IDs      │
+│                                                                 │
+│  (Just integers - CollisionType IDs. No behavior code stored)   │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                        NOT SERIALIZED                           │
+│  (created at game startup, lives in code)                       │
+├─────────────────────────────────────────────────────────────────┤
+│  CollisionBehaviorRegistry (singleton)                          │
+│  ├── PASSABLE → PassableBehavior                                │
+│  ├── SOLID    → SolidBehavior                                   │
+│  ├── WATER    → WaterBehavior                                   │
+│  └── ...                                                        │
+│                                                                 │
+│  EntityOccupancyMap (rebuilt at scene load)                     │
+│  ├── (5, 3, 0) → NPC_01                                         │
+│  └── (2, 7, 0) → Player                                         │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 4.2 CollisionType Enum
+
+```java
+public enum CollisionType {
+    PASSABLE(0, "Passable", new Color(0, 0, 0, 0)),
+    SOLID(1, "Solid", new Color(1, 0, 0, 0.5f)),
+    WATER(2, "Water", new Color(0, 0, 1, 0.5f)),
+    ICE(3, "Ice", new Color(0, 1, 1, 0.5f)),
+    LEDGE_DOWN(4, "Ledge ↓", new Color(1, 1, 0, 0.5f)),
+    LEDGE_UP(5, "Ledge ↑", new Color(1, 1, 0, 0.5f)),
+    LEDGE_LEFT(6, "Ledge ←", new Color(1, 1, 0, 0.5f)),
+    LEDGE_RIGHT(7, "Ledge →", new Color(1, 1, 0, 0.5f)),
+    STAIRS_UP(8, "Stairs ↑Z", new Color(0, 1, 0, 0.5f)),
+    STAIRS_DOWN(9, "Stairs ↓Z", new Color(0, 0.5f, 0, 0.5f)),
+    TRIGGER(10, "Trigger", new Color(1, 0, 1, 0.3f));
+    
+    private final int id;
+    private final String displayName;
+    private final Color editorColor;
+    
+    public record Color(float r, float g, float b, float a) {}
+    
+    public static CollisionType fromId(int id) {
+        for (CollisionType type : values()) {
+            if (type.id == id) return type;
+        }
+        return PASSABLE;
+    }
+}
+```
+
+### 4.3 Collision Data Structures
 
 ```java
 public class CollisionMap {
-    private final Map<Long, CollisionChunk> chunks = new HashMap<>();
     private final float tileSize;
+    private final Map<Integer, CollisionLayer> zLayers = new HashMap<>();
     
-    public static final int PASSABLE = 0;
-    public static final int SOLID = 1;
-    public static final int WATER = 2;
-    public static final int LEDGE_DOWN = 3;
-    public static final int LEDGE_UP = 4;
-    public static final int LEDGE_LEFT = 5;
-    public static final int LEDGE_RIGHT = 6;
-    
-    public int get(int tileX, int tileY) {
-        // Similar chunk logic to TilemapRenderer
+    public CollisionMap(float tileSize) {
+        this.tileSize = tileSize;
+        zLayers.put(0, new CollisionLayer());  // Default ground layer
     }
     
-    public void set(int tileX, int tileY, int collisionType) {
-        // ...
+    public CollisionType get(int x, int y, int zLevel) {
+        CollisionLayer layer = zLayers.get(zLevel);
+        return layer != null ? layer.get(x, y) : CollisionType.PASSABLE;
     }
     
-    public boolean isSolid(int tileX, int tileY) {
-        return get(tileX, tileY) == SOLID;
+    public void set(int x, int y, int zLevel, CollisionType type) {
+        zLayers.computeIfAbsent(zLevel, k -> new CollisionLayer()).set(x, y, type);
+    }
+}
+
+public class CollisionLayer {
+    public static final int CHUNK_SIZE = 32;
+    private final Map<Long, CollisionChunk> chunks = new HashMap<>();
+    
+    public CollisionType get(int x, int y) {
+        int cx = Math.floorDiv(x, CHUNK_SIZE);
+        int cy = Math.floorDiv(y, CHUNK_SIZE);
+        CollisionChunk chunk = chunks.get(packCoord(cx, cy));
+        if (chunk == null) return CollisionType.PASSABLE;
+        return chunk.get(Math.floorMod(x, CHUNK_SIZE), Math.floorMod(y, CHUNK_SIZE));
     }
     
-    public boolean isPassable(int tileX, int tileY) {
-        int type = get(tileX, tileY);
-        return type == PASSABLE || type >= LEDGE_DOWN;  // Ledges are passable
+    public void set(int x, int y, CollisionType type) {
+        int cx = Math.floorDiv(x, CHUNK_SIZE);
+        int cy = Math.floorDiv(y, CHUNK_SIZE);
+        chunks.computeIfAbsent(packCoord(cx, cy), k -> new CollisionChunk())
+              .set(Math.floorMod(x, CHUNK_SIZE), Math.floorMod(y, CHUNK_SIZE), type);
     }
 }
 
 public class CollisionChunk {
-    public static final int CHUNK_SIZE = 32;  // Match TilemapRenderer
-    private final int[][] data = new int[CHUNK_SIZE][CHUNK_SIZE];
+    private final byte[][] data = new byte[CHUNK_SIZE][CHUNK_SIZE];
+    
+    public CollisionType get(int lx, int ly) {
+        return CollisionType.fromId(data[ly][lx] & 0xFF);
+    }
+    
+    public void set(int lx, int ly, CollisionType type) {
+        data[ly][lx] = (byte) type.getId();
+    }
 }
 ```
 
-### 4.2 Collision Brush Tool
+### 4.4 TileBehavior System
 
 ```java
-public class CollisionBrushTool implements EditorTool {
-    private int collisionType = CollisionMap.SOLID;
-    private int brushSize = 1;
+public interface TileBehavior {
+    MoveResult evaluateEntry(GameObject entity, int toX, int toY, Direction moveDir);
+    default void onEnter(GameObject entity, int x, int y) {}
+    default void onExit(GameObject entity, int x, int y) {}
+    default void onStay(GameObject entity, int x, int y, float deltaTime) {}
+}
+
+public record MoveResult(boolean allowed, MovementModifier modifier, String blockedReason) {
+    public static final MoveResult ALLOWED = new MoveResult(true, MovementModifier.NONE, null);
+    public static final MoveResult BLOCKED = new MoveResult(false, MovementModifier.NONE, "Blocked");
     
-    // Similar to TileBrushTool but operates on CollisionMap
+    public static MoveResult blocked(String reason) {
+        return new MoveResult(false, MovementModifier.NONE, reason);
+    }
     
-    @Override
-    public void renderOverlay(Camera camera) {
-        // Render collision overlay on all visible tiles
-        CollisionMap collision = scene.getCollisionMap();
-        float[] bounds = camera.getWorldBounds();
+    public static MoveResult allowedWith(MovementModifier modifier) {
+        return new MoveResult(true, modifier, null);
+    }
+}
+
+public enum MovementModifier {
+    NONE, SLIDE, JUMP, SLOW, FAST
+}
+
+public enum Direction {
+    UP(0, 1), DOWN(0, -1), LEFT(-1, 0), RIGHT(1, 0);
+    
+    public final int dx, dy;
+    Direction(int dx, int dy) { this.dx = dx; this.dy = dy; }
+    
+    public Direction opposite() {
+        return switch (this) {
+            case UP -> DOWN; case DOWN -> UP;
+            case LEFT -> RIGHT; case RIGHT -> LEFT;
+        };
+    }
+}
+```
+
+### 4.5 Behavior Implementations
+
+```java
+public class PassableBehavior implements TileBehavior {
+    public MoveResult evaluateEntry(GameObject entity, int toX, int toY, Direction dir) {
+        return MoveResult.ALLOWED;
+    }
+}
+
+public class SolidBehavior implements TileBehavior {
+    public MoveResult evaluateEntry(GameObject entity, int toX, int toY, Direction dir) {
+        return MoveResult.blocked("Solid obstacle");
+    }
+}
+
+public class WaterBehavior implements TileBehavior {
+    public MoveResult evaluateEntry(GameObject entity, int toX, int toY, Direction dir) {
+        SwimmingAbility swimming = entity.getComponent(SwimmingAbility.class);
+        if (swimming != null && swimming.canSwim()) {
+            return MoveResult.ALLOWED;
+        }
+        return MoveResult.blocked("Cannot swim");
+    }
+    
+    public void onEnter(GameObject entity, int x, int y) {
+        Animator animator = entity.getComponent(Animator.class);
+        if (animator != null) animator.play("swim_start");
+    }
+    
+    public void onExit(GameObject entity, int x, int y) {
+        Animator animator = entity.getComponent(Animator.class);
+        if (animator != null) animator.play("swim_end");
+    }
+}
+
+public class IceBehavior implements TileBehavior {
+    public MoveResult evaluateEntry(GameObject entity, int toX, int toY, Direction dir) {
+        return MoveResult.allowedWith(MovementModifier.SLIDE);
+    }
+}
+
+public class LedgeBehavior implements TileBehavior {
+    private final Direction allowedDirection;
+    
+    public LedgeBehavior(Direction allowedDirection) {
+        this.allowedDirection = allowedDirection;
+    }
+    
+    public MoveResult evaluateEntry(GameObject entity, int toX, int toY, Direction moveDir) {
+        if (moveDir == allowedDirection) {
+            return MoveResult.allowedWith(MovementModifier.JUMP);
+        }
+        return MoveResult.blocked("Wrong direction for ledge");
+    }
+}
+
+public class ZLevelChangeBehavior implements TileBehavior {
+    private final int targetZLevel;
+    
+    public ZLevelChangeBehavior(int targetZLevel) {
+        this.targetZLevel = targetZLevel;
+    }
+    
+    public MoveResult evaluateEntry(GameObject entity, int toX, int toY, Direction dir) {
+        return MoveResult.ALLOWED;
+    }
+    
+    public void onEnter(GameObject entity, int x, int y) {
+        ZLevelComponent zLevel = entity.getComponent(ZLevelComponent.class);
+        if (zLevel != null) zLevel.setZLevel(targetZLevel);
+    }
+}
+```
+
+### 4.6 CollisionBehaviorRegistry
+
+```java
+public class CollisionBehaviorRegistry {
+    private static CollisionBehaviorRegistry instance;
+    private final Map<CollisionType, TileBehavior> behaviors = new EnumMap<>(CollisionType.class);
+    
+    private CollisionBehaviorRegistry() {
+        registerDefaults();
+    }
+    
+    public static CollisionBehaviorRegistry getInstance() {
+        if (instance == null) instance = new CollisionBehaviorRegistry();
+        return instance;
+    }
+    
+    private void registerDefaults() {
+        register(CollisionType.PASSABLE, new PassableBehavior());
+        register(CollisionType.SOLID, new SolidBehavior());
+        register(CollisionType.WATER, new WaterBehavior());
+        register(CollisionType.ICE, new IceBehavior());
+        register(CollisionType.LEDGE_DOWN, new LedgeBehavior(Direction.DOWN));
+        register(CollisionType.LEDGE_UP, new LedgeBehavior(Direction.UP));
+        register(CollisionType.LEDGE_LEFT, new LedgeBehavior(Direction.LEFT));
+        register(CollisionType.LEDGE_RIGHT, new LedgeBehavior(Direction.RIGHT));
+        register(CollisionType.STAIRS_UP, new ZLevelChangeBehavior(1));
+        register(CollisionType.STAIRS_DOWN, new ZLevelChangeBehavior(0));
+        register(CollisionType.TRIGGER, new TriggerBehavior());
+    }
+    
+    public void register(CollisionType type, TileBehavior behavior) {
+        behaviors.put(type, behavior);
+    }
+    
+    public TileBehavior getBehavior(CollisionType type) {
+        return behaviors.getOrDefault(type, new PassableBehavior());
+    }
+}
+```
+
+### 4.7 GridCollisionSystem
+
+```java
+public interface CollisionSystem {
+    MoveResult canMove(GameObject entity, int fromX, int fromY, int toX, int toY, Direction dir);
+    void onEntityMoved(GameObject entity, int oldX, int oldY, int newX, int newY);
+}
+
+public class GridCollisionSystem implements CollisionSystem {
+    private final CollisionMap collisionMap;
+    private final CollisionBehaviorRegistry behaviorRegistry;
+    private final EntityOccupancyMap entityOccupancy;
+    
+    public GridCollisionSystem(CollisionMap collisionMap) {
+        this.collisionMap = collisionMap;
+        this.behaviorRegistry = CollisionBehaviorRegistry.getInstance();
+        this.entityOccupancy = new EntityOccupancyMap();
+    }
+    
+    public MoveResult canMove(GameObject entity, int fromX, int fromY, int toX, int toY, Direction dir) {
+        int zLevel = getEntityZLevel(entity);
         
-        for each visible tile {
-            int type = collision.get(tx, ty);
-            if (type != CollisionMap.PASSABLE) {
-                Vector4f color = getColorForType(type);
-                overlayRenderer.renderTileHighlight(camera, tx, ty, tileSize, color);
+        // Check tile collision
+        CollisionType tileType = collisionMap.get(toX, toY, zLevel);
+        TileBehavior behavior = behaviorRegistry.getBehavior(tileType);
+        MoveResult tileResult = behavior.evaluateEntry(entity, toX, toY, dir);
+        
+        if (!tileResult.allowed()) return tileResult;
+        
+        // Check entity occupancy
+        GameObject occupant = entityOccupancy.getEntityAt(toX, toY, zLevel);
+        if (occupant != null && occupant != entity && !canPassThrough(entity, occupant)) {
+            return MoveResult.blocked("Blocked by " + occupant.getName());
+        }
+        
+        return tileResult;
+    }
+    
+    public void onEntityMoved(GameObject entity, int oldX, int oldY, int newX, int newY) {
+        int zLevel = getEntityZLevel(entity);
+        
+        entityOccupancy.remove(entity, oldX, oldY, zLevel);
+        entityOccupancy.set(entity, newX, newY, zLevel);
+        
+        CollisionType oldType = collisionMap.get(oldX, oldY, zLevel);
+        behaviorRegistry.getBehavior(oldType).onExit(entity, oldX, oldY);
+        
+        CollisionType newType = collisionMap.get(newX, newY, zLevel);
+        behaviorRegistry.getBehavior(newType).onEnter(entity, newX, newY);
+    }
+    
+    private int getEntityZLevel(GameObject entity) {
+        ZLevelComponent zComp = entity.getComponent(ZLevelComponent.class);
+        return zComp != null ? zComp.getZLevel() : 0;
+    }
+    
+    private boolean canPassThrough(GameObject mover, GameObject occupant) {
+        EntityCollider collider = occupant.getComponent(EntityCollider.class);
+        return collider == null || !collider.blocksEntities();
+    }
+}
+```
+
+### 4.8 EntityOccupancyMap
+
+```java
+public class EntityOccupancyMap {
+    private final Map<Long, GameObject> occupancy = new HashMap<>();
+    private final Map<GameObject, long[]> entityPositions = new HashMap<>();
+    
+    public void set(GameObject entity, int x, int y, int z) {
+        occupancy.put(packCoord(x, y, z), entity);
+        entityPositions.put(entity, new long[]{x, y, z});
+    }
+    
+    public void remove(GameObject entity, int x, int y, int z) {
+        long key = packCoord(x, y, z);
+        if (occupancy.get(key) == entity) occupancy.remove(key);
+        entityPositions.remove(entity);
+    }
+    
+    public GameObject getEntityAt(int x, int y, int z) {
+        return occupancy.get(packCoord(x, y, z));
+    }
+    
+    private long packCoord(int x, int y, int z) {
+        return ((long)(z & 0xFFFF) << 48) | ((long)(x & 0xFFFFFF) << 24) | (y & 0xFFFFFF);
+    }
+}
+```
+
+### 4.9 ZLevelComponent
+
+```java
+public class ZLevelComponent extends Component {
+    @Getter
+    private int zLevel = 0;
+    
+    public void setZLevel(int zLevel) {
+        this.zLevel = zLevel;
+    }
+}
+```
+
+### 4.10 GridMovement Integration
+
+```java
+public class GridMovement extends Component {
+    @Getter @Setter
+    private CollisionSystem collisionSystem;  // Replace TilemapRenderer
+    
+    public boolean move(Direction direction) {
+        if (isMoving) return false;
+        
+        updateFacingDirection(direction.dx, direction.dy);
+        
+        int targetX = gridX + direction.dx;
+        int targetY = gridY + direction.dy;
+        
+        MoveResult result;
+        if (collisionSystem != null) {
+            result = collisionSystem.canMove(gameObject, gridX, gridY, targetX, targetY, direction);
+        } else {
+            result = MoveResult.ALLOWED;
+        }
+        
+        if (!result.allowed()) return false;
+        
+        startMovement(targetX, targetY, result.modifier());
+        return true;
+    }
+    
+    private void startMovement(int targetX, int targetY, MovementModifier modifier) {
+        int oldX = gridX, oldY = gridY;
+        gridX = targetX;
+        gridY = targetY;
+        
+        // ... existing position interpolation setup ...
+        
+        isJumping = (modifier == MovementModifier.JUMP);
+        isSliding = (modifier == MovementModifier.SLIDE);
+        
+        if (collisionSystem != null) {
+            collisionSystem.onEntityMoved(gameObject, oldX, oldY, targetX, targetY);
+        }
+    }
+    
+    private void finishMovement() {
+        // ... existing finish logic ...
+        
+        // Handle sliding (ice)
+        if (isSliding && collisionSystem != null) {
+            isSliding = false;
+            MoveResult result = collisionSystem.canMove(
+                gameObject, gridX, gridY,
+                gridX + facingDirection.dx, gridY + facingDirection.dy,
+                facingDirection
+            );
+            if (result.allowed() && result.modifier() == MovementModifier.SLIDE) {
+                move(facingDirection);  // Continue sliding
             }
         }
     }
+}
+```
+
+### 4.11 Editor: Collision Brush Tool
+
+```java
+public class CollisionBrushTool implements EditorTool {
+    private EditorScene scene;
+    private CollisionType selectedType = CollisionType.SOLID;
+    private int selectedZLevel = 0;
+    private int brushSize = 1;
     
-    private Vector4f getColorForType(int type) {
-        return switch (type) {
-            case CollisionMap.SOLID -> new Vector4f(1, 0, 0, 0.4f);      // Red
-            case CollisionMap.WATER -> new Vector4f(0, 0, 1, 0.4f);      // Blue
-            case CollisionMap.LEDGE_DOWN -> new Vector4f(1, 1, 0, 0.4f); // Yellow
-            default -> new Vector4f(1, 0, 1, 0.4f);                      // Magenta
-        };
+    public String getName() { return "Collision"; }
+    public String getShortcutKey() { return "C"; }
+    
+    public void onMouseDown(int tileX, int tileY, int button) {
+        if (button == 0) paintAt(tileX, tileY);
+        else if (button == 1) eraseAt(tileX, tileY);
+    }
+    
+    private void paintAt(int tileX, int tileY) {
+        CollisionMap map = scene.getCollisionMap();
+        int half = brushSize / 2;
+        for (int dy = -half; dy <= half; dy++) {
+            for (int dx = -half; dx <= half; dx++) {
+                map.set(tileX + dx, tileY + dy, selectedZLevel, selectedType);
+            }
+        }
+        scene.markDirty();
+    }
+    
+    public void renderOverlay(EditorCamera camera, int hoveredTileX, int hoveredTileY) {
+        if (!scene.isCollisionVisible()) return;
+        
+        // Draw colored overlay for each collision tile
+        CollisionMap map = scene.getCollisionMap();
+        float[] bounds = camera.getWorldBounds();
+        
+        for (int y = (int)bounds[1]; y <= (int)bounds[3]; y++) {
+            for (int x = (int)bounds[0]; x <= (int)bounds[2]; x++) {
+                CollisionType type = map.get(x, y, selectedZLevel);
+                if (type == CollisionType.PASSABLE) continue;
+                
+                CollisionType.Color c = type.getEditorColor();
+                int color = ImGui.colorConvertFloat4ToU32(c.r(), c.g(), c.b(), c.a());
+                drawTileHighlight(camera, x, y, color);
+            }
+        }
     }
 }
 ```
 
-### 4.3 Collision Panel
+### 4.12 Editor: Collision Panel
 
 ```java
 public class CollisionPanel {
-    private int selectedType = CollisionMap.SOLID;
+    private EditorScene scene;
+    private CollisionBrushTool collisionTool;
     
     public void render() {
-        ImGui.begin("Collision");
-        
-        // Toggle collision layer visibility
-        boolean showCollision = scene.isCollisionVisible();
-        if (ImGui.checkbox("Show Collision", showCollision)) {
-            scene.setCollisionVisible(!showCollision);
+        if (ImGui.begin("Collision")) {
+            // Visibility toggle
+            boolean visible = scene.isCollisionVisible();
+            if (ImGui.checkbox("Show Collision", visible)) {
+                scene.setCollisionVisible(!visible);
+            }
+            
+            // Z-Level selector
+            int[] zLevel = {collisionTool.getSelectedZLevel()};
+            ImGui.combo("Z-Level", zLevel, new String[]{"Ground (0)", "Elevated (1)"});
+            collisionTool.setSelectedZLevel(zLevel[0]);
+            
+            // Collision type selector with color indicators
+            for (CollisionType type : CollisionType.values()) {
+                CollisionType.Color c = type.getEditorColor();
+                ImGui.colorButton("##" + type.name(), new float[]{c.r(), c.g(), c.b(), c.a()});
+                ImGui.sameLine();
+                if (ImGui.radioButton(type.getDisplayName(), 
+                    collisionTool.getSelectedType() == type)) {
+                    collisionTool.setSelectedType(type);
+                }
+            }
+            
+            // Brush size
+            int[] size = {collisionTool.getBrushSize()};
+            ImGui.sliderInt("Brush Size", size, 1, 10);
+            collisionTool.setBrushSize(size[0]);
         }
-        
-        ImGui.separator();
-        
-        // Collision type selector
-        ImGui.text("Collision Type:");
-        
-        if (ImGui.radioButton("Solid", selectedType == CollisionMap.SOLID)) {
-            selectedType = CollisionMap.SOLID;
-        }
-        if (ImGui.radioButton("Water", selectedType == CollisionMap.WATER)) {
-            selectedType = CollisionMap.WATER;
-        }
-        if (ImGui.radioButton("Ledge Down", selectedType == CollisionMap.LEDGE_DOWN)) {
-            selectedType = CollisionMap.LEDGE_DOWN;
-        }
-        // ... other types
-        
-        if (ImGui.radioButton("Eraser (Passable)", selectedType == CollisionMap.PASSABLE)) {
-            selectedType = CollisionMap.PASSABLE;
-        }
-        
         ImGui.end();
     }
-    
-    public int getSelectedType() {
-        return selectedType;
-    }
 }
 ```
 
-### 4.4 Integration with GridMovement
-
-```java
-// Update GridMovement to use CollisionMap from scene
-public class GridMovement extends Component {
-    
-    private CollisionMap collisionMap;  // Set by SceneLoader
-    
-    public void setCollisionMap(CollisionMap map) {
-        this.collisionMap = map;
-    }
-    
-    private MoveResult canMoveTo(int targetX, int targetY) {
-        if (collisionMap == null) {
-            return MoveResult.ALLOWED;
-        }
-        
-        int collisionType = collisionMap.get(targetX, targetY);
-        
-        return switch (collisionType) {
-            case CollisionMap.SOLID, CollisionMap.WATER -> MoveResult.BLOCKED;
-            case CollisionMap.LEDGE_DOWN -> 
-                facingDirection == Direction.DOWN ? MoveResult.JUMP : MoveResult.BLOCKED;
-            case CollisionMap.LEDGE_UP -> 
-                facingDirection == Direction.UP ? MoveResult.JUMP : MoveResult.BLOCKED;
-            // ... other ledge directions
-            default -> MoveResult.ALLOWED;
-        };
-    }
-}
-```
-
-### 4.5 Files to Create
+### 4.13 Files to Create
 
 ```
 src/main/java/com/pocket/rpg/
-├── editor/
-│   ├── tools/
-│   │   └── CollisionBrushTool.java
-│   └── panels/
-│       └── CollisionPanel.java
-└── physics/  (or core/)
-    ├── CollisionMap.java
-    └── CollisionChunk.java
+├── collision/
+│   ├── CollisionType.java
+│   ├── CollisionMap.java
+│   ├── CollisionLayer.java
+│   ├── CollisionChunk.java
+│   ├── CollisionSystem.java
+│   ├── GridCollisionSystem.java
+│   ├── EntityOccupancyMap.java
+│   ├── MoveResult.java
+│   ├── MovementModifier.java
+│   ├── Direction.java
+│   └── behaviors/
+│       ├── TileBehavior.java
+│       ├── CollisionBehaviorRegistry.java
+│       ├── PassableBehavior.java
+│       ├── SolidBehavior.java
+│       ├── WaterBehavior.java
+│       ├── IceBehavior.java
+│       ├── LedgeBehavior.java
+│       ├── ZLevelChangeBehavior.java
+│       └── TriggerBehavior.java
+├── components/
+│   └── ZLevelComponent.java
+└── editor/
+    ├── tools/CollisionBrushTool.java
+    └── panels/CollisionPanel.java
 ```
 
-**Deliverables:**
-- Paint collision layer (solid, water, ledges)
-- Visual collision overlay (toggleable)
-- Collision data in scene file
-- GridMovement uses CollisionMap instead of TilemapRenderer for collision
+### 4.14 Testing Checklist
+
+- [ ] Paint collision types on ground layer (Z=0)
+- [ ] Paint collision types on elevated layer (Z=1)
+- [ ] Toggle collision visibility
+- [ ] Collision overlay shows correct colors
+- [ ] Collision data saves/loads from .scene file
+- [ ] Player blocked by SOLID tiles
+- [ ] Player slides on ICE tiles
+- [ ] Player jumps over LEDGE in correct direction
+- [ ] Player changes Z-level on STAIRS tiles
+- [ ] NPCs block player (entity occupancy)
 
 ---
 
@@ -1109,12 +1384,34 @@ src/main/java/com/pocket/rpg/
 
 **Goal:** Place prefab instances in scene.
 
-### 5.1 Prefab Browser Panel
+### 5.1 Edit Modes
+
+**Problem:** Tools behave differently depending on what's being edited. Need context-sensitive modes.
+
+```java
+public enum EditMode {
+    TILEMAP,      // Tile painting tools active
+    COLLISION,    // Collision painting active
+    ENTITY        // Entity selection/placement active
+}
+```
+
+**Mode behaviors:**
+- **TILEMAP:** Tile overlay visible, tile tools active, brush/eraser/fill/rectangle/picker
+- **COLLISION:** Collision overlay visible, collision brush active
+- **ENTITY:** No tile overlay, standard cursor, selection tool active, entity placer available
+
+**Mode switching:**
+- Clicking on Tileset palette → TILEMAP mode
+- Clicking on Collision panel → COLLISION mode
+- Clicking on Prefabs panel or selecting entity → ENTITY mode
+- Keyboard shortcuts: 1 = Tilemap, 2 = Collision, 3 = Entity
+
+### 5.2 Prefab Browser Panel
 
 ```java
 public class PrefabBrowserPanel {
     private final PrefabRegistry registry;
-    private final Map<String, Texture> prefabPreviews;  // Cached preview sprites
     private String selectedPrefabId = null;
     private String filterText = "";
     
@@ -1124,249 +1421,86 @@ public class PrefabBrowserPanel {
         // Search filter
         ImGui.inputText("Search", filterText);
         
-        ImGui.separator();
-        
-        // Grid of prefab buttons
-        float panelWidth = ImGui.getContentRegionAvailX();
-        float buttonSize = 64;
-        int columns = Math.max(1, (int)(panelWidth / (buttonSize + 8)));
-        
-        ImGui.columns(columns, "prefab_grid", false);
-        
+        // Grid of prefab buttons with preview images
         for (String prefabId : registry.getRegisteredPrefabs()) {
-            if (!filterText.isEmpty() && !prefabId.toLowerCase().contains(filterText.toLowerCase())) {
-                continue;
-            }
+            if (!filterText.isEmpty() && !prefabId.contains(filterText)) continue;
             
-            boolean isSelected = prefabId.equals(selectedPrefabId);
-            
-            // Render prefab button with preview image
             Texture preview = prefabPreviews.get(prefabId);
             if (preview != null) {
-                if (ImGui.imageButton(preview.getTextureId(), buttonSize, buttonSize)) {
+                if (ImGui.imageButton(preview.getTextureId(), 64, 64)) {
                     selectedPrefabId = prefabId;
-                }
-            } else {
-                if (ImGui.button(prefabId, buttonSize, buttonSize)) {
-                    selectedPrefabId = prefabId;
+                    editor.setEditMode(EditMode.ENTITY);
                 }
             }
             
-            // Tooltip with prefab name
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip(prefabId);
             }
-            
-            ImGui.nextColumn();
         }
         
-        ImGui.columns(1);
         ImGui.end();
-    }
-    
-    public String getSelectedPrefabId() {
-        return selectedPrefabId;
     }
 }
 ```
 
-### 5.2 Entity Placer Tool
+### 5.3 Entity Placer Tool
 
 ```java
 public class EntityPlacerTool implements EditorTool {
-    private final PrefabBrowserPanel prefabPanel;
-    private final EditorScene scene;
-    private final CommandHistory history;
-    
+    private PrefabBrowserPanel prefabPanel;
+    private EditorScene scene;
     private boolean snapToGrid = true;
     
-    @Override
+    public String getName() { return "Place Entity"; }
+    
     public void onMouseDown(int tileX, int tileY, int button) {
-        if (button == GLFW_MOUSE_BUTTON_LEFT) {
+        if (button == 0) {
             String prefabId = prefabPanel.getSelectedPrefabId();
             if (prefabId == null) return;
             
             Vector3f position;
             if (snapToGrid) {
-                // Center of tile
                 position = new Vector3f(tileX + 0.5f, tileY + 0.5f, 0);
             } else {
-                // Exact world position from mouse
                 position = getWorldMousePosition();
             }
             
-            PlaceEntityCommand cmd = new PlaceEntityCommand(scene, prefabId, position);
-            history.execute(cmd);
+            EditorEntity entity = new EditorEntity(prefabId, position);
+            scene.addEntity(entity);
+            scene.markDirty();
         }
     }
     
-    @Override
-    public void renderOverlay(Camera camera) {
+    public void renderOverlay(EditorCamera camera, int hoveredTileX, int hoveredTileY) {
         String prefabId = prefabPanel.getSelectedPrefabId();
         if (prefabId == null) return;
         
-        // Draw preview sprite at cursor position
+        // Draw semi-transparent preview sprite at cursor
         Sprite preview = getPrefabPreviewSprite(prefabId);
         if (preview != null) {
             Vector3f pos = snapToGrid ? 
                 new Vector3f(hoveredTileX + 0.5f, hoveredTileY + 0.5f, 0) :
                 getWorldMousePosition();
-            
-            // Render semi-transparent preview
             overlayRenderer.renderSpritePreview(camera, preview, pos, 0.5f);
         }
     }
 }
 ```
 
-### 5.3 Entity List Panel
-
-```java
-public class EntityListPanel {
-    private final EditorScene scene;
-    private EditorEntity selectedEntity = null;
-    
-    public void render() {
-        ImGui.begin("Entities");
-        
-        // Entity list
-        for (EditorEntity entity : scene.getEntities()) {
-            boolean isSelected = entity == selectedEntity;
-            
-            String label = entity.getName() + " (" + entity.getPrefabId() + ")";
-            if (ImGui.selectable(label, isSelected)) {
-                selectedEntity = entity;
-                scene.setSelectedEntity(entity);
-            }
-            
-            // Context menu
-            if (ImGui.beginPopupContextItem()) {
-                if (ImGui.menuItem("Delete")) {
-                    history.execute(new DeleteEntityCommand(scene, entity));
-                }
-                if (ImGui.menuItem("Duplicate")) {
-                    history.execute(new DuplicateEntityCommand(scene, entity));
-                }
-                if (ImGui.menuItem("Focus Camera")) {
-                    editorCamera.setPosition(entity.getPosition());
-                }
-                ImGui.endPopup();
-            }
-        }
-        
-        ImGui.end();
-    }
-    
-    public EditorEntity getSelectedEntity() {
-        return selectedEntity;
-    }
-}
-```
-
-### 5.4 Entity Inspector Panel
-
-```java
-public class EntityInspectorPanel {
-    private final EditorScene scene;
-    
-    public void render() {
-        ImGui.begin("Inspector");
-        
-        EditorEntity entity = scene.getSelectedEntity();
-        if (entity == null) {
-            ImGui.text("No entity selected");
-            ImGui.end();
-            return;
-        }
-        
-        // Name
-        String name = entity.getName();
-        if (ImGui.inputText("Name", name)) {
-            entity.setName(name);
-        }
-        
-        // Prefab ID (read-only)
-        ImGui.text("Prefab: " + entity.getPrefabId());
-        
-        ImGui.separator();
-        
-        // Position
-        float[] pos = {entity.getPosition().x, entity.getPosition().y};
-        if (ImGui.dragFloat2("Position", pos, 0.1f)) {
-            entity.setPosition(pos[0], pos[1]);
-        }
-        
-        // Snap to grid button
-        ImGui.sameLine();
-        if (ImGui.button("Snap")) {
-            entity.setPosition(
-                Math.round(entity.getPosition().x),
-                Math.round(entity.getPosition().y)
-            );
-        }
-        
-        ImGui.separator();
-        
-        // Custom properties
-        ImGui.text("Properties:");
-        
-        Map<String, Object> properties = entity.getProperties();
-        for (Map.Entry<String, Object> entry : properties.entrySet()) {
-            String key = entry.getKey();
-            Object value = entry.getValue();
-            
-            if (value instanceof String strVal) {
-                String[] buffer = {strVal};
-                if (ImGui.inputText(key, buffer[0])) {
-                    properties.put(key, buffer[0]);
-                }
-            } else if (value instanceof Integer intVal) {
-                int[] buffer = {intVal};
-                if (ImGui.inputInt(key, buffer)) {
-                    properties.put(key, buffer[0]);
-                }
-            } else if (value instanceof Float floatVal) {
-                float[] buffer = {floatVal};
-                if (ImGui.inputFloat(key, buffer)) {
-                    properties.put(key, buffer[0]);
-                }
-            } else if (value instanceof Boolean boolVal) {
-                boolean[] buffer = {boolVal};
-                if (ImGui.checkbox(key, buffer[0])) {
-                    properties.put(key, buffer[0]);
-                }
-            }
-        }
-        
-        // Add property button
-        if (ImGui.button("+ Add Property")) {
-            ImGui.openPopup("add_property_popup");
-        }
-        
-        if (ImGui.beginPopup("add_property_popup")) {
-            // Property type selector and name input
-            ImGui.endPopup();
-        }
-        
-        ImGui.end();
-    }
-}
-```
-
-### 5.5 Selection Tool
+### 5.4 Selection Tool
 
 ```java
 public class SelectionTool implements EditorTool {
-    private final EditorScene scene;
+    private EditorScene scene;
     private EditorEntity draggedEntity = null;
     private Vector2f dragOffset = new Vector2f();
     
-    @Override
+    public String getName() { return "Select"; }
+    public String getShortcutKey() { return "V"; }
+    
     public void onMouseDown(int tileX, int tileY, int button) {
-        if (button == GLFW_MOUSE_BUTTON_LEFT) {
+        if (button == 0) {
             Vector3f worldPos = getWorldMousePosition();
-            
-            // Find entity under cursor
             EditorEntity entity = scene.findEntityAt(worldPos.x, worldPos.y);
             
             if (entity != null) {
@@ -1382,7 +1516,6 @@ public class SelectionTool implements EditorTool {
         }
     }
     
-    @Override
     public void onMouseDrag(int tileX, int tileY, int button) {
         if (draggedEntity != null) {
             Vector3f worldPos = getWorldMousePosition();
@@ -1393,36 +1526,75 @@ public class SelectionTool implements EditorTool {
         }
     }
     
-    @Override
-    public void onMouseUp(int tileX, int tileY, int button) {
-        if (draggedEntity != null) {
-            // Record move for undo
-            // ...
-            draggedEntity = null;
-        }
-    }
-    
-    @Override
-    public void renderOverlay(Camera camera) {
+    public void renderOverlay(EditorCamera camera, int hoveredTileX, int hoveredTileY) {
         EditorEntity selected = scene.getSelectedEntity();
         if (selected != null) {
-            // Draw selection highlight
+            // Draw selection highlight box
             overlayRenderer.renderEntityBounds(camera, selected, new Vector4f(1, 1, 0, 0.8f));
         }
     }
 }
 ```
 
-### 5.6 Editor Entity
+### 5.5 Entity Inspector Panel
+
+```java
+public class EntityInspectorPanel {
+    private EditorScene scene;
+    
+    public void render() {
+        ImGui.begin("Inspector");
+        
+        EditorEntity entity = scene.getSelectedEntity();
+        if (entity == null) {
+            ImGui.textDisabled("No entity selected");
+            ImGui.end();
+            return;
+        }
+        
+        // Name
+        String name = entity.getName();
+        if (ImGui.inputText("Name", name)) {
+            entity.setName(name);
+        }
+        
+        // Prefab ID (read-only)
+        ImGui.text("Prefab: " + entity.getPrefabId());
+        
+        // Position
+        float[] pos = {entity.getPosition().x, entity.getPosition().y};
+        if (ImGui.dragFloat2("Position", pos, 0.1f)) {
+            entity.setPosition(pos[0], pos[1]);
+        }
+        
+        ImGui.sameLine();
+        if (ImGui.button("Snap")) {
+            entity.setPosition(Math.round(pos[0]), Math.round(pos[1]));
+        }
+        
+        // Custom properties
+        ImGui.separator();
+        ImGui.text("Properties:");
+        
+        for (var entry : entity.getProperties().entrySet()) {
+            renderPropertyEditor(entry.getKey(), entry.getValue());
+        }
+        
+        ImGui.end();
+    }
+}
+```
+
+### 5.6 EditorEntity
 
 ```java
 public class EditorEntity {
     private String prefabId;
     private String name;
     private Vector3f position;
-    private Map<String, Object> properties;
+    private Map<String, Object> properties = new HashMap<>();
     
-    // Preview data (for rendering in editor)
+    // Preview data for rendering in editor
     private Sprite previewSprite;
     private Vector2f previewSize;
     
@@ -1430,16 +1602,12 @@ public class EditorEntity {
         this.prefabId = prefabId;
         this.name = prefabId + "_" + UUID.randomUUID().toString().substring(0, 4);
         this.position = new Vector3f(position);
-        this.properties = new HashMap<>();
     }
     
     public EntityData toData() {
-        return new EntityData(
-            prefabId,
-            name,
+        return new EntityData(prefabId, name,
             new float[]{position.x, position.y, position.z},
-            new HashMap<>(properties)
-        );
+            new HashMap<>(properties));
     }
     
     public static EditorEntity fromData(EntityData data) {
@@ -1454,28 +1622,224 @@ public class EditorEntity {
 }
 ```
 
+### 5.6 Scene Camera Settings
+
+The scene has a default camera configuration that defines the initial game view when the scene loads.
+
+**SceneCamera stored in EditorScene:**
+```java
+public class SceneCameraSettings {
+    private Vector2f position = new Vector2f(0, 0);
+    private float orthographicSize = 10f;  // Half-height in world units
+    private boolean followPlayer = true;
+    private String followTargetName = "Player";  // Entity name to follow
+    
+    // Bounds for camera clamping (optional)
+    private boolean useBounds = false;
+    private Vector4f bounds = new Vector4f();  // minX, minY, maxX, maxY
+}
+```
+
+**Camera Inspector Panel (part of main Inspector or separate):**
+```java
+public class CameraInspectorPanel {
+    private EditorScene scene;
+    
+    public void render() {
+        SceneCameraSettings cam = scene.getCameraSettings();
+        
+        ImGui.text("Scene Camera");
+        ImGui.separator();
+        
+        // Initial position
+        float[] pos = {cam.getPosition().x, cam.getPosition().y};
+        if (ImGui.dragFloat2("Start Position", pos, 0.5f)) {
+            cam.setPosition(pos[0], pos[1]);
+            scene.markDirty();
+        }
+        
+        // Orthographic size
+        float[] size = {cam.getOrthographicSize()};
+        if (ImGui.dragFloat("Ortho Size", size, 0.5f, 1f, 50f)) {
+            cam.setOrthographicSize(size[0]);
+            scene.markDirty();
+        }
+        
+        // Follow target
+        if (ImGui.checkbox("Follow Player", cam.isFollowPlayer())) {
+            cam.setFollowPlayer(!cam.isFollowPlayer());
+            scene.markDirty();
+        }
+        
+        if (cam.isFollowPlayer()) {
+            String[] target = {cam.getFollowTargetName()};
+            if (ImGui.inputText("Target Entity", target)) {
+                cam.setFollowTargetName(target[0]);
+                scene.markDirty();
+            }
+        }
+        
+        // Camera bounds
+        if (ImGui.checkbox("Use Bounds", cam.isUseBounds())) {
+            cam.setUseBounds(!cam.isUseBounds());
+            scene.markDirty();
+        }
+        
+        if (cam.isUseBounds()) {
+            float[] bounds = {cam.getBounds().x, cam.getBounds().y, 
+                              cam.getBounds().z, cam.getBounds().w};
+            if (ImGui.dragFloat4("Bounds (minX,minY,maxX,maxY)", bounds)) {
+                cam.setBounds(bounds[0], bounds[1], bounds[2], bounds[3]);
+                scene.markDirty();
+            }
+            
+            if (ImGui.button("Set from Current View")) {
+                // Use editor camera bounds as scene bounds
+            }
+        }
+        
+        // Preview button
+        if (ImGui.button("Preview Game View")) {
+            editorCamera.setPosition(cam.getPosition());
+            editorCamera.setZoom(calculateZoomFromOrthoSize(cam.getOrthographicSize()));
+        }
+    }
+}
+```
+
+**Serialization** - already covered in SceneData.CameraData, just ensure EditorSceneSerializer maps it:
+```java
+// In EditorSceneSerializer.toSceneData()
+SceneCameraSettings cam = editorScene.getCameraSettings();
+data.setCamera(new SceneData.CameraData(
+    cam.getPosition().x, cam.getPosition().y, 0,
+    cam.getOrthographicSize()
+));
+// Add followPlayer, followTargetName, bounds to CameraData if not present
+```
+
+**Or** BETTER ! integrate into existing `EntityInspectorPanel` as a special entity at the top of the scene (shows scene-level settings including camera).
+
+**Camera Bounds Visualization in Viewport:**
+
+When `useBounds` is enabled, render a visual indicator in the scene viewport.
+```java
+// In SceneViewport or EditorSceneRenderer
+public void renderCameraOverlays(EditorCamera camera, SceneCameraSettings sceneCam) {
+    if (!sceneCam.isUseBounds()) return;
+    
+    ImDrawList drawList = ImGui.getBackgroundDrawList();
+    Vector4f bounds = sceneCam.getBounds();
+    
+    // Convert world bounds to screen coordinates
+    Vector2f minScreen = camera.worldToScreen(bounds.x, bounds.y);
+    Vector2f maxScreen = camera.worldToScreen(bounds.z, bounds.w);
+    
+    // Dashed rectangle for camera bounds
+    int boundsColor = ImGui.colorConvertFloat4ToU32(0.2f, 0.8f, 1.0f, 0.8f);  // Cyan
+    drawDashedRect(drawList, minScreen.x, minScreen.y, maxScreen.x, maxScreen.y, boundsColor, 2f, 8f);
+    
+    // Corner handles for resizing (optional)
+    float handleSize = 8f;
+    int handleColor = ImGui.colorConvertFloat4ToU32(1f, 1f, 1f, 0.9f);
+    drawList.addRectFilled(minScreen.x - handleSize/2, minScreen.y - handleSize/2,
+                           minScreen.x + handleSize/2, minScreen.y + handleSize/2, handleColor);
+    drawList.addRectFilled(maxScreen.x - handleSize/2, maxScreen.y - handleSize/2,
+                           maxScreen.x + handleSize/2, maxScreen.y + handleSize/2, handleColor);
+    
+    // Label
+    drawList.addText(minScreen.x + 5, minScreen.y - 20, boundsColor, "Camera Bounds");
+    
+    // Game view rectangle (what the player sees at start position)
+    if (showGameViewPreview) {
+        float aspect = (float) viewportWidth / viewportHeight;
+        float halfHeight = sceneCam.getOrthographicSize();
+        float halfWidth = halfHeight * aspect;
+        
+        Vector2f camPos = sceneCam.getPosition();
+        Vector2f viewMin = camera.worldToScreen(camPos.x - halfWidth, camPos.y - halfHeight);
+        Vector2f viewMax = camera.worldToScreen(camPos.x + halfWidth, camPos.y + halfHeight);
+        
+        int viewColor = ImGui.colorConvertFloat4ToU32(1f, 0.5f, 0.2f, 0.6f);  // Orange
+        drawList.addRect(viewMin.x, viewMin.y, viewMax.x, viewMax.y, viewColor, 0, 0, 2f);
+        drawList.addText(viewMin.x + 5, viewMin.y - 20, viewColor, "Game View");
+    }
+}
+
+private void drawDashedRect(ImDrawList drawList, float x1, float y1, float x2, float y2, 
+                            int color, float thickness, float dashLength) {
+    drawDashedLine(drawList, x1, y1, x2, y1, color, thickness, dashLength);  // Top
+    drawDashedLine(drawList, x2, y1, x2, y2, color, thickness, dashLength);  // Right
+    drawDashedLine(drawList, x2, y2, x1, y2, color, thickness, dashLength);  // Bottom
+    drawDashedLine(drawList, x1, y2, x1, y1, color, thickness, dashLength);  // Left
+}
+
+private void drawDashedLine(ImDrawList drawList, float x1, float y1, float x2, float y2,
+                            int color, float thickness, float dashLength) {
+    float dx = x2 - x1, dy = y2 - y1;
+    float length = (float) Math.sqrt(dx * dx + dy * dy);
+    float nx = dx / length, ny = dy / length;
+    
+    float pos = 0;
+    boolean draw = true;
+    while (pos < length) {
+        float segmentLength = Math.min(dashLength, length - pos);
+        if (draw) {
+            drawList.addLine(
+                x1 + nx * pos, y1 + ny * pos,
+                x1 + nx * (pos + segmentLength), y1 + ny * (pos + segmentLength),
+                color, thickness
+            );
+        }
+        pos += dashLength;
+        draw = !draw;
+    }
+}
+```
+
+**Toggle in View menu:**
+```java
+// In EditorMenuBar
+if (ImGui.beginMenu("View")) {
+    if (ImGui.menuItem("Show Camera Bounds", "Alt+B", showCameraBounds)) {
+        showCameraBounds = !showCameraBounds;
+    }
+    if (ImGui.menuItem("Show Game View Preview", "Alt+G", showGameViewPreview)) {
+        showGameViewPreview = !showGameViewPreview;
+    }
+    // ...
+}
+```
+
 ### 5.7 Files to Create
 
 ```
 src/main/java/com/pocket/rpg/editor/
+├── EditMode.java
 ├── tools/
 │   ├── EntityPlacerTool.java
 │   └── SelectionTool.java
 ├── panels/
 │   ├── PrefabBrowserPanel.java
-│   ├── EntityListPanel.java
 │   └── EntityInspectorPanel.java
 └── scene/
     └── EditorEntity.java
+│   └── SceneCameraSettings.java
 ```
 
-**Deliverables:**
-- Browse available prefabs
-- Place entities by clicking
-- Select, move, delete entities
-- Edit entity properties (name, custom properties)
-- Entity data saved to scene file
-- Entities instantiated correctly when game loads scene
+### 5.8 Testing Checklist
+
+- [ ] Browse available prefabs in panel
+- [ ] Select prefab shows preview at cursor
+- [ ] Click to place entity
+- [ ] Snap to grid works
+- [ ] Select entity by clicking
+- [ ] Drag entity to move
+- [ ] Delete key removes selected entity
+- [ ] Inspector shows entity properties
+- [ ] Edit entity name and position
+- [ ] Entity data saves/loads from .scene file
+- [ ] Switching edit modes changes available tools
 
 ---
 
@@ -1489,7 +1853,7 @@ src/main/java/com/pocket/rpg/editor/
 public interface EditorCommand {
     void execute();
     void undo();
-    String getDescription();  // For history panel / menu
+    String getDescription();
 }
 
 public class CommandHistory {
@@ -1500,9 +1864,8 @@ public class CommandHistory {
     public void execute(EditorCommand command) {
         command.execute();
         undoStack.push(command);
-        redoStack.clear();  // Clear redo on new action
+        redoStack.clear();
         
-        // Limit history size
         while (undoStack.size() > maxHistory) {
             undoStack.removeLast();
         }
@@ -1510,7 +1873,6 @@ public class CommandHistory {
     
     public void undo() {
         if (undoStack.isEmpty()) return;
-        
         EditorCommand command = undoStack.pop();
         command.undo();
         redoStack.push(command);
@@ -1518,17 +1880,9 @@ public class CommandHistory {
     
     public void redo() {
         if (redoStack.isEmpty()) return;
-        
         EditorCommand command = redoStack.pop();
         command.execute();
         undoStack.push(command);
-    }
-    
-    public boolean canUndo() { return !undoStack.isEmpty(); }
-    public boolean canRedo() { return !redoStack.isEmpty(); }
-    
-    public String getUndoDescription() {
-        return undoStack.isEmpty() ? null : undoStack.peek().getDescription();
     }
 }
 
@@ -1538,380 +1892,148 @@ public class PaintTilesCommand implements EditorCommand {
     private final Map<Long, TilemapRenderer.Tile> oldTiles = new HashMap<>();
     private final Map<Long, TilemapRenderer.Tile> newTiles = new HashMap<>();
     
-    public void recordChange(int x, int y, TilemapRenderer.Tile oldTile, TilemapRenderer.Tile newTile) {
-        long key = ((long)x << 32) | (y & 0xFFFFFFFFL);
-        if (!oldTiles.containsKey(key)) {
-            oldTiles.put(key, oldTile);
-        }
+    public void recordChange(int x, int y, Tile oldTile, Tile newTile) {
+        long key = packCoord(x, y);
+        if (!oldTiles.containsKey(key)) oldTiles.put(key, oldTile);
         newTiles.put(key, newTile);
     }
     
-    @Override
     public void execute() {
         for (var entry : newTiles.entrySet()) {
-            int x = (int)(entry.getKey() >> 32);
-            int y = (int)(entry.getKey() & 0xFFFFFFFFL);
-            tilemap.set(x, y, entry.getValue());
+            tilemap.set(unpackX(entry.getKey()), unpackY(entry.getKey()), entry.getValue());
         }
     }
     
-    @Override
     public void undo() {
         for (var entry : oldTiles.entrySet()) {
-            int x = (int)(entry.getKey() >> 32);
-            int y = (int)(entry.getKey() & 0xFFFFFFFFL);
-            tilemap.set(x, y, entry.getValue());
+            tilemap.set(unpackX(entry.getKey()), unpackY(entry.getKey()), entry.getValue());
         }
     }
     
-    @Override
     public String getDescription() {
         return "Paint " + newTiles.size() + " tiles";
     }
-    
-    public boolean hasChanges() {
-        return !newTiles.isEmpty();
-    }
 }
-
-public class PlaceEntityCommand implements EditorCommand {
-    private final EditorScene scene;
-    private final EditorEntity entity;
-    
-    @Override
-    public void execute() {
-        scene.addEntity(entity);
-    }
-    
-    @Override
-    public void undo() {
-        scene.removeEntity(entity);
-    }
-    
-    @Override
-    public String getDescription() {
-        return "Place " + entity.getPrefabId();
-    }
-}
-
-public class MoveEntityCommand implements EditorCommand {
-    private final EditorEntity entity;
-    private final Vector3f oldPosition;
-    private final Vector3f newPosition;
-    
-    // ...
-}
-
-public class DeleteEntityCommand implements EditorCommand { ... }
-public class PaintCollisionCommand implements EditorCommand { ... }
 ```
 
-### 6.2 Keyboard Shortcuts
+### 6.2 Logging System
 
 ```java
-public class EditorShortcuts {
-    private final EditorApplication editor;
-    private final Map<KeyBinding, Runnable> bindings = new HashMap<>();
+public class EditorLogger {
+    private static final int MAX_LOG_ENTRIES = 1000;
+    private static final Deque<LogEntry> logBuffer = new ArrayDeque<>();
     
-    public void setupDefaults() {
-        // File operations
-        bind(KeyCode.S, Modifier.CTRL, () -> editor.saveScene());
-        bind(KeyCode.O, Modifier.CTRL, () -> editor.openScene());
-        bind(KeyCode.N, Modifier.CTRL, () -> editor.newScene());
-        
-        // Edit operations
-        bind(KeyCode.Z, Modifier.CTRL, () -> editor.undo());
-        bind(KeyCode.Y, Modifier.CTRL, () -> editor.redo());
-        bind(KeyCode.Z, Modifier.CTRL_SHIFT, () -> editor.redo());  // Alternative
-        
-        // Tools
-        bind(KeyCode.B, () -> editor.setTool("brush"));
-        bind(KeyCode.E, () -> editor.setTool("eraser"));
-        bind(KeyCode.F, () -> editor.setTool("fill"));
-        bind(KeyCode.R, () -> editor.setTool("rectangle"));
-        bind(KeyCode.I, () -> editor.setTool("picker"));  // Eyedropper
-        bind(KeyCode.V, () -> editor.setTool("selection"));
-        bind(KeyCode.P, () -> editor.setTool("entity_placer"));
-        
-        // View
-        bind(KeyCode.G, () -> editor.toggleGrid());
-        bind(KeyCode.C, () -> editor.toggleCollision());
-        
-        // Layers
-        bind(KeyCode.NUM_1, () -> editor.selectLayer(0));
-        bind(KeyCode.NUM_2, () -> editor.selectLayer(1));
-        bind(KeyCode.NUM_3, () -> editor.selectLayer(2));
-        // ...
-        
-        // Selection
-        bind(KeyCode.DELETE, () -> editor.deleteSelected());
-        bind(KeyCode.D, Modifier.CTRL, () -> editor.duplicateSelected());
-        
-        // Camera
-        bind(KeyCode.HOME, () -> editor.resetCamera());
-    }
+    public static void info(String message) { log(LogLevel.INFO, message); }
+    public static void warn(String message) { log(LogLevel.WARN, message); }
+    public static void error(String message) { log(LogLevel.ERROR, message); }
     
-    public void handleInput() {
-        for (var entry : bindings.entrySet()) {
-            KeyBinding binding = entry.getKey();
-            if (binding.isPressed()) {
-                entry.getValue().run();
+    private static void log(LogLevel level, String message) {
+        LogEntry entry = new LogEntry(level, message, System.currentTimeMillis());
+        
+        synchronized (logBuffer) {
+            logBuffer.addLast(entry);
+            while (logBuffer.size() > MAX_LOG_ENTRIES) {
+                logBuffer.removeFirst();
             }
         }
+        
+        System.out.println("[" + level + "] " + message);
+    }
+    
+    public static List<LogEntry> getRecentLogs(int count) {
+        synchronized (logBuffer) {
+            int start = Math.max(0, logBuffer.size() - count);
+            return new ArrayList<>(logBuffer).subList(start, logBuffer.size());
+        }
     }
 }
+
+public record LogEntry(LogLevel level, String message, long timestamp) {}
+public enum LogLevel { DEBUG, INFO, WARN, ERROR }
 ```
 
-### 6.3 Status Bar
+### 6.3 Log Panel
 
 ```java
-public class StatusBar {
-    public void render(EditorState state) {
-        // Bottom of screen status bar
-        ImGui.setNextWindowPos(0, ImGui.getIO().getDisplaySizeY() - 25);
-        ImGui.setNextWindowSize(ImGui.getIO().getDisplaySizeX(), 25);
+public class LogPanel {
+    private LogLevel filterLevel = LogLevel.INFO;
+    private boolean autoScroll = true;
+    
+    public void render() {
+        ImGui.begin("Log");
         
-        ImGui.begin("StatusBar", ImGuiWindowFlags.NoTitleBar | 
-                                  ImGuiWindowFlags.NoResize | 
-                                  ImGuiWindowFlags.NoMove);
+        // Filter buttons
+        if (ImGui.button("Clear")) EditorLogger.clear();
+        ImGui.sameLine();
+        ImGui.checkbox("Auto-scroll", autoScroll);
+        ImGui.sameLine();
+        ImGui.combo("Filter", filterLevel.ordinal(), LogLevel.values());
         
-        // Current tool
-        ImGui.text("Tool: " + state.getCurrentTool().getName());
+        ImGui.separator();
         
-        ImGui.sameLine(150);
-        
-        // Cursor position
-        ImGui.text("Tile: (" + state.getCursorTileX() + ", " + state.getCursorTileY() + ")");
-        
-        ImGui.sameLine(300);
-        
-        // World position
-        ImGui.text("World: (%.2f, %.2f)", state.getCursorWorldX(), state.getCursorWorldY());
-        
-        ImGui.sameLine(500);
-        
-        // Zoom level
-        ImGui.text("Zoom: %.1fx", state.getCamera().getZoom());
-        
-        ImGui.sameLine(600);
-        
-        // Active layer
-        ImGui.text("Layer: " + state.getActiveLayer().getName());
-        
-        // Unsaved indicator (right side)
-        if (state.hasUnsavedChanges()) {
-            ImGui.sameLine(ImGui.getIO().getDisplaySizeX() - 100);
-            ImGui.textColored(1, 0.5f, 0, 1, "* Unsaved");
+        // Log entries
+        ImGui.beginChild("log_scroll");
+        for (LogEntry entry : EditorLogger.getRecentLogs(500)) {
+            if (entry.level().ordinal() < filterLevel.ordinal()) continue;
+            
+            int color = switch (entry.level()) {
+                case DEBUG -> 0xFF888888;
+                case INFO -> 0xFFFFFFFF;
+                case WARN -> 0xFF00FFFF;
+                case ERROR -> 0xFF0000FF;
+            };
+            
+            ImGui.textColored(color, formatEntry(entry));
         }
+        
+        if (autoScroll) ImGui.setScrollHereY(1.0f);
+        ImGui.endChild();
         
         ImGui.end();
     }
 }
 ```
 
-### 6.4 Menu Bar
+### 6.4 Keyboard Shortcuts
 
 ```java
-public class MenuBar {
-    public void render(EditorApplication editor) {
-        if (ImGui.beginMainMenuBar()) {
-            
-            // File menu
-            if (ImGui.beginMenu("File")) {
-                if (ImGui.menuItem("New", "Ctrl+N")) {
-                    editor.newScene();
-                }
-                if (ImGui.menuItem("Open...", "Ctrl+O")) {
-                    editor.openScene();
-                }
-                
-                // Recent files submenu
-                if (ImGui.beginMenu("Recent Files")) {
-                    for (String path : editor.getRecentFiles()) {
-                        if (ImGui.menuItem(getFileName(path))) {
-                            editor.openScene(path);
-                        }
-                    }
-                    ImGui.endMenu();
-                }
-                
-                ImGui.separator();
-                
-                if (ImGui.menuItem("Save", "Ctrl+S")) {
-                    editor.saveScene();
-                }
-                if (ImGui.menuItem("Save As...")) {
-                    editor.saveSceneAs();
-                }
-                
-                ImGui.separator();
-                
-                if (ImGui.menuItem("Exit")) {
-                    editor.requestClose();
-                }
-                
-                ImGui.endMenu();
-            }
-            
-            // Edit menu
-            if (ImGui.beginMenu("Edit")) {
-                String undoText = editor.canUndo() ? 
-                    "Undo " + editor.getUndoDescription() : "Undo";
-                if (ImGui.menuItem(undoText, "Ctrl+Z", false, editor.canUndo())) {
-                    editor.undo();
-                }
-                
-                if (ImGui.menuItem("Redo", "Ctrl+Y", false, editor.canRedo())) {
-                    editor.redo();
-                }
-                
-                ImGui.endMenu();
-            }
-            
-            // View menu
-            if (ImGui.beginMenu("View")) {
-                if (ImGui.menuItem("Show Grid", "G", editor.isGridVisible())) {
-                    editor.toggleGrid();
-                }
-                if (ImGui.menuItem("Show Collision", "C", editor.isCollisionVisible())) {
-                    editor.toggleCollision();
-                }
-                
-                ImGui.separator();
-                
-                if (ImGui.menuItem("Reset Camera", "Home")) {
-                    editor.resetCamera();
-                }
-                
-                ImGui.endMenu();
-            }
-            
-            // Tools menu
-            if (ImGui.beginMenu("Tools")) {
-                for (EditorTool tool : editor.getTools()) {
-                    boolean isActive = editor.getActiveTool() == tool;
-                    String shortcut = tool.getShortcut() != null ? 
-                        tool.getShortcut().toString() : "";
-                    
-                    if (ImGui.menuItem(tool.getName(), shortcut, isActive)) {
-                        editor.setActiveTool(tool);
-                    }
-                }
-                ImGui.endMenu();
-            }
-            
-            ImGui.endMainMenuBar();
-        }
+public class EditorShortcuts {
+    public void setupDefaults() {
+        // File
+        bind(KeyCode.S, Modifier.CTRL, () -> editor.saveScene());
+        bind(KeyCode.O, Modifier.CTRL, () -> editor.openScene());
+        bind(KeyCode.N, Modifier.CTRL, () -> editor.newScene());
+        
+        // Edit
+        bind(KeyCode.Z, Modifier.CTRL, () -> editor.undo());
+        bind(KeyCode.Y, Modifier.CTRL, () -> editor.redo());
+        
+        // Tools (already implemented)
+        bind(KeyCode.B, () -> editor.setTool("brush"));
+        bind(KeyCode.E, () -> editor.setTool("eraser"));
+        bind(KeyCode.F, () -> editor.setTool("fill"));
+        bind(KeyCode.R, () -> editor.setTool("rectangle"));
+        bind(KeyCode.I, () -> editor.setTool("picker"));
+        bind(KeyCode.V, () -> editor.setTool("selection"));
+        bind(KeyCode.C, () -> editor.setTool("collision"));
+        
+        // Edit modes
+        bind(KeyCode.NUM_1, () -> editor.setEditMode(EditMode.TILEMAP));
+        bind(KeyCode.NUM_2, () -> editor.setEditMode(EditMode.COLLISION));
+        bind(KeyCode.NUM_3, () -> editor.setEditMode(EditMode.ENTITY));
+        
+        // View
+        bind(KeyCode.G, () -> editor.toggleGrid());
+        bind(KeyCode.HOME, () -> editor.resetCamera());
+        
+        // Selection
+        bind(KeyCode.DELETE, () -> editor.deleteSelected());
+        bind(KeyCode.D, Modifier.CTRL, () -> editor.duplicateSelected());
     }
 }
 ```
 
-### 6.5 Recent Files Management
-
-```java
-public class RecentFilesManager {
-    private static final int MAX_RECENT = 10;
-    private static final Path CONFIG_PATH = Path.of("editor_config.json");
-    
-    private List<String> recentFiles = new ArrayList<>();
-    
-    public void addRecentFile(String path) {
-        // Remove if already exists (will re-add at top)
-        recentFiles.remove(path);
-        
-        // Add at beginning
-        recentFiles.add(0, path);
-        
-        // Limit size
-        while (recentFiles.size() > MAX_RECENT) {
-            recentFiles.remove(recentFiles.size() - 1);
-        }
-        
-        save();
-    }
-    
-    public List<String> getRecentFiles() {
-        return Collections.unmodifiableList(recentFiles);
-    }
-    
-    public void load() {
-        if (Files.exists(CONFIG_PATH)) {
-            // Load from JSON
-        }
-    }
-    
-    public void save() {
-        // Save to JSON
-    }
-}
-```
-
-### 6.6 Unsaved Changes Dialog
-
-```java
-public class UnsavedChangesDialog {
-    
-    public enum Result {
-        SAVE,
-        DISCARD,
-        CANCEL
-    }
-    
-    private boolean isOpen = false;
-    private Result result = null;
-    private Runnable onComplete;
-    
-    public void show(Runnable onComplete) {
-        this.isOpen = true;
-        this.result = null;
-        this.onComplete = onComplete;
-    }
-    
-    public void render() {
-        if (!isOpen) return;
-        
-        ImGui.openPopup("Unsaved Changes");
-        
-        if (ImGui.beginPopupModal("Unsaved Changes")) {
-            ImGui.text("You have unsaved changes. What would you like to do?");
-            
-            ImGui.separator();
-            
-            if (ImGui.button("Save")) {
-                result = Result.SAVE;
-                ImGui.closeCurrentPopup();
-            }
-            
-            ImGui.sameLine();
-            
-            if (ImGui.button("Discard")) {
-                result = Result.DISCARD;
-                ImGui.closeCurrentPopup();
-            }
-            
-            ImGui.sameLine();
-            
-            if (ImGui.button("Cancel")) {
-                result = Result.CANCEL;
-                ImGui.closeCurrentPopup();
-            }
-            
-            ImGui.endPopup();
-        }
-        
-        if (result != null) {
-            isOpen = false;
-            onComplete.run();
-        }
-    }
-    
-    public Result getResult() {
-        return result;
-    }
-}
-```
-
-### 6.7 Files to Create
+### 6.5 Files to Create
 
 ```
 src/main/java/com/pocket/rpg/editor/
@@ -1922,24 +2044,14 @@ src/main/java/com/pocket/rpg/editor/
 │   ├── PaintCollisionCommand.java
 │   ├── PlaceEntityCommand.java
 │   ├── MoveEntityCommand.java
-│   ├── DeleteEntityCommand.java
-│   └── DuplicateEntityCommand.java
-├── ui/
-│   ├── MenuBar.java
-│   ├── StatusBar.java
-│   ├── EditorShortcuts.java
-│   └── UnsavedChangesDialog.java
-└── config/
-    └── RecentFilesManager.java
+│   └── DeleteEntityCommand.java
+├── logging/
+│   ├── EditorLogger.java
+│   ├── LogEntry.java
+│   └── LogLevel.java
+└── panels/
+    └── LogPanel.java
 ```
-
-**Deliverables:**
-- Full undo/redo for all operations
-- Keyboard shortcuts for common actions
-- Menu bar with all operations
-- Status bar showing context info
-- Recent files menu
-- Unsaved changes warning on close
 
 ---
 
@@ -1947,7 +2059,74 @@ src/main/java/com/pocket/rpg/editor/
 
 Lower priority, implement as needed.
 
-### 7.1 Scene Transitions / Triggers
+### 7.1 Sprite Pivot Editor
+
+**Goal:** Edit pivot points for sprites and spritesheets.
+
+**Access methods:**
+1. Right-click on sprite/spritesheet in asset browser → "Edit Pivot"
+2. Menu: Assets → Pivot Editor
+3. Selection dropdown in the pivot editor panel
+
+**Features:**
+- Visual pivot point indicator on sprite preview
+- Click to set pivot position
+- Preset buttons: Center, Bottom-Center, Bottom-Left, Top-Left
+- Per-sprite pivot override for spritesheets
+- Default pivot for entire spritesheet
+- Save pivot data to .spritesheet file
+
+```java
+public class PivotEditorPanel {
+    private Sprite selectedSprite;
+    private SpriteSheet selectedSheet;
+    private int selectedSpriteIndex = -1;
+    
+    public void render() {
+        ImGui.begin("Pivot Editor");
+        
+        // Sprite/sheet selector
+        renderAssetSelector();
+        
+        if (selectedSprite == null && selectedSheet == null) {
+            ImGui.textDisabled("Select a sprite or spritesheet");
+            ImGui.end();
+            return;
+        }
+        
+        // Large preview with grid
+        renderPreview();
+        
+        // Preset buttons
+        if (ImGui.button("Center")) setPivot(0.5f, 0.5f);
+        ImGui.sameLine();
+        if (ImGui.button("Bottom-Center")) setPivot(0.5f, 0f);
+        ImGui.sameLine();
+        if (ImGui.button("Bottom-Left")) setPivot(0f, 0f);
+        
+        // Manual input
+        float[] pivot = {currentPivotX, currentPivotY};
+        if (ImGui.sliderFloat2("Pivot", pivot, 0f, 1f)) {
+            setPivot(pivot[0], pivot[1]);
+        }
+        
+        // Apply/Reset
+        if (ImGui.button("Apply")) applyChanges();
+        ImGui.sameLine();
+        if (ImGui.button("Reset")) resetChanges();
+        
+        ImGui.end();
+    }
+    
+    private void renderPreview() {
+        // Draw sprite with checkerboard background
+        // Draw pivot marker (crosshair)
+        // Handle click to set pivot position
+    }
+}
+```
+
+### 7.2 Scene Transitions / Triggers
 
 ```java
 public class TriggerEditorTool implements EditorTool {
@@ -1956,104 +2135,62 @@ public class TriggerEditorTool implements EditorTool {
 }
 
 public class TriggerInspectorPanel {
-    // Edit trigger properties:
-    // - Type (SCENE_TRANSITION, EVENT, DIALOGUE, etc.)
-    // - Target scene (for transitions)
-    // - Spawn point name
-    // - Custom properties
+    // Type selector: SCENE_TRANSITION, EVENT, DIALOGUE, etc.
+    // Target scene (for transitions)
+    // Spawn point name
+    // Custom properties
 }
 ```
 
-Scene file format already includes triggers section.
+### 7.3 JSON-based Prefabs
 
-### 7.2 Copy/Paste
+Load prefab definitions from JSON files instead of code.
 
-```java
-public class ClipboardManager {
-    private Object clipboardContent;  // TileSelection or List<EditorEntity>
-    
-    public void copyTiles(TilemapRenderer tilemap, int x1, int y1, int x2, int y2);
-    public void pasteTiles(TilemapRenderer tilemap, int targetX, int targetY);
-    
-    public void copyEntities(List<EditorEntity> entities);
-    public void pasteEntities(Vector3f position);
-}
-```
-
-### 7.3 Tileset Auto-Tiling
-
-Define rules for automatic tile selection based on neighbors (corners, edges, etc.). Significant complexity - consider using a library or defer until needed.
-
-### 7.4 Multiple Tilesets Per Layer
-
-Allow each layer to reference multiple tilesets. Palette panel would have tileset tabs.
-
-### 7.5 Animated Tiles
-
-Support for animated tiles in tilemap (cycle through tile indices). Would require TilemapRenderer changes.
-
-### 7.6 Custom Prefab Properties Schema
-
-Define expected properties per prefab type:
 ```json
 {
-  "NPC": {
-    "properties": {
-      "dialogueId": { "type": "string", "required": true },
-      "facing": { "type": "enum", "values": ["UP", "DOWN", "LEFT", "RIGHT"] },
-      "wanderRadius": { "type": "int", "default": 0 }
+  "id": "NPC_Villager",
+  "components": [
+    {
+      "type": "SpriteRenderer",
+      "sprite": "sprites/npc_villager.png",
+      "zIndex": 1
+    },
+    {
+      "type": "GridMovement",
+      "speed": 2.0
+    },
+    {
+      "type": "NPCBehavior",
+      "dialogueId": "villager_01"
     }
+  ],
+  "properties": {
+    "facing": { "type": "enum", "values": ["UP", "DOWN", "LEFT", "RIGHT"] },
+    "dialogueId": { "type": "string" }
   }
 }
 ```
 
-Inspector would auto-generate UI based on schema.
+### 7.4 Copy/Paste for Tiles and Entities
+
+### 7.5 Tileset Auto-Tiling
+
+Define rules for automatic tile selection based on neighbors.
 
 ---
 
 ## Implementation Order Summary
 
-| Phase | Status | Effort | Dependency | Description |
-|-------|--------|--------|------------|-------------|
-| 1. Foundation | ✅ Done | Medium | None | Editor shell, ImGui, camera |
-| 2. Serialization | ✅ Done | Medium | Phase 1 | Scene file format, save/load, framebuffer |
-| 3. Tilemap Painting | Pending | Large | Phase 2 | Brush tools, layers, palette |
-| 4. Collision Editing | Pending | Small | Phase 3 | Collision layer painting |
-| 5. Entity Placement | Pending | Medium | Phase 2 | Prefab browser, placement, inspector |
-| 6. UX Polish | Pending | Medium | Phase 3, 5 | Undo/redo, shortcuts, menus |
-| 7. Advanced | Pending | Large | All above | Triggers, copy/paste, auto-tile |
-
-**Recommended implementation order:**
-1. ~~Phase 1 → Phase 2~~ ✅ Complete → Phase 3 (gives you a usable tilemap editor)
-2. Phase 5 (entity placement + inspector)
-3. Phase 4 (collision - small effort, high value)
-4. Phase 6 (polish)
-5. Phase 7 (as needed)
-
----
-
-## Deferred Features (Future Phases)
-
-Features discussed but deferred for future implementation:
-
-### Phase 7+ Additions
-
-**JSON-based Prefabs**
-- Load prefab definitions from JSON files instead of code
-- Allow editing prefabs in the editor
-- Hot-reload prefab changes
-
-**Inspector Enhancements**
-- `@EditorRange(min, max)` annotation for slider controls
-- `@EditorHidden` to exclude from inspector (but still serialize)
-- `@EditorReadOnly` for display-only fields
-- `@EditorLabel("Display Name")` for custom labels
-- Auto-generate UI based on property schemas per prefab type
-
-**Component Registry with Reflection**
-- Scan classpath at startup to find all Component subclasses
-- Cache results for "Add Component" dropdown
-- One-time cost, acceptable slowness at startup
+| Phase | Status | Effort | Description |
+|-------|--------|--------|-------------|
+| 1. Foundation | ✅ Done | Medium | Editor shell, ImGui, camera |
+| 2. Serialization | ✅ Done | Medium | Scene file format, save/load infrastructure |
+| 3. Tilemap Painting | ✅ Done | Large | Brush tools, layers, palette |
+| 3.5. Consolidation | Pending | Medium | Complete save/load, opacity, batch fixes, tool polish |
+| 4. Collision Editing | Pending | Large | Full collision system with behaviors |
+| 5. Entity Placement | Pending | Medium | Prefab browser, placement, inspector, edit modes |
+| 6. UX Polish | Pending | Medium | Undo/redo, logging, shortcuts |
+| 7. Advanced | Pending | Large | Pivot editor, triggers, auto-tile |
 
 ---
 
@@ -2061,13 +2198,42 @@ Features discussed but deferred for future implementation:
 
 ```
 src/main/java/com/pocket/rpg/
+├── collision/
+│   ├── CollisionType.java
+│   ├── CollisionMap.java
+│   ├── CollisionLayer.java
+│   ├── CollisionChunk.java
+│   ├── CollisionSystem.java
+│   ├── GridCollisionSystem.java
+│   ├── EntityOccupancyMap.java
+│   ├── MoveResult.java
+│   ├── MovementModifier.java
+│   ├── Direction.java
+│   └── behaviors/
+│       ├── TileBehavior.java
+│       ├── CollisionBehaviorRegistry.java
+│       ├── PassableBehavior.java
+│       ├── SolidBehavior.java
+│       ├── WaterBehavior.java
+│       ├── IceBehavior.java
+│       ├── LedgeBehavior.java
+│       ├── ZLevelChangeBehavior.java
+│       └── TriggerBehavior.java
+├── components/
+│   ├── ZLevelComponent.java
+│   └── ... (existing)
 ├── editor/
-│   ├── EditorApplication.java          # Main entry point
-│   ├── EditorWindow.java               # GLFW + ImGui window
-│   ├── EditorCamera.java               # Free camera controls
-│   ├── EditorInputHandler.java         # Input routing
+│   ├── EditorApplication.java
+│   ├── EditMode.java
+│   ├── core/
+│   │   ├── EditorConfig.java
+│   │   ├── EditorWindow.java
+│   │   ├── ImGuiLayer.java
+│   │   └── FileDialogs.java
+│   ├── camera/
+│   │   └── EditorCamera.java
 │   ├── tools/
-│   │   ├── EditorTool.java             # Interface
+│   │   ├── EditorTool.java
 │   │   ├── ToolManager.java
 │   │   ├── TileBrushTool.java
 │   │   ├── TileEraserTool.java
@@ -2076,90 +2242,72 @@ src/main/java/com/pocket/rpg/
 │   │   ├── TilePickerTool.java
 │   │   ├── CollisionBrushTool.java
 │   │   ├── EntityPlacerTool.java
-│   │   ├── SelectionTool.java
-│   │   └── TriggerTool.java            # Phase 7
+│   │   └── SelectionTool.java
 │   ├── panels/
 │   │   ├── TilesetPalettePanel.java
 │   │   ├── LayerPanel.java
 │   │   ├── CollisionPanel.java
 │   │   ├── PrefabBrowserPanel.java
-│   │   ├── EntityListPanel.java
-│   │   └── EntityInspectorPanel.java
+│   │   ├── EntityInspectorPanel.java
+│   │   └── LogPanel.java
 │   ├── commands/
 │   │   ├── EditorCommand.java
 │   │   ├── CommandHistory.java
-│   │   ├── PaintTilesCommand.java
-│   │   ├── PaintCollisionCommand.java
-│   │   ├── PlaceEntityCommand.java
-│   │   ├── MoveEntityCommand.java
-│   │   ├── DeleteEntityCommand.java
-│   │   └── DuplicateEntityCommand.java
+│   │   └── ... (command implementations)
 │   ├── scene/
 │   │   ├── EditorScene.java
 │   │   ├── TilemapLayer.java
-│   │   └── EditorEntity.java
+│   │   ├── EditorEntity.java
+│   │   └── LayerVisibilityMode.java
+│   ├── serialization/
+│   │   ├── EditorSceneSerializer.java
+│   │   ├── TilemapComponentData.java
+│   │   └── ChunkData.java
 │   ├── rendering/
-│   │   └── EditorOverlayRenderer.java
+│   │   ├── EditorFramebuffer.java
+│   │   └── EditorSceneRenderer.java
+│   ├── logging/
+│   │   ├── EditorLogger.java
+│   │   ├── LogEntry.java
+│   │   └── LogLevel.java
 │   ├── ui/
-│   │   ├── MenuBar.java
-│   │   ├── StatusBar.java
-│   │   ├── EditorShortcuts.java
-│   │   └── UnsavedChangesDialog.java
-│   └── config/
-│       └── RecentFilesManager.java
-├── serialization/
-│   ├── Serializer.java                 # Existing
-│   ├── SceneSerializer.java            # New
-│   └── scene/
-│       ├── SceneData.java
-│       ├── CameraData.java
-│       ├── GameObjectData.java
-│       ├── ComponentData.java
-│       ├── TilemapComponentData.java
-│       ├── ChunkData.java
-│       ├── EntityData.java
-│       ├── CollisionLayerData.java
-│       ├── CollisionChunkData.java
-│       └── TriggerData.java
-├── scenes/
-│   ├── Scene.java                      # Existing
-│   ├── SceneLoader.java                # New - game-side loading
-│   └── RuntimeScene.java               # New - loaded scene subclass
-├── physics/
-│   ├── CollisionMap.java               # New
-│   └── CollisionChunk.java             # New
-└── prefabs/
-    ├── PrefabRegistry.java             # New
-    └── GamePrefabs.java                # New - game-specific definitions
+│   │   ├── EditorMenuBar.java
+│   │   ├── SceneViewport.java
+│   │   └── StatusBar.java
+│   └── tileset/
+│       ├── TileSelection.java
+│       ├── TilesetRegistry.java
+│       └── CreateSpritesheetDialog.java
+├── rendering/
+│   ├── SpriteBatch.java             # Updated with vertex colors
+│   └── renderers/BatchRenderer.java # Updated with opacity
+└── serialization/
+    ├── SceneData.java
+    └── ... (existing)
 ```
 
 ---
 
-## Key Integration Points with Existing Code
+## Key Integration Points
 
 ### TilemapRenderer (Existing)
 - Editor uses TilemapRenderer directly for painting
 - Each layer is a GameObject with TilemapRenderer component
-- Chunk structure (`TileChunk`) used for efficient storage and serialization
-- `Tile` record used for individual tiles
+- Chunk structure used for efficient storage and serialization
+
+### GridMovement (Updated)
+- Uses CollisionSystem instead of TilemapRenderer for collision
+- Handles MovementModifier (SLIDE, JUMP, etc.)
+- Integrates with ZLevelComponent for multi-level support
 
 ### Scene (Existing)
-- Editor creates Scene instances for preview
 - RuntimeScene extends Scene for loaded scenes
-- Uses existing `addGameObject`, `getRenderers()` etc.
+- Uses existing addGameObject, getRenderers(), etc.
 
 ### AssetManager (Existing)
 - Editor uses AssetManager for loading tilesets, sprites
 - Prefab previews loaded via AssetManager
 
-### Camera (Existing)
-- EditorCamera wraps Camera for free movement
-- Reuses projection/view matrix system
-
 ### Serializer (Existing)
 - SceneSerializer uses existing Gson setup
-- May need custom TypeAdapters for new data types
-
-### Input System (Existing)
-- Editor has separate input handling (ImGui first)
-- Can reuse KeyCode enum for shortcuts
+- EditorSceneSerializer handles EditorScene ↔ SceneData conversion

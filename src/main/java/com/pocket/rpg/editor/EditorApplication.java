@@ -554,6 +554,7 @@ public class EditorApplication {
         System.out.println("Saving scene: " + currentScene.getFilePath());
 
         // TODO: Implement scene saving with SceneSerializer
+        // Assets.persist(currentScene); // TODO: Can't work as currentScene is an EditorScene, whereas SceneLoader works with Scene objects. Create an EditorSceneLoader that does the conversion ?
 
         currentScene.clearDirty();
         statusBar.showMessage("Saved: " + currentScene.getName());

@@ -57,7 +57,6 @@ public class EditorWindow {
 
         // Determine window size
         determineWindowSize();
-
         // Configure GLFW hints
         glfwDefaultWindowHints();
         glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
@@ -95,6 +94,14 @@ public class EditorWindow {
         // Show window
         glfwShowWindow(windowHandle);
 
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            IntBuffer w = stack.mallocInt(1);
+            IntBuffer h = stack.mallocInt(1);
+
+            glfwGetWindowSize(windowHandle, w, h);
+            onResizeCallback(w.get(0), h.get(0));
+        }
+
         // Initial OpenGL state
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -104,12 +111,9 @@ public class EditorWindow {
 
     private void determineWindowSize() {
         if (config.isFullscreen()) {
-            GLFWVidMode vidMode = glfwGetVideoMode(glfwGetPrimaryMonitor());
-            if (vidMode == null) {
-                throw new IllegalStateException("Failed to get video mode");
-            }
-            screenWidth = vidMode.width();
-            screenHeight = vidMode.height();
+            // Don't set screenWidth or screenHeight
+            screenWidth = 800;  // placeholder
+            screenHeight = 600; // GLFW will override this
         } else {
             screenWidth = config.getWindowWidth();
             screenHeight = config.getWindowHeight();
@@ -126,9 +130,9 @@ public class EditorWindow {
             GLFWVidMode vidMode = glfwGetVideoMode(glfwGetPrimaryMonitor());
             if (vidMode != null) {
                 glfwSetWindowPos(
-                    windowHandle,
-                    (vidMode.width() - pWidth.get(0)) / 2,
-                    (vidMode.height() - pHeight.get(0)) / 2
+                        windowHandle,
+                        (vidMode.width() - pWidth.get(0)) / 2,
+                        (vidMode.height() - pHeight.get(0)) / 2
                 );
             }
         }
@@ -136,18 +140,7 @@ public class EditorWindow {
 
     private void setupCallbacks() {
         // Window size callback
-        glfwSetWindowSizeCallback(windowHandle, (window, width, height) -> {
-            if (width <= 0 || height <= 0) {
-                return;
-            }
-            screenWidth = width;
-            screenHeight = height;
-            glViewport(0, 0, width, height);
-            
-            if (onResize != null) {
-                onResize.run();
-            }
-        });
+        glfwSetWindowSizeCallback(windowHandle, (window, width, height) -> onResizeCallback(width, height));
 
         // Window iconify callback
         glfwSetWindowIconifyCallback(windowHandle, (window, iconified) -> {
@@ -191,6 +184,20 @@ public class EditorWindow {
                 // Could show "unsaved changes" dialog instead
             }
         });
+    }
+
+    private void onResizeCallback(int width, int height) {
+        if (width <= 0 || height <= 0) {
+            return;
+        }
+        System.out.println("New width: " + width + ", new height: " + height);
+        screenWidth = width;
+        screenHeight = height;
+        glViewport(0, 0, width, height);
+
+        if (onResize != null) {
+            onResize.run();
+        }
     }
 
     /**

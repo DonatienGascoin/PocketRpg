@@ -55,7 +55,7 @@ public class EditorScene {
      */
     @Getter
     @Setter
-    private float dimmedOpacity = 0.3f;
+    private float dimmedOpacity = 0.5f;
 
     // Editor state
     @Getter

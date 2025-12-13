@@ -122,13 +122,13 @@ public class BatchRenderer extends Renderer {
     }
 
     @Override
-    public void drawSpriteRenderer(SpriteRenderer spriteRenderer) {
+    public void drawSpriteRenderer(SpriteRenderer spriteRenderer, Vector4f globalTintColor) {
         if (spriteRenderer == null || spriteRenderer.getSprite() == null) {
             return;
         }
 
         // Submit to batch (no immediate rendering!)
-        batch.submit(spriteRenderer);
+        batch.submit(spriteRenderer, globalTintColor);
     }
 
     // ========================================================================
@@ -139,10 +139,21 @@ public class BatchRenderer extends Renderer {
      * Renders visible chunks of a tilemap.
      * Called by RenderPipeline after chunk culling.
      *
-     * @param tilemapRenderer       The tilemap to render
-     * @param visibleChunks List of visible chunk coordinates [cx, cy]
+     * @param tilemapRenderer The tilemap to render
+     * @param visibleChunks   List of visible chunk coordinates [cx, cy]
      */
     public void drawTilemap(TilemapRenderer tilemapRenderer, List<long[]> visibleChunks) {
+        drawTilemap(tilemapRenderer, visibleChunks, DEFAULT_TINT_COLOR);
+    }
+
+    /**
+     * Renders visible chunks of a tilemap.
+     * Called by RenderPipeline after chunk culling.
+     *
+     * @param tilemapRenderer The tilemap to render
+     * @param visibleChunks   List of visible chunk coordinates [cx, cy]
+     */
+    public void drawTilemap(TilemapRenderer tilemapRenderer, List<long[]> visibleChunks, Vector4f globalTintColor) {
         if (tilemapRenderer == null || visibleChunks == null || visibleChunks.isEmpty()) {
             return;
         }
@@ -152,37 +163,12 @@ public class BatchRenderer extends Renderer {
             int cy = (int) chunkCoord[1];
 
             // Submit entire chunk to batch
-            batch.submitChunk(tilemapRenderer, cx, cy);
+            batch.submitChunk(tilemapRenderer, cx, cy, globalTintColor);
 
             // Clear dirty flag for this chunk (if using static batching)
             if (tilemapRenderer.isStatic()) {
                 tilemapRenderer.clearChunkDirty(cx, cy);
             }
-        }
-    }
-
-    /**
-     * Renders a single chunk of a tilemap.
-     * Useful for manual chunk rendering or debugging.
-     *
-     * @param tilemapRenderer The tilemap
-     * @param cx      Chunk X coordinate
-     * @param cy      Chunk Y coordinate
-     */
-    public void drawTilemapChunk(TilemapRenderer tilemapRenderer, int cx, int cy) {
-        if (tilemapRenderer == null) {
-            return;
-        }
-
-        TilemapRenderer.TileChunk chunk = tilemapRenderer.getChunk(cx, cy);
-        if (chunk == null || chunk.isEmpty()) {
-            return;
-        }
-
-        batch.submitChunk(tilemapRenderer, cx, cy);
-
-        if (tilemapRenderer.isStatic()) {
-            tilemapRenderer.clearChunkDirty(cx, cy);
         }
     }
 

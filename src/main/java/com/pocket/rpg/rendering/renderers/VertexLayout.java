@@ -1,6 +1,8 @@
 package com.pocket.rpg.rendering.renderers;
 
-import static org.lwjgl.opengl.GL33.*;
+import static org.lwjgl.opengl.GL33.GL_FLOAT;
+import static org.lwjgl.opengl.GL33.glEnableVertexAttribArray;
+import static org.lwjgl.opengl.GL33.glVertexAttribPointer;
 
 /**
  * Defines the vertex layout for sprite rendering.
@@ -29,12 +31,9 @@ public class VertexLayout {
     public static final int COLOR_OFFSET = TEXCOORD_OFFSET + TEXCOORD_SIZE;
 
     // ==================== Stride (Total Size) ====================
-    // Currently: position(2) + texcoord(2) = 4 floats
-    public static final int FLOATS_PER_VERTEX = POSITION_COMPONENTS + TEXCOORD_COMPONENTS;
-    public static final int STRIDE = FLOATS_PER_VERTEX * Float.BYTES;
-
     // With color: position(2) + texcoord(2) + color(4) = 8 floats
-    // public static final int FLOATS_PER_VERTEX = POSITION_COMPONENTS + TEXCOORD_COMPONENTS + COLOR_COMPONENTS;
+    public static final int FLOATS_PER_VERTEX = POSITION_COMPONENTS + TEXCOORD_COMPONENTS + COLOR_COMPONENTS;
+    public static final int STRIDE = FLOATS_PER_VERTEX * Float.BYTES;
 
     // ==================== Derived Constants ====================
     public static final int VERTICES_PER_SPRITE = 6;  // 2 triangles
@@ -69,8 +68,13 @@ public class VertexLayout {
         );
 
         // Color attribute (commented out for now)
-        // glEnableVertexAttribArray(ATTRIB_COLOR);
-        // glVertexAttribPointer(ATTRIB_COLOR, COLOR_COMPONENTS, GL_FLOAT, false, STRIDE, COLOR_OFFSET);
+        glEnableVertexAttribArray(ATTRIB_COLOR);
+        glVertexAttribPointer(ATTRIB_COLOR,
+                COLOR_COMPONENTS,
+                GL_FLOAT,
+                false,
+                STRIDE,
+                COLOR_OFFSET);
     }
 
     /**
@@ -81,10 +85,12 @@ public class VertexLayout {
                 "Vertex Layout:%n" +
                         "  Position: location=%d, components=%d, offset=%d bytes%n" +
                         "  TexCoord: location=%d, components=%d, offset=%d bytes%n" +
+                        "  Color: location=%d, components=%d, offset=%d bytes%n" +
                         "  Stride: %d bytes (%d floats)%n" +
                         "  Sprite: %d vertices, %d floats, %d bytes",
                 ATTRIB_POSITION, POSITION_COMPONENTS, POSITION_OFFSET,
                 ATTRIB_TEXCOORD, TEXCOORD_COMPONENTS, TEXCOORD_OFFSET,
+                ATTRIB_COLOR, COLOR_COMPONENTS, COLOR_OFFSET,
                 STRIDE, FLOATS_PER_VERTEX,
                 VERTICES_PER_SPRITE, FLOATS_PER_SPRITE, BYTES_PER_SPRITE
         );

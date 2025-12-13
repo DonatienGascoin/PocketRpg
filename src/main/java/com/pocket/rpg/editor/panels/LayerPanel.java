@@ -13,14 +13,14 @@ import lombok.Setter;
 
 /**
  * Panel for managing tilemap layers.
- *
+ * <p>
  * Features:
  * - Add/delete/rename layers
  * - Toggle visibility
  * - Toggle lock state
  * - Reorder layers (move up/down)
  * - Visibility mode selection (All/Selected/Dimmed)
- *
+ * <p>
  * Note: Layers no longer require a spritesheet at creation.
  * Tiles from any tileset can be placed on any layer.
  */
@@ -96,6 +96,8 @@ public class LayerPanel {
 
         // Opacity slider for dimmed mode
         if (currentMode == LayerVisibilityMode.SELECTED_DIMMED) {
+            ImGui.sameLine();
+            ImGui.setNextItemWidth(150f);
             float[] opacity = {scene.getDimmedOpacity()};
             if (ImGui.sliderFloat("Dim Opacity", opacity, 0.1f, 0.9f)) {
                 scene.setDimmedOpacity(opacity[0]);

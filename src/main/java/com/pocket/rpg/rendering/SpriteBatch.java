@@ -8,6 +8,7 @@ import com.pocket.rpg.rendering.renderers.VertexLayout;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector3f;
+import org.joml.Vector4f;
 import org.lwjgl.system.MemoryUtil;
 
 import java.nio.FloatBuffer;
@@ -23,9 +24,7 @@ import static org.lwjgl.opengl.GL33.*;
  * Uses world units for all position and size calculations.
  * Sprite dimensions come from {@link Sprite#getWorldWidth()} and {@link Sprite#getWorldHeight()}.
  *
- * <h2>Tilemap Support</h2>
- * Tilemaps can submit tiles via {@link #submitTile(TilemapRenderer, int, int, TilemapRenderer.Tile)}.
- * Tiles are batched alongside regular sprites and sorted by zIndex.
+ * <p>Tilemap Support
  */
 public class SpriteBatch {
 
@@ -110,20 +109,22 @@ public class SpriteBatch {
         float yPosition;
         boolean isStatic;
         boolean isTile;
+        Vector4f tintColor;
 
         // Constructor for SpriteRenderer
-        BatchItem(SpriteRenderer spriteRenderer, int textureId, float zIndex, float yPosition, boolean isStatic) {
+        BatchItem(SpriteRenderer spriteRenderer, int textureId, float zIndex, float yPosition, boolean isStatic, Vector4f tintColor) {
             this.spriteRenderer = spriteRenderer;
             this.textureId = textureId;
             this.zIndex = zIndex;
             this.yPosition = yPosition;
             this.isStatic = isStatic;
+            this.tintColor = tintColor;
             this.isTile = false;
         }
 
         // Constructor for Tile
         BatchItem(Sprite sprite, float x, float y, float width, float height,
-                  int textureId, float zIndex, boolean isStatic) {
+                  int textureId, float zIndex, boolean isStatic, Vector4f tintColor) {
             this.tileSprite = sprite;
             this.tileX = x;
             this.tileY = y;
@@ -133,6 +134,7 @@ public class SpriteBatch {
             this.zIndex = zIndex;
             this.yPosition = y;
             this.isStatic = isStatic;
+            this.tintColor = tintColor;
             this.isTile = true;
         }
     }
@@ -193,7 +195,7 @@ public class SpriteBatch {
     /**
      * Submits a sprite to the batch.
      */
-    public void submit(SpriteRenderer spriteRenderer) {
+    public void submit(SpriteRenderer spriteRenderer, Vector4f tintColor) {
         if (!isBatching) {
             throw new IllegalStateException("Not batching! Call begin() first.");
         }
@@ -213,12 +215,12 @@ public class SpriteBatch {
         boolean isStatic = spriteRenderer.isStatic();
 
         // Create batch item
-        BatchItem item = new BatchItem(spriteRenderer, textureId, zIndex, yPosition, isStatic);
+        BatchItem item = new BatchItem(spriteRenderer, textureId, zIndex, yPosition, isStatic, tintColor);
 
         // Add to appropriate list
         if (isStatic) {
             // Static sprites only need to be added once
-            if (staticBatchDirty) {
+            if (staticBatchDirty) { // TODO: Does this work ? What is staticBatchDirty is false and this item hasn't been added yet ?
                 staticItems.add(item);
             }
         } else {
@@ -233,70 +235,14 @@ public class SpriteBatch {
     // ========================================================================
 
     /**
-     * Submits a single tile to the batch.
-     * Called by the rendering pipeline for each visible tile.
-     *
-     * @param tilemapRenderer The tilemap containing the tile
-     * @param tileX   Tile X coordinate (in tile space)
-     * @param tileY   Tile Y coordinate (in tile space)
-     * @param tile    The tile data
-     */
-    public void submitTile(TilemapRenderer tilemapRenderer, int tileX, int tileY, TilemapRenderer.Tile tile) {
-        if (!isBatching) {
-            throw new IllegalStateException("Not batching! Call begin() first.");
-        }
-
-        if (tile == null || tile.sprite() == null || tile.sprite().getTexture() == null) {
-            return;
-        }
-
-        Sprite sprite = tile.sprite();
-        int textureId = sprite.getTexture().getTextureId();
-
-        // Calculate world position
-        Vector3f tilemapPos = tilemapRenderer.getGameObject().getTransform().getPosition();
-        float tileSize = tilemapRenderer.getTileSize();
-
-        float worldX = tilemapPos.x + (tileX * tileSize);
-        float worldY = tilemapPos.y + (tileY * tileSize);
-
-        // Tile dimensions in world units
-        float width = sprite.getWorldWidth();
-        float height = sprite.getWorldHeight();
-
-        // If sprite size doesn't match tile size, scale to fit
-        // This allows using sprites of any size as tiles
-        if (Math.abs(width - tileSize) > 0.001f || Math.abs(height - tileSize) > 0.001f) {
-            width = tileSize;
-            height = tileSize;
-        }
-
-        float zIndex = tilemapRenderer.getZIndex();
-        boolean isStatic = tilemapRenderer.isStatic();
-
-        BatchItem item = new BatchItem(sprite, worldX, worldY, width, height,
-                textureId, zIndex, isStatic);
-
-        if (isStatic) {
-            if (staticBatchDirty) {
-                staticItems.add(item);
-            }
-        } else {
-            dynamicItems.add(item);
-        }
-
-        totalSprites++;
-    }
-
-    /**
      * Submits all tiles from a chunk to the batch.
      * More efficient than calling submitTile for each tile individually.
      *
      * @param tilemapRenderer The tilemap
-     * @param cx      Chunk X coordinate
-     * @param cy      Chunk Y coordinate
+     * @param cx              Chunk X coordinate
+     * @param cy              Chunk Y coordinate
      */
-    public void submitChunk(TilemapRenderer tilemapRenderer, int cx, int cy) {
+    public void submitChunk(TilemapRenderer tilemapRenderer, int cx, int cy, Vector4f tintColor) {
         if (!isBatching) {
             throw new IllegalStateException("Not batching! Call begin() first.");
         }
@@ -335,7 +281,7 @@ public class SpriteBatch {
 
                 // Use tile size for dimensions (sprites are scaled to fit)
                 BatchItem item = new BatchItem(sprite, worldX, worldY, tileSize, tileSize,
-                        textureId, zIndex, isStatic);
+                        textureId, zIndex, isStatic, tintColor);
 
                 if (isStatic) {
                     if (staticBatchDirty) {
@@ -483,7 +429,7 @@ public class SpriteBatch {
             if (item.isTile) {
                 addTileVertices(item);
             } else {
-                addSpriteVertices(item.spriteRenderer);
+                addSpriteVertices(item);
             }
         }
         vertexBuffer.flip();
@@ -521,15 +467,28 @@ public class SpriteBatch {
         float u1 = sprite.getU1();
         float v1 = sprite.getV1();
 
+        float r = item.tintColor.x;
+        float g = item.tintColor.y;
+        float b = item.tintColor.z;
+        float a = item.tintColor.w;
+
         // Triangle 1
-        vertexBuffer.put(x0).put(y0).put(u0).put(v0); // Bottom-left
-        vertexBuffer.put(x0).put(y1).put(u0).put(v1); // Top-left
-        vertexBuffer.put(x1).put(y1).put(u1).put(v1); // Top-right
+        putVertex(x0, y0, u0, v0, r, g, b, a);
+        putVertex(x0, y1, u0, v1, r, g, b, a);
+        putVertex(x1, y1, u1, v1, r, g, b, a);
 
         // Triangle 2
-        vertexBuffer.put(x0).put(y0).put(u0).put(v0); // Bottom-left
-        vertexBuffer.put(x1).put(y1).put(u1).put(v1); // Top-right
-        vertexBuffer.put(x1).put(y0).put(u1).put(v0); // Bottom-right
+        putVertex(x0, y0, u0, v0, r, g, b, a);
+        putVertex(x1, y1, u1, v1, r, g, b, a);
+        putVertex(x1, y0, u1, v0, r, g, b, a);
+    }
+
+    private void putVertex(float x, float y, float u, float v, float r, float g, float b, float a) {
+        vertexBuffer
+                .put(x).put(y)
+                .put(u).put(v)
+                .put(r).put(g)
+                .put(b).put(a);
     }
 
     /**
@@ -539,7 +498,8 @@ public class SpriteBatch {
      * - Position from Transform (world units)
      * - Size from Sprite.getWorldWidth/Height() (world units)
      */
-    private void addSpriteVertices(SpriteRenderer spriteRenderer) {
+    private void addSpriteVertices(BatchItem item) {
+        SpriteRenderer spriteRenderer = item.spriteRenderer;
         Sprite sprite = spriteRenderer.getSprite();
         Transform transform = spriteRenderer.getGameObject().getTransform();
 
@@ -547,64 +507,64 @@ public class SpriteBatch {
         Vector3f scale = transform.getScale();
         Vector3f rotation = transform.getRotation();
 
-        // Calculate final dimensions in WORLD UNITS
+        // Final dimensions in world units
         float width = sprite.getWorldWidth() * scale.x;
         float height = sprite.getWorldHeight() * scale.y;
 
-        // Calculate origin offset in world units
+        // Origin offset (world units)
         float originX = width * spriteRenderer.getOriginX();
         float originY = height * spriteRenderer.getOriginY();
 
-        // Get UV coordinates
+        // UVs
         float u0 = sprite.getU0();
         float v0 = sprite.getV0();
         float u1 = sprite.getU1();
         float v1 = sprite.getV1();
 
-        // Calculate corner positions (before rotation)
-        // With Y-up coordinate system:
-        // - Origin offset subtracts from position
-        // - Height goes UP (positive Y)
+        // Quad corners before rotation (Y-up)
         float x0 = pos.x - originX;
         float y0 = pos.y - originY;
         float x1 = pos.x + (width - originX);
         float y1 = pos.y + (height - originY);
 
-        // Apply rotation if needed
+        float r = item.spriteRenderer.getTintColor().x * item.tintColor.x;
+        float g = item.spriteRenderer.getTintColor().y * item.tintColor.y;
+        float b = item.spriteRenderer.getTintColor().z * item.tintColor.z;
+        float a = item.spriteRenderer.getTintColor().w * item.tintColor.w;
+
+        // Rotation (Z axis)
         float angle = (float) Math.toRadians(rotation.z);
-        if (angle != 0) {
+
+        if (angle != 0.0f) {
             float centerX = pos.x;
             float centerY = pos.y;
 
-            // Rotate corners around center
             float[] corners = rotateQuad(x0, y0, x1, y1, centerX, centerY, angle);
 
             // Triangle 1
-            vertexBuffer.put(corners[0]).put(corners[1]).put(u0).put(v0); // Bottom-left
-            vertexBuffer.put(corners[2]).put(corners[3]).put(u0).put(v1); // Top-left
-            vertexBuffer.put(corners[4]).put(corners[5]).put(u1).put(v1); // Top-right
+            putVertex(corners[0], corners[1], u0, v0, r, b, g, a); // Bottom-left
+            putVertex(corners[2], corners[3], u0, v1, r, b, g, a); // Top-left
+            putVertex(corners[4], corners[5], u1, v1, r, b, g, a); // Top-right
 
             // Triangle 2
-            vertexBuffer.put(corners[0]).put(corners[1]).put(u0).put(v0); // Bottom-left
-            vertexBuffer.put(corners[4]).put(corners[5]).put(u1).put(v1); // Top-right
-            vertexBuffer.put(corners[6]).put(corners[7]).put(u1).put(v0); // Bottom-right
+            putVertex(corners[0], corners[1], u0, v0, r, g, b, a); // Bottom-left
+            putVertex(corners[4], corners[5], u1, v1, r, g, b, a); // Top-right
+            putVertex(corners[6], corners[7], u1, v0, r, g, b, a); // Bottom-right
 
         } else {
-            // No rotation - simple quad
-            // Y-up world coordinates + stbi_flip means:
-            // - y0 = bottom of quad → should get v0 (bottom of texture)
-            // - y1 = top of quad → should get v1 (top of texture)
+            // No rotation — fast path
 
             // Triangle 1
-            vertexBuffer.put(x0).put(y0).put(u0).put(v0); // Bottom-left
-            vertexBuffer.put(x0).put(y1).put(u0).put(v1); // Top-left
-            vertexBuffer.put(x1).put(y1).put(u1).put(v1); // Top-right
+            putVertex(x0, y0, u0, v0, r, g, b, a); // Bottom-left
+            putVertex(x0, y1, u0, v1, r, g, b, a); // Top-left
+            putVertex(x1, y1, u1, v1, r, g, b, a); // Top-right
 
             // Triangle 2
-            vertexBuffer.put(x0).put(y0).put(u0).put(v0); // Bottom-left
-            vertexBuffer.put(x1).put(y1).put(u1).put(v1); // Top-right
-            vertexBuffer.put(x1).put(y0).put(u1).put(v0); // Bottom-right
+            putVertex(x0, y0, u0, v0, r, g, b, a); // Bottom-left
+            putVertex(x1, y1, u1, v1, r, g, b, a); // Top-right
+            putVertex(x1, y0, u1, v0, r, g, b, a); // Bottom-right
         }
+
     }
 
     /**

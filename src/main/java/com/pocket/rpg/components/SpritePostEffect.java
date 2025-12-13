@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
+import org.joml.Vector4f;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -47,6 +48,8 @@ public class SpritePostEffect extends Component {
 
     private boolean initialized = false;
     private Shader compositeShader;
+
+    private static final Vector4f GLOBAL_TINT = new Vector4f(1, 1, 1, 1);
 
     public void addEffect(PostEffect effect) {
         effects.add(effect);

@@ -5,6 +5,7 @@ import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.Texture;
 import lombok.Getter;
 import lombok.Setter;
+import org.joml.Vector4f;
 
 /**
  * Component that renders a sprite at the GameObject's Transform position.
@@ -27,6 +28,10 @@ public class SpriteRenderer extends Component implements Renderable {
     @Getter
     @Setter
     private Sprite sprite;
+
+    @Getter
+    @Setter
+    private Vector4f tintColor = new Vector4f(1f, 1f, 1f, 1f);
 
     /**
      * If true, uses the sprite's pivot point. If false, uses originX/originY.

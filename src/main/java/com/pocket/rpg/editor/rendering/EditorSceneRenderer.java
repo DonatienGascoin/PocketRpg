@@ -17,7 +17,7 @@ import static org.lwjgl.opengl.GL33.*;
 
 /**
  * Renders EditorScene content to the editor framebuffer.
- *
+ * <p>
  * Handles:
  * - Rendering tilemap layers with visibility mode support
  * - Layer opacity based on visibility mode (All/Selected/Dimmed)
@@ -128,7 +128,6 @@ public class EditorSceneRenderer {
 
             // Get opacity based on visibility mode
             float opacity = scene.getLayerOpacity(layerIndex);
-
             // Render tilemap
             renderTilemap(layer.getTilemap(), camera, opacity);
         }
@@ -180,9 +179,13 @@ public class EditorSceneRenderer {
         }
 
         // Render visible chunks
-        // TODO: Apply opacity when rendering (requires BatchRenderer modification)
         if (!visibleChunks.isEmpty()) {
-            batchRenderer.drawTilemap(tilemap, visibleChunks);
+            if (opacity == 1f) {
+                batchRenderer.drawTilemap(tilemap, visibleChunks, new Vector4f(1f, 1f, 1f, 1f));
+            } else {
+                batchRenderer.drawTilemap(tilemap, visibleChunks, new Vector4f(.8f, .8f, .8f, (1 - opacity)));
+
+            }
         }
     }
 

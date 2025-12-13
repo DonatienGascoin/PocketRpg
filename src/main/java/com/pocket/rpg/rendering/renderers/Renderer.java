@@ -24,6 +24,7 @@ import static org.lwjgl.opengl.GL33.*;
  */
 public class Renderer {
 
+    protected static final Vector4f DEFAULT_TINT_COLOR = new Vector4f(1f, 1f, 1f, 1f);
     protected RenderingConfig config;
 
     private Shader shader;
@@ -111,6 +112,13 @@ public class Renderer {
      * Draws a sprite renderer using world units.
      */
     public void drawSpriteRenderer(SpriteRenderer spriteRenderer) {
+        drawSpriteRenderer(spriteRenderer, DEFAULT_TINT_COLOR);
+    }
+
+    /**
+     * Draws a sprite renderer using world units.
+     */
+    public void drawSpriteRenderer(SpriteRenderer spriteRenderer, Vector4f tintColor) {
         if (spriteRenderer == null) {
             System.err.println("WARNING: Attempted to render null SpriteRenderer");
             return;
@@ -139,7 +147,7 @@ public class Renderer {
             return;
         }
 
-        updateQuadUVs(sprite.getU0(), sprite.getV0(), sprite.getU1(), sprite.getV1());
+        updateQuadUVs(sprite.getU0(), sprite.getV0(), sprite.getU1(), sprite.getV1(), tintColor);
 
         sprite.getTexture().bind(0);
 
@@ -211,37 +219,44 @@ public class Renderer {
 
         glBindVertexArray(0);
 
-        updateQuadUVs(0, 0, 1, 1);
+        updateQuadUVs(0, 0, 1, 1, DEFAULT_TINT_COLOR);
     }
 
     /**
      * Updates quad UVs and vertex positions.
      * UV mapping accounts for stbi_set_flip_vertically_on_load(true).
      */
-    private void updateQuadUVs(float u0, float v0, float u1, float v1) {
+    private void updateQuadUVs(float u0, float v0, float u1, float v1, Vector4f tintColor) {
         if (vertexBuffer == null) {
             System.err.println("ERROR: vertexBuffer is null");
             return;
         }
-
         vertexBuffer.clear();
 
         // Match original working UV mapping
         // Triangle 1
-        vertexBuffer.put(0.0f).put(0.0f).put(u0).put(v1);
-        vertexBuffer.put(0.0f).put(1.0f).put(u0).put(v0);
-        vertexBuffer.put(1.0f).put(1.0f).put(u1).put(v0);
+        putVertex(0f, 0f, u0, v1, tintColor.x, tintColor.y, tintColor.z, tintColor.z);
+        putVertex(0.0f, 1.0f, u0, v0, tintColor.x, tintColor.y, tintColor.z, tintColor.z);
+        putVertex(1.0f, 1.0f, u1, v0, tintColor.x, tintColor.y, tintColor.z, tintColor.z);
 
         // Triangle 2
-        vertexBuffer.put(0.0f).put(0.0f).put(u0).put(v1);
-        vertexBuffer.put(1.0f).put(1.0f).put(u1).put(v0);
-        vertexBuffer.put(1.0f).put(0.0f).put(u1).put(v1);
+        putVertex(0.0f, 0.0f, u0, v1, tintColor.x, tintColor.y, tintColor.z, tintColor.z);
+        putVertex(1.0f, 1.0f, u1, v0, tintColor.x, tintColor.y, tintColor.z, tintColor.z);
+        putVertex(1.0f, 0.0f, u1, v1, tintColor.x, tintColor.y, tintColor.z, tintColor.z);
 
         vertexBuffer.flip();
 
         glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
         glBufferSubData(GL_ARRAY_BUFFER, 0, vertexBuffer);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
+    }
+
+    private void putVertex(float x, float y, float u, float v, float r, float g, float b, float a) {
+        vertexBuffer
+                .put(x).put(y)
+                .put(u).put(v)
+                .put(r).put(g)
+                .put(b).put(a);
     }
 
     /**

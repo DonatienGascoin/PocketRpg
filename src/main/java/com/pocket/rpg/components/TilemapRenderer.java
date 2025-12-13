@@ -37,7 +37,7 @@ import java.util.Set;
  */
 public class TilemapRenderer extends Component implements Renderable {
 
-    private final Map<Long, TileChunk> chunks = new HashMap<>();
+    private transient final Map<Long, TileChunk> chunks = new HashMap<>();
 
     /**
      * Z-index for render ordering.
@@ -63,7 +63,7 @@ public class TilemapRenderer extends Component implements Renderable {
     private boolean isStatic = true;
 
     // Track dirty chunks for static batching invalidation
-    private final Map<Long, Boolean> dirtyChunks = new HashMap<>();
+    private transient final Map<Long, Boolean> dirtyChunks = new HashMap<>();
 
     // ========================================================================
     // CONSTRUCTORS
@@ -385,6 +385,63 @@ public class TilemapRenderer extends Component implements Renderable {
         return r;
     }
 
+    /**
+     * Gets chunks in sparse format for Gson serialization.
+     * Gson will automatically call this during serialization.
+     */
+    public Map<String, Map<String, Tile>> getChunksForSerialization() {
+        Map<String, Map<String, Tile>> sparse = new HashMap<>();
+
+        for (Long chunkKey : chunkKeys()) {
+            int cx = chunkKeyToX(chunkKey);
+            int cy = chunkKeyToY(chunkKey);
+            TileChunk chunk = getChunk(cx, cy);
+
+            Map<String, Tile> tiles = new HashMap<>();
+            for (int tx = 0; tx < TileChunk.CHUNK_SIZE; tx++) {
+                for (int ty = 0; ty < TileChunk.CHUNK_SIZE; ty++) {
+                    Tile tile = chunk.get(tx, ty);
+                    if (tile != null && tile.sprite() != null) {
+                        tiles.put(tx + "," + ty, tile);
+                    }
+                }
+            }
+
+            if (!tiles.isEmpty()) {
+                sparse.put(cx + "," + cy, tiles);
+            }
+        }
+
+        return sparse;
+    }
+
+    /**
+     * Sets chunks from sparse format for Gson deserialization.
+     * Gson will automatically call this during deserialization.
+     */
+    public void setChunksForSerialization(Map<String, Map<String, Tile>> sparse) {
+        if (sparse == null) {
+            return;
+        }
+
+        for (var chunkEntry : sparse.entrySet()) {
+            String[] coords = chunkEntry.getKey().split(",");
+            int cx = Integer.parseInt(coords[0]);
+            int cy = Integer.parseInt(coords[1]);
+
+            for (var tileEntry : chunkEntry.getValue().entrySet()) {
+                String[] tileCoords = tileEntry.getKey().split(",");
+                int localX = Integer.parseInt(tileCoords[0]);
+                int localY = Integer.parseInt(tileCoords[1]);
+
+                int worldTx = cx * TileChunk.CHUNK_SIZE + localX;
+                int worldTy = cy * TileChunk.CHUNK_SIZE + localY;
+
+                set(worldTx, worldTy, tileEntry.getValue());
+            }
+        }
+    }
+
     @Override
     public String toString() {
         return String.format("Tilemap[chunks=%d, tileSize=%.2f, zIndex=%d, static=%b]",
@@ -431,7 +488,16 @@ public class TilemapRenderer extends Component implements Renderable {
 
         private final int chunkX;
         private final int chunkY;
+        /**
+         * -- GETTER --
+         * Returns the raw tile array.
+         * Use with caution - modifications bypass dirty tracking.
+         */
         private final Tile[][] tiles;
+        /**
+         * -- GETTER --
+         * Returns the number of non-null tiles in this chunk.
+         */
         private int tileCount = 0;
 
         public TileChunk(int chunkX, int chunkY) {
@@ -471,26 +537,12 @@ public class TilemapRenderer extends Component implements Renderable {
         }
 
         /**
-         * Returns the number of non-null tiles in this chunk.
-         */
-        public int getTileCount() {
-            return tileCount;
-        }
-
-        /**
          * Checks if this chunk is empty (no tiles).
          */
         public boolean isEmpty() {
             return tileCount == 0;
         }
 
-        /**
-         * Returns the raw tile array.
-         * Use with caution - modifications bypass dirty tracking.
-         */
-        public Tile[][] getTiles() {
-            return tiles;
-        }
     }
 
     /**

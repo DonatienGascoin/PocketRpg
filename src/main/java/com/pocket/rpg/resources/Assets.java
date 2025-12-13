@@ -177,7 +177,7 @@ public final class Assets {
      *
      * @return Configuration builder
      */
-    public static ConfigBuilder configure() {
+    public static AssetsConfiguration configure() {
         return getContext().configure();
     }
 
@@ -225,5 +225,13 @@ public final class Assets {
      */
     public static List<String> scanAll() {
         return getContext().scanAll();
+    }
+
+
+    public static String getRelativePath(String fullPath) {
+        if (fullPath == null) {
+            return null;
+        }
+        return context.getRelativePath(fullPath);
     }
 }

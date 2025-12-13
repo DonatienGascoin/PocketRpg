@@ -16,7 +16,7 @@ import java.nio.file.Paths;
 
 /**
  * Loader for sprite sheet definitions from JSON files.
- *
+ * <p>
  * JSON Format (minimal - only essential fields):
  * <pre>
  * {
@@ -29,7 +29,7 @@ import java.nio.file.Paths;
  *   "offsetY": 0
  * }
  * </pre>
- *
+ * <p>
  * Frames are automatically named: {filename}_{index}
  * Example: player_0, player_1, player_2, ...
  */
@@ -147,30 +147,6 @@ public class SpriteSheetLoader implements AssetLoader<SpriteSheet> {
             return "texture.png";
         }
 
-        String fullPath = texture.getFilePath();
-        if (fullPath == null) {
-            return "texture.png";
-        }
-
-        // Try to strip common prefixes to make path relative
-        // Example: "gameData/assets/sprites/player.png" → "sprites/player.png"
-
-        // Common asset root patterns to strip
-        String[] possibleRoots = {
-                "gameData/assets/",
-                "assets/",
-                "./gameData/assets/",
-                "./assets/"
-        };
-
-        for (String root : possibleRoots) {
-            if (fullPath.startsWith(root)) {
-                return fullPath.substring(root.length());
-            }
-        }
-
-        // If no common root found, return the full path
-        // This is safe - the loader will handle both relative and absolute paths
-        return fullPath;
+        return Assets.getRelativePath(texture.getFilePath());
     }
 }

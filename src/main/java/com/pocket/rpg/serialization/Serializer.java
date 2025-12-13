@@ -3,15 +3,14 @@ package com.pocket.rpg.serialization;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.pocket.rpg.components.Component;
 import com.pocket.rpg.postProcessing.PostEffect;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.Texture;
 import com.pocket.rpg.resources.AssetContext;
-import com.pocket.rpg.serialization.custom.*;
-import org.joml.Vector2f;
-import org.joml.Vector3f;
-import org.joml.Vector4f;
+import com.pocket.rpg.serialization.custom.ComponentTypeAdapterFactory;
+import com.pocket.rpg.serialization.custom.PostEffectTypeAdapter;
+import com.pocket.rpg.serialization.custom.SpriteTypeAdapter;
+import com.pocket.rpg.serialization.custom.TextureTypeAdapter;
 
 public class Serializer {
     private static Serializer instance;
@@ -22,17 +21,13 @@ public class Serializer {
     public Serializer(AssetContext context) {
         GsonBuilder builder = new GsonBuilder()
                 .enableComplexMapKeySerialization()
-                .registerTypeAdapter(PostEffect.class, new PostEffectTypeAdapter())
                 // Component polymorphism
-                .registerTypeAdapter(Component.class, new ComponentSerializer())
-                .registerTypeAdapter(Component.class, new ComponentDeserializer())
+                .registerTypeAdapterFactory(new ComponentTypeAdapterFactory())
                 // Asset types
                 .registerTypeAdapter(Sprite.class, new SpriteTypeAdapter(context))
                 .registerTypeAdapter(Texture.class, new TextureTypeAdapter(context))
-                // JOML vectors
-                .registerTypeAdapter(Vector2f.class, new Vector2fTypeAdapter())
-                .registerTypeAdapter(Vector3f.class, new Vector3fTypeAdapter())
-                .registerTypeAdapter(Vector4f.class, new Vector4fTypeAdapter());
+                // Others
+                .registerTypeAdapter(PostEffect.class, new PostEffectTypeAdapter());
 
 
         defaultConfig = builder.create();

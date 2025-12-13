@@ -4,10 +4,8 @@ import com.pocket.rpg.rendering.Shader;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.SpriteSheet;
 import com.pocket.rpg.rendering.Texture;
-import com.pocket.rpg.resources.loaders.ShaderLoader;
-import com.pocket.rpg.resources.loaders.SpriteLoader;
-import com.pocket.rpg.resources.loaders.SpriteSheetLoader;
-import com.pocket.rpg.resources.loaders.TextureLoader;
+import com.pocket.rpg.resources.loaders.*;
+import com.pocket.rpg.serialization.SceneData;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -59,6 +57,7 @@ public class AssetManager implements AssetContext {
         registerLoader(Shader.class, new ShaderLoader());
         registerLoader(Sprite.class, new SpriteLoader());
         registerLoader(SpriteSheet.class, new SpriteSheetLoader());
+        registerLoader(SceneData.class, new SceneDataLoader());
     }
 
     /**
@@ -233,8 +232,8 @@ public class AssetManager implements AssetContext {
     }
 
     @Override
-    public ConfigBuilder configure() {
-        return new ConfigBuilder(this);
+    public AssetsConfiguration configure() {
+        return new AssetsConfiguration(this);
     }
 
     @Override
@@ -383,6 +382,11 @@ public class AssetManager implements AssetContext {
             throw new IllegalArgumentException("Error mode cannot be null");
         }
         this.errorMode = errorMode;
+    }
+
+    @Override
+    public String getRelativePath(String fullPath) {
+        return fullPath.substring(assetRoot.length());
     }
 
     @Override

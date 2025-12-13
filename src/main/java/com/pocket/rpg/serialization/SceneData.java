@@ -1,5 +1,8 @@
 package com.pocket.rpg.serialization;
 
+import lombok.Getter;
+import lombok.Setter;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -9,6 +12,8 @@ import java.util.List;
  * <p>
  * This is the object that gets serialized to/from .scene JSON files.
  */
+@Setter
+@Getter
 public class SceneData {
 
     /**
@@ -51,48 +56,8 @@ public class SceneData {
     // GETTERS / SETTERS
     // ========================================================================
 
-    public int getVersion() {
-        return version;
-    }
-
-    public void setVersion(int version) {
-        this.version = version;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public List<GameObjectData> getGameObjects() {
-        return gameObjects;
-    }
-
-    public void setGameObjects(List<GameObjectData> gameObjects) {
-        this.gameObjects = gameObjects;
-    }
-
     public void addGameObject(GameObjectData gameObject) {
         this.gameObjects.add(gameObject);
-    }
-
-    public CameraData getCamera() {
-        return camera;
-    }
-
-    public void setCamera(CameraData camera) {
-        this.camera = camera;
-    }
-
-    public java.util.Map<String, Object> getMetadata() {
-        return metadata;
-    }
-
-    public void setMetadata(java.util.Map<String, Object> metadata) {
-        this.metadata = metadata;
     }
 
     // ========================================================================
@@ -102,6 +67,8 @@ public class SceneData {
     /**
      * Camera configuration for the scene.
      */
+    @Setter
+    @Getter
     public static class CameraData {
         private float[] position = {0, 0, 0};
         private float orthographicSize = 15f;
@@ -114,20 +81,5 @@ public class SceneData {
             this.orthographicSize = orthographicSize;
         }
 
-        public float[] getPosition() {
-            return position;
-        }
-
-        public void setPosition(float[] position) {
-            this.position = position;
-        }
-
-        public float getOrthographicSize() {
-            return orthographicSize;
-        }
-
-        public void setOrthographicSize(float orthographicSize) {
-            this.orthographicSize = orthographicSize;
-        }
     }
 }

@@ -3,6 +3,7 @@ package com.pocket.rpg.serialization.custom;
 import com.google.gson.*;
 import com.pocket.rpg.rendering.Texture;
 import com.pocket.rpg.resources.AssetContext;
+import lombok.NonNull;
 
 import java.lang.reflect.Type;
 
@@ -21,10 +22,8 @@ public class TextureTypeAdapter implements JsonSerializer<Texture>, JsonDeserial
 
     /**
      * Creates adapter with AssetManager for texture loading.
-     *
-     * @param assetManager AssetManager instance (can be null for serialization-only)
      */
-    public TextureTypeAdapter(AssetContext assetManager) {
+    public TextureTypeAdapter(@NonNull AssetContext assetManager) {
         this.assetManager = assetManager;
     }
 
@@ -33,7 +32,7 @@ public class TextureTypeAdapter implements JsonSerializer<Texture>, JsonDeserial
         if (texture == null) {
             return JsonNull.INSTANCE;
         }
-        return new JsonPrimitive(texture.getFilePath());
+        return new JsonPrimitive(assetManager.getRelativePath(texture.getFilePath()));
     }
 
     @Override
@@ -50,11 +49,6 @@ public class TextureTypeAdapter implements JsonSerializer<Texture>, JsonDeserial
             return null;
         }
 
-        if (assetManager != null) {
-            return assetManager.load(filePath);
-        } else {
-            // Fallback: create texture directly (may not be cached)
-            return new Texture(filePath);
-        }
+        return assetManager.load(filePath);
     }
 }

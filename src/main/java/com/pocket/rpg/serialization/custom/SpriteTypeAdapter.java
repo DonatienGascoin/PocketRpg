@@ -51,7 +51,7 @@ public class SpriteTypeAdapter implements JsonSerializer<Sprite>, JsonDeserializ
 
         // Store texture path, not the texture object
         if (sprite.getTexture() != null) {
-            json.addProperty("texturePath", sprite.getTexture().getFilePath());
+            json.addProperty("texturePath", assetManager.getRelativePath(sprite.getTexture().getFilePath()));
         }
 
         json.addProperty("width", sprite.getWidth());

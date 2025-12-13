@@ -14,7 +14,7 @@ public interface AssetContext {
      * Type is inferred from the return value.
      *
      * @param path Resource path
-     * @param <T> Resource type
+     * @param <T>  Resource type
      * @return Loaded resource
      */
     <T> T load(String path);
@@ -24,7 +24,7 @@ public interface AssetContext {
      *
      * @param path Resource path
      * @param type Resource type class
-     * @param <T> Resource type
+     * @param <T>  Resource type
      * @return Loaded resource
      */
     <T> T load(String path, Class<T> type);
@@ -33,7 +33,7 @@ public interface AssetContext {
      * Gets a cached resource without loading.
      *
      * @param path Resource path
-     * @param <T> Resource type
+     * @param <T>  Resource type
      * @return Cached resource, or null if not loaded
      */
     <T> T get(String path);
@@ -42,7 +42,7 @@ public interface AssetContext {
      * Gets all loaded resources of a specific type.
      *
      * @param type Resource type class
-     * @param <T> Resource type
+     * @param <T>  Resource type
      * @return List of all loaded resources of that type
      */
     <T> List<T> getAll(Class<T> type);
@@ -73,7 +73,7 @@ public interface AssetContext {
      * Saves a resource to a specific path.
      *
      * @param resource Resource to save
-     * @param path Path to save to
+     * @param path     Path to save to
      */
     void persist(Object resource, String path);
 
@@ -82,7 +82,7 @@ public interface AssetContext {
      *
      * @return Configuration builder
      */
-    ConfigBuilder configure();
+    AssetsConfiguration configure();
 
     /**
      * Gets cache statistics.
@@ -108,4 +108,16 @@ public interface AssetContext {
      * @return List of relative paths to all loadable assets
      */
     List<String> scanAll();
+
+    void setAssetRoot(String assetRoot);
+
+    String getAssetRoot();
+
+    ResourceCache getCache();
+
+    void setErrorMode(ErrorMode errorMode);
+
+    void setStatisticsEnabled(boolean enableStatistics);
+
+    String getRelativePath(String fullPath);
 }

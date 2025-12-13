@@ -12,6 +12,7 @@ import com.pocket.rpg.editor.panels.TilesetPalettePanel;
 import com.pocket.rpg.editor.rendering.EditorFramebuffer;
 import com.pocket.rpg.editor.rendering.EditorSceneRenderer;
 import com.pocket.rpg.editor.scene.EditorScene;
+import com.pocket.rpg.editor.serialization.EditorSceneSerializer;
 import com.pocket.rpg.editor.tileset.TilesetRegistry;
 import com.pocket.rpg.editor.tools.*;
 import com.pocket.rpg.editor.ui.EditorMenuBar;
@@ -19,6 +20,8 @@ import com.pocket.rpg.editor.ui.SceneViewport;
 import com.pocket.rpg.editor.ui.StatusBar;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.resources.ErrorMode;
+import com.pocket.rpg.scenes.Scene;
+import com.pocket.rpg.serialization.SceneData;
 import com.pocket.rpg.serialization.Serializer;
 import imgui.ImGui;
 import imgui.flag.ImGuiDockNodeFlags;
@@ -518,6 +521,11 @@ public class EditorApplication {
         statusBar.showMessage("New scene created");
     }
 
+    /**
+     * Called by the menuBar. It already handles dirty scene and empty path
+     *
+     * @param path Scene path to open
+     */
     private void openScene(String path) {
         System.out.println("Opening scene: " + path);
 
@@ -527,23 +535,14 @@ public class EditorApplication {
         if (currentScene != null) {
             currentScene.destroy();
         }
-
-        currentScene = new EditorScene();
-        currentScene.setFilePath(path);
-
-        // Extract name from path
-        int lastSep = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
-        String fileName = lastSep >= 0 ? path.substring(lastSep + 1) : path;
-        if (fileName.endsWith(".scene")) {
-            fileName = fileName.substring(0, fileName.length() - 6);
-        }
-        currentScene.setName(fileName);
+        SceneData scene = Assets.load(path);
+        currentScene = EditorSceneSerializer.fromSceneData(scene, path);
 
         // Update references
         updateSceneReferences();
 
         camera.reset();
-        statusBar.showMessage("Opened: " + fileName);
+        statusBar.showMessage("Opened: " + scene.getName());
     }
 
     private void saveScene() {
@@ -553,11 +552,16 @@ public class EditorApplication {
 
         System.out.println("Saving scene: " + currentScene.getFilePath());
 
-        // TODO: Implement scene saving with SceneSerializer
-        // Assets.persist(currentScene); // TODO: Can't work as currentScene is an EditorScene, whereas SceneLoader works with Scene objects. Create an EditorSceneLoader that does the conversion ?
+        try {
+            SceneData data = EditorSceneSerializer.toSceneData(currentScene);
+            Assets.persist(data, currentScene.getFilePath());
 
-        currentScene.clearDirty();
-        statusBar.showMessage("Saved: " + currentScene.getName());
+            currentScene.clearDirty();
+            statusBar.showMessage("Saved: " + currentScene.getName());
+        } catch (Exception e) {
+            statusBar.showMessage("Error saving: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     private void saveSceneAs(String path) {
@@ -577,11 +581,7 @@ public class EditorApplication {
         }
         currentScene.setName(fileName);
 
-        // TODO: Implement scene saving with SceneSerializer
-
-        currentScene.clearDirty();
-        menuBar.setCurrentScene(currentScene);
-        statusBar.showMessage("Saved: " + fileName);
+        saveScene();
     }
 
     /**

@@ -138,6 +138,19 @@ public class EditorScene {
     }
 
     /**
+     * Adds an existing layer (used during deserialization).
+     * Does not mark scene as dirty.
+     */
+    public void addExistingLayer(TilemapLayer layer) {
+        layers.add(layer);
+
+        // Select first layer by default
+        if (activeLayerIndex == -1) {
+            activeLayerIndex = 0;
+        }
+    }
+
+    /**
      * Removes a layer by index.
      */
     public void removeLayer(int index) {

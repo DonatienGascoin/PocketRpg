@@ -20,14 +20,14 @@ import com.pocket.rpg.editor.ui.SceneViewport;
 import com.pocket.rpg.editor.ui.StatusBar;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.resources.ErrorMode;
-import com.pocket.rpg.scenes.Scene;
 import com.pocket.rpg.serialization.SceneData;
 import com.pocket.rpg.serialization.Serializer;
 import imgui.ImGui;
-import imgui.flag.ImGuiDockNodeFlags;
-import imgui.flag.ImGuiKey;
-import imgui.flag.ImGuiStyleVar;
-import imgui.flag.ImGuiWindowFlags;
+import imgui.flag.*;
+import imgui.type.ImInt;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import static org.lwjgl.opengl.GL33.GL_COLOR_BUFFER_BIT;
 import static org.lwjgl.opengl.GL33.GL_DEPTH_BUFFER_BIT;
@@ -75,6 +75,8 @@ public class EditorApplication {
 
     // State
     private boolean running = true;
+
+    private boolean firstFrame = true;
 
     public static void main(String[] args) {
         System.out.println("===========================================");
@@ -365,8 +367,101 @@ public class EditorApplication {
         int dockspaceId = ImGui.getID("EditorDockSpace");
         ImGui.dockSpace(dockspaceId, 0, 0, ImGuiDockNodeFlags.PassthruCentralNode);
 
+        if (firstFrame && !Files.exists(Path.of("editor/editor_layout.ini"))) {
+            buildDefaultLayout(dockspaceId);
+        }
+        firstFrame = false;
+
         ImGui.end();
+
+
     }
+
+    private void buildDefaultLayout(int dockspaceId) {
+        System.out.println("No layout found, creating default");
+        imgui.internal.ImGui.dockBuilderRemoveNode(dockspaceId);
+        imgui.internal.ImGui.dockBuilderAddNode(
+                dockspaceId,
+                imgui.internal.flag.ImGuiDockNodeFlags.DockSpace
+        );
+        imgui.internal.ImGui.dockBuilderSetNodeSize(
+                dockspaceId,
+                window.getWidth(),
+                window.getHeight()
+        );
+
+        // ─────────────────────────────
+        // Split Left | Center+Right
+        // ─────────────────────────────
+        ImInt leftId = new ImInt();
+        ImInt centerRightId = new ImInt();
+
+        imgui.internal.ImGui.dockBuilderSplitNode(
+                dockspaceId,
+                ImGuiDir.Left,
+                0.20f,
+                leftId,
+                centerRightId
+        );
+
+        // ─────────────────────────────
+        // Split Center | Right
+        // ─────────────────────────────
+        ImInt rightId = new ImInt();
+        ImInt centerId = new ImInt();
+
+        imgui.internal.ImGui.dockBuilderSplitNode(
+                centerRightId.get(),
+                ImGuiDir.Right,
+                0.35f,
+                rightId,
+                centerId
+        );
+
+        // ─────────────────────────────
+        // LEFT: Hierarchy (top) / Inspector (bottom)
+        // ─────────────────────────────
+        ImInt leftTopId = new ImInt();
+        ImInt leftBottomId = new ImInt();
+
+        imgui.internal.ImGui.dockBuilderSplitNode(
+                leftId.get(),
+                ImGuiDir.Up,
+                0.5f,
+                leftTopId,
+                leftBottomId
+        );
+
+        // ─────────────────────────────
+        // RIGHT: Layers (top 25%) / Tileset (bottom)
+        // ─────────────────────────────
+        ImInt rightTopId = new ImInt();
+        ImInt rightBottomId = new ImInt();
+
+        imgui.internal.ImGui.dockBuilderSplitNode(
+                rightId.get(),
+                ImGuiDir.Up,
+                0.25f,
+                rightTopId,
+                rightBottomId
+        );
+
+        // ─────────────────────────────
+        // Dock windows
+        // ─────────────────────────────
+        imgui.internal.ImGui.dockBuilderDockWindow("Hierarchy", leftTopId.get());
+        imgui.internal.ImGui.dockBuilderDockWindow("Inspector", leftBottomId.get());
+
+        imgui.internal.ImGui.dockBuilderDockWindow("Scene", centerId.get());
+
+        imgui.internal.ImGui.dockBuilderDockWindow("Layers", rightTopId.get());
+        imgui.internal.ImGui.dockBuilderDockWindow("Tileset", rightBottomId.get());
+
+        // Tools intentionally NOT docked
+
+        imgui.internal.ImGui.dockBuilderFinish(dockspaceId);
+    }
+
 
     private void renderUI() {
         // Menu bar

@@ -42,8 +42,7 @@ public class ImGuiLayer {
         // Enable keyboard navigation
         io.addConfigFlags(ImGuiConfigFlags.NavEnableKeyboard);
 
-        // Disable imgui.ini file (we manage our own layout)
-        io.setIniFilename(null);
+        io.setIniFilename("editor/editor_layout.ini");
 
         // Apply dark theme with custom colors
         applyDarkTheme();

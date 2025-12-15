@@ -2,8 +2,10 @@ package com.pocket.rpg.editor.ui;
 
 import com.pocket.rpg.editor.core.FileDialogs;
 import com.pocket.rpg.editor.scene.EditorScene;
+import com.pocket.rpg.editor.shortcuts.commands.*;
 import imgui.ImGui;
 import imgui.flag.ImGuiKey;
+import lombok.Setter;
 
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -15,21 +17,33 @@ import java.util.function.Consumer;
 public class EditorMenuBar {
 
     // Callbacks for menu actions
-    private Runnable onNewScene;
+    @Setter
     private Consumer<String> onOpenScene;
-    private Runnable onSaveScene;
-    private Consumer<String> onSaveSceneAs;
-    private Runnable onExit;
 
     // Reference to current scene (for dirty checking, file path)
+    @Setter
     private EditorScene currentScene;
 
     // Confirmation dialog state
+    @Setter
     private boolean showUnsavedChangesDialog = false;
+    @Setter
     private Runnable pendingAction = null;
 
     // Recent files (placeholder for future implementation)
     private String[] recentFiles = new String[0];
+
+    // Commands
+    @Setter
+    private SaveCommand saveCommand;
+    @Setter
+    private SaveAsCommand saveAsCommand;
+    @Setter
+    private OpenSceneCommand openSceneCommand;
+    @Setter
+    private NewSceneCommand newSceneCommand;
+    @Setter
+    private ExitCommand exitCommand;
 
     /**
      * Renders the main menu bar.
@@ -62,18 +76,18 @@ public class EditorMenuBar {
         if (ImGui.beginMenu("File")) {
             // New Scene (Ctrl+N)
             if (ImGui.menuItem("New Scene", "Ctrl+N")) {
-                handleNewScene();
+                newSceneCommand.execute();
             }
 
             // Open Scene (Ctrl+O)
             if (ImGui.menuItem("Open Scene...", "Ctrl+O")) {
-                handleOpenScene();
+                openSceneCommand.execute();
             }
 
             // Recent Files submenu
             if (ImGui.beginMenu("Open Recent", recentFiles.length > 0)) {
                 for (String file : recentFiles) {
-                    if (ImGui.menuItem(file)) {
+                    if (ImGui.menuItem(file)) { // TODO: Replace by command !
                         checkUnsavedChanges(() -> {
                             if (onOpenScene != null) {
                                 onOpenScene.accept(file);
@@ -93,19 +107,20 @@ public class EditorMenuBar {
             // Save (Ctrl+S)
             boolean canSave = currentScene != null && currentScene.isDirty();
             if (ImGui.menuItem("Save", "Ctrl+S", false, canSave)) {
-                handleSave();
+                saveCommand.execute();
             }
 
             // Save As (Ctrl+Shift+S)
             if (ImGui.menuItem("Save As...", "Ctrl+Shift+S")) {
-                handleSaveAs();
+                saveAsCommand.execute();
             }
 
             ImGui.separator();
 
             // Exit
+            // TODO: Would it better to have the label name and shortcut name stored with the command ? So the menu item can't be wrong
             if (ImGui.menuItem("Exit", "Alt+F4")) {
-                handleExit();
+                exitCommand.execute();
             }
 
             ImGui.endMenu();
@@ -236,63 +251,6 @@ public class EditorMenuBar {
     }
 
     // ========================================================================
-    // ACTION HANDLERS
-    // ========================================================================
-
-    private void handleNewScene() {
-        checkUnsavedChanges(() -> {
-            if (onNewScene != null) {
-                onNewScene.run();
-            }
-        });
-    }
-
-    private void handleOpenScene() {
-        checkUnsavedChanges(() -> {
-            Optional<String> path = FileDialogs.openSceneFile(FileDialogs.getScenesDirectory());
-            path.ifPresent(p -> {
-                if (onOpenScene != null) {
-                    onOpenScene.accept(p);
-                }
-            });
-        });
-    }
-
-    private void handleSave() {
-        if (currentScene == null) return;
-
-        if (currentScene.getFilePath() != null) {
-            if (onSaveScene != null) {
-                onSaveScene.run();
-            }
-        } else {
-            handleSaveAs();
-        }
-    }
-
-    private void handleSaveAs() {
-        String defaultName = currentScene != null ? currentScene.getName() : "scene";
-        Optional<String> path = FileDialogs.saveSceneFile(
-            FileDialogs.getScenesDirectory(),
-            defaultName + ".scene"
-        );
-
-        path.ifPresent(p -> {
-            if (onSaveSceneAs != null) {
-                onSaveSceneAs.accept(p);
-            }
-        });
-    }
-
-    private void handleExit() {
-        checkUnsavedChanges(() -> {
-            if (onExit != null) {
-                onExit.run();
-            }
-        });
-    }
-
-    // ========================================================================
     // UNSAVED CHANGES DIALOG
     // ========================================================================
 
@@ -319,7 +277,7 @@ public class EditorMenuBar {
             ImGui.spacing();
 
             if (ImGui.button("Save", 100, 0)) {
-                handleSave();
+                saveCommand.execute();
                 showUnsavedChangesDialog = false;
                 if (pendingAction != null) {
                     pendingAction.run();
@@ -359,6 +317,7 @@ public class EditorMenuBar {
      * Processes keyboard shortcuts using ImGui's input system.
      * Call this each frame.
      */
+    // TODO: REMOVE SHORTCUTS FROM MENU BAR
     public void processShortcuts() {
         // Check modifier states using ImGuiKey (1.90.0+)
         boolean ctrl = ImGui.isKeyDown(ImGuiKey.LeftCtrl) || ImGui.isKeyDown(ImGuiKey.RightCtrl);
@@ -366,49 +325,25 @@ public class EditorMenuBar {
 
         // Ctrl+N - New Scene
         if (ctrl && !shift && ImGui.isKeyPressed(ImGuiKey.N)) {
-            handleNewScene();
+//            handleNewScene();
         }
         // Ctrl+O - Open Scene
         if (ctrl && !shift && ImGui.isKeyPressed(ImGuiKey.O)) {
-            handleOpenScene();
+//            handleOpenScene();
         }
         // Ctrl+S - Save
         if (ctrl && !shift && ImGui.isKeyPressed(ImGuiKey.S)) {
-            handleSave();
+//            handleSave();
         }
         // Ctrl+Shift+S - Save As
         if (ctrl && shift && ImGui.isKeyPressed(ImGuiKey.S)) {
-            handleSaveAs();
+//            handleSaveAs();
         }
     }
 
     // ========================================================================
     // SETTERS
     // ========================================================================
-
-    public void setCurrentScene(EditorScene scene) {
-        this.currentScene = scene;
-    }
-
-    public void setOnNewScene(Runnable callback) {
-        this.onNewScene = callback;
-    }
-
-    public void setOnOpenScene(Consumer<String> callback) {
-        this.onOpenScene = callback;
-    }
-
-    public void setOnSaveScene(Runnable callback) {
-        this.onSaveScene = callback;
-    }
-
-    public void setOnSaveSceneAs(Consumer<String> callback) {
-        this.onSaveSceneAs = callback;
-    }
-
-    public void setOnExit(Runnable callback) {
-        this.onExit = callback;
-    }
 
     public void setRecentFiles(String[] files) {
         this.recentFiles = files != null ? files : new String[0];

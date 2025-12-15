@@ -13,6 +13,10 @@ import com.pocket.rpg.editor.rendering.EditorFramebuffer;
 import com.pocket.rpg.editor.rendering.EditorSceneRenderer;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.serialization.EditorSceneSerializer;
+import com.pocket.rpg.editor.shortcuts.Shortcut;
+import com.pocket.rpg.editor.shortcuts.ShortcutManager;
+import com.pocket.rpg.editor.shortcuts.ShortcutScope;
+import com.pocket.rpg.editor.shortcuts.commands.*;
 import com.pocket.rpg.editor.tileset.TilesetRegistry;
 import com.pocket.rpg.editor.tools.*;
 import com.pocket.rpg.editor.ui.EditorMenuBar;
@@ -25,6 +29,8 @@ import com.pocket.rpg.serialization.Serializer;
 import imgui.ImGui;
 import imgui.flag.*;
 import imgui.type.ImInt;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -55,10 +61,13 @@ public class EditorApplication {
     private EditorCamera camera;
 
     // Scene and rendering
+    @Getter
+    @Setter
     private EditorScene currentScene;
     private EditorSceneRenderer sceneRenderer;
 
     // Tools
+    @Getter
     private ToolManager toolManager;
     private TileBrushTool brushTool;
     private TileEraserTool eraserTool;
@@ -67,6 +76,7 @@ public class EditorApplication {
     private TilePickerTool pickerTool;
 
     // UI Components
+    @Getter
     private EditorMenuBar menuBar;
     private SceneViewport sceneViewport;
     private StatusBar statusBar;
@@ -74,11 +84,30 @@ public class EditorApplication {
     private TilesetPalettePanel tilesetPalette;
 
     // State
+    @Setter
     private boolean running = true;
+    /**
+     * True is the scene panel is focused
+     */
+    @Getter
+    private boolean sceneFocused = false;
 
     private boolean firstFrame = true;
 
-    public static void main(String[] args) {
+    // Commands // TODO: Should they be declared elsewhere ? How to handle scope change correctly from a panel or elsewhere ?
+    private static final String GLOBAL_SCOPE = "Global";
+    private ShortcutScope globalScope;
+    private SaveAsCommand saveAsCommand;
+    private SaveCommand saveCommand;
+    private NewSceneCommand newSceneCommand;
+    private OpenSceneCommand openSceneCommand;
+    private ExitCommand exitCommand;
+
+    private static final String SCENE_SCOPE = "Scene";
+    private ShortcutScope sceneScope;
+    private BrushToolCommand brushToolCommand;
+
+    static void main(String[] args) {
         System.out.println("===========================================");
         System.out.println("    PocketRPG Scene Editor - Phase 3c");
         System.out.println("===========================================");
@@ -145,13 +174,31 @@ public class EditorApplication {
         sceneRenderer = new EditorSceneRenderer(framebuffer, renderingConfig);
         sceneRenderer.init();
 
+        // TODO: UI bar that is needed for the Commands: Have to be created earlier...
+        statusBar = new StatusBar();
+
+        createCommands();
+
         // Create tools
         createTools();
 
         // Create UI components
         createUIComponents();
 
+        createShortcuts();
+
         System.out.println("Scene Editor initialized successfully");
+    }
+
+    private void createCommands() {
+        // TODO: Find a better way than StatusBar ! (Logger ?)
+        saveAsCommand = new SaveAsCommand(this, statusBar);
+        saveCommand = new SaveCommand(this, statusBar, saveAsCommand);
+        openSceneCommand = new OpenSceneCommand(this, statusBar);
+        newSceneCommand = new NewSceneCommand(this, statusBar);
+        exitCommand = new ExitCommand(this);
+
+        brushToolCommand = new BrushToolCommand(this, statusBar);
     }
 
     private void createTools() {
@@ -185,14 +232,15 @@ public class EditorApplication {
         // Menu bar
         menuBar = new EditorMenuBar();
         menuBar.setCurrentScene(currentScene);
-        menuBar.setOnNewScene(this::newScene);
-        menuBar.setOnOpenScene(this::openScene);
-        menuBar.setOnSaveScene(this::saveScene);
-        menuBar.setOnSaveSceneAs(this::saveSceneAs);
-        menuBar.setOnExit(this::requestExit);
+        menuBar.setOnOpenScene(this::openScene); // TODO: Replace by command !
+        menuBar.setSaveCommand(saveCommand);
+        menuBar.setSaveAsCommand(saveAsCommand);
+        menuBar.setOpenSceneCommand(openSceneCommand);
+        menuBar.setNewSceneCommand(newSceneCommand);
+        menuBar.setExitCommand(exitCommand);
+
 
         // Status bar
-        statusBar = new StatusBar();
         statusBar.setCamera(camera);
         statusBar.setCurrentScene(currentScene);
 
@@ -216,6 +264,22 @@ public class EditorApplication {
             toolManager.setActiveTool(brushTool);
             statusBar.showMessage("Picked tiles - switched to Brush");
         });
+    }
+
+
+    private void createShortcuts() {
+        // Register shortcuts
+        globalScope = new ShortcutScope(GLOBAL_SCOPE, 0)
+                .add(Shortcut.builder().withKeys(ImGuiKey.LeftCtrl, ImGuiKey.S).withCommand(saveCommand).build())
+                .add(Shortcut.builder().withKeys(ImGuiKey.LeftCtrl, ImGuiKey.O).withCommand(openSceneCommand).build())
+                .add(Shortcut.builder().withKeys(ImGuiKey.LeftCtrl, ImGuiKey.N).withCommand(newSceneCommand).build())
+                .add(Shortcut.builder().withKeys(ImGuiKey.LeftAlt, ImGuiKey.F4).withCommand(exitCommand).build());
+
+        sceneScope = new ShortcutScope(SCENE_SCOPE, 1)
+                .add(Shortcut.builder().withKeys(ImGuiKey.B).withCommand(brushToolCommand).build());
+
+
+        ShortcutManager.pushScope(globalScope);
     }
 
     private void loop() {
@@ -260,6 +324,8 @@ public class EditorApplication {
         if (toolManager != null) {
             toolManager.update(deltaTime);
         }
+
+        ShortcutManager.update(); // TODO: Instance and facade like Input ?
     }
 
     private void render() {
@@ -281,6 +347,7 @@ public class EditorApplication {
         imGuiLayer.newFrame();
 
         // Process keyboard shortcuts
+        ShortcutManager.update();
         menuBar.processShortcuts();
         processToolShortcuts();
 
@@ -296,15 +363,15 @@ public class EditorApplication {
 
     /**
      * Process tool switching shortcuts.
-     */
+     */// TODO: REMOVE
     private void processToolShortcuts() {
-        if (!sceneViewport.isFocused()) return;
+        if (!ImGui.getIO().getWantTextInput()) return;
 
         // Tool shortcuts
-        if (ImGui.isKeyPressed(ImGuiKey.B)) {
-            toolManager.setActiveTool("Brush");
-            statusBar.showMessage("Brush Tool");
-        }
+//        if (ImGui.isKeyPressed(ImGuiKey.B)) {
+//            toolManager.setActiveTool("Brush");
+//            statusBar.showMessage("Brush Tool");
+//        }
         if (ImGui.isKeyPressed(ImGuiKey.E)) {
             toolManager.setActiveTool("Eraser");
             statusBar.showMessage("Eraser Tool");
@@ -462,13 +529,18 @@ public class EditorApplication {
         imgui.internal.ImGui.dockBuilderFinish(dockspaceId);
     }
 
-
     private void renderUI() {
         // Menu bar
         menuBar.render();
 
         // Scene viewport (central panel)
-        sceneViewport.render();
+        boolean isFocused = sceneViewport.render();
+        if (isFocused && !sceneFocused) { // TODO: is it the good way of doing it ? Should it be handled elsewhere ? In another way ?
+            ShortcutManager.pushScope(sceneScope);
+        } else if (!isFocused && sceneFocused) {
+            ShortcutManager.popScope(sceneScope);
+        }
+        sceneFocused = isFocused;
 
         // Tool overlays (rendered after scene, uses ImGui draw lists)
         sceneViewport.renderToolOverlay();
@@ -600,32 +672,14 @@ public class EditorApplication {
     // SCENE OPERATIONS
     // ========================================================================
 
-    private void newScene() {
-        System.out.println("Creating new scene...");
-
-        if (currentScene != null) {
-            currentScene.destroy();
-        }
-
-        currentScene = new EditorScene("Untitled");
-
-        // Update references
-        updateSceneReferences();
-
-        camera.reset();
-        statusBar.showMessage("New scene created");
-    }
-
     /**
      * Called by the menuBar. It already handles dirty scene and empty path
      *
      * @param path Scene path to open
+     *             // TODO: Should be done by a Command
      */
     private void openScene(String path) {
         System.out.println("Opening scene: " + path);
-
-        // TODO: Implement scene loading in Phase 2
-        // For now, just create a new scene with the filename
 
         if (currentScene != null) {
             currentScene.destroy();
@@ -640,49 +694,10 @@ public class EditorApplication {
         statusBar.showMessage("Opened: " + scene.getName());
     }
 
-    private void saveScene() {
-        if (currentScene == null || currentScene.getFilePath() == null) {
-            return;
-        }
-
-        System.out.println("Saving scene: " + currentScene.getFilePath());
-
-        try {
-            SceneData data = EditorSceneSerializer.toSceneData(currentScene);
-            Assets.persist(data, currentScene.getFilePath());
-
-            currentScene.clearDirty();
-            statusBar.showMessage("Saved: " + currentScene.getName());
-        } catch (Exception e) {
-            statusBar.showMessage("Error saving: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-
-    private void saveSceneAs(String path) {
-        if (currentScene == null) {
-            return;
-        }
-
-        System.out.println("Saving scene as: " + path);
-
-        currentScene.setFilePath(path);
-
-        // Extract name from path
-        int lastSep = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
-        String fileName = lastSep >= 0 ? path.substring(lastSep + 1) : path;
-        if (fileName.endsWith(".scene")) {
-            fileName = fileName.substring(0, fileName.length() - 6);
-        }
-        currentScene.setName(fileName);
-
-        saveScene();
-    }
-
     /**
      * Updates all components that reference the current scene.
      */
-    private void updateSceneReferences() {
+    public void updateSceneReferences() {
         menuBar.setCurrentScene(currentScene);
         statusBar.setCurrentScene(currentScene);
         layerPanel.setScene(currentScene);
@@ -698,10 +713,6 @@ public class EditorApplication {
         tilesetPalette.setBrushTool(brushTool);
     }
 
-    private void requestExit() {
-        running = false;
-    }
-
     // ========================================================================
     // EVENT HANDLERS
     // ========================================================================
@@ -711,6 +722,26 @@ public class EditorApplication {
 
         if (sceneRenderer != null) {
             sceneRenderer.onResize(window.getWidth(), window.getHeight());
+        }
+    }
+
+    public void onNewScene() {
+        // Update references
+        updateSceneReferences();
+
+        camera.reset();
+    }
+
+    // ========================================================================
+    // UTILITIES
+    // ========================================================================
+
+    public void checkUnsavedChanges(Runnable action) {
+        if (currentScene != null && currentScene.isDirty()) {
+            menuBar.setShowUnsavedChangesDialog(true);
+            menuBar.setPendingAction(action);
+        } else {
+            action.run();
         }
     }
 

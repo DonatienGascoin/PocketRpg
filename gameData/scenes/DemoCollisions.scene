@@ -9,7 +9,7 @@
         {
           "type": "com.pocket.rpg.components.TilemapRenderer",
           "properties": {
-            "zIndex": 0,
+            "zIndex": -2,
             "tileSize": 1.0,
             "isStatic": false,
             "chunks": {
@@ -25742,16 +25742,16 @@
                   "ledgeDirection": "NONE"
                 },
                 "21,16": {
-                  "name": "Frame_6",
+                  "name": "Frame_46",
                   "sprite": {
-                    "name": "Frame_6",
-                    "texturePath": "sprites/Outdoors_misc.png",
+                    "name": "Frame_46",
+                    "texturePath": "sprites/Building6_64x96.png",
                     "width": 16.0,
                     "height": 16.0,
                     "u0": 0.75,
-                    "v0": 0.90909094,
+                    "v0": 0.75,
                     "u1": 0.875,
-                    "v1": 1.0,
+                    "v1": 0.7916667,
                     "pivotX": 0.5,
                     "pivotY": 0.5
                   },
@@ -30379,7 +30379,7 @@
         {
           "type": "com.pocket.rpg.components.TilemapRenderer",
           "properties": {
-            "zIndex": 1,
+            "zIndex": -1,
             "tileSize": 1.0,
             "isStatic": false,
             "chunks": {
@@ -30585,7 +30585,7 @@
         {
           "type": "com.pocket.rpg.components.TilemapRenderer",
           "properties": {
-            "zIndex": 2,
+            "zIndex": 0,
             "tileSize": 1.0,
             "isStatic": false,
             "chunks": {
@@ -31425,23 +31425,6 @@
                   "solid": false,
                   "ledgeDirection": "NONE"
                 },
-                "7,9": {
-                  "name": "Frame_0",
-                  "sprite": {
-                    "name": "Frame_0",
-                    "texturePath": "sprites/trees.png",
-                    "width": 16.0,
-                    "height": 16.0,
-                    "u0": 0.0,
-                    "v0": 0.9166667,
-                    "u1": 0.05,
-                    "v1": 1.0,
-                    "pivotX": 0.5,
-                    "pivotY": 0.5
-                  },
-                  "solid": false,
-                  "ledgeDirection": "NONE"
-                },
                 "10,11": {
                   "name": "Frame_53",
                   "sprite": {
@@ -31629,17 +31612,17 @@
                   "solid": false,
                   "ledgeDirection": "NONE"
                 },
-                "24,14": {
-                  "name": "Frame_1",
+                "24,16": {
+                  "name": "Frame_77",
                   "sprite": {
-                    "name": "Frame_1",
-                    "texturePath": "sprites/trees.png",
+                    "name": "Frame_77",
+                    "texturePath": "sprites/Outdoors_misc.png",
                     "width": 16.0,
                     "height": 16.0,
-                    "u0": 0.05,
-                    "v0": 0.9166667,
-                    "u1": 0.1,
-                    "v1": 1.0,
+                    "u0": 0.625,
+                    "v0": 0.09090909,
+                    "u1": 0.75,
+                    "v1": 0.18181819,
                     "pivotX": 0.5,
                     "pivotY": 0.5
                   },
@@ -31867,23 +31850,6 @@
                   "solid": false,
                   "ledgeDirection": "NONE"
                 },
-                "17,8": {
-                  "name": "Frame_0",
-                  "sprite": {
-                    "name": "Frame_0",
-                    "texturePath": "sprites/trees.png",
-                    "width": 16.0,
-                    "height": 16.0,
-                    "u0": 0.0,
-                    "v0": 0.9166667,
-                    "u1": 0.05,
-                    "v1": 1.0,
-                    "pivotX": 0.5,
-                    "pivotY": 0.5
-                  },
-                  "solid": false,
-                  "ledgeDirection": "NONE"
-                },
                 "17,7": {
                   "name": "Frame_20",
                   "sprite": {
@@ -32037,23 +32003,6 @@
                   "solid": false,
                   "ledgeDirection": "NONE"
                 },
-                "13,18": {
-                  "name": "Frame_0",
-                  "sprite": {
-                    "name": "Frame_0",
-                    "texturePath": "sprites/trees.png",
-                    "width": 16.0,
-                    "height": 16.0,
-                    "u0": 0.0,
-                    "v0": 0.9166667,
-                    "u1": 0.05,
-                    "v1": 1.0,
-                    "pivotX": 0.5,
-                    "pivotY": 0.5
-                  },
-                  "solid": false,
-                  "ledgeDirection": "NONE"
-                },
                 "3,20": {
                   "name": "Frame_23",
                   "sprite": {
@@ -32184,23 +32133,6 @@
                     "v0": 0.75,
                     "u1": 0.1,
                     "v1": 0.8333333,
-                    "pivotX": 0.5,
-                    "pivotY": 0.5
-                  },
-                  "solid": false,
-                  "ledgeDirection": "NONE"
-                },
-                "12,18": {
-                  "name": "Frame_1",
-                  "sprite": {
-                    "name": "Frame_1",
-                    "texturePath": "sprites/trees.png",
-                    "width": 16.0,
-                    "height": 16.0,
-                    "u0": 0.05,
-                    "v0": 0.9166667,
-                    "u1": 0.1,
-                    "v1": 1.0,
                     "pivotX": 0.5,
                     "pivotY": 0.5
                   },
@@ -32371,23 +32303,6 @@
                     "v0": 0.7916667,
                     "u1": 0.125,
                     "v1": 0.8333333,
-                    "pivotX": 0.5,
-                    "pivotY": 0.5
-                  },
-                  "solid": false,
-                  "ledgeDirection": "NONE"
-                },
-                "21,16": {
-                  "name": "Frame_46",
-                  "sprite": {
-                    "name": "Frame_46",
-                    "texturePath": "sprites/Building6_64x96.png",
-                    "width": 16.0,
-                    "height": 16.0,
-                    "u0": 0.75,
-                    "v0": 0.75,
-                    "u1": 0.875,
-                    "v1": 0.7916667,
                     "pivotX": 0.5,
                     "pivotY": 0.5
                   },
@@ -32700,40 +32615,6 @@
                   "solid": false,
                   "ledgeDirection": "NONE"
                 },
-                "14,18": {
-                  "name": "Frame_1",
-                  "sprite": {
-                    "name": "Frame_1",
-                    "texturePath": "sprites/trees.png",
-                    "width": 16.0,
-                    "height": 16.0,
-                    "u0": 0.05,
-                    "v0": 0.9166667,
-                    "u1": 0.1,
-                    "v1": 1.0,
-                    "pivotX": 0.5,
-                    "pivotY": 0.5
-                  },
-                  "solid": false,
-                  "ledgeDirection": "NONE"
-                },
-                "23,5": {
-                  "name": "Frame_1",
-                  "sprite": {
-                    "name": "Frame_1",
-                    "texturePath": "sprites/trees.png",
-                    "width": 16.0,
-                    "height": 16.0,
-                    "u0": 0.05,
-                    "v0": 0.9166667,
-                    "u1": 0.1,
-                    "v1": 1.0,
-                    "pivotX": 0.5,
-                    "pivotY": 0.5
-                  },
-                  "solid": false,
-                  "ledgeDirection": "NONE"
-                },
                 "23,4": {
                   "name": "Frame_21",
                   "sprite": {
@@ -32864,6 +32745,23 @@
                     "v0": 0.75,
                     "u1": 0.375,
                     "v1": 0.7916667,
+                    "pivotX": 0.5,
+                    "pivotY": 0.5
+                  },
+                  "solid": false,
+                  "ledgeDirection": "NONE"
+                },
+                "23,16": {
+                  "name": "Frame_76",
+                  "sprite": {
+                    "name": "Frame_76",
+                    "texturePath": "sprites/Outdoors_misc.png",
+                    "width": 16.0,
+                    "height": 16.0,
+                    "u0": 0.5,
+                    "v0": 0.09090909,
+                    "u1": 0.625,
+                    "v1": 0.18181819,
                     "pivotX": 0.5,
                     "pivotY": 0.5
                   },
@@ -33006,23 +32904,6 @@
                   "solid": false,
                   "ledgeDirection": "NONE"
                 },
-                "23,14": {
-                  "name": "Frame_0",
-                  "sprite": {
-                    "name": "Frame_0",
-                    "texturePath": "sprites/trees.png",
-                    "width": 16.0,
-                    "height": 16.0,
-                    "u0": 0.0,
-                    "v0": 0.9166667,
-                    "u1": 0.05,
-                    "v1": 1.0,
-                    "pivotX": 0.5,
-                    "pivotY": 0.5
-                  },
-                  "solid": false,
-                  "ledgeDirection": "NONE"
-                },
                 "20,21": {
                   "name": "Frame_5",
                   "sprite": {
@@ -33051,23 +32932,6 @@
                     "v0": 0.9166667,
                     "u1": 0.75,
                     "v1": 0.9583333,
-                    "pivotX": 0.5,
-                    "pivotY": 0.5
-                  },
-                  "solid": false,
-                  "ledgeDirection": "NONE"
-                },
-                "11,5": {
-                  "name": "Frame_1",
-                  "sprite": {
-                    "name": "Frame_1",
-                    "texturePath": "sprites/trees.png",
-                    "width": 16.0,
-                    "height": 16.0,
-                    "u0": 0.05,
-                    "v0": 0.9166667,
-                    "u1": 0.1,
-                    "v1": 1.0,
                     "pivotX": 0.5,
                     "pivotY": 0.5
                   },
@@ -33193,23 +33057,6 @@
                   "solid": false,
                   "ledgeDirection": "NONE"
                 },
-                "8,9": {
-                  "name": "Frame_1",
-                  "sprite": {
-                    "name": "Frame_1",
-                    "texturePath": "sprites/trees.png",
-                    "width": 16.0,
-                    "height": 16.0,
-                    "u0": 0.05,
-                    "v0": 0.9166667,
-                    "u1": 0.1,
-                    "v1": 1.0,
-                    "pivotX": 0.5,
-                    "pivotY": 0.5
-                  },
-                  "solid": false,
-                  "ledgeDirection": "NONE"
-                },
                 "16,18": {
                   "name": "Frame_25",
                   "sprite": {
@@ -33329,23 +33176,6 @@
                   "solid": false,
                   "ledgeDirection": "NONE"
                 },
-                "22,5": {
-                  "name": "Frame_0",
-                  "sprite": {
-                    "name": "Frame_0",
-                    "texturePath": "sprites/trees.png",
-                    "width": 16.0,
-                    "height": 16.0,
-                    "u0": 0.0,
-                    "v0": 0.9166667,
-                    "u1": 0.05,
-                    "v1": 1.0,
-                    "pivotX": 0.5,
-                    "pivotY": 0.5
-                  },
-                  "solid": false,
-                  "ledgeDirection": "NONE"
-                },
                 "22,4": {
                   "name": "Frame_20",
                   "sprite": {
@@ -33374,23 +33204,6 @@
                     "v0": 0.875,
                     "u1": 0.625,
                     "v1": 0.9166667,
-                    "pivotX": 0.5,
-                    "pivotY": 0.5
-                  },
-                  "solid": false,
-                  "ledgeDirection": "NONE"
-                },
-                "18,8": {
-                  "name": "Frame_1",
-                  "sprite": {
-                    "name": "Frame_1",
-                    "texturePath": "sprites/trees.png",
-                    "width": 16.0,
-                    "height": 16.0,
-                    "u0": 0.05,
-                    "v0": 0.9166667,
-                    "u1": 0.1,
-                    "v1": 1.0,
                     "pivotX": 0.5,
                     "pivotY": 0.5
                   },
@@ -33788,23 +33601,6 @@
                   "solid": false,
                   "ledgeDirection": "NONE"
                 },
-                "11,18": {
-                  "name": "Frame_0",
-                  "sprite": {
-                    "name": "Frame_0",
-                    "texturePath": "sprites/trees.png",
-                    "width": 16.0,
-                    "height": 16.0,
-                    "u0": 0.0,
-                    "v0": 0.9166667,
-                    "u1": 0.05,
-                    "v1": 1.0,
-                    "pivotX": 0.5,
-                    "pivotY": 0.5
-                  },
-                  "solid": false,
-                  "ledgeDirection": "NONE"
-                },
                 "11,17": {
                   "name": "Frame_20",
                   "sprite": {
@@ -33850,23 +33646,6 @@
                     "v0": 0.9166667,
                     "u1": 1.0,
                     "v1": 0.9583333,
-                    "pivotX": 0.5,
-                    "pivotY": 0.5
-                  },
-                  "solid": false,
-                  "ledgeDirection": "NONE"
-                },
-                "10,5": {
-                  "name": "Frame_0",
-                  "sprite": {
-                    "name": "Frame_0",
-                    "texturePath": "sprites/trees.png",
-                    "width": 16.0,
-                    "height": 16.0,
-                    "u0": 0.0,
-                    "v0": 0.9166667,
-                    "u1": 0.05,
-                    "v1": 1.0,
                     "pivotX": 0.5,
                     "pivotY": 0.5
                   },
@@ -35192,6 +34971,263 @@
         }
       ],
       "children": []
+    },
+    {
+      "name": "AbovePlayer",
+      "active": true,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.TilemapRenderer",
+          "properties": {
+            "zIndex": 1,
+            "tileSize": 1.0,
+            "isStatic": false,
+            "chunks": {
+              "0,0": {
+                "7,9": {
+                  "name": "Frame_0",
+                  "sprite": {
+                    "name": "Frame_0",
+                    "texturePath": "sprites/trees.png",
+                    "width": 16.0,
+                    "height": 16.0,
+                    "u0": 0.0,
+                    "v0": 0.9166667,
+                    "u1": 0.05,
+                    "v1": 1.0,
+                    "pivotX": 0.5,
+                    "pivotY": 0.5
+                  },
+                  "solid": false,
+                  "ledgeDirection": "NONE"
+                },
+                "18,8": {
+                  "name": "Frame_1",
+                  "sprite": {
+                    "name": "Frame_1",
+                    "texturePath": "sprites/trees.png",
+                    "width": 16.0,
+                    "height": 16.0,
+                    "u0": 0.05,
+                    "v0": 0.9166667,
+                    "u1": 0.1,
+                    "v1": 1.0,
+                    "pivotX": 0.5,
+                    "pivotY": 0.5
+                  },
+                  "solid": false,
+                  "ledgeDirection": "NONE"
+                },
+                "8,9": {
+                  "name": "Frame_1",
+                  "sprite": {
+                    "name": "Frame_1",
+                    "texturePath": "sprites/trees.png",
+                    "width": 16.0,
+                    "height": 16.0,
+                    "u0": 0.05,
+                    "v0": 0.9166667,
+                    "u1": 0.1,
+                    "v1": 1.0,
+                    "pivotX": 0.5,
+                    "pivotY": 0.5
+                  },
+                  "solid": false,
+                  "ledgeDirection": "NONE"
+                },
+                "17,8": {
+                  "name": "Frame_0",
+                  "sprite": {
+                    "name": "Frame_0",
+                    "texturePath": "sprites/trees.png",
+                    "width": 16.0,
+                    "height": 16.0,
+                    "u0": 0.0,
+                    "v0": 0.9166667,
+                    "u1": 0.05,
+                    "v1": 1.0,
+                    "pivotX": 0.5,
+                    "pivotY": 0.5
+                  },
+                  "solid": false,
+                  "ledgeDirection": "NONE"
+                },
+                "24,14": {
+                  "name": "Frame_1",
+                  "sprite": {
+                    "name": "Frame_1",
+                    "texturePath": "sprites/trees.png",
+                    "width": 16.0,
+                    "height": 16.0,
+                    "u0": 0.05,
+                    "v0": 0.9166667,
+                    "u1": 0.1,
+                    "v1": 1.0,
+                    "pivotX": 0.5,
+                    "pivotY": 0.5
+                  },
+                  "solid": false,
+                  "ledgeDirection": "NONE"
+                },
+                "23,14": {
+                  "name": "Frame_0",
+                  "sprite": {
+                    "name": "Frame_0",
+                    "texturePath": "sprites/trees.png",
+                    "width": 16.0,
+                    "height": 16.0,
+                    "u0": 0.0,
+                    "v0": 0.9166667,
+                    "u1": 0.05,
+                    "v1": 1.0,
+                    "pivotX": 0.5,
+                    "pivotY": 0.5
+                  },
+                  "solid": false,
+                  "ledgeDirection": "NONE"
+                },
+                "11,18": {
+                  "name": "Frame_0",
+                  "sprite": {
+                    "name": "Frame_0",
+                    "texturePath": "sprites/trees.png",
+                    "width": 16.0,
+                    "height": 16.0,
+                    "u0": 0.0,
+                    "v0": 0.9166667,
+                    "u1": 0.05,
+                    "v1": 1.0,
+                    "pivotX": 0.5,
+                    "pivotY": 0.5
+                  },
+                  "solid": false,
+                  "ledgeDirection": "NONE"
+                },
+                "14,18": {
+                  "name": "Frame_1",
+                  "sprite": {
+                    "name": "Frame_1",
+                    "texturePath": "sprites/trees.png",
+                    "width": 16.0,
+                    "height": 16.0,
+                    "u0": 0.05,
+                    "v0": 0.9166667,
+                    "u1": 0.1,
+                    "v1": 1.0,
+                    "pivotX": 0.5,
+                    "pivotY": 0.5
+                  },
+                  "solid": false,
+                  "ledgeDirection": "NONE"
+                },
+                "12,18": {
+                  "name": "Frame_1",
+                  "sprite": {
+                    "name": "Frame_1",
+                    "texturePath": "sprites/trees.png",
+                    "width": 16.0,
+                    "height": 16.0,
+                    "u0": 0.05,
+                    "v0": 0.9166667,
+                    "u1": 0.1,
+                    "v1": 1.0,
+                    "pivotX": 0.5,
+                    "pivotY": 0.5
+                  },
+                  "solid": false,
+                  "ledgeDirection": "NONE"
+                },
+                "13,18": {
+                  "name": "Frame_0",
+                  "sprite": {
+                    "name": "Frame_0",
+                    "texturePath": "sprites/trees.png",
+                    "width": 16.0,
+                    "height": 16.0,
+                    "u0": 0.0,
+                    "v0": 0.9166667,
+                    "u1": 0.05,
+                    "v1": 1.0,
+                    "pivotX": 0.5,
+                    "pivotY": 0.5
+                  },
+                  "solid": false,
+                  "ledgeDirection": "NONE"
+                },
+                "23,5": {
+                  "name": "Frame_1",
+                  "sprite": {
+                    "name": "Frame_1",
+                    "texturePath": "sprites/trees.png",
+                    "width": 16.0,
+                    "height": 16.0,
+                    "u0": 0.05,
+                    "v0": 0.9166667,
+                    "u1": 0.1,
+                    "v1": 1.0,
+                    "pivotX": 0.5,
+                    "pivotY": 0.5
+                  },
+                  "solid": false,
+                  "ledgeDirection": "NONE"
+                },
+                "10,5": {
+                  "name": "Frame_0",
+                  "sprite": {
+                    "name": "Frame_0",
+                    "texturePath": "sprites/trees.png",
+                    "width": 16.0,
+                    "height": 16.0,
+                    "u0": 0.0,
+                    "v0": 0.9166667,
+                    "u1": 0.05,
+                    "v1": 1.0,
+                    "pivotX": 0.5,
+                    "pivotY": 0.5
+                  },
+                  "solid": false,
+                  "ledgeDirection": "NONE"
+                },
+                "11,5": {
+                  "name": "Frame_1",
+                  "sprite": {
+                    "name": "Frame_1",
+                    "texturePath": "sprites/trees.png",
+                    "width": 16.0,
+                    "height": 16.0,
+                    "u0": 0.05,
+                    "v0": 0.9166667,
+                    "u1": 0.1,
+                    "v1": 1.0,
+                    "pivotX": 0.5,
+                    "pivotY": 0.5
+                  },
+                  "solid": false,
+                  "ledgeDirection": "NONE"
+                },
+                "22,5": {
+                  "name": "Frame_0",
+                  "sprite": {
+                    "name": "Frame_0",
+                    "texturePath": "sprites/trees.png",
+                    "width": 16.0,
+                    "height": 16.0,
+                    "u0": 0.0,
+                    "v0": 0.9166667,
+                    "u1": 0.05,
+                    "v1": 1.0,
+                    "pivotX": 0.5,
+                    "pivotY": 0.5
+                  },
+                  "solid": false,
+                  "ledgeDirection": "NONE"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "children": []
     }
   ],
   "camera": {
@@ -35209,7 +35245,6 @@
         "18,19": 1,
         "7,7": 1,
         "7,8": 1,
-        "7,9": 1,
         "10,11": 2,
         "18,16": 1,
         "18,17": 1,
@@ -35220,7 +35255,7 @@
         "25,0": 1,
         "24,12": 1,
         "24,13": 1,
-        "24,14": 1,
+        "24,16": 1,
         "10,14": 3,
         "25,8": 1,
         "25,7": 1,
@@ -35233,7 +35268,6 @@
         "25,1": 1,
         "10,20": 1,
         "13,16": 1,
-        "17,8": 1,
         "17,7": 1,
         "13,14": 3,
         "17,6": 1,
@@ -35244,7 +35278,6 @@
         "24,20": 1,
         "13,0": 8,
         "13,17": 1,
-        "13,18": 1,
         "17,2": 8,
         "17,1": 8,
         "17,0": 8,
@@ -35259,7 +35292,6 @@
         "20,0": 8,
         "12,17": 1,
         "12,16": 1,
-        "12,18": 1,
         "12,20": 1,
         "15,14": 1,
         "15,13": 5,
@@ -35270,7 +35302,6 @@
         "15,18": 1,
         "21,17": 1,
         "15,17": 1,
-        "21,16": 1,
         "15,16": 1,
         "9,11": 2,
         "9,14": 3,
@@ -35294,8 +35325,6 @@
         "9,20": 1,
         "1,20": 1,
         "19,20": 1,
-        "14,18": 1,
-        "23,5": 1,
         "23,4": 1,
         "25,20": 1,
         "23,3": 1,
@@ -35304,6 +35333,7 @@
         "17,18": 1,
         "17,19": 1,
         "17,16": 1,
+        "23,16": 1,
         "7,11": 1,
         "14,20": 1,
         "4,20": 1,
@@ -35312,13 +35342,11 @@
         "11,3": 1,
         "23,12": 1,
         "23,13": 1,
-        "23,14": 1,
         "19,2": 8,
         "19,1": 8,
         "19,0": 8,
         "20,20": 1,
         "15,2": 8,
-        "11,5": 1,
         "15,1": 8,
         "11,4": 1,
         "15,0": 8,
@@ -35328,7 +35356,6 @@
         "8,8": 1,
         "16,19": 1,
         "22,18": 1,
-        "8,9": 1,
         "16,18": 1,
         "22,17": 1,
         "16,17": 1,
@@ -35336,10 +35363,8 @@
         "16,16": 1,
         "7,20": 1,
         "22,3": 1,
-        "22,5": 1,
         "22,4": 1,
         "19,19": 1,
-        "18,8": 1,
         "19,16": 1,
         "11,11": 2,
         "18,7": 1,
@@ -35363,13 +35388,11 @@
         "25,17": 1,
         "25,16": 1,
         "11,16": 1,
-        "11,18": 1,
         "18,2": 8,
         "11,17": 1,
         "18,1": 8,
         "18,0": 8,
         "22,20": 1,
-        "10,5": 1,
         "14,2": 8,
         "14,1": 8
       },

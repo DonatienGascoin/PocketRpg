@@ -5,6 +5,7 @@ import com.pocket.rpg.editor.camera.EditorCamera;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.TilemapLayer;
 import com.pocket.rpg.editor.tileset.TileSelection;
+import com.pocket.rpg.editor.tileset.TilesetRegistry;
 import com.pocket.rpg.rendering.Sprite;
 import imgui.ImDrawList;
 import imgui.ImGui;
@@ -227,55 +228,113 @@ public class TileBrushTool implements EditorTool {
         ImDrawList drawList = ImGui.getForegroundDrawList();
         drawList.pushClipRect(viewportX, viewportY, viewportX + viewportWidth, viewportY + viewportHeight, true);
 
-        // Determine overlay size
-        int overlayWidth, overlayHeight;
         if (selection != null && selection.isPattern()) {
-            overlayWidth = selection.getWidth();
-            overlayHeight = selection.getHeight();
+            // Pattern preview with ghost sprites
+            renderPatternGhost(drawList, camera, hoveredTileX, hoveredTileY);
+        } else if (selection != null) {
+            // Single tile with brush size - render ghost sprites
+            renderSingleTileGhost(drawList, camera, hoveredTileX, hoveredTileY);
         } else {
-            overlayWidth = brushSize;
-            overlayHeight = brushSize;
-        }
-
-        // Draw preview
-        if (selection != null && selection.isPattern()) {
-            // Pattern preview - from top-left
-            for (int py = 0; py < overlayHeight; py++) {
-                for (int px = 0; px < overlayWidth; px++) {
-                    int tx = hoveredTileX + px;
-                    int ty = hoveredTileY + (overlayHeight - 1 - py);
-
-                    boolean hasTile = selection.getSprite(px, py) != null;
-                    int color = hasTile
-                            ? ImGui.colorConvertFloat4ToU32(0.3f, 0.7f, 1.0f, 0.4f)
-                            : ImGui.colorConvertFloat4ToU32(0.2f, 0.4f, 0.6f, 0.2f);
-
-                    drawTileHighlight(drawList, camera, tx, ty, color);
-                }
-            }
-        } else {
-            // Single tile with brush size - centered
-            int halfSize = brushSize / 2;
-            for (int dy = -halfSize; dy < brushSize - halfSize; dy++) {
-                for (int dx = -halfSize; dx < brushSize - halfSize; dx++) {
-                    int tx = hoveredTileX + dx;
-                    int ty = hoveredTileY + dy;
-
-                    boolean isCenter = (dx == 0 && dy == 0);
-                    int color = isCenter
-                            ? ImGui.colorConvertFloat4ToU32(0.3f, 0.7f, 1.0f, 0.5f)
-                            : ImGui.colorConvertFloat4ToU32(0.2f, 0.6f, 1.0f, 0.3f);
-
-                    drawTileHighlight(drawList, camera, tx, ty, color);
-                }
-            }
+            // No selection - just show cursor position
+            int color = ImGui.colorConvertFloat4ToU32(0.5f, 0.5f, 0.5f, 0.3f);
+            drawTileHighlight(drawList, camera, hoveredTileX, hoveredTileY, color);
         }
 
         drawList.popClipRect();
     }
 
     /**
-     * Draws a highlight rectangle for a tile.
+     * Renders ghost sprites for a pattern selection.
+     */
+    private void renderPatternGhost(ImDrawList drawList, EditorCamera camera, int hoveredTileX, int hoveredTileY) {
+        int textureId = getSelectionTextureId();
+
+        for (int py = 0; py < selection.getHeight(); py++) {
+            for (int px = 0; px < selection.getWidth(); px++) {
+                Sprite sprite = selection.getSprite(px, py);
+                int tx = hoveredTileX + px;
+                int ty = hoveredTileY + (selection.getHeight() - 1 - py); // Flip Y for world coords
+
+                if (sprite != null && textureId > 0) {
+                    drawGhostSprite(drawList, camera, tx, ty, sprite, textureId);
+                } else {
+                    // Empty slot in pattern - draw faint outline
+                    int color = ImGui.colorConvertFloat4ToU32(0.2f, 0.4f, 0.6f, 0.2f);
+                    drawTileHighlight(drawList, camera, tx, ty, color);
+                }
+            }
+        }
+    }
+
+    /**
+     * Renders ghost sprite for single tile with brush size.
+     */
+    private void renderSingleTileGhost(ImDrawList drawList, EditorCamera camera, int hoveredTileX, int hoveredTileY) {
+        Sprite sprite = selection.getFirstSprite();
+        int textureId = getSelectionTextureId();
+
+        int halfSize = brushSize / 2;
+
+        for (int dy = -halfSize; dy < brushSize - halfSize; dy++) {
+            for (int dx = -halfSize; dx < brushSize - halfSize; dx++) {
+                int tx = hoveredTileX + dx;
+                int ty = hoveredTileY + dy;
+
+                if (sprite != null && textureId > 0) {
+                    drawGhostSprite(drawList, camera, tx, ty, sprite, textureId);
+                }
+            }
+        }
+    }
+
+    /**
+     * Draws a ghost (semi-transparent) sprite at the given tile position.
+     */
+    private void drawGhostSprite(ImDrawList drawList, EditorCamera camera,
+                                 int tileX, int tileY, Sprite sprite, int textureId) {
+        Vector2f bottomLeft = camera.worldToScreen(tileX, tileY);
+        Vector2f topRight = camera.worldToScreen(tileX + 1, tileY + 1);
+
+        float x1 = viewportX + bottomLeft.x;
+        float y1 = viewportY + topRight.y;   // Screen Y is flipped
+        float x2 = viewportX + topRight.x;
+        float y2 = viewportY + bottomLeft.y;
+
+        float minX = Math.min(x1, x2);
+        float maxX = Math.max(x1, x2);
+        float minY = Math.min(y1, y2);
+        float maxY = Math.max(y1, y2);
+
+        // UV coordinates - note V is flipped for OpenGL
+        float u0 = sprite.getU0();
+        float v0 = sprite.getV1(); // Flip V
+        float u1 = sprite.getU1();
+        float v1 = sprite.getV0(); // Flip V
+
+        // Semi-transparent white tint for ghost effect
+        int ghostColor = ImGui.colorConvertFloat4ToU32(1.0f, 1.0f, 1.0f, 0.5f);
+
+        drawList.addImage(textureId, minX, minY, maxX, maxY, u0, v0, u1, v1, ghostColor);
+
+        // Add subtle border
+        int borderColor = ImGui.colorConvertFloat4ToU32(0.4f, 0.8f, 1.0f, 0.6f);
+        drawList.addRect(minX, minY, maxX, maxY, borderColor, 0, 0, 1.0f);
+    }
+
+    /**
+     * Gets the OpenGL texture ID for the current selection's tileset.
+     */
+    private int getSelectionTextureId() {
+        if (selection == null) return 0;
+
+        TilesetRegistry.TilesetEntry entry = TilesetRegistry.getInstance().getTileset(selection.getTilesetName());
+        if (entry == null || entry.getTexture() == null) return 0;
+
+        return entry.getTexture().getTextureId();
+    }
+
+    /**
+     * Draws a highlight rectangle for a tile (used when no sprite available).
      */
     private void drawTileHighlight(ImDrawList drawList, EditorCamera camera,
                                    int tileX, int tileY, int fillColor) {

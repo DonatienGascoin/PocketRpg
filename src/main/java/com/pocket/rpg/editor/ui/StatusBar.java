@@ -1,113 +1,151 @@
 package com.pocket.rpg.editor.ui;
 
 import com.pocket.rpg.editor.camera.EditorCamera;
+import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.scene.EditorScene;
 import imgui.ImGui;
+import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiWindowFlags;
 import lombok.Setter;
 
 /**
- * Bottom status bar for the Scene Editor.
- * Shows current tool, selection info, and helpful hints.
+ * Status bar rendered at the bottom of the editor window.
+ * <p>
+ * Displays:
+ * - Current message (fades over time)
+ * - Camera zoom level
+ * - Scene dirty indicator
  */
 public class StatusBar {
 
-    @Setter
-    private EditorScene currentScene;
+    private static final float MESSAGE_DURATION = 4.0f;  // Seconds to show message
+    private static final float FADE_DURATION = 1.0f;     // Fade out duration
+
     @Setter
     private EditorCamera camera;
-    @Setter
-    private String currentTool = "Select";
-    @Setter
-    private String statusMessage = "Ready";
 
-    private float fps = 60.0f;
-    private int frameCount = 0;
-    private float fpsTimer = 0;
+    @Setter
+    private EditorScene currentScene;
+
+    // Current message
+    private String message = "";
+    private float messageTimer = 0;
 
     /**
-     * Renders the status bar at the bottom of the screen.
+     * Shows a temporary message in the status bar.
      */
-    public void render(float viewportHeight) {
-        float statusBarHeight = 24;
-        
-        // Update FPS counter
-        updateFPS();
+    public void showMessage(String message) {
+        this.message = message;
+        this.messageTimer = MESSAGE_DURATION;
+    }
 
-        ImGui.setNextWindowPos(0, viewportHeight - statusBarHeight);
-        ImGui.setNextWindowSize(ImGui.getIO().getDisplaySizeX(), statusBarHeight);
+    /**
+     * Renders the status bar at the bottom of the window.
+     *
+     * @param windowHeight Total window height for positioning
+     */
+    public void render(int windowHeight) {
+        float barHeight = 24;
+        float barY = windowHeight - barHeight;
+
+        // Fixed position at bottom
+        ImGui.setNextWindowPos(0, barY);
+        ImGui.setNextWindowSize(ImGui.getIO().getDisplaySizeX(), barHeight);
 
         int flags = ImGuiWindowFlags.NoTitleBar |
-                    ImGuiWindowFlags.NoResize |
-                    ImGuiWindowFlags.NoMove |
-                    ImGuiWindowFlags.NoScrollbar |
-                    ImGuiWindowFlags.NoSavedSettings |
-                    ImGuiWindowFlags.NoBringToFrontOnFocus |
-                    ImGuiWindowFlags.NoNav;
+                ImGuiWindowFlags.NoResize |
+                ImGuiWindowFlags.NoMove |
+                ImGuiWindowFlags.NoScrollbar |
+                ImGuiWindowFlags.NoSavedSettings |
+                ImGuiWindowFlags.NoDocking |
+                ImGuiWindowFlags.NoFocusOnAppearing |
+                ImGuiWindowFlags.NoBringToFrontOnFocus;
 
         ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.WindowPadding, 8, 4);
         ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.WindowRounding, 0);
-        ImGui.pushStyleColor(imgui.flag.ImGuiCol.WindowBg, 0.12f, 0.12f, 0.12f, 1.0f);
+        ImGui.pushStyleColor(ImGuiCol.WindowBg, 0.15f, 0.15f, 0.15f, 0.95f);
 
         if (ImGui.begin("##StatusBar", flags)) {
-            // Left section: Tool and status
-            ImGui.text("Tool: " + currentTool);
-            ImGui.sameLine();
-            ImGui.separator();
-            ImGui.sameLine();
-            ImGui.text(statusMessage);
+            // Left side: Message
+            renderMessage();
 
-            // Right section: Scene info and FPS
-            float rightWidth = 350;
-            ImGui.sameLine(ImGui.getWindowWidth() - rightWidth);
-
-            // Scene object count
-            if (currentScene != null) {
-                ImGui.text("Objects: " + currentScene.getObjectCount());
-                ImGui.sameLine();
-                ImGui.separator();
-                ImGui.sameLine();
-            }
-
-            // Camera info
-            if (camera != null) {
-                ImGui.text(String.format("Zoom: %.0f%%", camera.getZoom() * 100));
-                ImGui.sameLine();
-                ImGui.separator();
-                ImGui.sameLine();
-            }
-
-            // FPS
-            ImGui.text(String.format("%.0f FPS", fps));
+            // Right side: Scene info and zoom
+            renderRightInfo();
         }
         ImGui.end();
 
         ImGui.popStyleColor();
         ImGui.popStyleVar(2);
-    }
 
-    private void updateFPS() {
-        frameCount++;
-        fpsTimer += ImGui.getIO().getDeltaTime();
-
-        if (fpsTimer >= 0.5f) {
-            fps = frameCount / fpsTimer;
-            frameCount = 0;
-            fpsTimer = 0;
+        // Update message timer
+        if (messageTimer > 0) {
+            messageTimer -= ImGui.getIO().getDeltaTime();
         }
     }
 
     /**
-     * Sets a temporary status message.
+     * Renders the message with fade effect.
      */
-    public void showMessage(String message) {
-        this.statusMessage = message;
+    private void renderMessage() {
+        if (message.isEmpty() || messageTimer <= 0) {
+            ImGui.textDisabled("Ready");
+            return;
+        }
+
+        // Calculate alpha for fade
+        float alpha = 1.0f;
+        if (messageTimer < FADE_DURATION) {
+            alpha = messageTimer / FADE_DURATION;
+        }
+
+        // Message with icon based on content
+        String icon = FontAwesomeIcons.InfoCircle;
+        float r = 0.7f, g = 0.9f, b = 0.7f;
+
+        if (message.contains("Error") || message.contains("error")) {
+            icon = FontAwesomeIcons.ExclamationTriangle;
+            r = 1.0f; g = 0.4f; b = 0.4f;
+        } else if (message.contains("Saved")) {
+            icon = FontAwesomeIcons.Check;
+            r = 0.4f; g = 1.0f; b = 0.4f;
+        } else if (message.contains("Opened") || message.contains("created")) {
+            icon = FontAwesomeIcons.FolderOpen;
+            r = 0.4f; g = 0.8f; b = 1.0f;
+        }
+
+        ImGui.textColored(r, g, b, alpha, icon + " " + message);
     }
 
     /**
-     * Clears the status message.
+     * Renders right-aligned info (zoom, scene status).
      */
-    public void clearMessage() {
-        this.statusMessage = "Ready";
+    private void renderRightInfo() {
+        StringBuilder rightText = new StringBuilder();
+
+        // Zoom level
+        if (camera != null) {
+            int zoomPercent = (int) (camera.getZoom() * 100);
+            rightText.append(FontAwesomeIcons.SearchPlus).append(" ").append(zoomPercent).append("%");
+        }
+
+        // Scene dirty indicator
+        if (currentScene != null && currentScene.isDirty()) {
+            rightText.append("  ").append(FontAwesomeIcons.Circle).append(" Modified");
+        }
+
+        if (rightText.length() > 0) {
+            // Calculate position for right alignment
+            String text = rightText.toString();
+            float textWidth = ImGui.calcTextSize(text).x;
+            float windowWidth = ImGui.getWindowWidth();
+
+            ImGui.sameLine(windowWidth - textWidth - 16);
+
+            if (currentScene != null && currentScene.isDirty()) {
+                ImGui.textColored(1.0f, 0.8f, 0.2f, 1.0f, text);
+            } else {
+                ImGui.textDisabled(text);
+            }
+        }
     }
 }

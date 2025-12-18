@@ -1,282 +1,301 @@
 package com.pocket.rpg.editor.panels;
 
+import com.pocket.rpg.editor.EditorModeManager;
+import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.scene.EditorScene;
-import com.pocket.rpg.editor.scene.LayerVisibilityMode;
 import com.pocket.rpg.editor.scene.TilemapLayer;
 import imgui.ImGui;
+import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiKey;
-import imgui.flag.ImGuiPopupFlags;
 import imgui.flag.ImGuiSelectableFlags;
 import imgui.type.ImString;
 import lombok.Setter;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 
 /**
  * Panel for managing tilemap layers.
  * <p>
  * Features:
- * - Add/delete/rename layers
- * - Toggle visibility
- * - Toggle lock state
- * - Reorder layers (move up/down)
- * - Visibility mode selection (All/Selected/Dimmed)
- * <p>
- * Note: Layers no longer require a spritesheet at creation.
- * Tiles from any tileset can be placed on any layer.
+ * - Layer list sorted by Z-index (descending)
+ * - Z-index display for each layer
+ * - Entity reference separator at z=0
+ * - Warning for layers at entity z-level
+ * - Add/remove/reorder layers
+ * - Visibility toggle per layer
+ * - Disabled when in collision mode
  */
 public class LayerPanel {
 
     @Setter
     private EditorScene scene;
 
-    // Add layer dialog state
-    private boolean showAddLayerDialog = false;
-    private ImString newLayerName = new ImString("New Layer", 64);
-    private boolean focusNameInput = false;
+    @Setter
+    private EditorModeManager modeManager;
 
-    // Rename dialog state
-    private boolean showRenameDialog = false;
-    private int renameLayerIndex = -1;
-    private ImString renameBuffer = new ImString(64);
+    // Rename state
+    private int renamingLayerIndex = -1;
+    private final ImString renameBuffer = new ImString(64);
 
-    // Context menu state
-    private int contextMenuLayerIndex = -1;
+    // Entity Z-level constant
+    private static final int ENTITY_Z_LEVEL = 0;
 
+    /**
+     * Renders the layer panel.
+     */
     public void render() {
         if (ImGui.begin("Layers")) {
+            boolean inCollisionMode = modeManager != null && modeManager.isCollisionMode();
+
+            // Disable entire panel in collision mode
+            if (inCollisionMode) {
+                ImGui.beginDisabled();
+                ImGui.textColored(0.7f, 0.7f, 0.2f, 1.0f,
+                        FontAwesomeIcons.ExclamationTriangle + " Collision Mode Active");
+                ImGui.separator();
+            }
+
             if (scene == null) {
                 ImGui.textDisabled("No scene loaded");
-                ImGui.end();
-                return;
+            } else {
+                renderLayerControls();
+                ImGui.separator();
+                renderLayerList();
             }
 
-            // Visibility mode selector
-            renderVisibilityModeSelector();
-
-            ImGui.separator();
-
-            // Add layer button
-            if (ImGui.button("+ Add Layer")) {
-                showAddLayerDialog = true;
-                focusNameInput = true;
-                newLayerName.set("Layer " + (scene.getLayerCount() + 1));
+            if (inCollisionMode) {
+                ImGui.endDisabled();
             }
-
-            ImGui.separator();
-
-            // Layer list
-            renderLayerList();
-
-            // Dialogs
-            renderAddLayerDialog();
-            renderRenameDialog();
         }
         ImGui.end();
     }
 
     /**
-     * Renders visibility mode radio buttons.
+     * Renders add/remove layer controls.
      */
-    private void renderVisibilityModeSelector() {
-        ImGui.text("Visibility Mode:");
-
-        LayerVisibilityMode currentMode = scene.getVisibilityMode();
-
-        if (ImGui.radioButton("All", currentMode == LayerVisibilityMode.ALL)) {
-            scene.setVisibilityMode(LayerVisibilityMode.ALL);
+    private void renderLayerControls() {
+        // Add layer button
+        if (ImGui.button(FontAwesomeIcons.Plus + " Add Layer")) {
+            int layerCount = scene.getLayerCount();
+            scene.addLayer("Layer " + layerCount);
         }
+
         ImGui.sameLine();
-        if (ImGui.radioButton("Selected", currentMode == LayerVisibilityMode.SELECTED_ONLY)) {
-            scene.setVisibilityMode(LayerVisibilityMode.SELECTED_ONLY);
-        }
-        ImGui.sameLine();
-        if (ImGui.radioButton("Dimmed", currentMode == LayerVisibilityMode.SELECTED_DIMMED)) {
-            scene.setVisibilityMode(LayerVisibilityMode.SELECTED_DIMMED);
-        }
 
-        // Opacity slider for dimmed mode
-        if (currentMode == LayerVisibilityMode.SELECTED_DIMMED) {
-            ImGui.sameLine();
-            ImGui.setNextItemWidth(150f);
-            float[] opacity = {scene.getDimmedOpacity()};
-            if (ImGui.sliderFloat("Dim Opacity", opacity, 0.1f, 0.9f)) {
-                scene.setDimmedOpacity(opacity[0]);
+        // Remove layer button
+        boolean canRemove = scene.getActiveLayer() != null;
+        if (!canRemove) {
+            ImGui.beginDisabled();
+        }
+        if (ImGui.button(FontAwesomeIcons.Trash + " Remove")) {
+            int activeIndex = scene.getActiveLayerIndex();
+            if (activeIndex >= 0) {
+                scene.removeLayer(activeIndex);
             }
+        }
+        if (!canRemove) {
+            ImGui.endDisabled();
         }
     }
 
     /**
-     * Renders the list of layers.
+     * Renders the layer list sorted by z-index with entity separator.
      */
     private void renderLayerList() {
-        int layerCount = scene.getLayerCount();
-
-        if (layerCount == 0) {
-            ImGui.textDisabled("No layers");
-            ImGui.textDisabled("Click '+ Add Layer' to create one");
+        List<TilemapLayer> layers = scene.getLayers();
+        if (layers.isEmpty()) {
+            ImGui.textDisabled("No layers. Click 'Add Layer' to create one.");
             return;
         }
 
-        // Render layers from top (highest zIndex) to bottom
-        for (int i = layerCount - 1; i >= 0; i--) {
-            TilemapLayer layer = scene.getLayer(i);
-            if (layer == null) continue;
+        // Create sorted list with indices
+        List<LayerEntry> sortedLayers = new ArrayList<>();
+        for (int i = 0; i < layers.size(); i++) {
+            sortedLayers.add(new LayerEntry(i, layers.get(i)));
+        }
+        sortedLayers.sort(Comparator.comparingInt((LayerEntry e) -> e.layer.getZIndex()).reversed());
 
-            ImGui.pushID(i);
+        // Track if we've rendered the entity separator
+        boolean entitySeparatorRendered = false;
+        int activeIndex = scene.getActiveLayerIndex();
 
-            boolean isActive = (i == scene.getActiveLayerIndex());
+        for (LayerEntry entry : sortedLayers) {
+            int zIndex = entry.layer.getZIndex();
 
-            // Visibility toggle
-            boolean visible = layer.isVisible();
-            if (ImGui.checkbox("##visible", visible)) {
-                layer.setVisible(!visible);
-                scene.markDirty();
+            // Render entity separator before first layer at or below z=0
+            if (!entitySeparatorRendered && zIndex <= ENTITY_Z_LEVEL) {
+                renderEntitySeparator();
+                entitySeparatorRendered = true;
             }
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("Toggle visibility");
+
+            renderLayerItem(entry.originalIndex, entry.layer, activeIndex);
+        }
+
+        // If all layers are above z=0, render separator at bottom
+        if (!entitySeparatorRendered) {
+            renderEntitySeparator();
+        }
+    }
+
+    /**
+     * Renders the entity reference separator.
+     */
+    private void renderEntitySeparator() {
+        ImGui.spacing();
+        ImGui.pushStyleColor(ImGuiCol.Text, 0.6f, 0.8f, 0.6f, 1.0f);
+
+        // Center the text
+        String text = FontAwesomeIcons.User + " -- Entities (z: 0) --";
+        float textWidth = ImGui.calcTextSize(text).x;
+        float windowWidth = ImGui.getContentRegionAvailX();
+        float indent = (windowWidth - textWidth) / 2;
+        if (indent > 0) {
+            ImGui.setCursorPosX(ImGui.getCursorPosX() + indent);
+        }
+
+        ImGui.text(text);
+        ImGui.popStyleColor();
+
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("Player and entities render at Z-index 0\nLayers above appear in front, layers below appear behind");
+        }
+
+        ImGui.spacing();
+    }
+
+    /**
+     * Renders a single layer item.
+     */
+    private void renderLayerItem(int index, TilemapLayer layer, int activeIndex) {
+        boolean isActive = index == activeIndex;
+        boolean isRenaming = index == renamingLayerIndex;
+        int zIndex = layer.getZIndex();
+        boolean atEntityLevel = zIndex == ENTITY_Z_LEVEL;
+
+        ImGui.pushID(index);
+
+        // Visibility toggle
+        boolean visible = layer.isVisible();
+        String visIcon = visible ? FontAwesomeIcons.Eye : FontAwesomeIcons.EyeSlash;
+        if (ImGui.smallButton(visIcon)) {
+            layer.setVisible(!visible);
+            scene.markDirty();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(visible ? "Hide layer" : "Show layer");
+        }
+
+        ImGui.sameLine();
+
+        // Layer name with z-index
+        String zDisplay = "(z: " + zIndex + ")";
+        if (atEntityLevel) {
+            zDisplay = "(z: 0 " + FontAwesomeIcons.ExclamationCircle + ")";
+        }
+
+        if (isRenaming) {
+            // Rename mode
+            ImGui.setNextItemWidth(100);
+            ImGui.setKeyboardFocusHere();
+            int flags = ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll;
+            if (ImGui.inputText("##rename", renameBuffer, flags)) {
+                // Enter pressed - confirm
+                String newName = renameBuffer.get().trim();
+                if (!newName.isEmpty()) {
+                    scene.renameLayer(index, newName);
+                }
+                renamingLayerIndex = -1;
+            }
+
+            // Cancel on Escape
+            if (ImGui.isKeyPressed(ImGuiKey.Escape)) {
+                renamingLayerIndex = -1;
+            }
+
+            // Cancel on click outside
+            if (!ImGui.isItemActive() && ImGui.isMouseClicked(0)) {
+                renamingLayerIndex = -1;
             }
 
             ImGui.sameLine();
+            ImGui.textDisabled(zDisplay);
+        } else {
+            // Normal display - selectable
+            String label = layer.getName() + " " + zDisplay;
 
-            // Lock toggle
-            boolean locked = layer.isLocked();
-            String lockIcon = locked ? "[L]" : "[ ]";
-            if (ImGui.smallButton(lockIcon)) {
-                layer.setLocked(!locked);
+            // Color warning for entity-level layers
+            if (atEntityLevel) {
+                ImGui.pushStyleColor(ImGuiCol.Text, 1.0f, 0.8f, 0.2f, 1.0f);
             }
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(locked ? "Unlock layer" : "Lock layer");
-            }
 
-            ImGui.sameLine();
-
-            // Layer name (selectable)
-            String displayName = layer.getName();
-            if (locked) displayName += " (locked)";
-
-            int flags = ImGuiSelectableFlags.AllowDoubleClick;
-            if (ImGui.selectable(displayName, isActive, flags)) {
-                scene.setActiveLayer(i);
+            int flags = ImGuiSelectableFlags.AllowDoubleClick | ImGuiSelectableFlags.AllowItemOverlap;
+            if (ImGui.selectable(label, isActive, flags)) {
+                scene.setActiveLayer(index);
 
                 // Double-click to rename
                 if (ImGui.isMouseDoubleClicked(0)) {
-                    showRenameDialog = true;
-                    renameLayerIndex = i;
+                    renamingLayerIndex = index;
                     renameBuffer.set(layer.getName());
                 }
             }
 
-            // Context menu
-            if (ImGui.beginPopupContextItem("layer_context_" + i, ImGuiPopupFlags.MouseButtonRight)) {
-                contextMenuLayerIndex = i;
-
-                if (ImGui.menuItem("Rename")) {
-                    showRenameDialog = true;
-                    renameLayerIndex = i;
-                    renameBuffer.set(layer.getName());
-                }
-
-                if (ImGui.menuItem("Delete")) {
-                    scene.removeLayer(i);
-                }
-
-                ImGui.separator();
-
-                if (ImGui.menuItem("Move Up", "", false, i < layerCount - 1)) {
-                    scene.moveLayerUp(i);
-                }
-
-                if (ImGui.menuItem("Move Down", "", false, i > 0)) {
-                    scene.moveLayerDown(i);
-                }
-
-                ImGui.endPopup();
+            if (atEntityLevel) {
+                ImGui.popStyleColor();
             }
 
-            ImGui.popID();
+            if (atEntityLevel && ImGui.isItemHovered()) {
+                ImGui.setTooltip("Same Z-index as entities!\nTiles may overlap with player/NPCs");
+            }
         }
-    }
 
-    /**
-     * Renders the add layer dialog.
-     */
-    private void renderAddLayerDialog() {
-        if (!showAddLayerDialog) return;
-
-        ImGui.openPopup("Add Layer");
-
-        if (ImGui.beginPopupModal("Add Layer")) {
-            // Focus name input on first frame
-            if (focusNameInput) {
-                ImGui.setKeyboardFocusHere();
-                focusNameInput = false;
+        // Context menu
+        if (ImGui.beginPopupContextItem("layer_context_" + index)) {
+            if (ImGui.menuItem(FontAwesomeIcons.Edit + " Rename")) {
+                renamingLayerIndex = index;
+                renameBuffer.set(layer.getName());
             }
-
-            // Layer name input - check for Enter key
-            int inputFlags = ImGuiInputTextFlags.EnterReturnsTrue;
-            boolean enterPressed = ImGui.inputText("Name", newLayerName, inputFlags);
-
-            ImGui.textDisabled("Tiles from any tileset can be placed on this layer.");
-
+            if (ImGui.menuItem(FontAwesomeIcons.ArrowUp + " Move Up")) {
+                scene.moveLayerUp(index);
+            }
+            if (ImGui.menuItem(FontAwesomeIcons.ArrowDown + " Move Down")) {
+                scene.moveLayerDown(index);
+            }
             ImGui.separator();
-
-            // Create button or Enter pressed
-            boolean shouldCreate = ImGui.button("Create") || enterPressed;
-            if (shouldCreate) {
-                String name = newLayerName.get().trim();
-                if (!name.isEmpty()) {
-                    scene.addLayer(name);
-                    showAddLayerDialog = false;
-                    ImGui.closeCurrentPopup();
-                }
+            if (ImGui.menuItem(FontAwesomeIcons.Trash + " Delete")) {
+                scene.removeLayer(index);
             }
-
-            ImGui.sameLine();
-
-            if (ImGui.button("Cancel") || ImGui.isKeyPressed(ImGuiKey.Escape)) {
-                showAddLayerDialog = false;
-                ImGui.closeCurrentPopup();
-            }
-
             ImGui.endPopup();
         }
+
+        // Z-index adjustment buttons (inline)
+        ImGui.sameLine(ImGui.getContentRegionAvailX() - 50);
+
+        if (ImGui.smallButton(FontAwesomeIcons.ChevronUp + "##up" + index)) {
+            layer.setZIndex(zIndex + 1);
+            scene.markDirty();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("Increase Z-index (move forward)");
+        }
+
+        ImGui.sameLine();
+
+        if (ImGui.smallButton(FontAwesomeIcons.ChevronDown + "##down" + index)) {
+            layer.setZIndex(zIndex - 1);
+            scene.markDirty();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("Decrease Z-index (move backward)");
+        }
+
+        ImGui.popID();
     }
 
     /**
-     * Renders the rename layer dialog.
+     * Internal class to track layer with original index.
      */
-    private void renderRenameDialog() {
-        if (!showRenameDialog) return;
-
-        ImGui.openPopup("Rename Layer");
-
-        if (ImGui.beginPopupModal("Rename Layer")) {
-            // Focus input on first frame
-            ImGui.setKeyboardFocusHere();
-
-            int inputFlags = ImGuiInputTextFlags.EnterReturnsTrue;
-            boolean enterPressed = ImGui.inputText("Name", renameBuffer, inputFlags);
-
-            boolean shouldRename = ImGui.button("Rename") || enterPressed;
-            if (shouldRename) {
-                String newName = renameBuffer.get().trim();
-                if (!newName.isEmpty() && renameLayerIndex >= 0) {
-                    scene.renameLayer(renameLayerIndex, newName);
-                }
-                showRenameDialog = false;
-                renameLayerIndex = -1;
-                ImGui.closeCurrentPopup();
-            }
-
-            ImGui.sameLine();
-
-            if (ImGui.button("Cancel") || ImGui.isKeyPressed(ImGuiKey.Escape)) {
-                showRenameDialog = false;
-                renameLayerIndex = -1;
-                ImGui.closeCurrentPopup();
-            }
-
-            ImGui.endPopup();
-        }
-    }
+    private record LayerEntry(int originalIndex, TilemapLayer layer) {}
 }

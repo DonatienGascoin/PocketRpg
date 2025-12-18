@@ -7,13 +7,13 @@ import com.pocket.rpg.editor.tileset.TilesetRegistry;
 import com.pocket.rpg.editor.tools.TileBrushTool;
 import com.pocket.rpg.editor.tools.TileFillTool;
 import com.pocket.rpg.editor.tools.TileRectangleTool;
+import com.pocket.rpg.editor.tools.ToolManager;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.SpriteSheet;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiMouseButton;
 import imgui.flag.ImGuiStyleVar;
-import imgui.flag.ImGuiWindowFlags;
 import lombok.Setter;
 
 import java.util.List;
@@ -24,6 +24,7 @@ import java.util.List;
  * VISUAL SELECTION - selects tiles as they appear on screen, not by spritesheet coordinates
  */
 public class TilesetPalettePanel {
+    private final ToolManager toolManager;
 
     @Setter
     private EditorScene scene;
@@ -58,7 +59,8 @@ public class TilesetPalettePanel {
 
     private final CreateSpritesheetDialog createDialog = new CreateSpritesheetDialog();
 
-    public TilesetPalettePanel() {
+    public TilesetPalettePanel(ToolManager toolManager) {
+        this.toolManager = toolManager;
         createDialog.setOnCreated(() -> {
             List<String> names = TilesetRegistry.getInstance().getTilesetNames();
             if (!names.isEmpty()) {
@@ -69,6 +71,14 @@ public class TilesetPalettePanel {
 
     public void render() {
         if (ImGui.begin("Tileset")) {
+            // Handle Escape to clear selection
+            if (ImGui.isWindowFocused() && ImGui.isKeyPressed(imgui.flag.ImGuiKey.Escape)) {
+                clearSelection();
+            }
+
+            // Sync visual selection with brush tool - if tool has no selection, clear ours
+            // syncSelectionWithTool(); // TODO: Does not work, prevent selection !
+
             // Top section - tileset selector (fixed)
             renderTilesetSelector();
             ImGui.separator();
@@ -101,6 +111,20 @@ public class TilesetPalettePanel {
         ImGui.end();
 
         createDialog.render();
+    }
+
+    private void syncSelectionWithTool() {
+        if (brushTool != null && brushTool.getSelection() == null) {
+            // Tool selection was cleared externally (e.g., Escape in viewport)
+            // Clear our visual selection too
+            if (selectionMinDisplayX >= 0) {
+                selectionMinDisplayX = -1;
+                selectionMinDisplayY = -1;
+                selectionMaxDisplayX = -1;
+                selectionMaxDisplayY = -1;
+                // Don't reset cachedDisplayCols - keep it for future selections
+            }
+        }
     }
 
     private void renderTilesetSelector() {
@@ -388,9 +412,14 @@ public class TilesetPalettePanel {
         if (rectangleTool != null) {
             rectangleTool.setSelection(selection);
         }
+
+        var activeTool = toolManager.getActiveTool();
+        if (activeTool != rectangleTool && activeTool != brushTool) {
+            toolManager.setActiveTool(brushTool);
+        }
     }
 
-    private void clearSelection() {
+    public void clearSelection() {
         selectionMinDisplayX = -1;
         selectionMinDisplayY = -1;
         selectionMaxDisplayX = -1;
@@ -399,6 +428,12 @@ public class TilesetPalettePanel {
 
         if (brushTool != null) {
             brushTool.setSelection(null);
+        }
+        if (fillTool != null) {
+            fillTool.setSelection(null);
+        }
+        if (rectangleTool != null) {
+            rectangleTool.setSelection(null);
         }
     }
 

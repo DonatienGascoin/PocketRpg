@@ -1,6 +1,7 @@
 package com.pocket.rpg.editor.panels;
 
 import com.pocket.rpg.collision.CollisionType;
+import com.pocket.rpg.editor.EditorModeManager;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.tools.*;
 import imgui.ImGui;
@@ -23,6 +24,9 @@ public class CollisionPanel {
 
     @Setter
     private EditorScene scene;
+
+    @Setter
+    private EditorModeManager modeManager;
 
     @Setter
     private CollisionBrushTool brushTool;
@@ -72,16 +76,34 @@ public class CollisionPanel {
     private void renderVisibilitySection() {
         ImGui.text("Visibility");
 
-        // Sync with scene
-        if (scene != null) {
-            visibilityToggle.set(scene.isCollisionVisible());
-        }
+        boolean inCollisionMode = modeManager != null && modeManager.isCollisionMode();
 
-        if (ImGui.checkbox("Show Collision Overlay", visibilityToggle)) {
-            if (scene != null) {
-                scene.setCollisionVisible(visibilityToggle.get());
+        // Sync with scene - force visible in collision mode
+        if (scene != null) {
+            if (inCollisionMode) {
+                scene.setCollisionVisible(true);
+                visibilityToggle.set(true);
+            } else {
+                visibilityToggle.set(scene.isCollisionVisible());
             }
         }
+
+//        // Disable toggle in collision mode
+//        if (inCollisionMode) {
+//            ImGui.beginDisabled();
+//        }
+//
+//        if (ImGui.checkbox("Show Collision Overlay", visibilityToggle)) {
+//            if (scene != null) {
+//                scene.setCollisionVisible(visibilityToggle.get());
+//            }
+//        }
+//
+//        if (inCollisionMode) {
+//            ImGui.endDisabled();
+//            ImGui.sameLine();
+//            ImGui.textDisabled("(always on in collision mode)");
+//        }
 
         // Opacity slider
         if (scene != null) {

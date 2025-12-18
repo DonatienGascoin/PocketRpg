@@ -4,7 +4,6 @@ import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.serialization.EditorSceneSerializer;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.serialization.SceneData;
-import lombok.Setter;
 
 import java.util.function.Consumer;
 
@@ -17,15 +16,18 @@ public class EditorSceneController {
 
     private final EditorContext context;
 
-    /**
-     *  Sets a callback for status messages.
-     */
     // Optional message callback for status updates
-    @Setter
     private Consumer<String> messageCallback;
 
     public EditorSceneController(EditorContext context) {
         this.context = context;
+    }
+
+    /**
+     * Sets a callback for status messages.
+     */
+    public void setMessageCallback(Consumer<String> callback) {
+        this.messageCallback = callback;
     }
 
     /**

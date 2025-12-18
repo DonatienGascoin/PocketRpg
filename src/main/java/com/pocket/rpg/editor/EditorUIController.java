@@ -1,15 +1,16 @@
 package com.pocket.rpg.editor;
 
-import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.panels.CollisionPanel;
 import com.pocket.rpg.editor.panels.LayerPanel;
 import com.pocket.rpg.editor.panels.TilesetPalettePanel;
 import com.pocket.rpg.editor.rendering.CollisionOverlayRenderer;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.ui.EditorMenuBar;
+import com.pocket.rpg.editor.ui.SceneViewToolbar;
 import com.pocket.rpg.editor.ui.SceneViewport;
 import com.pocket.rpg.editor.ui.StatusBar;
 import imgui.ImGui;
+import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiDockNodeFlags;
 import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiWindowFlags;
@@ -26,9 +27,12 @@ public class EditorUIController {
     private final EditorContext context;
     private final EditorToolController toolController;
 
-    // Viewport
+    // Viewport and toolbar
     @Getter
     private SceneViewport sceneViewport;
+
+    @Getter
+    private SceneViewToolbar sceneToolbar;
 
     // Panels
     @Getter
@@ -64,6 +68,9 @@ public class EditorUIController {
         sceneViewport.init(context.getWindow().getWidth(), context.getWindow().getHeight());
         sceneViewport.setToolManager(context.getToolManager());
 
+        // Create toolbar
+        sceneToolbar = new SceneViewToolbar(context, toolController);
+
         // Create collision overlay
         collisionOverlay = new CollisionOverlayRenderer();
 
@@ -72,6 +79,9 @@ public class EditorUIController {
 
         // Create menu and status bar
         createMenuAndStatus();
+
+        // Wire toolbar message callback
+        sceneToolbar.setMessageCallback(statusBar::showMessage);
     }
 
     private void createPanels() {
@@ -80,9 +90,10 @@ public class EditorUIController {
         // Layer panel
         layerPanel = new LayerPanel();
         layerPanel.setScene(scene);
+        layerPanel.setModeManager(context.getModeManager());
 
         // Tileset palette
-        tilesetPalette = new TilesetPalettePanel();
+        tilesetPalette = new TilesetPalettePanel(context.getToolManager());
         tilesetPalette.setScene(scene);
         tilesetPalette.setBrushTool(toolController.getBrushTool());
         tilesetPalette.setFillTool(toolController.getFillTool());
@@ -91,6 +102,7 @@ public class EditorUIController {
         // Collision panel
         collisionPanel = new CollisionPanel();
         collisionPanel.setScene(scene);
+        collisionPanel.setModeManager(context.getModeManager());
         collisionPanel.setBrushTool(toolController.getCollisionBrushTool());
         collisionPanel.setEraserTool(toolController.getCollisionEraserTool());
         collisionPanel.setFillTool(toolController.getCollisionFillTool());
@@ -155,11 +167,11 @@ public class EditorUIController {
      * Renders all UI components.
      */
     public void renderUI() {
-        // Menu bar with mode selection
+        // Menu bar with mode selection and scene name
         renderMenuBar();
 
-        // Scene viewport
-        sceneViewport.render();
+        // Scene viewport with integrated toolbar
+        renderSceneViewport();
 
         // Collision overlay
         renderCollisionOverlay();
@@ -167,29 +179,56 @@ public class EditorUIController {
         // Tool overlay
         sceneViewport.renderToolOverlay();
 
-        // Layer panel (always visible)
+        // Layer panel (always visible, but disabled in collision mode)
         layerPanel.render();
 
         // Mode-specific panels
         renderModePanels();
 
-        // Tool panel
-        toolController.renderToolPanel();
-
         // Placeholder panels
         renderPlaceholderPanels();
 
-        // Status bar
+        // Status bar at bottom
         statusBar.render(context.getWindow().getHeight());
     }
 
     /**
-     * Renders the menu bar with mode selection.
+     * Renders the scene viewport window with integrated toolbar.
+     */
+    private void renderSceneViewport() {
+        int flags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
+
+        ImGui.begin("Scene", flags);
+
+        // Render toolbar at top of viewport
+        float viewportWidth = ImGui.getContentRegionAvailX();
+        sceneToolbar.render(viewportWidth);
+
+        ImGui.separator();
+
+        // Update viewport grid visibility from toolbar
+        sceneViewport.setShowGrid(sceneToolbar.isShowGrid());
+
+        // Render viewport content (handles its own tracking)
+        sceneViewport.renderContent();
+
+        ImGui.end();
+    }
+
+    /**
+     * Renders the menu bar with mode selection and scene name.
      */
     private void renderMenuBar() {
         if (ImGui.beginMainMenuBar()) {
             // File menu
             menuBar.renderFileMenu();
+
+            // Edit menu (placeholder)
+            if (ImGui.beginMenu("Edit")) {
+                ImGui.menuItem("Undo", "Ctrl+Z", false, false);
+                ImGui.menuItem("Redo", "Ctrl+Y", false, false);
+                ImGui.endMenu();
+            }
 
             // View menu
             renderViewMenu();
@@ -197,11 +236,22 @@ public class EditorUIController {
             // Mode menu
             renderModeMenu();
 
-            // Mode indicator
-            ImGui.spacing();
-            ImGui.spacing();
-            String modeText = "Mode: " + context.getModeManager().getCurrentMode().getDisplayName().toUpperCase();
-            ImGui.textColored(0.5f, 1.0f, 0.5f, 1.0f, modeText);
+            // Spacer - push scene name to right
+            float availableWidth = ImGui.getContentRegionAvailX();
+            EditorScene scene = context.getCurrentScene();
+            String sceneName = scene != null ? scene.getDisplayName() : "No Scene";
+            float textWidth = ImGui.calcTextSize(sceneName).x;
+
+            // Position scene name on the right side with some padding
+            float padding = 20;
+            ImGui.setCursorPosX(ImGui.getCursorPosX() + availableWidth - textWidth - padding);
+
+            // Scene name with dirty indicator (already included in getDisplayName())
+            if (scene != null && scene.isDirty()) {
+                ImGui.textColored(1.0f, 0.8f, 0.2f, 1.0f, sceneName);
+            } else {
+                ImGui.textDisabled(sceneName);
+            }
 
             ImGui.endMainMenuBar();
         }
@@ -209,15 +259,28 @@ public class EditorUIController {
 
     private void renderViewMenu() {
         if (ImGui.beginMenu("View")) {
-            if (context.getModeManager().isCollisionMode()) {
-                EditorScene scene = context.getCurrentScene();
-                boolean visible = scene != null && scene.isCollisionVisible();
-                if (ImGui.checkbox("Collision Overlay", visible)) {
-                    if (scene != null) {
-                        scene.setCollisionVisible(!visible);
-                    }
+            // Grid toggle
+            boolean showGrid = sceneToolbar.isShowGrid();
+            if (ImGui.checkbox("Show Grid", showGrid)) {
+                sceneToolbar.setShowGrid(!showGrid);
+            }
+
+            // Collision overlay toggle
+            EditorScene scene = context.getCurrentScene();
+            boolean collisionVisible = scene != null && scene.isCollisionVisible();
+            if (ImGui.checkbox("Collision Overlay", collisionVisible)) {
+                if (scene != null) {
+                    scene.setCollisionVisible(!collisionVisible);
                 }
             }
+
+            ImGui.separator();
+
+            // Reset camera
+            if (ImGui.menuItem("Reset Camera", "Home")) {
+                context.getCamera().reset();
+            }
+
             ImGui.endMenu();
         }
     }
@@ -248,7 +311,8 @@ public class EditorUIController {
      */
     private void renderCollisionOverlay() {
         EditorScene scene = context.getCurrentScene();
-        if (scene == null || !scene.isCollisionVisible()) {
+
+        if (scene == null || (!scene.isCollisionVisible() && !context.getModeManager().isCollisionMode())) {
             return;
         }
 

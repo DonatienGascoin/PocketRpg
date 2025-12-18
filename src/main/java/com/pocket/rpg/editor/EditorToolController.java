@@ -8,7 +8,6 @@ import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiKey;
 import lombok.Getter;
-import lombok.Setter;
 
 import java.util.function.Consumer;
 
@@ -23,39 +22,41 @@ public class EditorToolController {
     private final EditorContext context;
 
     // Tilemap tools
-    @Getter
-    private TileBrushTool brushTool;
-    @Getter
-    private TileEraserTool eraserTool;
-    @Getter
-    private TileFillTool fillTool;
-    @Getter
-    private TileRectangleTool rectangleTool;
-    @Getter
-    private TilePickerTool pickerTool;
+    @Getter private TileBrushTool brushTool;
+    @Getter private TileEraserTool eraserTool;
+    @Getter private TileFillTool fillTool;
+    @Getter private TileRectangleTool rectangleTool;
+    @Getter private TilePickerTool pickerTool;
 
     // Collision tools
-    @Getter
-    private CollisionBrushTool collisionBrushTool;
-    @Getter
-    private CollisionEraserTool collisionEraserTool;
-    @Getter
-    private CollisionFillTool collisionFillTool;
-    @Getter
-    private CollisionRectangleTool collisionRectangleTool;
-    @Getter
-    private CollisionPickerTool collisionPickerTool;
+    @Getter private CollisionBrushTool collisionBrushTool;
+    @Getter private CollisionEraserTool collisionEraserTool;
+    @Getter private CollisionFillTool collisionFillTool;
+    @Getter private CollisionRectangleTool collisionRectangleTool;
+    @Getter private CollisionPickerTool collisionPickerTool;
 
     // Reference to collision panel for type display
-    @Setter
     private CollisionPanel collisionPanel;
 
     // Message callback
-    @Setter
     private Consumer<String> messageCallback;
 
     public EditorToolController(EditorContext context) {
         this.context = context;
+    }
+
+    /**
+     * Sets the collision panel reference for tool settings display.
+     */
+    public void setCollisionPanel(CollisionPanel panel) {
+        this.collisionPanel = panel;
+    }
+
+    /**
+     * Sets a callback for status messages.
+     */
+    public void setMessageCallback(Consumer<String> callback) {
+        this.messageCallback = callback;
     }
 
     /**

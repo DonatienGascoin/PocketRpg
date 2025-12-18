@@ -38,6 +38,7 @@ public class SceneViewport {
     private final EditorConfig config;
 
     // Framebuffer for scene rendering
+    @Getter
     private EditorFramebuffer framebuffer;
 
     // Tool system
@@ -65,6 +66,7 @@ public class SceneViewport {
 
     // Grid settings
     @Setter
+    @Getter
     private boolean showGrid = true;
     @Setter
     private boolean showCoordinates = true;
@@ -83,20 +85,12 @@ public class SceneViewport {
     }
 
     /**
-     * Returns the framebuffer for scene rendering.
-     */
-    public EditorFramebuffer getFramebuffer() {
-        return framebuffer;
-    }
-
-    /**
      * Renders the viewport panel and handles input.
      * Call this each frame.
      *
      * @return true if viewport should receive input (is focused)
      */
     public boolean render() {
-        // Window flags: no scrollbar, no collapse
         int flags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
 
         ImGui.begin("Scene", flags);
@@ -114,6 +108,8 @@ public class SceneViewport {
         viewportY = windowPos.y + contentMin.y;
         viewportWidth = contentMax.x - contentMin.x;
         viewportHeight = contentMax.y - contentMin.y;
+
+        updateToolViewportBounds(viewportX, viewportY, viewportWidth, viewportHeight);
 
         // Resize framebuffer if needed
         if (framebuffer != null && viewportWidth > 0 && viewportHeight > 0) {
@@ -159,6 +155,74 @@ public class SceneViewport {
         ImGui.end();
 
         return isFocused;
+    }
+
+    /**
+     * Renders just the viewport content (without ImGui window management).
+     * Used when toolbar is rendered separately in the same window.
+     */
+    public void renderContent() {
+        // Track focus and hover state
+        isFocused = ImGui.isWindowFocused();
+
+        // Get available content region (after toolbar)
+        ImVec2 contentMin = ImGui.getWindowContentRegionMin();
+        ImVec2 contentMax = ImGui.getWindowContentRegionMax();
+        ImVec2 windowPos = ImGui.getWindowPos();
+        ImVec2 cursorPos = ImGui.getCursorPos();
+
+        // Calculate viewport bounds accounting for cursor position (after toolbar)
+        viewportX = windowPos.x + cursorPos.x;
+        viewportY = windowPos.y + cursorPos.y;
+        viewportWidth = contentMax.x - cursorPos.x;
+        viewportHeight = contentMax.y - cursorPos.y;
+
+        // Check if mouse is in viewport area
+        ImVec2 mousePos = ImGui.getMousePos();
+        isHovered = mousePos.x >= viewportX && mousePos.x <= viewportX + viewportWidth &&
+                mousePos.y >= viewportY && mousePos.y <= viewportY + viewportHeight;
+
+        updateToolViewportBounds(viewportX, viewportY, viewportWidth, viewportHeight);
+
+        // Resize framebuffer if needed
+        if (framebuffer != null && viewportWidth > 0 && viewportHeight > 0) {
+            int newWidth = (int) viewportWidth;
+            int newHeight = (int) viewportHeight;
+
+            if (newWidth != framebuffer.getWidth() || newHeight != framebuffer.getHeight()) {
+                framebuffer.resize(newWidth, newHeight);
+                camera.setViewportSize(newWidth, newHeight);
+            }
+        }
+
+        // Display framebuffer texture
+        if (framebuffer != null && framebuffer.isInitialized()) {
+            ImGui.image(
+                    framebuffer.getTextureId(),
+                    viewportWidth,
+                    viewportHeight,
+                    0, 1,
+                    1, 0
+            );
+        }
+
+        // Update hovered tile
+        updateHoveredTile();
+
+        // Draw grid overlay on top
+        if (showGrid) {
+            drawGridOverlay();
+        }
+
+        // Draw coordinate info
+        if (showCoordinates && isHovered) {
+            drawCoordinateInfo();
+        }
+
+        // Handle input
+        if (isHovered || isDraggingCamera) {
+            handleInput();
+        }
     }
 
     /**
@@ -209,7 +273,6 @@ public class SceneViewport {
 
         int majorInterval = 5;
 
-        // Grid colors
         int minorColor = ImGui.colorConvertFloat4ToU32(0.3f, 0.3f, 0.3f, 0.3f);
         int majorColor = ImGui.colorConvertFloat4ToU32(0.4f, 0.4f, 0.4f, 0.5f);
 
@@ -219,10 +282,15 @@ public class SceneViewport {
             Vector2f screenPos = camera.worldToScreen(worldX, 0);
             float screenX = viewportX + screenPos.x;
 
-            boolean isMajor = Math.abs(Math.round(worldX / spacing) % majorInterval) == 0;
-            int color = isMajor ? majorColor : minorColor;
+            boolean isMajor = Math.abs(worldX) < 0.001f ||
+                    Math.abs(worldX % (spacing * majorInterval)) < 0.001f;
 
-            drawList.addLine(screenX, viewportY, screenX, viewportY + viewportHeight, color);
+            drawList.addLine(
+                    screenX, viewportY,
+                    screenX, viewportY + viewportHeight,
+                    isMajor ? majorColor : minorColor,
+                    isMajor ? 1.5f : 1.0f
+            );
         }
 
         // Draw horizontal lines
@@ -231,10 +299,15 @@ public class SceneViewport {
             Vector2f screenPos = camera.worldToScreen(0, worldY);
             float screenY = viewportY + screenPos.y;
 
-            boolean isMajor = Math.abs(Math.round(worldY / spacing) % majorInterval) == 0;
-            int color = isMajor ? majorColor : minorColor;
+            boolean isMajor = Math.abs(worldY) < 0.001f ||
+                    Math.abs(worldY % (spacing * majorInterval)) < 0.001f;
 
-            drawList.addLine(viewportX, screenY, viewportX + viewportWidth, screenY, color);
+            drawList.addLine(
+                    viewportX, screenY,
+                    viewportX + viewportWidth, screenY,
+                    isMajor ? majorColor : minorColor,
+                    isMajor ? 1.5f : 1.0f
+            );
         }
 
         // Draw origin crosshair with colored axes
@@ -261,19 +334,20 @@ public class SceneViewport {
     }
 
     /**
-     * Draws coordinate info at the bottom of the viewport.
+     * Draws coordinate information at the bottom of the viewport.
      */
     private void drawCoordinateInfo() {
         ImVec2 mousePos = ImGui.getMousePos();
         float localX = mousePos.x - viewportX;
         float localY = mousePos.y - viewportY;
+
         Vector3f worldPos = camera.screenToWorld(localX, localY);
 
         var drawList = ImGui.getWindowDrawList();
-
-        // Background bar
         float barHeight = 20;
         float barY = viewportY + viewportHeight - barHeight;
+
+        // Background
         drawList.addRectFilled(
                 viewportX, barY,
                 viewportX + viewportWidth, viewportY + viewportHeight,
@@ -282,83 +356,137 @@ public class SceneViewport {
 
         // Text
         String toolName = (toolManager != null && toolManager.getActiveTool() != null)
-                ? toolManager.getActiveTool().getName() : "None";
+                ? toolManager.getActiveTool().getName()
+                : "No Tool";
 
-        String coordText = String.format("Tool: %s | World: (%.2f, %.2f) | Tile: (%d, %d) | Zoom: %.0f%%",
-                toolName, worldPos.x, worldPos.y, hoveredTileX, hoveredTileY, camera.getZoom() * 100);
+        String coordInfo = String.format("%s | World: (%.2f, %.2f) | Tile: (%d, %d) | Zoom: %.0f%%",
+                toolName,
+                worldPos.x, worldPos.y,
+                hoveredTileX, hoveredTileY,
+                camera.getZoom() * 100);
 
-        drawList.addText(
-                viewportX + 5, barY + 3,
-                ImGui.colorConvertFloat4ToU32(0.8f, 0.8f, 0.8f, 1.0f),
-                coordText
-        );
+        drawList.addText(viewportX + 5, barY + 3,
+                ImGui.colorConvertFloat4ToU32(0.9f, 0.9f, 0.9f, 1.0f),
+                coordInfo);
     }
 
     /**
-     * Handles viewport input.
+     * Handles viewport input: camera controls and tool routing.
      */
     private void handleInput() {
-        float deltaTime = ImGui.getIO().getDeltaTime();
+        handleCameraInput();
+        handleToolInput();
 
+        handleKeyboardShortcuts();
+    }
+
+    private void handleKeyboardShortcuts() {
+        if (!isFocused) return;
+
+        // Escape - clear tool selection
+        if (ImGui.isKeyPressed(ImGuiKey.Escape)) {
+            if (toolManager != null) {
+                EditorTool tool = toolManager.getActiveTool();
+                if (tool instanceof TileBrushTool brushTool) {
+                    brushTool.setSelection(null);
+                } else if (tool instanceof TileFillTool fillTool) {
+                    fillTool.setSelection(null);
+                } else if (tool instanceof TileRectangleTool rectTool) {
+                    rectTool.setSelection(null);
+                }
+            }
+        }
+    }
+
+    /**
+     * Handles camera pan and zoom.
+     */
+    private void handleCameraInput() {
+        // WASD/Arrow key panning (only when focused)
         ImVec2 mousePos = ImGui.getMousePos();
         float screenX = mousePos.x - viewportX;
         float screenY = mousePos.y - viewportY;
+        if (isFocused && !ImGui.getIO().getWantTextInput()) {
+            float dt = ImGui.getIO().getDeltaTime();
 
-        // =====================================================================
-        // CAMERA CONTROLS
-        // =====================================================================
 
-        // Keyboard pan (WASD / Arrow keys)
-        float moveX = 0, moveY = 0;
+            // Keyboard pan (WASD / Arrow keys)
+            float moveX = 0, moveY = 0;
 
-        if (ImGui.isKeyDown(ImGuiKey.W) || ImGui.isKeyDown(ImGuiKey.UpArrow)) {
-            moveY = 1;
-        }
-        if (ImGui.isKeyDown(ImGuiKey.S) || ImGui.isKeyDown(ImGuiKey.DownArrow)) {
-            moveY = -1;
-        }
-        if (ImGui.isKeyDown(ImGuiKey.A) || ImGui.isKeyDown(ImGuiKey.LeftArrow)) {
-            moveX = -1;
-        }
-        if (ImGui.isKeyDown(ImGuiKey.D) || ImGui.isKeyDown(ImGuiKey.RightArrow)) {
-            moveX = 1;
+            // WASD - always handle for camera movement
+            if (ImGui.isKeyDown(ImGuiKey.W)) {
+                moveY = 1;
+            }
+            if (ImGui.isKeyDown(ImGuiKey.S)) {
+                moveY = -1;
+            }
+            if (ImGui.isKeyDown(ImGuiKey.A)) {
+                moveX = -1;
+            }
+            if (ImGui.isKeyDown(ImGuiKey.D)) {
+                moveX = 1;
+            }
+
+            // Arrow keys - only if ImGui nav isn't using them
+            if (!ImGui.getIO().getWantCaptureKeyboard()) {
+                if (ImGui.isKeyDown(ImGuiKey.UpArrow)) {
+                    moveY = 1;
+                }
+                if (ImGui.isKeyDown(ImGuiKey.DownArrow)) {
+                    moveY = -1;
+                }
+                if (ImGui.isKeyDown(ImGuiKey.LeftArrow)) {
+                    moveX = -1;
+                }
+                if (ImGui.isKeyDown(ImGuiKey.RightArrow)) {
+                    moveX = 1;
+                }
+            }
+
+            if (moveX != 0 || moveY != 0) {
+                camera.updateKeyboardPan(moveX, moveY, dt);
+            }
         }
 
-        if (moveX != 0 || moveY != 0) {
-            camera.updateKeyboardPan(moveX, moveY, deltaTime);
-        }
-
-        // Home key - reset camera
-        if (ImGui.isKeyPressed(ImGuiKey.Home)) {
-            camera.reset();
-        }
-
-        // Middle mouse drag to pan camera
-        if (ImGui.isMouseClicked(ImGuiMouseButton.Middle)) {
+        // Middle mouse drag for panning
+        if (ImGui.isMouseClicked(ImGuiMouseButton.Middle) && isHovered) {
             isDraggingCamera = true;
-            camera.startPan(screenX, screenY);
         }
-
         if (ImGui.isMouseReleased(ImGuiMouseButton.Middle)) {
             isDraggingCamera = false;
-            camera.endPan();
         }
 
-        if (isDraggingCamera && ImGui.isMouseDown(ImGuiMouseButton.Middle)) {
-            camera.updatePan(screenX, screenY);
+        if (isDraggingCamera) {
+            ImVec2 delta = ImGui.getMouseDragDelta(ImGuiMouseButton.Middle);
+            if (delta.x != 0 || delta.y != 0) {
+                float worldDeltaX = -delta.x / (camera.getZoom() * config.getPixelsPerUnit());
+                float worldDeltaY = delta.y / (camera.getZoom() * config.getPixelsPerUnit());
+                camera.updatePan(worldDeltaX, worldDeltaY);
+                ImGui.resetMouseDragDelta(ImGuiMouseButton.Middle);
+            }
         }
 
-        // Scroll wheel to zoom
-        float scroll = ImGui.getIO().getMouseWheel();
-        if (scroll != 0 && isHovered) {
-            camera.zoomToward(screenX, screenY, scroll * 1.0f);
+        // Scroll wheel zoom
+        if (isHovered) {
+            float scroll = ImGui.getIO().getMouseWheel();
+            if (scroll != 0) {
+                camera.zoomToward(screenX, screenY, scroll);
+            }
+        }
+    }
+
+    /**
+     * Routes input to the active tool.
+     */
+    private void handleToolInput() {
+        if (toolManager == null) return;
+
+        // Don't handle tool input if popup/combo is open
+        if (ImGui.isPopupOpen("", imgui.flag.ImGuiPopupFlags.AnyPopupId)) {
+            return;
         }
 
-        // =====================================================================
-        // TOOL INPUT (only when not camera dragging)
-        // =====================================================================
-
-        if (toolManager != null && !isDraggingCamera && isHovered) {
+        if (!isDraggingCamera && isHovered) {
             // Left mouse button
             if (ImGui.isMouseClicked(ImGuiMouseButton.Left)) {
                 toolManager.handleMouseDown(hoveredTileX, hoveredTileY, 0);
@@ -375,111 +503,113 @@ public class SceneViewport {
                 toolManager.handleMouseUp(hoveredTileX, hoveredTileY, 1);
             }
 
+            if (ImGui.isItemHovered()) { // TODO: Is tool button hovered ?
+
+            }
+
             // Mouse move (for drag and hover)
             toolManager.handleMouseMove(hoveredTileX, hoveredTileY);
         }
     }
 
     /**
-     * Renders tool overlays (call after scene rendering).
-     * Updates viewport bounds for the active tool before rendering.
+     * Renders tool overlay after the main viewport render.
      */
     public void renderToolOverlay() {
-        if (toolManager == null || !isHovered) {
+        if (toolManager == null) return;
+
+        // Don't render overlay if popup/combo is open
+        if (ImGui.isPopupOpen("", imgui.flag.ImGuiPopupFlags.AnyPopupId)) {
             return;
         }
 
-        var activeTool = toolManager.getActiveTool();
-        if (activeTool == null) {
-            return;
-        }
+        EditorTool activeTool = toolManager.getActiveTool();
+        if (activeTool == null) return;
 
-        // Update viewport bounds for the active tool using the interface
+        // Update viewport bounds for tools that need it
         if (activeTool instanceof ViewportAwareTool vat) {
             vat.setViewportBounds(viewportX, viewportY, viewportWidth, viewportHeight);
         } else {
-            // Fallback for tools not implementing the interface
-            setToolViewportBoundsLegacy(activeTool);
+            // Legacy support
+            updateToolViewportBounds(viewportX, viewportY, viewportWidth, viewportHeight);
         }
 
-        toolManager.renderOverlay(camera, hoveredTileX, hoveredTileY);
+        activeTool.renderOverlay(camera, hoveredTileX, hoveredTileY);
     }
 
     /**
-     * Legacy method for setting viewport bounds on tools that don't implement ViewportAwareTool.
-     * This will be removed once all tools implement the interface.
+     * Updates viewport bounds for all viewport-aware tools.
      */
-    private void setToolViewportBoundsLegacy(EditorTool tool) {
-        // Tilemap tools
-        if (tool instanceof TileBrushTool t) {
-            t.setViewportX(viewportX);
-            t.setViewportY(viewportY);
-            t.setViewportWidth(viewportWidth);
-            t.setViewportHeight(viewportHeight);
-        } else if (tool instanceof TileEraserTool t) {
-            t.setViewportX(viewportX);
-            t.setViewportY(viewportY);
-            t.setViewportWidth(viewportWidth);
-            t.setViewportHeight(viewportHeight);
-        } else if (tool instanceof TileFillTool t) {
-            t.setViewportX(viewportX);
-            t.setViewportY(viewportY);
-            t.setViewportWidth(viewportWidth);
-            t.setViewportHeight(viewportHeight);
-        } else if (tool instanceof TileRectangleTool t) {
-            t.setViewportX(viewportX);
-            t.setViewportY(viewportY);
-            t.setViewportWidth(viewportWidth);
-            t.setViewportHeight(viewportHeight);
-        } else if (tool instanceof TilePickerTool t) {
-            t.setViewportX(viewportX);
-            t.setViewportY(viewportY);
-            t.setViewportWidth(viewportWidth);
-            t.setViewportHeight(viewportHeight);
+    private void updateToolViewportBounds(float x, float y, float w, float h) {
+        if (toolManager == null) return;
+
+        for (EditorTool tool : toolManager.getTools()) {
+            // Tilemap tools
+            if (tool instanceof TileBrushTool t) {
+                t.setViewportX(viewportX);
+                t.setViewportY(viewportY);
+                t.setViewportWidth(viewportWidth);
+                t.setViewportHeight(viewportHeight);
+            } else if (tool instanceof TileEraserTool t) {
+                t.setViewportX(viewportX);
+                t.setViewportY(viewportY);
+                t.setViewportWidth(viewportWidth);
+                t.setViewportHeight(viewportHeight);
+            } else if (tool instanceof TileFillTool t) {
+                t.setViewportX(viewportX);
+                t.setViewportY(viewportY);
+                t.setViewportWidth(viewportWidth);
+                t.setViewportHeight(viewportHeight);
+            } else if (tool instanceof TileRectangleTool t) {
+                t.setViewportX(viewportX);
+                t.setViewportY(viewportY);
+                t.setViewportWidth(viewportWidth);
+                t.setViewportHeight(viewportHeight);
+            } else if (tool instanceof TilePickerTool t) {
+                t.setViewportX(viewportX);
+                t.setViewportY(viewportY);
+                t.setViewportWidth(viewportWidth);
+                t.setViewportHeight(viewportHeight);
+            }
+            // Collision tools
+            else if (tool instanceof CollisionBrushTool t) {
+                t.setViewportX(viewportX);
+                t.setViewportY(viewportY);
+                t.setViewportWidth(viewportWidth);
+                t.setViewportHeight(viewportHeight);
+            } else if (tool instanceof CollisionEraserTool t) {
+                t.setViewportX(viewportX);
+                t.setViewportY(viewportY);
+                t.setViewportWidth(viewportWidth);
+                t.setViewportHeight(viewportHeight);
+            } else if (tool instanceof CollisionFillTool t) {
+                t.setViewportX(viewportX);
+                t.setViewportY(viewportY);
+                t.setViewportWidth(viewportWidth);
+                t.setViewportHeight(viewportHeight);
+            } else if (tool instanceof CollisionRectangleTool t) {
+                t.setViewportX(viewportX);
+                t.setViewportY(viewportY);
+                t.setViewportWidth(viewportWidth);
+                t.setViewportHeight(viewportHeight);
+            } else if (tool instanceof CollisionPickerTool t) {
+                t.setViewportX(viewportX);
+                t.setViewportY(viewportY);
+                t.setViewportWidth(viewportWidth);
+                t.setViewportHeight(viewportHeight);
+            }
         }
-        // Collision tools
-        else if (tool instanceof CollisionBrushTool t) {
-            t.setViewportX(viewportX);
-            t.setViewportY(viewportY);
-            t.setViewportWidth(viewportWidth);
-            t.setViewportHeight(viewportHeight);
-        } else if (tool instanceof CollisionEraserTool t) {
-            t.setViewportX(viewportX);
-            t.setViewportY(viewportY);
-            t.setViewportWidth(viewportWidth);
-            t.setViewportHeight(viewportHeight);
-        } else if (tool instanceof CollisionFillTool t) {
-            t.setViewportX(viewportX);
-            t.setViewportY(viewportY);
-            t.setViewportWidth(viewportWidth);
-            t.setViewportHeight(viewportHeight);
-        } else if (tool instanceof CollisionRectangleTool t) {
-            t.setViewportX(viewportX);
-            t.setViewportY(viewportY);
-            t.setViewportWidth(viewportWidth);
-            t.setViewportHeight(viewportHeight);
-        } else if (tool instanceof CollisionPickerTool t) {
-            t.setViewportX(viewportX);
-            t.setViewportY(viewportY);
-            t.setViewportWidth(viewportWidth);
-            t.setViewportHeight(viewportHeight);
-        }
-    }
-
-    // ========================================================================
-    // GETTERS / SETTERS
-    // ========================================================================
-
-    public boolean isShowGrid() {
-        return showGrid;
-    }
-
-    public boolean isShowCoordinates() {
-        return showCoordinates;
     }
 
     /**
-     * Destroys viewport resources.
+     * Returns viewport bounds as array [x, y, width, height].
+     */
+    public float[] getViewportBounds() {
+        return new float[]{viewportX, viewportY, viewportWidth, viewportHeight};
+    }
+
+    /**
+     * Cleans up resources.
      */
     public void destroy() {
         if (framebuffer != null) {

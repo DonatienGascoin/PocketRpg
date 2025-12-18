@@ -62,7 +62,7 @@ public class EditorScene {
     private final CollisionMap collisionMap;
 
     /**
-     * Whether collision overlay is visible in editor.
+     * Whether collision overlay is visible in editor. Overridden to True if the Collision map is being updated
      */
     @Getter
     @Setter

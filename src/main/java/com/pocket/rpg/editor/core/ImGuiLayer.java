@@ -83,7 +83,6 @@ public class ImGuiLayer {
         final short[] glyphRanges = rangesBuilder.buildRanges();
         io.getFonts().addFontFromMemoryTTF(loadFromResources("editor/fa-regular-400.ttf"), 14, fontConfig, glyphRanges); // font awesome
         io.getFonts().addFontFromMemoryTTF(loadFromResources("editor/fa-solid-900.ttf"), 14, fontConfig, glyphRanges); // font awesome
-        io.getFonts().addFontDefault();
         io.getFonts().build();
 
         fontConfig.destroy();

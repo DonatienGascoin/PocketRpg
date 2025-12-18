@@ -14,6 +14,8 @@ import com.pocket.rpg.serialization.SceneData;
  * - EditorScene uses TilemapLayer wrappers for editor features
  * - SceneData uses GameObjectData with TilemapRenderer components for runtime
  * - This serializer bridges the two representations
+ * <p>
+ * Phase 4 Part 2: Added collision map serialization support
  */
 public class EditorSceneSerializer {
 
@@ -22,6 +24,7 @@ public class EditorSceneSerializer {
      */
     public static SceneData toSceneData(EditorScene editorScene) {
         SceneData data = new SceneData(editorScene.getName());
+        data.setVersion(2); // Version 2 includes collision
 
         // Set default camera (editor camera state not saved yet)
         data.setCamera(new SceneData.CameraData(0, 0, 0, 15f));
@@ -32,10 +35,10 @@ public class EditorSceneSerializer {
             data.addGameObject(goData);
         }
 
-        // TODO: Convert collision map (Phase 4+)
-        // if (editorScene.getCollisionMap() != null) {
-        //     data.setCollision(convertCollisionMap(editorScene.getCollisionMap()));
-        // }
+        // Convert collision map (Phase 4)
+        if (editorScene.getCollisionMap() != null) {
+            data.setCollision(editorScene.getCollisionMap().toSparseFormat());
+        }
 
         // TODO: Convert entities (Phase 5)
         // TODO: Convert triggers (Phase 7)
@@ -58,10 +61,10 @@ public class EditorSceneSerializer {
             }
         }
 
-        // TODO: Load collision map (Phase 4+)
-        // if (data.getCollision() != null) {
-        //     scene.setCollisionMap(convertToCollisionMap(data.getCollision()));
-        // }
+        // Load collision map (Phase 4)
+        if (data.getCollision() != null) {
+            scene.getCollisionMap().fromSparseFormat(data.getCollision());
+        }
 
         // TODO: Load entities (Phase 5)
         // TODO: Load triggers (Phase 7)

@@ -7,8 +7,10 @@ import com.pocket.rpg.editor.core.EditorConfig;
 import com.pocket.rpg.editor.core.EditorWindow;
 import com.pocket.rpg.editor.core.FileDialogs;
 import com.pocket.rpg.editor.core.ImGuiLayer;
+import com.pocket.rpg.editor.panels.CollisionPanel;
 import com.pocket.rpg.editor.panels.LayerPanel;
 import com.pocket.rpg.editor.panels.TilesetPalettePanel;
+import com.pocket.rpg.editor.rendering.CollisionOverlayRenderer;
 import com.pocket.rpg.editor.rendering.EditorFramebuffer;
 import com.pocket.rpg.editor.rendering.EditorSceneRenderer;
 import com.pocket.rpg.editor.scene.EditorScene;
@@ -21,27 +23,23 @@ import com.pocket.rpg.editor.ui.StatusBar;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.resources.ErrorMode;
 import com.pocket.rpg.serialization.SceneData;
-import com.pocket.rpg.serialization.Serializer;
 import imgui.ImGui;
 import imgui.flag.*;
-import imgui.type.ImInt;
+import imgui.type.ImBoolean;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-
-import static org.lwjgl.opengl.GL33.GL_COLOR_BUFFER_BIT;
-import static org.lwjgl.opengl.GL33.GL_DEPTH_BUFFER_BIT;
-import static org.lwjgl.opengl.GL33.glClear;
-import static org.lwjgl.opengl.GL33.glClearColor;
+import static org.lwjgl.opengl.GL33.*;
 
 /**
  * Main application class for the PocketRPG Scene Editor.
  * <p>
- * Phase 3c Implementation:
- * - TileFillTool for flood fill (2000 tile limit)
- * - TileRectangleTool for rectangle fill
- * - TilePickerTool for eyedropper (single + pattern picking)
- * - Tool shortcuts: B, E, F, R, I
+ * Phase 4 Part 2: Added collision editing tools and UI
+ * - Collision brush, eraser, fill, rectangle, picker tools
+ * - Collision overlay renderer
+ * - Collision panel for type selection
+ * - Editor mode switching (Tilemap/Collision)
+ * <p>
+ * FIXED: All collision tools properly wired, z-level synchronized,
+ * picker callback connected, visibility tied to scene state.
  */
 public class EditorApplication {
 
@@ -57,14 +55,24 @@ public class EditorApplication {
     // Scene and rendering
     private EditorScene currentScene;
     private EditorSceneRenderer sceneRenderer;
+    private CollisionOverlayRenderer collisionOverlay;
 
     // Tools
     private ToolManager toolManager;
+
+    // Tilemap tools
     private TileBrushTool brushTool;
     private TileEraserTool eraserTool;
     private TileFillTool fillTool;
     private TileRectangleTool rectangleTool;
     private TilePickerTool pickerTool;
+
+    // Collision tools
+    private CollisionBrushTool collisionBrushTool;
+    private CollisionEraserTool collisionEraserTool;
+    private CollisionFillTool collisionFillTool;
+    private CollisionRectangleTool collisionRectangleTool;
+    private CollisionPickerTool collisionPickerTool;
 
     // UI Components
     private EditorMenuBar menuBar;
@@ -72,15 +80,25 @@ public class EditorApplication {
     private StatusBar statusBar;
     private LayerPanel layerPanel;
     private TilesetPalettePanel tilesetPalette;
+    private CollisionPanel collisionPanel;
+
+    // Editor mode
+    private enum EditorMode {
+        TILEMAP,
+        COLLISION
+    }
+    private EditorMode currentMode = EditorMode.TILEMAP;
+
+    // UI state - visibility now driven by scene state
+    private final ImBoolean showCollisionPanel = new ImBoolean(false);
 
     // State
     private boolean running = true;
-
     private boolean firstFrame = true;
 
     public static void main(String[] args) {
         System.out.println("===========================================");
-        System.out.println("    PocketRPG Scene Editor - Phase 3c");
+        System.out.println("    PocketRPG Scene Editor - Phase 4");
         System.out.println("===========================================");
 
         EditorApplication app = new EditorApplication();
@@ -101,14 +119,13 @@ public class EditorApplication {
 
     private void init() {
         System.out.println("Initializing Scene Editor...");
+
         // Initialize Assets system
         Assets.initialize();
         Assets.configure()
                 .setAssetRoot("gameData/assets/")
                 .setErrorMode(ErrorMode.THROW_EXCEPTION)
                 .apply();
-        // Initialize serialization
-        Serializer.init(Assets.getContext());
 
         // Load configuration
         config = EditorConfig.createDefault();
@@ -123,7 +140,6 @@ public class EditorApplication {
         // Initialize ImGui
         imGuiLayer = new ImGuiLayer();
         imGuiLayer.init(window.getWindowHandle(), true);
-
 
         // Initialize TilesetRegistry and load all .spritesheet files
         TilesetRegistry.initialize();
@@ -145,6 +161,9 @@ public class EditorApplication {
         sceneRenderer = new EditorSceneRenderer(framebuffer, renderingConfig);
         sceneRenderer.init();
 
+        // Create collision overlay renderer
+        collisionOverlay = new CollisionOverlayRenderer();
+
         // Create tools
         createTools();
 
@@ -157,25 +176,37 @@ public class EditorApplication {
     private void createTools() {
         toolManager = new ToolManager();
 
-        // Brush tool
+        // Tilemap tools
         brushTool = new TileBrushTool(currentScene);
         toolManager.registerTool(brushTool);
 
-        // Eraser tool
         eraserTool = new TileEraserTool(currentScene);
         toolManager.registerTool(eraserTool);
 
-        // Fill tool
         fillTool = new TileFillTool(currentScene);
         toolManager.registerTool(fillTool);
 
-        // Rectangle tool
         rectangleTool = new TileRectangleTool(currentScene);
         toolManager.registerTool(rectangleTool);
 
-        // Picker tool
         pickerTool = new TilePickerTool(currentScene);
         toolManager.registerTool(pickerTool);
+
+        // Collision tools
+        collisionBrushTool = new CollisionBrushTool(currentScene);
+        toolManager.registerTool(collisionBrushTool);
+
+        collisionEraserTool = new CollisionEraserTool(currentScene);
+        toolManager.registerTool(collisionEraserTool);
+
+        collisionFillTool = new CollisionFillTool(currentScene);
+        toolManager.registerTool(collisionFillTool);
+
+        collisionRectangleTool = new CollisionRectangleTool(currentScene);
+        toolManager.registerTool(collisionRectangleTool);
+
+        collisionPickerTool = new CollisionPickerTool(currentScene);
+        toolManager.registerTool(collisionPickerTool);
 
         // Set viewport's tool manager
         sceneViewport.setToolManager(toolManager);
@@ -207,7 +238,16 @@ public class EditorApplication {
         tilesetPalette.setFillTool(fillTool);
         tilesetPalette.setRectangleTool(rectangleTool);
 
-        // Setup picker callback to update brush tool and sync to other tools
+        // Collision panel - wire ALL collision tools
+        collisionPanel = new CollisionPanel();
+        collisionPanel.setScene(currentScene);
+        collisionPanel.setBrushTool(collisionBrushTool);
+        collisionPanel.setEraserTool(collisionEraserTool);  // FIX: was missing
+        collisionPanel.setFillTool(collisionFillTool);
+        collisionPanel.setRectangleTool(collisionRectangleTool);
+        collisionPanel.setPickerTool(collisionPickerTool);  // FIX: was missing
+
+        // Setup tile picker callback
         pickerTool.setOnTilesPicked(selection -> {
             brushTool.setSelection(selection);
             fillTool.setSelection(selection);
@@ -215,6 +255,13 @@ public class EditorApplication {
             tilesetPalette.setExternalSelection(selection);
             toolManager.setActiveTool(brushTool);
             statusBar.showMessage("Picked tiles - switched to Brush");
+        });
+
+        // Setup collision picker callback - FIX: wire to CollisionPanel
+        collisionPickerTool.setOnCollisionPicked(type -> {
+            collisionPanel.setSelectedType(type);
+            toolManager.setActiveTool(collisionBrushTool);  // Switch to brush after picking
+            statusBar.showMessage("Picked collision: " + type.getDisplayName() + " - switched to Brush");
         });
     }
 
@@ -260,6 +307,13 @@ public class EditorApplication {
         if (toolManager != null) {
             toolManager.update(deltaTime);
         }
+
+        // FIX: Update collision overlay from scene state (not separate ImBoolean)
+        if (currentScene != null) {
+            collisionOverlay.setVisible(currentScene.isCollisionVisible());
+            collisionOverlay.setOpacity(currentScene.getCollisionOpacity());
+            collisionOverlay.setZLevel(currentScene.getCollisionZLevel());
+        }
     }
 
     private void render() {
@@ -298,47 +352,129 @@ public class EditorApplication {
      * Process tool switching shortcuts.
      */
     private void processToolShortcuts() {
-        if (!sceneViewport.isFocused()) return;
+        if (ImGui.getIO().getWantTextInput()) return;
 
-        // Tool shortcuts
-        if (ImGui.isKeyPressed(ImGuiKey.B)) {
-            toolManager.setActiveTool("Brush");
-            statusBar.showMessage("Brush Tool");
+        // Mode switching
+        if (ImGui.isKeyPressed(ImGuiKey.M)) {
+            switchToTilemapMode();
         }
-        if (ImGui.isKeyPressed(ImGuiKey.E)) {
-            toolManager.setActiveTool("Eraser");
-            statusBar.showMessage("Eraser Tool");
-        }
-        if (ImGui.isKeyPressed(ImGuiKey.F)) {
-            toolManager.setActiveTool("Fill");
-            statusBar.showMessage("Fill Tool");
-        }
-        if (ImGui.isKeyPressed(ImGuiKey.R)) {
-            toolManager.setActiveTool("Rectangle");
-            statusBar.showMessage("Rectangle Tool");
-        }
-        if (ImGui.isKeyPressed(ImGuiKey.I)) {
-            toolManager.setActiveTool("Picker");
-            statusBar.showMessage("Picker Tool");
+        if (ImGui.isKeyPressed(ImGuiKey.N)) {
+            switchToCollisionMode();
         }
 
-        // Brush size adjustment with - and = (+ without shift)
-        if (ImGui.isKeyPressed(ImGuiKey.Minus) || ImGui.isKeyPressed(ImGuiKey.KeypadSubtract)) {
-            int size = brushTool.getBrushSize();
-            if (size > 1) {
-                brushTool.setBrushSize(size - 1);
-                eraserTool.setEraserSize(size - 1);
-                statusBar.showMessage("Brush Size: " + (size - 1));
+        // Tool shortcuts - depend on current mode
+        if (currentMode == EditorMode.TILEMAP) {
+            // Tilemap tools (existing shortcuts)
+            if (ImGui.isKeyPressed(ImGuiKey.B)) {
+                toolManager.setActiveTool("Brush");
+                statusBar.showMessage("Tile Brush");
+            }
+            if (ImGui.isKeyPressed(ImGuiKey.E)) {
+                toolManager.setActiveTool("Eraser");
+                statusBar.showMessage("Tile Eraser");
+            }
+            if (ImGui.isKeyPressed(ImGuiKey.F)) {
+                toolManager.setActiveTool("Fill");
+                statusBar.showMessage("Tile Fill");
+            }
+            if (ImGui.isKeyPressed(ImGuiKey.R)) {
+                toolManager.setActiveTool("Rectangle");
+                statusBar.showMessage("Tile Rectangle");
+            }
+            if (ImGui.isKeyPressed(ImGuiKey.I)) {
+                toolManager.setActiveTool("Picker");
+                statusBar.showMessage("Tile Picker");
+            }
+
+            // Brush size adjustment
+            if (ImGui.isKeyPressed(ImGuiKey.Minus) || ImGui.isKeyPressed(ImGuiKey.KeypadSubtract)) {
+                int size = brushTool.getBrushSize();
+                if (size > 1) {
+                    brushTool.setBrushSize(size - 1);
+                    eraserTool.setEraserSize(size - 1);
+                    statusBar.showMessage("Brush Size: " + (size - 1));
+                }
+            }
+            if (ImGui.isKeyPressed(ImGuiKey.Equal) || ImGui.isKeyPressed(ImGuiKey.KeypadAdd)) {
+                int size = brushTool.getBrushSize();
+                if (size < 10) {
+                    brushTool.setBrushSize(size + 1);
+                    eraserTool.setEraserSize(size + 1);
+                    statusBar.showMessage("Brush Size: " + (size + 1));
+                }
+            }
+        } else if (currentMode == EditorMode.COLLISION) {
+            // Collision tools (new shortcuts)
+            if (ImGui.isKeyPressed(ImGuiKey.C)) {
+                toolManager.setActiveTool("Collision Brush");
+                statusBar.showMessage("Collision Brush");
+            }
+            if (ImGui.isKeyPressed(ImGuiKey.X)) {
+                toolManager.setActiveTool("Collision Eraser");
+                statusBar.showMessage("Collision Eraser");
+            }
+            if (ImGui.isKeyPressed(ImGuiKey.G)) {
+                toolManager.setActiveTool("Collision Fill");
+                statusBar.showMessage("Collision Fill");
+            }
+            if (ImGui.isKeyPressed(ImGuiKey.H)) {
+                toolManager.setActiveTool("Collision Rectangle");
+                statusBar.showMessage("Collision Rectangle");
+            }
+            if (ImGui.isKeyPressed(ImGuiKey.V)) {
+                toolManager.setActiveTool("Collision Picker");
+                statusBar.showMessage("Collision Picker");
+            }
+
+            // Brush size adjustment (collision)
+            if (ImGui.isKeyPressed(ImGuiKey.Minus) || ImGui.isKeyPressed(ImGuiKey.KeypadSubtract)) {
+                int size = collisionBrushTool.getBrushSize();
+                if (size > 1) {
+                    collisionBrushTool.setBrushSize(size - 1);
+                    collisionEraserTool.setEraserSize(size - 1);
+                    statusBar.showMessage("Collision Brush Size: " + (size - 1));
+                }
+            }
+            if (ImGui.isKeyPressed(ImGuiKey.Equal) || ImGui.isKeyPressed(ImGuiKey.KeypadAdd)) {
+                int size = collisionBrushTool.getBrushSize();
+                if (size < 10) {
+                    collisionBrushTool.setBrushSize(size + 1);
+                    collisionEraserTool.setEraserSize(size + 1);
+                    statusBar.showMessage("Collision Brush Size: " + (size + 1));
+                }
+            }
+
+            // Z-level shortcuts ([ and ])
+            if (ImGui.isKeyPressed(ImGuiKey.LeftBracket)) {
+                int z = currentScene.getCollisionZLevel();
+                if (z > 0) {
+                    currentScene.setCollisionZLevel(z - 1);
+                    syncToolZLevels();
+                    statusBar.showMessage("Z-Level: " + (z - 1));
+                }
+            }
+            if (ImGui.isKeyPressed(ImGuiKey.RightBracket)) {
+                int z = currentScene.getCollisionZLevel();
+                if (z < 3) {
+                    currentScene.setCollisionZLevel(z + 1);
+                    syncToolZLevels();
+                    statusBar.showMessage("Z-Level: " + (z + 1));
+                }
             }
         }
-        if (ImGui.isKeyPressed(ImGuiKey.Equal) || ImGui.isKeyPressed(ImGuiKey.KeypadAdd)) {
-            int size = brushTool.getBrushSize();
-            if (size < 10) {
-                brushTool.setBrushSize(size + 1);
-                eraserTool.setEraserSize(size + 1);
-                statusBar.showMessage("Brush Size: " + (size + 1));
-            }
-        }
+    }
+
+    /**
+     * Synchronizes Z-level from scene to all collision tools.
+     */
+    private void syncToolZLevels() {
+        if (currentScene == null) return;
+        int z = currentScene.getCollisionZLevel();
+        collisionBrushTool.setZLevel(z);
+        collisionEraserTool.setZLevel(z);
+        collisionFillTool.setZLevel(z);
+        collisionRectangleTool.setZLevel(z);
+        collisionPickerTool.setZLevel(z);
     }
 
     private void setupDocking() {
@@ -356,119 +492,31 @@ public class EditorApplication {
         ImGui.setNextWindowPos(0, 0);
         ImGui.setNextWindowSize(window.getWidth(), window.getHeight());
 
-        ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, 0);
-        ImGui.pushStyleVar(ImGuiStyleVar.WindowBorderSize, 0);
-        ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 0, 0);
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowBorderSize, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 0.0f, 0.0f);
 
-        ImGui.begin("##DockSpace", windowFlags);
+        ImGui.begin("DockSpace", windowFlags);
         ImGui.popStyleVar(3);
 
-        // Create dockspace
-        int dockspaceId = ImGui.getID("EditorDockSpace");
+        // DockSpace
+        int dockspaceId = ImGui.getID("MainDockSpace");
         ImGui.dockSpace(dockspaceId, 0, 0, ImGuiDockNodeFlags.PassthruCentralNode);
 
-        if (firstFrame && !Files.exists(Path.of("editor/editor_layout.ini"))) {
-            buildDefaultLayout(dockspaceId);
-        }
-        firstFrame = false;
-
         ImGui.end();
-
-
     }
-
-    private void buildDefaultLayout(int dockspaceId) {
-        System.out.println("No layout found, creating default");
-        imgui.internal.ImGui.dockBuilderRemoveNode(dockspaceId);
-        imgui.internal.ImGui.dockBuilderAddNode(
-                dockspaceId,
-                imgui.internal.flag.ImGuiDockNodeFlags.DockSpace
-        );
-        imgui.internal.ImGui.dockBuilderSetNodeSize(
-                dockspaceId,
-                window.getWidth(),
-                window.getHeight()
-        );
-
-        // ─────────────────────────────
-        // Split Left | Center+Right
-        // ─────────────────────────────
-        ImInt leftId = new ImInt();
-        ImInt centerRightId = new ImInt();
-
-        imgui.internal.ImGui.dockBuilderSplitNode(
-                dockspaceId,
-                ImGuiDir.Left,
-                0.20f,
-                leftId,
-                centerRightId
-        );
-
-        // ─────────────────────────────
-        // Split Center | Right
-        // ─────────────────────────────
-        ImInt rightId = new ImInt();
-        ImInt centerId = new ImInt();
-
-        imgui.internal.ImGui.dockBuilderSplitNode(
-                centerRightId.get(),
-                ImGuiDir.Right,
-                0.35f,
-                rightId,
-                centerId
-        );
-
-        // ─────────────────────────────
-        // LEFT: Hierarchy (top) / Inspector (bottom)
-        // ─────────────────────────────
-        ImInt leftTopId = new ImInt();
-        ImInt leftBottomId = new ImInt();
-
-        imgui.internal.ImGui.dockBuilderSplitNode(
-                leftId.get(),
-                ImGuiDir.Up,
-                0.5f,
-                leftTopId,
-                leftBottomId
-        );
-
-        // ─────────────────────────────
-        // RIGHT: Layers (top 25%) / Tileset (bottom)
-        // ─────────────────────────────
-        ImInt rightTopId = new ImInt();
-        ImInt rightBottomId = new ImInt();
-
-        imgui.internal.ImGui.dockBuilderSplitNode(
-                rightId.get(),
-                ImGuiDir.Up,
-                0.25f,
-                rightTopId,
-                rightBottomId
-        );
-
-        // ─────────────────────────────
-        // Dock windows
-        // ─────────────────────────────
-        imgui.internal.ImGui.dockBuilderDockWindow("Hierarchy", leftTopId.get());
-        imgui.internal.ImGui.dockBuilderDockWindow("Inspector", leftBottomId.get());
-
-        imgui.internal.ImGui.dockBuilderDockWindow("Scene", centerId.get());
-
-        imgui.internal.ImGui.dockBuilderDockWindow("Layers", rightTopId.get());
-        imgui.internal.ImGui.dockBuilderDockWindow("Tileset", rightBottomId.get());
-
-        // Tools intentionally NOT docked
-
-        imgui.internal.ImGui.dockBuilderFinish(dockspaceId);
-    }
-
 
     private void renderUI() {
-        // Menu bar
-        menuBar.render();
+        // Menu bar (with mode selection)
+        renderMenuBar();
 
         // Scene viewport (central panel)
         sceneViewport.render();
+
+        // Render collision overlay if visible
+        if (currentScene != null && currentScene.isCollisionVisible()) {
+            renderCollisionOverlay();
+        }
 
         // Tool overlays (rendered after scene, uses ImGui draw lists)
         sceneViewport.renderToolOverlay();
@@ -476,10 +524,14 @@ public class EditorApplication {
         // Layer panel
         layerPanel.render();
 
-        // Tileset palette
-        tilesetPalette.render();
+        // Mode-specific panels
+        if (currentMode == EditorMode.TILEMAP) {
+            tilesetPalette.render();
+        } else if (currentMode == EditorMode.COLLISION) {
+            collisionPanel.render();
+        }
 
-        // Tool settings panel
+        // Tool settings panel with buttons
         renderToolPanel();
 
         // Placeholder panels
@@ -490,16 +542,97 @@ public class EditorApplication {
     }
 
     /**
-     * Renders the tool settings panel.
+     * Renders the menu bar with mode selection.
+     */
+    private void renderMenuBar() {
+        if (ImGui.beginMainMenuBar()) {
+            // File menu (delegate to EditorMenuBar)
+            menuBar.renderFileMenu();
+
+            // View menu
+            if (ImGui.beginMenu("View")) {
+                if (currentMode == EditorMode.COLLISION) {
+                    // Sync checkbox with scene state
+                    boolean visible = currentScene != null && currentScene.isCollisionVisible();
+                    if (ImGui.checkbox("Collision Overlay", visible)) {
+                        if (currentScene != null) {
+                            currentScene.setCollisionVisible(!visible);
+                        }
+                    }
+                }
+                ImGui.endMenu();
+            }
+
+            // Mode menu
+            if (ImGui.beginMenu("Mode")) {
+                boolean isTilemap = currentMode == EditorMode.TILEMAP;
+                boolean isCollision = currentMode == EditorMode.COLLISION;
+
+                if (ImGui.menuItem("Tilemap Mode", "M", isTilemap)) {
+                    switchToTilemapMode();
+                }
+                if (ImGui.menuItem("Collision Mode", "N", isCollision)) {
+                    switchToCollisionMode();
+                }
+                ImGui.endMenu();
+            }
+
+            // Show current mode indicator in menu bar
+            ImGui.spacing();
+            ImGui.spacing();
+            String modeText = "Mode: " + (currentMode == EditorMode.TILEMAP ? "TILEMAP" : "COLLISION");
+            ImGui.textColored(0.5f, 1.0f, 0.5f, 1.0f, modeText);
+
+            ImGui.endMainMenuBar();
+        }
+    }
+
+    /**
+     * Renders collision overlay on the viewport.
+     */
+    private void renderCollisionOverlay() {
+        if (currentScene == null || currentScene.getCollisionMap() == null) {
+            return;
+        }
+
+        collisionOverlay.setViewportBounds(
+                sceneViewport.getViewportX(),
+                sceneViewport.getViewportY(),
+                sceneViewport.getViewportWidth(),
+                sceneViewport.getViewportHeight()
+        );
+
+        collisionOverlay.render(currentScene.getCollisionMap(), camera);
+    }
+
+    /**
+     * Renders the tool settings panel with tool buttons.
      */
     private void renderToolPanel() {
         if (ImGui.begin("Tools")) {
-            // Tool buttons
+            // Mode indicator
+            ImGui.textColored(0.5f, 1.0f, 0.5f, 1.0f,
+                    currentMode == EditorMode.TILEMAP ? "TILEMAP MODE" : "COLLISION MODE");
+            ImGui.separator();
+
+            // Tool buttons - filter by current mode
             for (var tool : toolManager.getTools()) {
+                boolean isTilemapTool = tool.getName().startsWith("Tile") || tool.getName().equals("Brush") ||
+                        tool.getName().equals("Eraser") || tool.getName().equals("Fill") ||
+                        tool.getName().equals("Rectangle") || tool.getName().equals("Picker");
+                boolean isCollisionTool = tool.getName().startsWith("Collision");
+
+                // Skip tools not matching current mode
+                if (currentMode == EditorMode.TILEMAP && isCollisionTool) continue;
+                if (currentMode == EditorMode.COLLISION && isTilemapTool) continue;
+
                 boolean isActive = toolManager.getActiveTool() == tool;
 
+                // Highlight active tool with different color
                 if (isActive) {
-                    ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, 0.3f, 0.6f, 1.0f, 1.0f);
+                    ImGui.pushStyleColor(ImGuiCol.Button, 0.3f, 0.6f, 1.0f, 1.0f);
+                    ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.4f, 0.7f, 1.0f, 1.0f);
+                    ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.2f, 0.5f, 0.9f, 1.0f);
                 }
 
                 String label = tool.getName();
@@ -508,53 +641,57 @@ public class EditorApplication {
                     label += " (" + shortcut + ")";
                 }
 
-                if (ImGui.button(label, 100, 0)) {
+                if (ImGui.button(label, 150, 0)) {
                     toolManager.setActiveTool(tool);
                 }
 
                 if (isActive) {
-                    ImGui.popStyleColor();
+                    ImGui.popStyleColor(3);
                 }
             }
 
             ImGui.separator();
 
             // Tool-specific settings
-            if (toolManager.getActiveTool() == brushTool) {
-                ImGui.text("Brush Settings");
+            renderToolSettings();
+        }
+        ImGui.end();
+    }
 
-                // Show selection info
+    /**
+     * Renders settings for the active tool.
+     */
+    private void renderToolSettings() {
+        EditorTool activeTool = toolManager.getActiveTool();
+
+        if (currentMode == EditorMode.TILEMAP) {
+            if (activeTool == brushTool) {
+                ImGui.text("Brush Settings");
                 var selection = brushTool.getSelection();
                 if (selection == null) {
                     ImGui.textDisabled("No tile selected");
                 } else if (selection.isPattern()) {
                     ImGui.text("Pattern: " + selection.getWidth() + "x" + selection.getHeight());
-                    ImGui.textDisabled("Click to stamp");
                 } else {
                     ImGui.text("Tile: " + selection.getFirstTileIndex());
-
-                    // Brush size only for single tile
                     int[] size = {brushTool.getBrushSize()};
                     if (ImGui.sliderInt("Size", size, 1, 10)) {
                         brushTool.setBrushSize(size[0]);
                     }
                 }
-            } else if (toolManager.getActiveTool() == eraserTool) {
+            } else if (activeTool == eraserTool) {
                 ImGui.text("Eraser Settings");
-
                 int[] size = {eraserTool.getEraserSize()};
                 if (ImGui.sliderInt("Size", size, 1, 10)) {
                     eraserTool.setEraserSize(size[0]);
                 }
-            } else if (toolManager.getActiveTool() == fillTool) {
+            } else if (activeTool == fillTool) {
                 ImGui.text("Fill Settings");
                 ImGui.textDisabled("Click to flood fill");
-                ImGui.textDisabled("Max: 2000 tiles");
-            } else if (toolManager.getActiveTool() == rectangleTool) {
+            } else if (activeTool == rectangleTool) {
                 ImGui.text("Rectangle Settings");
-                ImGui.textDisabled("Drag to define area");
-                ImGui.textDisabled("Release to fill");
-            } else if (toolManager.getActiveTool() == pickerTool) {
+                ImGui.textDisabled("Drag to fill area");
+            } else if (activeTool == pickerTool) {
                 ImGui.text("Picker Settings");
                 ImGui.textDisabled("Click: Pick tile");
                 ImGui.textDisabled("Shift+Drag: Pick pattern");
@@ -562,14 +699,47 @@ public class EditorApplication {
 
             ImGui.separator();
             ImGui.textDisabled("Shortcuts:");
-            ImGui.textDisabled("-/+ - Brush size");
-            ImGui.textDisabled("B - Brush");
-            ImGui.textDisabled("E - Eraser");
-            ImGui.textDisabled("F - Fill");
-            ImGui.textDisabled("R - Rectangle");
+            ImGui.textDisabled("M - Switch to Tilemap");
+            ImGui.textDisabled("B - Brush, E - Eraser");
+            ImGui.textDisabled("F - Fill, R - Rectangle");
             ImGui.textDisabled("I - Picker");
+        } else if (currentMode == EditorMode.COLLISION) {
+            if (activeTool == collisionBrushTool) {
+                ImGui.text("Collision Brush");
+                ImGui.text("Type: " + collisionPanel.getSelectedType().getDisplayName());
+                int[] size = {collisionBrushTool.getBrushSize()};
+                if (ImGui.sliderInt("Size", size, 1, 10)) {
+                    collisionBrushTool.setBrushSize(size[0]);
+                }
+            } else if (activeTool == collisionEraserTool) {
+                ImGui.text("Collision Eraser");
+                int[] size = {collisionEraserTool.getEraserSize()};
+                if (ImGui.sliderInt("Size", size, 1, 10)) {
+                    collisionEraserTool.setEraserSize(size[0]);
+                }
+            } else if (activeTool == collisionFillTool) {
+                ImGui.text("Collision Fill");
+                ImGui.textDisabled("Click to flood fill");
+                ImGui.textDisabled("Max: 2000 tiles");
+            } else if (activeTool == collisionRectangleTool) {
+                ImGui.text("Collision Rectangle");
+                ImGui.textDisabled("Drag to fill area");
+            } else if (activeTool == collisionPickerTool) {
+                ImGui.text("Collision Picker");
+                ImGui.textDisabled("Click to pick type");
+            }
+
+            ImGui.separator();
+            ImGui.text("Z-Level: " + (currentScene != null ? currentScene.getCollisionZLevel() : 0));
+            ImGui.textDisabled("[ / ] to change");
+
+            ImGui.separator();
+            ImGui.textDisabled("Shortcuts:");
+            ImGui.textDisabled("N - Switch to Collision");
+            ImGui.textDisabled("C - Brush, X - Eraser");
+            ImGui.textDisabled("G - Fill, H - Rectangle");
+            ImGui.textDisabled("V - Picker");
         }
-        ImGui.end();
     }
 
     private void renderPlaceholderPanels() {
@@ -582,6 +752,7 @@ public class EditorApplication {
             if (currentScene != null) {
                 ImGui.text("Scene: " + currentScene.getName());
                 ImGui.text("Layers: " + currentScene.getLayerCount());
+                ImGui.text("Collision Tiles: " + currentScene.getCollisionMap().getTileCount());
             }
         }
         ImGui.end();
@@ -594,6 +765,26 @@ public class EditorApplication {
             ImGui.textDisabled("Select an object to inspect");
         }
         ImGui.end();
+    }
+
+    // ========================================================================
+    // MODE SWITCHING
+    // ========================================================================
+
+    private void switchToTilemapMode() {
+        currentMode = EditorMode.TILEMAP;
+        toolManager.setActiveTool(brushTool);
+        showCollisionPanel.set(false);
+        statusBar.showMessage("Switched to Tilemap Mode");
+    }
+
+    private void switchToCollisionMode() {
+        currentMode = EditorMode.COLLISION;
+        toolManager.setActiveTool(collisionBrushTool);
+        showCollisionPanel.set(true);
+        // Sync tool z-levels when entering collision mode
+        syncToolZLevels();
+        statusBar.showMessage("Switched to Collision Mode");
     }
 
     // ========================================================================
@@ -616,20 +807,13 @@ public class EditorApplication {
         statusBar.showMessage("New scene created");
     }
 
-    /**
-     * Called by the menuBar. It already handles dirty scene and empty path
-     *
-     * @param path Scene path to open
-     */
     private void openScene(String path) {
         System.out.println("Opening scene: " + path);
-
-        // TODO: Implement scene loading in Phase 2
-        // For now, just create a new scene with the filename
 
         if (currentScene != null) {
             currentScene.destroy();
         }
+
         SceneData scene = Assets.load(path);
         currentScene = EditorSceneSerializer.fromSceneData(scene, path);
 
@@ -687,15 +871,26 @@ public class EditorApplication {
         statusBar.setCurrentScene(currentScene);
         layerPanel.setScene(currentScene);
         tilesetPalette.setScene(currentScene);
+        collisionPanel.setScene(currentScene);
 
-        // Update tools with new scene (don't recreate them)
+        // Update tilemap tools
         brushTool.setScene(currentScene);
         eraserTool.setScene(currentScene);
         fillTool.setScene(currentScene);
         rectangleTool.setScene(currentScene);
         pickerTool.setScene(currentScene);
 
+        // Update collision tools
+        collisionBrushTool.setScene(currentScene);
+        collisionEraserTool.setScene(currentScene);
+        collisionFillTool.setScene(currentScene);
+        collisionRectangleTool.setScene(currentScene);
+        collisionPickerTool.setScene(currentScene);
+
         tilesetPalette.setBrushTool(brushTool);
+
+        // Sync z-levels from new scene
+        syncToolZLevels();
     }
 
     private void requestExit() {

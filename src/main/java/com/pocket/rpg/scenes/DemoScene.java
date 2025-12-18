@@ -1,5 +1,7 @@
 package com.pocket.rpg.scenes;
 
+import com.pocket.rpg.collision.CollisionMap;
+import com.pocket.rpg.collision.CollisionType;
 import com.pocket.rpg.components.*;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.levels.VillageLevelGenerator;
@@ -47,10 +49,11 @@ public class DemoScene extends Scene {
 
     @Override
     public void onLoad() {
-        font = new Font("E:\\Projects\\PocketRpg\\gameData\\assets\\fonts\\zelda.ttf", 18);
+        font = new Font("gameData\\assets\\fonts\\zelda.ttf", 18);
 //        createLevelOld();
 //        createTilemapLevel();
         createVillage();
+        setupCollision();  // NEW: Setup collision data
         createPlayer();
         createHUD();
     }
@@ -58,6 +61,110 @@ public class DemoScene extends Scene {
     @Override
     public void onUnload() {
         font.destroy();
+    }
+
+    /**
+     * Sets up collision data for testing the collision system.
+     * Creates various collision types around the player spawn area.
+     */
+    private void setupCollision() {
+        CollisionMap collisionMap = getCollisionMap();
+
+        // =====================================================================
+        // TEST AREA 1: Solid walls (around spawn at 5,5)
+        // Creates a small enclosure the player must navigate around
+        // =====================================================================
+
+        // Vertical wall to the right of spawn (x=8, y=3 to y=7)
+        for (int y = 3; y <= 7; y++) {
+            collisionMap.set(8, y, CollisionType.SOLID);
+        }
+
+        // Horizontal wall above spawn (x=3 to x=7, y=8)
+        for (int x = 3; x <= 7; x++) {
+            collisionMap.set(x, 8, CollisionType.SOLID);
+        }
+
+        // =====================================================================
+        // TEST AREA 2: Ledges (south of spawn)
+        // Player can jump DOWN but not climb UP
+        // =====================================================================
+
+        // Row of down-ledges at y=2 (player can jump from y=3 to y=2)
+        for (int x = 3; x <= 7; x++) {
+            collisionMap.set(x, 2, CollisionType.LEDGE_DOWN);
+        }
+
+        // =====================================================================
+        // TEST AREA 3: Ice patch (west of spawn)
+        // Player slides until hitting non-ice or wall
+        // =====================================================================
+
+        // Ice corridor from x=-2 to x=2, y=5
+        for (int x = -2; x <= 2; x++) {
+            collisionMap.set(x, 5, CollisionType.ICE);
+        }
+        // Wall at end of ice corridor to stop sliding
+        collisionMap.set(-3, 5, CollisionType.SOLID);
+
+        // =====================================================================
+        // TEST AREA 4: Water (blocks without swim ability)
+        // =====================================================================
+
+        // Small pond at x=10-12, y=5-7
+        for (int x = 10; x <= 12; x++) {
+            for (int y = 5; y <= 7; y++) {
+                collisionMap.set(x, y, CollisionType.WATER);
+            }
+        }
+
+        // =====================================================================
+        // TEST AREA 5: Tall grass (encounter zone)
+        // =====================================================================
+
+        // Grass patch at x=5-7, y=10-12
+        for (int x = 5; x <= 7; x++) {
+            for (int y = 10; y <= 12; y++) {
+                collisionMap.set(x, y, CollisionType.TALL_GRASS);
+            }
+        }
+
+        // =====================================================================
+        // TEST AREA 6: Sand (slow movement)
+        // =====================================================================
+
+        // Sand strip at y=0, x=0 to x=5
+        for (int x = 0; x <= 5; x++) {
+            collisionMap.set(x, 0, CollisionType.SAND);
+        }
+
+        // =====================================================================
+        // TEST AREA 7: Directional ledges
+        // =====================================================================
+
+        // Right ledge - can only jump right
+        collisionMap.set(12, 10, CollisionType.LEDGE_RIGHT);
+
+        // Left ledge - can only jump left
+        collisionMap.set(14, 10, CollisionType.LEDGE_LEFT);
+
+        // Up ledge - can only jump up
+        collisionMap.set(13, 8, CollisionType.LEDGE_UP);
+
+        // =====================================================================
+        // TEST AREA 8: Interaction triggers (for future use)
+        // =====================================================================
+
+        // Warp tile
+        collisionMap.set(0, 10, CollisionType.WARP);
+
+        // Door tile
+        collisionMap.set(15, 5, CollisionType.DOOR);
+
+        // Script trigger
+        collisionMap.set(15, 6, CollisionType.SCRIPT_TRIGGER);
+
+        System.out.println("[DemoScene] Collision setup complete: " + collisionMap.getTileCount() + " collision tiles");
     }
 
     private void createTilemapLevel() {
@@ -185,12 +292,21 @@ public class DemoScene extends Scene {
         player.addComponent(spriteRenderer);
         player.addComponent(new PlayerCameraFollow());
 
-        GridMovement movement = player.addComponent(new GridMovement(tilemap));
+        GridMovement movement = player.addComponent(new GridMovement(1));
         movement.setGridPosition(5, 5);
-        movement.setMoveSpeed(4f); // 4 tiles/second
+        movement.setBaseSpeed(4f); // 4 tiles/second
         player.addComponent(new PlayerMovement(movement));
 
         addGameObject(player);
+
+        System.out.println("[DemoScene] Player created at grid position (5, 5)");
+        System.out.println("[DemoScene] Test areas:");
+        System.out.println("  - SOLID walls: x=8 (y=3-7), y=8 (x=3-7)");
+        System.out.println("  - LEDGE_DOWN: y=2 (x=3-7) - jump down only");
+        System.out.println("  - ICE: y=5 (x=-2 to 2) - slide left until wall");
+        System.out.println("  - WATER: x=10-12, y=5-7 - blocks movement");
+        System.out.println("  - TALL_GRASS: x=5-7, y=10-12 - encounter zone");
+        System.out.println("  - SAND: y=0 (x=0-5) - slow movement");
     }
 
     private void createHUD() {

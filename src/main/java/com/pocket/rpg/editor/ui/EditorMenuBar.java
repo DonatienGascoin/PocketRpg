@@ -58,7 +58,7 @@ public class EditorMenuBar {
         return menuActive;
     }
 
-    private void renderFileMenu() {
+    public void renderFileMenu() {
         if (ImGui.beginMenu("File")) {
             // New Scene (Ctrl+N)
             if (ImGui.menuItem("New Scene", "Ctrl+N")) {

@@ -1,15 +1,23 @@
 package com.pocket.rpg.components;
 
+import com.pocket.rpg.collision.Direction;
+import com.pocket.rpg.collision.MovementModifier;
 import com.pocket.rpg.input.Input;
 import com.pocket.rpg.input.KeyCode;
-import com.pocket.rpg.transitions.SceneTransition;
-import org.joml.Vector2f;
-import org.joml.Vector3f;
+import lombok.Getter;
 
+/**
+ * Handles player input and translates it to GridMovement commands.
+ * <p>
+ * Reads keyboard input and calls GridMovement.move() in the appropriate direction.
+ * Also handles debug output for collision testing.
+ */
 public class PlayerMovement extends Component {
 
-    private final float speed = 15f;
     private final GridMovement movement;
+
+    @Getter
+    private boolean debugOutput = true;
 
     public PlayerMovement(GridMovement movement) {
         this.movement = movement;
@@ -17,34 +25,47 @@ public class PlayerMovement extends Component {
 
     @Override
     public void update(float deltaTime) {
-        gridMovement(deltaTime);
-//        freeMovement(deltaTime);
+        if (movement == null) return;
 
-        if (Input.getKeyDown(KeyCode.SPACE)) {
-            if (getGameObject().getScene().getName().equals("Demo")) {
-                SceneTransition.loadScene("Demo2");
-            } else {
-                SceneTransition.loadScene("Demo");
+        // Don't accept input while moving (grid-based movement)
+        if (movement.isMoving()) {
+            return;
+        }
+
+        // Check directional input
+        Direction direction = null;
+
+        if (Input.getKey(KeyCode.W) || Input.getKey(KeyCode.UP)) {
+            direction = Direction.UP;
+        } else if (Input.getKey(KeyCode.S) || Input.getKey(KeyCode.DOWN)) {
+            direction = Direction.DOWN;
+        } else if (Input.getKey(KeyCode.A) || Input.getKey(KeyCode.LEFT)) {
+            direction = Direction.LEFT;
+        } else if (Input.getKey(KeyCode.D) || Input.getKey(KeyCode.RIGHT)) {
+            direction = Direction.RIGHT;
+        }
+
+        if (direction != null) {
+            boolean moved = movement.move(direction);
+
+            if (debugOutput) {
+                if (moved) {
+                    MovementModifier modifier = movement.getCurrentModifier();
+                    String modStr = modifier != MovementModifier.NORMAL ? " [" + modifier + "]" : "";
+                    System.out.printf("[PlayerMovement] Moving %s to (%d, %d)%s%n",
+                            direction, movement.getGridX(), movement.getGridY(), modStr);
+                } else {
+                    System.out.printf("[PlayerMovement] Blocked %s from (%d, %d)%n",
+                            direction, movement.getGridX(), movement.getGridY());
+                }
             }
         }
     }
 
-    private void gridMovement(float deltaTime) {
-        if (!movement.isMoving()) {
-            if (Input.getKey(KeyCode.W)) movement.move(GridMovement.Direction.UP);
-            if (Input.getKey(KeyCode.S)) movement.move(GridMovement.Direction.DOWN);
-            if (Input.getKey(KeyCode.A)) movement.move(GridMovement.Direction.LEFT);
-            if (Input.getKey(KeyCode.D)) movement.move(GridMovement.Direction.RIGHT);
-        }
-    }
-
-    private void freeMovement(float deltaTime) {
-        var hor = Input.getAxisRaw("Horizontal");
-        var ver = Input.getAxisRaw("Vertical");
-
-        if (hor != 0 || ver != 0) {
-//            getTransform().setPosition(getTransform().getPosition().add(speed * hor * deltaTime, speed * ver * deltaTime, 0f));
-            getTransform().setPosition(getTransform().getPosition().add(new Vector3f(hor, ver, 0).normalize().mul(speed * deltaTime)));
-        }
+    /**
+     * Enables or disables debug output.
+     */
+    public void setDebugOutput(boolean enabled) {
+        this.debugOutput = enabled;
     }
 }

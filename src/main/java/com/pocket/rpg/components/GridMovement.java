@@ -1,5 +1,9 @@
 package com.pocket.rpg.components;
 
+import com.pocket.rpg.collision.CollisionSystem;
+import com.pocket.rpg.collision.Direction;
+import com.pocket.rpg.collision.MoveResult;
+import com.pocket.rpg.collision.MovementModifier;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector3f;
@@ -10,22 +14,26 @@ import org.joml.Vector3f;
  *
  * <h2>Usage</h2>
  * <pre>
- * GridMovement movement = player.addComponent(new GridMovement(tilemap));
+ * GridMovement movement = player.addComponent(new GridMovement());
  * movement.setGridPosition(5, 5); // Starting position
  *
  * // In your input handler:
  * if (Input.isKeyPressed(Key.UP)) {
- *     movement.move(0, 1);
+ *     movement.move(Direction.UP);
  * }
  * </pre>
  *
  * <h2>Collision</h2>
- * Checks tile collision before starting movement. Solid tiles block movement.
- * Ledge tiles allow jumping in their specified direction.
+ * Uses CollisionSystem to check tile collision before starting movement.
+ * Respects solid tiles, ledges, water, ice, and other terrain types.
  *
- * <h2>Jumping</h2>
- * When moving onto a ledge tile in the ledge's direction, a jump is triggered.
- * Jumps have a parabolic visual arc but move exactly one tile.
+ * <h2>Movement Modifiers</h2>
+ * Terrain can modify movement speed and behavior:
+ * - JUMP: Ledge jumps (slower, parabolic arc)
+ * - SLOW: Sand/mud (60% speed)
+ * - SLIDE: Ice (continues sliding until stopped)
+ * - SWIM: Water (70% speed)
+ * - ENCOUNTER: Tall grass (triggers random encounters)
  */
 public class GridMovement extends Component {
 
@@ -34,27 +42,12 @@ public class GridMovement extends Component {
     // ========================================================================
 
     /**
-     * Reference to tilemap for collision checking and tile size.
-     */
-    @Getter
-    @Setter
-    private TilemapRenderer tilemap;
-
-    /**
-     * Movement speed in tiles per second.
+     * Base movement speed in tiles per second.
      * Default 4.0 means crossing one tile takes 0.25 seconds.
      */
     @Getter
     @Setter
-    private float moveSpeed = 4f;
-
-    /**
-     * Jump speed multiplier. Jumps take longer than normal steps.
-     * Default 0.5 means jumps take twice as long.
-     */
-    @Getter
-    @Setter
-    private float jumpSpeedMultiplier = 0.5f;
+    private float baseSpeed = 4f;
 
     /**
      * Maximum height of jump arc in world units.
@@ -63,6 +56,21 @@ public class GridMovement extends Component {
     @Getter
     @Setter
     private float jumpHeight = 0.5f;
+
+    /**
+     * Tile size in world units (default 1.0).
+     * Used to convert between tile coordinates and world positions.
+     */
+    @Getter
+    @Setter
+    private float tileSize = 1.0f;
+
+    /**
+     * Z-level for collision checking (default 0 = ground level).
+     */
+    @Getter
+    @Setter
+    private int zLevel = 0;
 
     // ========================================================================
     // STATE
@@ -87,10 +95,16 @@ public class GridMovement extends Component {
     private boolean isMoving = false;
 
     /**
-     * True while performing a jump.
+     * True while sliding on ice (will auto-continue after movement completes).
      */
     @Getter
-    private boolean isJumping = false;
+    private boolean isSliding = false;
+
+    /**
+     * Current movement modifier (affects speed/behavior).
+     */
+    @Getter
+    private MovementModifier currentModifier = MovementModifier.NORMAL;
 
     /**
      * Current facing direction.
@@ -104,57 +118,44 @@ public class GridMovement extends Component {
     private float moveProgress = 0f;
 
     // ========================================================================
-    // DIRECTION ENUM
-    // ========================================================================
-
-    /**
-     * Movement/facing directions.
-     */
-    public enum Direction {
-        UP(0, 1),
-        DOWN(0, -1),
-        LEFT(-1, 0),
-        RIGHT(1, 0);
-
-        public final int dx;
-        public final int dy;
-
-        Direction(int dx, int dy) {
-            this.dx = dx;
-            this.dy = dy;
-        }
-
-        /**
-         * Converts to LedgeDirection for collision checking.
-         */
-        public TilemapRenderer.LedgeDirection toLedgeDirection() {
-            return switch (this) {
-                case UP -> TilemapRenderer.LedgeDirection.UP;
-                case DOWN -> TilemapRenderer.LedgeDirection.DOWN;
-                case LEFT -> TilemapRenderer.LedgeDirection.LEFT;
-                case RIGHT -> TilemapRenderer.LedgeDirection.RIGHT;
-            };
-        }
-    }
-
-    // ========================================================================
     // CONSTRUCTORS
     // ========================================================================
 
     /**
-     * Creates GridMovement without tilemap reference.
-     * Set tilemap later via {@link #setTilemap(TilemapRenderer)}.
+     * Creates GridMovement with default settings.
      */
     public GridMovement() {
     }
 
     /**
-     * Creates GridMovement with tilemap reference.
+     * Creates GridMovement with specified tile size.
      *
-     * @param tilemap The tilemap for collision and tile size
+     * @param tileSize Size of each tile in world units
      */
-    public GridMovement(TilemapRenderer tilemap) {
-        this.tilemap = tilemap;
+    public GridMovement(float tileSize) {
+        this.tileSize = tileSize;
+    }
+
+    // ========================================================================
+    // LIFECYCLE
+    // ========================================================================
+
+    @Override
+    protected void onStart() {
+        // Register with entity occupancy map
+        CollisionSystem collisionSystem = getCollisionSystem();
+        if (collisionSystem != null) {
+            collisionSystem.registerEntity(gameObject, gridX, gridY, zLevel);
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        // Unregister from entity occupancy map
+        CollisionSystem collisionSystem = getCollisionSystem();
+        if (collisionSystem != null) {
+            collisionSystem.unregisterEntity(gameObject, gridX, gridY, zLevel);
+        }
     }
 
     // ========================================================================
@@ -163,13 +164,21 @@ public class GridMovement extends Component {
 
     /**
      * Sets the grid position and snaps transform to that tile.
+     * Use for teleportation or initial placement.
      *
      * @param gridX Tile X coordinate
      * @param gridY Tile Y coordinate
      */
     public void setGridPosition(int gridX, int gridY) {
+        // Update entity occupancy
+        CollisionSystem collisionSystem = getCollisionSystem();
+        if (collisionSystem != null) {
+            collisionSystem.moveEntity(gameObject, this.gridX, this.gridY, zLevel, gridX, gridY, zLevel);
+        }
+
         this.gridX = gridX;
         this.gridY = gridY;
+        isSliding = false; // Cancel any slide in progress
         snapToGrid();
     }
 
@@ -179,22 +188,11 @@ public class GridMovement extends Component {
     private void snapToGrid() {
         if (gameObject == null) return;
 
-        float tileSize = getTileSize();
         float worldX = gridX * tileSize + tileSize * 0.5f; // Center of tile
         float worldY = gridY * tileSize + tileSize * 0.5f;
 
         Vector3f pos = gameObject.getTransform().getPosition();
         gameObject.getTransform().setPosition(worldX, worldY, pos.z);
-    }
-
-    /**
-     * Gets the tile size from tilemap, or defaults to 1.0.
-     */
-    private float getTileSize() {
-        if (tilemap != null) {
-            return tilemap.getTileSize();
-        }
-        return 1f;
     }
 
     // ========================================================================
@@ -209,87 +207,74 @@ public class GridMovement extends Component {
      * @return true if movement started, false if blocked or already moving
      */
     public boolean move(Direction direction) {
-        return move(direction.dx, direction.dy);
-    }
-
-    /**
-     * Attempts to move by the given tile offset.
-     * Does nothing if already moving or if blocked.
-     *
-     * @param dx X offset (-1, 0, or 1)
-     * @param dy Y offset (-1, 0, or 1)
-     * @return true if movement started, false if blocked or already moving
-     */
-    public boolean move(int dx, int dy) {
         if (isMoving) {
             return false;
         }
 
-        if (dx == 0 && dy == 0) {
-            return false;
-        }
-
         // Update facing direction
-        updateFacingDirection(dx, dy);
+        facingDirection = direction;
 
-        int targetX = gridX + dx;
-        int targetY = gridY + dy;
+        int targetX = gridX + direction.dx;
+        int targetY = gridY + direction.dy;
 
-        // Check collision
-        MoveResult result = canMoveTo(targetX, targetY);
+        // Check collision using CollisionSystem
+        MoveResult result = checkCollision(targetX, targetY, direction);
 
-        if (result == MoveResult.BLOCKED) {
+        if (!result.allowed()) {
+            // If we were sliding and got blocked, stop sliding
+            isSliding = false;
             return false;
         }
 
-        // Start movement
-        startMovement(targetX, targetY, result == MoveResult.JUMP);
+        // Start movement with modifier
+        startMovement(targetX, targetY, result.modifier());
         return true;
     }
 
     /**
-     * Result of movement collision check.
+     * Gets the CollisionSystem from the scene, or null if not available.
      */
-    private enum MoveResult {
-        ALLOWED,
-        BLOCKED,
-        JUMP
+    private CollisionSystem getCollisionSystem() {
+        if (gameObject == null || gameObject.getScene() == null) {
+            return null;
+        }
+        return gameObject.getScene().getCollisionSystem();
     }
 
     /**
-     * Checks if movement to target tile is allowed.
-     *
-     * @param targetX Target tile X
-     * @param targetY Target tile Y
-     * @return Movement result
+     * Checks collision using the scene's CollisionSystem.
      */
-    private MoveResult canMoveTo(int targetX, int targetY) {
-        if (tilemap == null) {
-            return MoveResult.ALLOWED; // No tilemap = no collision
+    private MoveResult checkCollision(int targetX, int targetY, Direction direction) {
+        CollisionSystem collisionSystem = getCollisionSystem();
+        if (collisionSystem == null) {
+            return MoveResult.Allowed(); // No collision system = allow movement
         }
 
-        // Check current tile for ledge (can we jump FROM here?)
-        TilemapRenderer.Tile currentTile = tilemap.get(gridX, gridY);
-        if (currentTile != null && currentTile.isLedge()) {
-            if (currentTile.canJumpInDirection(facingDirection.toLedgeDirection())) {
-                return MoveResult.JUMP;
-            }
-        }
-
-        // Check target tile
-        TilemapRenderer.Tile targetTile = tilemap.get(targetX, targetY);
-        if (targetTile != null && targetTile.blocksMovement()) {
-            return MoveResult.BLOCKED;
-        }
-
-        return MoveResult.ALLOWED;
+        return collisionSystem.canMove(
+                gridX, gridY, zLevel,
+                targetX, targetY, zLevel,
+                direction,
+                gameObject
+        );
     }
 
     /**
      * Starts movement to target tile.
      */
-    private void startMovement(int targetX, int targetY, boolean jump) {
+    private void startMovement(int targetX, int targetY, MovementModifier modifier) {
         if (gameObject == null) return;
+
+        CollisionSystem collisionSystem = getCollisionSystem();
+
+        // Trigger exit on current tile
+        if (collisionSystem != null) {
+            collisionSystem.triggerExit(gridX, gridY, zLevel, gameObject);
+        }
+
+        // Update entity occupancy
+        if (collisionSystem != null) {
+            collisionSystem.moveEntity(gameObject, gridX, gridY, zLevel, targetX, targetY, zLevel);
+        }
 
         // Update grid position immediately (for collision purposes)
         gridX = targetX;
@@ -299,7 +284,6 @@ public class GridMovement extends Component {
         startPos.set(gameObject.getTransform().getPosition());
 
         // Calculate target world position
-        float tileSize = getTileSize();
         targetPos.set(
                 targetX * tileSize + tileSize * 0.5f,
                 targetY * tileSize + tileSize * 0.5f,
@@ -307,23 +291,11 @@ public class GridMovement extends Component {
         );
 
         isMoving = true;
-        isJumping = jump;
+        currentModifier = modifier;
         moveProgress = 0f;
-    }
 
-    /**
-     * Updates facing direction based on movement delta.
-     */
-    private void updateFacingDirection(int dx, int dy) {
-        if (dy > 0) {
-            facingDirection = Direction.UP;
-        } else if (dy < 0) {
-            facingDirection = Direction.DOWN;
-        } else if (dx < 0) {
-            facingDirection = Direction.LEFT;
-        } else if (dx > 0) {
-            facingDirection = Direction.RIGHT;
-        }
+        // Track if we're starting a slide
+        isSliding = (modifier == MovementModifier.SLIDE);
     }
 
     // ========================================================================
@@ -336,14 +308,11 @@ public class GridMovement extends Component {
             return;
         }
 
-        // Calculate speed (slower for jumps)
-        float speed = moveSpeed;
-        if (isJumping) {
-            speed *= jumpSpeedMultiplier;
-        }
+        // Apply speed modifier
+        float effectiveSpeed = baseSpeed * currentModifier.getSpeedMultiplier();
 
         // Update progress
-        moveProgress += deltaTime * speed;
+        moveProgress += deltaTime * effectiveSpeed;
 
         if (moveProgress >= 1f) {
             // Movement complete
@@ -364,7 +333,7 @@ public class GridMovement extends Component {
 
         // Y interpolation with optional jump arc
         float y;
-        if (isJumping) {
+        if (currentModifier == MovementModifier.JUMP) {
             // Parabolic arc: 4 * t * (1 - t) peaks at 1.0 when t = 0.5
             float arc = 4f * moveProgress * (1f - moveProgress);
             float baseY = lerp(startPos.y, targetPos.y, moveProgress);
@@ -382,8 +351,58 @@ public class GridMovement extends Component {
     private void finishMovement() {
         moveProgress = 1f;
         isMoving = false;
-        isJumping = false;
+        MovementModifier finishedModifier = currentModifier;
+        currentModifier = MovementModifier.NORMAL;
         snapToGrid();
+
+        // Trigger enter on new tile
+        CollisionSystem collisionSystem = getCollisionSystem();
+        if (collisionSystem != null) {
+            collisionSystem.triggerEnter(gridX, gridY, zLevel, gameObject);
+        }
+
+        // Handle ice sliding - continue sliding if we entered via slide
+        // and the current tile is also ice
+        if (isSliding) {
+            handleIceSliding();
+        }
+    }
+
+    /**
+     * Handles ice sliding continuation.
+     * Called after finishing movement onto a potentially icy tile.
+     */
+    private void handleIceSliding() {
+        CollisionSystem collisionSystem = getCollisionSystem();
+        if (collisionSystem == null) {
+            isSliding = false;
+            return;
+        }
+
+        // Check if we can continue sliding in the same direction
+        int nextX = gridX + facingDirection.dx;
+        int nextY = gridY + facingDirection.dy;
+
+        MoveResult result = collisionSystem.canMove(
+                gridX, gridY, zLevel,
+                nextX, nextY, zLevel,
+                facingDirection,
+                gameObject
+        );
+
+        if (result.allowed()) {
+            if (result.modifier() == MovementModifier.SLIDE) {
+                // Next tile is also ice - continue sliding
+                startMovement(nextX, nextY, MovementModifier.SLIDE);
+            } else {
+                // Next tile is not ice - slide onto it and stop
+                isSliding = false;
+                startMovement(nextX, nextY, result.modifier());
+            }
+        } else {
+            // Blocked - stop sliding
+            isSliding = false;
+        }
     }
 
     /**
@@ -407,7 +426,8 @@ public class GridMovement extends Component {
     public boolean isBlocked(Direction direction) {
         int targetX = gridX + direction.dx;
         int targetY = gridY + direction.dy;
-        return canMoveTo(targetX, targetY) == MoveResult.BLOCKED;
+        MoveResult result = checkCollision(targetX, targetY, direction);
+        return !result.allowed();
     }
 
     /**
@@ -416,14 +436,22 @@ public class GridMovement extends Component {
      */
     public void forceStop() {
         isMoving = false;
-        isJumping = false;
+        isSliding = false;
+        currentModifier = MovementModifier.NORMAL;
         moveProgress = 0f;
         snapToGrid();
     }
 
+    /**
+     * Checks if currently jumping.
+     */
+    public boolean isJumping() {
+        return isMoving && currentModifier == MovementModifier.JUMP;
+    }
+
     @Override
     public String toString() {
-        return String.format("GridMovement[grid=(%d,%d), moving=%b, jumping=%b, facing=%s]",
-                gridX, gridY, isMoving, isJumping, facingDirection);
+        return String.format("GridMovement[grid=(%d,%d), z=%d, moving=%b, sliding=%b, modifier=%s, facing=%s]",
+                gridX, gridY, zLevel, isMoving, isSliding, currentModifier, facingDirection);
     }
 }

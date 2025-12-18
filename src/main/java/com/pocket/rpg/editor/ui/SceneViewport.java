@@ -219,15 +219,10 @@ public class SceneViewport {
             Vector2f screenPos = camera.worldToScreen(worldX, 0);
             float screenX = viewportX + screenPos.x;
 
-            boolean isMajor = Math.abs(worldX) < 0.001f ||
-                    Math.abs(worldX % (spacing * majorInterval)) < 0.001f;
+            boolean isMajor = Math.abs(Math.round(worldX / spacing) % majorInterval) == 0;
+            int color = isMajor ? majorColor : minorColor;
 
-            drawList.addLine(
-                    screenX, viewportY,
-                    screenX, viewportY + viewportHeight,
-                    isMajor ? majorColor : minorColor,
-                    isMajor ? 1.5f : 1.0f
-            );
+            drawList.addLine(screenX, viewportY, screenX, viewportY + viewportHeight, color);
         }
 
         // Draw horizontal lines
@@ -236,33 +231,28 @@ public class SceneViewport {
             Vector2f screenPos = camera.worldToScreen(0, worldY);
             float screenY = viewportY + screenPos.y;
 
-            boolean isMajor = Math.abs(worldY) < 0.001f ||
-                    Math.abs(worldY % (spacing * majorInterval)) < 0.001f;
+            boolean isMajor = Math.abs(Math.round(worldY / spacing) % majorInterval) == 0;
+            int color = isMajor ? majorColor : minorColor;
 
-            drawList.addLine(
-                    viewportX, screenY,
-                    viewportX + viewportWidth, screenY,
-                    isMajor ? majorColor : minorColor,
-                    isMajor ? 1.5f : 1.0f
-            );
+            drawList.addLine(viewportX, screenY, viewportX + viewportWidth, screenY, color);
         }
 
-        // Draw origin crosshair
+        // Draw origin crosshair with colored axes
         Vector2f originScreen = camera.worldToScreen(0, 0);
         float originX = viewportX + originScreen.x;
         float originY = viewportY + originScreen.y;
 
-        int xAxisColor = ImGui.colorConvertFloat4ToU32(0.8f, 0.2f, 0.2f, 0.8f);
-        int yAxisColor = ImGui.colorConvertFloat4ToU32(0.2f, 0.8f, 0.2f, 0.8f);
+        int xAxisColor = ImGui.colorConvertFloat4ToU32(0.8f, 0.2f, 0.2f, 0.8f);  // Red
+        int yAxisColor = ImGui.colorConvertFloat4ToU32(0.2f, 0.8f, 0.2f, 0.8f);  // Green
 
-        // X axis (red)
+        // X axis (red horizontal line at Y=0)
         drawList.addLine(
                 viewportX, originY,
                 viewportX + viewportWidth, originY,
                 xAxisColor, 2.0f
         );
 
-        // Y axis (green)
+        // Y axis (green vertical line at X=0)
         drawList.addLine(
                 originX, viewportY,
                 originX, viewportY + viewportHeight,
@@ -271,23 +261,19 @@ public class SceneViewport {
     }
 
     /**
-     * Draws coordinate information at the bottom of the viewport.
+     * Draws coordinate info at the bottom of the viewport.
      */
     private void drawCoordinateInfo() {
-        // Get mouse position in viewport
         ImVec2 mousePos = ImGui.getMousePos();
         float localX = mousePos.x - viewportX;
         float localY = mousePos.y - viewportY;
-
-        // Convert to world coordinates
         Vector3f worldPos = camera.screenToWorld(localX, localY);
 
-        // Draw info bar at bottom
         var drawList = ImGui.getWindowDrawList();
+
+        // Background bar
         float barHeight = 20;
         float barY = viewportY + viewportHeight - barHeight;
-
-        // Background
         drawList.addRectFilled(
                 viewportX, barY,
                 viewportX + viewportWidth, viewportY + viewportHeight,
@@ -362,7 +348,7 @@ public class SceneViewport {
             camera.updatePan(screenX, screenY);
         }
 
-        // Scroll wheel to zoom - INCREASED MULTIPLIER from 0.1 to 1.0
+        // Scroll wheel to zoom
         float scroll = ImGui.getIO().getMouseWheel();
         if (scroll != 0 && isHovered) {
             camera.zoomToward(screenX, screenY, scroll * 1.0f);
@@ -396,40 +382,87 @@ public class SceneViewport {
 
     /**
      * Renders tool overlays (call after scene rendering).
+     * Updates viewport bounds for the active tool before rendering.
      */
     public void renderToolOverlay() {
-        if (toolManager != null && isHovered) {
-            // Pass viewport position and size to tools for overlay rendering
-            var activeTool = toolManager.getActiveTool();
+        if (toolManager == null || !isHovered) {
+            return;
+        }
 
-            if (activeTool instanceof TileBrushTool brush) {
-                brush.setViewportX(viewportX);
-                brush.setViewportY(viewportY);
-                brush.setViewportWidth(viewportWidth);
-                brush.setViewportHeight(viewportHeight);
-            } else if (activeTool instanceof TileEraserTool eraser) {
-                eraser.setViewportX(viewportX);
-                eraser.setViewportY(viewportY);
-                eraser.setViewportWidth(viewportWidth);
-                eraser.setViewportHeight(viewportHeight);
-            } else if (activeTool instanceof TileFillTool fill) {
-                fill.setViewportX(viewportX);
-                fill.setViewportY(viewportY);
-                fill.setViewportWidth(viewportWidth);
-                fill.setViewportHeight(viewportHeight);
-            } else if (activeTool instanceof TileRectangleTool rectangle) {
-                rectangle.setViewportX(viewportX);
-                rectangle.setViewportY(viewportY);
-                rectangle.setViewportWidth(viewportWidth);
-                rectangle.setViewportHeight(viewportHeight);
-            } else if (activeTool instanceof TilePickerTool picker) {
-                picker.setViewportX(viewportX);
-                picker.setViewportY(viewportY);
-                picker.setViewportWidth(viewportWidth);
-                picker.setViewportHeight(viewportHeight);
-            }
+        var activeTool = toolManager.getActiveTool();
+        if (activeTool == null) {
+            return;
+        }
 
-            toolManager.renderOverlay(camera, hoveredTileX, hoveredTileY);
+        // Update viewport bounds for the active tool using the interface
+        if (activeTool instanceof ViewportAwareTool vat) {
+            vat.setViewportBounds(viewportX, viewportY, viewportWidth, viewportHeight);
+        } else {
+            // Fallback for tools not implementing the interface
+            setToolViewportBoundsLegacy(activeTool);
+        }
+
+        toolManager.renderOverlay(camera, hoveredTileX, hoveredTileY);
+    }
+
+    /**
+     * Legacy method for setting viewport bounds on tools that don't implement ViewportAwareTool.
+     * This will be removed once all tools implement the interface.
+     */
+    private void setToolViewportBoundsLegacy(EditorTool tool) {
+        // Tilemap tools
+        if (tool instanceof TileBrushTool t) {
+            t.setViewportX(viewportX);
+            t.setViewportY(viewportY);
+            t.setViewportWidth(viewportWidth);
+            t.setViewportHeight(viewportHeight);
+        } else if (tool instanceof TileEraserTool t) {
+            t.setViewportX(viewportX);
+            t.setViewportY(viewportY);
+            t.setViewportWidth(viewportWidth);
+            t.setViewportHeight(viewportHeight);
+        } else if (tool instanceof TileFillTool t) {
+            t.setViewportX(viewportX);
+            t.setViewportY(viewportY);
+            t.setViewportWidth(viewportWidth);
+            t.setViewportHeight(viewportHeight);
+        } else if (tool instanceof TileRectangleTool t) {
+            t.setViewportX(viewportX);
+            t.setViewportY(viewportY);
+            t.setViewportWidth(viewportWidth);
+            t.setViewportHeight(viewportHeight);
+        } else if (tool instanceof TilePickerTool t) {
+            t.setViewportX(viewportX);
+            t.setViewportY(viewportY);
+            t.setViewportWidth(viewportWidth);
+            t.setViewportHeight(viewportHeight);
+        }
+        // Collision tools
+        else if (tool instanceof CollisionBrushTool t) {
+            t.setViewportX(viewportX);
+            t.setViewportY(viewportY);
+            t.setViewportWidth(viewportWidth);
+            t.setViewportHeight(viewportHeight);
+        } else if (tool instanceof CollisionEraserTool t) {
+            t.setViewportX(viewportX);
+            t.setViewportY(viewportY);
+            t.setViewportWidth(viewportWidth);
+            t.setViewportHeight(viewportHeight);
+        } else if (tool instanceof CollisionFillTool t) {
+            t.setViewportX(viewportX);
+            t.setViewportY(viewportY);
+            t.setViewportWidth(viewportWidth);
+            t.setViewportHeight(viewportHeight);
+        } else if (tool instanceof CollisionRectangleTool t) {
+            t.setViewportX(viewportX);
+            t.setViewportY(viewportY);
+            t.setViewportWidth(viewportWidth);
+            t.setViewportHeight(viewportHeight);
+        } else if (tool instanceof CollisionPickerTool t) {
+            t.setViewportX(viewportX);
+            t.setViewportY(viewportY);
+            t.setViewportWidth(viewportWidth);
+            t.setViewportHeight(viewportHeight);
         }
     }
 

@@ -1,5 +1,6 @@
 package com.pocket.rpg.editor.scene;
 
+import com.pocket.rpg.collision.CollisionMap;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.rendering.Renderable;
 import com.pocket.rpg.rendering.Sprite;
@@ -15,17 +16,16 @@ import java.util.List;
 /**
  * Represents a scene being edited in the Scene Editor.
  * <p>
+ * UPDATED Phase 4: Added CollisionMap for collision editing.
+ * <p>
  * Manages:
  * - Tilemap layers (TilemapLayer wrappers)
+ * - Collision map (CollisionMap)
+ * - Collision visibility and editing Z-level
  * - Layer visibility mode
  * - Active layer selection
  * - Conversion to/from SceneData for serialization
  * - Live Scene for rendering
- * <p>
- * Architecture:
- * - EditorScene holds SceneData (source of truth for saving)
- * - EditorScene maintains a live Scene for rendering
- * - Edits update both SceneData and live Scene
  */
 public class EditorScene {
 
@@ -57,6 +57,32 @@ public class EditorScene {
     @Setter
     private float dimmedOpacity = 0.5f;
 
+    // Collision map
+    @Getter
+    private final CollisionMap collisionMap;
+
+    /**
+     * Whether collision overlay is visible in editor.
+     */
+    @Getter
+    @Setter
+    private boolean collisionVisible = true;
+
+    /**
+     * Current Z-level for collision editing.
+     * Shared across all collision tools.
+     */
+    @Getter
+    @Setter
+    private int collisionZLevel = 0;
+
+    /**
+     * Opacity of collision overlay (0.0 - 1.0)
+     */
+    @Getter
+    @Setter
+    private float collisionOpacity = 0.4f;
+
     // Editor state
     @Getter
     @Setter
@@ -66,6 +92,7 @@ public class EditorScene {
      * Creates a new empty editor scene.
      */
     public EditorScene() {
+        this.collisionMap = new CollisionMap();
     }
 
     /**
@@ -73,6 +100,7 @@ public class EditorScene {
      */
     public EditorScene(String name) {
         this.name = name;
+        this.collisionMap = new CollisionMap();
     }
 
     // ========================================================================
@@ -361,6 +389,7 @@ public class EditorScene {
             layer.getGameObject().destroy();
         }
         layers.clear();
+        collisionMap.clear();
         activeLayerIndex = -1;
         selectedObject = null;
         dirty = false;
@@ -409,7 +438,7 @@ public class EditorScene {
 
     @Override
     public String toString() {
-        return String.format("EditorScene[name=%s, layers=%d, activeLayer=%d, dirty=%b]",
-                name, layers.size(), activeLayerIndex, dirty);
+        return String.format("EditorScene[name=%s, layers=%d, activeLayer=%d, collisionTiles=%d, dirty=%b]",
+                name, layers.size(), activeLayerIndex, collisionMap.getTileCount(), dirty);
     }
 }

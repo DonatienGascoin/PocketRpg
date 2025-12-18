@@ -168,11 +168,11 @@ public class VillageLevelGenerator {
         generateWaterPond(25, 175, 10, 8);
         generateRoadNetwork();
         generateHouses(levelObj);
-        generateFencedYards();
-        generateForestBorder(levelObj);
-        generateScatteredTrees(levelObj);
-        generateVillageCenter();
-        generateScatteredProps();
+        // generateFencedYards();
+        // generateForestBorder(levelObj);
+        // generateScatteredTrees(levelObj);
+        // generateVillageCenter();
+        // generateScatteredProps();
 
         return levelObj;
     }

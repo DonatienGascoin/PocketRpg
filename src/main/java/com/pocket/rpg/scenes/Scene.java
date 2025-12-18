@@ -1,5 +1,8 @@
 package com.pocket.rpg.scenes;
 
+import com.pocket.rpg.collision.CollisionMap;
+import com.pocket.rpg.collision.CollisionSystem;
+import com.pocket.rpg.collision.EntityOccupancyMap;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.config.RenderingConfig;
@@ -18,6 +21,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 /**
  * Scene holds and manages GameObjects.
  * Each Scene owns a Camera that defines the view into the world.
+ * <p>
+ * UPDATED: Includes full collision system with behaviors and entity occupancy.
  */
 public abstract class Scene {
     @Getter
@@ -39,6 +44,14 @@ public abstract class Scene {
     private final List<UICanvas> uiCanvases;
     private boolean canvasSortDirty = false;
 
+    // Collision system with entity tracking
+    @Getter
+    private final CollisionMap collisionMap;
+    @Getter
+    private final EntityOccupancyMap entityOccupancyMap;
+    @Getter
+    private final CollisionSystem collisionSystem;
+
     private boolean initialized = false;
 
     @Getter
@@ -49,6 +62,12 @@ public abstract class Scene {
         this.gameObjects = new CopyOnWriteArrayList<>();
         this.renderables = new ArrayList<>();
         this.uiCanvases = new ArrayList<>();
+
+        // Initialize collision system with entity tracking
+        this.collisionMap = new CollisionMap();
+        this.entityOccupancyMap = new EntityOccupancyMap();
+        this.collisionSystem = new CollisionSystem(collisionMap, entityOccupancyMap);
+
         // Camera created in initialize() when ViewportConfig is available
     }
 
@@ -61,7 +80,7 @@ public abstract class Scene {
      * Creates the camera and calls onLoad().
      *
      * @param viewportConfig  Shared viewport configuration
-     * @param renderingConfig
+     * @param renderingConfig Rendering configuration
      */
     public void initialize(ViewportConfig viewportConfig, RenderingConfig renderingConfig) {
         this.initialized = true;
@@ -123,6 +142,8 @@ public abstract class Scene {
         gameObjects.clear();
         renderables.clear();
         uiCanvases.clear();
+        collisionMap.clear();
+        entityOccupancyMap.clear();
     }
 
     public abstract void onLoad();

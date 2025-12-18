@@ -49,7 +49,7 @@ public class DemoScene extends Scene {
 
     @Override
     public void onLoad() {
-        font = new Font("gameData\\assets\\fonts\\zelda.ttf", 18);
+        font = new Font("gameData\\assets\\fonts\\zelda.ttf", 18); // TODO: Replace with Assets.load(), will need an AssetLoader for Font
 //        createLevelOld();
 //        createTilemapLevel();
         createVillage();

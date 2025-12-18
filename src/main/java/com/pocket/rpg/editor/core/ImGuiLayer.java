@@ -1,12 +1,14 @@
 package com.pocket.rpg.editor.core;
 
-import imgui.ImGui;
-import imgui.ImGuiIO;
-import imgui.ImGuiStyle;
+import imgui.*;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiConfigFlags;
 import imgui.gl3.ImGuiImplGl3;
 import imgui.glfw.ImGuiImplGlfw;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 /**
  * ImGui integration layer for the Scene Editor.
@@ -44,6 +46,8 @@ public class ImGuiLayer {
 
         io.setIniFilename("editor/editor_layout.ini");
 
+        initFonts(io);
+
         // Apply dark theme with custom colors
         applyDarkTheme();
 
@@ -56,6 +60,41 @@ public class ImGuiLayer {
 
         initialized = true;
         System.out.println("ImGui initialized successfully");
+    }
+
+    private void initFonts(final ImGuiIO io) {
+        // This enables FreeType font renderer, which is disabled by default.
+        io.getFonts().setFreeTypeRenderer(true);
+
+        // Add default font for latin glyphs
+        io.getFonts().addFontDefault();
+
+        // You can use the ImFontGlyphRangesBuilder helper to create glyph ranges based on text input.
+        // For example: for a game where your script is known, if you can feed your entire script to it (using addText) and only build the characters the game needs.
+        // Here we are using it just to combine all required glyphs in one place
+        final ImFontGlyphRangesBuilder rangesBuilder = new ImFontGlyphRangesBuilder(); // Glyphs ranges provide
+        rangesBuilder.addRanges(FontAwesomeIcons._IconRange);
+
+        // Font config for additional fonts
+        // This is a natively allocated struct so don't forget to call destroy after atlas is built
+        final ImFontConfig fontConfig = new ImFontConfig();
+        fontConfig.setMergeMode(true);  // Enable merge mode to merge icons with default font
+
+        final short[] glyphRanges = rangesBuilder.buildRanges();
+        io.getFonts().addFontFromMemoryTTF(loadFromResources("editor/fa-regular-400.ttf"), 14, fontConfig, glyphRanges); // font awesome
+        io.getFonts().addFontFromMemoryTTF(loadFromResources("editor/fa-solid-900.ttf"), 14, fontConfig, glyphRanges); // font awesome
+        io.getFonts().addFontDefault();
+        io.getFonts().build();
+
+        fontConfig.destroy();
+    }
+
+    private byte[] loadFromResources(String fontPath) {
+        try {
+            return Files.readAllBytes(Paths.get(fontPath));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**

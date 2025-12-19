@@ -1,8 +1,7 @@
 package com.pocket.rpg.editor;
 
-import com.pocket.rpg.editor.panels.CollisionPanel;
-import com.pocket.rpg.editor.panels.LayerPanel;
-import com.pocket.rpg.editor.panels.TilesetPalettePanel;
+import com.pocket.rpg.editor.panels.*;
+import com.pocket.rpg.editor.rendering.CameraOverlayRenderer;
 import com.pocket.rpg.editor.rendering.CollisionOverlayRenderer;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.ui.EditorMenuBar;
@@ -10,7 +9,6 @@ import com.pocket.rpg.editor.ui.SceneViewToolbar;
 import com.pocket.rpg.editor.ui.SceneViewport;
 import com.pocket.rpg.editor.ui.StatusBar;
 import imgui.ImGui;
-import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiDockNodeFlags;
 import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiWindowFlags;
@@ -44,6 +42,15 @@ public class EditorUIController {
     @Getter
     private CollisionPanel collisionPanel;
 
+    @Getter
+    private PrefabBrowserPanel prefabBrowserPanel;
+
+    @Getter
+    private HierarchyPanel hierarchyPanel;
+
+    @Getter
+    private InspectorPanel inspectorPanel;
+
     // Menu and status
     @Getter
     private EditorMenuBar menuBar;
@@ -53,6 +60,7 @@ public class EditorUIController {
 
     // Renderers
     private CollisionOverlayRenderer collisionOverlay;
+    private CameraOverlayRenderer cameraOverlayRenderer;
 
     public EditorUIController(EditorContext context, EditorToolController toolController) {
         this.context = context;
@@ -74,8 +82,12 @@ public class EditorUIController {
         // Create collision overlay
         collisionOverlay = new CollisionOverlayRenderer();
 
+        cameraOverlayRenderer = new CameraOverlayRenderer();
+
         // Create panels
         createPanels();
+
+        cameraOverlayRenderer.setHierarchyPanel(hierarchyPanel);
 
         // Create menu and status bar
         createMenuAndStatus();
@@ -111,6 +123,28 @@ public class EditorUIController {
 
         // Give tool controller reference to collision panel
         toolController.setCollisionPanel(collisionPanel);
+
+        // Prefab browser
+        prefabBrowserPanel = new PrefabBrowserPanel();
+        prefabBrowserPanel.setModeManager(context.getModeManager());
+        prefabBrowserPanel.setToolManager(context.getToolManager());
+        prefabBrowserPanel.setEntityPlacerTool(toolController.getEntityPlacerTool());
+        // Wire the reverse direction: tool needs panel to get selected prefab
+        toolController.getEntityPlacerTool().setPrefabPanel(prefabBrowserPanel);
+        toolController.setPrefabBrowserPanel(prefabBrowserPanel);
+
+// Hierarchy panel (replaces placeholder)
+        hierarchyPanel = new HierarchyPanel();
+        hierarchyPanel.setScene(scene);
+        hierarchyPanel.setModeManager(context.getModeManager());
+        hierarchyPanel.setToolManager(context.getToolManager());
+        hierarchyPanel.setSelectionTool(toolController.getSelectionTool());
+        hierarchyPanel.setBrushTool(toolController.getBrushTool());
+
+// Inspector panel (replaces placeholder)
+        inspectorPanel = new InspectorPanel();
+        inspectorPanel.setScene(scene);
+        inspectorPanel.setHierarchyPanel(hierarchyPanel);
     }
 
     private void createMenuAndStatus() {
@@ -131,6 +165,8 @@ public class EditorUIController {
         collisionPanel.setScene(scene);
         menuBar.setCurrentScene(scene);
         statusBar.setCurrentScene(scene);
+        hierarchyPanel.setScene(scene);
+        inspectorPanel.setScene(scene);
     }
 
     /**
@@ -148,7 +184,7 @@ public class EditorUIController {
                 ImGuiWindowFlags.NoBackground;
 
         ImGui.setNextWindowPos(0, 0);
-        ImGui.setNextWindowSize(context.getWindow().getWidth(), context.getWindow().getHeight());
+        ImGui.setNextWindowSize(context.getWindow().getWidth(), context.getWindow().getHeight() - 24);
 
         ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, 0.0f);
         ImGui.pushStyleVar(ImGuiStyleVar.WindowBorderSize, 0.0f);
@@ -175,6 +211,7 @@ public class EditorUIController {
 
         // Collision overlay
         renderCollisionOverlay();
+        renderCameraOverlay();
 
         // Tool overlay
         sceneViewport.renderToolOverlay();
@@ -186,10 +223,25 @@ public class EditorUIController {
         renderModePanels();
 
         // Placeholder panels
-        renderPlaceholderPanels();
+        renderPanels();
 
         // Status bar at bottom
         statusBar.render(context.getWindow().getHeight());
+    }
+
+    private void renderCameraOverlay() {
+        EditorScene scene = context.getCurrentScene();
+
+        if (scene == null) {
+            return;
+        }
+        cameraOverlayRenderer.setViewportBounds(
+                sceneViewport.getViewportX(),
+                sceneViewport.getViewportY(),
+                sceneViewport.getViewportWidth(),
+                sceneViewport.getViewportHeight()
+        );
+        cameraOverlayRenderer.render(context.getCamera(), scene);
     }
 
     /**
@@ -333,38 +385,22 @@ public class EditorUIController {
     private void renderModePanels() {
         if (context.getModeManager().isTilemapMode()) {
             tilesetPalette.render();
-        } else {
+        } else if (context.getModeManager().isCollisionMode()) {
             collisionPanel.render();
+        } else if (context.getModeManager().isEntityMode()) {
+            prefabBrowserPanel.render();
         }
     }
 
     /**
      * Renders placeholder panels.
      */
-    private void renderPlaceholderPanels() {
+    private void renderPanels() {
         // Hierarchy panel
-        if (ImGui.begin("Hierarchy")) {
-            ImGui.text("Scene Hierarchy");
-            ImGui.separator();
-            ImGui.textDisabled("(Coming in Phase 5)");
-
-            EditorScene scene = context.getCurrentScene();
-            if (scene != null) {
-                ImGui.text("Scene: " + scene.getName());
-                ImGui.text("Layers: " + scene.getLayerCount());
-                ImGui.text("Collision Tiles: " + scene.getCollisionMap().getTileCount());
-            }
-        }
-        ImGui.end();
+            hierarchyPanel.render();
 
         // Inspector panel
-        if (ImGui.begin("Inspector")) {
-            ImGui.text("Inspector");
-            ImGui.separator();
-            ImGui.textDisabled("(Coming in Phase 5)");
-            ImGui.textDisabled("Select an object to inspect");
-        }
-        ImGui.end();
+        inspectorPanel.render();
     }
 
     /**

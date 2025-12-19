@@ -77,7 +77,7 @@ public class TilesetPalettePanel {
             }
 
             // Sync visual selection with brush tool - if tool has no selection, clear ours
-            // syncSelectionWithTool(); // TODO: Does not work, prevent selection !
+            syncSelectionWithTool(); // TODO: Does not work, prevent selection !
 
             // Top section - tileset selector (fixed)
             renderTilesetSelector();
@@ -114,6 +114,8 @@ public class TilesetPalettePanel {
     }
 
     private void syncSelectionWithTool() {
+        if (isDragging) return;
+
         if (brushTool != null && brushTool.getSelection() == null) {
             // Tool selection was cleared externally (e.g., Escape in viewport)
             // Clear our visual selection too

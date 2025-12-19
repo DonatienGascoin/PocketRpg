@@ -19,7 +19,8 @@ public class EditorModeManager {
      */
     public enum Mode {
         TILEMAP("Tilemap", "M"),
-        COLLISION("Collision", "N");
+        COLLISION("Collision", "N"),
+        ENTITY("Entity", "E");
 
         @Getter
         private final String displayName;
@@ -69,8 +70,17 @@ public class EditorModeManager {
     }
 
     /**
-     * Toggles between modes.
+     * Switches to entity mode.
      */
+    public void switchToEntity() {
+        switchTo(Mode.ENTITY);
+    }
+
+    /**
+     * Toggles between tilemap and collision modes.
+     * @deprecated Use switchTo() for explicit mode switching
+     */
+    @Deprecated
     public void toggle() {
         if (currentMode == Mode.TILEMAP) {
             switchTo(Mode.COLLISION);
@@ -91,6 +101,13 @@ public class EditorModeManager {
      */
     public boolean isCollisionMode() {
         return currentMode == Mode.COLLISION;
+    }
+
+    /**
+     * Checks if currently in entity mode.
+     */
+    public boolean isEntityMode() {
+        return currentMode == Mode.ENTITY;
     }
 
     /**

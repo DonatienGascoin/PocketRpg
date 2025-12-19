@@ -10,6 +10,7 @@ import com.pocket.rpg.editor.core.ImGuiLayer;
 import com.pocket.rpg.editor.rendering.EditorSceneRenderer;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.tileset.TilesetRegistry;
+import com.pocket.rpg.prefab.PrefabRegistry;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.resources.ErrorMode;
 import com.pocket.rpg.serialization.Serializer;
@@ -88,6 +89,7 @@ public class EditorApplication {
         // Initialize tileset registry
         TilesetRegistry.initialize();
         TilesetRegistry.getInstance().scanAndLoad();
+        PrefabRegistry.initialize();
 
         // Create camera
         EditorCamera camera = new EditorCamera(config);

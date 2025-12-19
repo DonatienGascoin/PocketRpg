@@ -4,9 +4,14 @@ import com.pocket.rpg.components.TilemapRenderer;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.editor.camera.EditorCamera;
 import com.pocket.rpg.editor.scene.EditorScene;
+import com.pocket.rpg.editor.scene.SceneCameraSettings;
 import com.pocket.rpg.editor.scene.TilemapLayer;
+import com.pocket.rpg.rendering.SpriteBatch;
 import com.pocket.rpg.rendering.renderers.BatchRenderer;
+import imgui.ImDrawList;
+import imgui.ImGui;
 import org.joml.Matrix4f;
+import org.joml.Vector2f;
 import org.joml.Vector4f;
 
 import java.util.ArrayList;
@@ -21,7 +26,7 @@ import static org.lwjgl.opengl.GL33.*;
  * Handles:
  * - Rendering tilemap layers with visibility mode support
  * - Layer opacity based on visibility mode (All/Selected/Dimmed)
- * - Sprite rendering for entities
+ * - Entity rendering
  * - Frustum culling for tilemaps
  */
 public class EditorSceneRenderer {
@@ -30,12 +35,13 @@ public class EditorSceneRenderer {
     private final RenderingConfig renderingConfig;
 
     private BatchRenderer batchRenderer;
+    private EntityRenderer entityRenderer;
     private boolean initialized = false;
 
     /**
      * Creates an EditorSceneRenderer.
      *
-     * @param framebuffer Framebuffer to render to
+     * @param framebuffer     Framebuffer to render to
      * @param renderingConfig Rendering configuration
      */
     public EditorSceneRenderer(EditorFramebuffer framebuffer, RenderingConfig renderingConfig) {
@@ -53,6 +59,9 @@ public class EditorSceneRenderer {
         batchRenderer = new BatchRenderer(renderingConfig);
         batchRenderer.init(framebuffer.getWidth(), framebuffer.getHeight());
 
+        // Initialize entity renderer (stateless, just needs batch at render time)
+        entityRenderer = new EntityRenderer();
+
         initialized = true;
         System.out.println("EditorSceneRenderer initialized");
     }
@@ -60,7 +69,7 @@ public class EditorSceneRenderer {
     /**
      * Renders the editor scene to the framebuffer.
      *
-     * @param scene EditorScene to render
+     * @param scene  EditorScene to render
      * @param camera Editor camera for view/projection matrices
      */
     public void render(EditorScene scene, EditorCamera camera) {
@@ -72,7 +81,6 @@ public class EditorSceneRenderer {
         framebuffer.bind();
 
         // Clear with dark gray (editor background)
-        // Using a fixed color instead of game config for clarity
         framebuffer.clear(0.15f, 0.15f, 0.15f, 1.0f);
 
         // Enable blending for sprites
@@ -93,9 +101,27 @@ public class EditorSceneRenderer {
     }
 
     /**
-     * Renders scene layers.
+     * Renders scene layers and entities.
      */
     private void renderSceneContent(EditorScene scene, Matrix4f projection, Matrix4f view, EditorCamera camera) {
+        // Begin batch with camera matrices
+        batchRenderer.beginWithMatrices(projection, view, null);
+
+        // 1. Render tilemap layers
+        renderTilemapLayers(scene, camera);
+
+        // 2. Render entities
+        SpriteBatch batch = batchRenderer.getBatch();
+        entityRenderer.render(batch, scene);
+
+        // End batch (flushes everything)
+        batchRenderer.end();
+    }
+
+    /**
+     * Renders all visible tilemap layers in z-order.
+     */
+    private void renderTilemapLayers(EditorScene scene, EditorCamera camera) {
         int layerCount = scene.getLayerCount();
         if (layerCount == 0) return;
 
@@ -111,9 +137,6 @@ public class EditorSceneRenderer {
         // Sort by zIndex (lower zIndex renders first = behind)
         layerOrder.sort(Comparator.comparingInt(a -> a[1]));
 
-        // Begin batch with camera matrices
-        batchRenderer.beginWithMatrices(projection, view, null);
-
         // Render each layer in zIndex order
         for (int[] pair : layerOrder) {
             int layerIndex = pair[0];
@@ -128,19 +151,17 @@ public class EditorSceneRenderer {
 
             // Get opacity based on visibility mode
             float opacity = scene.getLayerOpacity(layerIndex);
+
             // Render tilemap
             renderTilemap(layer.getTilemap(), camera, opacity);
         }
-
-        // End batch
-        batchRenderer.end();
     }
 
     /**
      * Renders a tilemap with frustum culling.
      *
      * @param tilemap TilemapRenderer to render
-     * @param camera Editor camera
+     * @param camera  Editor camera
      * @param opacity Layer opacity (0.0 - 1.0)
      */
     private void renderTilemap(TilemapRenderer tilemap, EditorCamera camera, float opacity) {
@@ -180,12 +201,13 @@ public class EditorSceneRenderer {
 
         // Render visible chunks
         if (!visibleChunks.isEmpty()) {
-            if (opacity == 1f) {
-                batchRenderer.drawTilemap(tilemap, visibleChunks, new Vector4f(1f, 1f, 1f, 1f));
+            Vector4f tint;
+            if (opacity >= 1f) {
+                tint = new Vector4f(1f, 1f, 1f, 1f);
             } else {
-                batchRenderer.drawTilemap(tilemap, visibleChunks, new Vector4f(.8f, .8f, .8f, (1 - opacity)));
-
+                tint = new Vector4f(0.8f, 0.8f, 0.8f, opacity);
             }
+            batchRenderer.drawTilemap(tilemap, visibleChunks, tint);
         }
     }
 
@@ -206,6 +228,7 @@ public class EditorSceneRenderer {
             batchRenderer.destroy();
             batchRenderer = null;
         }
+        entityRenderer = null;
         initialized = false;
     }
 }

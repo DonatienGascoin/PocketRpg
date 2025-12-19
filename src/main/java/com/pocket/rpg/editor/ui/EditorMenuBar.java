@@ -59,6 +59,8 @@ public class EditorMenuBar {
     }
 
     public void renderFileMenu() {
+        // Render dialogs
+        renderUnsavedChangesDialog();
         if (ImGui.beginMenu("File")) {
             // New Scene (Ctrl+N)
             if (ImGui.menuItem("New Scene", "Ctrl+N")) {

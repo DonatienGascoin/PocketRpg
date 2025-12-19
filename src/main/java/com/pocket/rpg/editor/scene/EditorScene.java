@@ -8,6 +8,8 @@ import com.pocket.rpg.rendering.SpriteSheet;
 import com.pocket.rpg.resources.Assets;
 import lombok.Getter;
 import lombok.Setter;
+import org.joml.Vector2f;
+import org.joml.Vector3f;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -16,16 +18,14 @@ import java.util.List;
 /**
  * Represents a scene being edited in the Scene Editor.
  * <p>
- * UPDATED Phase 4: Added CollisionMap for collision editing.
+ * Phase 5: Added entity management and camera settings.
  * <p>
  * Manages:
  * - Tilemap layers (TilemapLayer wrappers)
  * - Collision map (CollisionMap)
- * - Collision visibility and editing Z-level
- * - Layer visibility mode
- * - Active layer selection
- * - Conversion to/from SceneData for serialization
- * - Live Scene for rendering
+ * - Entity instances (EditorEntity)
+ * - Camera settings (SceneCameraSettings)
+ * - Selection state
  */
 public class EditorScene {
 
@@ -40,7 +40,10 @@ public class EditorScene {
     @Getter
     private boolean dirty = false;
 
-    // Layer management
+    // ========================================================================
+    // LAYER MANAGEMENT
+    // ========================================================================
+
     private final List<TilemapLayer> layers = new ArrayList<>();
 
     @Getter
@@ -50,54 +53,61 @@ public class EditorScene {
     @Setter
     private LayerVisibilityMode visibilityMode = LayerVisibilityMode.ALL;
 
-    /**
-     * Opacity for dimmed layers (0.0 - 1.0)
-     */
     @Getter
     @Setter
     private float dimmedOpacity = 0.5f;
 
-    // Collision map
+    // ========================================================================
+    // COLLISION
+    // ========================================================================
+
     @Getter
     private final CollisionMap collisionMap;
 
-    /**
-     * Whether collision overlay is visible in editor. Overridden to True if the Collision map is being updated
-     */
     @Getter
     @Setter
     private boolean collisionVisible = true;
 
-    /**
-     * Current Z-level for collision editing.
-     * Shared across all collision tools.
-     */
     @Getter
     @Setter
     private int collisionZLevel = 0;
 
-    /**
-     * Opacity of collision overlay (0.0 - 1.0)
-     */
     @Getter
     @Setter
     private float collisionOpacity = 0.4f;
 
-    // Editor state
+    // ========================================================================
+    // ENTITY MANAGEMENT (Phase 5)
+    // ========================================================================
+
+    private final List<EditorEntity> entities = new ArrayList<>();
+
+    @Getter
+    private EditorEntity selectedEntity = null;
+
+    // ========================================================================
+    // CAMERA SETTINGS (Phase 5)
+    // ========================================================================
+
+    @Getter
+    private final SceneCameraSettings cameraSettings = new SceneCameraSettings();
+
+    // ========================================================================
+    // LEGACY SELECTION (for non-entity objects)
+    // ========================================================================
+
     @Getter
     @Setter
     private GameObject selectedObject = null;
 
-    /**
-     * Creates a new empty editor scene.
-     */
+    // ========================================================================
+    // CONSTRUCTORS
+    // ========================================================================
+
     public EditorScene() {
         this.collisionMap = new CollisionMap();
     }
 
-    /**
-     * Creates an editor scene with a name.
-     */
     public EditorScene(String name) {
         this.name = name;
         this.collisionMap = new CollisionMap();
@@ -107,53 +117,38 @@ public class EditorScene {
     // DIRTY STATE
     // ========================================================================
 
-    /**
-     * Marks the scene as modified (needs saving).
-     */
     public void markDirty() {
         this.dirty = true;
     }
 
-    /**
-     * Clears the dirty flag (after saving).
-     */
     public void clearDirty() {
         this.dirty = false;
+    }
+
+    public boolean hasUnsavedChanges() {
+        return dirty;
     }
 
     // ========================================================================
     // LAYER MANAGEMENT
     // ========================================================================
 
-    /**
-     * Adds a new tilemap layer.
-     *
-     * @param layerName Display name for the layer
-     * @return The created layer
-     */
     public TilemapLayer addLayer(String layerName) {
-        // Calculate zIndex (each new layer goes on top)
         int zIndex = layers.isEmpty() ? 0 : layers.get(layers.size() - 1).getZIndex() + 1;
 
         TilemapLayer layer = new TilemapLayer(layerName, zIndex);
         layers.add(layer);
 
-        // Always select the newly created layer
         activeLayerIndex = layers.size() - 1;
 
         markDirty();
         return layer;
     }
 
-    /**
-     * Adds a layer with a specific spritesheet.
-     */
     public TilemapLayer addLayer(String layerName, String spritesheetPath, int spriteWidth, int spriteHeight) {
         TilemapLayer layer = addLayer(layerName);
 
-        // Load sprite and create spritesheet
         var sprite = Assets.<Sprite>load(spritesheetPath);
-
         if (sprite == null) {
             System.err.println("Failed to load sprite: " + spritesheetPath);
             return layer;
@@ -165,29 +160,19 @@ public class EditorScene {
         return layer;
     }
 
-    /**
-     * Adds an existing layer (used during deserialization).
-     * Does not mark scene as dirty.
-     */
     public void addExistingLayer(TilemapLayer layer) {
         layers.add(layer);
-
-        // Select first layer by default
         if (activeLayerIndex == -1) {
             activeLayerIndex = 0;
         }
     }
 
-    /**
-     * Removes a layer by index.
-     */
     public void removeLayer(int index) {
         if (index < 0 || index >= layers.size()) return;
 
         TilemapLayer layer = layers.remove(index);
         layer.getGameObject().destroy();
 
-        // Adjust active layer index
         if (activeLayerIndex >= layers.size()) {
             activeLayerIndex = layers.size() - 1;
         }
@@ -195,66 +180,40 @@ public class EditorScene {
         markDirty();
     }
 
-    /**
-     * Gets a layer by index.
-     */
     public TilemapLayer getLayer(int index) {
         if (index < 0 || index >= layers.size()) return null;
         return layers.get(index);
     }
 
-    /**
-     * Gets the currently active layer.
-     */
     public TilemapLayer getActiveLayer() {
         if (activeLayerIndex < 0 || activeLayerIndex >= layers.size()) return null;
         return layers.get(activeLayerIndex);
     }
 
-    /**
-     * Sets the active layer by index.
-     */
     public void setActiveLayer(int index) {
-        if (index >= 0 && index < layers.size()) {
+        if (index >= -1 && index < layers.size()) {
             activeLayerIndex = index;
         }
     }
 
-    /**
-     * Gets all layers (copy).
-     */
     public List<TilemapLayer> getLayers() {
         return new ArrayList<>(layers);
     }
 
-    /**
-     * Gets the number of layers.
-     */
     public int getLayerCount() {
         return layers.size();
     }
 
-    /**
-     * Moves a layer up in the list (increases zIndex).
-     */
     public void moveLayerUp(int index) {
         if (index < 0 || index >= layers.size() - 1) return;
-
         swapLayers(index, index + 1);
     }
 
-    /**
-     * Moves a layer down in the list (decreases zIndex).
-     */
     public void moveLayerDown(int index) {
         if (index <= 0 || index >= layers.size()) return;
-
         swapLayers(index, index - 1);
     }
 
-    /**
-     * Swaps two layers and their zIndex values.
-     */
     public void swapLayers(int indexA, int indexB) {
         if (indexA < 0 || indexA >= layers.size()) return;
         if (indexB < 0 || indexB >= layers.size()) return;
@@ -263,16 +222,13 @@ public class EditorScene {
         TilemapLayer layerA = layers.get(indexA);
         TilemapLayer layerB = layers.get(indexB);
 
-        // Swap zIndex
         int tempZ = layerA.getZIndex();
         layerA.setZIndex(layerB.getZIndex());
         layerB.setZIndex(tempZ);
 
-        // Swap in list
         layers.set(indexA, layerB);
         layers.set(indexB, layerA);
 
-        // Update active layer index if needed
         if (activeLayerIndex == indexA) {
             activeLayerIndex = indexB;
         } else if (activeLayerIndex == indexB) {
@@ -282,9 +238,6 @@ public class EditorScene {
         markDirty();
     }
 
-    /**
-     * Renames a layer.
-     */
     public void renameLayer(int index, String newName) {
         TilemapLayer layer = getLayer(index);
         if (layer != null) {
@@ -298,30 +251,19 @@ public class EditorScene {
     // LAYER VISIBILITY
     // ========================================================================
 
-    /**
-     * Checks if a layer should be rendered based on visibility mode.
-     */
     public boolean isLayerVisible(int index) {
         TilemapLayer layer = getLayer(index);
         if (layer == null || !layer.isVisible()) {
             return false;
         }
 
-        switch (visibilityMode) {
-            case ALL:
-                return true;
-            case SELECTED_ONLY:
-                return index == activeLayerIndex;
-            case SELECTED_DIMMED:
-                return true; // All visible, but non-active are dimmed
-            default:
-                return true;
-        }
+        return switch (visibilityMode) {
+            case ALL -> true;
+            case SELECTED_ONLY -> index == activeLayerIndex;
+            case SELECTED_DIMMED -> true;
+        };
     }
 
-    /**
-     * Gets the opacity multiplier for a layer based on visibility mode.
-     */
     public float getLayerOpacity(int index) {
         if (!isLayerVisible(index)) {
             return 0f;
@@ -335,12 +277,97 @@ public class EditorScene {
     }
 
     // ========================================================================
-    // RENDERING SUPPORT
+    // ENTITY MANAGEMENT (Phase 5)
     // ========================================================================
 
     /**
-     * Gets all renderables sorted by zIndex, respecting visibility mode.
+     * Adds an entity to the scene.
      */
+    public void addEntity(EditorEntity entity) {
+        if (entity == null) return;
+        entities.add(entity);
+        markDirty();
+    }
+
+    /**
+     * Removes an entity from the scene.
+     */
+    public void removeEntity(EditorEntity entity) {
+        if (entity == null) return;
+
+        entities.remove(entity);
+
+        if (selectedEntity == entity) {
+            selectedEntity = null;
+        }
+
+        markDirty();
+    }
+
+    /**
+     * Sets the selected entity.
+     */
+    public void setSelectedEntity(EditorEntity entity) {
+        this.selectedEntity = entity;
+        if (entity != null) {
+            this.selectedObject = null; // Clear other selection
+        }
+    }
+
+    /**
+     * Gets all entities (copy).
+     */
+    public List<EditorEntity> getEntities() {
+        return new ArrayList<>(entities);
+    }
+
+    /**
+     * Gets entity count.
+     */
+    public int getEntityCount() {
+        return entities.size();
+    }
+
+    /**
+     * Finds an entity at the given world position.
+     * Searches in reverse order (top entities first).
+     */
+    public EditorEntity findEntityAt(float worldX, float worldY) {
+        for (int i = entities.size() - 1; i >= 0; i--) {
+            EditorEntity entity = entities.get(i);
+            Vector3f pos = entity.getPositionRef();
+            Vector2f size = entity.getPreviewSize();
+
+            if (size == null) {
+                size = new Vector2f(1f, 1f);
+            }
+
+            // Hit test (assuming bottom-center origin)
+            float halfW = size.x / 2f;
+            float minX = pos.x - halfW;
+            float maxX = pos.x + halfW;
+            float minY = pos.y;
+            float maxY = pos.y + size.y;
+
+            if (worldX >= minX && worldX <= maxX && worldY >= minY && worldY <= maxY) {
+                return entity;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Clears entity selection.
+     */
+    public void clearEntitySelection() {
+        selectedEntity = null;
+    }
+
+    // ========================================================================
+    // RENDERING SUPPORT
+    // ========================================================================
+
     public List<Renderable> getRenderables() {
         List<Renderable> renderables = new ArrayList<>();
 
@@ -355,9 +382,6 @@ public class EditorScene {
         return renderables;
     }
 
-    /**
-     * Gets all GameObjects from layers.
-     */
     public List<GameObject> getGameObjects() {
         List<GameObject> objects = new ArrayList<>();
         for (TilemapLayer layer : layers) {
@@ -370,9 +394,6 @@ public class EditorScene {
     // LIFECYCLE
     // ========================================================================
 
-    /**
-     * Updates the scene (for animations, etc.).
-     */
     public void update(float deltaTime) {
         for (TilemapLayer layer : layers) {
             if (layer.isVisible() && layer.getGameObject().isEnabled()) {
@@ -381,23 +402,20 @@ public class EditorScene {
         }
     }
 
-    /**
-     * Clears all scene content.
-     */
     public void clear() {
         for (TilemapLayer layer : new ArrayList<>(layers)) {
             layer.getGameObject().destroy();
         }
         layers.clear();
+        entities.clear();
         collisionMap.clear();
+        cameraSettings.reset();
         activeLayerIndex = -1;
         selectedObject = null;
+        selectedEntity = null;
         dirty = false;
     }
 
-    /**
-     * Destroys the scene and releases resources.
-     */
     public void destroy() {
         clear();
     }
@@ -406,9 +424,6 @@ public class EditorScene {
     // UTILITY
     // ========================================================================
 
-    /**
-     * Gets the display name (with dirty indicator).
-     */
     public String getDisplayName() {
         String displayName = name;
         if (filePath != null) {
@@ -422,23 +437,13 @@ public class EditorScene {
         return dirty ? displayName + " *" : displayName;
     }
 
-    /**
-     * Checks if scene has unsaved changes.
-     */
-    public boolean hasUnsavedChanges() {
-        return dirty;
-    }
-
-    /**
-     * Gets the number of objects (layers).
-     */
     public int getObjectCount() {
-        return layers.size();
+        return layers.size() + entities.size();
     }
 
     @Override
     public String toString() {
-        return String.format("EditorScene[name=%s, layers=%d, activeLayer=%d, collisionTiles=%d, dirty=%b]",
-                name, layers.size(), activeLayerIndex, collisionMap.getTileCount(), dirty);
+        return String.format("EditorScene[name=%s, layers=%d, entities=%d, collision=%d, dirty=%b]",
+                name, layers.size(), entities.size(), collisionMap.getTileCount(), dirty);
     }
 }

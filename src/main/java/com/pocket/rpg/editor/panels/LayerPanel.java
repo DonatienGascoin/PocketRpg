@@ -3,6 +3,7 @@ package com.pocket.rpg.editor.panels;
 import com.pocket.rpg.editor.EditorModeManager;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.scene.EditorScene;
+import com.pocket.rpg.editor.scene.LayerVisibilityMode;
 import com.pocket.rpg.editor.scene.TilemapLayer;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
@@ -39,6 +40,7 @@ public class LayerPanel {
     // Rename state
     private int renamingLayerIndex = -1;
     private final ImString renameBuffer = new ImString(64);
+    private float[] dimmedFloat = new float[1];
 
     // Entity Z-level constant
     private static final int ENTITY_Z_LEVEL = 0;
@@ -99,7 +101,54 @@ public class LayerPanel {
         if (!canRemove) {
             ImGui.endDisabled();
         }
+
+        ImGui.sameLine();
+
+        LayerVisibilityMode current = scene.getVisibilityMode();
+
+        // Map enum → int
+        int mode = current.ordinal();
+
+        // Radio buttons (same line)
+        if (ImGui.radioButton("All", mode == LayerVisibilityMode.ALL.ordinal())) {
+            mode = LayerVisibilityMode.ALL.ordinal();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("All layers visible at full opacity");
+        }
+        ImGui.sameLine();
+
+        if (ImGui.radioButton("S-O", mode == LayerVisibilityMode.SELECTED_ONLY.ordinal())) {
+            mode = LayerVisibilityMode.SELECTED_ONLY.ordinal();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("Selected layer only visible at full opacity");
+        }
+        ImGui.sameLine();
+
+        if (ImGui.radioButton("D", mode == LayerVisibilityMode.SELECTED_DIMMED.ordinal())) {
+            mode = LayerVisibilityMode.SELECTED_DIMMED.ordinal();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("Dimmed non selected layers");
+        }
+
+        // Apply change if needed
+        LayerVisibilityMode newMode = LayerVisibilityMode.values()[mode];
+        if (newMode != current) {
+            scene.setVisibilityMode(newMode);
+        }
+
+        if (scene.getVisibilityMode().equals(LayerVisibilityMode.SELECTED_DIMMED)) {
+            ImGui.sameLine();
+            ImGui.setNextItemWidth(100);
+            dimmedFloat[0] = scene.getDimmedOpacity();
+            if (ImGui.dragFloat("##Opacity", dimmedFloat, 0.1f, 0.1f, 1f)) {
+                scene.setDimmedOpacity(dimmedFloat[0]);
+            }
+        }
     }
+
 
     /**
      * Renders the layer list sorted by z-index with entity separator.
@@ -180,9 +229,20 @@ public class LayerPanel {
         // Visibility toggle
         boolean visible = layer.isVisible();
         String visIcon = visible ? FontAwesomeIcons.Eye : FontAwesomeIcons.EyeSlash;
-        if (ImGui.smallButton(visIcon)) {
+        if (ImGui.button(visIcon)) {
             layer.setVisible(!visible);
-            scene.markDirty();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(visible ? "Hide layer" : "Show layer");
+        }
+
+        ImGui.sameLine();
+
+        // Lock toggle
+        boolean lock = layer.isLocked();
+        String lockIcon = lock ? FontAwesomeIcons.LockOpen : FontAwesomeIcons.Lock;
+        if (ImGui.button(lockIcon)) {
+            layer.setLocked(!lock);
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(visible ? "Hide layer" : "Show layer");
@@ -232,7 +292,8 @@ public class LayerPanel {
             }
 
             int flags = ImGuiSelectableFlags.AllowDoubleClick | ImGuiSelectableFlags.AllowItemOverlap;
-            if (ImGui.selectable(label, isActive, flags)) {
+            ImGui.setNextItemWidth(100);
+            if (ImGui.selectable(label, isActive, flags, ImGui.getContentRegionAvailX() - 75, 0f)) {
                 scene.setActiveLayer(index);
 
                 // Double-click to rename
@@ -273,7 +334,7 @@ public class LayerPanel {
         // Z-index adjustment buttons (inline)
         ImGui.sameLine(ImGui.getContentRegionAvailX() - 50);
 
-        if (ImGui.smallButton(FontAwesomeIcons.ChevronUp + "##up" + index)) {
+        if (ImGui.button(FontAwesomeIcons.ChevronUp + "##up" + index)) {
             layer.setZIndex(zIndex + 1);
             scene.markDirty();
         }
@@ -283,7 +344,7 @@ public class LayerPanel {
 
         ImGui.sameLine();
 
-        if (ImGui.smallButton(FontAwesomeIcons.ChevronDown + "##down" + index)) {
+        if (ImGui.button(FontAwesomeIcons.ChevronDown + "##down" + index)) {
             layer.setZIndex(zIndex - 1);
             scene.markDirty();
         }
@@ -297,5 +358,6 @@ public class LayerPanel {
     /**
      * Internal class to track layer with original index.
      */
-    private record LayerEntry(int originalIndex, TilemapLayer layer) {}
+    private record LayerEntry(int originalIndex, TilemapLayer layer) {
+    }
 }

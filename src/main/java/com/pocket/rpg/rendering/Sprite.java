@@ -100,6 +100,15 @@ public class Sprite {
         setUVs(0, 0, 1, 1); // Full texture
     }
 
+    public static Sprite copy(Sprite sprite) {
+        var copy = new Sprite(sprite.texture, sprite.getWidth(), sprite.getHeight(), sprite.getName());
+        copy.setPivot(sprite.getPivotX(), sprite.getPivotY());
+        copy.setUVs(sprite.getU0(), sprite.getV0(), sprite.getU1(), sprite.getV1());
+        copy.setPixelsPerUnitOverride(sprite.getPixelsPerUnitOverride());
+
+        return copy;
+    }
+
     /**
      * Creates a sprite with the full texture and a name.
      *

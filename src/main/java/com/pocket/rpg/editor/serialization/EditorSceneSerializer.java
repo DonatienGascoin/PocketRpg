@@ -2,6 +2,7 @@ package com.pocket.rpg.editor.serialization;
 
 import com.pocket.rpg.components.TilemapRenderer;
 import com.pocket.rpg.core.GameObject;
+import com.pocket.rpg.editor.scene.EditorEntity;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.TilemapLayer;
 import com.pocket.rpg.serialization.GameObjectData;
@@ -15,7 +16,7 @@ import com.pocket.rpg.serialization.SceneData;
  * - SceneData uses GameObjectData with TilemapRenderer components for runtime
  * - This serializer bridges the two representations
  * <p>
- * Phase 4 Part 2: Added collision map serialization support
+ * Phase 5: Added entity and camera serialization support
  */
 public class EditorSceneSerializer {
 
@@ -24,10 +25,10 @@ public class EditorSceneSerializer {
      */
     public static SceneData toSceneData(EditorScene editorScene) {
         SceneData data = new SceneData(editorScene.getName());
-        data.setVersion(2); // Version 2 includes collision
+        data.setVersion(3); // Version 3 includes entities
 
-        // Set default camera (editor camera state not saved yet)
-        data.setCamera(new SceneData.CameraData(0, 0, 0, 15f));
+        // Camera settings
+        data.setCamera(editorScene.getCameraSettings().toData());
 
         // Convert tilemap layers to GameObjectData
         for (TilemapLayer layer : editorScene.getLayers()) {
@@ -35,13 +36,15 @@ public class EditorSceneSerializer {
             data.addGameObject(goData);
         }
 
-        // Convert collision map (Phase 4)
+        // Collision map
         if (editorScene.getCollisionMap() != null) {
             data.setCollision(editorScene.getCollisionMap().toSparseFormat());
         }
 
-        // TODO: Convert entities (Phase 5)
-        // TODO: Convert triggers (Phase 7)
+        // Entities (Phase 5)
+        for (EditorEntity entity : editorScene.getEntities()) {
+            data.addEntity(entity.toData());
+        }
 
         return data;
     }
@@ -53,6 +56,11 @@ public class EditorSceneSerializer {
         EditorScene scene = new EditorScene(data.getName());
         scene.setFilePath(filePath);
 
+        // Camera settings
+        if (data.getCamera() != null) {
+            scene.getCameraSettings().fromData(data.getCamera());
+        }
+
         // Convert GameObjects with TilemapRenderer to TilemapLayers
         for (GameObjectData goData : data.getGameObjects()) {
             if (hasTilemapRenderer(goData)) {
@@ -61,13 +69,22 @@ public class EditorSceneSerializer {
             }
         }
 
-        // Load collision map (Phase 4)
+        // Collision map
         if (data.getCollision() != null) {
             scene.getCollisionMap().fromSparseFormat(data.getCollision());
         }
 
-        // TODO: Load entities (Phase 5)
-        // TODO: Load triggers (Phase 7)
+        // Entities (Phase 5)
+        if (data.getEntities() != null) {
+            for (EntityData entityData : data.getEntities()) {
+                try {
+                    EditorEntity entity = EditorEntity.fromData(entityData);
+                    scene.addEntity(entity);
+                } catch (Exception e) {
+                    System.err.println("Failed to load entity: " + e.getMessage());
+                }
+            }
+        }
 
         scene.clearDirty();
         return scene;
@@ -89,7 +106,7 @@ public class EditorSceneSerializer {
         TilemapRenderer tilemap = layer.getTilemap();
         TilemapRenderer componentForSerialization = new TilemapRenderer(tilemap.getTileSize());
         componentForSerialization.setZIndex(tilemap.getZIndex());
-        componentForSerialization.setStatic(false); // Editor layers are always non-static
+        componentForSerialization.setStatic(false);
 
         // Copy all tiles from original tilemap
         for (Long chunkKey : tilemap.chunkKeys()) {
@@ -97,7 +114,6 @@ public class EditorSceneSerializer {
             int cy = TilemapRenderer.chunkKeyToY(chunkKey);
             TilemapRenderer.TileChunk chunk = tilemap.getChunk(cx, cy);
 
-            // Copy each tile
             for (int tx = 0; tx < TilemapRenderer.TileChunk.CHUNK_SIZE; tx++) {
                 for (int ty = 0; ty < TilemapRenderer.TileChunk.CHUNK_SIZE; ty++) {
                     TilemapRenderer.Tile tile = chunk.get(tx, ty);
@@ -142,7 +158,7 @@ public class EditorSceneSerializer {
         // Copy tilemap data to new component instance
         TilemapRenderer newTilemap = new TilemapRenderer(tilemap.getTileSize());
         newTilemap.setZIndex(tilemap.getZIndex());
-        newTilemap.setStatic(false); // Editor always uses non-static
+        newTilemap.setStatic(false);
 
         // Copy all tiles
         for (Long chunkKey : tilemap.chunkKeys()) {
@@ -166,9 +182,6 @@ public class EditorSceneSerializer {
 
         // Create TilemapLayer wrapper
         TilemapLayer layer = new TilemapLayer(gameObject, goData.getName());
-
-        // TODO: Restore spritesheet metadata if present
-        // This would require reading it from TilemapComponentData metadata
 
         return layer;
     }

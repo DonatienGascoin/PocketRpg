@@ -1,7 +1,7 @@
 package com.pocket.rpg.prefabs;
 
-import com.pocket.rpg.resources.AssetManager;
 import com.pocket.rpg.core.GameObject;
+import com.pocket.rpg.resources.AssetManager;
 import org.joml.Vector3f;
 
 import java.util.HashMap;
@@ -11,14 +11,14 @@ import java.util.function.BiFunction;
 
 /**
  * Registry for prefab factories.
- * 
+ * <p>
  * Prefabs are templates for creating GameObjects with predefined components.
  * Each prefab is identified by a unique ID and associated with a factory function.
- * 
+ * <p>
  * Usage:
  * <pre>
  * PrefabRegistry registry = new PrefabRegistry(assetManager);
- * 
+ *
  * // Register prefabs
  * registry.register("Player", (assets, pos) -> {
  *     GameObject go = new GameObject("Player");
@@ -27,15 +27,15 @@ import java.util.function.BiFunction;
  *     go.addComponent(new PlayerController());
  *     return go;
  * });
- * 
+ *
  * // Instantiate
  * GameObject player = registry.instantiate("Player", new Vector3f(5, 5, 0));
  * </pre>
- * 
+ * <p>
  * For JSON-based prefabs (future enhancement), see PrefabLoader.
  */
 public class PrefabRegistry {
-    
+
     /**
      * Functional interface for prefab factories.
      * Takes AssetManager and position, returns configured GameObject.
@@ -61,9 +61,9 @@ public class PrefabRegistry {
 
     /**
      * Registers a prefab factory.
-     * 
+     *
      * @param prefabId Unique identifier for this prefab
-     * @param factory Factory function that creates the GameObject
+     * @param factory  Factory function that creates the GameObject
      */
     public void register(String prefabId, PrefabFactory factory) {
         register(prefabId, factory, null);
@@ -71,9 +71,9 @@ public class PrefabRegistry {
 
     /**
      * Registers a prefab factory with metadata.
-     * 
+     *
      * @param prefabId Unique identifier for this prefab
-     * @param factory Factory function
+     * @param factory  Factory function
      * @param metadata Optional metadata for editor display
      */
     public void register(String prefabId, PrefabFactory factory, PrefabMetadata metadata) {
@@ -100,7 +100,7 @@ public class PrefabRegistry {
 
     /**
      * Instantiates a prefab at the given position.
-     * 
+     *
      * @param prefabId Prefab identifier
      * @param position World position for the new GameObject
      * @return New GameObject instance
@@ -116,9 +116,9 @@ public class PrefabRegistry {
 
     /**
      * Instantiates a prefab with a custom name.
-     * 
+     *
      * @param prefabId Prefab identifier
-     * @param name Name for the new GameObject
+     * @param name     Name for the new GameObject
      * @param position World position
      * @return New GameObject instance
      */

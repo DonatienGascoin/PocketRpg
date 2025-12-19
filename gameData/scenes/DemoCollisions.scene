@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "name": "DemoCollisions",
   "gameObjects": [
     {
@@ -35236,7 +35236,16 @@
       0.0,
       0.0
     ],
-    "orthographicSize": 15.0
+    "orthographicSize": 7.5,
+    "followPlayer": true,
+    "followTargetName": "Player",
+    "useBounds": true,
+    "bounds": [
+      -26.0,
+      -15.0,
+      27.0,
+      22.0
+    ]
   },
   "collision": {
     "0": {
@@ -35561,5 +35570,17 @@
         "26,20": 1
       }
     }
-  }
+  },
+  "entities": [
+    {
+      "prefabId": "player",
+      "name": "Player",
+      "position": [
+        12.5,
+        7.0,
+        0.0
+      ],
+      "properties": {}
+    }
+  ]
 }

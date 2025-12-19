@@ -297,6 +297,40 @@ public class SpriteBatch {
     }
 
     /**
+     * Draws a sprite directly without requiring a SpriteRenderer.
+     * Useful for editor previews, UI elements, etc.
+     *
+     * @param sprite Sprite to draw
+     * @param x      World X position (left edge)
+     * @param y      World Y position (bottom edge)
+     * @param width  Width in world units
+     * @param height Height in world units
+     * @param zIndex Z-index for sorting
+     * @param tint   Tint color
+     */
+    public void draw(Sprite sprite, float x, float y, float width, float height, float zIndex, Vector4f tint) {
+        if (!isBatching) {
+            throw new IllegalStateException("Not batching! Call begin() first.");
+        }
+
+        if (sprite == null || sprite.getTexture() == null) {
+            return;
+        }
+
+        int textureId = sprite.getTexture().getTextureId();
+        BatchItem item = new BatchItem(sprite, x, y, width, height, textureId, zIndex, false, tint);
+        dynamicItems.add(item);
+        totalSprites++;
+    }
+
+    /**
+     * Draws a sprite with default white tint.
+     */
+    public void draw(Sprite sprite, float x, float y, float width, float height, float zIndex) {
+        draw(sprite, x, y, width, height, zIndex, new Vector4f(1f, 1f, 1f, 1f));
+    }
+
+    /**
      * Marks the static batch as dirty, forcing a rebuild.
      * Call this when static sprites are added/removed/modified.
      */

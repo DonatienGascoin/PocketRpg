@@ -2,12 +2,15 @@ package com.pocket.rpg.editor;
 
 import com.pocket.rpg.collision.CollisionType;
 import com.pocket.rpg.editor.panels.CollisionPanel;
+import com.pocket.rpg.editor.panels.PrefabBrowserPanel;
+import com.pocket.rpg.editor.scene.EditorEntity;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.tools.*;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiKey;
 import lombok.Getter;
+import lombok.Setter;
 
 import java.util.function.Consumer;
 
@@ -34,29 +37,19 @@ public class EditorToolController {
     @Getter private CollisionFillTool collisionFillTool;
     @Getter private CollisionRectangleTool collisionRectangleTool;
     @Getter private CollisionPickerTool collisionPickerTool;
+    // Entity tools
+    @Getter private EntityPlacerTool entityPlacerTool;
+    @Getter private SelectionTool selectionTool;
 
     // Reference to collision panel for type display
-    private CollisionPanel collisionPanel;
+    @Setter private CollisionPanel collisionPanel;
+    @Setter private PrefabBrowserPanel prefabBrowserPanel;
 
     // Message callback
-    private Consumer<String> messageCallback;
+    @Setter private Consumer<String> messageCallback;
 
     public EditorToolController(EditorContext context) {
         this.context = context;
-    }
-
-    /**
-     * Sets the collision panel reference for tool settings display.
-     */
-    public void setCollisionPanel(CollisionPanel panel) {
-        this.collisionPanel = panel;
-    }
-
-    /**
-     * Sets a callback for status messages.
-     */
-    public void setMessageCallback(Consumer<String> callback) {
-        this.messageCallback = callback;
     }
 
     /**
@@ -98,6 +91,16 @@ public class EditorToolController {
         collisionPickerTool = new CollisionPickerTool(scene);
         toolManager.registerTool(collisionPickerTool);
 
+        // Entity tools
+        entityPlacerTool = new EntityPlacerTool();
+        entityPlacerTool.setScene(scene);
+        toolManager.registerTool(entityPlacerTool);
+
+        selectionTool = new SelectionTool();
+        selectionTool.setScene(scene);
+        selectionTool.setCamera(context.getCamera());
+        toolManager.registerTool(selectionTool);
+
         // Setup callbacks
         setupCallbacks();
     }
@@ -119,6 +122,10 @@ public class EditorToolController {
         collisionFillTool.setScene(scene);
         collisionRectangleTool.setScene(scene);
         collisionPickerTool.setScene(scene);
+
+        // Entity tools
+        entityPlacerTool.setScene(scene);
+        selectionTool.setScene(scene);
 
         // Sync z-levels
         syncCollisionZLevels();
@@ -146,11 +153,69 @@ public class EditorToolController {
             showMessage("Switched to Collision Mode");
         }
 
+        if (ImGui.isKeyPressed(ImGuiKey.E)) {
+            modeManager.switchToEntity();
+            toolManager.setActiveTool(selectionTool);
+            showMessage("Switched to Entity Mode");
+        }
+
         // Tool shortcuts based on mode
         if (modeManager.isTilemapMode()) {
             processTilemapShortcuts();
-        } else {
+        } else if (modeManager.isCollisionMode()) {
             processCollisionShortcuts();
+        } else if (modeManager.isEntityMode()) {
+            processEntityShortcuts();
+        }
+    }
+
+    private void processEntityShortcuts() {
+        ToolManager toolManager = context.getToolManager();
+
+        // V - Selection tool
+        if (ImGui.isKeyPressed(ImGuiKey.V)) {
+            toolManager.setActiveTool(selectionTool);
+            showMessage("Selection Tool");
+        }
+
+        // P - Entity placer tool
+        if (ImGui.isKeyPressed(ImGuiKey.P)) {
+            toolManager.setActiveTool(entityPlacerTool);
+            showMessage("Entity Placer");
+        }
+
+        // Escape - Cancel placement / Deselect
+        if (ImGui.isKeyPressed(ImGuiKey.Escape)) {
+            EditorTool activeTool = toolManager.getActiveTool();
+
+            // If using placer tool, switch to selection and clear prefab selection
+            if (activeTool == entityPlacerTool) {
+                toolManager.setActiveTool(selectionTool);
+                if (prefabBrowserPanel != null) {
+                    prefabBrowserPanel.clearSelection();
+                }
+                showMessage("Cancelled placement");
+            } else {
+                // Otherwise just deselect entity
+                EditorScene scene = context.getCurrentScene();
+                if (scene != null && scene.getSelectedEntity() != null) {
+                    scene.setSelectedEntity(null);
+                    showMessage("Deselected");
+                }
+            }
+        }
+
+        // Delete - Remove selected entity
+        if (ImGui.isKeyPressed(ImGuiKey.Delete) || ImGui.isKeyPressed(ImGuiKey.Backspace)) {
+            EditorScene scene = context.getCurrentScene();
+            if (scene != null) {
+                EditorEntity selected = scene.getSelectedEntity();
+                if (selected != null) {
+                    String name = selected.getName();
+                    scene.removeEntity(selected);
+                    showMessage("Deleted: " + name);
+                }
+            }
         }
     }
 
@@ -279,8 +344,7 @@ public class EditorToolController {
             EditorModeManager modeManager = context.getModeManager();
 
             // Mode indicator
-            ImGui.textColored(0.5f, 1.0f, 0.5f, 1.0f,
-                    modeManager.isTilemapMode() ? "TILEMAP MODE" : "COLLISION MODE");
+            ImGui.textColored(0.5f, 1.0f, 0.5f, 1.0f, modeManager.isTilemapMode() ? "TILEMAP MODE" : "COLLISION MODE");
             ImGui.separator();
 
             // Tool buttons
@@ -384,9 +448,7 @@ public class EditorToolController {
     }
 
     private void renderCollisionToolSettings(EditorTool activeTool) {
-        CollisionType selectedType = collisionPanel != null
-                ? collisionPanel.getSelectedType()
-                : CollisionType.SOLID;
+        CollisionType selectedType = collisionPanel != null ? collisionPanel.getSelectedType() : CollisionType.SOLID;
 
         if (activeTool == collisionBrushTool) {
             ImGui.text("Collision Brush");

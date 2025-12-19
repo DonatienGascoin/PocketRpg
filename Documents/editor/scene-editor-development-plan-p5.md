@@ -429,6 +429,8 @@ if (ImGui.beginMenu("View")) {
 }
 ```
 
+Or, if using the hierarchy, by clicking on the camera
+
 ### 5.7 Files to Create
 
 ```

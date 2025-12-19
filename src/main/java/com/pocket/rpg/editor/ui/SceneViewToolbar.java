@@ -19,8 +19,8 @@ import java.util.function.Consumer;
  * Toolbar rendered inside the Scene viewport.
  * <p>
  * Contains:
- * - Tool buttons with FontAwesome icons
- * - Mode dropdown (Tilemap/Collision)
+ * - Tool buttons with FontAwesome icons (mode-specific)
+ * - Mode dropdown (Tilemap/Collision/Entity)
  * - Visibility toggles (Grid, Collision overlay)
  */
 public class SceneViewToolbar {
@@ -46,6 +46,11 @@ public class SceneViewToolbar {
             new ToolDef("Collision Fill", FontAwesomeIcons.FillDrip, "G"),
             new ToolDef("Collision Rectangle", FontAwesomeIcons.VectorSquare, "H"),
             new ToolDef("Collision Picker", FontAwesomeIcons.EyeDropper, "V"),
+    };
+
+    private static final ToolDef[] ENTITY_TOOLS = {
+            new ToolDef("Select", FontAwesomeIcons.MousePointer, "V"),
+            new ToolDef("Place Entity", FontAwesomeIcons.PlusSquare, "P"),
     };
 
     // Visibility state
@@ -100,7 +105,7 @@ public class SceneViewToolbar {
         ToolManager toolManager = context.getToolManager();
         EditorTool activeTool = toolManager.getActiveTool();
 
-        ToolDef[] tools = modeManager.isTilemapMode() ? TILEMAP_TOOLS : COLLISION_TOOLS;
+        ToolDef[] tools = getToolsForMode(modeManager.getCurrentMode());
 
         for (ToolDef def : tools) {
             boolean isActive = activeTool != null && activeTool.getName().equals(def.toolName);
@@ -132,6 +137,17 @@ public class SceneViewToolbar {
     }
 
     /**
+     * Gets the tool definitions for the given mode.
+     */
+    private ToolDef[] getToolsForMode(EditorModeManager.Mode mode) {
+        return switch (mode) {
+            case TILEMAP -> TILEMAP_TOOLS;
+            case COLLISION -> COLLISION_TOOLS;
+            case ENTITY -> ENTITY_TOOLS;
+        };
+    }
+
+    /**
      * Renders the mode dropdown.
      */
     private void renderModeDropdown() {
@@ -154,7 +170,7 @@ public class SceneViewToolbar {
         ImGui.popItemWidth();
 
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("Editor Mode (M/N)");
+            ImGui.setTooltip("Editor Mode (M/N/E)");
         }
     }
 
@@ -200,7 +216,7 @@ public class SceneViewToolbar {
     }
 
     /**
-     * Switches to the specified mode.
+     * Switches to the specified mode and activates appropriate default tool.
      */
     private void switchToMode(EditorModeManager.Mode mode) {
         EditorModeManager modeManager = context.getModeManager();
@@ -208,14 +224,21 @@ public class SceneViewToolbar {
 
         modeManager.switchTo(mode);
 
-        // Set appropriate default tool
-        if (mode == EditorModeManager.Mode.TILEMAP) {
-            toolManager.setActiveTool("Brush");
-            showMessage("Switched to Tilemap Mode");
-        } else {
-            toolManager.setActiveTool("Collision Brush");
-            toolController.syncCollisionZLevels();
-            showMessage("Switched to Collision Mode");
+        // Set appropriate default tool for each mode
+        switch (mode) {
+            case TILEMAP -> {
+                toolManager.setActiveTool("Brush");
+                showMessage("Switched to Tilemap Mode");
+            }
+            case COLLISION -> {
+                toolManager.setActiveTool("Collision Brush");
+                toolController.syncCollisionZLevels();
+                showMessage("Switched to Collision Mode");
+            }
+            case ENTITY -> {
+                toolManager.setActiveTool("Select");
+                showMessage("Switched to Entity Mode");
+            }
         }
     }
 

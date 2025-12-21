@@ -28,6 +28,26 @@ public class TranslationComponent extends Component {
     private boolean movingForward = true;
     private boolean isComplete = false;
 
+    /**
+     * Default constructor for editor instantiation.
+     * Configure via setters after construction.
+     * <p>
+     * Defaults:
+     * - endPosition: (0, 1, 0) - moves up 1 unit
+     * - duration: 1 second
+     * - easing: LINEAR
+     * - loop/pingPong: false
+     */
+    public TranslationComponent() {
+        this.startPosition = null;  // Will be captured from transform on start()
+        this.endPosition = new Vector3f(0, 1, 0);
+        this.duration = 1f;
+        this.easingType = EasingType.LINEAR;
+        this.loop = false;
+        this.pingPong = false;
+        this.elapsedTime = 0f;
+    }
+
     public TranslationComponent(Vector3f endPosition, float duration) {
         this(null, endPosition, duration, EasingType.LINEAR, false, false);
     }
@@ -96,13 +116,20 @@ public class TranslationComponent extends Component {
 
     private float applyEasing(float t) {
         switch (easingType) {
-            case LINEAR: return t;
-            case EASE_IN: return t * t;
-            case EASE_OUT: return t * (2 - t);
-            case EASE_IN_OUT: return t < 0.5f ? 2 * t * t : -1 + (4 - 2 * t) * t;
-            case SMOOTH_STEP: return t * t * (3 - 2 * t);
-            case SMOOTHER_STEP: return t * t * t * (t * (t * 6 - 15) + 10);
-            default: return t;
+            case LINEAR:
+                return t;
+            case EASE_IN:
+                return t * t;
+            case EASE_OUT:
+                return t * (2 - t);
+            case EASE_IN_OUT:
+                return t < 0.5f ? 2 * t * t : -1 + (4 - 2 * t) * t;
+            case SMOOTH_STEP:
+                return t * t * (3 - 2 * t);
+            case SMOOTHER_STEP:
+                return t * t * t * (t * (t * 6 - 15) + 10);
+            default:
+                return t;
         }
     }
 
@@ -123,21 +150,67 @@ public class TranslationComponent extends Component {
         }
     }
 
-    public void pause() { isComplete = true; }
-    public void resume() { isComplete = false; }
-    public boolean isComplete() { return isComplete; }
-    public float getProgress() { return Math.min(elapsedTime / duration, 1.0f); }
+    public void pause() {
+        isComplete = true;
+    }
 
-    public Vector3f getStartPosition() { return new Vector3f(startPosition); }
-    public void setStartPosition(Vector3f startPosition) { this.startPosition = new Vector3f(startPosition); }
-    public Vector3f getEndPosition() { return new Vector3f(endPosition); }
-    public void setEndPosition(Vector3f endPosition) { this.endPosition = new Vector3f(endPosition); }
-    public float getDuration() { return duration; }
-    public void setDuration(float duration) { this.duration = duration; }
-    public EasingType getEasingType() { return easingType; }
-    public void setEasingType(EasingType easingType) { this.easingType = easingType; }
-    public boolean isLoop() { return loop; }
-    public void setLoop(boolean loop) { this.loop = loop; }
-    public boolean isPingPong() { return pingPong; }
-    public void setPingPong(boolean pingPong) { this.pingPong = pingPong; }
+    public void resume() {
+        isComplete = false;
+    }
+
+    public boolean isComplete() {
+        return isComplete;
+    }
+
+    public float getProgress() {
+        return Math.min(elapsedTime / duration, 1.0f);
+    }
+
+    public Vector3f getStartPosition() {
+        return new Vector3f(startPosition);
+    }
+
+    public void setStartPosition(Vector3f startPosition) {
+        this.startPosition = new Vector3f(startPosition);
+    }
+
+    public Vector3f getEndPosition() {
+        return new Vector3f(endPosition);
+    }
+
+    public void setEndPosition(Vector3f endPosition) {
+        this.endPosition = new Vector3f(endPosition);
+    }
+
+    public float getDuration() {
+        return duration;
+    }
+
+    public void setDuration(float duration) {
+        this.duration = duration;
+    }
+
+    public EasingType getEasingType() {
+        return easingType;
+    }
+
+    public void setEasingType(EasingType easingType) {
+        this.easingType = easingType;
+    }
+
+    public boolean isLoop() {
+        return loop;
+    }
+
+    public void setLoop(boolean loop) {
+        this.loop = loop;
+    }
+
+    public boolean isPingPong() {
+        return pingPong;
+    }
+
+    public void setPingPong(boolean pingPong) {
+        this.pingPong = pingPong;
+    }
 }

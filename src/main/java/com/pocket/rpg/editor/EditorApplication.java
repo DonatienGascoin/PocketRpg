@@ -3,6 +3,7 @@ package com.pocket.rpg.editor;
 import com.pocket.rpg.config.ConfigLoader;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.editor.camera.EditorCamera;
+import com.pocket.rpg.editor.components.ComponentRegistry;
 import com.pocket.rpg.editor.core.EditorConfig;
 import com.pocket.rpg.editor.core.EditorWindow;
 import com.pocket.rpg.editor.core.FileDialogs;
@@ -86,7 +87,8 @@ public class EditorApplication {
         imGuiLayer = new ImGuiLayer();
         imGuiLayer.init(window.getWindowHandle(), true);
 
-        // Initialize tileset registry
+        // Initialize registries
+        ComponentRegistry.initialize();
         TilesetRegistry.initialize();
         TilesetRegistry.getInstance().scanAndLoad();
         PrefabRegistry.initialize();

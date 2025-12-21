@@ -328,7 +328,8 @@ public class VillageLevelGenerator {
         GameObject house = new GameObject("House_" + tileX + "_" + tileY,
                 new Vector3f(tileX, tileY, 0));
 
-        SpriteRenderer renderer = new SpriteRenderer(houseSprites.get(0));
+        SpriteRenderer renderer = new SpriteRenderer();
+        renderer.setSprite(houseSprites.get(0));
         renderer.setZIndex(2);
         renderer.setOriginBottomLeft();
         house.addComponent(renderer);
@@ -479,7 +480,8 @@ public class VillageLevelGenerator {
         GameObject tree = new GameObject("Tree_" + tileX + "_" + tileY,
                 new Vector3f(tileX, tileY, 0));
 
-        SpriteRenderer renderer = new SpriteRenderer(safeGet(treeSprites, treeIndex));
+        SpriteRenderer renderer = new SpriteRenderer();
+        renderer.setSprite(safeGet(treeSprites, treeIndex));
         renderer.setZIndex(2);
         renderer.setOriginBottomLeft();
         tree.addComponent(renderer);

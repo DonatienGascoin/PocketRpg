@@ -82,13 +82,8 @@ public class SpriteRenderer extends Component implements Renderable {
     @Getter
     private boolean isStatic = false;
 
-    /**
-     * Creates a SpriteRenderer with a sprite.
-     *
-     * @param sprite The sprite to render
-     */
-    public SpriteRenderer(Sprite sprite) {
-        this.sprite = sprite;
+    public SpriteRenderer() {
+
     }
 
     /**

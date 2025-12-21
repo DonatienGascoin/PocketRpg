@@ -55,7 +55,8 @@ public class ChestPrefab implements Prefab {
         GameObject chest = new GameObject("Chest", position);
 
         if (spriteSheet != null) {
-            SpriteRenderer renderer = new SpriteRenderer(spriteSheet.getSprite(0));
+            SpriteRenderer renderer = new SpriteRenderer();
+            renderer.setSprite(spriteSheet.getSprite(0));
             renderer.setOriginBottomCenter();
             renderer.setZIndex(10);
             chest.addComponent(renderer);
@@ -71,8 +72,7 @@ public class ChestPrefab implements Prefab {
     private void ensureSpriteSheet() {
         if (spriteSheet == null) {
             try {
-                Sprite sprite = Assets.load("sprites/objects/chest.png");
-                spriteSheet = new SpriteSheet(sprite.getTexture(), 16, 16);
+                spriteSheet = Assets.load("spritesheets/Chest.spritesheet");
             } catch (Exception e) {
                 System.err.println("Failed to load chest sprite: " + e.getMessage());
             }

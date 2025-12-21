@@ -50,7 +50,7 @@ public class CollisionPanel {
     private final ImInt zLevelSlider = new ImInt(0);
     private final ImInt brushSizeSlider = new ImInt(1);
     private final ImInt eraserSizeSlider = new ImInt(1);
-    private final float[] opacitySlider = {0.4f};
+    private final float[] opacitySlider = {1f};
 
     /**
      * Renders the collision panel.
@@ -81,29 +81,11 @@ public class CollisionPanel {
         // Sync with scene - force visible in collision mode
         if (scene != null) {
             if (inCollisionMode) {
-                scene.setCollisionVisible(true);
                 visibilityToggle.set(true);
             } else {
                 visibilityToggle.set(scene.isCollisionVisible());
             }
         }
-
-//        // Disable toggle in collision mode
-//        if (inCollisionMode) {
-//            ImGui.beginDisabled();
-//        }
-//
-//        if (ImGui.checkbox("Show Collision Overlay", visibilityToggle)) {
-//            if (scene != null) {
-//                scene.setCollisionVisible(visibilityToggle.get());
-//            }
-//        }
-//
-//        if (inCollisionMode) {
-//            ImGui.endDisabled();
-//            ImGui.sameLine();
-//            ImGui.textDisabled("(always on in collision mode)");
-//        }
 
         // Opacity slider
         if (scene != null) {

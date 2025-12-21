@@ -5,6 +5,7 @@ import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiConfigFlags;
 import imgui.gl3.ImGuiImplGl3;
 import imgui.glfw.ImGuiImplGlfw;
+import org.lwjgl.glfw.GLFW;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -46,7 +47,7 @@ public class ImGuiLayer {
 
         io.setIniFilename("editor/editor_layout.ini");
 
-        initFonts(io);
+        initFonts(io, windowHandle);
 
         // Apply dark theme with custom colors
         applyDarkTheme();
@@ -62,12 +63,25 @@ public class ImGuiLayer {
         System.out.println("ImGui initialized successfully");
     }
 
-    private void initFonts(final ImGuiIO io) {
+    private void initFonts(final ImGuiIO io, long windowHandle) {
+        int[] fbW = new int[1];
+        int[] fbH = new int[1];
+        int[] winW = new int[1];
+        int[] winH = new int[1];
+
+        GLFW.glfwGetFramebufferSize(windowHandle, fbW, fbH);
+        GLFW.glfwGetWindowSize(windowHandle, winW, winH);
+
+        float dpiScale = (float) fbW[0] / winW[0];
+
         // This enables FreeType font renderer, which is disabled by default.
         io.getFonts().setFreeTypeRenderer(true);
 
-        // Add default font for latin glyphs
-        io.getFonts().addFontDefault();
+
+        // Font config for additional fonts
+        // This is a natively allocated struct so don't forget to call destroy after atlas is built
+        final ImFontConfig fontConfig = new ImFontConfig();
+        fontConfig.setSizePixels(16.0f * dpiScale);
 
         // You can use the ImFontGlyphRangesBuilder helper to create glyph ranges based on text input.
         // For example: for a game where your script is known, if you can feed your entire script to it (using addText) and only build the characters the game needs.
@@ -75,14 +89,15 @@ public class ImGuiLayer {
         final ImFontGlyphRangesBuilder rangesBuilder = new ImFontGlyphRangesBuilder(); // Glyphs ranges provide
         rangesBuilder.addRanges(FontAwesomeIcons._IconRange);
 
-        // Font config for additional fonts
-        // This is a natively allocated struct so don't forget to call destroy after atlas is built
-        final ImFontConfig fontConfig = new ImFontConfig();
+
+        // Add default font for latin glyphs
+        // io.getFonts().addFontDefault();
+        io.getFonts().addFontFromMemoryTTF(loadFromResources("editor/fonts/JetBrainsMono-Regular.ttf"), 16, fontConfig); // font awesome
         fontConfig.setMergeMode(true);  // Enable merge mode to merge icons with default font
 
         final short[] glyphRanges = rangesBuilder.buildRanges();
-        io.getFonts().addFontFromMemoryTTF(loadFromResources("editor/fa-regular-400.ttf"), 14, fontConfig, glyphRanges); // font awesome
-        io.getFonts().addFontFromMemoryTTF(loadFromResources("editor/fa-solid-900.ttf"), 14, fontConfig, glyphRanges); // font awesome
+        io.getFonts().addFontFromMemoryTTF(loadFromResources("editor/fonts/fa-regular-400.ttf"), 14, fontConfig, glyphRanges); // font awesome
+        io.getFonts().addFontFromMemoryTTF(loadFromResources("editor/fonts/fa-solid-900.ttf"), 14, fontConfig, glyphRanges); // font awesome
         io.getFonts().build();
 
         fontConfig.destroy();

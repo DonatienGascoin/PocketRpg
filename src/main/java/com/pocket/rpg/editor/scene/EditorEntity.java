@@ -14,6 +14,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import com.pocket.rpg.editor.serialization.ComponentData;
+
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Editor-side representation of a placed entity instance.
  * <p>
@@ -35,9 +40,10 @@ public class EditorEntity {
 
     /**
      * Reference to the prefab definition.
+     * Null for scratch entities.
      */
     @Getter
-    private final String prefabId;
+    private String prefabId;
 
     /**
      * Display name (editable by user).
@@ -50,6 +56,12 @@ public class EditorEntity {
      * World position.
      */
     private final Vector3f position;
+
+    /**
+     * Component data for scratch entities (when prefabId is null).
+     * For prefab instances, this is null - use properties instead.
+     */
+    private List<ComponentData> components;
 
     /**
      * Property overrides (only stores values different from prefab defaults).
@@ -86,6 +98,30 @@ public class EditorEntity {
 
         initializeDefaultProperties();
     }
+
+    // TODO: Should be replaced by the constructor below: but it have the same fields as the constructor above
+    public EditorEntity(String name, Vector3f position, boolean isPrefab) {
+        this.id = generateId();
+        this.prefabId = isPrefab ? name : null;
+        this.name = isPrefab ? (name + "_" + id) : name;
+        this.position = new Vector3f(position);
+        this.properties = new HashMap<>();
+
+        initializeDefaultProperties();
+    }
+
+//    /**
+//     * Creates a new scratch entity (no prefab).
+//     * Use this when creating entities from scratch in the editor.
+//     */
+//    public EditorEntity(String name, Vector3f position) {
+//        this.id = generateId();
+//        this.prefabId = null;  // No prefab = scratch entity
+//        this.name = name;
+//        this.position = new Vector3f(position);
+//        this.properties = new HashMap<>();
+//        this.components = new ArrayList<>();
+//    }
 
     /**
      * Private constructor for deserialization.
@@ -210,6 +246,84 @@ public class EditorEntity {
     }
 
     // ========================================================================
+    // SCRATCH ENTITY SUPPORT
+    // ========================================================================
+
+    /**
+     * Checks if this is a scratch entity (no prefab reference).
+     */
+    public boolean isScratchEntity() {
+        return prefabId == null || prefabId.isEmpty();
+    }
+
+    /**
+     * Checks if this is a prefab instance.
+     */
+    public boolean isPrefabInstance() {
+        return prefabId != null && !prefabId.isEmpty();
+    }
+
+    /**
+     * Gets the component data list. Creates if null.
+     * Only valid for scratch entities.
+     */
+    public List<ComponentData> getComponents() {
+        if (components == null) {
+            components = new ArrayList<>();
+        }
+        return components;
+    }
+
+    /**
+     * Adds a component to this scratch entity.
+     *
+     * @throws IllegalStateException if this is a prefab instance
+     */
+    public void addComponent(ComponentData componentData) {
+        if (isPrefabInstance()) {
+            throw new IllegalStateException(
+                    "Cannot add components to prefab instance. Use properties or unpack first.");
+        }
+        getComponents().add(componentData);
+    }
+
+    /**
+     * Removes a component from this scratch entity.
+     *
+     * @return true if component was removed
+     */
+    public boolean removeComponent(ComponentData componentData) {
+        if (components == null) {
+            return false;
+        }
+        return components.remove(componentData);
+    }
+
+    /**
+     * Gets a component by its simple type name (e.g., "SpriteRenderer").
+     *
+     * @return ComponentData, or null if not found
+     */
+    public ComponentData getComponentByType(String simpleName) {
+        if (components == null) {
+            return null;
+        }
+        for (ComponentData comp : components) {
+            if (comp.getSimpleName().equals(simpleName)) {
+                return comp;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Checks if this entity has a component of the given type.
+     */
+    public boolean hasComponent(String simpleName) {
+        return getComponentByType(simpleName) != null;
+    }
+
+    // ========================================================================
     // PREVIEW CACHING
     // ========================================================================
 
@@ -267,12 +381,22 @@ public class EditorEntity {
      * Converts to serializable EntityData.
      */
     public EntityData toData() {
-        return new EntityData(
-                prefabId,
-                name,
-                new float[]{position.x, position.y, position.z},
-                new HashMap<>(properties)
-        );
+        if (isPrefabInstance()) {
+            // Prefab instance: save prefab reference + property overrides
+            return new EntityData(
+                    prefabId,
+                    name,
+                    new float[]{position.x, position.y, position.z},
+                    new HashMap<>(properties)
+            );
+        } else {
+            // Scratch entity: save inline components
+            return new EntityData(
+                    name,
+                    new float[]{position.x, position.y, position.z},
+                    components != null ? new ArrayList<>(components) : new ArrayList<>()
+            );
+        }
     }
 
     /**
@@ -283,24 +407,35 @@ public class EditorEntity {
             throw new IllegalArgumentException("EntityData cannot be null");
         }
 
-        float[] pos = data.position();
+        float[] pos = data.getPosition();
         Vector3f position = new Vector3f(
                 pos != null && pos.length > 0 ? pos[0] : 0,
                 pos != null && pos.length > 1 ? pos[1] : 0,
                 pos != null && pos.length > 2 ? pos[2] : 0
         );
 
-        // Generate new ID for loaded entities (ID is instance-specific)
-        EditorEntity entity = new EditorEntity(data.prefabId(), position);
-        entity.name = data.name() != null ? data.name() : entity.name;
+        if (data.isPrefabInstance()) {
+            // Prefab instance
+            EditorEntity entity = new EditorEntity(data.getPrefabId(), position);
+            entity.name = data.getName() != null ? data.getName() : entity.name;
 
-        // Load properties
-        if (data.properties() != null) {
-            entity.properties.clear();
-            entity.properties.putAll(data.properties());
+            if (data.getProperties() != null) {
+                entity.properties.clear();
+                entity.properties.putAll(data.getProperties());
+            }
+
+            return entity;
+        } else {
+            // Scratch entity
+            String name = data.getName() != null ? data.getName() : "Entity";
+            EditorEntity entity = new EditorEntity(name, position, false);
+
+            if (data.getComponents() != null) {
+                entity.components = new ArrayList<>(data.getComponents());
+            }
+
+            return entity;
         }
-
-        return entity;
     }
 
     // ========================================================================

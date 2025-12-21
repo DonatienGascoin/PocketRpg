@@ -348,7 +348,7 @@ public class ExampleScene extends Scene {
         GameObject entity = new GameObject("TightPacked", new Vector3f(100, 150, 0));
         List<Sprite> frames = sheet.generateAllSprites(48, 48);
 
-        SpriteRenderer renderer = new SpriteRenderer(frames.get(0));
+        SpriteRenderer renderer = new SpriteRenderer(); renderer.setSprite(frames.get(0));
         renderer.setOriginCenter();
         entity.addComponent(renderer);
         entity.addComponent(new FrameAnimationComponent(frames, 0.1f));
@@ -364,7 +364,7 @@ public class ExampleScene extends Scene {
         GameObject entity = new GameObject("UniformSpacing", new Vector3f(200, 150, 0));
         List<Sprite> frames = sheet.generateAllSprites(48, 48);
 
-        SpriteRenderer renderer = new SpriteRenderer(frames.get(0));
+        SpriteRenderer renderer = new SpriteRenderer(); renderer.setSprite(frames.get(0));
         renderer.setOriginCenter();
         entity.addComponent(renderer);
         entity.addComponent(new FrameAnimationComponent(frames, 0.12f));
@@ -380,7 +380,7 @@ public class ExampleScene extends Scene {
         GameObject entity = new GameObject("XYSpacing", new Vector3f(300, 150, 0));
         List<Sprite> frames = sheet.generateAllSprites(48, 48);
 
-        SpriteRenderer renderer = new SpriteRenderer(frames.get(0));
+        SpriteRenderer renderer = new SpriteRenderer(); renderer.setSprite(frames.get(0));
         renderer.setOriginCenter();
         entity.addComponent(renderer);
         entity.addComponent(new FrameAnimationComponent(frames, 0.08f));
@@ -396,7 +396,7 @@ public class ExampleScene extends Scene {
         GameObject entity = new GameObject("Margin", new Vector3f(400, 150, 0));
         List<Sprite> frames = sheet.generateAllSprites(48, 48);
 
-        SpriteRenderer renderer = new SpriteRenderer(frames.get(0));
+        SpriteRenderer renderer = new SpriteRenderer(); renderer.setSprite(frames.get(0));
         renderer.setOriginCenter();
         entity.addComponent(renderer);
         entity.addComponent(new FrameAnimationComponent(frames, 0.15f));
@@ -412,7 +412,7 @@ public class ExampleScene extends Scene {
         GameObject entity = new GameObject("Complex", new Vector3f(500, 150, 0));
         List<Sprite> frames = sheet.generateAllSprites(48, 48);
 
-        SpriteRenderer renderer = new SpriteRenderer(frames.get(0));
+        SpriteRenderer renderer = new SpriteRenderer(); renderer.setSprite(frames.get(0));
         renderer.setOriginCenter();
         entity.addComponent(renderer);
         entity.addComponent(new FrameAnimationComponent(frames, 0.1f));
@@ -473,7 +473,8 @@ public class ExampleScene extends Scene {
             float y = startY + row * stepY;
 
             GameObject entity = new GameObject("Sprite_" + i, new Vector3f(x + spriteW / 2f, y + spriteH / 2f, 0f));
-            SpriteRenderer renderer = new SpriteRenderer(sprite);
+            SpriteRenderer renderer = new SpriteRenderer();
+            renderer.setSprite(sprite);
             renderer.setOriginCenter(); // keep consistent origin
             entity.addComponent(renderer);
 
@@ -491,7 +492,8 @@ public class ExampleScene extends Scene {
             GameObject entity = new GameObject("Shared_" + i,
                     new Vector3f(100 + i * 50, 300, 0));
 
-            SpriteRenderer renderer = new SpriteRenderer(sharedFrames.get(0));
+            SpriteRenderer renderer = new SpriteRenderer();
+            renderer.setSprite(sharedFrames.get(0));
             renderer.setOriginCenter();
             entity.addComponent(renderer);
 

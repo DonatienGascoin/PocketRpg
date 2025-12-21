@@ -2,6 +2,7 @@ package com.pocket.rpg.components;
 
 import com.pocket.rpg.rendering.Sprite;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class FrameAnimationComponent extends Component {
@@ -9,6 +10,11 @@ public class FrameAnimationComponent extends Component {
     private final float frameTime;
     private int currentFrame = 0;
     private float timer = 0;
+
+    public FrameAnimationComponent() {
+        this.frames = new ArrayList<>();  // Empty list, add via inspector later
+        this.frameTime = 0.1f;
+    }
 
     public FrameAnimationComponent(List<Sprite> frames, float frameTime) {
         this.frames = frames;

@@ -55,7 +55,8 @@ public class PlayerPrefab implements Prefab {
     public GameObject instantiate(Vector3f position, Map<String, Object> overrides) {
 
         // 32×32 pixel sprites with PPU=16 → each frame is 2×2 world units
-        SpriteRenderer spriteRenderer = new SpriteRenderer(playerSheet.getSprite(0));
+        SpriteRenderer spriteRenderer = new SpriteRenderer();
+        spriteRenderer.setSprite(playerSheet.getSprite(0));
         spriteRenderer.setOriginBottomCenter();
         // Player at world origin (Z not used for sorting anymore)
         GameObject player = new GameObject("Player", new Vector3f(5, 5, 0));

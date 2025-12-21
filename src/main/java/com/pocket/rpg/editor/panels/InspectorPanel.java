@@ -1,13 +1,18 @@
 package com.pocket.rpg.editor.panels;
 
+import com.pocket.rpg.editor.components.ComponentMeta;
+import com.pocket.rpg.editor.components.ComponentRegistry;
+import com.pocket.rpg.editor.components.FieldMeta;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.scene.EditorEntity;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.SceneCameraSettings;
 import com.pocket.rpg.editor.scene.TilemapLayer;
+import com.pocket.rpg.editor.serialization.ComponentData;
 import com.pocket.rpg.prefab.Prefab;
 import com.pocket.rpg.prefab.PropertyDefinition;
 import imgui.ImGui;
+import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImInt;
 import imgui.type.ImString;
 import lombok.Setter;
@@ -36,6 +41,9 @@ public class InspectorPanel {
     private final float[] floatBuffer = new float[4];
     // private final int[] intBuffer = new int[1];
     private final ImInt intBuffer = new ImInt();
+
+    // Component browser popup
+    private final ComponentBrowserPopup componentBrowserPopup = new ComponentBrowserPopup();
 
     /**
      * Renders the inspector panel.
@@ -147,27 +155,33 @@ public class InspectorPanel {
     // ========================================================================
 
     private void renderEntityInspector(EditorEntity entity) {
-        ImGui.text(FontAwesomeIcons.Cube + " Entity");
-        ImGui.separator();
+        String icon;
 
-        // Name
+        if (entity.isScratchEntity()) {
+            // Scratch entity - use cube icon
+            icon = FontAwesomeIcons.Cube;
+        } else if (entity.isPrefabValid()) {
+            // Valid prefab instance
+            icon = FontAwesomeIcons.Cubes;
+        } else {
+            // Missing prefab - warning icon
+            icon = FontAwesomeIcons.ExclamationTriangle;
+        }
+        ImGui.text(icon);
+        ImGui.sameLine();
         stringBuffer.set(entity.getName());
-        if (ImGui.inputText("Name", stringBuffer)) {
+        if (ImGui.inputText("##EntityName", stringBuffer)) {
             entity.setName(stringBuffer.get());
             scene.markDirty();
         }
-
-        // Prefab (read-only)
-        Prefab prefab = entity.getPrefab();
-        String prefabDisplay = prefab != null ? prefab.getDisplayName() : entity.getPrefabId() + " (missing)";
-
-        ImGui.labelText("Prefab", prefabDisplay);
-
-        if (prefab == null) {
-            ImGui.textColored(1f, 0.5f, 0.2f, 1f,
-                    FontAwesomeIcons.ExclamationTriangle + " Prefab not found");
+        ImGui.sameLine();
+        ImGui.setCursorPosX(ImGui.getContentRegionMaxX() - 25);
+        if (ImGui.button(FontAwesomeIcons.Trash)) {
+            scene.removeEntity(entity);
         }
-
+        if (ImGui.isItemHovered()) { // TODO: Add confirmation modal !
+            ImGui.setTooltip(" Delete Entity");
+        }
         ImGui.separator();
 
         // Position
@@ -182,7 +196,6 @@ public class InspectorPanel {
 
         ImGui.sameLine();
         if (ImGui.smallButton("Snap")) {
-            // Snap to half-unit grid
             entity.setPosition(
                     Math.round(pos.x * 2) / 2f,
                     Math.round(pos.y)
@@ -190,29 +203,233 @@ public class InspectorPanel {
             scene.markDirty();
         }
 
-        // Editable properties
-        if (prefab != null) {
-            List<PropertyDefinition> props = prefab.getEditableProperties();
-            if (!props.isEmpty()) {
-                ImGui.separator();
-                ImGui.text("Properties");
+        ImGui.separator();
 
-                for (PropertyDefinition prop : props) {
-                    renderPropertyEditor(entity, prop);
-                }
-            }
+        // ================================================================
+        // PREFAB INSTANCE
+        // ================================================================
+        if (entity.isPrefabInstance()) {
+            renderPrefabInstanceInspector(entity);
+        }
+        // ================================================================
+        // SCRATCH ENTITY
+        // ================================================================
+        else {
+            renderScratchEntityInspector(entity);
         }
 
-        // Actions
-        ImGui.separator();
-        if (ImGui.button(FontAwesomeIcons.Trash + " Delete Entity")) {
-            scene.removeEntity(entity);
+        // Render component browser popup (must be called every frame)
+        componentBrowserPopup.render();
+    }
+
+    /**
+     * Renders inspector for prefab-based entities (existing behavior).
+     */
+    private void renderPrefabInstanceInspector(EditorEntity entity) {
+        Prefab prefab = entity.getPrefab();
+        String prefabDisplay = prefab != null ? prefab.getDisplayName() : entity.getPrefabId() + " (missing)";
+
+        ImGui.labelText("Prefab", prefabDisplay);
+
+        if (prefab == null) {
+            ImGui.textColored(1f, 0.5f, 0.2f, 1f,
+                    FontAwesomeIcons.ExclamationTriangle + " Prefab not found");
+            return;
+        }
+
+        // Editable properties from prefab
+        List<PropertyDefinition> props = prefab.getEditableProperties();
+        if (!props.isEmpty()) {
+            ImGui.separator();
+            ImGui.text("Properties");
+
+            for (PropertyDefinition prop : props) {
+                renderPropertyEditor(entity, prop);
+            }
         }
     }
 
     /**
-     * Renders an editor for a single property.
+     * Renders inspector for scratch entities (new behavior).
      */
+    private void renderScratchEntityInspector(EditorEntity entity) {
+        ImGui.textDisabled("Scratch Entity");
+
+        List<ComponentData> components = entity.getComponents();
+
+        if (components.isEmpty()) {
+            ImGui.textDisabled("No components");
+        } else {
+            // Track component to remove (can't modify list while iterating)
+            ComponentData toRemove = null;
+
+            for (int i = 0; i < components.size(); i++) {
+                ComponentData comp = components.get(i);
+
+                ImGui.pushID(i);
+
+                // Component header with collapse and remove button
+                int headerFlags = ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.AllowItemOverlap;
+                boolean open = ImGui.collapsingHeader(comp.getDisplayName(), headerFlags);
+
+                // Remove button aligned to the right
+                ImGui.sameLine(ImGui.getContentRegionAvailX() - 20);
+                ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, 0.5f, 0.2f, 0.2f, 1f);
+                if (ImGui.smallButton(FontAwesomeIcons.Times)) {
+                    toRemove = comp;
+                }
+                ImGui.popStyleColor();
+                if (ImGui.isItemHovered()) {
+                    ImGui.setTooltip("Remove component");
+                }
+
+                // Component fields
+                if (open) {
+                    ImGui.indent();
+                    renderComponentDataFields(comp);
+                    ImGui.unindent();
+                }
+
+                ImGui.popID();
+            }
+
+            // Remove marked component
+            if (toRemove != null) {
+                entity.removeComponent(toRemove);
+                scene.markDirty();
+            }
+        }
+
+        ImGui.separator();
+
+        // Add Component button
+        if (ImGui.button(FontAwesomeIcons.Plus + " Add Component", -1, 0)) {
+            componentBrowserPopup.open(componentData -> {
+                entity.addComponent(componentData);
+                scene.markDirty();
+            });
+        }
+    }
+
+    /**
+     * Renders editors for all fields in a ComponentData.
+     */
+    private void renderComponentDataFields(ComponentData data) {
+        ComponentMeta meta = ComponentRegistry.getByClassName(data.getType());
+
+        if (meta == null) {
+            ImGui.textColored(1f, 0.3f, 0.3f, 1f, "Unknown: " + data.getType());
+            return;
+        }
+
+        if (meta.fields().isEmpty()) {
+            ImGui.textDisabled("(no editable fields)");
+            return;
+        }
+
+        for (FieldMeta field : meta.fields()) {
+            Object value = data.getFields().get(field.name());
+            Object newValue = renderFieldEditor(field, value);
+
+            if (newValue != value) {
+                data.getFields().put(field.name(), newValue);
+                scene.markDirty();
+            }
+        }
+    }
+
+    /**
+     * Renders an editor for a single field based on its type.
+     * Returns the new value if changed, or the same value if unchanged.
+     */
+    private Object renderFieldEditor(FieldMeta field, Object value) {
+        Class<?> type = field.type();
+        String label = field.getDisplayName();
+
+        ImGui.pushID(field.name());
+
+        Object result = value;
+
+        // Primitives
+        if (type == int.class || type == Integer.class) {
+            int intValue = value instanceof Number n ? n.intValue() : 0;
+            intBuffer.set(intValue);
+            if (ImGui.inputInt(label, intBuffer)) {
+                result = intBuffer.get();
+            }
+        } else if (type == float.class || type == Float.class) {
+            float floatValue = value instanceof Number n ? n.floatValue() : 0f;
+            floatBuffer[0] = floatValue;
+            if (ImGui.dragFloat(label, floatBuffer, 0.1f)) {
+                result = floatBuffer[0];
+            }
+        } else if (type == double.class || type == Double.class) {
+            double doubleValue = value instanceof Number n ? n.doubleValue() : 0.0;
+            floatBuffer[0] = (float) doubleValue;
+            if (ImGui.dragFloat(label, floatBuffer, 0.1f)) {
+                result = (double) floatBuffer[0];
+            }
+        } else if (type == boolean.class || type == Boolean.class) {
+            boolean boolValue = value instanceof Boolean b && b;
+            if (ImGui.checkbox(label, boolValue)) {
+                result = !boolValue;
+            }
+        } else if (type == String.class) {
+            String strValue = value != null ? value.toString() : "";
+            stringBuffer.set(strValue);
+            if (ImGui.inputText(label, stringBuffer)) {
+                result = stringBuffer.get();
+            }
+        }
+        // Enums
+        else if (type.isEnum()) {
+            result = renderEnumField(label, type, value);
+        }
+        // Unsupported types
+        else {
+            ImGui.labelText(label, value != null ? value.toString() : "(null)");
+            ImGui.sameLine();
+            ImGui.textDisabled("(read-only)");
+        }
+
+        ImGui.popID();
+
+        return result;
+    }
+
+    /**
+     * Renders a dropdown for enum fields.
+     */
+    private Object renderEnumField(String label, Class<?> enumType, Object value) {
+        Object[] constants = enumType.getEnumConstants();
+        int currentIndex = 0;
+
+        // Find current index (value may be stored as String after serialization)
+        if (value != null) {
+            String valueName = value.toString();
+            for (int i = 0; i < constants.length; i++) {
+                if (constants[i].toString().equals(valueName)) {
+                    currentIndex = i;
+                    break;
+                }
+            }
+        }
+
+        // Build names array
+        String[] names = new String[constants.length];
+        for (int i = 0; i < constants.length; i++) {
+            names[i] = constants[i].toString();
+        }
+
+        intBuffer.set(currentIndex);
+        if (ImGui.combo(label, intBuffer, names)) {
+            // Store as String for JSON serialization compatibility
+            return constants[intBuffer.get()].toString();
+        }
+
+        return value;
+    }
+
     /**
      * Renders an editor for a single property.
      */

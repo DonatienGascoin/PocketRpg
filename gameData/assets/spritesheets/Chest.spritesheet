@@ -1,0 +1,8 @@
+{
+  "texture": "sprites/chests/Chest 06-Sheet.png",
+  "spriteWidth": 32,
+  "spriteHeight": 32,
+  "spacingX": 16,
+  "offsetX": 8,
+  "offsetY": 8
+}

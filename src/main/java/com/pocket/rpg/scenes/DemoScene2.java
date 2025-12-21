@@ -27,7 +27,8 @@ public class DemoScene2 extends Scene {
         SpriteSheet playerSheet = new SpriteSheet(playerSprite.getTexture(), 32, 32, 0, 0, 0, 0);
         var sprites = playerSheet.generateAllSprites();
 
-        SpriteRenderer spriteRenderer = new SpriteRenderer(sprites.get(5));
+        SpriteRenderer spriteRenderer = new SpriteRenderer();
+        spriteRenderer.setSprite(sprites.get(5));
 
         GameObject gameObject = new GameObject("Player", new Vector3f(200, 200, 0));
         gameObject.addComponent(spriteRenderer);

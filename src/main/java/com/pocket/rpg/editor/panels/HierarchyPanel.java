@@ -5,10 +5,10 @@ import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.scene.EditorEntity;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.TilemapLayer;
+import com.pocket.rpg.editor.serialization.ComponentData;
 import com.pocket.rpg.editor.tools.EditorTool;
 import com.pocket.rpg.editor.tools.ToolManager;
 import com.pocket.rpg.prefab.Prefab;
-import com.pocket.rpg.prefab.PrefabRegistry;
 import imgui.ImGui;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiKey;
@@ -250,13 +250,41 @@ public class HierarchyPanel {
 
             if (entities.isEmpty()) {
                 ImGui.textDisabled("No entities");
-                ImGui.textDisabled("Use Prefabs panel to place");
             } else {
                 for (EditorEntity entity : entities) {
                     renderEntityItem(entity, selected);
                 }
             }
+
+            // Add entity buttons
+            ImGui.separator();
+
+            if (ImGui.smallButton(FontAwesomeIcons.Plus + " New Entity")) {
+                createEmptyEntity();
+            }
+
+            ImGui.sameLine();
+            ImGui.textDisabled("or use Prefabs panel");
         }
+    }
+
+    /**
+     * Creates a new empty scratch entity at the origin.
+     */
+    private void createEmptyEntity() {
+        // Create at world origin (you could also use camera position)
+        Vector3f position = new Vector3f(0, 0, 0);
+
+        // Generate unique name
+        int count = scene.getEntities().size();
+        String name = "Entity_" + (count + 1);
+
+        // Create scratch entity (no prefab)
+        EditorEntity entity = new EditorEntity(name, position, false);
+
+        scene.addEntity(entity);
+        selectEntity(entity);
+        scene.markDirty();
     }
 
     private void renderEntityItem(EditorEntity entity, EditorEntity selected) {
@@ -290,11 +318,17 @@ public class HierarchyPanel {
                 renamingItem = null;
             }
         } else {
-            // Normal display
-            String icon = FontAwesomeIcons.Cube;
+            // Normal display - different icon for scratch vs prefab entities
+            String icon;
 
-            // Check if prefab is valid
-            if (!entity.isPrefabValid()) {
+            if (entity.isScratchEntity()) {
+                // Scratch entity - use cube icon
+                icon = FontAwesomeIcons.Cube;
+            } else if (entity.isPrefabValid()) {
+                // Valid prefab instance
+                icon = FontAwesomeIcons.Cubes;
+            } else {
+                // Missing prefab - warning icon
                 icon = FontAwesomeIcons.ExclamationTriangle;
             }
 
@@ -315,12 +349,20 @@ public class HierarchyPanel {
             // Tooltip with details
             if (ImGui.isItemHovered()) {
                 ImGui.beginTooltip();
-                Prefab prefab = entity.getPrefab();
-                if (prefab != null) {
-                    ImGui.text(prefab.getDisplayName());
+
+                if (entity.isScratchEntity()) {
+                    ImGui.text("Scratch Entity");
+                    int compCount = entity.getComponents().size();
+                    ImGui.textDisabled(compCount + " component" + (compCount != 1 ? "s" : ""));
                 } else {
-                    ImGui.textColored(1f, 0.5f, 0.2f, 1f, "Missing prefab: " + entity.getPrefabId());
+                    Prefab prefab = entity.getPrefab();
+                    if (prefab != null) {
+                        ImGui.text(prefab.getDisplayName());
+                    } else {
+                        ImGui.textColored(1f, 0.5f, 0.2f, 1f, "Missing prefab: " + entity.getPrefabId());
+                    }
                 }
+
                 Vector3f pos = entity.getPosition();
                 ImGui.textDisabled(String.format("Position: (%.1f, %.1f)", pos.x, pos.y));
                 ImGui.endTooltip();
@@ -365,15 +407,31 @@ public class HierarchyPanel {
 
     private void duplicateEntity(EditorEntity original) {
         Vector3f newPos = new Vector3f(original.getPosition()).add(1, 0, 0);
-        EditorEntity copy = new EditorEntity(original.getPrefabId(), newPos);
+        EditorEntity copy;
 
-        // Copy properties
-        for (var entry : original.getProperties().entrySet()) {
-            copy.setProperty(entry.getKey(), entry.getValue());
+        if (original.isScratchEntity()) {
+            // Duplicate scratch entity
+            copy = new EditorEntity(original.getName() + "_copy", newPos, false);
+
+            // Deep copy components
+            for (ComponentData comp : original.getComponents()) {
+                ComponentData compCopy = new ComponentData(comp.getType());
+                compCopy.getFields().putAll(comp.getFields());
+                copy.addComponent(compCopy);
+            }
+        } else {
+            // Duplicate prefab instance
+            copy = new EditorEntity(original.getPrefabId(), newPos);
+
+            // Copy property overrides
+            for (var entry : original.getProperties().entrySet()) {
+                copy.setProperty(entry.getKey(), entry.getValue());
+            }
         }
 
         scene.addEntity(copy);
         selectEntity(copy);
+        scene.markDirty();
     }
 
     /**

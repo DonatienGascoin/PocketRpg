@@ -283,7 +283,8 @@ public class DemoScene extends Scene {
         var sprites = playerSheet.generateAllSprites();
         Assets.persist(playerSheet, "spritesheets/player.spritesheet");
 
-        SpriteRenderer spriteRenderer = new SpriteRenderer(sprites.get(0));
+        SpriteRenderer spriteRenderer = new SpriteRenderer();
+        spriteRenderer.setSprite(sprites.get(0));
         spriteRenderer.setZIndex(1);  // Render above tiles (zIndex=0)
         spriteRenderer.setOriginBottomCenter();
         // Player at world origin (Z not used for sorting anymore)

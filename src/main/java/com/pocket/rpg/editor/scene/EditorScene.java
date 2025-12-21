@@ -74,7 +74,7 @@ public class EditorScene {
 
     @Getter
     @Setter
-    private float collisionOpacity = 0.4f;
+    private float collisionOpacity = 1f;
 
     // ========================================================================
     // ENTITY MANAGEMENT (Phase 5)

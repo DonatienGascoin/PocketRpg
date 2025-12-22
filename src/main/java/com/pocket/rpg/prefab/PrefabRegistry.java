@@ -9,6 +9,7 @@ import lombok.Setter;
 
 import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -31,15 +32,11 @@ import java.util.Map;
  */
 public class PrefabRegistry {
 
+    private static final String PREFABS_DIRECTORY = "prefabs/";
     private static PrefabRegistry instance;
 
     private final Map<String, Prefab> prefabs = new LinkedHashMap<>();
-    /**
-     * -- GETTER --
-     * Gets the default preview sprite used when prefabs don't provide one.
-     * -- SETTER --
-     * Sets a custom default preview sprite.
-     */
+
     @Setter
     @Getter
     private Sprite defaultPreviewSprite;
@@ -81,7 +78,11 @@ public class PrefabRegistry {
             registry.defaultPreviewSprite = null;
         }
 
+        // Register Java prefabs (should be removed after it is possible to serialize component reference
         registry.registerPreMadePrefabs();
+
+        // Scan and load JSON prefabs
+        registry.loadJsonPrefabs();
 
         registry.initialized = true;
         System.out.println("PrefabRegistry initialized");
@@ -90,6 +91,67 @@ public class PrefabRegistry {
     private void registerPreMadePrefabs() {
         register(new ChestPrefab());
         register(new PlayerPrefab());
+    }
+
+    /**
+     * Scans the prefabs directory and loads all JSON prefabs.
+     */
+    private void loadJsonPrefabs() {
+        try {
+            List<String> prefabPaths = Assets.getContext().scanByType(JsonPrefab.class);
+
+            for (String path : prefabPaths) {
+                try {
+                    JsonPrefab prefab = Assets.load(path, JsonPrefab.class);
+
+                    if (prefab != null && !prefabs.containsKey(prefab.getId())) {
+                        prefabs.put(prefab.getId(), prefab);
+                        System.out.println("Loaded JSON prefab: " + prefab.getId() + " from " + path);
+                    }
+                } catch (Exception e) {
+                    System.err.println("Failed to load prefab " + path + ": " + e.getMessage());
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to scan for JSON prefabs: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Saves a JSON prefab to disk and registers it.
+     *
+     * @param prefab   The prefab to save
+     * @param filename The filename (without path), e.g., "my_prefab.prefab.json"
+     */
+    public void saveJsonPrefab(JsonPrefab prefab, String filename) {
+        String path = PREFABS_DIRECTORY + filename;
+
+        try {
+            Assets.persist(prefab, path);
+
+            // Register or update
+            prefabs.put(prefab.getId(), prefab);
+
+            System.out.println("Saved JSON prefab: " + prefab.getId() + " to " + path);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to save prefab: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Checks if a prefab is a JSON prefab (vs Java prefab).
+     */
+    public boolean isJsonPrefab(String id) {
+        Prefab prefab = prefabs.get(id);
+        return prefab instanceof JsonPrefab;
+    }
+
+    /**
+     * Gets a JSON prefab by ID (cast helper).
+     */
+    public JsonPrefab getJsonPrefab(String id) {
+        Prefab prefab = prefabs.get(id);
+        return prefab instanceof JsonPrefab ? (JsonPrefab) prefab : null;
     }
 
     /**

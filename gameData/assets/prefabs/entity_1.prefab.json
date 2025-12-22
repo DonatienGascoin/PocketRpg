@@ -1,0 +1,12 @@
+{
+  "id": "entity_1",
+  "displayName": "Entity_1",
+  "category": "Custom",
+  "components": [
+    {
+      "type": "com.pocket.rpg.components.TranslationComponent",
+      "fields": {}
+    }
+  ],
+  "properties": []
+}

@@ -13,6 +13,7 @@ import com.pocket.rpg.prefab.Prefab;
 import com.pocket.rpg.prefab.PropertyDefinition;
 import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;
+import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImInt;
 import imgui.type.ImString;
 import lombok.Setter;
@@ -44,6 +45,8 @@ public class InspectorPanel {
 
     // Component browser popup
     private final ComponentBrowserPopup componentBrowserPopup = new ComponentBrowserPopup();
+
+    private final SavePrefabPopup savePrefabPopup = new SavePrefabPopup();
 
     /**
      * Renders the inspector panel.
@@ -175,7 +178,19 @@ public class InspectorPanel {
             scene.markDirty();
         }
         ImGui.sameLine();
-        ImGui.setCursorPosX(ImGui.getContentRegionMaxX() - 25);
+        ImGui.setCursorPosX(ImGui.getContentRegionMaxX() - 60);
+        if (entity.isScratchEntity() &&
+                !entity.getComponents().isEmpty() &&
+                ImGui.button(FontAwesomeIcons.Save)) {
+            savePrefabPopup.open(entity, savedPrefab -> {
+                // Optionally convert entity to prefab instance
+                System.out.println("Saved prefab: " + savedPrefab.getId());
+            });
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("Save as Prefab");
+        }
+        ImGui.sameLine();
         if (ImGui.button(FontAwesomeIcons.Trash)) {
             scene.removeEntity(entity);
         }
@@ -309,6 +324,9 @@ public class InspectorPanel {
                 scene.markDirty();
             });
         }
+
+        // Render popup
+        savePrefabPopup.render();
     }
 
     /**

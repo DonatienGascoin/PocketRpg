@@ -1,5 +1,7 @@
 package com.pocket.rpg.resources;
 
+import com.pocket.rpg.prefab.JsonPrefab;
+import com.pocket.rpg.prefab.JsonPrefabLoader;
 import com.pocket.rpg.rendering.Shader;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.SpriteSheet;
@@ -58,6 +60,8 @@ public class AssetManager implements AssetContext {
         registerLoader(Sprite.class, new SpriteLoader());
         registerLoader(SpriteSheet.class, new SpriteSheetLoader());
         registerLoader(SceneData.class, new SceneDataLoader());
+        registerLoader(JsonPrefab.class, new JsonPrefabLoader());
+
     }
 
     /**

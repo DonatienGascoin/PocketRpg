@@ -55,6 +55,9 @@ public class HierarchyPanel {
     private Object renamingItem = null;
     private final ImString renameBuffer = new ImString(64);
 
+    private final SavePrefabPopup savePrefabPopup = new SavePrefabPopup();
+
+
     /**
      * Renders the hierarchy panel.
      */
@@ -379,6 +382,18 @@ public class HierarchyPanel {
                     duplicateEntity(entity);
                 }
 
+                // Save as Prefab option for scratch entities
+                if (entity.isScratchEntity() && !entity.getComponents().isEmpty()) {
+                    if (ImGui.menuItem(FontAwesomeIcons.Save + " Save as Prefab...")) {
+                        // You'll need to add a SavePrefabPopup field and open it here
+                        // Or emit an event that the editor controller handles
+                        savePrefabPopup.open(entity, savedPrefab -> {
+                            // Optionally convert entity to prefab instance
+                            System.out.println("Saved prefab: " + savedPrefab.getId());
+                        });
+                    }
+                }
+
                 ImGui.separator();
 
                 if (ImGui.menuItem(FontAwesomeIcons.Trash + " Delete")) {
@@ -388,7 +403,7 @@ public class HierarchyPanel {
                 ImGui.endPopup();
             }
         }
-
+        savePrefabPopup.render();
         ImGui.popID();
     }
 

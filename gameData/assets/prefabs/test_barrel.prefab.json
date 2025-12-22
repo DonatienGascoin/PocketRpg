@@ -1,0 +1,27 @@
+{
+  "id": "test_barrel",
+  "displayName": "Wooden Barrel",
+  "category": "Props",
+  "components": [
+    {
+      "type": "com.pocket.rpg.components.SpriteRenderer",
+      "fields": {
+        "zIndex": 5
+      }
+    }
+  ],
+  "properties": [
+    {
+      "name": "health",
+      "type": "INT",
+      "defaultValue": 10,
+      "tooltip": "Hit points before breaking"
+    },
+    {
+      "name": "destructible",
+      "type": "BOOLEAN",
+      "defaultValue": true,
+      "tooltip": "Can be destroyed"
+    }
+  ]
+}

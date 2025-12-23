@@ -1,5 +1,7 @@
 package com.pocket.rpg.editor.components;
 
+import com.pocket.rpg.editor.panels.AssetPickerPopup;
+import com.pocket.rpg.editor.serialization.ComponentData;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.Texture;
 import imgui.ImGui;
@@ -12,6 +14,7 @@ import org.joml.Vector4f;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Renders ImGui controls for component fields using reflection.
@@ -37,18 +40,23 @@ public class ReflectionFieldEditor {
     // Cache for enum values
     private static final Map<Class<?>, Object[]> enumCache = new HashMap<>();
 
+    private static final AssetPickerPopup assetPicker = new AssetPickerPopup();
+    private static boolean assetPickerPending = false; // TODO: Not used, why is it needed ?
+    private static Object assetPickerTarget = null;
+    private static Field assetPickerField = null;
+
     /**
      * Draws all editable fields of a component.
      *
      * @param component The component to edit
      * @return true if any field was changed
      */
-    public static boolean drawComponent(Object component) {
+    public static boolean drawComponent(ComponentData component) {
         if (component == null) {
             return false;
         }
 
-        ComponentMeta meta = ComponentRegistry.getByClassName(component.getClass().getName());
+        ComponentMeta meta = ComponentRegistry.getByClassName(component.getType());
         if (meta == null) {
             ImGui.textDisabled("Unknown component type");
             return false;
@@ -71,15 +79,15 @@ public class ReflectionFieldEditor {
     /**
      * Draws a single field with appropriate control.
      */
-    public static boolean drawField(Object obj, FieldMeta meta) throws IllegalAccessException {
+    public static boolean drawField(ComponentData data, FieldMeta meta) throws IllegalAccessException {
         Field field = meta.field();
         field.setAccessible(true);
 
         Class<?> type = meta.type();
-        Object value = field.get(obj);
+        Object value = data.getFields().get(field.getName());
         String label = meta.getDisplayName();
 
-        boolean changed = false;
+        AtomicBoolean changed = new AtomicBoolean(false);
         Object newValue = value;
 
         ImGui.pushID(meta.name());
@@ -93,34 +101,34 @@ public class ReflectionFieldEditor {
             intBuffer.set(intValue);
             if (ImGui.inputInt(label, intBuffer)) {
                 newValue = intBuffer.get();
-                changed = true;
+                changed.set(true);
             }
         } else if (type == float.class || type == Float.class) {
             float floatValue = value != null ? (float) value : 0f;
             floatBuffer[0] = floatValue;
             if (ImGui.dragFloat(label, floatBuffer, 0.1f)) {
                 newValue = floatBuffer[0];
-                changed = true;
+                changed.set(true);
             }
         } else if (type == double.class || type == Double.class) {
             double doubleValue = value != null ? (double) value : 0.0;
             floatBuffer[0] = (float) doubleValue;
             if (ImGui.dragFloat(label, floatBuffer, 0.1f)) {
                 newValue = (double) floatBuffer[0];
-                changed = true;
+                changed.set(true);
             }
         } else if (type == boolean.class || type == Boolean.class) {
             boolean boolValue = value != null && (boolean) value;
             if (ImGui.checkbox(label, boolValue)) {
                 newValue = !boolValue;
-                changed = true;
+                changed.set(true);
             }
         } else if (type == String.class) {
             String strValue = value != null ? (String) value : "";
             stringBuffer.set(strValue);
             if (ImGui.inputText(label, stringBuffer)) {
                 newValue = stringBuffer.get();
-                changed = true;
+                changed.set(true);
             }
         }
 
@@ -138,7 +146,7 @@ public class ReflectionFieldEditor {
                 } else {
                     vec.set(floatBuffer[0], floatBuffer[1]);
                 }
-                changed = true;
+                changed.set(true);
             }
         } else if (type == Vector3f.class) {
             Vector3f vec = value != null ? (Vector3f) value : new Vector3f();
@@ -151,7 +159,7 @@ public class ReflectionFieldEditor {
                 } else {
                     vec.set(floatBuffer[0], floatBuffer[1], floatBuffer[2]);
                 }
-                changed = true;
+                changed.set(true);
             }
         } else if (type == Vector4f.class) {
             Vector4f vec = value != null ? (Vector4f) value : new Vector4f();
@@ -165,7 +173,7 @@ public class ReflectionFieldEditor {
                 } else {
                     vec.set(floatBuffer[0], floatBuffer[1], floatBuffer[2], floatBuffer[3]);
                 }
-                changed = true;
+                changed.set(true);
             }
         }
 
@@ -194,24 +202,52 @@ public class ReflectionFieldEditor {
             intBuffer.set(currentIndex);
             if (ImGui.combo(label, intBuffer, names)) {
                 newValue = constants[intBuffer.get()];
-                changed = true;
+                changed.set(true);
             }
         }
 
         // ============================================================
-        // ASSETS (display only for now)
+        // ASSETS (with picker)
         // ============================================================
 
         else if (type == Sprite.class) {
             Sprite sprite = (Sprite) value;
             String display = sprite != null ? sprite.getName() : "(none)";
+
             ImGui.labelText(label, display);
-            // TODO: Add asset picker button
+            ImGui.sameLine();
+
+            if (ImGui.smallButton("...##" + meta.name())) {
+                assetPickerTarget = data;
+                assetPickerField = field;
+                assetPicker.open(Sprite.class, selectedAsset -> {
+                    try {
+                        assetPickerField.set(assetPickerTarget, selectedAsset);
+                        changed.set(true);
+                    } catch (Exception e) {
+                        System.err.println("Failed to set sprite: " + e.getMessage());
+                    }
+                });
+            }
         } else if (type == Texture.class) {
             Texture texture = (Texture) value;
             String display = texture != null ? texture.getFilePath() : "(none)";
+
             ImGui.labelText(label, display);
-            // TODO: Add asset picker button
+            ImGui.sameLine();
+
+            if (ImGui.smallButton("...##" + meta.name())) {
+                assetPickerTarget = data;
+                assetPickerField = field;
+                assetPicker.open(Texture.class, selectedAsset -> {
+                    try {
+                        assetPickerField.set(assetPickerTarget, selectedAsset);
+                        changed.set(true);
+                    } catch (Exception e) {
+                        System.err.println("Failed to set texture: " + e.getMessage());
+                    }
+                });
+            }
         }
 
         // ============================================================
@@ -228,11 +264,11 @@ public class ReflectionFieldEditor {
         ImGui.popID();
 
         // Apply change
-        if (changed && newValue != value) {
-            field.set(obj, newValue);
+        if (changed.get() && newValue != value) {
+            field.set(data, newValue);
         }
 
-        return changed;
+        return changed.get();
     }
 
     /**
@@ -240,5 +276,13 @@ public class ReflectionFieldEditor {
      */
     private static Object[] getEnumConstants(Class<?> enumType) {
         return enumCache.computeIfAbsent(enumType, Class::getEnumConstants);
+    }
+
+    /**
+     * Renders any open asset picker popup.
+     * Call once per frame from a central location.
+     */
+    public static void renderAssetPicker() {
+        assetPicker.render();
     }
 }

@@ -1,19 +1,18 @@
 package com.pocket.rpg.editor.panels;
 
-import com.pocket.rpg.editor.components.ComponentMeta;
-import com.pocket.rpg.editor.components.ComponentRegistry;
-import com.pocket.rpg.editor.components.FieldMeta;
+import com.pocket.rpg.editor.components.ReflectionFieldEditor;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.scene.EditorEntity;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.SceneCameraSettings;
 import com.pocket.rpg.editor.scene.TilemapLayer;
 import com.pocket.rpg.editor.serialization.ComponentData;
+import com.pocket.rpg.editor.undo.UndoManager;
+import com.pocket.rpg.editor.undo.commands.SetPropertyCommand;
 import com.pocket.rpg.prefab.Prefab;
 import com.pocket.rpg.prefab.PropertyDefinition;
 import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;
-import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImInt;
 import imgui.type.ImString;
 import lombok.Setter;
@@ -74,6 +73,8 @@ public class InspectorPanel {
             }
         }
         ImGui.end();
+        // Render asset picker if open
+        ReflectionFieldEditor.renderAssetPicker();
     }
 
     // ========================================================================
@@ -259,7 +260,22 @@ public class InspectorPanel {
             ImGui.text("Properties");
 
             for (PropertyDefinition prop : props) {
+                // TODO: How to render the propertyDefinition with ReflectionFieldEditor ?
+                //  Also, now that prefabs are JSON based, should this be removed totally ?
+                //  I think it would be better, and replace this with prefab override
                 renderPropertyEditor(entity, prop);
+            }
+
+            // Reset all overrides button
+            List<String> overridden = entity.getOverriddenProperties();
+            if (!overridden.isEmpty()) {
+                ImGui.separator();
+                ImGui.textDisabled(overridden.size() + " overridden properties");
+                ImGui.sameLine();
+                if (ImGui.smallButton("Reset All")) {
+                    entity.resetAllToDefaults();
+                    scene.markDirty();
+                }
             }
         }
     }
@@ -301,7 +317,9 @@ public class InspectorPanel {
                 // Component fields
                 if (open) {
                     ImGui.indent();
-                    renderComponentDataFields(comp);
+                    if (ReflectionFieldEditor.drawComponent(comp)) {
+                        scene.markDirty();
+                    }
                     ImGui.unindent();
                 }
 
@@ -330,140 +348,35 @@ public class InspectorPanel {
     }
 
     /**
-     * Renders editors for all fields in a ComponentData.
-     */
-    private void renderComponentDataFields(ComponentData data) {
-        ComponentMeta meta = ComponentRegistry.getByClassName(data.getType());
-
-        if (meta == null) {
-            ImGui.textColored(1f, 0.3f, 0.3f, 1f, "Unknown: " + data.getType());
-            return;
-        }
-
-        if (meta.fields().isEmpty()) {
-            ImGui.textDisabled("(no editable fields)");
-            return;
-        }
-
-        for (FieldMeta field : meta.fields()) {
-            Object value = data.getFields().get(field.name());
-            Object newValue = renderFieldEditor(field, value);
-
-            if (newValue != value) {
-                data.getFields().put(field.name(), newValue);
-                scene.markDirty();
-            }
-        }
-    }
-
-    /**
-     * Renders an editor for a single field based on its type.
-     * Returns the new value if changed, or the same value if unchanged.
-     */
-    private Object renderFieldEditor(FieldMeta field, Object value) {
-        Class<?> type = field.type();
-        String label = field.getDisplayName();
-
-        ImGui.pushID(field.name());
-
-        Object result = value;
-
-        // Primitives
-        if (type == int.class || type == Integer.class) {
-            int intValue = value instanceof Number n ? n.intValue() : 0;
-            intBuffer.set(intValue);
-            if (ImGui.inputInt(label, intBuffer)) {
-                result = intBuffer.get();
-            }
-        } else if (type == float.class || type == Float.class) {
-            float floatValue = value instanceof Number n ? n.floatValue() : 0f;
-            floatBuffer[0] = floatValue;
-            if (ImGui.dragFloat(label, floatBuffer, 0.1f)) {
-                result = floatBuffer[0];
-            }
-        } else if (type == double.class || type == Double.class) {
-            double doubleValue = value instanceof Number n ? n.doubleValue() : 0.0;
-            floatBuffer[0] = (float) doubleValue;
-            if (ImGui.dragFloat(label, floatBuffer, 0.1f)) {
-                result = (double) floatBuffer[0];
-            }
-        } else if (type == boolean.class || type == Boolean.class) {
-            boolean boolValue = value instanceof Boolean b && b;
-            if (ImGui.checkbox(label, boolValue)) {
-                result = !boolValue;
-            }
-        } else if (type == String.class) {
-            String strValue = value != null ? value.toString() : "";
-            stringBuffer.set(strValue);
-            if (ImGui.inputText(label, stringBuffer)) {
-                result = stringBuffer.get();
-            }
-        }
-        // Enums
-        else if (type.isEnum()) {
-            result = renderEnumField(label, type, value);
-        }
-        // Unsupported types
-        else {
-            ImGui.labelText(label, value != null ? value.toString() : "(null)");
-            ImGui.sameLine();
-            ImGui.textDisabled("(read-only)");
-        }
-
-        ImGui.popID();
-
-        return result;
-    }
-
-    /**
-     * Renders a dropdown for enum fields.
-     */
-    private Object renderEnumField(String label, Class<?> enumType, Object value) {
-        Object[] constants = enumType.getEnumConstants();
-        int currentIndex = 0;
-
-        // Find current index (value may be stored as String after serialization)
-        if (value != null) {
-            String valueName = value.toString();
-            for (int i = 0; i < constants.length; i++) {
-                if (constants[i].toString().equals(valueName)) {
-                    currentIndex = i;
-                    break;
-                }
-            }
-        }
-
-        // Build names array
-        String[] names = new String[constants.length];
-        for (int i = 0; i < constants.length; i++) {
-            names[i] = constants[i].toString();
-        }
-
-        intBuffer.set(currentIndex);
-        if (ImGui.combo(label, intBuffer, names)) {
-            // Store as String for JSON serialization compatibility
-            return constants[intBuffer.get()].toString();
-        }
-
-        return value;
-    }
-
-    /**
      * Renders an editor for a single property.
+     */
+    /**
+     * Renders an editor for a single property with override indication.
      */
     private void renderPropertyEditor(EditorEntity entity, PropertyDefinition prop) {
         Object value = entity.getProperty(prop.name());
+        boolean isOverridden = entity.isPropertyOverridden(prop.name());
 
         ImGui.pushID(prop.name());
 
         boolean changed = false;
         Object newValue = value;
 
-        // Label on left
+        // Override indicator: bold + colored label
+        if (isOverridden) {
+            ImGui.pushStyleColor(imgui.flag.ImGuiCol.Text, 0.4f, 0.8f, 1.0f, 1.0f);  // Cyan
+        }
+
         ImGui.alignTextToFramePadding();
-        ImGui.text(prop.name());
-        ImGui.sameLine(120); // Fixed label width
-        ImGui.setNextItemWidth(-30); // Room for reset button
+        String labelText = prop.name();
+        ImGui.text(labelText);
+
+        if (isOverridden) {
+            ImGui.popStyleColor();
+        }
+
+        ImGui.sameLine(130);  // Fixed label width
+        ImGui.setNextItemWidth(-60);  // Room for reset button
 
         switch (prop.type()) {
             case STRING -> {
@@ -520,7 +433,7 @@ public class InspectorPanel {
                 floatBuffer[0] = vec[0];
                 floatBuffer[1] = vec[1];
                 floatBuffer[2] = vec[2];
-                if (ImGui.dragFloat3(prop.name(), floatBuffer, 0.1f)) {
+                if (ImGui.dragFloat3("##value", floatBuffer, 0.1f)) {
                     newValue = new float[]{floatBuffer[0], floatBuffer[1], floatBuffer[2]};
                     changed = true;
                 }
@@ -546,23 +459,38 @@ public class InspectorPanel {
 
         // Apply change
         if (changed) {
-            entity.setProperty(prop.name(), newValue);
+            Object oldValue = entity.getProperty(prop.name());
+            UndoManager.getInstance().execute(
+                    new SetPropertyCommand(entity, prop.name(), oldValue, newValue)
+            );
             scene.markDirty();
         }
 
-        // Tooltip
+        // Tooltip with property info
         if (prop.tooltip() != null && ImGui.isItemHovered()) {
-            ImGui.setTooltip(prop.tooltip());
+            ImGui.beginTooltip();
+            ImGui.text(prop.tooltip());
+            if (isOverridden) {
+                Object defaultVal = entity.getPropertyDefault(prop.name());
+                ImGui.textDisabled("Default: " + defaultVal);
+            }
+            ImGui.endTooltip();
         }
 
-        // Reset button
+        // Reset button (only show if overridden)
         ImGui.sameLine();
-        if (ImGui.smallButton(FontAwesomeIcons.Undo)) {
-            entity.setProperty(prop.name(), prop.defaultValue());
-            scene.markDirty();
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("Reset to default: " + prop.defaultValue());
+        if (isOverridden) {
+            if (ImGui.smallButton(FontAwesomeIcons.Undo + "##reset")) {
+                entity.resetPropertyToDefault(prop.name());
+                scene.markDirty();
+            }
+            if (ImGui.isItemHovered()) {
+                Object defaultVal = entity.getPropertyDefault(prop.name());
+                ImGui.setTooltip("Reset to default: " + defaultVal);
+            }
+        } else {
+            // Placeholder to keep alignment
+            ImGui.dummy(20, 0);
         }
 
         ImGui.popID();

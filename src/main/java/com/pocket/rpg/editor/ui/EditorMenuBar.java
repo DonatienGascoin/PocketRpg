@@ -2,6 +2,7 @@ package com.pocket.rpg.editor.ui;
 
 import com.pocket.rpg.editor.core.FileDialogs;
 import com.pocket.rpg.editor.scene.EditorScene;
+import com.pocket.rpg.editor.undo.UndoManager;
 import imgui.ImGui;
 import imgui.flag.ImGuiKey;
 
@@ -116,13 +117,37 @@ public class EditorMenuBar {
 
     private void renderEditMenu() {
         if (ImGui.beginMenu("Edit")) {
-            // Placeholder for future edit operations
-            if (ImGui.menuItem("Undo", "Ctrl+Z", false, false)) {
-                // TODO: Implement undo
+            String undoDesc = UndoManager.getInstance().getUndoDescription();
+            String redoDesc = UndoManager.getInstance().getRedoDescription();
+
+            boolean canUndo = UndoManager.getInstance().canUndo();
+            boolean canRedo = UndoManager.getInstance().canRedo();
+
+            if (!canUndo) ImGui.beginDisabled();
+            if (ImGui.menuItem("Undo " + (undoDesc != null ? undoDesc : ""), "Ctrl+Z")) {
+                UndoManager.getInstance().undo();
+                currentScene.markDirty();
             }
-            if (ImGui.menuItem("Redo", "Ctrl+Y", false, false)) {
-                // TODO: Implement redo
+            if (!canUndo) ImGui.endDisabled();
+
+            if (!canRedo) ImGui.beginDisabled();
+            if (ImGui.menuItem("Redo " + (redoDesc != null ? redoDesc : ""), "Ctrl+Shift+Z")) {
+                UndoManager.getInstance().redo();
+                currentScene.markDirty();
             }
+            if (!canRedo) ImGui.endDisabled();
+
+            ImGui.separator();
+
+            ImGui.textDisabled("History: " + UndoManager.getInstance().getUndoCount() + " actions");
+
+//            // Placeholder for future edit operations
+//            if (ImGui.menuItem("Undo", "Ctrl+Z", false, false)) {
+//                // TODO: Implement undo
+//            }
+//            if (ImGui.menuItem("Redo", "Ctrl+Y", false, false)) {
+//                // TODO: Implement redo
+//            }
 
             ImGui.separator();
 
@@ -275,8 +300,8 @@ public class EditorMenuBar {
     private void handleSaveAs() {
         String defaultName = currentScene != null ? currentScene.getName() : "scene";
         Optional<String> path = FileDialogs.saveSceneFile(
-            FileDialogs.getScenesDirectory(),
-            defaultName + ".scene"
+                FileDialogs.getScenesDirectory(),
+                defaultName + ".scene"
         );
 
         path.ifPresent(p -> {
@@ -381,6 +406,29 @@ public class EditorMenuBar {
         // Ctrl+Shift+S - Save As
         if (ctrl && shift && ImGui.isKeyPressed(ImGuiKey.S)) {
             handleSaveAs();
+        }
+
+        // In your editor's update or input handling:
+
+        if (ImGui.isKeyPressed(ImGuiKey.W) && ImGui.isKeyDown(ImGuiKey.LeftCtrl)) { // W is Z in Azerty, Ctrl + Z
+            if (ImGui.isKeyDown(ImGuiKey.LeftShift)) {
+                // Ctrl+Shift+Z = Redo
+                if (UndoManager.getInstance().redo()) {
+                    currentScene.markDirty();
+                }
+            } else {
+                // Ctrl+Z = Undo
+                if (UndoManager.getInstance().undo()) {
+                    currentScene.markDirty();
+                }
+            }
+        }
+
+        // Alternative: Ctrl+Y for Redo
+        if (ImGui.isKeyPressed(ImGuiKey.Y) && ImGui.isKeyDown(ImGuiKey.LeftCtrl)) {
+            if (UndoManager.getInstance().redo()) {
+                currentScene.markDirty();
+            }
         }
     }
 

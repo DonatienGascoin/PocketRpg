@@ -1,6 +1,7 @@
 package com.pocket.rpg.editor.scene;
 
 import com.pocket.rpg.editor.serialization.EntityData;
+import com.pocket.rpg.prefab.JsonPrefab;
 import com.pocket.rpg.prefab.Prefab;
 import com.pocket.rpg.prefab.PrefabRegistry;
 import com.pocket.rpg.prefab.PropertyDefinition;
@@ -436,6 +437,108 @@ public class EditorEntity {
 
             return entity;
         }
+    }
+    // ========================================================================
+    // PREFAB OVERRIDE TRACKING
+    // ========================================================================
+
+    /**
+     * Checks if a property value differs from the prefab default.
+     * Only meaningful for prefab instances.
+     */
+    public boolean isPropertyOverridden(String propertyName) {
+        if (!isPrefabInstance()) {
+            return false;
+        }
+
+        Prefab prefab = getPrefab();
+        if (prefab == null) {
+            return false;
+        }
+
+        Object currentValue = properties.get(propertyName);
+        Object defaultValue = getPropertyDefault(propertyName);
+
+        if (currentValue == null && defaultValue == null) {
+            return false;
+        }
+        if (currentValue == null || defaultValue == null) {
+            return true;
+        }
+
+        return !currentValue.equals(defaultValue);
+    }
+
+    /**
+     * Gets the default value for a property from the prefab.
+     */
+    public Object getPropertyDefault(String propertyName) {
+        Prefab prefab = getPrefab();
+        if (prefab == null) {
+            return null;
+        }
+
+        // Check JSON prefab
+        if (prefab instanceof JsonPrefab jsonPrefab) { // TODO: Remove instanceof check once property definitions have been removed
+            return jsonPrefab.getPropertyDefault(propertyName);
+        }
+
+        // Check Java prefab PropertyDefinitions
+        for (PropertyDefinition prop : prefab.getEditableProperties()) {
+            if (prop.name().equals(propertyName)) {
+                return prop.defaultValue();
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Resets a property to its prefab default value.
+     */
+    public void resetPropertyToDefault(String propertyName) {
+        Object defaultValue = getPropertyDefault(propertyName);
+        if (defaultValue != null) {
+            properties.put(propertyName, defaultValue);
+        } else {
+            properties.remove(propertyName);
+        }
+    }
+
+    /**
+     * Gets all overridden property names.
+     */
+    public List<String> getOverriddenProperties() {
+        List<String> overridden = new ArrayList<>();
+
+        if (!isPrefabInstance()) {
+            return overridden;
+        }
+
+        for (String key : properties.keySet()) {
+            if (isPropertyOverridden(key)) {
+                overridden.add(key);
+            }
+        }
+
+        return overridden;
+    }
+
+    /**
+     * Resets all properties to prefab defaults.
+     */
+    public void resetAllToDefaults() {
+        if (!isPrefabInstance()) {
+            return;
+        }
+
+        Prefab prefab = getPrefab();
+        if (prefab == null) {
+            return;
+        }
+
+        properties.clear();
+        initializeDefaultProperties();
     }
 
     // ========================================================================

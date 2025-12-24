@@ -3,6 +3,8 @@ package com.pocket.rpg.editor.tools;
 import com.pocket.rpg.collision.CollisionType;
 import com.pocket.rpg.editor.camera.EditorCamera;
 import com.pocket.rpg.editor.scene.EditorScene;
+import com.pocket.rpg.editor.undo.UndoManager;
+import com.pocket.rpg.editor.undo.commands.BatchCollisionCommand;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import lombok.Getter;
@@ -10,6 +12,7 @@ import lombok.Setter;
 
 /**
  * Brush tool for painting collision types on the collision map.
+ * Supports undo/redo.
  */
 public class CollisionBrushTool implements EditorTool, ViewportAwareTool {
 
@@ -29,8 +32,9 @@ public class CollisionBrushTool implements EditorTool, ViewportAwareTool {
     private int zLevel = 0;
 
     private boolean isPainting = false;
+    private BatchCollisionCommand currentCommand = null;
+    private boolean isErasing = false;
 
-    // Viewport bounds
     private float viewportX, viewportY;
     private float viewportWidth, viewportHeight;
 
@@ -58,11 +62,17 @@ public class CollisionBrushTool implements EditorTool, ViewportAwareTool {
 
     @Override
     public void onMouseDown(int tileX, int tileY, int button) {
+        if (scene == null || scene.getCollisionMap() == null) return;
+
         if (button == 0) {
             isPainting = true;
+            isErasing = false;
+            currentCommand = new BatchCollisionCommand(scene.getCollisionMap(), zLevel, "Paint " + selectedType);
             paintAt(tileX, tileY);
         } else if (button == 1) {
             isPainting = true;
+            isErasing = true;
+            currentCommand = new BatchCollisionCommand(scene.getCollisionMap(), zLevel, "Erase Collision");
             eraseAt(tileX, tileY);
         }
     }
@@ -71,22 +81,25 @@ public class CollisionBrushTool implements EditorTool, ViewportAwareTool {
     public void onMouseDrag(int tileX, int tileY, int button) {
         if (!isPainting) return;
 
-        if (button == 0) {
+        if (button == 0 && !isErasing) {
             paintAt(tileX, tileY);
-        } else if (button == 1) {
+        } else if (button == 1 || isErasing) {
             eraseAt(tileX, tileY);
         }
     }
 
     @Override
     public void onMouseUp(int tileX, int tileY, int button) {
+        if (isPainting && currentCommand != null && currentCommand.hasChanges()) {
+            UndoManager.getInstance().execute(currentCommand);
+        }
         isPainting = false;
+        isErasing = false;
+        currentCommand = null;
     }
 
     private void paintAt(int centerX, int centerY) {
-        if (scene == null || scene.getCollisionMap() == null) {
-            return;
-        }
+        if (scene == null || scene.getCollisionMap() == null) return;
 
         int halfSize = brushSize / 2;
 
@@ -94,6 +107,10 @@ public class CollisionBrushTool implements EditorTool, ViewportAwareTool {
             for (int dx = -halfSize; dx < brushSize - halfSize; dx++) {
                 int tx = centerX + dx;
                 int ty = centerY + dy;
+                
+                if (currentCommand != null) {
+                    currentCommand.recordChange(tx, ty, selectedType);
+                }
                 scene.getCollisionMap().set(tx, ty, zLevel, selectedType);
             }
         }
@@ -102,9 +119,7 @@ public class CollisionBrushTool implements EditorTool, ViewportAwareTool {
     }
 
     private void eraseAt(int centerX, int centerY) {
-        if (scene == null || scene.getCollisionMap() == null) {
-            return;
-        }
+        if (scene == null || scene.getCollisionMap() == null) return;
 
         int halfSize = brushSize / 2;
 
@@ -112,6 +127,10 @@ public class CollisionBrushTool implements EditorTool, ViewportAwareTool {
             for (int dx = -halfSize; dx < brushSize - halfSize; dx++) {
                 int tx = centerX + dx;
                 int ty = centerY + dy;
+                
+                if (currentCommand != null) {
+                    currentCommand.recordChange(tx, ty, CollisionType.NONE);
+                }
                 scene.getCollisionMap().set(tx, ty, zLevel, CollisionType.NONE);
             }
         }
@@ -148,7 +167,6 @@ public class CollisionBrushTool implements EditorTool, ViewportAwareTool {
         drawList.popClipRect();
     }
 
-    // Legacy setters for backward compatibility
     public void setViewportX(float x) { this.viewportX = x; }
     public void setViewportY(float y) { this.viewportY = y; }
     public void setViewportWidth(float w) { this.viewportWidth = w; }

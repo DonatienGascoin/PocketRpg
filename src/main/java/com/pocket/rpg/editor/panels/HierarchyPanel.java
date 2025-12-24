@@ -5,6 +5,8 @@ import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.scene.EditorEntity;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.TilemapLayer;
+import com.pocket.rpg.editor.undo.UndoManager;
+import com.pocket.rpg.editor.undo.commands.AddEntityCommand;
 import com.pocket.rpg.serialization.ComponentData;
 import com.pocket.rpg.editor.tools.EditorTool;
 import com.pocket.rpg.editor.tools.ToolManager;
@@ -79,7 +81,7 @@ public class HierarchyPanel {
             ImGui.separator();
 
             // Layers section
-            renderLayersSection();
+            // renderLayersSection();
 
             // Entities section
             renderEntitiesSection();
@@ -247,7 +249,7 @@ public class HierarchyPanel {
     private void renderEntitiesSection() {
         int headerFlags = ImGuiTreeNodeFlags.DefaultOpen;
 
-        if (ImGui.collapsingHeader("Entities", headerFlags)) {
+        //if (ImGui.collapsingHeader("Entities", headerFlags)) {
             List<EditorEntity> entities = scene.getEntities();
             EditorEntity selected = scene.getSelectedEntity();
 
@@ -268,7 +270,7 @@ public class HierarchyPanel {
 
             ImGui.sameLine();
             ImGui.textDisabled("or use Prefabs panel");
-        }
+        //}
     }
 
     /**
@@ -284,8 +286,7 @@ public class HierarchyPanel {
 
         // Create scratch entity (no prefab)
         EditorEntity entity = new EditorEntity(name, position, false);
-
-        scene.addEntity(entity);
+        UndoManager.getInstance().execute(new AddEntityCommand(scene, entity));
         selectEntity(entity);
         scene.markDirty();
     }

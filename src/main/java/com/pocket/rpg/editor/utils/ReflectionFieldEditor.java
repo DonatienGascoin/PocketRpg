@@ -1,8 +1,9 @@
 package com.pocket.rpg.editor.utils;
 
-import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.panels.AssetPickerPopup;
 import com.pocket.rpg.editor.scene.EditorEntity;
+import com.pocket.rpg.editor.undo.UndoManager;
+import com.pocket.rpg.editor.undo.commands.SetComponentFieldCommand;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.Texture;
 import com.pocket.rpg.serialization.ComponentData;
@@ -25,37 +26,20 @@ import java.util.Map;
 /**
  * Renders ImGui controls for component fields using reflection.
  * <p>
- * Supports these field types:
- * - Primitives: int, float, boolean, String
- * - Vectors: Vector2f, Vector3f, Vector4f
- * - Enums: Any enum type
- * - Assets: Sprite, Texture (with picker)
- * <p>
- * Also displays @ComponentRef fields as read-only information,
- * with validation showing if references can be resolved.
+ * All field changes are wrapped in undo commands.
  */
 public class ReflectionFieldEditor {
 
-    // Reusable buffers to avoid allocations
     private static final ImString stringBuffer = new ImString(256);
     private static final ImInt intBuffer = new ImInt();
     private static final float[] floatBuffer = new float[4];
 
-    // Cache for enum values
     private static final Map<Class<?>, Object[]> enumCache = new HashMap<>();
 
-    // Asset picker
     private static final AssetPickerPopup assetPicker = new AssetPickerPopup();
     private static ComponentData assetPickerTargetData = null;
     private static String assetPickerFieldName = null;
 
-    /**
-     * Draws all editable fields of a component, plus read-only references.
-     *
-     * @param component The component data to edit
-     * @param entity    The entity containing this component (for reference validation)
-     * @return true if any field was changed
-     */
     public static boolean drawComponent(ComponentData component, EditorEntity entity) {
         if (component == null) {
             return false;
@@ -69,7 +53,6 @@ public class ReflectionFieldEditor {
 
         boolean changed = false;
 
-        // Draw editable fields (in order from ComponentMeta)
         for (FieldMeta fieldMeta : meta.fields()) {
             try {
                 changed |= drawField(component, fieldMeta);
@@ -79,24 +62,15 @@ public class ReflectionFieldEditor {
             }
         }
 
-        // Draw read-only component references with validation
         drawComponentReferences(meta.references(), entity);
 
         return changed;
     }
 
-    /**
-     * Draws all editable fields without reference validation.
-     * Use when entity context is not available.
-     */
     public static boolean drawComponent(ComponentData component) {
         return drawComponent(component, null);
     }
 
-    /**
-     * Draws a single field with appropriate control.
-     * Updates ComponentData.fields map directly.
-     */
     public static boolean drawField(ComponentData data, FieldMeta meta) {
         Class<?> type = meta.type();
         String fieldName = meta.name();
@@ -108,10 +82,7 @@ public class ReflectionFieldEditor {
 
         ImGui.pushID(fieldName);
 
-        // ============================================================
         // PRIMITIVES
-        // ============================================================
-
         if (type == int.class || type == Integer.class) {
             int intValue = value instanceof Number n ? n.intValue() : 0;
             intBuffer.set(intValue);
@@ -148,10 +119,7 @@ public class ReflectionFieldEditor {
             }
         }
 
-        // ============================================================
         // VECTORS
-        // ============================================================
-
         else if (type == Vector2f.class) {
             Vector2f vec = toVector2f(value);
             floatBuffer[0] = vec.x;
@@ -181,16 +149,12 @@ public class ReflectionFieldEditor {
             }
         }
 
-        // ============================================================
         // ENUMS
-        // ============================================================
-
         else if (type.isEnum()) {
             Object[] constants = getEnumConstants(type);
             int currentIndex = 0;
 
             if (value != null) {
-                // Value might be stored as String (from JSON) or Enum
                 String valueStr = value instanceof Enum<?> e ? e.name() : value.toString();
                 for (int i = 0; i < constants.length; i++) {
                     if (constants[i].toString().equals(valueStr)) {
@@ -207,16 +171,12 @@ public class ReflectionFieldEditor {
 
             intBuffer.set(currentIndex);
             if (ImGui.combo(label, intBuffer, names)) {
-                // Store as enum name string for serialization compatibility
                 newValue = constants[intBuffer.get()].toString();
                 changed = true;
             }
         }
 
-        // ============================================================
-        // ASSETS (with picker)
-        // ============================================================
-
+        // ASSETS
         else if (type == Sprite.class || type == Texture.class) {
             String display = getAssetDisplayName(value, type);
 
@@ -229,18 +189,19 @@ public class ReflectionFieldEditor {
             if (ImGui.smallButton("...##" + fieldName)) {
                 assetPickerTargetData = data;
                 assetPickerFieldName = fieldName;
+                Object oldValue = data.getFields().get(fieldName);
                 assetPicker.open(type, selectedAsset -> {
                     if (assetPickerTargetData != null && assetPickerFieldName != null) {
-                        assetPickerTargetData.getFields().put(assetPickerFieldName, selectedAsset);
+                        UndoManager.getInstance().execute(
+                                new SetComponentFieldCommand(assetPickerTargetData, assetPickerFieldName,
+                                        oldValue, selectedAsset)
+                        );
                     }
                 });
             }
         }
 
-        // ============================================================
-        // UNKNOWN TYPE
-        // ============================================================
-
+        // UNKNOWN
         else {
             String display = value != null ? value.toString() : "(null)";
             ImGui.labelText(label, display);
@@ -250,18 +211,22 @@ public class ReflectionFieldEditor {
 
         ImGui.popID();
 
-        // Apply change to ComponentData fields map
-        if (changed) {
-            data.getFields().put(fieldName, newValue);
+        // Apply change via undo command
+        if (changed && !valuesEqual(value, newValue)) {
+            UndoManager.getInstance().execute(
+                    new SetComponentFieldCommand(data, fieldName, value, newValue)
+            );
         }
 
         return changed;
     }
 
-    /**
-     * Renders @ComponentRef fields as read-only labels with validation.
-     * Shows in red if the reference cannot be resolved on this entity.
-     */
+    private static boolean valuesEqual(Object a, Object b) {
+        if (a == b) return true;
+        if (a == null || b == null) return false;
+        return a.equals(b);
+    }
+
     public static void drawComponentReferences(List<ComponentRefMeta> references, EditorEntity entity) {
         if (references == null || references.isEmpty()) {
             return;
@@ -279,42 +244,38 @@ public class ReflectionFieldEditor {
             String label = ref.getDisplayName();
             String description = ref.getEditorDescription();
 
-            // Check if reference can be resolved
             ReferenceStatus status = checkReferenceStatus(ref, entity);
 
-            // Optional indicator
             if (!ref.required()) {
                 description += " [optional]";
             }
 
-            // Status indicator
             String statusIcon;
             float r, g, b;
 
             switch (status) {
                 case FOUND -> {
-                    statusIcon = FontAwesomeIcons.CheckCircle; // ✓
-                    r = 0.3f; g = 0.8f; b = 0.3f; // Green
+                    statusIcon = "\u2713";
+                    r = 0.3f; g = 0.8f; b = 0.3f;
                 }
                 case NOT_FOUND -> {
-                    statusIcon = FontAwesomeIcons.ExclamationCircle; // ✗
+                    statusIcon = "\u2717";
                     if (ref.required()) {
-                        r = 1.0f; g = 0.3f; b = 0.3f; // Red
+                        r = 1.0f; g = 0.3f; b = 0.3f;
                     } else {
-                        r = 0.8f; g = 0.6f; b = 0.2f; // Orange/yellow for optional
+                        r = 0.8f; g = 0.6f; b = 0.2f;
                     }
                 }
                 case UNKNOWN -> {
-                    statusIcon = FontAwesomeIcons.QuestionCircle;
-                    r = 0.6f; g = 0.6f; b = 0.6f; // Gray
+                    statusIcon = "?";
+                    r = 0.6f; g = 0.6f; b = 0.6f;
                 }
                 default -> {
-                    statusIcon = FontAwesomeIcons.MinusCircle;
+                    statusIcon = "-";
                     r = 0.5f; g = 0.5f; b = 0.5f;
                 }
             }
 
-            // Render label with status color
             ImGui.pushStyleColor(ImGuiCol.Text, r, g, b, 1.0f);
             ImGui.text("  " + statusIcon + " " + label + ":");
             ImGui.popStyleColor();
@@ -322,7 +283,6 @@ public class ReflectionFieldEditor {
             ImGui.sameLine(170);
             ImGui.textDisabled(description);
 
-            // Tooltip with details
             if (ImGui.isItemHovered()) {
                 ImGui.beginTooltip();
                 switch (status) {
@@ -347,18 +307,8 @@ public class ReflectionFieldEditor {
         }
     }
 
-    /**
-     * Reference resolution status.
-     */
-    private enum ReferenceStatus {
-        FOUND,      // Component exists
-        NOT_FOUND,  // Component missing
-        UNKNOWN     // Can't determine (parent/children reference)
-    }
+    private enum ReferenceStatus { FOUND, NOT_FOUND, UNKNOWN }
 
-    /**
-     * Checks if a component reference can be resolved on the given entity.
-     */
     private static ReferenceStatus checkReferenceStatus(ComponentRefMeta ref, EditorEntity entity) {
         if (entity == null) {
             return ReferenceStatus.UNKNOWN;
@@ -366,60 +316,35 @@ public class ReflectionFieldEditor {
 
         return switch (ref.source()) {
             case SELF -> {
-                // Check if entity has a component of the required type
                 boolean found = hasComponentOfType(entity, ref.componentType());
                 yield found ? ReferenceStatus.FOUND : ReferenceStatus.NOT_FOUND;
             }
-            case PARENT, CHILDREN, CHILDREN_RECURSIVE -> {
-                // Can't verify parent/children in editor without scene hierarchy
-                yield ReferenceStatus.UNKNOWN;
-            }
+            case PARENT, CHILDREN, CHILDREN_RECURSIVE -> ReferenceStatus.UNKNOWN;
         };
     }
 
-    /**
-     * Checks if an entity has a component of the given type.
-     */
     private static boolean hasComponentOfType(EditorEntity entity, Class<?> componentType) {
         String targetTypeName = componentType.getName();
 
-        // Check scratch entity components
         for (ComponentData comp : entity.getComponents()) {
             if (comp.getType().equals(targetTypeName)) {
                 return true;
             }
         }
 
-        // Check if it's Transform (always present)
         if (targetTypeName.endsWith(".Transform")) {
             return true;
         }
 
-        // TODO: For prefab instances, check prefab's components too
-        // if (entity.isPrefabInstance()) { ... }
-
         return false;
     }
 
-    // ========================================================================
-    // HELPER METHODS
-    // ========================================================================
-
-    /**
-     * Gets cached enum constants for a type.
-     */
     private static Object[] getEnumConstants(Class<?> enumType) {
         return enumCache.computeIfAbsent(enumType, Class::getEnumConstants);
     }
 
-    /**
-     * Converts stored value to Vector2f.
-     * Handles both Vector2f and List (from JSON deserialization).
-     */
     private static Vector2f toVector2f(Object value) {
-        if (value instanceof Vector2f v) {
-            return v;
-        }
+        if (value instanceof Vector2f v) return v;
         if (value instanceof List<?> list && list.size() >= 2) {
             return new Vector2f(
                     ((Number) list.get(0)).floatValue(),
@@ -429,13 +354,8 @@ public class ReflectionFieldEditor {
         return new Vector2f();
     }
 
-    /**
-     * Converts stored value to Vector3f.
-     */
     private static Vector3f toVector3f(Object value) {
-        if (value instanceof Vector3f v) {
-            return v;
-        }
+        if (value instanceof Vector3f v) return v;
         if (value instanceof List<?> list && list.size() >= 3) {
             return new Vector3f(
                     ((Number) list.get(0)).floatValue(),
@@ -446,13 +366,8 @@ public class ReflectionFieldEditor {
         return new Vector3f();
     }
 
-    /**
-     * Converts stored value to Vector4f.
-     */
     private static Vector4f toVector4f(Object value) {
-        if (value instanceof Vector4f v) {
-            return v;
-        }
+        if (value instanceof Vector4f v) return v;
         if (value instanceof List<?> list && list.size() >= 4) {
             return new Vector4f(
                     ((Number) list.get(0)).floatValue(),
@@ -464,30 +379,20 @@ public class ReflectionFieldEditor {
         return new Vector4f();
     }
 
-    /**
-     * Gets display name for an asset field value.
-     */
     private static String getAssetDisplayName(Object value, Class<?> type) {
-        if (value == null) {
-            return "(none)";
-        }
+        if (value == null) return "(none)";
         if (value instanceof Sprite sprite) {
             return sprite.getName() != null ? sprite.getName() : "(unnamed sprite)";
         }
         if (value instanceof Texture texture) {
             return texture.getFilePath() != null ? texture.getFilePath() : "(unnamed texture)";
         }
-        // Might be stored as string path
         if (value instanceof String s) {
             return s.isEmpty() ? "(none)" : s;
         }
         return value.toString();
     }
 
-    /**
-     * Renders any open asset picker popup.
-     * Call once per frame from a central location (e.g., InspectorPanel).
-     */
     public static void renderAssetPicker() {
         assetPicker.render();
     }

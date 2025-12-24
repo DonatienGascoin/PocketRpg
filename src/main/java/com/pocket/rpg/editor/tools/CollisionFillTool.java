@@ -4,6 +4,8 @@ import com.pocket.rpg.collision.CollisionMap;
 import com.pocket.rpg.collision.CollisionType;
 import com.pocket.rpg.editor.camera.EditorCamera;
 import com.pocket.rpg.editor.scene.EditorScene;
+import com.pocket.rpg.editor.undo.UndoManager;
+import com.pocket.rpg.editor.undo.commands.BatchCollisionCommand;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import lombok.Getter;
@@ -13,11 +15,7 @@ import java.util.*;
 
 /**
  * Fill tool for flood-filling collision areas.
- * <p>
- * Features:
- * - Click to flood fill connected area
- * - 2000 tile safety limit
- * - Preview of hovered tile
+ * Supports undo/redo.
  */
 public class CollisionFillTool implements EditorTool, ViewportAwareTool {
 
@@ -34,7 +32,6 @@ public class CollisionFillTool implements EditorTool, ViewportAwareTool {
     @Setter
     private int zLevel = 0;
 
-    // Viewport bounds
     private float viewportX, viewportY;
     private float viewportWidth, viewportHeight;
 
@@ -69,26 +66,23 @@ public class CollisionFillTool implements EditorTool, ViewportAwareTool {
 
     @Override
     public void onMouseDrag(int tileX, int tileY, int button) {
-        // Fill doesn't support dragging
     }
 
     @Override
     public void onMouseUp(int tileX, int tileY, int button) {
-        // Nothing to do
     }
 
     private void fillAt(int startX, int startY) {
-        if (scene == null || scene.getCollisionMap() == null) {
-            return;
-        }
+        if (scene == null || scene.getCollisionMap() == null) return;
 
         CollisionMap collisionMap = scene.getCollisionMap();
 
         CollisionType targetType = collisionMap.get(startX, startY, zLevel);
 
-        if (targetType == selectedType) {
-            return;
-        }
+        if (targetType == selectedType) return;
+
+        // Create undo command
+        BatchCollisionCommand command = new BatchCollisionCommand(collisionMap, zLevel, "Fill " + selectedType);
 
         Set<Long> filled = new HashSet<>();
         Queue<int[]> queue = new LinkedList<>();
@@ -100,14 +94,12 @@ public class CollisionFillTool implements EditorTool, ViewportAwareTool {
             int y = pos[1];
 
             long key = key(x, y);
-            if (filled.contains(key)) {
-                continue;
-            }
+            if (filled.contains(key)) continue;
 
-            if (collisionMap.get(x, y, zLevel) != targetType) {
-                continue;
-            }
+            if (collisionMap.get(x, y, zLevel) != targetType) continue;
 
+            // Record and apply change
+            command.recordChange(x, y, selectedType);
             collisionMap.set(x, y, zLevel, selectedType);
             filled.add(key);
 
@@ -117,8 +109,8 @@ public class CollisionFillTool implements EditorTool, ViewportAwareTool {
             queue.add(new int[]{x, y - 1});
         }
 
-        if (filled.size() >= MAX_FILL_TILES) {
-            System.out.println("WARNING: Fill reached limit of " + MAX_FILL_TILES + " tiles");
+        if (command.hasChanges()) {
+            UndoManager.getInstance().execute(command);
         }
 
         scene.markDirty();
@@ -145,7 +137,6 @@ public class CollisionFillTool implements EditorTool, ViewportAwareTool {
         drawList.popClipRect();
     }
 
-    // Legacy setters for backward compatibility
     public void setViewportX(float x) { this.viewportX = x; }
     public void setViewportY(float y) { this.viewportY = y; }
     public void setViewportWidth(float w) { this.viewportWidth = w; }

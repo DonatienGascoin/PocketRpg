@@ -5,6 +5,8 @@ import com.pocket.rpg.editor.camera.EditorCamera;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.TilemapLayer;
 import com.pocket.rpg.editor.tileset.TileSelection;
+import com.pocket.rpg.editor.undo.UndoManager;
+import com.pocket.rpg.editor.undo.commands.BatchTileCommand;
 import com.pocket.rpg.rendering.Sprite;
 import imgui.ImDrawList;
 import imgui.ImGui;
@@ -13,11 +15,7 @@ import org.joml.Vector2f;
 
 /**
  * Rectangle tool for filling rectangular regions with tiles.
- *
- * Features:
- * - Click and drag to define rectangle
- * - Visual preview during drag
- * - Fill on release
+ * Supports undo/redo.
  */
 public class TileRectangleTool implements EditorTool {
 
@@ -27,12 +25,10 @@ public class TileRectangleTool implements EditorTool {
     @Setter
     private TileSelection selection;
 
-    // Rectangle state
     private boolean isDefiningRect = false;
     private int startX, startY;
     private int endX, endY;
 
-    // For overlay rendering
     @Setter
     private float viewportX, viewportY;
     @Setter
@@ -54,7 +50,7 @@ public class TileRectangleTool implements EditorTool {
 
     @Override
     public void onMouseDown(int tileX, int tileY, int button) {
-        if (button == 0) { // Left click - start rectangle
+        if (button == 0) {
             isDefiningRect = true;
             startX = tileX;
             startY = tileY;
@@ -66,7 +62,6 @@ public class TileRectangleTool implements EditorTool {
     @Override
     public void onMouseDrag(int tileX, int tileY, int button) {
         if (isDefiningRect && button == 0) {
-            // Update end position
             endX = tileX;
             endY = tileY;
         }
@@ -75,50 +70,41 @@ public class TileRectangleTool implements EditorTool {
     @Override
     public void onMouseUp(int tileX, int tileY, int button) {
         if (isDefiningRect && button == 0) {
-            // Fill the rectangle
             fillRectangle();
             isDefiningRect = false;
         }
     }
 
-    /**
-     * Fills the defined rectangle with the selected sprite.
-     */
     private void fillRectangle() {
-        if (scene == null) {
-            System.out.println("Cannot fill rectangle: scene is null");
-            return;
-        }
+        if (scene == null) return;
 
         TilemapLayer layer = scene.getActiveLayer();
-        if (layer == null) {
-            System.out.println("Cannot fill rectangle: no active layer");
-            return;
-        }
-        if (layer.isLocked()) {
-            System.out.println("Cannot fill rectangle: layer is locked");
-            return;
-        }
+        if (layer == null || layer.isLocked()) return;
 
-        if (selection == null || selection.getFirstSprite() == null) {
-            System.out.println("Cannot fill rectangle: no sprite selected");
-            return;
-        }
+        if (selection == null || selection.getFirstSprite() == null) return;
 
         Sprite fillSprite = selection.getFirstSprite();
 
-        // Calculate bounds
         int minX = Math.min(startX, endX);
         int maxX = Math.max(startX, endX);
         int minY = Math.min(startY, endY);
         int maxY = Math.max(startY, endY);
 
-        // Fill all tiles in rectangle
+        // Create undo command
+        BatchTileCommand command = new BatchTileCommand(layer, "Rectangle Fill");
+
         TilemapRenderer tilemap = layer.getTilemap();
+        TilemapRenderer.Tile newTile = new TilemapRenderer.Tile(fillSprite);
+
         for (int y = minY; y <= maxY; y++) {
             for (int x = minX; x <= maxX; x++) {
-                tilemap.set(x, y, new TilemapRenderer.Tile(fillSprite));
+                command.recordChange(x, y, newTile);
+                tilemap.set(x, y, newTile);
             }
+        }
+
+        if (command.hasChanges()) {
+            UndoManager.getInstance().execute(command);
         }
 
         scene.markDirty();
@@ -132,13 +118,11 @@ public class TileRectangleTool implements EditorTool {
         drawList.pushClipRect(viewportX, viewportY, viewportX + viewportWidth, viewportY + viewportHeight, true);
 
         if (isDefiningRect) {
-            // Draw rectangle preview
             int minX = Math.min(startX, endX);
             int maxX = Math.max(startX, endX);
             int minY = Math.min(startY, endY);
             int maxY = Math.max(startY, endY);
 
-            // Fill
             int fillColor = ImGui.colorConvertFloat4ToU32(0.3f, 0.7f, 1.0f, 0.3f);
             for (int y = minY; y <= maxY; y++) {
                 for (int x = minX; x <= maxX; x++) {
@@ -146,7 +130,6 @@ public class TileRectangleTool implements EditorTool {
                 }
             }
 
-            // Border
             int borderColor = ImGui.colorConvertFloat4ToU32(0.4f, 0.8f, 1.0f, 0.9f);
             Vector2f bottomLeft = camera.worldToScreen(minX, minY);
             Vector2f topRight = camera.worldToScreen(maxX + 1, maxY + 1);
@@ -164,7 +147,6 @@ public class TileRectangleTool implements EditorTool {
             drawList.addRect(rectMinX, rectMinY, rectMaxX, rectMaxY, borderColor, 0, 0, 2.0f);
 
         } else if (hoveredTileX != Integer.MIN_VALUE && hoveredTileY != Integer.MIN_VALUE) {
-            // Draw single tile preview when not dragging
             int color = ImGui.colorConvertFloat4ToU32(0.3f, 0.7f, 1.0f, 0.4f);
             drawTileHighlight(drawList, camera, hoveredTileX, hoveredTileY, color, true);
         }
@@ -172,9 +154,6 @@ public class TileRectangleTool implements EditorTool {
         drawList.popClipRect();
     }
 
-    /**
-     * Draws a highlight rectangle for a tile.
-     */
     private void drawTileHighlight(ImDrawList drawList, EditorCamera camera,
                                    int tileX, int tileY, int fillColor, boolean drawBorder) {
         Vector2f bottomLeft = camera.worldToScreen(tileX, tileY);

@@ -11,31 +11,22 @@ import java.util.function.Consumer;
 
 /**
  * Main menu bar for the Scene Editor.
- * Handles File menu operations (New, Open, Save, Save As, Exit).
  */
 public class EditorMenuBar {
 
-    // Callbacks for menu actions
     private Runnable onNewScene;
     private Consumer<String> onOpenScene;
     private Runnable onSaveScene;
     private Consumer<String> onSaveSceneAs;
     private Runnable onExit;
 
-    // Reference to current scene (for dirty checking, file path)
     private EditorScene currentScene;
 
-    // Confirmation dialog state
     private boolean showUnsavedChangesDialog = false;
     private Runnable pendingAction = null;
 
-    // Recent files (placeholder for future implementation)
     private String[] recentFiles = new String[0];
 
-    /**
-     * Renders the main menu bar.
-     * Returns true if menu is active (for input blocking).
-     */
     public boolean render() {
         boolean menuActive = false;
 
@@ -47,33 +38,27 @@ public class EditorMenuBar {
             renderViewMenu();
             renderHelpMenu();
 
-            // Right-aligned scene info
             renderSceneInfo();
 
             ImGui.endMainMenuBar();
         }
 
-        // Render dialogs
         renderUnsavedChangesDialog();
 
         return menuActive;
     }
 
     public void renderFileMenu() {
-        // Render dialogs
         renderUnsavedChangesDialog();
         if (ImGui.beginMenu("File")) {
-            // New Scene (Ctrl+N)
             if (ImGui.menuItem("New Scene", "Ctrl+N")) {
                 handleNewScene();
             }
 
-            // Open Scene (Ctrl+O)
             if (ImGui.menuItem("Open Scene...", "Ctrl+O")) {
                 handleOpenScene();
             }
 
-            // Recent Files submenu
             if (ImGui.beginMenu("Open Recent", recentFiles.length > 0)) {
                 for (String file : recentFiles) {
                     if (ImGui.menuItem(file)) {
@@ -93,20 +78,17 @@ public class EditorMenuBar {
 
             ImGui.separator();
 
-            // Save (Ctrl+S)
             boolean canSave = currentScene != null && currentScene.isDirty();
             if (ImGui.menuItem("Save", "Ctrl+S", false, canSave)) {
                 handleSave();
             }
 
-            // Save As (Ctrl+Shift+S)
             if (ImGui.menuItem("Save As...", "Ctrl+Shift+S")) {
                 handleSaveAs();
             }
 
             ImGui.separator();
 
-            // Exit
             if (ImGui.menuItem("Exit", "Alt+F4")) {
                 handleExit();
             }
@@ -115,59 +97,58 @@ public class EditorMenuBar {
         }
     }
 
-    private void renderEditMenu() {
+    public void renderEditMenu() {
         if (ImGui.beginMenu("Edit")) {
-            String undoDesc = UndoManager.getInstance().getUndoDescription();
-            String redoDesc = UndoManager.getInstance().getRedoDescription();
+            UndoManager undo = UndoManager.getInstance();
 
-            boolean canUndo = UndoManager.getInstance().canUndo();
-            boolean canRedo = UndoManager.getInstance().canRedo();
+            String undoDesc = undo.getUndoDescription();
+            String redoDesc = undo.getRedoDescription();
 
-            if (!canUndo) ImGui.beginDisabled();
-            if (ImGui.menuItem("Undo " + (undoDesc != null ? undoDesc : ""), "Ctrl+Z")) {
-                UndoManager.getInstance().undo();
-                currentScene.markDirty();
+            boolean canUndo = undo.canUndo();
+            boolean canRedo = undo.canRedo();
+
+            // Undo
+            String undoLabel = "Undo" + (undoDesc != null ? " " + undoDesc : "");
+            if (ImGui.menuItem(undoLabel, "Ctrl+Z", false, canUndo)) {
+                undo.undo();
+                if (currentScene != null) {
+                    currentScene.markDirty();
+                }
             }
-            if (!canUndo) ImGui.endDisabled();
 
-            if (!canRedo) ImGui.beginDisabled();
-            if (ImGui.menuItem("Redo " + (redoDesc != null ? redoDesc : ""), "Ctrl+Shift+Z")) {
-                UndoManager.getInstance().redo();
-                currentScene.markDirty();
+            // Redo
+            String redoLabel = "Redo" + (redoDesc != null ? " " + redoDesc : "");
+            if (ImGui.menuItem(redoLabel, "Ctrl+Shift+Z", false, canRedo)) {
+                undo.redo();
+                if (currentScene != null) {
+                    currentScene.markDirty();
+                }
             }
-            if (!canRedo) ImGui.endDisabled();
 
             ImGui.separator();
 
-            ImGui.textDisabled("History: " + UndoManager.getInstance().getUndoCount() + " actions");
-
-//            // Placeholder for future edit operations
-//            if (ImGui.menuItem("Undo", "Ctrl+Z", false, false)) {
-//                // TODO: Implement undo
-//            }
-//            if (ImGui.menuItem("Redo", "Ctrl+Y", false, false)) {
-//                // TODO: Implement redo
-//            }
+            // History info
+            ImGui.textDisabled("History: " + undo.getUndoCount() + " undo, " + undo.getRedoCount() + " redo");
 
             ImGui.separator();
 
             if (ImGui.menuItem("Cut", "Ctrl+X", false, false)) {
-                // TODO: Implement cut
+                // TODO
             }
             if (ImGui.menuItem("Copy", "Ctrl+C", false, false)) {
-                // TODO: Implement copy
+                // TODO
             }
             if (ImGui.menuItem("Paste", "Ctrl+V", false, false)) {
-                // TODO: Implement paste
+                // TODO
             }
             if (ImGui.menuItem("Delete", "Delete", false, false)) {
-                // TODO: Implement delete
+                // TODO
             }
 
             ImGui.separator();
 
             if (ImGui.menuItem("Select All", "Ctrl+A", false, false)) {
-                // TODO: Implement select all
+                // TODO
             }
 
             ImGui.endMenu();
@@ -176,52 +157,38 @@ public class EditorMenuBar {
 
     private void renderViewMenu() {
         if (ImGui.beginMenu("View")) {
-            // Toggle panels (placeholder)
             if (ImGui.menuItem("Scene Hierarchy", "", true)) {
-                // TODO: Toggle hierarchy panel
             }
             if (ImGui.menuItem("Inspector", "", true)) {
-                // TODO: Toggle inspector panel
             }
             if (ImGui.menuItem("Tileset Palette", "", true)) {
-                // TODO: Toggle tileset panel
             }
             if (ImGui.menuItem("Layers", "", true)) {
-                // TODO: Toggle layers panel
             }
 
             ImGui.separator();
 
             if (ImGui.menuItem("Reset Layout")) {
-                // TODO: Reset panel layout
             }
 
             ImGui.separator();
 
-            // Grid options
             if (ImGui.beginMenu("Grid")) {
                 if (ImGui.menuItem("Show Grid", "", true)) {
-                    // TODO: Toggle grid
                 }
                 if (ImGui.menuItem("Snap to Grid", "", true)) {
-                    // TODO: Toggle snap
                 }
                 ImGui.endMenu();
             }
 
-            // Zoom options
             if (ImGui.beginMenu("Zoom")) {
                 if (ImGui.menuItem("Zoom In", "+")) {
-                    // TODO: Zoom in
                 }
                 if (ImGui.menuItem("Zoom Out", "-")) {
-                    // TODO: Zoom out
                 }
                 if (ImGui.menuItem("Reset Zoom", "0")) {
-                    // TODO: Reset zoom
                 }
                 if (ImGui.menuItem("Fit Scene")) {
-                    // TODO: Fit scene in view
                 }
                 ImGui.endMenu();
             }
@@ -233,16 +200,13 @@ public class EditorMenuBar {
     private void renderHelpMenu() {
         if (ImGui.beginMenu("Help")) {
             if (ImGui.menuItem("Keyboard Shortcuts")) {
-                // TODO: Show shortcuts dialog
             }
             if (ImGui.menuItem("Documentation")) {
-                // TODO: Open docs
             }
 
             ImGui.separator();
 
             if (ImGui.menuItem("About")) {
-                // TODO: Show about dialog
             }
 
             ImGui.endMenu();
@@ -252,7 +216,6 @@ public class EditorMenuBar {
     private void renderSceneInfo() {
         if (currentScene == null) return;
 
-        // Calculate position for right alignment
         String sceneInfo = currentScene.getDisplayName();
         float textWidth = ImGui.calcTextSize(sceneInfo).x;
         float availableWidth = ImGui.getWindowWidth();
@@ -379,56 +342,72 @@ public class EditorMenuBar {
     }
 
     // ========================================================================
-    // KEYBOARD SHORTCUTS
+    // KEYBOARD SHORTCUTS - Call at START of frame, before any ImGui windows
     // ========================================================================
 
     /**
-     * Processes keyboard shortcuts using ImGui's input system.
-     * Call this each frame.
+     * Processes global keyboard shortcuts.
+     * MUST be called at the start of the frame, before ImGui windows capture input.
      */
     public void processShortcuts() {
-        // Check modifier states using ImGuiKey (1.90.0+)
+        // Skip if typing in a text field
+        if (ImGui.getIO().getWantTextInput()) {
+            return;
+        }
+
+        // Skip if a popup/modal is open (except for undo/redo which should still work)
+        boolean popupOpen = ImGui.isPopupOpen("", imgui.flag.ImGuiPopupFlags.AnyPopup);
+
         boolean ctrl = ImGui.isKeyDown(ImGuiKey.LeftCtrl) || ImGui.isKeyDown(ImGuiKey.RightCtrl);
         boolean shift = ImGui.isKeyDown(ImGuiKey.LeftShift) || ImGui.isKeyDown(ImGuiKey.RightShift);
 
-        // Ctrl+N - New Scene
+        // Undo/Redo work even with popups (unless typing)
+        // Support both QWERTY (Z) and AZERTY (W)
+        if (ctrl && (ImGui.isKeyPressed(ImGuiKey.Z) || ImGui.isKeyPressed(ImGuiKey.W))) {
+            if (shift) {
+                // Ctrl+Shift+Z/W = Redo
+                if (UndoManager.getInstance().redo()) {
+                    if (currentScene != null) {
+                        currentScene.markDirty();
+                    }
+                }
+            } else {
+                // Ctrl+Z/W = Undo
+                if (UndoManager.getInstance().undo()) {
+                    if (currentScene != null) {
+                        currentScene.markDirty();
+                    }
+                }
+            }
+            return; // Consume the input
+        }
+
+        // Ctrl+Y for Redo (alternative)
+        if (ctrl && !shift && ImGui.isKeyPressed(ImGuiKey.Y)) {
+            if (UndoManager.getInstance().redo()) {
+                if (currentScene != null) {
+                    currentScene.markDirty();
+                }
+            }
+            return;
+        }
+
+        // File shortcuts - skip if popup is open
+        if (popupOpen) {
+            return;
+        }
+
         if (ctrl && !shift && ImGui.isKeyPressed(ImGuiKey.N)) {
             handleNewScene();
         }
-        // Ctrl+O - Open Scene
         if (ctrl && !shift && ImGui.isKeyPressed(ImGuiKey.O)) {
             handleOpenScene();
         }
-        // Ctrl+S - Save
         if (ctrl && !shift && ImGui.isKeyPressed(ImGuiKey.S)) {
             handleSave();
         }
-        // Ctrl+Shift+S - Save As
         if (ctrl && shift && ImGui.isKeyPressed(ImGuiKey.S)) {
             handleSaveAs();
-        }
-
-        // In your editor's update or input handling:
-
-        if (ImGui.isKeyPressed(ImGuiKey.W) && ImGui.isKeyDown(ImGuiKey.LeftCtrl)) { // W is Z in Azerty, Ctrl + Z
-            if (ImGui.isKeyDown(ImGuiKey.LeftShift)) {
-                // Ctrl+Shift+Z = Redo
-                if (UndoManager.getInstance().redo()) {
-                    currentScene.markDirty();
-                }
-            } else {
-                // Ctrl+Z = Undo
-                if (UndoManager.getInstance().undo()) {
-                    currentScene.markDirty();
-                }
-            }
-        }
-
-        // Alternative: Ctrl+Y for Redo
-        if (ImGui.isKeyPressed(ImGuiKey.Y) && ImGui.isKeyDown(ImGuiKey.LeftCtrl)) {
-            if (UndoManager.getInstance().redo()) {
-                currentScene.markDirty();
-            }
         }
     }
 

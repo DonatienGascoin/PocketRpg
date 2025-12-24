@@ -3,6 +3,8 @@ package com.pocket.rpg.editor.tools;
 import com.pocket.rpg.collision.CollisionType;
 import com.pocket.rpg.editor.camera.EditorCamera;
 import com.pocket.rpg.editor.scene.EditorScene;
+import com.pocket.rpg.editor.undo.UndoManager;
+import com.pocket.rpg.editor.undo.commands.BatchCollisionCommand;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import lombok.Getter;
@@ -10,6 +12,7 @@ import lombok.Setter;
 
 /**
  * Eraser tool for removing collision (setting to NONE).
+ * Supports undo/redo.
  */
 public class CollisionEraserTool implements EditorTool, ViewportAwareTool {
 
@@ -25,8 +28,8 @@ public class CollisionEraserTool implements EditorTool, ViewportAwareTool {
     private int zLevel = 0;
 
     private boolean isErasing = false;
+    private BatchCollisionCommand currentCommand = null;
 
-    // Viewport bounds
     private float viewportX, viewportY;
     private float viewportWidth, viewportHeight;
 
@@ -55,7 +58,10 @@ public class CollisionEraserTool implements EditorTool, ViewportAwareTool {
     @Override
     public void onMouseDown(int tileX, int tileY, int button) {
         if (button == 0) {
+            if (scene == null || scene.getCollisionMap() == null) return;
+
             isErasing = true;
+            currentCommand = new BatchCollisionCommand(scene.getCollisionMap(), zLevel, "Erase Collision");
             eraseAt(tileX, tileY);
         }
     }
@@ -71,13 +77,15 @@ public class CollisionEraserTool implements EditorTool, ViewportAwareTool {
 
     @Override
     public void onMouseUp(int tileX, int tileY, int button) {
+        if (isErasing && currentCommand != null && currentCommand.hasChanges()) {
+            UndoManager.getInstance().execute(currentCommand);
+        }
         isErasing = false;
+        currentCommand = null;
     }
 
     private void eraseAt(int centerX, int centerY) {
-        if (scene == null || scene.getCollisionMap() == null) {
-            return;
-        }
+        if (scene == null || scene.getCollisionMap() == null) return;
 
         int halfSize = eraserSize / 2;
 
@@ -85,6 +93,10 @@ public class CollisionEraserTool implements EditorTool, ViewportAwareTool {
             for (int dx = -halfSize; dx < eraserSize - halfSize; dx++) {
                 int tx = centerX + dx;
                 int ty = centerY + dy;
+                
+                if (currentCommand != null) {
+                    currentCommand.recordChange(tx, ty, CollisionType.NONE);
+                }
                 scene.getCollisionMap().set(tx, ty, zLevel, CollisionType.NONE);
             }
         }
@@ -119,7 +131,6 @@ public class CollisionEraserTool implements EditorTool, ViewportAwareTool {
         drawList.popClipRect();
     }
 
-    // Legacy setters for backward compatibility
     public void setViewportX(float x) { this.viewportX = x; }
     public void setViewportY(float y) { this.viewportY = y; }
     public void setViewportWidth(float w) { this.viewportWidth = w; }

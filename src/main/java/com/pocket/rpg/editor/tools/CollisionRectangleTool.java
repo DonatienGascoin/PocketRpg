@@ -3,6 +3,8 @@ package com.pocket.rpg.editor.tools;
 import com.pocket.rpg.collision.CollisionType;
 import com.pocket.rpg.editor.camera.EditorCamera;
 import com.pocket.rpg.editor.scene.EditorScene;
+import com.pocket.rpg.editor.undo.UndoManager;
+import com.pocket.rpg.editor.undo.commands.BatchCollisionCommand;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import lombok.Getter;
@@ -11,11 +13,7 @@ import org.joml.Vector2f;
 
 /**
  * Rectangle tool for filling rectangular collision areas.
- * <p>
- * Features:
- * - Drag to define rectangle
- * - Release to fill
- * - Preview while dragging
+ * Supports undo/redo.
  */
 public class CollisionRectangleTool implements EditorTool, ViewportAwareTool {
 
@@ -30,12 +28,10 @@ public class CollisionRectangleTool implements EditorTool, ViewportAwareTool {
     @Setter
     private int zLevel = 0;
 
-    // Rectangle drag state
     private boolean isDragging = false;
     private int startX, startY;
     private int endX, endY;
 
-    // Viewport bounds
     private float viewportX, viewportY;
     private float viewportWidth, viewportHeight;
 
@@ -91,19 +87,26 @@ public class CollisionRectangleTool implements EditorTool, ViewportAwareTool {
     }
 
     private void fillRectangle() {
-        if (scene == null || scene.getCollisionMap() == null) {
-            return;
-        }
+        if (scene == null || scene.getCollisionMap() == null) return;
 
         int minX = Math.min(startX, endX);
         int maxX = Math.max(startX, endX);
         int minY = Math.min(startY, endY);
         int maxY = Math.max(startY, endY);
 
+        // Create undo command
+        BatchCollisionCommand command = new BatchCollisionCommand(
+                scene.getCollisionMap(), zLevel, "Rectangle " + selectedType);
+
         for (int y = minY; y <= maxY; y++) {
             for (int x = minX; x <= maxX; x++) {
+                command.recordChange(x, y, selectedType);
                 scene.getCollisionMap().set(x, y, zLevel, selectedType);
             }
+        }
+
+        if (command.hasChanges()) {
+            UndoManager.getInstance().execute(command);
         }
 
         scene.markDirty();
@@ -152,7 +155,6 @@ public class CollisionRectangleTool implements EditorTool, ViewportAwareTool {
             drawList.addRect(rectMinX, rectMinY, rectMaxX, rectMaxY, outlineColor, 0, 0, 2.0f);
 
         } else {
-            // Single tile preview
             int fillColor = ToolRenderUtils.colorFromRGBA(color[0], color[1], color[2], 0.5f);
             int borderColor = ToolRenderUtils.colorFromRGBA(0.4f, 0.8f, 1.0f, 0.8f);
             ToolRenderUtils.drawTileHighlight(drawList, camera, viewportX, viewportY, hoveredTileX, hoveredTileY, fillColor, borderColor, 1.0f);
@@ -161,7 +163,6 @@ public class CollisionRectangleTool implements EditorTool, ViewportAwareTool {
         drawList.popClipRect();
     }
 
-    // Legacy setters for backward compatibility
     public void setViewportX(float x) { this.viewportX = x; }
     public void setViewportY(float y) { this.viewportY = y; }
     public void setViewportWidth(float w) { this.viewportWidth = w; }

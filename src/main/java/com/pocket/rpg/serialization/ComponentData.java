@@ -1,11 +1,6 @@
-package com.pocket.rpg.editor.serialization;
+package com.pocket.rpg.serialization;
 
 import com.pocket.rpg.components.Component;
-import com.pocket.rpg.serialization.ComponentMeta;
-import com.pocket.rpg.serialization.ComponentRegistry;
-import com.pocket.rpg.serialization.FieldMeta;
-import lombok.Getter;
-import lombok.Setter;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
@@ -18,19 +13,18 @@ import java.util.Map;
 /**
  * Serializable representation of a component's field values.
  * <p>
- * This is the bridge between editor/serialization and runtime Component instances.
+ * This is the bridge between serialization and runtime Component instances.
+ * Only regular fields are serialized; @ComponentRef fields are resolved at runtime.
  * <p>
  * JSON format:
  * {
- * "type": "com.pocket.rpg.components.SpriteRenderer",
- * "fields": {
- * "zIndex": 10,
- * "isStatic": false
- * }
+ *   "type": "com.pocket.rpg.components.SpriteRenderer",
+ *   "fields": {
+ *     "zIndex": 10,
+ *     "isStatic": false
+ *   }
  * }
  */
-@Getter
-@Setter
 public class ComponentData {
 
     private String type;                    // Full class name
@@ -50,12 +44,32 @@ public class ComponentData {
     }
 
     // ========================================================================
+    // GETTERS/SETTERS
+    // ========================================================================
+
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
+    public Map<String, Object> getFields() {
+        return fields;
+    }
+
+    public void setFields(Map<String, Object> fields) {
+        this.fields = fields;
+    }
+
+    // ========================================================================
     // FACTORY METHODS
     // ========================================================================
 
     /**
      * Creates ComponentData from a live Component instance.
-     * Extracts all editable field values.
+     * Extracts all serializable field values (excludes @ComponentRef fields).
      */
     public static ComponentData fromComponent(Component component) {
         if (component == null) {
@@ -70,6 +84,7 @@ public class ComponentData {
             return data;
         }
 
+        // Only serialize regular fields (not @ComponentRef)
         for (FieldMeta fieldMeta : meta.fields()) {
             try {
                 Field field = fieldMeta.field();
@@ -90,6 +105,9 @@ public class ComponentData {
     /**
      * Creates a live Component instance from this data.
      * Returns null if component can't be instantiated.
+     * <p>
+     * Note: @ComponentRef fields are NOT populated here.
+     * Call ComponentRefResolver.resolve() after the GameObject hierarchy is set up.
      */
     public Component toComponent() {
         ComponentMeta meta = ComponentRegistry.getByClassName(type);

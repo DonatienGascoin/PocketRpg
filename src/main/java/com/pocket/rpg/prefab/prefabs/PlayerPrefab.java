@@ -67,7 +67,7 @@ public class PlayerPrefab implements Prefab {
         GridMovement movement = player.addComponent(new GridMovement(1));
         movement.setGridPosition(5, 5);
         movement.setBaseSpeed(4f); // 4 tiles/second
-        player.addComponent(new PlayerMovement(movement));
+        player.addComponent(new PlayerMovement());
 
         // Apply overrides to your custom components here, ex:
         // String lootTable = (String) overrides.getOrDefault("lootTable", "common_loot");

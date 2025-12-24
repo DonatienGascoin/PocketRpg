@@ -1,5 +1,6 @@
 package com.pocket.rpg.editor.serialization;
 
+import com.pocket.rpg.serialization.ComponentData;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -30,7 +31,7 @@ public class EntityData {
     private Map<String, Object> properties;
 
     // Scratch entity fields (when prefabId is null/empty)
-    private List<ComponentData> components;
+    private List<com.pocket.rpg.serialization.ComponentData> components;
 
     /**
      * Constructor for prefab instances (backward compatible).

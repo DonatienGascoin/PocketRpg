@@ -3,7 +3,7 @@ package com.pocket.rpg.editor;
 import com.pocket.rpg.config.ConfigLoader;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.editor.camera.EditorCamera;
-import com.pocket.rpg.editor.components.ComponentRegistry;
+import com.pocket.rpg.serialization.ComponentRegistry;
 import com.pocket.rpg.editor.core.EditorConfig;
 import com.pocket.rpg.editor.core.EditorWindow;
 import com.pocket.rpg.editor.core.FileDialogs;

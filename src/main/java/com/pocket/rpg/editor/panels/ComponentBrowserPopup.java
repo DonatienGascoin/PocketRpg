@@ -1,8 +1,8 @@
 package com.pocket.rpg.editor.panels;
 
-import com.pocket.rpg.editor.components.ComponentMeta;
-import com.pocket.rpg.editor.components.ComponentRegistry;
-import com.pocket.rpg.editor.serialization.ComponentData;
+import com.pocket.rpg.serialization.ComponentMeta;
+import com.pocket.rpg.serialization.ComponentRegistry;
+import com.pocket.rpg.serialization.ComponentData;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImString;

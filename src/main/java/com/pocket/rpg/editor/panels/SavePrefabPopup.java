@@ -1,7 +1,7 @@
 package com.pocket.rpg.editor.panels;
 
 import com.pocket.rpg.editor.scene.EditorEntity;
-import com.pocket.rpg.editor.serialization.ComponentData;
+import com.pocket.rpg.serialization.ComponentData;
 import com.pocket.rpg.prefab.JsonPrefab;
 import com.pocket.rpg.prefab.PrefabRegistry;
 import imgui.ImGui;

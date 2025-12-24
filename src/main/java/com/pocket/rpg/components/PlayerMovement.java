@@ -14,13 +14,14 @@ import lombok.Getter;
  */
 public class PlayerMovement extends Component {
 
-    private final GridMovement movement;
+    @ComponentRef
+    private GridMovement movement;
 
     @Getter
     private boolean debugOutput = true;
 
-    public PlayerMovement(GridMovement movement) {
-        this.movement = movement;
+    public PlayerMovement() {
+
     }
 
     @Override

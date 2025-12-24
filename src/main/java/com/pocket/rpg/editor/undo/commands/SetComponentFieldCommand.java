@@ -1,6 +1,6 @@
 package com.pocket.rpg.editor.undo.commands;
 
-import com.pocket.rpg.editor.serialization.ComponentData;
+import com.pocket.rpg.serialization.ComponentData;
 import com.pocket.rpg.editor.undo.EditorCommand;
 
 /**

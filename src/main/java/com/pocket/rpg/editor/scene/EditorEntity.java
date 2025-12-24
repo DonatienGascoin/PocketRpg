@@ -15,7 +15,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import com.pocket.rpg.editor.serialization.ComponentData;
+import com.pocket.rpg.serialization.ComponentData;
 
 import java.util.ArrayList;
 import java.util.List;

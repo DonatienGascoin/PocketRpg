@@ -2,8 +2,8 @@ package com.pocket.rpg.prefab;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.core.GameObject;
-import com.pocket.rpg.editor.components.ComponentRegistry;
-import com.pocket.rpg.editor.serialization.ComponentData;
+import com.pocket.rpg.serialization.ComponentRegistry;
+import com.pocket.rpg.serialization.ComponentData;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.resources.Assets;
 import lombok.Getter;

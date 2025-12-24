@@ -1,13 +1,12 @@
-package com.pocket.rpg.editor.components;
+package com.pocket.rpg.serialization;
 
 import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.ComponentRef;
 import com.pocket.rpg.components.HideInInspector;
 import com.pocket.rpg.components.Transform;
 
 import java.io.File;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
+import java.lang.reflect.*;
 import java.net.URL;
 import java.util.*;
 
@@ -31,7 +30,7 @@ public class ComponentRegistry {
 
     /**
      * Initializes the registry by scanning the components package.
-     * Call once at editor startup.
+     * Call once at startup.
      */
     public static void initialize() {
         if (initialized) {
@@ -61,7 +60,8 @@ public class ComponentRegistry {
                 allComponents.add(meta);
 
                 System.out.println("  Registered: " + meta.simpleName() +
-                        " (" + meta.fields().size() + " fields" +
+                        " (" + meta.fields().size() + " fields, " +
+                        meta.references().size() + " refs" +
                         (meta.hasNoArgConstructor() ? "" : ", NO DEFAULT CONSTRUCTOR") + ")");
             }
 
@@ -178,10 +178,8 @@ public class ComponentRegistry {
 
         for (File file : files) {
             if (file.isDirectory()) {
-                // Recurse into subdirectory
                 scanDirectory(file, packageName + "." + file.getName(), result);
             } else if (file.getName().endsWith(".class")) {
-                // Load class
                 String className = packageName + "." +
                         file.getName().substring(0, file.getName().length() - 6);
 
@@ -214,9 +212,10 @@ public class ComponentRegistry {
             // No no-arg constructor
         }
 
-        // Collect editable fields
+        // Collect fields
         List<FieldMeta> fields = new ArrayList<>();
-        collectFields(clazz, fields);
+        List<ComponentRefMeta> references = new ArrayList<>();
+        collectFields(clazz, fields, references);
 
         return new ComponentMeta(
                 className,
@@ -224,21 +223,23 @@ public class ComponentRegistry {
                 displayName,
                 clazz,
                 fields,
+                references,
                 hasNoArgConstructor
         );
     }
 
     /**
-     * Collects all editable fields from a class and its superclasses.
+     * Collects all editable fields and component references from a class and its superclasses.
      * Stops at Component base class.
      */
-    private static void collectFields(Class<?> clazz, List<FieldMeta> fields) {
+    private static void collectFields(Class<?> clazz, List<FieldMeta> fields,
+                                       List<ComponentRefMeta> references) {
         if (clazz == null || clazz == Component.class || clazz == Object.class) {
             return;
         }
 
         // Process superclass first (parent fields appear first)
-        collectFields(clazz.getSuperclass(), fields);
+        collectFields(clazz.getSuperclass(), fields, references);
 
         // Process this class's fields
         for (Field field : clazz.getDeclaredFields()) {
@@ -250,27 +251,80 @@ public class ComponentRegistry {
             if (Modifier.isTransient(field.getModifiers())) {
                 continue;
             }
+            // Skip fields named "gameObject" or "started" (from Component base)
+            String name = field.getName();
+            if (name.equals("gameObject") || name.equals("started") || name.equals("enabled")) {
+                continue;
+            }
+
+            // Check for @ComponentRef annotation
+            ComponentRef refAnnotation = field.getAnnotation(ComponentRef.class);
+            if (refAnnotation != null) {
+                // This is a reference field - collect separately
+                ComponentRefMeta refMeta = buildRefMeta(field, refAnnotation);
+                if (refMeta != null) {
+                    references.add(refMeta);
+                }
+                continue; // Don't add to regular fields
+            }
+
             // Skip @HideInInspector fields
             if (field.isAnnotationPresent(HideInInspector.class)) {
                 continue;
             }
-            // Skip fields named "gameObject" or "started" (from Component base)
-            if (field.getName().equals("gameObject") ||
-                    field.getName().equals("started") ||
-                    field.getName().equals("enabled")) {
-                continue;
-            }
 
-            // Get default value if possible
+            // Regular serializable field
             Object defaultValue = getDefaultValue(field.getType());
-
-            fields.add(new FieldMeta(
-                    field.getName(),
-                    field.getType(),
-                    field,
-                    defaultValue
-            ));
+            fields.add(new FieldMeta(name, field.getType(), field, defaultValue));
         }
+    }
+
+    /**
+     * Builds metadata for a @ComponentRef field.
+     */
+    @SuppressWarnings("unchecked")
+    private static ComponentRefMeta buildRefMeta(Field field, ComponentRef annotation) {
+        Class<?> fieldType = field.getType();
+        Class<?> componentType;
+        boolean isList = false;
+
+        // Check if it's a List<Component> field
+        if (List.class.isAssignableFrom(fieldType)) {
+            isList = true;
+            Type genericType = field.getGenericType();
+
+            if (genericType instanceof ParameterizedType pt) {
+                Type[] typeArgs = pt.getActualTypeArguments();
+                if (typeArgs.length > 0 && typeArgs[0] instanceof Class<?> typeArg) {
+                    if (Component.class.isAssignableFrom(typeArg)) {
+                        componentType = typeArg;
+                    } else {
+                        System.err.println("@ComponentRef List must have Component type: " + field);
+                        return null;
+                    }
+                } else {
+                    System.err.println("@ComponentRef List missing type parameter: " + field);
+                    return null;
+                }
+            } else {
+                System.err.println("@ComponentRef List must be parameterized: " + field);
+                return null;
+            }
+        } else if (Component.class.isAssignableFrom(fieldType)) {
+            componentType = fieldType;
+        } else {
+            System.err.println("@ComponentRef must be on Component or List<Component> field: " + field);
+            return null;
+        }
+
+        return new ComponentRefMeta(
+                field.getName(),
+                componentType,
+                annotation.source(),
+                annotation.required(),
+                isList,
+                field
+        );
     }
 
     /**

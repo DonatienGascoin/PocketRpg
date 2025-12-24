@@ -296,7 +296,7 @@ public class DemoScene extends Scene {
         GridMovement movement = player.addComponent(new GridMovement(1));
         movement.setGridPosition(5, 5);
         movement.setBaseSpeed(4f); // 4 tiles/second
-        player.addComponent(new PlayerMovement(movement));
+        player.addComponent(new PlayerMovement());
 
         addGameObject(player);
 

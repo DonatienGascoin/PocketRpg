@@ -1,17 +1,18 @@
 package com.pocket.rpg.editor.panels;
 
-import com.pocket.rpg.editor.components.ReflectionFieldEditor;
+import com.pocket.rpg.editor.utils.ReflectionFieldEditor;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.scene.EditorEntity;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.SceneCameraSettings;
 import com.pocket.rpg.editor.scene.TilemapLayer;
-import com.pocket.rpg.editor.serialization.ComponentData;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.SetPropertyCommand;
 import com.pocket.rpg.prefab.Prefab;
 import com.pocket.rpg.prefab.PropertyDefinition;
+import com.pocket.rpg.serialization.ComponentData;
 import imgui.ImGui;
+import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImInt;
 import imgui.type.ImString;
@@ -39,13 +40,15 @@ public class InspectorPanel {
     // Buffers for input fields
     private final ImString stringBuffer = new ImString(256);
     private final float[] floatBuffer = new float[4];
-    // private final int[] intBuffer = new int[1];
     private final ImInt intBuffer = new ImInt();
 
     // Component browser popup
     private final ComponentBrowserPopup componentBrowserPopup = new ComponentBrowserPopup();
 
     private final SavePrefabPopup savePrefabPopup = new SavePrefabPopup();
+
+    // Delete confirmation
+    private EditorEntity pendingDeleteEntity = null;
 
     /**
      * Renders the inspector panel.
@@ -73,8 +76,10 @@ public class InspectorPanel {
             }
         }
         ImGui.end();
-        // Render asset picker if open
+
+        // Render popups (must be called every frame)
         ReflectionFieldEditor.renderAssetPicker();
+        renderDeleteConfirmationPopup();
     }
 
     // ========================================================================
@@ -162,42 +167,49 @@ public class InspectorPanel {
         String icon;
 
         if (entity.isScratchEntity()) {
-            // Scratch entity - use cube icon
             icon = FontAwesomeIcons.Cube;
         } else if (entity.isPrefabValid()) {
-            // Valid prefab instance
             icon = FontAwesomeIcons.Cubes;
         } else {
-            // Missing prefab - warning icon
             icon = FontAwesomeIcons.ExclamationTriangle;
         }
+
+        // Header: Icon + Name + Save + Delete
         ImGui.text(icon);
         ImGui.sameLine();
         stringBuffer.set(entity.getName());
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() - 70);
         if (ImGui.inputText("##EntityName", stringBuffer)) {
             entity.setName(stringBuffer.get());
             scene.markDirty();
         }
+
         ImGui.sameLine();
-        ImGui.setCursorPosX(ImGui.getContentRegionMaxX() - 60);
-        if (entity.isScratchEntity() &&
-                !entity.getComponents().isEmpty() &&
-                ImGui.button(FontAwesomeIcons.Save)) {
-            savePrefabPopup.open(entity, savedPrefab -> {
-                // Optionally convert entity to prefab instance
-                System.out.println("Saved prefab: " + savedPrefab.getId());
-            });
+        // Save as Prefab button (only for scratch entities with components)
+        if (entity.isScratchEntity() && !entity.getComponents().isEmpty()) {
+            if (ImGui.button(FontAwesomeIcons.Save + "##save")) {
+                savePrefabPopup.open(entity, savedPrefab -> {
+                    System.out.println("Saved prefab: " + savedPrefab.getId());
+                });
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("Save as Prefab");
+            }
+            ImGui.sameLine();
         }
+
+        // Delete button
+        ImGui.pushStyleColor(ImGuiCol.Button, 0.5f, 0.2f, 0.2f, 1f);
+        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.6f, 0.3f, 0.3f, 1f);
+        if (ImGui.button(FontAwesomeIcons.Trash + "##delete")) {
+            pendingDeleteEntity = entity;
+            ImGui.openPopup("Delete Entity?");
+        }
+        ImGui.popStyleColor(2);
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("Save as Prefab");
+            ImGui.setTooltip("Delete Entity");
         }
-        ImGui.sameLine();
-        if (ImGui.button(FontAwesomeIcons.Trash)) {
-            scene.removeEntity(entity);
-        }
-        if (ImGui.isItemHovered()) { // TODO: Add confirmation modal !
-            ImGui.setTooltip(" Delete Entity");
-        }
+
         ImGui.separator();
 
         // Position
@@ -234,12 +246,53 @@ public class InspectorPanel {
             renderScratchEntityInspector(entity);
         }
 
-        // Render component browser popup (must be called every frame)
+        // Render popups
         componentBrowserPopup.render();
+        savePrefabPopup.render();
     }
 
     /**
-     * Renders inspector for prefab-based entities (existing behavior).
+     * Renders delete confirmation popup.
+     */
+    private void renderDeleteConfirmationPopup() {
+        if (ImGui.beginPopupModal("Delete Entity?", imgui.flag.ImGuiWindowFlags.AlwaysAutoResize)) {
+            if (pendingDeleteEntity != null) {
+                ImGui.text("Delete entity '" + pendingDeleteEntity.getName() + "'?");
+                ImGui.spacing();
+                ImGui.textDisabled("This can be undone with Ctrl+Z");
+                ImGui.spacing();
+
+                ImGui.separator();
+
+                // Delete button
+                ImGui.pushStyleColor(ImGuiCol.Button, 0.6f, 0.2f, 0.2f, 1f);
+                if (ImGui.button("Delete", 120, 0)) {
+                    scene.removeEntity(pendingDeleteEntity);
+                    pendingDeleteEntity = null;
+                    ImGui.closeCurrentPopup();
+                }
+                ImGui.popStyleColor();
+
+                ImGui.sameLine();
+
+                // Cancel button
+                if (ImGui.button("Cancel", 120, 0)) {
+                    pendingDeleteEntity = null;
+                    ImGui.closeCurrentPopup();
+                }
+
+                // Escape to cancel
+                if (ImGui.isKeyPressed(imgui.flag.ImGuiKey.Escape)) {
+                    pendingDeleteEntity = null;
+                    ImGui.closeCurrentPopup();
+                }
+            }
+            ImGui.endPopup();
+        }
+    }
+
+    /**
+     * Renders inspector for prefab-based entities.
      */
     private void renderPrefabInstanceInspector(EditorEntity entity) {
         Prefab prefab = entity.getPrefab();
@@ -253,16 +306,13 @@ public class InspectorPanel {
             return;
         }
 
-        // Editable properties from prefab
+        // Editable properties from prefab (legacy PropertyDefinition system)
         List<PropertyDefinition> props = prefab.getEditableProperties();
         if (!props.isEmpty()) {
             ImGui.separator();
             ImGui.text("Properties");
 
             for (PropertyDefinition prop : props) {
-                // TODO: How to render the propertyDefinition with ReflectionFieldEditor ?
-                //  Also, now that prefabs are JSON based, should this be removed totally ?
-                //  I think it would be better, and replace this with prefab override
                 renderPropertyEditor(entity, prop);
             }
 
@@ -281,7 +331,7 @@ public class InspectorPanel {
     }
 
     /**
-     * Renders inspector for scratch entities (new behavior).
+     * Renders inspector for scratch entities (component-based).
      */
     private void renderScratchEntityInspector(EditorEntity entity) {
         ImGui.textDisabled("Scratch Entity");
@@ -289,7 +339,9 @@ public class InspectorPanel {
         List<ComponentData> components = entity.getComponents();
 
         if (components.isEmpty()) {
+            ImGui.spacing();
             ImGui.textDisabled("No components");
+            ImGui.spacing();
         } else {
             // Track component to remove (can't modify list while iterating)
             ComponentData toRemove = null;
@@ -300,13 +352,13 @@ public class InspectorPanel {
                 ImGui.pushID(i);
 
                 // Component header with collapse and remove button
-                int headerFlags = ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.AllowItemOverlap;
+                int headerFlags = ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.AllowOverlap;
                 boolean open = ImGui.collapsingHeader(comp.getDisplayName(), headerFlags);
 
                 // Remove button aligned to the right
                 ImGui.sameLine(ImGui.getContentRegionAvailX() - 20);
-                ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, 0.5f, 0.2f, 0.2f, 1f);
-                if (ImGui.smallButton(FontAwesomeIcons.Times)) {
+                ImGui.pushStyleColor(ImGuiCol.Button, 0.5f, 0.2f, 0.2f, 1f);
+                if (ImGui.smallButton(FontAwesomeIcons.Times + "##remove")) {
                     toRemove = comp;
                 }
                 ImGui.popStyleColor();
@@ -314,10 +366,10 @@ public class InspectorPanel {
                     ImGui.setTooltip("Remove component");
                 }
 
-                // Component fields
+                // Component fields (with entity context for reference validation)
                 if (open) {
                     ImGui.indent();
-                    if (ReflectionFieldEditor.drawComponent(comp)) {
+                    if (ReflectionFieldEditor.drawComponent(comp, entity)) {
                         scene.markDirty();
                     }
                     ImGui.unindent();
@@ -342,16 +394,11 @@ public class InspectorPanel {
                 scene.markDirty();
             });
         }
-
-        // Render popup
-        savePrefabPopup.render();
     }
 
     /**
-     * Renders an editor for a single property.
-     */
-    /**
      * Renders an editor for a single property with override indication.
+     * (Legacy PropertyDefinition system for Java prefabs)
      */
     private void renderPropertyEditor(EditorEntity entity, PropertyDefinition prop) {
         Object value = entity.getProperty(prop.name());
@@ -362,21 +409,20 @@ public class InspectorPanel {
         boolean changed = false;
         Object newValue = value;
 
-        // Override indicator: bold + colored label
+        // Override indicator: colored label
         if (isOverridden) {
-            ImGui.pushStyleColor(imgui.flag.ImGuiCol.Text, 0.4f, 0.8f, 1.0f, 1.0f);  // Cyan
+            ImGui.pushStyleColor(ImGuiCol.Text, 0.4f, 0.8f, 1.0f, 1.0f);  // Cyan
         }
 
         ImGui.alignTextToFramePadding();
-        String labelText = prop.name();
-        ImGui.text(labelText);
+        ImGui.text(prop.name());
 
         if (isOverridden) {
             ImGui.popStyleColor();
         }
 
-        ImGui.sameLine(130);  // Fixed label width
-        ImGui.setNextItemWidth(-60);  // Room for reset button
+        ImGui.sameLine(130);
+        ImGui.setNextItemWidth(-60);
 
         switch (prop.type()) {
             case STRING -> {
@@ -489,7 +535,6 @@ public class InspectorPanel {
                 ImGui.setTooltip("Reset to default: " + defaultVal);
             }
         } else {
-            // Placeholder to keep alignment
             ImGui.dummy(20, 0);
         }
 
@@ -541,11 +586,7 @@ public class InspectorPanel {
 
         ImGui.separator();
 
-        // Layer info
-        // TODO: ImGui.textDisabled("Tile count: " + layer.getTilemap().getTileCount());
-
         // Actions
-        ImGui.separator();
         if (ImGui.button(FontAwesomeIcons.Trash + " Delete Layer")) {
             int index = scene.getActiveLayerIndex();
             if (index >= 0) {

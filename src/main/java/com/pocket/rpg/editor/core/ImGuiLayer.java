@@ -92,12 +92,12 @@ public class ImGuiLayer {
 
         // Add default font for latin glyphs
         // io.getFonts().addFontDefault();
-        io.getFonts().addFontFromMemoryTTF(loadFromResources("editor/fonts/JetBrainsMono-Regular.ttf"), 16, fontConfig); // font awesome
+        io.getFonts().addFontFromMemoryTTF(loadFromResources("editor/fonts/Roboto-Regular.ttf"), 18 * dpiScale, fontConfig); // font awesome
         fontConfig.setMergeMode(true);  // Enable merge mode to merge icons with default font
 
         final short[] glyphRanges = rangesBuilder.buildRanges();
-        io.getFonts().addFontFromMemoryTTF(loadFromResources("editor/fonts/fa-regular-400.ttf"), 14, fontConfig, glyphRanges); // font awesome
-        io.getFonts().addFontFromMemoryTTF(loadFromResources("editor/fonts/fa-solid-900.ttf"), 14, fontConfig, glyphRanges); // font awesome
+        io.getFonts().addFontFromMemoryTTF(loadFromResources("editor/fonts/fa-regular-400.ttf"), 14 * dpiScale, fontConfig, glyphRanges); // font awesome
+        io.getFonts().addFontFromMemoryTTF(loadFromResources("editor/fonts/fa-solid-900.ttf"), 14 * dpiScale, fontConfig, glyphRanges); // font awesome
         io.getFonts().build();
 
         fontConfig.destroy();

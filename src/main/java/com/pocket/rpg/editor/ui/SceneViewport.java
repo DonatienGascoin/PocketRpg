@@ -71,6 +71,11 @@ public class SceneViewport {
     @Setter
     private boolean showCoordinates = true;
 
+    // Track if the viewport image was actually rendered/visible on screen
+    @Getter
+    @Setter
+    private boolean contentVisible = false;
+
     public SceneViewport(EditorCamera camera, EditorConfig config) {
         this.camera = camera;
         this.config = config;
@@ -517,6 +522,9 @@ public class SceneViewport {
      */
     public void renderToolOverlay() {
         if (toolManager == null) return;
+
+        // Don't render overlay if content is not visible (hidden tab)
+        if (!contentVisible) return;
 
         // Don't render overlay if popup/combo is open
         if (ImGui.isPopupOpen("", imgui.flag.ImGuiPopupFlags.AnyPopupId)) {

@@ -56,6 +56,9 @@ public class EditorUIController {
     private CollisionOverlayRenderer collisionOverlay;
     private CameraOverlayRenderer cameraOverlayRenderer;
 
+    // Track if Scene panel is actually visible (not hidden behind another tab)
+    // Now tracked via sceneViewport.isContentVisible()
+
     public EditorUIController(EditorContext context, EditorToolController toolController) {
         this.context = context;
         this.toolController = toolController;
@@ -185,14 +188,16 @@ public class EditorUIController {
         // Scene viewport with integrated toolbar
         renderSceneViewport();
 
-        // Overlays
-        renderCollisionOverlay();
-        renderCameraOverlay();
-        sceneViewport.renderToolOverlay();
+        // Only render overlays if Scene viewport content is actually visible
+        // isContentVisible() returns false when Scene tab is hidden behind Game tab
+        if (sceneViewport.isContentVisible()) {
+            renderCollisionOverlay();
+            renderCameraOverlay();
+            sceneViewport.renderToolOverlay();
+        }
 
         // Panels
         renderPanels();
-
 
         // Status bar
         statusBar.render(context.getWindow().getHeight());
@@ -214,15 +219,21 @@ public class EditorUIController {
     private void renderSceneViewport() {
         int flags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
 
-        ImGui.begin("Scene", flags);
+        // begin() returns false if window is collapsed or hidden (inactive docked tab)
+        boolean isVisible = ImGui.begin("Scene", flags);
 
-        float viewportWidth = ImGui.getContentRegionAvailX();
-        sceneToolbar.render(viewportWidth);
+        // Update SceneViewport's contentVisible based on window visibility
+        sceneViewport.setContentVisible(isVisible);
 
-        ImGui.separator();
+        if (isVisible) {
+            float viewportWidth = ImGui.getContentRegionAvailX();
+            sceneToolbar.render(viewportWidth);
 
-        sceneViewport.setShowGrid(sceneToolbar.isShowGrid());
-        sceneViewport.renderContent();
+            ImGui.separator();
+
+            sceneViewport.setShowGrid(sceneToolbar.isShowGrid());
+            sceneViewport.renderContent();
+        }
 
         ImGui.end();
     }

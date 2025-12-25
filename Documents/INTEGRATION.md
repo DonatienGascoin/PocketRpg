@@ -5,8 +5,9 @@
 ### Files that import ComponentData
 
 Replace all occurrences of:
+
 ```java
-import com.pocket.rpg.editor.serialization.ComponentData;
+
 ```
 
 With:

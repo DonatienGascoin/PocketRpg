@@ -1,6 +1,8 @@
 package com.pocket.rpg.serialization;
 
 import com.pocket.rpg.components.Component;
+import lombok.Getter;
+import lombok.Setter;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
@@ -25,6 +27,8 @@ import java.util.Map;
  *   }
  * }
  */
+@Setter
+@Getter
 public class ComponentData {
 
     private String type;                    // Full class name
@@ -46,22 +50,6 @@ public class ComponentData {
     // ========================================================================
     // GETTERS/SETTERS
     // ========================================================================
-
-    public String getType() {
-        return type;
-    }
-
-    public void setType(String type) {
-        this.type = type;
-    }
-
-    public Map<String, Object> getFields() {
-        return fields;
-    }
-
-    public void setFields(Map<String, Object> fields) {
-        this.fields = fields;
-    }
 
     // ========================================================================
     // FACTORY METHODS

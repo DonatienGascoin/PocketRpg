@@ -1,5 +1,6 @@
 package com.pocket.rpg.editor.scene;
 
+import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.TilemapRenderer;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.core.GameObject;
@@ -9,9 +10,12 @@ import com.pocket.rpg.prefab.Prefab;
 import com.pocket.rpg.prefab.PrefabRegistry;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.scenes.RuntimeScene;
+import com.pocket.rpg.serialization.ComponentData;
 import com.pocket.rpg.serialization.GameObjectData;
 import com.pocket.rpg.serialization.SceneData;
 import org.joml.Vector3f;
+
+import java.util.List;
 
 /**
  * Loads SceneData into a playable RuntimeScene.
@@ -19,7 +23,7 @@ import org.joml.Vector3f;
  * Handles:
  * - Tilemap layer conversion
  * - Collision map loading
- * - Entity instantiation via PrefabRegistry
+ * - Entity instantiation (both prefab instances and scratch entities)
  * - Camera configuration
  */
 public class RuntimeSceneLoader {
@@ -62,13 +66,14 @@ public class RuntimeSceneLoader {
             }
         }
 
-        // Instantiate entities via PrefabRegistry
+        // Instantiate entities (prefab instances AND scratch entities)
         if (data.getEntities() != null) {
             for (EntityData entityData : data.getEntities()) {
                 try {
                     instantiateEntity(scene, entityData);
                 } catch (Exception e) {
-                    System.err.println("Failed to instantiate entity '" + entityData.getPrefabId() + "': " + e.getMessage());
+                    System.err.println("Failed to instantiate entity '" + entityData.getName() + "': " + e.getMessage());
+                    e.printStackTrace();
                 }
             }
         }
@@ -144,23 +149,9 @@ public class RuntimeSceneLoader {
     }
 
     /**
-     * Instantiates an entity from prefab data.
+     * Instantiates an entity from prefab data or scratch entity data.
      */
     private void instantiateEntity(RuntimeScene scene, EntityData entityData) {
-        // Skip scratch entities for now (no prefab)
-        if (entityData.isScratchEntity()) {
-            System.out.println("Skipping scratch entity: " + entityData.getName());
-            return;
-        }
-
-        String prefabId = entityData.getPrefabId();
-        Prefab prefab = PrefabRegistry.getInstance().getPrefab(prefabId);
-
-        if (prefab == null) {
-            System.err.println("Prefab not found: " + prefabId);
-            return;
-        }
-
         // Get position
         float[] pos = entityData.getPosition();
         Vector3f position = new Vector3f(
@@ -168,6 +159,68 @@ public class RuntimeSceneLoader {
                 pos != null && pos.length >= 2 ? pos[1] : 0,
                 pos != null && pos.length >= 3 ? pos[2] : 0
         );
+
+        GameObject entity;
+
+        if (entityData.isScratchEntity()) {
+            // Scratch entity - create from component data
+            entity = createScratchEntity(entityData, position);
+        } else {
+            // Prefab instance - instantiate from registry
+            entity = createPrefabInstance(entityData, position);
+        }
+
+        if (entity != null) {
+            scene.addGameObject(entity);
+        }
+    }
+
+    /**
+     * Creates a GameObject from scratch entity data (no prefab).
+     */
+    private GameObject createScratchEntity(EntityData entityData, Vector3f position) {
+        String name = entityData.getName();
+        if (name == null || name.isBlank()) {
+            name = "ScratchEntity";
+        }
+
+        GameObject entity = new GameObject(name);
+        entity.getTransform().setPosition(position);
+
+        // Add components from serialized data
+        List<ComponentData> components = entityData.getComponents();
+        if (components != null) {
+            for (ComponentData compData : components) {
+                try {
+                    Component component = compData.toComponent();
+                    if (component != null) {
+                        entity.addComponent(component);
+                    } else {
+                        System.err.println("Failed to create component: " + compData.getType());
+                    }
+                } catch (Exception e) {
+                    System.err.println("Error creating component " + compData.getType() + ": " + e.getMessage());
+                }
+            }
+        }
+
+        System.out.println("Created scratch entity: " + name + " with " +
+                (components != null ? components.size() : 0) + " components");
+
+        return entity;
+    }
+
+    /**
+     * Creates a GameObject from prefab instance data.
+     */
+    private GameObject createPrefabInstance(EntityData entityData, Vector3f position) {
+        String prefabId = entityData.getPrefabId();
+        Prefab prefab = PrefabRegistry.getInstance().getPrefab(prefabId);
+
+        if (prefab == null) {
+            System.err.println("Prefab not found: " + prefabId);
+            return null;
+        }
 
         // Instantiate prefab with properties as overrides
         GameObject entity = prefab.instantiate(position, entityData.getProperties());
@@ -178,9 +231,9 @@ public class RuntimeSceneLoader {
             if (instanceName != null && !instanceName.isBlank()) {
                 entity.setName(instanceName);
             }
-
-            scene.addGameObject(entity);
         }
+
+        return entity;
     }
 
     /**
@@ -199,9 +252,5 @@ public class RuntimeSceneLoader {
 
         // Set orthographic size
         scene.getCamera().setOrthographicSize(cameraData.getOrthographicSize());
-
-        // Note: Camera bounds require Camera API extension
-        // For now, we just set position and ortho size
-        // TODO: Add setBounds/setUseBounds to Camera if needed
     }
 }

@@ -1,6 +1,7 @@
 package com.pocket.rpg.editor;
 
 import com.pocket.rpg.config.GameConfig;
+import com.pocket.rpg.config.InputConfig;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.core.ViewportConfig;
 import com.pocket.rpg.editor.rendering.PlayModeRenderer;
@@ -8,6 +9,7 @@ import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.RuntimeSceneLoader;
 import com.pocket.rpg.editor.scene.RuntimeSceneManager;
 import com.pocket.rpg.editor.serialization.EditorSceneSerializer;
+import com.pocket.rpg.input.Input;
 import com.pocket.rpg.rendering.OverlayRenderer;
 import com.pocket.rpg.scenes.RuntimeScene;
 import com.pocket.rpg.serialization.SceneData;
@@ -24,7 +26,7 @@ import java.util.function.Consumer;
  * - Play/Pause/Stop state transitions
  * - Runtime scene creation from editor scene
  * - Scene snapshot and restoration
- * - Runtime systems (SceneManager, TransitionManager, etc.)
+ * - Runtime systems (SceneManager, TransitionManager, Input, etc.)
  */
 public class PlayModeController {
 
@@ -40,6 +42,7 @@ public class PlayModeController {
     private final EditorContext context;
     private final GameConfig gameConfig;
     private final RenderingConfig renderingConfig;
+    private final InputConfig inputConfig;
 
     // Play mode state
     @Getter
@@ -55,14 +58,16 @@ public class PlayModeController {
     private RuntimeSceneManager sceneManager;
     private TransitionManager transitionManager;
     private PlayModeRenderer renderer;
+    private PlayModeInputManager inputManager;
 
     // Message callback
     private Consumer<String> messageCallback;
 
-    public PlayModeController(EditorContext context, GameConfig gameConfig) {
+    public PlayModeController(EditorContext context, GameConfig gameConfig, InputConfig inputConfig) {
         this.context = context;
         this.gameConfig = gameConfig;
         this.renderingConfig = context.getRenderingConfig();
+        this.inputConfig = inputConfig;
     }
 
     /**
@@ -110,38 +115,40 @@ public class PlayModeController {
                     "scenes/"  // Base path for scene files
             );
 
-            // 5. Initialize renderer FIRST (we need its OverlayRenderer)
+            // 5. Initialize Input system
+            long windowHandle = context.getWindow().getWindowHandle();
+            inputManager = new PlayModeInputManager(windowHandle, inputConfig);
+            inputManager.init();
+
+            // 6. Initialize renderer (we need its OverlayRenderer)
             renderer = new PlayModeRenderer(gameConfig, renderingConfig);
             renderer.init();
 
-            // 6. Get overlay renderer from PlayModeRenderer
+            // 7. Get overlay renderer from PlayModeRenderer
             OverlayRenderer overlayRenderer = renderer.getOverlayRenderer();
             if (overlayRenderer != null) {
                 overlayRenderer.setScreenSize(gameConfig.getGameWidth(), gameConfig.getGameHeight());
             }
 
-            // 7. Create transition manager with the overlay renderer
+            // 8. Create transition manager with the overlay renderer
             transitionManager = new TransitionManager(
                     sceneManager,
                     overlayRenderer,
                     gameConfig.getDefaultTransitionConfig()
             );
 
-            // 8. Initialize global SceneTransition API (or reset if already set)
+            // 9. Initialize global SceneTransition API (or reset if already set)
             try {
                 SceneTransition.initialize(transitionManager);
             } catch (IllegalStateException e) {
                 // Already initialized from previous play - need to reset it
-                // Try reflection to reset, or just proceed (transitions may not work)
                 System.out.println("SceneTransition already initialized, attempting reset...");
                 try {
-                    // Try to call reset() if it exists
                     java.lang.reflect.Method resetMethod = SceneTransition.class.getDeclaredMethod("reset");
                     resetMethod.setAccessible(true);
                     resetMethod.invoke(null);
                     SceneTransition.initialize(transitionManager);
                 } catch (Exception ex) {
-                    // No reset method, try setting field directly
                     try {
                         java.lang.reflect.Field managerField = SceneTransition.class.getDeclaredField("manager");
                         managerField.setAccessible(true);
@@ -149,16 +156,15 @@ public class PlayModeController {
                         System.out.println("SceneTransition manager updated via reflection");
                     } catch (Exception ex2) {
                         System.err.println("Could not reset SceneTransition: " + ex2.getMessage());
-                        // Proceed anyway - scene transitions may not work but play mode will
                     }
                 }
             }
 
-            // 9. Load initial scene from snapshot
+            // 10. Load initial scene from snapshot
             RuntimeScene runtimeScene = sceneLoader.load(snapshot);
             sceneManager.loadScene(runtimeScene);
 
-            // 10. Switch state
+            // 11. Switch state
             state = PlayState.PLAYING;
 
             showMessage("Play mode started");
@@ -206,11 +212,8 @@ public class PlayModeController {
 
         System.out.println("Stopping play mode...");
 
-        // 1. Cleanup runtime systems (this destroys transitionManager)
+        // 1. Cleanup runtime systems
         cleanup();
-
-        // Note: We don't clear SceneTransition here because initialize(null) throws.
-        // The static reference will be overwritten on next play() call.
 
         // 2. Restore editor scene from snapshot
         if (snapshot != null) {
@@ -219,7 +222,6 @@ public class PlayModeController {
                 context.setCurrentScene(restored);
             } catch (Exception e) {
                 System.err.println("Failed to restore editor scene: " + e.getMessage());
-                // Create empty scene as fallback
                 context.setCurrentScene(new EditorScene("Recovered"));
             }
         }
@@ -249,6 +251,11 @@ public class PlayModeController {
             return;
         }
 
+        // Update input system
+        if (inputManager != null) {
+            inputManager.update(deltaTime);
+        }
+
         // Update transitions first (they may trigger scene changes)
         if (transitionManager != null) {
             transitionManager.update(deltaTime);
@@ -257,6 +264,11 @@ public class PlayModeController {
         // Update current scene
         if (sceneManager != null) {
             sceneManager.update(deltaTime);
+        }
+
+        // End input frame
+        if (inputManager != null) {
+            inputManager.endFrame();
         }
     }
 
@@ -305,6 +317,12 @@ public class PlayModeController {
      * Cleans up all runtime systems.
      */
     private void cleanup() {
+        // Destroy input first
+        if (inputManager != null) {
+            inputManager.destroy();
+            inputManager = null;
+        }
+
         if (renderer != null) {
             renderer.destroy();
             renderer = null;

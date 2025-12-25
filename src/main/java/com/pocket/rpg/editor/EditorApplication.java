@@ -2,6 +2,7 @@ package com.pocket.rpg.editor;
 
 import com.pocket.rpg.config.ConfigLoader;
 import com.pocket.rpg.config.GameConfig;
+import com.pocket.rpg.config.InputConfig;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.editor.camera.EditorCamera;
 import com.pocket.rpg.serialization.ComponentRegistry;
@@ -87,6 +88,7 @@ public class EditorApplication {
         ConfigLoader.loadAllConfigs();
         RenderingConfig renderingConfig = ConfigLoader.getConfig(ConfigLoader.ConfigType.RENDERING);
         GameConfig gameConfig = ConfigLoader.getConfig(ConfigLoader.ConfigType.GAME);
+        InputConfig inputConfig = ConfigLoader.getConfig(ConfigLoader.ConfigType.INPUT);
 
         // Create window
         EditorWindow window = new EditorWindow(config);
@@ -108,7 +110,7 @@ public class EditorApplication {
 
         // Initialize context
         context = new EditorContext();
-        context.init(config, renderingConfig, gameConfig, window, camera);
+        context.init(config, renderingConfig, gameConfig, inputConfig, window, camera);
 
         // Create initial scene
         EditorScene initialScene = new EditorScene("Untitled");
@@ -146,7 +148,7 @@ public class EditorApplication {
         toolController.createTools();
 
         // IMPORTANT: Create PlayModeController BEFORE UIController needs it
-        playModeController = new PlayModeController(context, context.getGameConfig());
+        playModeController = new PlayModeController(context, context.getGameConfig(), context.getInputConfig());
 
         // Create UI controller and pass playModeController
         uiController = new EditorUIController(context, toolController);

@@ -1,6 +1,7 @@
 package com.pocket.rpg.editor;
 
 import com.pocket.rpg.config.GameConfig;
+import com.pocket.rpg.config.InputConfig;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.editor.camera.EditorCamera;
 import com.pocket.rpg.editor.core.EditorConfig;
@@ -27,6 +28,9 @@ public class EditorContext {
 
     @Getter
     private GameConfig gameConfig;
+
+    @Getter
+    private InputConfig inputConfig;
 
     @Getter
     private RenderingConfig renderingConfig;
@@ -57,10 +61,11 @@ public class EditorContext {
      * Initializes the context with core systems.
      */
     public void init(EditorConfig config, RenderingConfig renderingConfig,
-                     GameConfig gameConfig,  EditorWindow window, EditorCamera camera) {
+                     GameConfig gameConfig, InputConfig inputConfig, EditorWindow window, EditorCamera camera) {
         this.config = config;
         this.renderingConfig = renderingConfig;
         this.gameConfig = gameConfig;
+        this.inputConfig = inputConfig;
         this.window = window;
         this.camera = camera;
         this.toolManager = new ToolManager();

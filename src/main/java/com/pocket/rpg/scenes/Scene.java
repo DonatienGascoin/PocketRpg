@@ -10,6 +10,7 @@ import com.pocket.rpg.core.Camera;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.core.ViewportConfig;
 import com.pocket.rpg.rendering.Renderable;
+import com.pocket.rpg.serialization.ComponentRefResolver;
 import com.pocket.rpg.ui.UICanvas;
 import lombok.Getter;
 
@@ -23,6 +24,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * Each Scene owns a Camera that defines the view into the world.
  * <p>
  * UPDATED: Includes full collision system with behaviors and entity occupancy.
+ * UPDATED: Resolves @ComponentRef annotations after onLoad(), before start().
  */
 public abstract class Scene {
     @Getter
@@ -90,6 +92,11 @@ public abstract class Scene {
         Camera.setMainCamera(camera);
 
         onLoad();
+
+        // Resolve @ComponentRef annotations after hierarchy is established
+        for (GameObject go : gameObjects) {
+            ComponentRefResolver.resolveReferences(go);
+        }
 
         for (GameObject go : gameObjects) {
             go.start();

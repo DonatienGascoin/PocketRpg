@@ -11,6 +11,7 @@ import com.pocket.rpg.prefab.PrefabRegistry;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.scenes.RuntimeScene;
 import com.pocket.rpg.serialization.ComponentData;
+import com.pocket.rpg.serialization.ComponentRefResolver;
 import com.pocket.rpg.serialization.GameObjectData;
 import com.pocket.rpg.serialization.SceneData;
 import org.joml.Vector3f;
@@ -25,6 +26,7 @@ import java.util.List;
  * - Collision map loading
  * - Entity instantiation (both prefab instances and scratch entities)
  * - Camera configuration
+ * - Component reference resolution
  */
 public class RuntimeSceneLoader {
 
@@ -81,6 +83,11 @@ public class RuntimeSceneLoader {
         // Configure camera from scene settings
         if (data.getCamera() != null) {
             configureCamera(scene, data.getCamera());
+        }
+
+        // Resolve component references after all GameObjects are established
+        for (GameObject go : scene.getGameObjects()) {
+            ComponentRefResolver.resolveReferences(go);
         }
 
         System.out.println("Loaded runtime scene: " + data.getName() +

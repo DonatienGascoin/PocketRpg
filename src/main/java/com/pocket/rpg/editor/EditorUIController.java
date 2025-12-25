@@ -4,10 +4,7 @@ import com.pocket.rpg.editor.panels.*;
 import com.pocket.rpg.editor.rendering.CameraOverlayRenderer;
 import com.pocket.rpg.editor.rendering.CollisionOverlayRenderer;
 import com.pocket.rpg.editor.scene.EditorScene;
-import com.pocket.rpg.editor.ui.EditorMenuBar;
-import com.pocket.rpg.editor.ui.SceneViewToolbar;
-import com.pocket.rpg.editor.ui.SceneViewport;
-import com.pocket.rpg.editor.ui.StatusBar;
+import com.pocket.rpg.editor.ui.*;
 import imgui.ImGui;
 import imgui.flag.ImGuiDockNodeFlags;
 import imgui.flag.ImGuiStyleVar;
@@ -21,12 +18,16 @@ public class EditorUIController {
 
     private final EditorContext context;
     private final EditorToolController toolController;
+    private PlayModeController playModeController;
 
     @Getter
     private SceneViewport sceneViewport;
 
     @Getter
     private SceneViewToolbar sceneToolbar;
+
+    @Getter
+    private GameViewPanel gameViewPanel;
 
     @Getter
     private LayerPanel layerPanel;
@@ -190,9 +191,8 @@ public class EditorUIController {
         sceneViewport.renderToolOverlay();
 
         // Panels
-        layerPanel.render();
-        renderModePanels();
         renderPanels();
+
 
         // Status bar
         statusBar.render(context.getWindow().getHeight());
@@ -344,8 +344,13 @@ public class EditorUIController {
     }
 
     private void renderPanels() {
+        layerPanel.render();
+        renderModePanels();
         hierarchyPanel.render();
         inspectorPanel.render();
+        if (gameViewPanel != null) {
+            gameViewPanel.render();
+        }
     }
 
     public void onWindowResize(int width, int height) {
@@ -360,5 +365,14 @@ public class EditorUIController {
         if (sceneViewport != null) {
             sceneViewport.destroy();
         }
+    }
+
+    public void setPlayModeController(PlayModeController controller) {
+        this.playModeController = controller;
+        this.gameViewPanel = new GameViewPanel(
+                context,
+                playModeController,
+                context.getGameConfig()
+        );
     }
 }

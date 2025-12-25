@@ -1,6 +1,7 @@
 package com.pocket.rpg.editor;
 
 import com.pocket.rpg.config.ConfigLoader;
+import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.editor.camera.EditorCamera;
 import com.pocket.rpg.serialization.ComponentRegistry;
@@ -17,6 +18,7 @@ import com.pocket.rpg.resources.ErrorMode;
 import com.pocket.rpg.serialization.Serializer;
 import imgui.ImGui;
 
+import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL33.*;
 
 /**
@@ -32,6 +34,7 @@ import static org.lwjgl.opengl.GL33.*;
  * - EditorSceneController: Scene operations
  * - EditorToolController: Tool management
  * - EditorUIController: UI rendering
+ * - PlayModeController: Play mode management
  */
 public class EditorApplication {
 
@@ -42,14 +45,19 @@ public class EditorApplication {
     private EditorSceneController sceneController;
     private EditorToolController toolController;
     private EditorUIController uiController;
+    private PlayModeController playModeController;
 
     // Rendering
     private ImGuiLayer imGuiLayer;
     private EditorSceneRenderer sceneRenderer;
 
+    // Escape key state for edge detection
+    private boolean escapeWasPressed = false;
+
     public static void main(String[] args) {
         System.out.println("===========================================");
-        System.out.println("    PocketRPG Scene Editor - Phase 4");
+        System.out.println("    PocketRPG Scene Editor - Phase 7");
+        System.out.println("         (with Play Mode support)");
         System.out.println("===========================================");
 
         EditorApplication app = new EditorApplication();
@@ -78,6 +86,7 @@ public class EditorApplication {
         EditorConfig config = EditorConfig.createDefault();
         ConfigLoader.loadAllConfigs();
         RenderingConfig renderingConfig = ConfigLoader.getConfig(ConfigLoader.ConfigType.RENDERING);
+        GameConfig gameConfig = ConfigLoader.getConfig(ConfigLoader.ConfigType.GAME);
 
         // Create window
         EditorWindow window = new EditorWindow(config);
@@ -99,13 +108,13 @@ public class EditorApplication {
 
         // Initialize context
         context = new EditorContext();
-        context.init(config, renderingConfig, window, camera);
+        context.init(config, renderingConfig, gameConfig, window, camera);
 
         // Create initial scene
         EditorScene initialScene = new EditorScene("Untitled");
         context.setCurrentScene(initialScene);
 
-        // Create controllers
+        // Create controllers (order matters!)
         createControllers();
 
         // Create scene renderer
@@ -136,9 +145,16 @@ public class EditorApplication {
         toolController = new EditorToolController(context);
         toolController.createTools();
 
-        // Create UI controller
+        // IMPORTANT: Create PlayModeController BEFORE UIController needs it
+        playModeController = new PlayModeController(context, context.getGameConfig());
+
+        // Create UI controller and pass playModeController
         uiController = new EditorUIController(context, toolController);
         uiController.init();
+        
+        // Now set play mode controller (after init, so statusBar exists)
+        uiController.setPlayModeController(playModeController);
+        playModeController.setMessageCallback(uiController.getStatusBar()::showMessage);
 
         // Create scene controller
         sceneController = new EditorSceneController(context);
@@ -194,6 +210,23 @@ public class EditorApplication {
     private void update() {
         float deltaTime = ImGui.getIO().getDeltaTime();
 
+        // Handle Escape key to stop play mode (edge-triggered)
+        if (playModeController.isActive()) {
+            boolean escapePressed = isEscapePressed();
+            if (escapePressed && !escapeWasPressed) {
+                playModeController.stop();
+                escapeWasPressed = true;
+                return;
+            }
+            escapeWasPressed = escapePressed;
+
+            // Update play mode
+            playModeController.update(deltaTime);
+            return; // Skip editor updates while playing
+        }
+
+        escapeWasPressed = isEscapePressed();
+
         // Update scene
         EditorScene scene = context.getCurrentScene();
         if (scene != null) {
@@ -208,6 +241,10 @@ public class EditorApplication {
         toolController.processShortcuts();
     }
 
+    private boolean isEscapePressed() {
+        return glfwGetKey(context.getWindow().getWindowHandle(), GLFW_KEY_ESCAPE) == GLFW_PRESS;
+    }
+
     private void render() {
         EditorConfig config = context.getConfig();
 
@@ -220,9 +257,14 @@ public class EditorApplication {
         );
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // Render scene to framebuffer
+        // Render play mode if active
+        if (playModeController.isActive()) {
+            playModeController.render();
+        }
+
+        // Render editor scene to framebuffer (only when NOT in play mode)
         EditorScene scene = context.getCurrentScene();
-        if (sceneRenderer != null && scene != null) {
+        if (sceneRenderer != null && scene != null && !playModeController.isActive()) {
             sceneRenderer.render(scene, context.getCamera());
         }
 
@@ -247,6 +289,11 @@ public class EditorApplication {
 
     private void destroy() {
         System.out.println("Shutting down Scene Editor...");
+
+        // Stop play mode first
+        if (playModeController != null && playModeController.isActive()) {
+            playModeController.stop();
+        }
 
         if (sceneRenderer != null) {
             sceneRenderer.destroy();

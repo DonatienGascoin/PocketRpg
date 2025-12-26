@@ -59,9 +59,6 @@ public class EditorUIController {
     private CollisionOverlayRenderer collisionOverlay;
     private CameraOverlayRenderer cameraOverlayRenderer;
 
-    // Track if Scene panel is actually visible (not hidden behind another tab)
-    // Now tracked via sceneViewport.isContentVisible()
-
     public EditorUIController(EditorContext context, EditorToolController toolController) {
         this.context = context;
         this.toolController = toolController;
@@ -191,16 +188,8 @@ public class EditorUIController {
         // Menu bar
         renderMenuBar();
 
-        // Scene viewport with integrated toolbar
+        // Scene viewport with integrated toolbar and overlays
         renderSceneViewport();
-
-        // Only render overlays if Scene viewport content is actually visible
-        // isContentVisible() returns false when Scene tab is hidden behind Game tab
-        if (sceneViewport.isContentVisible()) {
-            renderCollisionOverlay();
-            renderCameraOverlay();
-            sceneViewport.renderToolOverlay();
-        }
 
         // Panels
         renderPanels();
@@ -239,6 +228,11 @@ public class EditorUIController {
 
             sceneViewport.setShowGrid(sceneToolbar.isShowGrid());
             sceneViewport.renderContent();
+
+            // Render overlays INSIDE the window context (required for getWindowDrawList)
+            renderCollisionOverlay();
+            renderCameraOverlay();
+            sceneViewport.renderToolOverlay();
         }
 
         ImGui.end();

@@ -1,29 +1,42 @@
 package com.pocket.rpg.prefab.prefabs;
 
-import com.pocket.rpg.components.GridMovement;
-import com.pocket.rpg.components.PlayerCameraFollow;
-import com.pocket.rpg.components.PlayerMovement;
-import com.pocket.rpg.components.SpriteRenderer;
-import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.prefab.Prefab;
-import com.pocket.rpg.prefab.PropertyDefinition;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.SpriteSheet;
 import com.pocket.rpg.resources.Assets;
-import org.joml.Vector3f;
+import com.pocket.rpg.serialization.ComponentData;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
+/**
+ * Prefab for the player character.
+ * <p>
+ * Components:
+ * - SpriteRenderer: Player sprite display
+ * - PlayerCameraFollow: Camera follows this entity
+ * - GridMovement: Grid-based movement system
+ * - PlayerMovement: Input handling for player control
+ */
 public class PlayerPrefab implements Prefab {
 
-    private final SpriteSheet playerSheet;
-    private final Sprite previewSprite;
+    private static final String SPRITE_RENDERER_TYPE = "com.pocket.rpg.components.SpriteRenderer";
+    private static final String PLAYER_CAMERA_FOLLOW_TYPE = "com.pocket.rpg.components.PlayerCameraFollow";
+    private static final String GRID_MOVEMENT_TYPE = "com.pocket.rpg.components.GridMovement";
+    private static final String PLAYER_MOVEMENT_TYPE = "com.pocket.rpg.components.PlayerMovement";
+
+    private SpriteSheet playerSheet;
+    private Sprite previewSprite;
+    private List<ComponentData> components;
 
     public PlayerPrefab() {
-        playerSheet = Assets.load("spritesheets/player.spritesheet");
-        previewSprite = Sprite.copy(playerSheet.getSprite(0));
-        previewSprite.setPivotCenter();
+        try {
+            playerSheet = Assets.load("spritesheets/player.spritesheet");
+            previewSprite = Sprite.copy(playerSheet.getSprite(0));
+            previewSprite.setPivotCenter();
+        } catch (Exception e) {
+            System.err.println("Failed to load player spritesheet: " + e.getMessage());
+        }
     }
 
     @Override
@@ -42,8 +55,11 @@ public class PlayerPrefab implements Prefab {
     }
 
     @Override
-    public List<PropertyDefinition> getEditableProperties() {
-        return List.of();
+    public List<ComponentData> getComponents() {
+        if (components == null) {
+            components = buildComponents();
+        }
+        return components;
     }
 
     @Override
@@ -51,28 +67,30 @@ public class PlayerPrefab implements Prefab {
         return previewSprite;
     }
 
-    @Override
-    public GameObject instantiate(Vector3f position, Map<String, Object> overrides) {
+    private List<ComponentData> buildComponents() {
+        List<ComponentData> result = new ArrayList<>();
 
-        // 32×32 pixel sprites with PPU=16 → each frame is 2×2 world units
-        SpriteRenderer spriteRenderer = new SpriteRenderer();
-        spriteRenderer.setSprite(playerSheet.getSprite(0));
-        spriteRenderer.setOriginBottomCenter();
-        // Player at world origin (Z not used for sorting anymore)
-        GameObject player = new GameObject("Player", new Vector3f(5, 5, 0));
+        // SpriteRenderer component
+        ComponentData spriteRenderer = new ComponentData(SPRITE_RENDERER_TYPE);
+        spriteRenderer.getFields().put("spritePath", "spritesheets/player.spritesheet");
+        spriteRenderer.getFields().put("spriteIndex", 0);
+        spriteRenderer.getFields().put("originBottomCenter", true);
+        result.add(spriteRenderer);
 
-        player.addComponent(spriteRenderer);
-        player.addComponent(new PlayerCameraFollow());
+        // PlayerCameraFollow component
+        ComponentData cameraFollow = new ComponentData(PLAYER_CAMERA_FOLLOW_TYPE);
+        result.add(cameraFollow);
 
-        GridMovement movement = player.addComponent(new GridMovement(1));
-        movement.setGridPosition(5, 5);
-        movement.setBaseSpeed(4f); // 4 tiles/second
-        player.addComponent(new PlayerMovement());
+        // GridMovement component
+        ComponentData gridMovement = new ComponentData(GRID_MOVEMENT_TYPE);
+        gridMovement.getFields().put("gridSize", 1);
+        gridMovement.getFields().put("baseSpeed", 4.0f);
+        result.add(gridMovement);
 
-        // Apply overrides to your custom components here, ex:
-        // String lootTable = (String) overrides.getOrDefault("lootTable", "common_loot");
-        // boolean locked = (Boolean) overrides.getOrDefault("locked", false);
+        // PlayerMovement component
+        ComponentData playerMovement = new ComponentData(PLAYER_MOVEMENT_TYPE);
+        result.add(playerMovement);
 
-        return player;
+        return result;
     }
 }

@@ -47,7 +47,7 @@ public class CameraOverlayRenderer {
         if (!hierarchyPanel.isCameraSelected()) return;
 
         SceneCameraSettings camSettings = scene.getCameraSettings();
-        ImDrawList drawList = ImGui.getForegroundDrawList();
+        ImDrawList drawList = ImGui.getWindowDrawList();
 
         drawList.pushClipRect(viewportX, viewportY,
                 viewportX + viewportWidth, viewportY + viewportHeight, true);

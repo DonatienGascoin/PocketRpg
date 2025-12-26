@@ -167,7 +167,7 @@ public class SceneViewport {
      * Used when toolbar is rendered separately in the same window.
      */
     public void renderContent() {
-        // Track focus and hover state
+        // Track focus state
         isFocused = ImGui.isWindowFocused();
 
         // Get available content region (after toolbar)
@@ -181,11 +181,6 @@ public class SceneViewport {
         viewportY = windowPos.y + cursorPos.y;
         viewportWidth = contentMax.x - cursorPos.x;
         viewportHeight = contentMax.y - cursorPos.y;
-
-        // Check if mouse is in viewport area
-        ImVec2 mousePos = ImGui.getMousePos();
-        isHovered = mousePos.x >= viewportX && mousePos.x <= viewportX + viewportWidth &&
-                mousePos.y >= viewportY && mousePos.y <= viewportY + viewportHeight;
 
         updateToolViewportBounds(viewportX, viewportY, viewportWidth, viewportHeight);
 
@@ -209,6 +204,10 @@ public class SceneViewport {
                     0, 1,
                     1, 0
             );
+            // Use ImGui's z-order aware hover detection
+            isHovered = ImGui.isItemHovered();
+        } else {
+            isHovered = false;
         }
 
         // Update hovered tile

@@ -1,21 +1,29 @@
 package com.pocket.rpg.prefab.prefabs;
 
-import com.pocket.rpg.components.SpriteRenderer;
-import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.prefab.Prefab;
-import com.pocket.rpg.prefab.PropertyDefinition;
-import com.pocket.rpg.prefab.PropertyType;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.SpriteSheet;
 import com.pocket.rpg.resources.Assets;
-import org.joml.Vector3f;
+import com.pocket.rpg.serialization.ComponentData;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
+/**
+ * Prefab for treasure chests.
+ * <p>
+ * Components:
+ * - SpriteRenderer: Displays the chest sprite
+ * <p>
+ * To add loot/locked behavior, create a ChestBehavior component
+ * and add it to this prefab's component list.
+ */
 public class ChestPrefab implements Prefab {
 
+    private static final String SPRITE_RENDERER_TYPE = "com.pocket.rpg.components.SpriteRenderer";
+
     private SpriteSheet spriteSheet;
+    private List<ComponentData> components;
 
     @Override
     public String getId() {
@@ -33,13 +41,11 @@ public class ChestPrefab implements Prefab {
     }
 
     @Override
-    public List<PropertyDefinition> getEditableProperties() {
-        return List.of(
-                new PropertyDefinition("lootTable", PropertyType.STRING, "common_loot",
-                        "ID of loot table to use"),
-                new PropertyDefinition("locked", PropertyType.BOOLEAN, false,
-                        "Whether chest requires a key")
-        );
+    public List<ComponentData> getComponents() {
+        if (components == null) {
+            components = buildComponents();
+        }
+        return components;
     }
 
     @Override
@@ -48,25 +54,18 @@ public class ChestPrefab implements Prefab {
         return spriteSheet != null ? spriteSheet.getSprite(0) : null;
     }
 
-    @Override
-    public GameObject instantiate(Vector3f position, Map<String, Object> overrides) {
-        ensureSpriteSheet();
+    private List<ComponentData> buildComponents() {
+        List<ComponentData> result = new ArrayList<>();
 
-        GameObject chest = new GameObject("Chest", position);
+        // SpriteRenderer component
+        ComponentData spriteRenderer = new ComponentData(SPRITE_RENDERER_TYPE);
+        spriteRenderer.getFields().put("spritePath", "spritesheets/Chest.spritesheet");
+        spriteRenderer.getFields().put("spriteIndex", 0);
+        spriteRenderer.getFields().put("zIndex", 10);
+        spriteRenderer.getFields().put("originBottomCenter", true);
+        result.add(spriteRenderer);
 
-        if (spriteSheet != null) {
-            SpriteRenderer renderer = new SpriteRenderer();
-            renderer.setSprite(spriteSheet.getSprite(0));
-            renderer.setOriginBottomCenter();
-            renderer.setZIndex(10);
-            chest.addComponent(renderer);
-        }
-
-        // Apply overrides to your custom components here
-        // String lootTable = (String) overrides.getOrDefault("lootTable", "common_loot");
-        // boolean locked = (Boolean) overrides.getOrDefault("locked", false);
-
-        return chest;
+        return result;
     }
 
     private void ensureSpriteSheet() {

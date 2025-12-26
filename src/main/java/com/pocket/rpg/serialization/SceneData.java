@@ -1,6 +1,5 @@
 package com.pocket.rpg.serialization;
 
-import com.pocket.rpg.editor.serialization.EntityData;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -71,7 +70,7 @@ public class SceneData {
      * Placed entity instances.
      * Each entity references a prefab and stores position + property overrides.
      */
-    private List<EntityData> entities = new ArrayList<>();
+    private List<com.pocket.rpg.serialization.EntityData> entities = new ArrayList<>();
 
     /**
      * Scene-level metadata (can store custom data)
@@ -97,7 +96,7 @@ public class SceneData {
         this.gameObjects.add(gameObject);
     }
 
-    public void addEntity(EntityData entity) {
+    public void addEntity(com.pocket.rpg.serialization.EntityData entity) {
         this.entities.add(entity);
     }
 

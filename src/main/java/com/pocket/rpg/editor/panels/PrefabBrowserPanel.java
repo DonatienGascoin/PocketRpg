@@ -151,9 +151,9 @@ public class PrefabBrowserPanel {
             if (prefab.getCategory() != null) {
                 ImGui.textDisabled("Category: " + prefab.getCategory());
             }
-            int propCount = prefab.getEditableProperties().size();
-            if (propCount > 0) {
-                ImGui.textDisabled(propCount + " editable properties");
+            int compCount = prefab.getComponents().size();
+            if (compCount > 0) {
+                ImGui.textDisabled(compCount + " component" + (compCount > 1 ? "s" : ""));
             }
             ImGui.endTooltip();
         }

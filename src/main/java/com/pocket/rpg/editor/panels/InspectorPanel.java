@@ -11,10 +11,11 @@ import com.pocket.rpg.editor.undo.commands.AddComponentCommand;
 import com.pocket.rpg.editor.undo.commands.MoveEntityCommand;
 import com.pocket.rpg.editor.undo.commands.RemoveComponentCommand;
 import com.pocket.rpg.editor.undo.commands.RemoveEntityCommand;
-import com.pocket.rpg.editor.undo.commands.SetPropertyCommand;
 import com.pocket.rpg.prefab.Prefab;
-import com.pocket.rpg.prefab.PropertyDefinition;
 import com.pocket.rpg.serialization.ComponentData;
+import com.pocket.rpg.serialization.ComponentMeta;
+import com.pocket.rpg.serialization.ComponentRegistry;
+import com.pocket.rpg.serialization.FieldMeta;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiTreeNodeFlags;
@@ -27,6 +28,9 @@ import java.util.List;
 
 /**
  * Context-sensitive inspector panel with full undo support.
+ * <p>
+ * Uses a unified component-based approach for both prefab instances
+ * and scratch entities.
  */
 public class InspectorPanel {
 
@@ -146,10 +150,11 @@ public class InspectorPanel {
     }
 
     // ========================================================================
-    // ENTITY INSPECTOR
+    // ENTITY INSPECTOR (UNIFIED)
     // ========================================================================
 
     private void renderEntityInspector(EditorEntity entity) {
+        // Determine icon based on entity type
         String icon;
         if (entity.isScratchEntity()) {
             icon = FontAwesomeIcons.Cube;
@@ -159,7 +164,7 @@ public class InspectorPanel {
             icon = FontAwesomeIcons.ExclamationTriangle;
         }
 
-        // Header
+        // Header with name
         ImGui.text(icon);
         ImGui.sameLine();
         stringBuffer.set(entity.getName());
@@ -169,6 +174,7 @@ public class InspectorPanel {
             scene.markDirty();
         }
 
+        // Save as Prefab button (for scratch entities with components)
         ImGui.sameLine();
         if (entity.isScratchEntity() && !entity.getComponents().isEmpty()) {
             if (ImGui.button(FontAwesomeIcons.Save + "##save")) {
@@ -182,6 +188,7 @@ public class InspectorPanel {
             ImGui.sameLine();
         }
 
+        // Delete button
         ImGui.pushStyleColor(ImGuiCol.Button, 0.5f, 0.2f, 0.2f, 1f);
         ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.6f, 0.3f, 0.3f, 1f);
         if (ImGui.button(FontAwesomeIcons.Trash + "##delete")) {
@@ -196,6 +203,27 @@ public class InspectorPanel {
         ImGui.separator();
 
         // Position with undo support
+        renderPositionEditor(entity);
+
+        ImGui.separator();
+
+        // Prefab info (if applicable)
+        if (entity.isPrefabInstance()) {
+            renderPrefabInfo(entity);
+            ImGui.separator();
+        } else {
+            ImGui.textDisabled("Scratch Entity");
+        }
+
+        // Components (unified for both prefab instances and scratch entities)
+        renderComponentList(entity);
+
+        // Popups
+        componentBrowserPopup.render();
+        savePrefabPopup.render();
+    }
+
+    private void renderPositionEditor(EditorEntity entity) {
         Vector3f pos = entity.getPosition();
         floatBuffer[0] = pos.x;
         floatBuffer[1] = pos.y;
@@ -215,7 +243,6 @@ public class InspectorPanel {
         if (draggingEntity == entity && !ImGui.isItemActive()) {
             Vector3f newPos = entity.getPosition();
             if (!newPos.equals(dragStartPosition)) {
-                // Create command but don't execute (position already changed)
                 MoveEntityCommand cmd = new MoveEntityCommand(entity, dragStartPosition, newPos);
                 UndoManager.getInstance().execute(new NoOpWrapperCommand(cmd, entity, dragStartPosition));
             }
@@ -243,17 +270,176 @@ public class InspectorPanel {
             }
             scene.markDirty();
         }
+    }
 
-        ImGui.separator();
+    private void renderPrefabInfo(EditorEntity entity) {
+        Prefab prefab = entity.getPrefab();
+        String prefabDisplay = prefab != null ? prefab.getDisplayName() : entity.getPrefabId() + " (missing)";
 
-        if (entity.isPrefabInstance()) {
-            renderPrefabInstanceInspector(entity);
+        ImGui.labelText("Prefab", prefabDisplay);
+
+        if (prefab == null) {
+            ImGui.textColored(1f, 0.5f, 0.2f, 1f,
+                    FontAwesomeIcons.ExclamationTriangle + " Prefab not found");
         } else {
-            renderScratchEntityInspector(entity);
+            int overrideCount = entity.getOverrideCount();
+            if (overrideCount > 0) {
+                ImGui.textDisabled(overrideCount + " field override(s)");
+                ImGui.sameLine();
+                if (ImGui.smallButton("Reset All")) {
+                    entity.resetAllOverrides();
+                    scene.markDirty();
+                }
+            }
+        }
+    }
+
+    private void renderComponentList(EditorEntity entity) {
+        List<ComponentData> components = entity.getComponents();
+        boolean isPrefabInstance = entity.isPrefabInstance();
+
+        if (components.isEmpty()) {
+            ImGui.spacing();
+            ImGui.textDisabled("No components");
+            ImGui.spacing();
+        } else {
+            ComponentData toRemove = null;
+
+            for (int i = 0; i < components.size(); i++) {
+                ComponentData comp = components.get(i);
+
+                ImGui.pushID(i);
+
+                // Component header
+                int headerFlags = ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.AllowOverlap;
+                
+                // Show override indicator for prefab instances
+                String headerLabel = comp.getDisplayName();
+                if (isPrefabInstance) {
+                    List<String> overridden = entity.getOverriddenFields(comp.getType());
+                    if (!overridden.isEmpty()) {
+                        headerLabel += " *";
+                    }
+                }
+
+                boolean open = ImGui.collapsingHeader(headerLabel, headerFlags);
+
+                // Remove button (only for scratch entities)
+                if (!isPrefabInstance) {
+                    ImGui.sameLine(ImGui.getContentRegionAvailX() - 20);
+                    ImGui.pushStyleColor(ImGuiCol.Button, 0.5f, 0.2f, 0.2f, 1f);
+                    if (ImGui.smallButton(FontAwesomeIcons.Times + "##remove")) {
+                        toRemove = comp;
+                    }
+                    ImGui.popStyleColor();
+                    if (ImGui.isItemHovered()) {
+                        ImGui.setTooltip("Remove component");
+                    }
+                }
+
+                if (open) {
+                    ImGui.indent();
+
+                    if (isPrefabInstance) {
+                        // For prefab instances, render with override tracking
+                        renderComponentFieldsWithOverrides(entity, comp);
+                    } else {
+                        // For scratch entities, use standard editor
+                        if (ReflectionFieldEditor.drawComponent(comp, entity)) {
+                            scene.markDirty();
+                        }
+                    }
+
+                    ImGui.unindent();
+                }
+
+                ImGui.popID();
+            }
+
+            // Remove with undo command (scratch entities only)
+            if (toRemove != null) {
+                UndoManager.getInstance().execute(
+                        new RemoveComponentCommand(entity, toRemove)
+                );
+                scene.markDirty();
+            }
         }
 
-        componentBrowserPopup.render();
-        savePrefabPopup.render();
+        // Add Component button (only for scratch entities)
+        if (!isPrefabInstance) {
+            ImGui.separator();
+            if (ImGui.button(FontAwesomeIcons.Plus + " Add Component", -1, 0)) {
+                componentBrowserPopup.open(componentData -> {
+                    UndoManager.getInstance().execute(
+                            new AddComponentCommand(entity, componentData)
+                    );
+                    scene.markDirty();
+                });
+            }
+        }
+    }
+
+    /**
+     * Renders component fields for prefab instances with override tracking.
+     */
+    private void renderComponentFieldsWithOverrides(EditorEntity entity, ComponentData comp) {
+        ComponentMeta meta = ComponentRegistry.getByClassName(comp.getType());
+        if (meta == null) {
+            ImGui.textDisabled("Unknown component type");
+            return;
+        }
+
+        for (FieldMeta fieldMeta : meta.fields()) {
+            String fieldName = fieldMeta.name();
+            String componentType = comp.getType();
+            
+            boolean isOverridden = entity.isFieldOverridden(componentType, fieldName);
+            Object value = entity.getFieldValue(componentType, fieldName);
+
+            ImGui.pushID(fieldName);
+
+            // Show override indicator
+            if (isOverridden) {
+                ImGui.pushStyleColor(ImGuiCol.Text, 0.4f, 0.8f, 1.0f, 1.0f);
+            }
+
+            // Draw the field using reflection editor
+            boolean changed = ReflectionFieldEditor.drawField(comp, fieldMeta);
+
+            if (isOverridden) {
+                ImGui.popStyleColor();
+            }
+
+            // Reset button for overridden fields
+            if (isOverridden) {
+                ImGui.sameLine();
+                if (ImGui.smallButton(FontAwesomeIcons.Undo + "##reset")) {
+                    entity.resetFieldToDefault(componentType, fieldName);
+                    
+                    // Update ComponentData to reflect the reset
+                    Object defaultValue = entity.getFieldDefault(componentType, fieldName);
+                    comp.getFields().put(fieldName, defaultValue);
+                    
+                    scene.markDirty();
+                }
+                if (ImGui.isItemHovered()) {
+                    Object defaultVal = entity.getFieldDefault(componentType, fieldName);
+                    ImGui.setTooltip("Reset to default: " + defaultVal);
+                }
+            }
+
+            // Track changes for prefab overrides
+            if (changed) {
+                Object newValue = comp.getFields().get(fieldName);
+                entity.setFieldValue(componentType, fieldName, newValue);
+                scene.markDirty();
+            }
+
+            ImGui.popID();
+        }
+
+        // Show component references (read-only)
+        ReflectionFieldEditor.drawComponentReferences(meta.references(), entity);
     }
 
     private void renderDeleteConfirmationPopup() {
@@ -267,7 +453,6 @@ public class InspectorPanel {
 
                 ImGui.pushStyleColor(ImGuiCol.Button, 0.6f, 0.2f, 0.2f, 1f);
                 if (ImGui.button("Delete", 120, 0)) {
-                    // Use undo command for delete
                     UndoManager.getInstance().execute(
                             new RemoveEntityCommand(scene, pendingDeleteEntity)
                     );
@@ -291,228 +476,6 @@ public class InspectorPanel {
             }
             ImGui.endPopup();
         }
-    }
-
-    private void renderPrefabInstanceInspector(EditorEntity entity) {
-        Prefab prefab = entity.getPrefab();
-        String prefabDisplay = prefab != null ? prefab.getDisplayName() : entity.getPrefabId() + " (missing)";
-
-        ImGui.labelText("Prefab", prefabDisplay);
-
-        if (prefab == null) {
-            ImGui.textColored(1f, 0.5f, 0.2f, 1f,
-                    FontAwesomeIcons.ExclamationTriangle + " Prefab not found");
-            return;
-        }
-
-        List<PropertyDefinition> props = prefab.getEditableProperties();
-        if (!props.isEmpty()) {
-            ImGui.separator();
-            ImGui.text("Properties");
-
-            for (PropertyDefinition prop : props) {
-                renderPropertyEditor(entity, prop);
-            }
-
-            List<String> overridden = entity.getOverriddenProperties();
-            if (!overridden.isEmpty()) {
-                ImGui.separator();
-                ImGui.textDisabled(overridden.size() + " overridden properties");
-                ImGui.sameLine();
-                if (ImGui.smallButton("Reset All")) {
-                    entity.resetAllToDefaults();
-                    scene.markDirty();
-                }
-            }
-        }
-    }
-
-    private void renderScratchEntityInspector(EditorEntity entity) {
-        ImGui.textDisabled("Scratch Entity");
-
-        List<ComponentData> components = entity.getComponents();
-
-        if (components.isEmpty()) {
-            ImGui.spacing();
-            ImGui.textDisabled("No components");
-            ImGui.spacing();
-        } else {
-            ComponentData toRemove = null;
-
-            for (int i = 0; i < components.size(); i++) {
-                ComponentData comp = components.get(i);
-
-                ImGui.pushID(i);
-
-                int headerFlags = ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.AllowOverlap;
-                boolean open = ImGui.collapsingHeader(comp.getDisplayName(), headerFlags);
-
-                ImGui.sameLine(ImGui.getContentRegionAvailX() - 20);
-                ImGui.pushStyleColor(ImGuiCol.Button, 0.5f, 0.2f, 0.2f, 1f);
-                if (ImGui.smallButton(FontAwesomeIcons.Times + "##remove")) {
-                    toRemove = comp;
-                }
-                ImGui.popStyleColor();
-                if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("Remove component");
-                }
-
-                if (open) {
-                    ImGui.indent();
-                    if (ReflectionFieldEditor.drawComponent(comp, entity)) {
-                        scene.markDirty();
-                    }
-                    ImGui.unindent();
-                }
-
-                ImGui.popID();
-            }
-
-            // Remove with undo command
-            if (toRemove != null) {
-                UndoManager.getInstance().execute(
-                        new RemoveComponentCommand(entity, toRemove)
-                );
-                scene.markDirty();
-            }
-        }
-
-        ImGui.separator();
-
-        if (ImGui.button(FontAwesomeIcons.Plus + " Add Component", -1, 0)) {
-            componentBrowserPopup.open(componentData -> {
-                // Add with undo command
-                UndoManager.getInstance().execute(
-                        new AddComponentCommand(entity, componentData)
-                );
-                scene.markDirty();
-            });
-        }
-    }
-
-    private void renderPropertyEditor(EditorEntity entity, PropertyDefinition prop) {
-        Object value = entity.getProperty(prop.name());
-        boolean isOverridden = entity.isPropertyOverridden(prop.name());
-
-        ImGui.pushID(prop.name());
-
-        boolean changed = false;
-        Object newValue = value;
-
-        if (isOverridden) {
-            ImGui.pushStyleColor(ImGuiCol.Text, 0.4f, 0.8f, 1.0f, 1.0f);
-        }
-
-        ImGui.alignTextToFramePadding();
-        ImGui.text(prop.name());
-
-        if (isOverridden) {
-            ImGui.popStyleColor();
-        }
-
-        ImGui.sameLine(130);
-        ImGui.setNextItemWidth(-60);
-
-        switch (prop.type()) {
-            case STRING -> {
-                String strValue = value != null ? value.toString() : "";
-                stringBuffer.set(strValue);
-                if (ImGui.inputText("##value", stringBuffer)) {
-                    newValue = stringBuffer.get();
-                    changed = true;
-                }
-            }
-            case INT -> {
-                int intValue = value instanceof Number n ? n.intValue() : 0;
-                intBuffer.set(intValue);
-                if (ImGui.inputInt("##value", intBuffer)) {
-                    newValue = intBuffer.get();
-                    changed = true;
-                }
-            }
-            case FLOAT -> {
-                float floatValue = value instanceof Number n ? n.floatValue() : 0f;
-                floatBuffer[0] = floatValue;
-                if (ImGui.dragFloat("##value", floatBuffer, 0.1f)) {
-                    newValue = floatBuffer[0];
-                    changed = true;
-                }
-            }
-            case BOOLEAN -> {
-                boolean boolValue = value instanceof Boolean b && b;
-                if (ImGui.checkbox("##value", boolValue)) {
-                    newValue = !boolValue;
-                    changed = true;
-                }
-            }
-            case VECTOR2 -> {
-                float[] vec = value instanceof float[] arr && arr.length >= 2
-                        ? new float[]{arr[0], arr[1]}
-                        : new float[]{0f, 0f};
-                floatBuffer[0] = vec[0];
-                floatBuffer[1] = vec[1];
-                if (ImGui.dragFloat2("##value", floatBuffer, 0.1f)) {
-                    newValue = new float[]{floatBuffer[0], floatBuffer[1]};
-                    changed = true;
-                }
-            }
-            case VECTOR3 -> {
-                float[] vec = value instanceof float[] arr && arr.length >= 3
-                        ? new float[]{arr[0], arr[1], arr[2]}
-                        : new float[]{0f, 0f, 0f};
-                floatBuffer[0] = vec[0];
-                floatBuffer[1] = vec[1];
-                floatBuffer[2] = vec[2];
-                if (ImGui.dragFloat3("##value", floatBuffer, 0.1f)) {
-                    newValue = new float[]{floatBuffer[0], floatBuffer[1], floatBuffer[2]};
-                    changed = true;
-                }
-            }
-            case STRING_LIST -> ImGui.textDisabled("(list - not editable yet)");
-            case ASSET_REF -> {
-                String refValue = value != null ? value.toString() : "";
-                stringBuffer.set(refValue);
-                if (ImGui.inputText("##value", stringBuffer)) {
-                    newValue = stringBuffer.get();
-                    changed = true;
-                }
-            }
-            default -> ImGui.text(value != null ? value.toString() : "(null)");
-        }
-
-        if (changed) {
-            Object oldValue = entity.getProperty(prop.name());
-            UndoManager.getInstance().execute(
-                    new SetPropertyCommand(entity, prop.name(), oldValue, newValue)
-            );
-            scene.markDirty();
-        }
-
-        if (prop.tooltip() != null && ImGui.isItemHovered()) {
-            ImGui.beginTooltip();
-            ImGui.text(prop.tooltip());
-            if (isOverridden) {
-                Object defaultVal = entity.getPropertyDefault(prop.name());
-                ImGui.textDisabled("Default: " + defaultVal);
-            }
-            ImGui.endTooltip();
-        }
-
-        ImGui.sameLine();
-        if (isOverridden) {
-            if (ImGui.smallButton(FontAwesomeIcons.Undo + "##reset")) {
-                entity.resetPropertyToDefault(prop.name());
-                scene.markDirty();
-            }
-            if (ImGui.isItemHovered()) {
-                Object defaultVal = entity.getPropertyDefault(prop.name());
-                ImGui.setTooltip("Reset to default: " + defaultVal);
-            }
-        } else {
-            ImGui.dummy(20, 0);
-        }
-
-        ImGui.popID();
     }
 
     // ========================================================================
@@ -568,10 +531,6 @@ public class InspectorPanel {
     // HELPER COMMAND
     // ========================================================================
 
-    /**
-     * Wrapper for commands where execute was already done (drag operations).
-     * Stores the original values for proper undo.
-     */
     private static class NoOpWrapperCommand extends MoveEntityCommand {
         public NoOpWrapperCommand(MoveEntityCommand original, EditorEntity entity, Vector3f oldPos) {
             super(entity, oldPos, entity.getPosition());

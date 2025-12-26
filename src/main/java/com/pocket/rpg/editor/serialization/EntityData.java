@@ -1,6 +1,5 @@
-package com.pocket.rpg.editor.serialization;
+package com.pocket.rpg.serialization;
 
-import com.pocket.rpg.serialization.ComponentData;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -14,8 +13,12 @@ import java.util.Map;
  * Serializable data for an entity.
  * Supports both prefab instances and scratch entities.
  * <p>
- * MIGRATION NOTE: This was previously a record. Changed to class
- * to support scratch entities with components.
+ * For prefab instances:
+ * - prefabId: reference to the prefab
+ * - componentOverrides: field overrides per component type
+ * <p>
+ * For scratch entities:
+ * - components: inline component definitions
  */
 @Getter
 @Setter
@@ -28,19 +31,26 @@ public class EntityData {
 
     // Prefab instance fields (when prefabId is set)
     private String prefabId;
-    private Map<String, Object> properties;
+    /**
+     * Component field overrides.
+     * Structure: componentType -> (fieldName -> value)
+     */
+    private Map<String, Map<String, Object>> componentOverrides;
 
     // Scratch entity fields (when prefabId is null/empty)
-    private List<com.pocket.rpg.serialization.ComponentData> components;
+    private List<ComponentData> components;
 
     /**
-     * Constructor for prefab instances (backward compatible).
+     * Constructor for prefab instances.
      */
-    public EntityData(String prefabId, String name, float[] position, Map<String, Object> properties) {
+    public EntityData(String prefabId, String name, float[] position,
+                      Map<String, Map<String, Object>> componentOverrides) {
         this.prefabId = prefabId;
         this.name = name;
         this.position = position;
-        this.properties = properties != null ? new HashMap<>(properties) : new HashMap<>();
+        this.componentOverrides = componentOverrides != null
+                ? deepCopyOverrides(componentOverrides)
+                : new HashMap<>();
     }
 
     /**
@@ -67,12 +77,18 @@ public class EntityData {
         return prefabId != null && !prefabId.isEmpty();
     }
 
+    private static Map<String, Map<String, Object>> deepCopyOverrides(
+            Map<String, Map<String, Object>> source) {
+        Map<String, Map<String, Object>> copy = new HashMap<>();
+        for (Map.Entry<String, Map<String, Object>> entry : source.entrySet()) {
+            copy.put(entry.getKey(), new HashMap<>(entry.getValue()));
+        }
+        return copy;
+    }
+
     // ========================================================================
     // BACKWARD COMPATIBILITY - Record-style accessors
     // ========================================================================
-    // These methods match the old record accessor names so existing code
-    // like `data.prefabId()` still compiles. You can remove these later
-    // once you've updated all call sites to use `data.getPrefabId()`.
 
     public String prefabId() {
         return prefabId;
@@ -84,9 +100,5 @@ public class EntityData {
 
     public float[] position() {
         return position;
-    }
-
-    public Map<String, Object> properties() {
-        return properties;
     }
 }

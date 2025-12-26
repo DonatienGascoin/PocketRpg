@@ -59,7 +59,7 @@ public class PrefabRegistry {
     /**
      * Initializes the registry.
      * <p>
-     * Loads the default preview sprite and can register built-in prefabs.
+     * Loads the default preview sprite and registers built-in prefabs.
      * Should be called once during application startup.
      * <p>
      * <b>IMPORTANT</b>: Assets must be initialized already
@@ -78,17 +78,17 @@ public class PrefabRegistry {
             registry.defaultPreviewSprite = null;
         }
 
-        // Register Java prefabs (should be removed after it is possible to serialize component reference
-        registry.registerPreMadePrefabs();
+        // Register Java prefabs
+        registry.registerBuiltInPrefabs();
 
         // Scan and load JSON prefabs
         registry.loadJsonPrefabs();
 
         registry.initialized = true;
-        System.out.println("PrefabRegistry initialized");
+        System.out.println("PrefabRegistry initialized with " + registry.prefabs.size() + " prefabs");
     }
 
-    private void registerPreMadePrefabs() {
+    private void registerBuiltInPrefabs() {
         register(new ChestPrefab());
         register(new PlayerPrefab());
     }

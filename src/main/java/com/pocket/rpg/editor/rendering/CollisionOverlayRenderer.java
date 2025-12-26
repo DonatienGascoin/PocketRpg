@@ -51,7 +51,7 @@ public class CollisionOverlayRenderer {
             return;
         }
 
-        ImDrawList drawList = ImGui.getForegroundDrawList();
+        ImDrawList drawList = ImGui.getWindowDrawList();
         drawList.pushClipRect(viewportX, viewportY, viewportX + viewportWidth, viewportY + viewportHeight, true);
 
         // Get visible tile bounds
@@ -82,7 +82,7 @@ public class CollisionOverlayRenderer {
      * Renders a single collision tile.
      */
     private void renderTile(ImDrawList drawList, EditorCamera camera,
-                             int tileX, int tileY, CollisionType type) {
+                            int tileX, int tileY, CollisionType type) {
         Vector2f bottomLeft = camera.worldToScreen(tileX, tileY);
         Vector2f topRight = camera.worldToScreen(tileX + 1, tileY + 1);
 

@@ -14,6 +14,8 @@ import java.util.*;
  * Registry of all available components.
  * Scans the components package at startup and caches metadata.
  * <p>
+ * All components MUST have a no-arg constructor for serialization.
+ * <p>
  * Usage:
  * ComponentRegistry.initialize();
  * List<ComponentMeta> all = ComponentRegistry.getAll();
@@ -31,6 +33,8 @@ public class ComponentRegistry {
     /**
      * Initializes the registry by scanning the components package.
      * Call once at startup.
+     *
+     * @throws IllegalStateException if any component lacks a no-arg constructor
      */
     public static void initialize() {
         if (initialized) {
@@ -61,8 +65,7 @@ public class ComponentRegistry {
 
                 System.out.println("  Registered: " + meta.simpleName() +
                         " (" + meta.fields().size() + " fields, " +
-                        meta.references().size() + " refs" +
-                        (meta.hasNoArgConstructor() ? "" : ", NO DEFAULT CONSTRUCTOR") + ")");
+                        meta.references().size() + " refs)");
             }
 
             // Sort alphabetically
@@ -87,6 +90,7 @@ public class ComponentRegistry {
 
     /**
      * Gets all components that can be instantiated (have no-arg constructor).
+     * Since we now enforce no-arg constructors, this returns all components.
      */
     public static List<ComponentMeta> getInstantiable() {
         return allComponents.stream()
@@ -197,19 +201,23 @@ public class ComponentRegistry {
 
     /**
      * Builds metadata for a component class.
+     *
+     * @throws IllegalStateException if component lacks no-arg constructor
      */
     private static ComponentMeta buildMeta(Class<? extends Component> clazz) {
         String className = clazz.getName();
         String simpleName = clazz.getSimpleName();
         String displayName = ComponentMeta.toDisplayName(simpleName);
 
-        // Check for no-arg constructor
+        // Enforce no-arg constructor
         boolean hasNoArgConstructor = false;
         try {
             clazz.getDeclaredConstructor();
             hasNoArgConstructor = true;
         } catch (NoSuchMethodException e) {
-            // No no-arg constructor
+            throw new IllegalStateException(
+                    "Component " + simpleName + " must have a no-arg constructor for serialization. " +
+                    "Add a no-arg constructor or make configurable fields settable via setters.");
         }
 
         // Collect fields

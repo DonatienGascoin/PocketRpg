@@ -438,10 +438,15 @@ public class HierarchyPanel {
         } else {
             // Duplicate prefab instance
             copy = new EditorEntity(original.getPrefabId(), newPos);
+            copy.setName(original.getName() + "_copy");
 
-            // Copy property overrides
-            for (var entry : original.getProperties().entrySet()) {
-                copy.setProperty(entry.getKey(), entry.getValue());
+            // Copy component field overrides
+            for (ComponentData comp : original.getComponents()) {
+                String componentType = comp.getType();
+                for (String fieldName : original.getOverriddenFields(componentType)) {
+                    Object value = original.getFieldValue(componentType, fieldName);
+                    copy.setFieldValue(componentType, fieldName, value);
+                }
             }
         }
 

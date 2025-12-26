@@ -4,7 +4,6 @@ import com.pocket.rpg.editor.EditorModeManager;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.scene.EditorEntity;
 import com.pocket.rpg.editor.scene.EditorScene;
-import com.pocket.rpg.editor.scene.TilemapLayer;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.AddEntityCommand;
 import com.pocket.rpg.serialization.ComponentData;
@@ -25,12 +24,8 @@ import java.util.List;
 /**
  * Unified hierarchy panel showing scene structure.
  * <p>
- * Displays:
- * - Scene Camera (always first)
- * - Layers section (tilemap layers)
- * - Entities section (placed entity instances)
- * <p>
- * Supports selection, renaming, and context menus.
+ * Displays: Scene Camera, Tilemap Layers, Collision Map, Entities.
+ * Listens to EditorModeManager for mode changes to sync selection state.
  */
 public class HierarchyPanel {
 
@@ -53,16 +48,56 @@ public class HierarchyPanel {
     @Getter
     private boolean cameraSelected = false;
 
+    @Getter
+    private boolean tilemapLayersSelected = false;
+
+    @Getter
+    private boolean collisionMapSelected = false;
+
     // Rename state
     private Object renamingItem = null;
     private final ImString renameBuffer = new ImString(64);
 
     private final SavePrefabPopup savePrefabPopup = new SavePrefabPopup();
 
+    /**
+     * Initializes the panel and registers for mode change events.
+     * Call after setting modeManager.
+     */
+    public void init() {
+        if (modeManager != null) {
+            modeManager.onModeChanged(this::onModeChanged);
+        }
+    }
 
     /**
-     * Renders the hierarchy panel.
+     * Called when editor mode changes from any source.
      */
+    private void onModeChanged(EditorModeManager.Mode mode) {
+        switch (mode) {
+            case TILEMAP -> {
+                cameraSelected = false;
+                tilemapLayersSelected = true;
+                collisionMapSelected = false;
+                if (scene != null) {
+                    scene.setSelectedEntity(null);
+                }
+            }
+            case COLLISION -> {
+                cameraSelected = false;
+                tilemapLayersSelected = false;
+                collisionMapSelected = true;
+                if (scene != null) {
+                    scene.setSelectedEntity(null);
+                }
+            }
+            case ENTITY -> {
+                tilemapLayersSelected = false;
+                collisionMapSelected = false;
+            }
+        }
+    }
+
     public void render() {
         if (ImGui.begin("Hierarchy")) {
             if (scene == null) {
@@ -71,19 +106,15 @@ public class HierarchyPanel {
                 return;
             }
 
-            // Scene name header
             ImGui.text(FontAwesomeIcons.Map + " " + scene.getName());
             ImGui.separator();
 
-            // Camera item (always first)
             renderCameraItem();
+            renderTilemapLayersItem();
+            renderCollisionMapItem();
 
             ImGui.separator();
 
-            // Layers section
-            // renderLayersSection();
-
-            // Entities section
             renderEntitiesSection();
         }
         ImGui.end();
@@ -95,24 +126,21 @@ public class HierarchyPanel {
 
     private void renderCameraItem() {
         int flags = ImGuiTreeNodeFlags.Leaf | ImGuiTreeNodeFlags.NoTreePushOnOpen | ImGuiTreeNodeFlags.SpanAvailWidth;
-
         if (cameraSelected) {
             flags |= ImGuiTreeNodeFlags.Selected;
         }
 
-        String label = FontAwesomeIcons.Camera + " Scene Camera";
-        ImGui.treeNodeEx("##camera", flags, label);
+        ImGui.treeNodeEx("##camera", flags, FontAwesomeIcons.Camera + " Scene Camera");
 
         if (ImGui.isItemClicked()) {
             selectCamera();
         }
     }
 
-    /**
-     * Selects the camera (deselects everything else).
-     */
     public void selectCamera() {
         cameraSelected = true;
+        tilemapLayersSelected = false;
+        collisionMapSelected = false;
         if (scene != null) {
             scene.setSelectedEntity(null);
             scene.setActiveLayer(-1);
@@ -120,125 +148,54 @@ public class HierarchyPanel {
     }
 
     // ========================================================================
-    // LAYERS SECTION
+    // TILEMAP LAYERS
     // ========================================================================
 
-    private void renderLayersSection() {
-        int headerFlags = ImGuiTreeNodeFlags.DefaultOpen;
-
-        if (ImGui.collapsingHeader("Layers", headerFlags)) {
-            List<TilemapLayer> layers = scene.getLayers();
-
-            if (layers.isEmpty()) {
-                ImGui.textDisabled("No layers");
-            } else {
-                for (int i = 0; i < layers.size(); i++) {
-                    renderLayerItem(i, layers.get(i));
-                }
-            }
-
-            // Add layer button
-            if (ImGui.smallButton(FontAwesomeIcons.Plus + " Add Layer")) {
-                scene.addLayer("Layer " + scene.getLayerCount());
-            }
-        }
-    }
-
-    private void renderLayerItem(int index, TilemapLayer layer) {
-        boolean isActive = index == scene.getActiveLayerIndex() && !cameraSelected;
-        boolean isRenaming = layer == renamingItem;
-
+    private void renderTilemapLayersItem() {
         int flags = ImGuiTreeNodeFlags.Leaf | ImGuiTreeNodeFlags.NoTreePushOnOpen | ImGuiTreeNodeFlags.SpanAvailWidth;
-
-        if (isActive && modeManager != null && modeManager.isTilemapMode()) {
+        if (tilemapLayersSelected) {
             flags |= ImGuiTreeNodeFlags.Selected;
         }
 
-        ImGui.pushID(index);
+        int layerCount = scene != null ? scene.getLayerCount() : 0;
+        ImGui.treeNodeEx("##tilemapLayers", flags, FontAwesomeIcons.LayerGroup + " Tilemap Layers (" + layerCount + ")");
 
-        if (isRenaming) {
-            // Rename mode
-            ImGui.setNextItemWidth(120);
-            ImGui.setKeyboardFocusHere();
-
-            int inputFlags = ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll;
-            if (ImGui.inputText("##rename", renameBuffer, inputFlags)) {
-                String newName = renameBuffer.get().trim();
-                if (!newName.isEmpty()) {
-                    scene.renameLayer(index, newName);
-                }
-                renamingItem = null;
-            }
-
-            // Cancel on escape or click outside
-            if (ImGui.isKeyPressed(ImGuiKey.Escape)) {
-                renamingItem = null;
-            }
-        } else {
-            // Normal display
-            String visIcon = layer.isVisible() ? FontAwesomeIcons.Eye : FontAwesomeIcons.EyeSlash;
-            String label = visIcon + " " + layer.getName() + " (z:" + layer.getZIndex() + ")";
-
-            ImGui.treeNodeEx("##layer" + index, flags, label);
-
-            if (ImGui.isItemClicked()) {
-                selectLayer(index);
-            }
-
-            // Double-click to rename
-            if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(0)) {
-                renamingItem = layer;
-                renameBuffer.set(layer.getName());
-            }
-
-            // Context menu
-            if (ImGui.beginPopupContextItem("layer_ctx_" + index)) {
-                if (ImGui.menuItem(FontAwesomeIcons.Edit + " Rename")) {
-                    renamingItem = layer;
-                    renameBuffer.set(layer.getName());
-                }
-
-                if (ImGui.menuItem(layer.isVisible() ? FontAwesomeIcons.EyeSlash + " Hide" : FontAwesomeIcons.Eye + " Show")) {
-                    layer.setVisible(!layer.isVisible());
-                    scene.markDirty();
-                }
-
-                ImGui.separator();
-
-                if (ImGui.menuItem(FontAwesomeIcons.ArrowUp + " Move Up")) {
-                    layer.setZIndex(layer.getZIndex() + 1);
-                    scene.markDirty();
-                }
-
-                if (ImGui.menuItem(FontAwesomeIcons.ArrowDown + " Move Down")) {
-                    layer.setZIndex(layer.getZIndex() - 1);
-                    scene.markDirty();
-                }
-
-                ImGui.separator();
-
-                if (ImGui.menuItem(FontAwesomeIcons.Trash + " Delete")) {
-                    scene.removeLayer(index);
-                }
-
-                ImGui.endPopup();
-            }
+        if (ImGui.isItemClicked()) {
+            selectTilemapLayers();
         }
-
-        ImGui.popID();
     }
 
-    private void selectLayer(int index) {
+    public void selectTilemapLayers() {
         cameraSelected = false;
-        scene.setSelectedEntity(null);
-        scene.setActiveLayer(index);
-
         if (modeManager != null) {
             modeManager.switchToTilemap();
         }
-
         if (toolManager != null && brushTool != null) {
             toolManager.setActiveTool(brushTool);
+        }
+    }
+
+    // ========================================================================
+    // COLLISION MAP
+    // ========================================================================
+
+    private void renderCollisionMapItem() {
+        int flags = ImGuiTreeNodeFlags.Leaf | ImGuiTreeNodeFlags.NoTreePushOnOpen | ImGuiTreeNodeFlags.SpanAvailWidth;
+        if (collisionMapSelected) {
+            flags |= ImGuiTreeNodeFlags.Selected;
+        }
+
+        ImGui.treeNodeEx("##collisionMap", flags, FontAwesomeIcons.BorderAll + " Collision Map");
+
+        if (ImGui.isItemClicked()) {
+            selectCollisionMap();
+        }
+    }
+
+    public void selectCollisionMap() {
+        cameraSelected = false;
+        if (modeManager != null) {
+            modeManager.switchToCollision();
         }
     }
 
@@ -247,44 +204,31 @@ public class HierarchyPanel {
     // ========================================================================
 
     private void renderEntitiesSection() {
-        int headerFlags = ImGuiTreeNodeFlags.DefaultOpen;
+        List<EditorEntity> entities = scene.getEntities();
+        EditorEntity selected = scene.getSelectedEntity();
 
-        //if (ImGui.collapsingHeader("Entities", headerFlags)) {
-            List<EditorEntity> entities = scene.getEntities();
-            EditorEntity selected = scene.getSelectedEntity();
-
-            if (entities.isEmpty()) {
-                ImGui.textDisabled("No entities");
-            } else {
-                for (EditorEntity entity : entities) {
-                    renderEntityItem(entity, selected);
-                }
+        if (entities.isEmpty()) {
+            ImGui.textDisabled("No entities");
+        } else {
+            for (EditorEntity entity : entities) {
+                renderEntityItem(entity, selected);
             }
+        }
 
-            // Add entity buttons
-            ImGui.separator();
+        ImGui.separator();
 
-            if (ImGui.smallButton(FontAwesomeIcons.Plus + " New Entity")) {
-                createEmptyEntity();
-            }
-
-            ImGui.sameLine();
-            ImGui.textDisabled("or use Prefabs panel");
-        //}
+        if (ImGui.smallButton(FontAwesomeIcons.Plus + " New Entity")) {
+            createEmptyEntity();
+        }
+        ImGui.sameLine();
+        ImGui.textDisabled("or use Prefabs panel");
     }
 
-    /**
-     * Creates a new empty scratch entity at the origin.
-     */
     private void createEmptyEntity() {
-        // Create at world origin (you could also use camera position)
         Vector3f position = new Vector3f(0, 0, 0);
-
-        // Generate unique name
         int count = scene.getEntities().size();
         String name = "Entity_" + (count + 1);
 
-        // Create scratch entity (no prefab)
         EditorEntity entity = new EditorEntity(name, position, false);
         UndoManager.getInstance().execute(new AddEntityCommand(scene, entity));
         selectEntity(entity);
@@ -292,11 +236,10 @@ public class HierarchyPanel {
     }
 
     private void renderEntityItem(EditorEntity entity, EditorEntity selected) {
-        boolean isSelected = entity == selected && !cameraSelected;
+        boolean isSelected = entity == selected && !cameraSelected && !tilemapLayersSelected && !collisionMapSelected;
         boolean isRenaming = entity == renamingItem;
 
         int flags = ImGuiTreeNodeFlags.Leaf | ImGuiTreeNodeFlags.NoTreePushOnOpen | ImGuiTreeNodeFlags.SpanAvailWidth;
-
         if (isSelected) {
             flags |= ImGuiTreeNodeFlags.Selected;
         }
@@ -304,7 +247,6 @@ public class HierarchyPanel {
         ImGui.pushID(entity.getId());
 
         if (isRenaming) {
-            // Rename mode
             ImGui.setNextItemWidth(150);
             ImGui.setKeyboardFocusHere();
 
@@ -322,38 +264,23 @@ public class HierarchyPanel {
                 renamingItem = null;
             }
         } else {
-            // Normal display - different icon for scratch vs prefab entities
-            String icon;
+            String icon = entity.isScratchEntity() ? FontAwesomeIcons.Cube
+                    : entity.isPrefabValid() ? FontAwesomeIcons.Cubes
+                    : FontAwesomeIcons.ExclamationTriangle;
 
-            if (entity.isScratchEntity()) {
-                // Scratch entity - use cube icon
-                icon = FontAwesomeIcons.Cube;
-            } else if (entity.isPrefabValid()) {
-                // Valid prefab instance
-                icon = FontAwesomeIcons.Cubes;
-            } else {
-                // Missing prefab - warning icon
-                icon = FontAwesomeIcons.ExclamationTriangle;
-            }
-
-            String label = icon + " " + entity.getName();
-
-            ImGui.treeNodeEx("##entity", flags, label);
+            ImGui.treeNodeEx("##entity", flags, icon + " " + entity.getName());
 
             if (ImGui.isItemClicked()) {
                 selectEntity(entity);
             }
 
-            // Double-click to rename
             if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(0)) {
                 renamingItem = entity;
                 renameBuffer.set(entity.getName());
             }
 
-            // Tooltip with details
             if (ImGui.isItemHovered()) {
                 ImGui.beginTooltip();
-
                 if (entity.isScratchEntity()) {
                     ImGui.text("Scratch Entity");
                     int compCount = entity.getComponents().size();
@@ -366,13 +293,11 @@ public class HierarchyPanel {
                         ImGui.textColored(1f, 0.5f, 0.2f, 1f, "Missing prefab: " + entity.getPrefabId());
                     }
                 }
-
                 Vector3f pos = entity.getPosition();
                 ImGui.textDisabled(String.format("Position: (%.1f, %.1f)", pos.x, pos.y));
                 ImGui.endTooltip();
             }
 
-            // Context menu
             if (ImGui.beginPopupContextItem("entity_ctx_" + entity.getId())) {
                 if (ImGui.menuItem(FontAwesomeIcons.Edit + " Rename")) {
                     renamingItem = entity;
@@ -383,13 +308,9 @@ public class HierarchyPanel {
                     duplicateEntity(entity);
                 }
 
-                // Save as Prefab option for scratch entities
                 if (entity.isScratchEntity() && !entity.getComponents().isEmpty()) {
                     if (ImGui.menuItem(FontAwesomeIcons.Save + " Save as Prefab...")) {
-                        // You'll need to add a SavePrefabPopup field and open it here
-                        // Or emit an event that the editor controller handles
                         savePrefabPopup.open(entity, savedPrefab -> {
-                            // Optionally convert entity to prefab instance
                             System.out.println("Saved prefab: " + savedPrefab.getId());
                         });
                     }
@@ -410,12 +331,13 @@ public class HierarchyPanel {
 
     private void selectEntity(EditorEntity entity) {
         cameraSelected = false;
+        tilemapLayersSelected = false;
+        collisionMapSelected = false;
         scene.setSelectedEntity(entity);
 
         if (modeManager != null) {
             modeManager.switchToEntity();
         }
-
         if (toolManager != null && selectionTool != null) {
             toolManager.setActiveTool(selectionTool);
         }
@@ -426,21 +348,15 @@ public class HierarchyPanel {
         EditorEntity copy;
 
         if (original.isScratchEntity()) {
-            // Duplicate scratch entity
             copy = new EditorEntity(original.getName() + "_copy", newPos, false);
-
-            // Deep copy components
             for (ComponentData comp : original.getComponents()) {
                 ComponentData compCopy = new ComponentData(comp.getType());
                 compCopy.getFields().putAll(comp.getFields());
                 copy.addComponent(compCopy);
             }
         } else {
-            // Duplicate prefab instance
             copy = new EditorEntity(original.getPrefabId(), newPos);
             copy.setName(original.getName() + "_copy");
-
-            // Copy component field overrides
             for (ComponentData comp : original.getComponents()) {
                 String componentType = comp.getType();
                 for (String fieldName : original.getOverriddenFields(componentType)) {
@@ -455,11 +371,10 @@ public class HierarchyPanel {
         scene.markDirty();
     }
 
-    /**
-     * Clears any selection in the hierarchy.
-     */
     public void clearSelection() {
         cameraSelected = false;
+        tilemapLayersSelected = false;
+        collisionMapSelected = false;
         if (scene != null) {
             scene.setSelectedEntity(null);
         }

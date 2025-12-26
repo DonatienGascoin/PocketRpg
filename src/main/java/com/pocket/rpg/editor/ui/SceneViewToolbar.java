@@ -17,11 +17,7 @@ import java.util.function.Consumer;
 
 /**
  * Toolbar rendered inside the Scene viewport.
- * <p>
- * Contains:
- * - Tool buttons with FontAwesome icons (mode-specific)
- * - Mode dropdown (Tilemap/Collision/Entity)
- * - Visibility toggles (Grid, Collision overlay)
+ * Uses EditorModeManager.switchTo() which triggers listeners for hierarchy sync.
  */
 public class SceneViewToolbar {
 
@@ -31,7 +27,6 @@ public class SceneViewToolbar {
     @Setter
     private Consumer<String> messageCallback;
 
-    // Tool definitions for each mode
     private static final ToolDef[] TILEMAP_TOOLS = {
             new ToolDef("Brush", FontAwesomeIcons.PaintBrush, "B"),
             new ToolDef("Eraser", FontAwesomeIcons.Eraser, "E"),
@@ -53,7 +48,6 @@ public class SceneViewToolbar {
             new ToolDef("Place Entity", FontAwesomeIcons.PlusSquare, "P"),
     };
 
-    // Visibility state
     @Getter
     @Setter
     private boolean showGrid = true;
@@ -63,43 +57,29 @@ public class SceneViewToolbar {
         this.toolController = toolController;
     }
 
-    /**
-     * Renders the toolbar. Call this at the top of the Scene viewport.
-     *
-     * @param viewportWidth Available width for the toolbar
-     */
     public void render(float viewportWidth) {
-        // Disable keyboard navigation for toolbar to prevent WASD interference
         ImGui.pushTabStop(false);
-
         ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, 4, 4);
         ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 6, 4);
 
-        // Tool buttons
         renderToolButtons();
 
         ImGui.sameLine();
         ImGui.text("|");
         ImGui.sameLine();
 
-        // Mode dropdown
         renderModeDropdown();
 
         ImGui.sameLine();
         ImGui.text("|");
         ImGui.sameLine();
 
-        // Visibility toggles
         renderVisibilityToggles();
 
         ImGui.popStyleVar(2);
-
         ImGui.popTabStop();
     }
 
-    /**
-     * Renders tool icon buttons based on current mode.
-     */
     private void renderToolButtons() {
         EditorModeManager modeManager = context.getModeManager();
         ToolManager toolManager = context.getToolManager();
@@ -110,14 +90,12 @@ public class SceneViewToolbar {
         for (ToolDef def : tools) {
             boolean isActive = activeTool != null && activeTool.getName().equals(def.toolName);
 
-            // Highlight active tool
             if (isActive) {
                 ImGui.pushStyleColor(ImGuiCol.Button, 0.3f, 0.6f, 1.0f, 1.0f);
                 ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.4f, 0.7f, 1.0f, 1.0f);
                 ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.2f, 0.5f, 0.9f, 1.0f);
             }
 
-            // Icon button
             if (ImGui.button(def.icon + "##" + def.toolName)) {
                 toolManager.setActiveTool(def.toolName);
                 showMessage(def.toolName);
@@ -127,7 +105,6 @@ public class SceneViewToolbar {
                 ImGui.popStyleColor(3);
             }
 
-            // Tooltip with name and shortcut
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip(def.toolName + " (" + def.shortcut + ")");
             }
@@ -136,9 +113,6 @@ public class SceneViewToolbar {
         }
     }
 
-    /**
-     * Gets the tool definitions for the given mode.
-     */
     private ToolDef[] getToolsForMode(EditorModeManager.Mode mode) {
         return switch (mode) {
             case TILEMAP -> TILEMAP_TOOLS;
@@ -147,9 +121,6 @@ public class SceneViewToolbar {
         };
     }
 
-    /**
-     * Renders the mode dropdown.
-     */
     private void renderModeDropdown() {
         EditorModeManager modeManager = context.getModeManager();
         String currentModeName = modeManager.getCurrentMode().getDisplayName();
@@ -174,13 +145,9 @@ public class SceneViewToolbar {
         }
     }
 
-    /**
-     * Renders visibility toggle buttons.
-     */
     private void renderVisibilityToggles() {
         EditorScene scene = context.getCurrentScene();
 
-        // Grid toggle
         boolean gridActive = showGrid;
         if (gridActive) {
             ImGui.pushStyleColor(ImGuiCol.Button, 0.2f, 0.5f, 0.2f, 1.0f);
@@ -197,7 +164,6 @@ public class SceneViewToolbar {
 
         ImGui.sameLine();
 
-        // Collision overlay toggle
         boolean collisionVisible = scene != null && scene.isCollisionVisible();
         if (collisionVisible) {
             ImGui.pushStyleColor(ImGuiCol.Button, 0.5f, 0.2f, 0.2f, 1.0f);
@@ -216,30 +182,26 @@ public class SceneViewToolbar {
     }
 
     /**
-     * Switches to the specified mode and activates appropriate default tool.
+     * Switches mode via EditorModeManager (triggers onModeChanged listeners).
      */
     private void switchToMode(EditorModeManager.Mode mode) {
         EditorModeManager modeManager = context.getModeManager();
         ToolManager toolManager = context.getToolManager();
 
+        // switchTo() triggers listeners which sync HierarchyPanel
         modeManager.switchTo(mode);
 
-        // Set appropriate default tool for each mode
+        // Set default tool
         switch (mode) {
-            case TILEMAP -> {
-                toolManager.setActiveTool("Brush");
-                showMessage("Switched to Tilemap Mode");
-            }
+            case TILEMAP -> toolManager.setActiveTool("Brush");
             case COLLISION -> {
                 toolManager.setActiveTool("Collision Brush");
                 toolController.syncCollisionZLevels();
-                showMessage("Switched to Collision Mode");
             }
-            case ENTITY -> {
-                toolManager.setActiveTool("Select");
-                showMessage("Switched to Entity Mode");
-            }
+            case ENTITY -> toolManager.setActiveTool("Select");
         }
+
+        showMessage("Switched to " + mode.getDisplayName() + " Mode");
     }
 
     private void showMessage(String message) {
@@ -248,15 +210,5 @@ public class SceneViewToolbar {
         }
     }
 
-    /**
-     * Returns whether grid should be shown.
-     */
-    public boolean isShowGrid() {
-        return showGrid;
-    }
-
-    /**
-     * Tool definition record.
-     */
     private record ToolDef(String toolName, String icon, String shortcut) {}
 }

@@ -30,9 +30,6 @@ public class EditorUIController {
     private GameViewPanel gameViewPanel;
 
     @Getter
-    private LayerPanel layerPanel;
-
-    @Getter
     private TilesetPalettePanel tilesetPalette;
 
     @Getter
@@ -86,10 +83,6 @@ public class EditorUIController {
     private void createPanels() {
         EditorScene scene = context.getCurrentScene();
 
-        layerPanel = new LayerPanel();
-        layerPanel.setScene(scene);
-        layerPanel.setModeManager(context.getModeManager());
-
         tilesetPalette = new TilesetPalettePanel(context.getToolManager());
         tilesetPalette.setScene(scene);
         tilesetPalette.setBrushTool(toolController.getBrushTool());
@@ -120,6 +113,7 @@ public class EditorUIController {
         hierarchyPanel.setToolManager(context.getToolManager());
         hierarchyPanel.setSelectionTool(toolController.getSelectionTool());
         hierarchyPanel.setBrushTool(toolController.getBrushTool());
+        hierarchyPanel.init();
 
         inspectorPanel = new InspectorPanel();
         inspectorPanel.setScene(scene);
@@ -139,7 +133,6 @@ public class EditorUIController {
     }
 
     public void updateSceneReferences(EditorScene scene) {
-        layerPanel.setScene(scene);
         tilesetPalette.setScene(scene);
         collisionPanel.setScene(scene);
         menuBar.setCurrentScene(scene);
@@ -355,7 +348,6 @@ public class EditorUIController {
     }
 
     private void renderPanels() {
-        layerPanel.render();
         renderModePanels();
         hierarchyPanel.render();
         inspectorPanel.render();

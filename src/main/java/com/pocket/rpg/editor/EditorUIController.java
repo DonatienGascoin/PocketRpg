@@ -48,6 +48,9 @@ public class EditorUIController {
     private InspectorPanel inspectorPanel;
 
     @Getter
+    private ConfigPanel configPanel;
+
+    @Getter
     private EditorMenuBar menuBar;
 
     @Getter
@@ -124,11 +127,14 @@ public class EditorUIController {
         inspectorPanel = new InspectorPanel();
         inspectorPanel.setScene(scene);
         inspectorPanel.setHierarchyPanel(hierarchyPanel);
+
+        configPanel = new ConfigPanel(context);
     }
 
     private void createMenuAndStatus() {
         menuBar = new EditorMenuBar();
         menuBar.setCurrentScene(context.getCurrentScene());
+        menuBar.setConfigPanel(configPanel);
 
         statusBar = new StatusBar();
         statusBar.setCamera(context.getCamera());
@@ -359,6 +365,7 @@ public class EditorUIController {
         renderModePanels();
         hierarchyPanel.render();
         inspectorPanel.render();
+        configPanel.render();
         if (gameViewPanel != null) {
             gameViewPanel.render();
         }

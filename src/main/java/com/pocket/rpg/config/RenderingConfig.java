@@ -4,7 +4,7 @@ import com.pocket.rpg.rendering.SpriteBatch;
 import com.pocket.rpg.rendering.stats.ConsoleStatisticsReporter;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Getter;
+import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.joml.Vector4f;
 
@@ -87,7 +87,7 @@ import org.joml.Vector4f;
  * @see com.pocket.rpg.rendering.Sprite#getWorldHeight()
  * @see com.pocket.rpg.core.Camera#setOrthographicSize(float)
  */
-@Getter
+@Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -98,9 +98,10 @@ public class RenderingConfig {
      * Higher values reduce draw calls but increase memory usage.
      * <p>
      * Default: 10000
+     * Note: Changing this at runtime requires renderer rebuild.
      */
     @Builder.Default
-    private final int maxBatchSize = 10000;
+    private int maxBatchSize = 10000;
 
     /**
      * Strategy for sorting sprites within a batch.
@@ -111,7 +112,7 @@ public class RenderingConfig {
      * @see SpriteBatch.SortingStrategy
      */
     @Builder.Default
-    private final SpriteBatch.SortingStrategy sortingStrategy = SpriteBatch.SortingStrategy.BALANCED;
+    private SpriteBatch.SortingStrategy sortingStrategy = SpriteBatch.SortingStrategy.BALANCED;
 
     /**
      * Whether to collect and report rendering statistics.
@@ -120,7 +121,7 @@ public class RenderingConfig {
      * Default: true
      */
     @Builder.Default
-    private final boolean enableStatistics = true;
+    private boolean enableStatistics = true;
 
     /**
      * Number of frames between statistics reports.
@@ -129,7 +130,7 @@ public class RenderingConfig {
      * Default: 300 (every 5 seconds at 60 FPS)
      */
     @Builder.Default
-    private final int statisticsInterval = 300;
+    private int statisticsInterval = 300;
 
     /**
      * Reporter for rendering statistics output.
@@ -147,7 +148,7 @@ public class RenderingConfig {
      * Default: (1.0, 0.8, 0.8, 1.0) - light pink
      */
     @Builder.Default
-    private final Vector4f clearColor = new Vector4f(1f, 0.8f, 0.8f, 1.0f);
+    private Vector4f clearColor = new Vector4f(1f, 0.8f, 0.8f, 1.0f);
 
     // ========================================================================
     // WORLD UNIT SYSTEM
@@ -182,7 +183,7 @@ public class RenderingConfig {
      * @see com.pocket.rpg.rendering.Sprite#getWorldWidth()
      */
     @Builder.Default
-    private final float pixelsPerUnit = 16f;
+    private float pixelsPerUnit = 16f;
 
     /**
      * Default orthographic size for new cameras (half-height in world units).
@@ -217,7 +218,7 @@ public class RenderingConfig {
      * @see com.pocket.rpg.core.Camera#setOrthographicSize(float)
      */
     @Builder.Default
-    private final Float defaultOrthographicSize = null;
+    private Float defaultOrthographicSize = null;
 
     /**
      * Calculates the effective orthographic size for a given game height.

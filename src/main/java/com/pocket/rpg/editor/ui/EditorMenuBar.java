@@ -1,10 +1,12 @@
 package com.pocket.rpg.editor.ui;
 
 import com.pocket.rpg.editor.core.FileDialogs;
+import com.pocket.rpg.editor.panels.ConfigPanel;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.undo.UndoManager;
 import imgui.ImGui;
 import imgui.flag.ImGuiKey;
+import lombok.Setter;
 
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -13,6 +15,9 @@ import java.util.function.Consumer;
  * Main menu bar for the Scene Editor.
  */
 public class EditorMenuBar {
+
+    @Setter
+    private ConfigPanel configPanel;
 
     private Runnable onNewScene;
     private Consumer<String> onOpenScene;
@@ -74,6 +79,14 @@ public class EditorMenuBar {
                     recentFiles = new String[0];
                 }
                 ImGui.endMenu();
+            }
+
+            ImGui.separator();
+
+            if (ImGui.menuItem("Configuration...", "")) {
+                if (configPanel != null) {
+                    configPanel.openModal();
+                }
             }
 
             ImGui.separator();

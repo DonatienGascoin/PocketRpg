@@ -5,6 +5,7 @@ import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.config.InputConfig;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.editor.camera.EditorCamera;
+import com.pocket.rpg.postProcessing.PostEffectRegistry;
 import com.pocket.rpg.serialization.ComponentRegistry;
 import com.pocket.rpg.editor.core.EditorConfig;
 import com.pocket.rpg.editor.core.EditorWindow;
@@ -103,6 +104,7 @@ public class EditorApplication {
         TilesetRegistry.initialize();
         TilesetRegistry.getInstance().scanAndLoad();
         PrefabRegistry.initialize();
+        PostEffectRegistry.initialize();
 
         // Create camera
         EditorCamera camera = new EditorCamera(config);

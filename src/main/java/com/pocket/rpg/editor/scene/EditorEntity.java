@@ -6,6 +6,7 @@ import com.pocket.rpg.prefab.Prefab;
 import com.pocket.rpg.prefab.PrefabRegistry;
 import com.pocket.rpg.prefab.PropertyDefinition;
 import com.pocket.rpg.rendering.Sprite;
+import com.pocket.rpg.resources.Assets;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector2f;
@@ -360,7 +361,13 @@ public class EditorEntity {
             return;
         }
 
-        previewSprite = PrefabRegistry.getInstance().getPreviewSprite(prefabId);
+        if (isPrefabInstance()) {
+            // Prefab instance - use registry
+            previewSprite = PrefabRegistry.getInstance().getPreviewSprite(prefabId);
+        } else {
+            // Scratch entity - extract from SpriteRenderer component
+            previewSprite = extractSpriteFromComponents();
+        }
 
         if (previewSprite != null) {
             previewSize = new Vector2f(
@@ -368,10 +375,29 @@ public class EditorEntity {
                     previewSprite.getHeight() / DEFAULT_PPU
             );
         } else {
-            previewSize = new Vector2f(1f, 1f); // Default 1x1 tile
+            previewSize = new Vector2f(1f, 1f);
         }
 
         previewCached = true;
+    }
+
+    /**
+     * Extracts sprite from SpriteRenderer component (for scratch entities).
+     */
+    private Sprite extractSpriteFromComponents() {
+        if (components == null) {
+            return null;
+        }
+
+        for (ComponentData comp : components) {
+            if ("SpriteRenderer".equals(comp.getSimpleName())) {
+                Object value = comp.getFields().get("sprite");
+                if (value instanceof Sprite sprite) {
+                    return sprite;
+                }
+            }
+        }
+        return null;
     }
 
     // ========================================================================

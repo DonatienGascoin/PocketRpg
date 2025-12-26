@@ -39,6 +39,7 @@ public class ReflectionFieldEditor {
     private static final AssetPickerPopup assetPicker = new AssetPickerPopup();
     private static ComponentData assetPickerTargetData = null;
     private static String assetPickerFieldName = null;
+    private static EditorEntity assetPickerTargetEntity = null;
 
     public static boolean drawComponent(ComponentData component, EditorEntity entity) {
         if (component == null) {
@@ -55,7 +56,7 @@ public class ReflectionFieldEditor {
 
         for (FieldMeta fieldMeta : meta.fields()) {
             try {
-                changed |= drawField(component, fieldMeta);
+                changed |= drawField(component, fieldMeta, entity);
             } catch (Exception e) {
                 ImGui.textColored(1f, 0.3f, 0.3f, 1f,
                         fieldMeta.name() + ": Error - " + e.getMessage());
@@ -72,6 +73,10 @@ public class ReflectionFieldEditor {
     }
 
     public static boolean drawField(ComponentData data, FieldMeta meta) {
+        return drawField(data, meta, null);
+    }
+
+    public static boolean drawField(ComponentData data, FieldMeta meta, EditorEntity entity) {
         Class<?> type = meta.type();
         String fieldName = meta.name();
         Object value = data.getFields().get(fieldName);
@@ -189,12 +194,13 @@ public class ReflectionFieldEditor {
             if (ImGui.smallButton("...##" + fieldName)) {
                 assetPickerTargetData = data;
                 assetPickerFieldName = fieldName;
+                assetPickerTargetEntity = entity;
                 Object oldValue = data.getFields().get(fieldName);
                 assetPicker.open(type, selectedAsset -> {
                     if (assetPickerTargetData != null && assetPickerFieldName != null) {
                         UndoManager.getInstance().execute(
                                 new SetComponentFieldCommand(assetPickerTargetData, assetPickerFieldName,
-                                        oldValue, selectedAsset)
+                                        oldValue, selectedAsset, assetPickerTargetEntity)
                         );
                     }
                 });
@@ -214,7 +220,7 @@ public class ReflectionFieldEditor {
         // Apply change via undo command
         if (changed && !valuesEqual(value, newValue)) {
             UndoManager.getInstance().execute(
-                    new SetComponentFieldCommand(data, fieldName, value, newValue)
+                    new SetComponentFieldCommand(data, fieldName, value, newValue, entity)
             );
         }
 

@@ -1,19 +1,24 @@
 package com.pocket.rpg.editor.ui;
 
 import com.pocket.rpg.config.GameConfig;
+import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.editor.EditorContext;
 import com.pocket.rpg.editor.PlayModeController;
 import com.pocket.rpg.editor.PlayModeController.PlayState;
+import com.pocket.rpg.editor.rendering.GamePreviewRenderer;
+import com.pocket.rpg.editor.scene.EditorScene;
 import imgui.ImGui;
 import imgui.ImVec2;
 import imgui.flag.ImGuiWindowFlags;
 
 /**
- * ImGui panel that displays the game during Play Mode.
+ * ImGui panel that displays the game during Play Mode,
+ * and a static preview when stopped.
  * <p>
  * Features:
  * - Play/Pause/Stop toolbar
  * - Pillarboxed game display maintaining aspect ratio
+ * - Static preview when stopped (using game camera settings)
  * - FPS display during play
  */
 public class GameViewPanel {
@@ -21,15 +26,40 @@ public class GameViewPanel {
     private final EditorContext context;
     private final PlayModeController playController;
     private final GameConfig gameConfig;
+    private final RenderingConfig renderingConfig;
+
+    // Preview renderer for stopped state
+    private GamePreviewRenderer previewRenderer;
 
     // Cached aspect ratio
     private float aspectRatio;
 
-    public GameViewPanel(EditorContext context, PlayModeController playController, GameConfig gameConfig) {
+    // Track scene for dirty detection
+    private EditorScene lastScene;
+    private boolean lastSceneDirty;
+
+    public GameViewPanel(EditorContext context, PlayModeController playController,
+                         GameConfig gameConfig, RenderingConfig renderingConfig) {
         this.context = context;
         this.playController = playController;
         this.gameConfig = gameConfig;
+        this.renderingConfig = renderingConfig;
         this.aspectRatio = (float) gameConfig.getGameWidth() / gameConfig.getGameHeight();
+    }
+
+    /**
+     * Convenience constructor for backwards compatibility.
+     */
+    public GameViewPanel(EditorContext context, PlayModeController playController, GameConfig gameConfig) {
+        this(context, playController, gameConfig, context.getRenderingConfig());
+    }
+
+    /**
+     * Initializes the preview renderer. Call after OpenGL context is ready.
+     */
+    public void init() {
+        previewRenderer = new GamePreviewRenderer(gameConfig, renderingConfig);
+        previewRenderer.init();
     }
 
     /**
@@ -51,9 +81,11 @@ public class GameViewPanel {
         PlayState state = playController.getState();
 
         if (state != PlayState.STOPPED) {
+            // Playing or paused - show live game
             renderGameView();
         } else {
-            renderPlaceholder();
+            // Stopped - show static preview
+            renderPreview();
         }
 
         ImGui.end();
@@ -104,9 +136,59 @@ public class GameViewPanel {
     }
 
     /**
-     * Renders the game view with pillarboxing.
+     * Renders the live game view with pillarboxing.
      */
     private void renderGameView() {
+        int textureId = playController.getOutputTexture();
+        renderTextureWithAspectRatio(textureId);
+    }
+
+    /**
+     * Renders the static preview when stopped.
+     */
+    private void renderPreview() {
+        // Initialize preview renderer if needed
+        if (previewRenderer == null || !previewRenderer.isInitialized()) {
+            init();
+        }
+
+        EditorScene scene = context.getCurrentScene();
+
+        // Check if we need to re-render
+        boolean needsRender = previewRenderer.isDirty();
+
+        // Scene changed?
+        if (scene != lastScene) {
+            needsRender = true;
+            lastScene = scene;
+            lastSceneDirty = scene != null && scene.isDirty();
+        }
+
+        // Scene became dirty?
+        if (scene != null && scene.isDirty() != lastSceneDirty) {
+            needsRender = true;
+            lastSceneDirty = scene.isDirty();
+        }
+
+        // Render preview if needed
+        if (needsRender) {
+            previewRenderer.render(scene);
+        }
+
+        // Display the preview texture
+        int textureId = previewRenderer.getOutputTexture();
+        renderTextureWithAspectRatio(textureId);
+
+        // Show camera info overlay
+        if (scene != null) {
+            renderCameraInfoOverlay(scene);
+        }
+    }
+
+    /**
+     * Renders a texture maintaining aspect ratio with pillarboxing/letterboxing.
+     */
+    private void renderTextureWithAspectRatio(int textureId) {
         // Get available content region
         ImVec2 available = new ImVec2();
         ImGui.getContentRegionAvail(available);
@@ -137,36 +219,46 @@ public class GameViewPanel {
         ImGui.getCursorPos(cursorPos);
         ImGui.setCursorPos(cursorPos.x + offsetX, cursorPos.y + offsetY);
 
-        // Render game texture (flip UV vertically for OpenGL)
-        int textureId = playController.getOutputTexture();
+        // Render texture (flip UV vertically for OpenGL)
         ImGui.image(textureId, displayWidth, displayHeight, 0, 1, 1, 0);
 
         // Handle mouse input on game view
         if (ImGui.isItemHovered()) {
-            // Future: route mouse to game
+            // Future: route mouse to game or show coordinates
         }
     }
 
     /**
-     * Renders a placeholder when not playing.
+     * Renders camera info overlay in the preview.
      */
-    private void renderPlaceholder() {
-        ImVec2 available = new ImVec2();
-        ImGui.getContentRegionAvail(available);
+    private void renderCameraInfoOverlay(EditorScene scene) {
+        var settings = scene.getCameraSettings();
 
-        // Center text
-        String text = "Press Play to test the scene";
+        ImVec2 windowPos = ImGui.getWindowPos();
+        ImVec2 contentMin = ImGui.getWindowContentRegionMin();
+
+        float overlayX = windowPos.x + contentMin.x + 5;
+        float overlayY = windowPos.y + contentMin.y + 25; // Below separator
+
+        var drawList = ImGui.getWindowDrawList();
+
+        // Background
+        String info = String.format("Camera: (%.1f, %.1f) | Size: %.1f",
+                settings.getPosition().x, settings.getPosition().y,
+                settings.getOrthographicSize());
+
         ImVec2 textSize = new ImVec2();
-        ImGui.calcTextSize(textSize, text);
+        ImGui.calcTextSize(textSize, info);
 
-        float offsetX = (available.x - textSize.x) / 2f;
-        float offsetY = (available.y - textSize.y) / 2f;
+        drawList.addRectFilled(
+                overlayX - 2, overlayY - 2,
+                overlayX + textSize.x + 4, overlayY + textSize.y + 2,
+                ImGui.colorConvertFloat4ToU32(0.0f, 0.0f, 0.0f, 0.6f)
+        );
 
-        ImVec2 cursorPos = new ImVec2();
-        ImGui.getCursorPos(cursorPos);
-        ImGui.setCursorPos(cursorPos.x + offsetX, cursorPos.y + offsetY);
-
-        ImGui.textDisabled(text);
+        drawList.addText(overlayX, overlayY,
+                ImGui.colorConvertFloat4ToU32(0.7f, 0.7f, 0.7f, 1.0f),
+                info);
     }
 
     /**
@@ -184,5 +276,25 @@ public class GameViewPanel {
      */
     public void updateAspectRatio() {
         aspectRatio = (float) gameConfig.getGameWidth() / gameConfig.getGameHeight();
+    }
+
+    /**
+     * Marks the preview as needing re-render.
+     * Call when the scene changes externally.
+     */
+    public void markPreviewDirty() {
+        if (previewRenderer != null) {
+            previewRenderer.markDirty();
+        }
+    }
+
+    /**
+     * Destroys rendering resources.
+     */
+    public void destroy() {
+        if (previewRenderer != null) {
+            previewRenderer.destroy();
+            previewRenderer = null;
+        }
     }
 }

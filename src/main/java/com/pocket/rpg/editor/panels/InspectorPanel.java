@@ -9,6 +9,8 @@ import com.pocket.rpg.editor.scene.SceneCameraSettings;
 import com.pocket.rpg.editor.scene.TilemapLayer;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.AddComponentCommand;
+import com.pocket.rpg.editor.undo.commands.BulkDeleteCommand;
+import com.pocket.rpg.editor.undo.commands.BulkMoveCommand;
 import com.pocket.rpg.editor.undo.commands.MoveEntityCommand;
 import com.pocket.rpg.editor.undo.commands.RemoveComponentCommand;
 import com.pocket.rpg.editor.undo.commands.RemoveEntityCommand;
@@ -31,9 +33,10 @@ import org.joml.Vector3f;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 
 /**
- * Context-sensitive inspector panel with full undo support.
+ * Context-sensitive inspector panel with multi-selection support.
  */
 public class InspectorPanel {
 
@@ -73,16 +76,80 @@ public class InspectorPanel {
                 renderTilemapLayersInspector();
             } else if (hierarchyPanel != null && hierarchyPanel.isCollisionMapSelected()) {
                 renderCollisionMapInspector();
-            } else if (scene.getSelectedEntity() != null) {
-                renderEntityInspector(scene.getSelectedEntity());
             } else {
-                ImGui.textDisabled("Select an item to inspect");
+                Set<EditorEntity> selected = scene.getSelectedEntities();
+                if (selected.size() > 1) {
+                    renderMultiSelectionInspector(selected);
+                } else if (selected.size() == 1) {
+                    renderEntityInspector(selected.iterator().next());
+                } else {
+                    ImGui.textDisabled("Select an item to inspect");
+                }
             }
         }
         ImGui.end();
 
         ReflectionFieldEditor.renderAssetPicker();
         renderDeleteConfirmationPopup();
+    }
+
+    // ========================================================================
+    // MULTI-SELECTION INSPECTOR
+    // ========================================================================
+
+    private void renderMultiSelectionInspector(Set<EditorEntity> selected) {
+        ImGui.text(FontAwesomeIcons.ObjectGroup + " " + selected.size() + " entities selected");
+        ImGui.separator();
+
+        // Bulk position offset
+        ImGui.text("Move Offset");
+        floatBuffer[0] = 0;
+        floatBuffer[1] = 0;
+        if (ImGui.dragFloat2("##offset", floatBuffer, 0.1f)) {
+            if (floatBuffer[0] != 0 || floatBuffer[1] != 0) {
+                Vector3f offset = new Vector3f(floatBuffer[0], floatBuffer[1], 0);
+                UndoManager.getInstance().execute(new BulkMoveCommand(scene, selected, offset));
+                floatBuffer[0] = 0;
+                floatBuffer[1] = 0;
+            }
+        }
+
+        ImGui.sameLine();
+        if (ImGui.smallButton("Snap All")) {
+            for (EditorEntity entity : selected) {
+                Vector3f pos = entity.getPosition();
+                entity.setPosition(Math.round(pos.x * 2) / 2f, Math.round(pos.y));
+            }
+            scene.markDirty();
+        }
+
+        ImGui.separator();
+
+        // List selected entities
+        ImGui.text("Selected:");
+        ImGui.beginChild("##selectedList", 0, 100, true);
+        for (EditorEntity entity : selected) {
+            String icon = entity.isScratchEntity() ? FontAwesomeIcons.Cube : FontAwesomeIcons.Cubes;
+            ImGui.text(icon + " " + entity.getName());
+        }
+        ImGui.endChild();
+
+        ImGui.separator();
+
+        // Bulk actions
+        ImGui.pushStyleColor(ImGuiCol.Button, 0.5f, 0.2f, 0.2f, 1f);
+        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.6f, 0.3f, 0.3f, 1f);
+        if (ImGui.button(FontAwesomeIcons.Trash + " Delete All", -1, 0)) {
+            UndoManager.getInstance().execute(new BulkDeleteCommand(scene, selected));
+        }
+        ImGui.popStyleColor(2);
+
+        if (ImGui.button(FontAwesomeIcons.TimesCircle + " Clear Selection", -1, 0)) {
+            scene.clearSelection();
+        }
+
+        ImGui.separator();
+        ImGui.textDisabled("Component editing disabled for multi-selection");
     }
 
     // ========================================================================
@@ -269,7 +336,6 @@ public class InspectorPanel {
 
         ImGui.pushID(index);
 
-        // Visibility toggle
         boolean visible = layer.isVisible();
         if (ImGui.smallButton((visible ? FontAwesomeIcons.Eye : FontAwesomeIcons.EyeSlash) + "##vis")) {
             layer.setVisible(!visible);
@@ -279,7 +345,6 @@ public class InspectorPanel {
 
         ImGui.sameLine();
 
-        // Lock toggle
         boolean locked = layer.isLocked();
         if (ImGui.smallButton((locked ? FontAwesomeIcons.Lock : FontAwesomeIcons.LockOpen) + "##lock")) {
             layer.setLocked(!locked);
@@ -396,7 +461,7 @@ public class InspectorPanel {
     }
 
     // ========================================================================
-    // ENTITY INSPECTOR
+    // SINGLE ENTITY INSPECTOR
     // ========================================================================
 
     private void renderEntityInspector(EditorEntity entity) {
@@ -433,6 +498,15 @@ public class InspectorPanel {
 
         ImGui.separator();
         renderPositionEditor(entity);
+
+        // Hierarchy info
+        if (entity.getParent() != null) {
+            ImGui.textDisabled("Parent: " + entity.getParent().getName());
+        }
+        if (entity.hasChildren()) {
+            ImGui.textDisabled("Children: " + entity.getChildren().size());
+        }
+
         ImGui.separator();
 
         if (entity.isPrefabInstance()) {
@@ -606,6 +680,13 @@ public class InspectorPanel {
         if (ImGui.beginPopupModal("Delete Entity?", imgui.flag.ImGuiWindowFlags.AlwaysAutoResize)) {
             if (pendingDeleteEntity != null) {
                 ImGui.text("Delete entity '" + pendingDeleteEntity.getName() + "'?");
+
+                if (pendingDeleteEntity.hasChildren()) {
+                    ImGui.textColored(1f, 0.7f, 0.2f, 1f,
+                            FontAwesomeIcons.ExclamationTriangle + " This will also delete " +
+                                    pendingDeleteEntity.getChildren().size() + " children!");
+                }
+
                 ImGui.spacing();
                 ImGui.textDisabled("This can be undone with Ctrl+Z");
                 ImGui.spacing();

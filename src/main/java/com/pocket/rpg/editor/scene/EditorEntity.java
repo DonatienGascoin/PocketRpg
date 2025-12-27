@@ -11,6 +11,7 @@ import org.joml.Vector2f;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,54 +19,54 @@ import java.util.UUID;
 
 /**
  * Editor-side representation of a placed entity instance.
- * <p>
- * EditorEntity stores the minimal data needed to reconstruct
- * a GameObject at runtime:
- * - Prefab reference (determines base components)
- * - Position (where to place it)
- * - Component field overrides (per-instance customization)
- * <p>
- * For prefab instances, overrides are stored per-component-type, per-field.
- * For scratch entities, components are stored directly.
+ * Supports parent-child hierarchy and sibling ordering.
  */
 public class EditorEntity {
 
-    /**
-     * Unique instance ID (generated, not user-editable).
-     */
     @Getter
     private final String id;
 
-    /**
-     * Reference to the prefab definition.
-     * Null for scratch entities.
-     */
     @Getter
     private String prefabId;
 
-    /**
-     * Display name (editable by user).
-     */
     @Getter
     @Setter
     private String name;
 
-    /**
-     * World position.
-     */
     private final Vector3f position;
 
-    /**
-     * Component data for scratch entities (when prefabId is null).
-     */
     private List<ComponentData> components;
 
-    /**
-     * Component field overrides for prefab instances.
-     * Structure: componentType -> (fieldName -> value)
-     * Only stores values different from prefab defaults.
-     */
     private Map<String, Map<String, Object>> componentOverrides;
+
+    // ========================================================================
+    // HIERARCHY
+    // ========================================================================
+
+    /**
+     * Parent entity ID (serialized).
+     */
+    @Getter
+    @Setter
+    private String parentId;
+
+    /**
+     * Sibling order (lower = earlier in list).
+     */
+    @Getter
+    @Setter
+    private int order;
+
+    /**
+     * Parent reference (transient, rebuilt after load).
+     */
+    @Getter
+    private transient EditorEntity parent;
+
+    /**
+     * Children list (transient, rebuilt after load).
+     */
+    private transient List<EditorEntity> children;
 
     // ========================================================================
     // CACHED PREVIEW DATA (not serialized)
@@ -81,28 +82,23 @@ public class EditorEntity {
     // CONSTRUCTORS
     // ========================================================================
 
-    /**
-     * Creates a new prefab instance.
-     *
-     * @param prefabId Reference to the prefab
-     * @param position World position
-     */
     public EditorEntity(String prefabId, Vector3f position) {
         this.id = generateId();
         this.prefabId = prefabId;
         this.name = prefabId + "_" + id;
         this.position = new Vector3f(position);
         this.componentOverrides = new HashMap<>();
+        this.children = new ArrayList<>();
+        this.order = 0;
     }
 
-    /**
-     * Creates a new entity (scratch or prefab based on isPrefab flag).
-     */
     public EditorEntity(String name, Vector3f position, boolean isPrefab) {
         this.id = generateId();
         this.prefabId = isPrefab ? name : null;
         this.name = isPrefab ? (name + "_" + id) : name;
         this.position = new Vector3f(position);
+        this.children = new ArrayList<>();
+        this.order = 0;
 
         if (isPrefab) {
             this.componentOverrides = new HashMap<>();
@@ -111,22 +107,130 @@ public class EditorEntity {
         }
     }
 
-    /**
-     * Private constructor for deserialization.
-     */
     private EditorEntity(String id, String prefabId, String name, Vector3f position,
                          List<ComponentData> components,
-                         Map<String, Map<String, Object>> componentOverrides) {
-        this.id = id;
+                         Map<String, Map<String, Object>> componentOverrides,
+                         String parentId, int order) {
+        this.id = (id != null && !id.isEmpty()) ? id : generateId();
         this.prefabId = prefabId;
         this.name = name;
         this.position = new Vector3f(position);
         this.components = components;
         this.componentOverrides = componentOverrides != null ? new HashMap<>(componentOverrides) : new HashMap<>();
+        this.parentId = parentId;
+        this.order = order;
+        this.children = new ArrayList<>();
     }
 
     private String generateId() {
         return UUID.randomUUID().toString().substring(0, 8);
+    }
+
+    // ========================================================================
+    // HIERARCHY MANAGEMENT
+    // ========================================================================
+
+    /**
+     * Sets the parent entity. Updates both parentId and transient reference.
+     * Also updates the old and new parent's children lists.
+     */
+    public void setParent(EditorEntity newParent) {
+        if (newParent == this) {
+            System.err.println("Cannot set entity as its own parent!");
+            return;
+        }
+
+        if (newParent != null && isAncestorOf(newParent)) {
+            System.err.println("Cannot set descendant as parent (circular reference)!");
+            return;
+        }
+
+        // Remove from old parent's children
+        if (this.parent != null) {
+            this.parent.children.remove(this);
+        }
+
+        this.parent = newParent;
+        this.parentId = (newParent != null) ? newParent.getId() : null;
+
+        // Add to new parent's children
+        if (newParent != null) {
+            if (newParent.children == null) {
+                newParent.children = new ArrayList<>();
+            }
+            newParent.children.add(this);
+        }
+    }
+
+    /**
+     * Checks if this entity is an ancestor of the given entity.
+     */
+    public boolean isAncestorOf(EditorEntity other) {
+        EditorEntity current = other.parent;
+        while (current != null) {
+            if (current == this) return true;
+            current = current.parent;
+        }
+        return false;
+    }
+
+    /**
+     * Returns unmodifiable list of children.
+     */
+    public List<EditorEntity> getChildren() {
+        if (children == null) {
+            children = new ArrayList<>();
+        }
+        return Collections.unmodifiableList(children);
+    }
+
+    /**
+     * Returns mutable children list for internal use.
+     */
+    List<EditorEntity> getChildrenMutable() {
+        if (children == null) {
+            children = new ArrayList<>();
+        }
+        return children;
+    }
+
+    /**
+     * Checks if this entity has any children.
+     */
+    public boolean hasChildren() {
+        return children != null && !children.isEmpty();
+    }
+
+    /**
+     * Gets the depth level in the hierarchy (0 = root).
+     */
+    public int getDepth() {
+        int depth = 0;
+        EditorEntity current = parent;
+        while (current != null) {
+            depth++;
+            current = current.parent;
+        }
+        return depth;
+    }
+
+    /**
+     * Clears parent reference (internal use for removal).
+     */
+    void clearParent() {
+        if (this.parent != null) {
+            this.parent.children.remove(this);
+        }
+        this.parent = null;
+        this.parentId = null;
+    }
+
+    /**
+     * Directly sets the transient parent reference without side effects.
+     * Used by EditorScene.insertEntityAtPosition for controlled hierarchy updates.
+     */
+    void setParentDirect(EditorEntity newParent) {
+        this.parent = newParent;
     }
 
     // ========================================================================
@@ -169,10 +273,6 @@ public class EditorEntity {
     // SCRATCH ENTITY COMPONENT MANAGEMENT
     // ========================================================================
 
-    /**
-     * Gets the component data list for scratch entities.
-     * For prefab instances, returns the prefab's components merged with overrides.
-     */
     public List<ComponentData> getComponents() {
         if (isScratchEntity()) {
             if (components == null) {
@@ -180,14 +280,10 @@ public class EditorEntity {
             }
             return components;
         } else {
-            // For prefab instances, return merged view
             return getMergedComponents();
         }
     }
 
-    /**
-     * Gets components with overrides applied (for prefab instances).
-     */
     private List<ComponentData> getMergedComponents() {
         Prefab prefab = getPrefab();
         if (prefab == null) {
@@ -199,7 +295,6 @@ public class EditorEntity {
             ComponentData merged = new ComponentData(baseComp.getType());
             merged.getFields().putAll(baseComp.getFields());
 
-            // Apply overrides
             Map<String, Object> overrides = componentOverrides.get(baseComp.getType());
             if (overrides != null) {
                 merged.getFields().putAll(overrides);
@@ -210,11 +305,6 @@ public class EditorEntity {
         return result;
     }
 
-    /**
-     * Adds a component to this scratch entity.
-     *
-     * @throws IllegalStateException if this is a prefab instance
-     */
     public void addComponent(ComponentData componentData) {
         if (isPrefabInstance()) {
             throw new IllegalStateException(
@@ -223,9 +313,6 @@ public class EditorEntity {
         getComponents().add(componentData);
     }
 
-    /**
-     * Removes a component from this scratch entity.
-     */
     public boolean removeComponent(ComponentData componentData) {
         if (components == null) {
             return false;
@@ -233,9 +320,6 @@ public class EditorEntity {
         return components.remove(componentData);
     }
 
-    /**
-     * Gets a component by its simple type name.
-     */
     public ComponentData getComponentByType(String simpleName) {
         for (ComponentData comp : getComponents()) {
             if (comp.getSimpleName().equals(simpleName)) {
@@ -253,38 +337,21 @@ public class EditorEntity {
     // PREFAB INSTANCE FIELD OVERRIDES
     // ========================================================================
 
-    /**
-     * Gets a field value from a component.
-     * For prefab instances, returns override if set, otherwise prefab default.
-     *
-     * @param componentType Full class name of the component
-     * @param fieldName     Name of the field
-     */
     public Object getFieldValue(String componentType, String fieldName) {
         if (isScratchEntity()) {
             ComponentData comp = findComponentByType(componentType);
             return comp != null ? comp.getFields().get(fieldName) : null;
         }
 
-        // Check overrides first
         Map<String, Object> overrides = componentOverrides.get(componentType);
         if (overrides != null && overrides.containsKey(fieldName)) {
             return overrides.get(fieldName);
         }
 
-        // Fall back to prefab default
         Prefab prefab = getPrefab();
         return prefab != null ? prefab.getFieldDefault(componentType, fieldName) : null;
     }
 
-    /**
-     * Sets a field value on a component.
-     * For prefab instances, stores as override.
-     *
-     * @param componentType Full class name of the component
-     * @param fieldName     Name of the field
-     * @param value         New value
-     */
     public void setFieldValue(String componentType, String fieldName, Object value) {
         if (isScratchEntity()) {
             ComponentData comp = findComponentByType(componentType);
@@ -294,14 +361,10 @@ public class EditorEntity {
             return;
         }
 
-        // For prefab instances, store as override
         componentOverrides.computeIfAbsent(componentType, k -> new HashMap<>())
                 .put(fieldName, value);
     }
 
-    /**
-     * Checks if a field is overridden from the prefab default.
-     */
     public boolean isFieldOverridden(String componentType, String fieldName) {
         if (isScratchEntity()) {
             return false;
@@ -324,17 +387,11 @@ public class EditorEntity {
         return !currentValue.equals(defaultValue);
     }
 
-    /**
-     * Gets the default value for a field from the prefab.
-     */
     public Object getFieldDefault(String componentType, String fieldName) {
         Prefab prefab = getPrefab();
         return prefab != null ? prefab.getFieldDefault(componentType, fieldName) : null;
     }
 
-    /**
-     * Resets a field to its prefab default value.
-     */
     public void resetFieldToDefault(String componentType, String fieldName) {
         Map<String, Object> overrides = componentOverrides.get(componentType);
         if (overrides != null) {
@@ -345,10 +402,6 @@ public class EditorEntity {
         }
     }
 
-    /**
-     * Gets all overridden fields for a component.
-     * Returns list of field names that differ from defaults.
-     */
     public List<String> getOverriddenFields(String componentType) {
         List<String> result = new ArrayList<>();
 
@@ -365,16 +418,10 @@ public class EditorEntity {
         return result;
     }
 
-    /**
-     * Resets all overrides for this prefab instance.
-     */
     public void resetAllOverrides() {
         componentOverrides.clear();
     }
 
-    /**
-     * Gets the total count of overridden fields across all components.
-     */
     public int getOverrideCount() {
         int count = 0;
         for (String componentType : componentOverrides.keySet()) {
@@ -438,20 +485,25 @@ public class EditorEntity {
     // ========================================================================
 
     public EntityData toData() {
+        EntityData data;
         if (isPrefabInstance()) {
-            return new EntityData(
+            data = new EntityData(
                     prefabId,
                     name,
                     new float[]{position.x, position.y, position.z},
                     copyOverrides(componentOverrides)
             );
         } else {
-            return new EntityData(
+            data = new EntityData(
                     name,
                     new float[]{position.x, position.y, position.z},
                     components != null ? new ArrayList<>(components) : new ArrayList<>()
             );
         }
+        data.setId(id);
+        data.setParentId(parentId);
+        data.setOrder(order);
+        return data;
     }
 
     public static EditorEntity fromData(EntityData data) {
@@ -466,25 +518,33 @@ public class EditorEntity {
                 pos != null && pos.length > 2 ? pos[2] : 0
         );
 
+        EditorEntity entity;
         if (data.isPrefabInstance()) {
-            EditorEntity entity = new EditorEntity(data.getPrefabId(), position);
-            entity.name = data.getName() != null ? data.getName() : entity.name;
-
-            if (data.getComponentOverrides() != null) {
-                entity.componentOverrides = copyOverrides(data.getComponentOverrides());
-            }
-
-            return entity;
+            entity = new EditorEntity(
+                    data.getId(),
+                    data.getPrefabId(),
+                    data.getName(),
+                    position,
+                    null,
+                    data.getComponentOverrides(),
+                    data.getParentId(),
+                    data.getOrder()
+            );
         } else {
             String name = data.getName() != null ? data.getName() : "Entity";
-            EditorEntity entity = new EditorEntity(name, position, false);
-
-            if (data.getComponents() != null) {
-                entity.components = new ArrayList<>(data.getComponents());
-            }
-
-            return entity;
+            entity = new EditorEntity(
+                    data.getId(),
+                    null,
+                    name,
+                    position,
+                    data.getComponents() != null ? new ArrayList<>(data.getComponents()) : new ArrayList<>(),
+                    null,
+                    data.getParentId(),
+                    data.getOrder()
+            );
         }
+
+        return entity;
     }
 
     private static Map<String, Map<String, Object>> copyOverrides(Map<String, Map<String, Object>> source) {
@@ -512,8 +572,8 @@ public class EditorEntity {
 
     @Override
     public String toString() {
-        return String.format("EditorEntity[id=%s, prefab=%s, name=%s, pos=(%.1f,%.1f)]",
-                id, prefabId, name, position.x, position.y);
+        return String.format("EditorEntity[id=%s, prefab=%s, name=%s, pos=(%.1f,%.1f), parent=%s, order=%d]",
+                id, prefabId, name, position.x, position.y, parentId, order);
     }
 
     @Override

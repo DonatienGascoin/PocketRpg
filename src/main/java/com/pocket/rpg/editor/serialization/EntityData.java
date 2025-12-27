@@ -25,6 +25,27 @@ import java.util.Map;
 @NoArgsConstructor
 public class EntityData {
 
+    /**
+     * Unique entity ID (preserved across save/load).
+     */
+    @Getter
+    @Setter
+    private String id;
+
+    /**
+     * Parent entity ID for hierarchy (null for root entities).
+     */
+    @Getter
+    @Setter
+    private String parentId;
+
+    /**
+     * Sibling order (lower = earlier in list).
+     */
+    @Getter
+    @Setter
+    private int order;
+
     // Common fields
     private String name;
     private float[] position;

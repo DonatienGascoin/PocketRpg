@@ -12,20 +12,24 @@ import org.joml.Vector2f;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Represents a scene being edited in the Scene Editor.
  * <p>
- * Phase 5: Added entity management and camera settings.
- * <p>
  * Manages:
  * - Tilemap layers (TilemapLayer wrappers)
  * - Collision map (CollisionMap)
- * - Entity instances (EditorEntity)
+ * - Entity instances (EditorEntity) with parent-child hierarchy
  * - Camera settings (SceneCameraSettings)
- * - Selection state
+ * - Multi-selection state
  */
 public class EditorScene {
 
@@ -77,16 +81,15 @@ public class EditorScene {
     private float collisionOpacity = 1f;
 
     // ========================================================================
-    // ENTITY MANAGEMENT (Phase 5)
+    // ENTITY MANAGEMENT
     // ========================================================================
 
     private final List<EditorEntity> entities = new ArrayList<>();
 
-    @Getter
-    private EditorEntity selectedEntity = null;
+    private final Set<EditorEntity> selectedEntities = new HashSet<>();
 
     // ========================================================================
-    // CAMERA SETTINGS (Phase 5)
+    // CAMERA SETTINGS
     // ========================================================================
 
     @Getter
@@ -277,7 +280,7 @@ public class EditorScene {
     }
 
     // ========================================================================
-    // ENTITY MANAGEMENT (Phase 5)
+    // ENTITY MANAGEMENT
     // ========================================================================
 
     /**
@@ -290,28 +293,27 @@ public class EditorScene {
     }
 
     /**
-     * Removes an entity from the scene.
+     * Removes an entity and all its children from the scene.
      */
     public void removeEntity(EditorEntity entity) {
         if (entity == null) return;
 
+        // Remove children first (copy list to avoid concurrent modification)
+        List<EditorEntity> children = new ArrayList<>(entity.getChildren());
+        for (EditorEntity child : children) {
+            removeEntity(child);
+        }
+
+        // Clear from parent
+        entity.clearParent();
+
+        // Remove from entities list
         entities.remove(entity);
 
-        if (selectedEntity == entity) {
-            selectedEntity = null;
-        }
+        // Remove from selection
+        selectedEntities.remove(entity);
 
         markDirty();
-    }
-
-    /**
-     * Sets the selected entity.
-     */
-    public void setSelectedEntity(EditorEntity entity) {
-        this.selectedEntity = entity;
-        if (entity != null) {
-            this.selectedObject = null; // Clear other selection
-        }
     }
 
     /**
@@ -342,7 +344,6 @@ public class EditorScene {
                 size = new Vector2f(1f, 1f);
             }
 
-            // Hit test (assuming bottom-center origin)
             float halfW = size.x / 2f;
             float minX = pos.x - halfW;
             float maxX = pos.x + halfW;
@@ -357,11 +358,254 @@ public class EditorScene {
         return null;
     }
 
+    // ========================================================================
+    // MULTI-SELECTION
+    // ========================================================================
+
     /**
-     * Clears entity selection.
+     * Gets all selected entities (unmodifiable).
+     */
+    public Set<EditorEntity> getSelectedEntities() {
+        return Collections.unmodifiableSet(selectedEntities);
+    }
+
+    /**
+     * Checks if an entity is selected.
+     */
+    public boolean isSelected(EditorEntity entity) {
+        return selectedEntities.contains(entity);
+    }
+
+    /**
+     * Adds an entity to the selection.
+     */
+    public void addToSelection(EditorEntity entity) {
+        if (entity != null) {
+            selectedEntities.add(entity);
+        }
+    }
+
+    /**
+     * Removes an entity from the selection.
+     */
+    public void removeFromSelection(EditorEntity entity) {
+        selectedEntities.remove(entity);
+    }
+
+    /**
+     * Toggles an entity's selection state.
+     */
+    public void toggleSelection(EditorEntity entity) {
+        if (entity == null) return;
+        if (selectedEntities.contains(entity)) {
+            selectedEntities.remove(entity);
+        } else {
+            selectedEntities.add(entity);
+        }
+    }
+
+    /**
+     * Sets the selection to a specific set of entities.
+     */
+    public void setSelection(Set<EditorEntity> entities) {
+        selectedEntities.clear();
+        if (entities != null) {
+            selectedEntities.addAll(entities);
+        }
+    }
+
+    /**
+     * Clears all entity selection.
+     */
+    public void clearSelection() {
+        selectedEntities.clear();
+    }
+
+    /**
+     * Gets the single selected entity (for backward compatibility).
+     * Returns null if 0 or >1 entities selected.
+     */
+    public EditorEntity getSelectedEntity() {
+        if (selectedEntities.size() == 1) {
+            return selectedEntities.iterator().next();
+        }
+        return null;
+    }
+
+    /**
+     * Sets single entity selection (for backward compatibility).
+     */
+    public void setSelectedEntity(EditorEntity entity) {
+        selectedEntities.clear();
+        if (entity != null) {
+            selectedEntities.add(entity);
+            this.selectedObject = null;
+        }
+    }
+
+    /**
+     * Clears entity selection (legacy method).
      */
     public void clearEntitySelection() {
-        selectedEntity = null;
+        clearSelection();
+    }
+
+    // ========================================================================
+    // HIERARCHY
+    // ========================================================================
+
+    /**
+     * Gets all root entities (entities without a parent), sorted by order.
+     */
+    public List<EditorEntity> getRootEntities() {
+        List<EditorEntity> roots = new ArrayList<>();
+        for (EditorEntity entity : entities) {
+            if (entity.getParentId() == null || entity.getParentId().isEmpty()) {
+                roots.add(entity);
+            }
+        }
+        roots.sort(Comparator.comparingInt(EditorEntity::getOrder));
+        return roots;
+    }
+
+    /**
+     * Resolves parent-child relationships after loading.
+     * Call this after all entities have been added from deserialization.
+     */
+    public void resolveHierarchy() {
+        // Build lookup map
+        Map<String, EditorEntity> byId = entities.stream()
+                .collect(Collectors.toMap(EditorEntity::getId, Function.identity()));
+
+        // Clear existing transient relationships
+        for (EditorEntity entity : entities) {
+            entity.getChildrenMutable().clear();
+        }
+
+        // Rebuild relationships
+        for (EditorEntity entity : entities) {
+            String parentId = entity.getParentId();
+            if (parentId != null && !parentId.isEmpty()) {
+                EditorEntity parent = byId.get(parentId);
+                if (parent != null) {
+                    entity.setParent(parent);
+                } else {
+                    System.err.println("Warning: Entity " + entity.getId() +
+                            " references missing parent " + parentId);
+                    entity.setParentId(null);
+                }
+            }
+        }
+
+        // Ensure proper order indices for all levels
+        reindexSiblings(null); // Root entities
+        for (EditorEntity entity : entities) {
+            if (entity.hasChildren()) {
+                reindexSiblings(entity);
+            }
+        }
+    }
+
+    /**
+     * Reindexes sibling order after hierarchy changes.
+     * Pass null for root-level entities.
+     */
+    public void reindexSiblings(EditorEntity parent) {
+        List<EditorEntity> siblings;
+        if (parent == null) {
+            siblings = getRootEntities();
+        } else {
+            siblings = new ArrayList<>(parent.getChildren());
+        }
+
+        siblings.sort(Comparator.comparingInt(EditorEntity::getOrder));
+
+        for (int i = 0; i < siblings.size(); i++) {
+            siblings.get(i).setOrder(i);
+        }
+    }
+
+    /**
+     * Inserts an entity at a specific position among siblings.
+     * Handles reparenting and order assignment correctly.
+     *
+     * @param entity      Entity to move
+     * @param newParent   New parent (null for root)
+     * @param insertIndex Position to insert at (0 = first)
+     */
+    public void insertEntityAtPosition(EditorEntity entity, EditorEntity newParent, int insertIndex) {
+        System.out.println("[INSERT] Entity: " + entity.getName() +
+                ", NewParent: " + (newParent != null ? newParent.getName() : "null") +
+                ", InsertIndex: " + insertIndex);
+
+        // First, detach from current parent and reindex old siblings
+        EditorEntity oldParent = entity.getParent();
+        System.out.println("[INSERT] OldParent: " + (oldParent != null ? oldParent.getName() : "null"));
+
+        if (oldParent != null) {
+            oldParent.getChildrenMutable().remove(entity);
+            // Reindex old siblings
+            List<EditorEntity> oldSiblings = new ArrayList<>(oldParent.getChildrenMutable());
+            oldSiblings.sort(Comparator.comparingInt(EditorEntity::getOrder));
+            for (int i = 0; i < oldSiblings.size(); i++) {
+                oldSiblings.get(i).setOrder(i);
+            }
+        }
+
+        // Clear transient parent first
+        entity.setParentDirect(null);
+        entity.setParentId(newParent != null ? newParent.getId() : null);
+
+        // Get target siblings list (now entity has new parentId set)
+        List<EditorEntity> siblings;
+        if (newParent == null) {
+            // Root level - get all root entities except this one
+            siblings = new ArrayList<>();
+            for (EditorEntity e : entities) {
+                if (e != entity && (e.getParentId() == null || e.getParentId().isEmpty())) {
+                    siblings.add(e);
+                }
+            }
+        } else {
+            // Child level - get parent's children except this one
+            siblings = new ArrayList<>();
+            for (EditorEntity child : newParent.getChildrenMutable()) {
+                if (child != entity) {
+                    siblings.add(child);
+                }
+            }
+        }
+
+        System.out.println("[INSERT] Siblings before insert: " + siblings.size());
+
+        // Sort by current order
+        siblings.sort(Comparator.comparingInt(EditorEntity::getOrder));
+
+        // Clamp insert position
+        int idx = Math.max(0, Math.min(insertIndex, siblings.size()));
+
+        // Insert entity at position
+        siblings.add(idx, entity);
+
+        System.out.println("[INSERT] Siblings after insert: " + siblings.size() + ", inserted at: " + idx);
+
+        // Reassign orders based on list position
+        for (int i = 0; i < siblings.size(); i++) {
+            siblings.get(i).setOrder(i);
+            System.out.println("[INSERT]   - " + siblings.get(i).getName() + " -> order " + i);
+        }
+
+        // Update transient parent reference and add to parent's children
+        if (newParent != null) {
+            entity.setParentDirect(newParent);
+            newParent.getChildrenMutable().add(entity);
+            System.out.println("[INSERT] Added to parent children. Parent now has: " + newParent.getChildren().size());
+        } else {
+            System.out.println("[INSERT] Entity is now root. parentId=" + entity.getParentId());
+        }
+
+        // Verify entity is still in scene
+        System.out.println("[INSERT] Entity in scene: " + entities.contains(entity));
     }
 
     // ========================================================================
@@ -408,11 +652,11 @@ public class EditorScene {
         }
         layers.clear();
         entities.clear();
+        selectedEntities.clear();
         collisionMap.clear();
         cameraSettings.reset();
         activeLayerIndex = -1;
         selectedObject = null;
-        selectedEntity = null;
         dirty = false;
     }
 

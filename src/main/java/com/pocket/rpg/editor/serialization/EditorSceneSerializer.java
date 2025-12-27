@@ -85,6 +85,8 @@ public class EditorSceneSerializer {
                     System.err.println("Failed to load entity: " + e.getMessage());
                 }
             }
+            // Rebuild parent-child hierarchy from parentId references
+            scene.resolveHierarchy();
         }
 
         scene.clearDirty();

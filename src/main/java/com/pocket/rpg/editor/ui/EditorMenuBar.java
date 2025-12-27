@@ -376,7 +376,7 @@ public class EditorMenuBar {
 
         // Undo/Redo work even with popups (unless typing)
         // Support both QWERTY (Z) and AZERTY (W)
-        if (ctrl && (ImGui.isKeyPressed(ImGuiKey.Z) || ImGui.isKeyPressed(ImGuiKey.W))) {
+        if (ctrl && (ImGui.isKeyPressed(ImGuiKey.Z, false) || ImGui.isKeyPressed(ImGuiKey.W, false))) {
             if (shift) {
                 // Ctrl+Shift+Z/W = Redo
                 if (UndoManager.getInstance().redo()) {
@@ -396,7 +396,7 @@ public class EditorMenuBar {
         }
 
         // Ctrl+Y for Redo (alternative)
-        if (ctrl && !shift && ImGui.isKeyPressed(ImGuiKey.Y)) {
+        if (ctrl && !shift && ImGui.isKeyPressed(ImGuiKey.Y, false)) {
             if (UndoManager.getInstance().redo()) {
                 if (currentScene != null) {
                     currentScene.markDirty();

@@ -1,5 +1,6 @@
-package com.pocket.rpg.serialization;
+package com.pocket.rpg.editor.serialization;
 
+import com.pocket.rpg.serialization.ComponentData;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;

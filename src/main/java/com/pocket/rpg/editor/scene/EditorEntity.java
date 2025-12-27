@@ -1,10 +1,10 @@
 package com.pocket.rpg.editor.scene;
 
+import com.pocket.rpg.editor.serialization.EntityData;
 import com.pocket.rpg.prefab.Prefab;
 import com.pocket.rpg.prefab.PrefabRegistry;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.serialization.ComponentData;
-import com.pocket.rpg.serialization.EntityData;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector2f;

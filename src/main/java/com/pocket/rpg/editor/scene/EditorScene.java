@@ -534,14 +534,8 @@ public class EditorScene {
      * @param insertIndex Position to insert at (0 = first)
      */
     public void insertEntityAtPosition(EditorEntity entity, EditorEntity newParent, int insertIndex) {
-        System.out.println("[INSERT] Entity: " + entity.getName() +
-                ", NewParent: " + (newParent != null ? newParent.getName() : "null") +
-                ", InsertIndex: " + insertIndex);
-
         // First, detach from current parent and reindex old siblings
         EditorEntity oldParent = entity.getParent();
-        System.out.println("[INSERT] OldParent: " + (oldParent != null ? oldParent.getName() : "null"));
-
         if (oldParent != null) {
             oldParent.getChildrenMutable().remove(entity);
             // Reindex old siblings
@@ -551,11 +545,11 @@ public class EditorScene {
                 oldSiblings.get(i).setOrder(i);
             }
         }
-
+        
         // Clear transient parent first
         entity.setParentDirect(null);
         entity.setParentId(newParent != null ? newParent.getId() : null);
-
+        
         // Get target siblings list (now entity has new parentId set)
         List<EditorEntity> siblings;
         if (newParent == null) {
@@ -575,37 +569,26 @@ public class EditorScene {
                 }
             }
         }
-
-        System.out.println("[INSERT] Siblings before insert: " + siblings.size());
-
+        
         // Sort by current order
         siblings.sort(Comparator.comparingInt(EditorEntity::getOrder));
-
+        
         // Clamp insert position
         int idx = Math.max(0, Math.min(insertIndex, siblings.size()));
-
+        
         // Insert entity at position
         siblings.add(idx, entity);
-
-        System.out.println("[INSERT] Siblings after insert: " + siblings.size() + ", inserted at: " + idx);
-
+        
         // Reassign orders based on list position
         for (int i = 0; i < siblings.size(); i++) {
             siblings.get(i).setOrder(i);
-            System.out.println("[INSERT]   - " + siblings.get(i).getName() + " -> order " + i);
         }
-
+        
         // Update transient parent reference and add to parent's children
         if (newParent != null) {
             entity.setParentDirect(newParent);
             newParent.getChildrenMutable().add(entity);
-            System.out.println("[INSERT] Added to parent children. Parent now has: " + newParent.getChildren().size());
-        } else {
-            System.out.println("[INSERT] Entity is now root. parentId=" + entity.getParentId());
         }
-
-        // Verify entity is still in scene
-        System.out.println("[INSERT] Entity in scene: " + entities.contains(entity));
     }
 
     // ========================================================================

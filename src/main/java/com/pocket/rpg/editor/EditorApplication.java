@@ -241,7 +241,7 @@ public class EditorApplication {
         context.getToolManager().update(deltaTime);
 
         // Process shortcuts
-        uiController.getMenuBar().processShortcuts();
+        // uiController.getMenuBar().processShortcuts();
         toolController.processShortcuts();
     }
 

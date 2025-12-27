@@ -5,7 +5,6 @@ import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.editor.scene.EditorEntity;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.TilemapLayer;
-import com.pocket.rpg.serialization.EntityData;
 import com.pocket.rpg.serialization.GameObjectData;
 import com.pocket.rpg.serialization.SceneData;
 

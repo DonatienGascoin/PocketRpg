@@ -1,8 +1,7 @@
-package com.pocket.rpg.editor.undo.commands;
+package com.pocket.rpg.editor.undo;
 
 import com.pocket.rpg.editor.scene.EditorEntity;
 import com.pocket.rpg.editor.scene.EditorScene;
-import com.pocket.rpg.editor.undo.EditorCommand;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -21,8 +20,8 @@ public class ReparentEntityCommand implements EditorCommand {
     private EditorEntity oldParent;
     private int oldIndex;
 
-    public ReparentEntityCommand(EditorScene scene, EditorEntity entity,
-                                 EditorEntity newParent, int insertIndex) {
+    public ReparentEntityCommand(EditorScene scene, EditorEntity entity, 
+                                  EditorEntity newParent, int insertIndex) {
         this.scene = scene;
         this.entity = entity;
         this.newParent = newParent;
@@ -32,7 +31,7 @@ public class ReparentEntityCommand implements EditorCommand {
     @Override
     public void execute() {
         oldParent = entity.getParent();
-
+        
         // Save actual position in sibling list (not just order field)
         List<EditorEntity> oldSiblings;
         if (oldParent == null) {
@@ -44,37 +43,14 @@ public class ReparentEntityCommand implements EditorCommand {
         oldIndex = oldSiblings.indexOf(entity);
         if (oldIndex == -1) oldIndex = 0;
 
-        System.out.println("[REPARENT-EXEC] " + entity.getName() +
-                ": oldParent=" + (oldParent != null ? oldParent.getName() : "null") +
-                ", oldIndex=" + oldIndex +
-                ", newParent=" + (newParent != null ? newParent.getName() : "null") +
-                ", insertIndex=" + insertIndex);
-
         scene.insertEntityAtPosition(entity, newParent, insertIndex);
         scene.markDirty();
     }
 
     @Override
     public void undo() {
-        System.out.println("[REPARENT-UNDO] " + entity.getName() +
-                ": restoring to oldParent=" + (oldParent != null ? oldParent.getName() : "null") +
-                ", oldIndex=" + oldIndex);
-
         scene.insertEntityAtPosition(entity, oldParent, oldIndex);
         scene.markDirty();
-
-        // Debug: print scene state after undo
-        System.out.println("[REPARENT-UNDO] Scene @" + System.identityHashCode(scene) + " state after undo:");
-        System.out.println("[REPARENT-UNDO]   Total entities in list: " + scene.getEntities().size());
-        for (EditorEntity e : scene.getEntities()) {
-            System.out.println("[REPARENT-UNDO]     [ALL] " + e.getName() +
-                    " (parentId=" + e.getParentId() + ", order=" + e.getOrder() + ")");
-        }
-        System.out.println("[REPARENT-UNDO]   Root entities (parentId=null): " + scene.getRootEntities().size());
-        for (EditorEntity e : scene.getRootEntities()) {
-            System.out.println("[REPARENT-UNDO]     [ROOT] " + e.getName() + " (order=" + e.getOrder() +
-                    ", children=" + e.getChildren().size() + ")");
-        }
     }
 
     @Override

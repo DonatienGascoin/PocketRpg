@@ -83,8 +83,7 @@ public class HierarchyPanel {
         BEFORE, ON, AFTER
     }
 
-    private record DropTarget(EditorEntity entity, DropPosition position) {
-    }
+    private record DropTarget(EditorEntity entity, DropPosition position) {}
 
     public void init() {
         if (modeManager != null) {
@@ -438,299 +437,292 @@ public class HierarchyPanel {
         }
     }
 
-    currentDropTarget =new
+    /**
+     * Renders an invisible drop zone for reordering.
+     *
+     * @param targetParent Parent to insert under (null for root)
+     * @param insertIndex  Index to insert at among siblings
+     * @param nextEntity   Entity that will be after this position (for ID uniqueness)
+     */
+    private void renderDropZone(EditorEntity targetParent, int insertIndex, EditorEntity nextEntity) {
+        String zoneId = "##dropzone_" +
+                (targetParent != null ? targetParent.getId() : "root") + "_" +
+                insertIndex + "_" +
+                (nextEntity != null ? nextEntity.getId() : "end");
 
-    DropTarget(entity, DropPosition.ON);
+        float width = ImGui.getContentRegionAvailX();
+        if (width < 1.0f) width = 1.0f;  // Prevent zero-size assertion
+
+        ImGui.invisibleButton(zoneId, width, DROP_ZONE_HEIGHT);
+
+        if (ImGui.beginDragDropTarget()) {
+            // Visual indicator - draw line
+            ImVec2 min = new ImVec2();
+            ImVec2 max = new ImVec2();
+            ImGui.getItemRectMin(min);
+            ImGui.getItemRectMax(max);
+            ImGui.getWindowDrawList().addLine(
+                    min.x, min.y + DROP_ZONE_HEIGHT / 2,
+                    max.x, min.y + DROP_ZONE_HEIGHT / 2,
+                    ImGui.colorConvertFloat4ToU32(0.4f, 0.7f, 1.0f, 1.0f), 2.0f);
+
+            byte[] payload = ImGui.acceptDragDropPayload(DRAG_DROP_TYPE);
+            if (payload != null) {
+                Set<EditorEntity> selected = scene.getSelectedEntities();
+                int offset = 0;
+                for (EditorEntity dragged : selected) {
+                    // Skip if trying to drop onto itself or its descendants
+                    if (dragged == targetParent || (targetParent != null && dragged.isAncestorOf(targetParent))) {
+                        continue;
+                    }
+
+                    // Adjust insert index if moving within same parent and from earlier position
+                    int adjustedIndex = insertIndex + offset;
+                    if (dragged.getParent() == targetParent && dragged.getOrder() < insertIndex) {
+                        adjustedIndex = Math.max(0, adjustedIndex - 1);
+                    }
+
+                    UndoManager.getInstance().execute(
+                            new ReparentEntityCommand(scene, dragged, targetParent, adjustedIndex)
+                    );
+                    offset++;
+                }
+            }
+
             ImGui.endDragDropTarget();
-}
-    }
-
-/**
- * Renders an invisible drop zone for reordering.
- *
- * @param targetParent Parent to insert under (null for root)
- * @param insertIndex  Index to insert at among siblings
- * @param nextEntity   Entity that will be after this position (for ID uniqueness)
- */
-private void renderDropZone(EditorEntity targetParent, int insertIndex, EditorEntity nextEntity) {
-    String zoneId = "##dropzone_" +
-            (targetParent != null ? targetParent.getId() : "root") + "_" +
-            insertIndex + "_" +
-            (nextEntity != null ? nextEntity.getId() : "end");
-
-    float width = ImGui.getContentRegionAvailX();
-    if (width < 1.0f) width = 1.0f;  // Prevent zero-size assertion
-
-    ImGui.invisibleButton(zoneId, width, DROP_ZONE_HEIGHT);
-
-    if (ImGui.beginDragDropTarget()) {
-        // Visual indicator - draw line
-        ImVec2 min = new ImVec2();
-        ImVec2 max = new ImVec2();
-        ImGui.getItemRectMin(min);
-        ImGui.getItemRectMax(max);
-        ImGui.getWindowDrawList().addLine(
-                min.x, min.y + DROP_ZONE_HEIGHT / 2,
-                max.x, min.y + DROP_ZONE_HEIGHT / 2,
-                ImGui.colorConvertFloat4ToU32(0.4f, 0.7f, 1.0f, 1.0f), 2.0f);
-
-        byte[] payload = ImGui.acceptDragDropPayload(DRAG_DROP_TYPE);
-        if (payload != null) {
-            Set<EditorEntity> selected = scene.getSelectedEntities();
-            int offset = 0;
-            for (EditorEntity dragged : selected) {
-                // Skip if trying to drop onto itself or its descendants
-                if (dragged == targetParent || (targetParent != null && dragged.isAncestorOf(targetParent))) {
-                    continue;
-                }
-
-                // Adjust insert index if moving within same parent and from earlier position
-                int adjustedIndex = insertIndex + offset;
-                if (dragged.getParent() == targetParent && dragged.getOrder() < insertIndex) {
-                    adjustedIndex = Math.max(0, adjustedIndex - 1);
-                }
-
-                UndoManager.getInstance().execute(
-                        new ReparentEntityCommand(scene, dragged, targetParent, adjustedIndex)
-                );
-                offset++;
-            }
         }
-
-        ImGui.endDragDropTarget();
     }
-}
 
-private int getNextChildOrder(EditorEntity parent) {
-    if (parent == null) {
-        return scene.getRootEntities().size();
+    private int getNextChildOrder(EditorEntity parent) {
+        if (parent == null) {
+            return scene.getRootEntities().size();
+        }
+        return parent.getChildren().size();
     }
-    return parent.getChildren().size();
-}
 
-private void renderEntityContextMenu(EditorEntity entity) {
-    if (ImGui.beginPopupContextItem("entity_ctx_" + entity.getId())) {
-        Set<EditorEntity> selected = scene.getSelectedEntities();
-        boolean multiSelect = selected.size() > 1;
+    private void renderEntityContextMenu(EditorEntity entity) {
+        if (ImGui.beginPopupContextItem("entity_ctx_" + entity.getId())) {
+            Set<EditorEntity> selected = scene.getSelectedEntities();
+            boolean multiSelect = selected.size() > 1;
 
-        if (multiSelect) {
-            ImGui.text(selected.size() + " entities selected");
-            ImGui.separator();
+            if (multiSelect) {
+                ImGui.text(selected.size() + " entities selected");
+                ImGui.separator();
 
-            if (ImGui.menuItem(FontAwesomeIcons.Trash + " Delete All")) {
-                UndoManager.getInstance().execute(new BulkDeleteCommand(scene, selected));
-            }
+                if (ImGui.menuItem(FontAwesomeIcons.Trash + " Delete All")) {
+                    UndoManager.getInstance().execute(new BulkDeleteCommand(scene, selected));
+                }
 
-            if (ImGui.menuItem(FontAwesomeIcons.LevelUpAlt + " Unparent All")) {
-                for (EditorEntity e : selected) {
-                    if (e.getParent() != null) {
+                if (ImGui.menuItem(FontAwesomeIcons.LevelUpAlt + " Unparent All")) {
+                    for (EditorEntity e : selected) {
+                        if (e.getParent() != null) {
+                            UndoManager.getInstance().execute(
+                                    new ReparentEntityCommand(scene, e, null, getNextChildOrder(null))
+                            );
+                        }
+                    }
+                }
+            } else {
+                if (ImGui.menuItem(FontAwesomeIcons.Edit + " Rename")) {
+                    renamingItem = entity;
+                    renameBuffer.set(entity.getName());
+                }
+
+                if (ImGui.menuItem(FontAwesomeIcons.Copy + " Duplicate")) {
+                    duplicateEntity(entity);
+                }
+
+                if (entity.getParent() != null) {
+                    if (ImGui.menuItem(FontAwesomeIcons.LevelUpAlt + " Unparent")) {
                         UndoManager.getInstance().execute(
-                                new ReparentEntityCommand(scene, e, null, getNextChildOrder(null))
+                                new ReparentEntityCommand(scene, entity, null, getNextChildOrder(null))
                         );
                     }
                 }
-            }
-        } else {
-            if (ImGui.menuItem(FontAwesomeIcons.Edit + " Rename")) {
-                renamingItem = entity;
-                renameBuffer.set(entity.getName());
-            }
 
-            if (ImGui.menuItem(FontAwesomeIcons.Copy + " Duplicate")) {
-                duplicateEntity(entity);
-            }
+                if (entity.isScratchEntity() && !entity.getComponents().isEmpty()) {
+                    if (ImGui.menuItem(FontAwesomeIcons.Save + " Save as Prefab...")) {
+                        savePrefabPopup.open(entity, savedPrefab -> {
+                            System.out.println("Saved prefab: " + savedPrefab.getId());
+                        });
+                    }
+                }
 
-            if (entity.getParent() != null) {
-                if (ImGui.menuItem(FontAwesomeIcons.LevelUpAlt + " Unparent")) {
-                    UndoManager.getInstance().execute(
-                            new ReparentEntityCommand(scene, entity, null, getNextChildOrder(null))
-                    );
+                ImGui.separator();
+
+                if (ImGui.menuItem(FontAwesomeIcons.Trash + " Delete")) {
+                    scene.removeEntity(entity);
                 }
             }
 
-            if (entity.isScratchEntity() && !entity.getComponents().isEmpty()) {
-                if (ImGui.menuItem(FontAwesomeIcons.Save + " Save as Prefab...")) {
-                    savePrefabPopup.open(entity, savedPrefab -> {
-                        System.out.println("Saved prefab: " + savedPrefab.getId());
-                    });
-                }
-            }
-
-            ImGui.separator();
-
-            if (ImGui.menuItem(FontAwesomeIcons.Trash + " Delete")) {
-                scene.removeEntity(entity);
-            }
+            ImGui.endPopup();
         }
 
-        ImGui.endPopup();
+        savePrefabPopup.render();
     }
 
-    savePrefabPopup.render();
-}
-
-private void renderEntityTooltip(EditorEntity entity) {
-    if (ImGui.isItemHovered()) {
-        ImGui.beginTooltip();
-        if (entity.isScratchEntity()) {
-            ImGui.text("Scratch Entity");
-            int compCount = entity.getComponents().size();
-            ImGui.textDisabled(compCount + " component" + (compCount != 1 ? "s" : ""));
-        } else {
-            Prefab prefab = entity.getPrefab();
-            if (prefab != null) {
-                ImGui.text(prefab.getDisplayName());
+    private void renderEntityTooltip(EditorEntity entity) {
+        if (ImGui.isItemHovered()) {
+            ImGui.beginTooltip();
+            if (entity.isScratchEntity()) {
+                ImGui.text("Scratch Entity");
+                int compCount = entity.getComponents().size();
+                ImGui.textDisabled(compCount + " component" + (compCount != 1 ? "s" : ""));
             } else {
-                ImGui.textColored(1f, 0.5f, 0.2f, 1f, "Missing prefab: " + entity.getPrefabId());
+                Prefab prefab = entity.getPrefab();
+                if (prefab != null) {
+                    ImGui.text(prefab.getDisplayName());
+                } else {
+                    ImGui.textColored(1f, 0.5f, 0.2f, 1f, "Missing prefab: " + entity.getPrefabId());
+                }
             }
-        }
-        Vector3f pos = entity.getPosition();
-        ImGui.textDisabled(String.format("Position: (%.1f, %.1f)", pos.x, pos.y));
+            Vector3f pos = entity.getPosition();
+            ImGui.textDisabled(String.format("Position: (%.1f, %.1f)", pos.x, pos.y));
 
-        if (entity.hasChildren()) {
-            ImGui.textDisabled(entity.getChildren().size() + " children");
-        }
+            if (entity.hasChildren()) {
+                ImGui.textDisabled(entity.getChildren().size() + " children");
+            }
 
-        ImGui.endTooltip();
+            ImGui.endTooltip();
+        }
     }
-}
 
-private void renderMultiSelectionContextMenu() {
-    // Global context menu when right-clicking empty space
-    if (ImGui.beginPopupContextWindow("hierarchy_ctx", ImGuiMouseButton.Right)) {
-        Set<EditorEntity> selected = scene.getSelectedEntities();
+    private void renderMultiSelectionContextMenu() {
+        // Global context menu when right-clicking empty space
+        if (ImGui.beginPopupContextWindow("hierarchy_ctx", ImGuiMouseButton.Right)) {
+            Set<EditorEntity> selected = scene.getSelectedEntities();
 
-        if (!selected.isEmpty()) {
-            ImGui.text(selected.size() + " selected");
-            ImGui.separator();
+            if (!selected.isEmpty()) {
+                ImGui.text(selected.size() + " selected");
+                ImGui.separator();
 
-            if (ImGui.menuItem(FontAwesomeIcons.Trash + " Delete Selected")) {
-                UndoManager.getInstance().execute(new BulkDeleteCommand(scene, selected));
+                if (ImGui.menuItem(FontAwesomeIcons.Trash + " Delete Selected")) {
+                    UndoManager.getInstance().execute(new BulkDeleteCommand(scene, selected));
+                }
+
+                if (ImGui.menuItem(FontAwesomeIcons.TimesCircle + " Clear Selection")) {
+                    scene.clearSelection();
+                }
+            } else {
+                if (ImGui.menuItem(FontAwesomeIcons.Plus + " New Entity")) {
+                    createEmptyEntity();
+                }
             }
 
-            if (ImGui.menuItem(FontAwesomeIcons.TimesCircle + " Clear Selection")) {
-                scene.clearSelection();
+            ImGui.endPopup();
+        }
+    }
+
+    private String getEntityIcon(EditorEntity entity) {
+        if (entity.isScratchEntity()) {
+            return FontAwesomeIcons.Cube;
+        } else if (entity.isPrefabValid()) {
+            return FontAwesomeIcons.Cubes;
+        } else {
+            return FontAwesomeIcons.ExclamationTriangle;
+        }
+    }
+
+    private void selectRange(EditorEntity from, EditorEntity to) {
+        // Flatten hierarchy for range selection
+        List<EditorEntity> flat = new ArrayList<>();
+        flattenEntities(scene.getRootEntities(), flat);
+
+        int fromIdx = flat.indexOf(from);
+        int toIdx = flat.indexOf(to);
+
+        if (fromIdx == -1 || toIdx == -1) return;
+
+        int start = Math.min(fromIdx, toIdx);
+        int end = Math.max(fromIdx, toIdx);
+
+        Set<EditorEntity> rangeSet = new HashSet<>();
+        for (int i = start; i <= end; i++) {
+            rangeSet.add(flat.get(i));
+        }
+
+        scene.setSelection(rangeSet);
+        switchToEntityMode();
+    }
+
+    private void flattenEntities(List<EditorEntity> entities, List<EditorEntity> result) {
+        for (EditorEntity entity : entities) {
+            result.add(entity);
+            if (entity.hasChildren()) {
+                List<EditorEntity> children = new ArrayList<>(entity.getChildren());
+                children.sort(Comparator.comparingInt(EditorEntity::getOrder));
+                flattenEntities(children, result);
+            }
+        }
+    }
+
+    private void createEmptyEntity() {
+        Vector3f position = new Vector3f(0, 0, 0);
+        int count = scene.getEntities().size();
+        String name = "Entity_" + (count + 1);
+
+        EditorEntity entity = new EditorEntity(name, position, false);
+        entity.setOrder(getNextChildOrder(null));
+        UndoManager.getInstance().execute(new AddEntityCommand(scene, entity));
+        selectEntity(entity);
+        scene.markDirty();
+    }
+
+    private void selectEntity(EditorEntity entity) {
+        cameraSelected = false;
+        tilemapLayersSelected = false;
+        collisionMapSelected = false;
+        scene.setSelection(Set.of(entity));
+        switchToEntityMode();
+    }
+
+    private void switchToEntityMode() {
+        if (modeManager != null) {
+            modeManager.switchToEntity();
+        }
+        if (toolManager != null && selectionTool != null) {
+            toolManager.setActiveTool(selectionTool);
+        }
+    }
+
+    private void duplicateEntity(EditorEntity original) {
+        Vector3f newPos = new Vector3f(original.getPosition()).add(1, 0, 0);
+        EditorEntity copy;
+
+        if (original.isScratchEntity()) {
+            copy = new EditorEntity(original.getName() + "_copy", newPos, false);
+            for (ComponentData comp : original.getComponents()) {
+                ComponentData compCopy = new ComponentData(comp.getType());
+                compCopy.getFields().putAll(comp.getFields());
+                copy.addComponent(compCopy);
             }
         } else {
-            if (ImGui.menuItem(FontAwesomeIcons.Plus + " New Entity")) {
-                createEmptyEntity();
+            copy = new EditorEntity(original.getPrefabId(), newPos);
+            copy.setName(original.getName() + "_copy");
+            for (ComponentData comp : original.getComponents()) {
+                String componentType = comp.getType();
+                for (String fieldName : original.getOverriddenFields(componentType)) {
+                    Object value = original.getFieldValue(componentType, fieldName);
+                    copy.setFieldValue(componentType, fieldName, value);
+                }
             }
         }
 
-        ImGui.endPopup();
-    }
-}
+        // Same parent, next order
+        copy.setParent(original.getParent());
+        copy.setOrder(original.getOrder() + 1);
 
-private String getEntityIcon(EditorEntity entity) {
-    if (entity.isScratchEntity()) {
-        return FontAwesomeIcons.Cube;
-    } else if (entity.isPrefabValid()) {
-        return FontAwesomeIcons.Cubes;
-    } else {
-        return FontAwesomeIcons.ExclamationTriangle;
-    }
-}
-
-private void selectRange(EditorEntity from, EditorEntity to) {
-    // Flatten hierarchy for range selection
-    List<EditorEntity> flat = new ArrayList<>();
-    flattenEntities(scene.getRootEntities(), flat);
-
-    int fromIdx = flat.indexOf(from);
-    int toIdx = flat.indexOf(to);
-
-    if (fromIdx == -1 || toIdx == -1) return;
-
-    int start = Math.min(fromIdx, toIdx);
-    int end = Math.max(fromIdx, toIdx);
-
-    Set<EditorEntity> rangeSet = new HashSet<>();
-    for (int i = start; i <= end; i++) {
-        rangeSet.add(flat.get(i));
+        scene.addEntity(copy);
+        selectEntity(copy);
+        scene.markDirty();
     }
 
-    scene.setSelection(rangeSet);
-    switchToEntityMode();
-}
-
-private void flattenEntities(List<EditorEntity> entities, List<EditorEntity> result) {
-    for (EditorEntity entity : entities) {
-        result.add(entity);
-        if (entity.hasChildren()) {
-            List<EditorEntity> children = new ArrayList<>(entity.getChildren());
-            children.sort(Comparator.comparingInt(EditorEntity::getOrder));
-            flattenEntities(children, result);
+    public void clearSelection() {
+        cameraSelected = false;
+        tilemapLayersSelected = false;
+        collisionMapSelected = false;
+        if (scene != null) {
+            scene.clearSelection();
         }
     }
-}
-
-private void createEmptyEntity() {
-    Vector3f position = new Vector3f(0, 0, 0);
-    int count = scene.getEntities().size();
-    String name = "Entity_" + (count + 1);
-
-    EditorEntity entity = new EditorEntity(name, position, false);
-    entity.setOrder(getNextChildOrder(null));
-    UndoManager.getInstance().execute(new AddEntityCommand(scene, entity));
-    selectEntity(entity);
-    scene.markDirty();
-}
-
-private void selectEntity(EditorEntity entity) {
-    cameraSelected = false;
-    tilemapLayersSelected = false;
-    collisionMapSelected = false;
-    scene.setSelection(Set.of(entity));
-    switchToEntityMode();
-}
-
-private void switchToEntityMode() {
-    if (modeManager != null) {
-        modeManager.switchToEntity();
-    }
-    if (toolManager != null && selectionTool != null) {
-        toolManager.setActiveTool(selectionTool);
-    }
-}
-
-private void duplicateEntity(EditorEntity original) {
-    Vector3f newPos = new Vector3f(original.getPosition()).add(1, 0, 0);
-    EditorEntity copy;
-
-    if (original.isScratchEntity()) {
-        copy = new EditorEntity(original.getName() + "_copy", newPos, false);
-        for (ComponentData comp : original.getComponents()) {
-            ComponentData compCopy = new ComponentData(comp.getType());
-            compCopy.getFields().putAll(comp.getFields());
-            copy.addComponent(compCopy);
-        }
-    } else {
-        copy = new EditorEntity(original.getPrefabId(), newPos);
-        copy.setName(original.getName() + "_copy");
-        for (ComponentData comp : original.getComponents()) {
-            String componentType = comp.getType();
-            for (String fieldName : original.getOverriddenFields(componentType)) {
-                Object value = original.getFieldValue(componentType, fieldName);
-                copy.setFieldValue(componentType, fieldName, value);
-            }
-        }
-    }
-
-    // Same parent, next order
-    copy.setParent(original.getParent());
-    copy.setOrder(original.getOrder() + 1);
-
-    scene.addEntity(copy);
-    selectEntity(copy);
-    scene.markDirty();
-}
-
-public void clearSelection() {
-    cameraSelected = false;
-    tilemapLayersSelected = false;
-    collisionMapSelected = false;
-    if (scene != null) {
-        scene.clearSelection();
-    }
-}
 }

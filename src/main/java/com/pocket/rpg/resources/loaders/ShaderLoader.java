@@ -1,5 +1,6 @@
 package com.pocket.rpg.resources.loaders;
 
+import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.rendering.Shader;
 import com.pocket.rpg.resources.AssetLoader;
 
@@ -70,5 +71,19 @@ public class ShaderLoader implements AssetLoader<Shader> {
             // Return existing shader (still works)
             return existing;
         }
+    }
+
+    // ========================================================================
+    // EDITOR INSTANTIATION SUPPORT
+    // ========================================================================
+
+    @Override
+    public boolean canInstantiate() {
+        return false; // Shaders cannot be instantiated as entities
+    }
+
+    @Override
+    public String getIconCodepoint() {
+        return FontAwesomeIcons.Code;
     }
 }

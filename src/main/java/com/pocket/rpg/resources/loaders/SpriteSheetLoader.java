@@ -4,10 +4,15 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.scene.EditorEntity;
+import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.SpriteSheet;
 import com.pocket.rpg.rendering.Texture;
 import com.pocket.rpg.resources.AssetLoader;
 import com.pocket.rpg.resources.Assets;
+import com.pocket.rpg.serialization.ComponentData;
+import org.joml.Vector3f;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -148,5 +153,98 @@ public class SpriteSheetLoader implements AssetLoader<SpriteSheet> {
         }
 
         return Assets.getRelativePath(texture.getFilePath());
+    }
+
+    // ========================================================================
+    // EDITOR INSTANTIATION SUPPORT
+    // ========================================================================
+
+    @Override
+    public boolean canInstantiate() {
+        return true;
+    }
+
+    /**
+     * Creates an EditorEntity from a sprite sheet.
+     * Note: This method creates an entity using the first sprite (index 0).
+     * For specific sprite selection, use {@link #instantiateWithIndex(SpriteSheet, String, Vector3f, int)}.
+     */
+    @Override
+    public EditorEntity instantiate(SpriteSheet asset, String assetPath, Vector3f position) {
+        return instantiateWithIndex(asset, assetPath, position, 0);
+    }
+
+    /**
+     * Creates an EditorEntity from a specific sprite in the sheet.
+     *
+     * @param asset       The sprite sheet
+     * @param assetPath   Path to the sprite sheet file
+     * @param position    World position
+     * @param spriteIndex Index of the sprite within the sheet
+     * @return New EditorEntity with SpriteRenderer configured for the specific sprite
+     */
+    public EditorEntity instantiateWithIndex(SpriteSheet asset, String assetPath, Vector3f position, int spriteIndex) {
+        // Validate sprite index
+        if (asset != null && (spriteIndex < 0 || spriteIndex >= asset.getTotalFrames())) {
+            spriteIndex = 0;
+        }
+
+        // Extract entity name from filename + sprite index
+        String baseName = extractEntityName(assetPath);
+        String entityName = baseName + "_" + spriteIndex;
+
+        // Create scratch entity
+        EditorEntity entity = new EditorEntity(entityName, position, false);
+
+        // Add SpriteRenderer component configured for sprite sheet
+        ComponentData spriteRenderer = new ComponentData("com.pocket.rpg.components.SpriteRenderer");
+        spriteRenderer.getFields().put("spriteSheetPath", assetPath);
+        spriteRenderer.getFields().put("spriteIndex", spriteIndex);
+        spriteRenderer.getFields().put("zIndex", 0);
+        entity.addComponent(spriteRenderer);
+
+        return entity;
+    }
+
+    @Override
+    public Sprite getPreviewSprite(SpriteSheet asset) {
+        // Return first sprite as preview
+        if (asset != null && asset.getTotalFrames() > 0) {
+            return asset.getSprite(0);
+        }
+        return null;
+    }
+
+    /**
+     * Gets a specific sprite from the sheet for preview.
+     *
+     * @param asset       The sprite sheet
+     * @param spriteIndex Index of the sprite
+     * @return The sprite at that index, or null
+     */
+    public Sprite getPreviewSprite(SpriteSheet asset, int spriteIndex) {
+        if (asset != null && spriteIndex >= 0 && spriteIndex < asset.getTotalFrames()) {
+            return asset.getSprite(spriteIndex);
+        }
+        return null;
+    }
+
+    @Override
+    public String getIconCodepoint() {
+        return FontAwesomeIcons.ThLarge;
+    }
+
+    /**
+     * Extracts entity name from asset path.
+     * Example: "sprites/player.spritesheet" -> "player"
+     */
+    private String extractEntityName(String assetPath) {
+        // Get filename
+        int lastSlash = Math.max(assetPath.lastIndexOf('/'), assetPath.lastIndexOf('\\'));
+        String filename = lastSlash >= 0 ? assetPath.substring(lastSlash + 1) : assetPath;
+
+        // Remove all extensions (handle .spritesheet.json)
+        int firstDot = filename.indexOf('.');
+        return firstDot >= 0 ? filename.substring(0, firstDot) : filename;
     }
 }

@@ -1,5 +1,10 @@
 package com.pocket.rpg.resources;
 
+import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.scene.EditorEntity;
+import com.pocket.rpg.rendering.Sprite;
+import org.joml.Vector3f;
+
 import java.io.IOException;
 
 /**
@@ -66,5 +71,53 @@ public interface AssetLoader<T> {
      */
     default T reload(T existing, String path) throws IOException {
         return load(path);
+    }
+    
+    // ========================================================================
+    // EDITOR INSTANTIATION SUPPORT
+    // ========================================================================
+    
+    /**
+     * Returns whether this asset type can be instantiated as an entity in the editor.
+     * Override to return true for assets that can be dragged into scenes.
+     * 
+     * @return true if this asset can create entities
+     */
+    default boolean canInstantiate() {
+        return false;
+    }
+    
+    /**
+     * Creates an EditorEntity from this asset.
+     * Called when the asset is dropped into the scene viewport or hierarchy.
+     * 
+     * @param asset The loaded asset
+     * @param assetPath Relative path to the asset (for component configuration)
+     * @param position World position to place the entity
+     * @return New EditorEntity with appropriate components, or null if not supported
+     */
+    default EditorEntity instantiate(T asset, String assetPath, Vector3f position) {
+        return null;
+    }
+    
+    /**
+     * Gets a preview sprite for displaying in the asset browser.
+     * Return null to use the default icon instead.
+     * 
+     * @param asset The loaded asset
+     * @return Preview sprite, or null for icon fallback
+     */
+    default Sprite getPreviewSprite(T asset) {
+        return null;
+    }
+    
+    /**
+     * Gets the FontAwesome icon codepoint for this asset type.
+     * Used when no preview sprite is available.
+     * 
+     * @return FontAwesome icon string (e.g., FontAwesomeIcons.File)
+     */
+    default String getIconCodepoint() {
+        return FontAwesomeIcons.File;
     }
 }

@@ -16,7 +16,10 @@ import com.pocket.rpg.serialization.GameObjectData;
 import com.pocket.rpg.serialization.SceneData;
 import org.joml.Vector3f;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Loads SceneData into a playable RuntimeScene.
@@ -25,6 +28,7 @@ import java.util.List;
  * - Tilemap layer conversion
  * - Collision map loading
  * - Entity instantiation (both prefab instances and scratch entities)
+ * - Parent-child relationships for UI hierarchy
  * - Camera configuration
  * - Component reference resolution
  */
@@ -68,16 +72,9 @@ public class RuntimeSceneLoader {
             }
         }
 
-        // Instantiate entities (prefab instances AND scratch entities)
+        // Instantiate entities with proper parent-child handling
         if (data.getEntities() != null) {
-            for (EntityData entityData : data.getEntities()) {
-                try {
-                    instantiateEntity(scene, entityData);
-                } catch (Exception e) {
-                    System.err.println("Failed to instantiate entity '" + entityData.getName() + "': " + e.getMessage());
-                    e.printStackTrace();
-                }
-            }
+            instantiateEntitiesWithHierarchy(scene, data.getEntities());
         }
 
         // Configure camera from scene settings
@@ -94,6 +91,107 @@ public class RuntimeSceneLoader {
                 " (objects=" + scene.getGameObjects().size() + ")");
 
         return scene;
+    }
+
+    /**
+     * Instantiates all entities respecting parent-child relationships.
+     * Creates all GameObjects first, then sets up hierarchy, then adds to scene.
+     */
+    private void instantiateEntitiesWithHierarchy(RuntimeScene scene, List<EntityData> entities) {
+        // Phase 1: Create all GameObjects (without adding to scene)
+        Map<String, GameObject> gameObjectsById = new HashMap<>();
+        Map<String, EntityData> entityDataById = new HashMap<>();
+
+        for (EntityData entityData : entities) {
+            try {
+                GameObject go = createEntityGameObject(entityData);
+                if (go != null) {
+                    String id = entityData.getId();
+                    if (id != null) {
+                        gameObjectsById.put(id, go);
+                        entityDataById.put(id, entityData);
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("Failed to create entity '" + entityData.getName() + "': " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+
+        // Phase 2: Set up parent-child relationships
+        for (Map.Entry<String, GameObject> entry : gameObjectsById.entrySet()) {
+            String id = entry.getKey();
+            GameObject child = entry.getValue();
+            EntityData entityData = entityDataById.get(id);
+
+            if (entityData != null && entityData.getParentId() != null) {
+                String parentId = entityData.getParentId();
+                GameObject parent = gameObjectsById.get(parentId);
+
+                if (parent != null) {
+                    parent.addChild(child);
+                } else {
+                    System.err.println("Parent not found for entity '" + entityData.getName() +
+                            "' (parentId: " + parentId + ")");
+                }
+            }
+        }
+
+        // Phase 3: Add only root entities to scene (children are added via parent)
+        // Sort by order if available
+        List<Map.Entry<String, GameObject>> sortedEntries = new ArrayList<>(gameObjectsById.entrySet());
+        sortedEntries.sort((a, b) -> {
+            EntityData dataA = entityDataById.get(a.getKey());
+            EntityData dataB = entityDataById.get(b.getKey());
+            int orderA = dataA != null ? dataA.getOrder() : 0;
+            int orderB = dataB != null ? dataB.getOrder() : 0;
+            return Integer.compare(orderA, orderB);
+        });
+
+        for (Map.Entry<String, GameObject> entry : sortedEntries) {
+            String id = entry.getKey();
+            GameObject go = entry.getValue();
+            EntityData entityData = entityDataById.get(id);
+
+            // Only add root entities (no parent or parent not found in this batch)
+            if (entityData != null && entityData.getParentId() == null) {
+                try {
+                    scene.addGameObject(go);
+                } catch (Exception e) {
+                    System.err.println("Failed to add entity '" + entityData.getName() +
+                            "' to scene: " + e.getMessage());
+                    e.printStackTrace();
+                }
+            } else if (entityData != null && !gameObjectsById.containsKey(entityData.getParentId())) {
+                // Parent wasn't in this batch, add as root
+                try {
+                    scene.addGameObject(go);
+                } catch (Exception e) {
+                    System.err.println("Failed to add orphan entity '" + entityData.getName() +
+                            "' to scene: " + e.getMessage());
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    /**
+     * Creates a GameObject from entity data without adding to scene.
+     */
+    private GameObject createEntityGameObject(EntityData entityData) {
+        // Get position
+        float[] pos = entityData.getPosition();
+        Vector3f position = new Vector3f(
+                pos != null && pos.length >= 1 ? pos[0] : 0,
+                pos != null && pos.length >= 2 ? pos[1] : 0,
+                pos != null && pos.length >= 3 ? pos[2] : 0
+        );
+
+        if (entityData.isScratchEntity()) {
+            return createScratchEntity(entityData, position);
+        } else {
+            return createPrefabInstance(entityData, position);
+        }
     }
 
     /**
@@ -152,33 +250,6 @@ public class RuntimeSceneLoader {
                     }
                 }
             }
-        }
-    }
-
-    /**
-     * Instantiates an entity from prefab data or scratch entity data.
-     */
-    private void instantiateEntity(RuntimeScene scene, EntityData entityData) {
-        // Get position
-        float[] pos = entityData.getPosition();
-        Vector3f position = new Vector3f(
-                pos != null && pos.length >= 1 ? pos[0] : 0,
-                pos != null && pos.length >= 2 ? pos[1] : 0,
-                pos != null && pos.length >= 3 ? pos[2] : 0
-        );
-
-        GameObject entity;
-
-        if (entityData.isScratchEntity()) {
-            // Scratch entity - create from component data
-            entity = createScratchEntity(entityData, position);
-        } else {
-            // Prefab instance - instantiate from registry
-            entity = createPrefabInstance(entityData, position);
-        }
-
-        if (entity != null) {
-            scene.addGameObject(entity);
         }
     }
 

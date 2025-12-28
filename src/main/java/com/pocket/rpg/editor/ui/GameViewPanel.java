@@ -5,6 +5,7 @@ import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.editor.EditorContext;
 import com.pocket.rpg.editor.PlayModeController;
 import com.pocket.rpg.editor.PlayModeController.PlayState;
+import com.pocket.rpg.editor.panels.UIPreviewRenderer;
 import com.pocket.rpg.editor.rendering.GamePreviewRenderer;
 import com.pocket.rpg.editor.scene.EditorScene;
 import imgui.ImGui;
@@ -19,6 +20,7 @@ import imgui.flag.ImGuiWindowFlags;
  * - Play/Pause/Stop toolbar
  * - Pillarboxed game display maintaining aspect ratio
  * - Static preview when stopped (using game camera settings)
+ * - UI overlay rendering
  * - FPS display during play
  */
 public class GameViewPanel {
@@ -31,12 +33,24 @@ public class GameViewPanel {
     // Preview renderer for stopped state
     private GamePreviewRenderer previewRenderer;
 
+    // UI renderer for overlay
+    private UIPreviewRenderer uiRenderer;
+
     // Cached aspect ratio
     private float aspectRatio;
 
     // Track scene for dirty detection
     private EditorScene lastScene;
     private boolean lastSceneDirty;
+
+    // Last rendered viewport info (for UI overlay)
+    private float lastViewportX;
+    private float lastViewportY;
+    private float lastDisplayWidth;
+    private float lastDisplayHeight;
+    private float lastScale;
+    private float lastOffsetX;
+    private float lastOffsetY;
 
     public GameViewPanel(EditorContext context, PlayModeController playController,
                          GameConfig gameConfig, RenderingConfig renderingConfig) {
@@ -60,6 +74,8 @@ public class GameViewPanel {
     public void init() {
         previewRenderer = new GamePreviewRenderer(gameConfig, renderingConfig);
         previewRenderer.init();
+
+        uiRenderer = new UIPreviewRenderer(gameConfig);
     }
 
     /**
@@ -87,6 +103,9 @@ public class GameViewPanel {
             // Stopped - show static preview
             renderPreview();
         }
+
+        // Render UI overlay on top (both when playing and stopped)
+        renderUIOverlay();
 
         ImGui.end();
     }
@@ -186,7 +205,31 @@ public class GameViewPanel {
     }
 
     /**
+     * Renders UI elements on top of the game view.
+     */
+    private void renderUIOverlay() {
+        if (uiRenderer == null) return;
+
+        EditorScene scene = context.getCurrentScene();
+        if (scene == null) return;
+
+        // Skip if no valid viewport info
+        if (lastDisplayWidth <= 0 || lastDisplayHeight <= 0) return;
+
+        var drawList = ImGui.getWindowDrawList();
+
+        // Calculate scale to fit game resolution in displayed area
+        float gameWidth = gameConfig.getGameWidth();
+        float gameHeight = gameConfig.getGameHeight();
+        float scale = lastDisplayWidth / gameWidth;
+
+        // Render UI elements
+        uiRenderer.render(drawList, scene, lastViewportX, lastViewportY, scale, lastOffsetX, lastOffsetY);
+    }
+
+    /**
      * Renders a texture maintaining aspect ratio with pillarboxing/letterboxing.
+     * Also stores viewport info for UI overlay rendering.
      */
     private void renderTextureWithAspectRatio(int textureId) {
         // Get available content region
@@ -218,6 +261,16 @@ public class GameViewPanel {
         ImVec2 cursorPos = new ImVec2();
         ImGui.getCursorPos(cursorPos);
         ImGui.setCursorPos(cursorPos.x + offsetX, cursorPos.y + offsetY);
+
+        // Store viewport info for UI overlay
+        ImVec2 windowPos = ImGui.getWindowPos();
+        lastViewportX = windowPos.x + cursorPos.x + offsetX;
+        lastViewportY = windowPos.y + cursorPos.y + offsetY;
+        lastDisplayWidth = displayWidth;
+        lastDisplayHeight = displayHeight;
+        lastScale = displayWidth / gameConfig.getGameWidth();
+        lastOffsetX = 0; // UI starts at game origin
+        lastOffsetY = 0;
 
         // Render texture (flip UV vertically for OpenGL)
         ImGui.image(textureId, displayWidth, displayHeight, 0, 1, 1, 0);
@@ -296,5 +349,6 @@ public class GameViewPanel {
             previewRenderer.destroy();
             previewRenderer = null;
         }
+        uiRenderer = null;
     }
 }

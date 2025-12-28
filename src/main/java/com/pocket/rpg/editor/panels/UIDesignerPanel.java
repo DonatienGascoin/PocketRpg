@@ -8,6 +8,7 @@ import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.tools.ToolManager;
 import com.pocket.rpg.editor.utils.FieldEditors;
 import com.pocket.rpg.rendering.Sprite;
+import com.pocket.rpg.rendering.Texture;
 import com.pocket.rpg.resources.Assets;
 import imgui.ImGui;
 import imgui.ImVec2;
@@ -371,35 +372,65 @@ public class UIDesignerPanel {
     }
 
     private boolean renderSprite(imgui.ImDrawList drawList, Object spriteObj, Object colorObj,
-                                  float left, float top, float right, float bottom) {
+                                 float left, float top, float right, float bottom) {
         if (spriteObj == null) return false;
 
-        if (spriteObj instanceof Sprite sprite) {
-            if (sprite.getTexture() == null) return false;
+        Sprite sprite = null;
 
-            int textureId = sprite.getTexture().getTextureId();
-            float u0 = sprite.getU0();
-            float v0 = sprite.getV0();
-            float u1 = sprite.getU1();
-            float v1 = sprite.getV1();
-
-            int tintColor = parseColor(colorObj);
-            drawList.addImage(textureId, left, top, right, bottom, u0, v0, u1, v1, tintColor);
-            return true;
-        }
-
-        if (spriteObj instanceof String spritePath && !spritePath.isEmpty()) {
-            Sprite sprite = Assets.load(spritePath);
-            if (sprite != null && sprite.getTexture() != null) {
-                int textureId = sprite.getTexture().getTextureId();
-                int tintColor = parseColor(colorObj);
-                drawList.addImage(textureId, left, top, right, bottom,
-                        sprite.getU0(), sprite.getV0(), sprite.getU1(), sprite.getV1(), tintColor);
-                return true;
+        if (spriteObj instanceof Sprite s) {
+            sprite = s;
+        } else if (spriteObj instanceof String spritePath && !spritePath.isEmpty()) {
+            try {
+                sprite = Assets.load(spritePath, Sprite.class);
+            } catch (Exception e) {
+                // Ignore load errors
+            }
+        } else if (spriteObj instanceof Map<?, ?> spriteMap) {
+            // Sprite was serialized as JSON - load from texturePath or name
+            String texturePath = getStringFromMap(spriteMap, "texturePath");
+            if (texturePath == null || texturePath.isEmpty()) {
+                texturePath = getStringFromMap(spriteMap, "name");
+            }
+            if (texturePath != null && !texturePath.isEmpty()) {
+                try {
+                    sprite = Assets.load(texturePath, Sprite.class);
+                } catch (Exception e) {
+                    // Try loading as texture and creating sprite
+                    try {
+                        Texture texture = Assets.load(texturePath, Texture.class);
+                        if (texture != null) {
+                            float u0 = getFloatFromMap(spriteMap, "u0", 0f);
+                            float v0 = getFloatFromMap(spriteMap, "v0", 0f);
+                            float u1 = getFloatFromMap(spriteMap, "u1", 1f);
+                            float v1 = getFloatFromMap(spriteMap, "v1", 1f);
+                            float w = getFloatFromMap(spriteMap, "width", texture.getWidth());
+                            float h = getFloatFromMap(spriteMap, "height", texture.getHeight());
+                            sprite = new Sprite(texture, w, h);
+                            sprite.setUVs(u0, v0, u1, v1);
+                        }
+                    } catch (Exception e2) {
+                        // Ignore
+                    }
+                }
             }
         }
 
-        return false;
+        if (sprite == null || sprite.getTexture() == null) return false;
+
+        int textureId = sprite.getTexture().getTextureId();
+        float u0 = sprite.getU0();
+        float v0 = sprite.getV0();
+        float u1 = sprite.getU1();
+        float v1 = sprite.getV1();
+
+        int tintColor = parseColor(colorObj);
+        drawList.addImage(textureId, left, top, right, bottom, u0, v0, u1, v1, tintColor);
+        return true;
+    }
+
+    private String getStringFromMap(Map<?, ?> map, String key) {
+        Object value = map.get(key);
+        return value != null ? value.toString() : null;
     }
 
     private int parseColor(Object colorObj) {
@@ -491,8 +522,8 @@ public class UIDesignerPanel {
         drawPivotPoint(drawList, entity, x, y, width, height);
     }
 
-    private void drawResizeHandles(imgui.ImDrawList drawList, EditorEntity entity, 
-                                     float left, float top, float right, float bottom) {
+    private void drawResizeHandles(imgui.ImDrawList drawList, EditorEntity entity,
+                                   float left, float top, float right, float bottom) {
         float midX = (left + right) / 2;
         float midY = (top + bottom) / 2;
 
@@ -519,7 +550,7 @@ public class UIDesignerPanel {
     }
 
     private void drawAnchorPoint(imgui.ImDrawList drawList, EditorEntity entity,
-                                  float elemX, float elemY, float elemWidth, float elemHeight) {
+                                 float elemX, float elemY, float elemWidth, float elemHeight) {
         var transform = entity.getComponentByType("UITransform");
         if (transform == null) return;
 
@@ -595,7 +626,7 @@ public class UIDesignerPanel {
     }
 
     private void drawPivotPoint(imgui.ImDrawList drawList, EditorEntity entity,
-                                 float elemX, float elemY, float elemWidth, float elemHeight) {
+                                float elemX, float elemY, float elemWidth, float elemHeight) {
         var transform = entity.getComponentByType("UITransform");
         if (transform == null) return;
 
@@ -891,7 +922,7 @@ public class UIDesignerPanel {
 
         float hitSize = 12f;
         return Math.abs(screenX - anchorPos[0]) < hitSize &&
-               Math.abs(screenY - anchorPos[1]) < hitSize;
+                Math.abs(screenY - anchorPos[1]) < hitSize;
     }
 
     private boolean hitTestPivot(EditorEntity entity, float screenX, float screenY) {
@@ -900,7 +931,7 @@ public class UIDesignerPanel {
 
         float hitSize = 10f;
         return Math.abs(screenX - pivotPos[0]) < hitSize &&
-               Math.abs(screenY - pivotPos[1]) < hitSize;
+                Math.abs(screenY - pivotPos[1]) < hitSize;
     }
 
     private float[] calculateAnchorScreenPos(EditorEntity entity) {
@@ -1143,7 +1174,7 @@ public class UIDesignerPanel {
         var transform = draggedEntity.getComponentByType("UITransform");
         if (transform != null) {
             Map<String, Object> fields = transform.getFields();
-            
+
             // Get current values to adjust offset
             Vector2f oldAnchor = FieldEditors.getVector2f(fields, "anchor");
             Vector2f offset = FieldEditors.getVector2f(fields, "offset");
@@ -1151,7 +1182,7 @@ public class UIDesignerPanel {
             // Adjust offset to keep element in same visual position
             float anchorDeltaX = (newAnchorX - oldAnchor.x) * parentWidth;
             float anchorDeltaY = (newAnchorY - oldAnchor.y) * parentHeight;
-            
+
             fields.put("anchor", new Vector2f(newAnchorX, newAnchorY));
             fields.put("offset", new Vector2f(offset.x - anchorDeltaX, offset.y - anchorDeltaY));
 
@@ -1283,7 +1314,7 @@ public class UIDesignerPanel {
     private boolean hitTestHandle(float mouseX, float mouseY, float handleX, float handleY, float size) {
         float half = size / 2;
         return mouseX >= handleX - half && mouseX <= handleX + half &&
-               mouseY >= handleY - half && mouseY <= handleY + half;
+                mouseY >= handleY - half && mouseY <= handleY + half;
     }
 
     private boolean hitTest(EditorEntity entity, float canvasX, float canvasY) {
@@ -1296,7 +1327,7 @@ public class UIDesignerPanel {
         float height = bounds[3];
 
         return canvasX >= x && canvasX <= x + width &&
-               canvasY >= y && canvasY <= y + height;
+                canvasY >= y && canvasY <= y + height;
     }
 
     // ========================================================================
@@ -1358,11 +1389,11 @@ public class UIDesignerPanel {
 
     private boolean isUIEntity(EditorEntity entity) {
         return entity.hasComponent("UICanvas") ||
-               entity.hasComponent("UITransform") ||
-               entity.hasComponent("UIPanel") ||
-               entity.hasComponent("UIImage") ||
-               entity.hasComponent("UIButton") ||
-               entity.hasComponent("UIText");
+                entity.hasComponent("UITransform") ||
+                entity.hasComponent("UIPanel") ||
+                entity.hasComponent("UIImage") ||
+                entity.hasComponent("UIButton") ||
+                entity.hasComponent("UIText");
     }
 
     // ========================================================================

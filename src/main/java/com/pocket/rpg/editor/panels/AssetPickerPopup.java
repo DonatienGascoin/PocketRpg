@@ -4,6 +4,7 @@ import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.SpriteSheet;
 import com.pocket.rpg.rendering.Texture;
 import com.pocket.rpg.resources.Assets;
+import com.pocket.rpg.ui.text.Font;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImString;
@@ -14,11 +15,11 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * Popup for selecting asset files (Sprites, Textures, SpriteSheets).
+ * Popup for selecting asset files (Sprites, Textures, SpriteSheets, Fonts).
  * <p>
  * Usage:
  * assetPicker.open(Sprite.class, sprite -> {
- * myComponent.setSprite(sprite);
+ *     myComponent.setSprite(sprite);
  * });
  */
 public class AssetPickerPopup {
@@ -70,11 +71,14 @@ public class AssetPickerPopup {
 
             if (assetType == Sprite.class || assetType == Texture.class) {
                 // Scan for image files
-                paths = Assets.getContext().scanByType(Texture.class);
+                paths = Assets.scanByType(Texture.class);
             } else if (assetType == SpriteSheet.class) {
-                paths = Assets.getContext().scanByType(SpriteSheet.class);
+                paths = Assets.scanByType(SpriteSheet.class);
+            } else if (assetType == Font.class) {
+                // Scan all and filter by font extensions
+                paths = scanForFonts();
             } else {
-                paths = Assets.getContext().scanAll();
+                paths = Assets.scanAll();
             }
 
             for (String path : paths) {
@@ -87,6 +91,18 @@ public class AssetPickerPopup {
         } catch (Exception e) {
             System.err.println("Failed to scan assets: " + e.getMessage());
         }
+    }
+
+    private List<String> scanForFonts() {
+        List<String> all = Assets.scanAll();
+        List<String> fonts = new ArrayList<>();
+        for (String path : all) {
+            String lower = path.toLowerCase();
+            if (lower.endsWith(".ttf") || lower.endsWith(".otf") || lower.endsWith(".fnt")) {
+                fonts.add(path);
+            }
+        }
+        return fonts;
     }
 
     private String getFileName(String path) {
@@ -229,6 +245,8 @@ public class AssetPickerPopup {
                 previewAsset = Assets.load(path, Texture.class);
             } else if (assetType == SpriteSheet.class) {
                 previewAsset = Assets.load(path, SpriteSheet.class);
+            } else if (assetType == Font.class) {
+                previewAsset = Assets.load(path, Font.class);
             }
         } catch (Exception e) {
             System.err.println("Failed to load preview: " + e.getMessage());
@@ -257,6 +275,10 @@ public class AssetPickerPopup {
             texture = sheet.getTexture();
             width = texture.getWidth();
             height = texture.getHeight();
+        } else if (previewAsset instanceof Font font) {
+            // Font preview - show info and sample text
+            renderFontPreview(font);
+            return;
         }
 
         if (texture != null) {
@@ -272,6 +294,41 @@ public class AssetPickerPopup {
             ImGui.image(texture.getTextureId(), displayWidth, displayHeight);
 
             ImGui.text(width + " x " + height + " px");
+        }
+    }
+
+    private void renderFontPreview(Font font) {
+        // Font info - use path from selectedPath since Font doesn't expose name
+        String fontName = selectedPath != null ? getFileName(selectedPath) : "Unknown";
+        ImGui.text("Font: " + fontName);
+        ImGui.text("Size: " + font.getSize() + " px");
+        ImGui.text("Line Height: " + font.getLineHeight() + " px");
+        ImGui.text("Ascent: " + font.getAscent() + " / Descent: " + font.getDescent());
+
+        ImGui.spacing();
+        ImGui.separator();
+        ImGui.spacing();
+
+        // Atlas preview
+        ImGui.text("Atlas:");
+
+        int atlasId = font.getAtlasTextureId();
+        int atlasWidth = font.getAtlasWidth();
+        int atlasHeight = font.getAtlasHeight();
+
+        if (atlasId != 0) {
+            // Show atlas preview (scaled down)
+            float maxSize = 150;
+            float scale = Math.min(maxSize / atlasWidth, maxSize / atlasHeight);
+            if (scale > 1) scale = 1;
+
+            int displayWidth = (int) (atlasWidth * scale);
+            int displayHeight = (int) (atlasHeight * scale);
+
+            ImGui.image(atlasId, displayWidth, displayHeight);
+            ImGui.textDisabled(atlasWidth + "x" + atlasHeight);
+        } else {
+            ImGui.textDisabled("(No atlas available)");
         }
     }
 

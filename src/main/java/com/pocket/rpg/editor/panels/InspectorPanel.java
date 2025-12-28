@@ -628,7 +628,8 @@ public class InspectorPanel {
         if (!isPrefab) {
             ImGui.separator();
             if (ImGui.button(FontAwesomeIcons.Plus + " Add Component", -1, 0)) {
-                componentBrowserPopup.open(componentData -> {
+                componentBrowserPopup.open(meta -> {
+                    ComponentData componentData = new ComponentData(meta.className());
                     UndoManager.getInstance().execute(new AddComponentCommand(entity, componentData));
                     scene.markDirty();
                 });

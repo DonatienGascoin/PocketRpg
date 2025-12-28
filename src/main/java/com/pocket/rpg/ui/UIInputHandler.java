@@ -1,5 +1,7 @@
 package com.pocket.rpg.ui;
 
+import com.pocket.rpg.components.ui.UIButton;
+import com.pocket.rpg.components.ui.UICanvas;
 import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.input.Input;

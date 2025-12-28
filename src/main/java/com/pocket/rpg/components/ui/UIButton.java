@@ -1,8 +1,9 @@
-package com.pocket.rpg.ui;
+package com.pocket.rpg.components.ui;
 
 import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.Texture;
+import com.pocket.rpg.ui.UIRendererBackend;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector2f;
@@ -25,7 +26,7 @@ public class UIButton extends UIComponent {
     // ========================================
 
     @Getter @Setter
-    private Sprite image;
+    private Sprite sprite;
 
     @Getter
     private final Vector4f color = new Vector4f(0.3f, 0.3f, 0.3f, 1f);  // Default gray
@@ -68,12 +69,12 @@ public class UIButton extends UIComponent {
     public UIButton() {
     }
 
-    public UIButton(Sprite image) {
-        this.image = image;
+    public UIButton(Sprite sprite) {
+        this.sprite = sprite;
     }
 
     public UIButton(Texture texture) {
-        this.image = new Sprite(texture);
+        this.sprite = new Sprite(texture);
     }
 
     // ========================================
@@ -133,7 +134,7 @@ public class UIButton extends UIComponent {
     /**
      * Called by UIInputHandler when mouse enters button bounds.
      */
-    void setHoveredInternal(boolean hovered) {
+    public void setHoveredInternal(boolean hovered) {
         if (this.hovered == hovered) return;
 
         boolean wasHovered = this.hovered;
@@ -156,14 +157,14 @@ public class UIButton extends UIComponent {
     /**
      * Called by UIInputHandler when mouse is pressed over button.
      */
-    void setPressedInternal(boolean pressed) {
+    public void setPressedInternal(boolean pressed) {
         this.pressed = pressed;
     }
 
     /**
      * Called by UIInputHandler when mouse is released over button (click).
      */
-    void triggerClick() {
+    public void triggerClick() {
         if (onClick != null) {
             onClick.run();
         }
@@ -192,8 +193,8 @@ public class UIButton extends UIComponent {
             renderColor.z *= (1f - tint);
         }
 
-        if (image != null) {
-            backend.drawSprite(pos.x, pos.y, w, h, image, renderColor);
+        if (sprite != null) {
+            backend.drawSprite(pos.x, pos.y, w, h, sprite, renderColor);
         } else {
             backend.drawQuad(pos.x, pos.y, w, h, renderColor);
         }
@@ -222,6 +223,6 @@ public class UIButton extends UIComponent {
     @Override
     public String toString() {
         return String.format("UIButton[hovered=%s, image=%s]",
-                hovered, image != null ? "yes" : "no");
+                hovered, sprite != null ? "yes" : "no");
     }
 }

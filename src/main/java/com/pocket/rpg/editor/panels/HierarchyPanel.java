@@ -4,6 +4,7 @@ import com.pocket.rpg.editor.EditorModeManager;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.scene.EditorEntity;
 import com.pocket.rpg.editor.scene.EditorScene;
+import com.pocket.rpg.editor.scene.UIEntityFactory;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.AddEntityCommand;
 import com.pocket.rpg.editor.undo.commands.BulkDeleteCommand;
@@ -54,6 +55,9 @@ public class HierarchyPanel {
 
     @Setter
     private EditorTool brushTool;
+
+    @Setter
+    private UIEntityFactory uiFactory;
 
     // Selection state
     @Getter
@@ -248,6 +252,8 @@ public class HierarchyPanel {
         if (ImGui.smallButton(FontAwesomeIcons.Plus + " New Entity")) {
             createEmptyEntity();
         }
+        ImGui.sameLine();
+        renderCreateUIMenu();
         ImGui.sameLine();
         ImGui.textDisabled("or use Prefabs panel");
 
@@ -587,8 +593,35 @@ public class HierarchyPanel {
                     scene.clearSelection();
                 }
             } else {
+                ImGui.setNextItemWidth(120);
                 if (ImGui.menuItem(FontAwesomeIcons.Plus + " New Entity")) {
                     createEmptyEntity();
+                }
+
+                ImGui.sameLine();
+                ImGui.setNextItemWidth(120);
+                if (ImGui.smallButton(FontAwesomeIcons.WindowMaximize + " Create UI")) {
+                    ImGui.openPopup("create_ui_popup");
+                }
+
+                if (ImGui.beginPopup("create_ui_popup")) {
+                    if (ImGui.menuItem(FontAwesomeIcons.Desktop + " Canvas")) {
+                        createUIElement("Canvas");
+                    }
+                    ImGui.separator();
+                    if (ImGui.menuItem(FontAwesomeIcons.Square + " Panel")) {
+                        createUIElement("Panel");
+                    }
+                    if (ImGui.menuItem(FontAwesomeIcons.Image + " Image")) {
+                        createUIElement("Image");
+                    }
+                    if (ImGui.menuItem(FontAwesomeIcons.HandPointer + " Button")) {
+                        createUIElement("Button");
+                    }
+                    if (ImGui.menuItem(FontAwesomeIcons.Font + " Text")) {
+                        createUIElement("Text");
+                    }
+                    ImGui.endPopup();
                 }
             }
 
@@ -597,6 +630,22 @@ public class HierarchyPanel {
     }
 
     private String getEntityIcon(EditorEntity entity) {
+        // Check for UI components first
+        if (entity.hasComponent("UICanvas")) {
+            return FontAwesomeIcons.Desktop;
+        } else if (entity.hasComponent("UIButton")) {
+            return FontAwesomeIcons.HandPointer;
+        } else if (entity.hasComponent("UIText")) {
+            return FontAwesomeIcons.Font;
+        } else if (entity.hasComponent("UIImage")) {
+            return FontAwesomeIcons.Image;
+        } else if (entity.hasComponent("UIPanel")) {
+            return FontAwesomeIcons.Square;
+        } else if (entity.hasComponent("UITransform")) {
+            return FontAwesomeIcons.WindowMaximize;
+        }
+
+        // Default icons
         if (entity.isScratchEntity()) {
             return FontAwesomeIcons.Cube;
         } else if (entity.isPrefabValid()) {
@@ -698,6 +747,75 @@ public class HierarchyPanel {
         scene.addEntity(copy);
         selectEntity(copy);
         scene.markDirty();
+    }
+
+    // ========================================================================
+    // UI ENTITY CREATION
+    // ========================================================================
+
+    private void renderCreateUIMenu() {
+        ImGui.sameLine();
+        ImGui.setNextItemWidth(120);
+        if (ImGui.smallButton(FontAwesomeIcons.WindowMaximize + " Create UI")) {
+            ImGui.openPopup("create_ui_popup");
+        }
+
+        if (ImGui.beginPopup("create_ui_popup")) {
+            if (ImGui.menuItem(FontAwesomeIcons.Desktop + " Canvas")) {
+                createUIElement("Canvas");
+            }
+            ImGui.separator();
+            if (ImGui.menuItem(FontAwesomeIcons.Square + " Panel")) {
+                createUIElement("Panel");
+            }
+            if (ImGui.menuItem(FontAwesomeIcons.Image + " Image")) {
+                createUIElement("Image");
+            }
+            if (ImGui.menuItem(FontAwesomeIcons.HandPointer + " Button")) {
+                createUIElement("Button");
+            }
+            if (ImGui.menuItem(FontAwesomeIcons.Font + " Text")) {
+                createUIElement("Text");
+            }
+            ImGui.endPopup();
+        }
+    }
+
+    private void createUIElement(String uiType) {
+        if (scene == null || uiFactory == null) return;
+
+        EditorEntity entity = uiFactory.create(uiType, null);
+        if (entity == null) return;
+
+        // If creating non-canvas UI element, parent to canvas
+        if (!uiType.equals("Canvas")) {
+            EditorEntity canvas = findOrCreateCanvas();
+            if (canvas != null) {
+                entity.setParent(canvas);
+                entity.setOrder(canvas.getChildren().size());
+            }
+        } else {
+            entity.setOrder(getNextChildOrder(null));
+        }
+
+        scene.addEntity(entity);
+        selectEntity(entity);
+        scene.markDirty();
+    }
+
+    private EditorEntity findOrCreateCanvas() {
+        // Look for existing canvas
+        for (EditorEntity entity : scene.getEntities()) {
+            if (entity.hasComponent("UICanvas")) {
+                return entity;
+            }
+        }
+
+        // Create new canvas
+        EditorEntity canvas = uiFactory.create("Canvas", "UI Canvas");
+        canvas.setOrder(getNextChildOrder(null));
+        scene.addEntity(canvas);
+        return canvas;
     }
 
     public void clearSelection() {

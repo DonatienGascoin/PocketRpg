@@ -11,7 +11,7 @@ import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.core.ViewportConfig;
 import com.pocket.rpg.rendering.Renderable;
 import com.pocket.rpg.serialization.ComponentRefResolver;
-import com.pocket.rpg.ui.UICanvas;
+import com.pocket.rpg.components.ui.UICanvas;
 import lombok.Getter;
 
 import java.util.ArrayList;

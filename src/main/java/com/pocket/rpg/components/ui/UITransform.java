@@ -1,7 +1,8 @@
-package com.pocket.rpg.ui;
+package com.pocket.rpg.components.ui;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.core.GameObject;
+import com.pocket.rpg.ui.AnchorPreset;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector2f;

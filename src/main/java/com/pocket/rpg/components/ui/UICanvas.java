@@ -1,5 +1,6 @@
-package com.pocket.rpg.ui;
+package com.pocket.rpg.components.ui;
 
+import com.pocket.rpg.ui.UIRendererBackend;
 import lombok.Getter;
 import lombok.Setter;
 

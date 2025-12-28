@@ -1,8 +1,10 @@
-package com.pocket.rpg.ui.text;
+package com.pocket.rpg.components.ui;
 
-import com.pocket.rpg.ui.UIComponent;
 import com.pocket.rpg.ui.UIRendererBackend;
-import com.pocket.rpg.ui.UITransform;
+import com.pocket.rpg.ui.text.Font;
+import com.pocket.rpg.ui.text.Glyph;
+import com.pocket.rpg.ui.text.HorizontalAlignment;
+import com.pocket.rpg.ui.text.VerticalAlignment;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector2f;

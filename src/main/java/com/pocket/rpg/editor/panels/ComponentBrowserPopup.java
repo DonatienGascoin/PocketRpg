@@ -1,41 +1,31 @@
 package com.pocket.rpg.editor.panels;
 
+import com.pocket.rpg.serialization.ComponentCategory;
 import com.pocket.rpg.serialization.ComponentMeta;
 import com.pocket.rpg.serialization.ComponentRegistry;
-import com.pocket.rpg.serialization.ComponentData;
 import imgui.ImGui;
-import imgui.flag.ImGuiWindowFlags;
-import imgui.type.ImString;
 
-import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * Popup window for selecting a component to add.
- * <p>
- * Usage:
- * ComponentBrowserPopup popup = new ComponentBrowserPopup();
- * popup.open(componentData -> entity.addComponent(componentData));
- * <p>
- * // In render loop:
- * popup.render();
+ * Popup menu for browsing and selecting components.
+ * Organizes components into category submenus.
  */
 public class ComponentBrowserPopup {
 
-    private static final String POPUP_ID = "Add Component";
+    private static final String POPUP_ID = "AddComponentPopup";
 
     private boolean shouldOpen = false;
-    private Consumer<ComponentData> onComponentSelected;
-
-    private final ImString searchBuffer = new ImString(64);
+    private Consumer<ComponentMeta> onSelect;
 
     /**
-     * Opens the popup with a callback for when a component is selected.
+     * Opens the popup.
+     *
+     * @param onSelect Callback when a component is selected
      */
-    public void open(Consumer<ComponentData> callback) {
-        this.onComponentSelected = callback;
+    public void open(Consumer<ComponentMeta> onSelect) {
+        this.onSelect = onSelect;
         this.shouldOpen = true;
-        this.searchBuffer.set("");
     }
 
     /**
@@ -47,66 +37,80 @@ public class ComponentBrowserPopup {
             shouldOpen = false;
         }
 
-        // Center popup
-        ImGui.setNextWindowSize(400, 500);
-
-        if (ImGui.beginPopupModal(POPUP_ID, ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoScrollbar| ImGuiWindowFlags.NoScrollWithMouse)) {
-            // Search bar
-            ImGui.text("Search:");
-            ImGui.sameLine();
-            ImGui.setNextItemWidth(-1);
-            ImGui.inputText("##search", searchBuffer);
-
-            ImGui.separator();
-
-            // Component list
-            if (ImGui.beginChild("ComponentList", ImGuiWindowFlags.AlwaysVerticalScrollbar)) {
-
-
-                String filter = searchBuffer.get().toLowerCase();
-                List<ComponentMeta> components = ComponentRegistry.getInstantiable();
-
-                for (ComponentMeta meta : components) {
-                    // Apply search filter
-                    if (!filter.isEmpty()) {
-                        if (!meta.simpleName().toLowerCase().contains(filter) &&
-                                !meta.displayName().toLowerCase().contains(filter)) {
-                            continue;
-                        }
-                    }
-
-                    // Show component button
-                    if (ImGui.selectable(meta.displayName())) {
-                        selectComponent(meta);
-                        ImGui.closeCurrentPopup();
-                    }
-
-                    // Tooltip with details
-                    if (ImGui.isItemHovered()) {
-                        ImGui.beginTooltip();
-                        ImGui.text(meta.className());
-                        ImGui.textDisabled(meta.fields().size() + " editable fields");
-                        ImGui.endTooltip();
-                    }
-                }
-            }
-            ImGui.endChild();
-
-            // Cancel button
-            ImGui.separator();
-            if (ImGui.button("Cancel", 100, 0)) {
-                ImGui.closeCurrentPopup();
-            }
-
+        if (ImGui.beginPopup(POPUP_ID)) {
+            renderCategorizedMenu();
             ImGui.endPopup();
         }
     }
 
-    private void selectComponent(ComponentMeta meta) {
-        if (onComponentSelected != null) {
-            // Create empty component data
-            ComponentData data = new ComponentData(meta.className());
-            onComponentSelected.accept(data);
+    /**
+     * Renders the component menu with categories as submenus.
+     * Use this inline in context menus.
+     */
+    public static void renderInlineMenu(Consumer<ComponentMeta> onSelect) {
+        for (ComponentCategory category : ComponentRegistry.getCategories()) {
+            if (category.isEmpty()) continue;
+
+            if (ImGui.beginMenu(category.displayName())) {
+                for (ComponentMeta meta : category.components()) {
+                    if (!meta.hasNoArgConstructor()) continue;
+
+                    if (ImGui.menuItem(meta.displayName())) {
+                        if (onSelect != null) {
+                            onSelect.accept(meta);
+                        }
+                    }
+                }
+                ImGui.endMenu();
+            }
         }
+    }
+
+    /**
+     * Renders UI-specific components menu.
+     * Use for "Create UI" context menus.
+     */
+    public static void renderUIMenu(Consumer<ComponentMeta> onSelect) {
+        ComponentCategory uiCategory = ComponentRegistry.getCategory("ui");
+        if (uiCategory == null || uiCategory.isEmpty()) {
+            ImGui.textDisabled("No UI components found");
+            ImGui.textDisabled("Move UI components to");
+            ImGui.textDisabled("com.pocket.rpg.components.ui");
+            return;
+        }
+
+        for (ComponentMeta meta : uiCategory.components()) {
+            if (!meta.hasNoArgConstructor()) continue;
+
+            // Use icons for common UI types
+            String icon = getUIIcon(meta.simpleName());
+            String label = icon + " " + meta.displayName();
+
+            if (ImGui.menuItem(label)) {
+                if (onSelect != null) {
+                    onSelect.accept(meta);
+                }
+            }
+        }
+    }
+
+    private void renderCategorizedMenu() {
+        renderInlineMenu(meta -> {
+            if (onSelect != null) {
+                onSelect.accept(meta);
+            }
+            ImGui.closeCurrentPopup();
+        });
+    }
+
+    private static String getUIIcon(String simpleName) {
+        return switch (simpleName) {
+            case "UICanvas" -> "\uF03E";  // frame icon
+            case "UIPanel" -> "\uF0C8";   // square
+            case "UIImage" -> "\uF03E";   // image
+            case "UIButton" -> "\uF0A6";  // hand pointer
+            case "UIText" -> "T";
+            default -> "\uF054";          // chevron
+        };
     }
 }

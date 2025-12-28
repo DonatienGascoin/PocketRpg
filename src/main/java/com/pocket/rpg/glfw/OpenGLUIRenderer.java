@@ -1,5 +1,8 @@
 package com.pocket.rpg.glfw;
 
+import com.pocket.rpg.components.ui.UICanvas;
+import com.pocket.rpg.components.ui.UIComponent;
+import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.rendering.Sprite;

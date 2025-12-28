@@ -4,6 +4,7 @@ import com.pocket.rpg.editor.panels.*;
 import com.pocket.rpg.editor.rendering.CameraOverlayRenderer;
 import com.pocket.rpg.editor.rendering.CollisionOverlayRenderer;
 import com.pocket.rpg.editor.scene.EditorScene;
+import com.pocket.rpg.editor.scene.UIEntityFactory;
 import com.pocket.rpg.editor.ui.*;
 import imgui.ImGui;
 import imgui.flag.ImGuiDockNodeFlags;
@@ -40,6 +41,9 @@ public class EditorUIController {
 
     @Getter
     private HierarchyPanel hierarchyPanel;
+
+    @Getter
+    private UIDesignerPanel uiDesignerPanel;
 
     @Getter
     private InspectorPanel inspectorPanel;
@@ -113,6 +117,7 @@ public class EditorUIController {
         hierarchyPanel.setToolManager(context.getToolManager());
         hierarchyPanel.setSelectionTool(toolController.getSelectionTool());
         hierarchyPanel.setBrushTool(toolController.getBrushTool());
+        hierarchyPanel.setUiFactory(new UIEntityFactory(context.getGameConfig()));
         hierarchyPanel.init();
 
         inspectorPanel = new InspectorPanel();
@@ -120,6 +125,8 @@ public class EditorUIController {
         inspectorPanel.setHierarchyPanel(hierarchyPanel);
 
         configPanel = new ConfigPanel(context);
+
+        uiDesignerPanel = new UIDesignerPanel(context);
     }
 
     private void createMenuAndStatus() {
@@ -352,6 +359,7 @@ public class EditorUIController {
         hierarchyPanel.render();
         inspectorPanel.render();
         configPanel.render();
+        uiDesignerPanel.render();
         if (gameViewPanel != null) {
             gameViewPanel.render();
         }

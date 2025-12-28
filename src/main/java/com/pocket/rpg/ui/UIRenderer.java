@@ -1,5 +1,6 @@
 package com.pocket.rpg.ui;
 
+import com.pocket.rpg.components.ui.UICanvas;
 import com.pocket.rpg.config.GameConfig;
 
 import java.util.List;

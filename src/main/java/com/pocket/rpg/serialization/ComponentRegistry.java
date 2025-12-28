@@ -14,12 +14,7 @@ import java.util.*;
  * Registry of all available components.
  * Scans the components package at startup and caches metadata.
  * <p>
- * All components MUST have a no-arg constructor for serialization.
- * <p>
- * Usage:
- * ComponentRegistry.initialize();
- * List<ComponentMeta> all = ComponentRegistry.getAll();
- * Component instance = ComponentRegistry.instantiate("SpriteRenderer");
+ * Supports categorized access for UI menus via getCategories().
  */
 public class ComponentRegistry {
 
@@ -28,13 +23,12 @@ public class ComponentRegistry {
     private static Map<String, ComponentMeta> bySimpleName = new HashMap<>();
     private static Map<String, ComponentMeta> byFullName = new HashMap<>();
     private static List<ComponentMeta> allComponents = new ArrayList<>();
+    private static Map<String, ComponentCategory> categories = new LinkedHashMap<>();
     private static boolean initialized = false;
 
     /**
      * Initializes the registry by scanning the components package.
      * Call once at startup.
-     *
-     * @throws IllegalStateException if any component lacks a no-arg constructor
      */
     public static void initialize() {
         if (initialized) {
@@ -47,12 +41,11 @@ public class ComponentRegistry {
             List<Class<? extends Component>> classes = scanComponentClasses();
 
             for (Class<? extends Component> clazz : classes) {
-                // Skip abstract classes and Transform (special case)
                 if (Modifier.isAbstract(clazz.getModifiers())) {
                     continue;
                 }
                 if (clazz == Transform.class) {
-                    continue; // Transform is auto-added, not user-addable
+                    continue;
                 }
                 if (clazz == Component.class) {
                     continue;
@@ -63,21 +56,49 @@ public class ComponentRegistry {
                 byFullName.put(meta.className(), meta);
                 allComponents.add(meta);
 
+                // Add to category
+                String categoryName = ComponentCategory.extractCategory(meta.className());
+                ComponentCategory category = categories.computeIfAbsent(
+                        categoryName,
+                        name -> new ComponentCategory(name, ComponentCategory.toDisplayName(name))
+                );
+                category.add(meta);
+
                 System.out.println("  Registered: " + meta.simpleName() +
-                        " (" + meta.fields().size() + " fields, " +
-                        meta.references().size() + " refs)");
+                        " [" + categoryName + "] (" + meta.fields().size() + " fields)");
             }
 
-            // Sort alphabetically
+            // Sort components within each category
+            for (ComponentCategory category : categories.values()) {
+                category.components().sort(Comparator.comparing(ComponentMeta::simpleName));
+            }
+
+            // Sort categories (UI first, then alphabetically, "other" last)
+            List<String> sortedKeys = new ArrayList<>(categories.keySet());
+            sortedKeys.sort((a, b) -> {
+                if (a.equals("ui")) return -1;
+                if (b.equals("ui")) return 1;
+                if (a.equals("other")) return 1;
+                if (b.equals("other")) return -1;
+                return a.compareTo(b);
+            });
+
+            Map<String, ComponentCategory> sorted = new LinkedHashMap<>();
+            for (String key : sortedKeys) {
+                sorted.put(key, categories.get(key));
+            }
+            categories = sorted;
+
             allComponents.sort(Comparator.comparing(ComponentMeta::simpleName));
 
             initialized = true;
-            System.out.println("ComponentRegistry: Found " + allComponents.size() + " components");
+            System.out.println("ComponentRegistry: Found " + allComponents.size() +
+                    " components in " + categories.size() + " categories");
 
         } catch (Exception e) {
             System.err.println("ComponentRegistry: Failed to scan components");
             e.printStackTrace();
-            initialized = true; // Don't retry
+            initialized = true;
         }
     }
 
@@ -89,8 +110,7 @@ public class ComponentRegistry {
     }
 
     /**
-     * Gets all components that can be instantiated (have no-arg constructor).
-     * Since we now enforce no-arg constructors, this returns all components.
+     * Gets all components that can be instantiated.
      */
     public static List<ComponentMeta> getInstantiable() {
         return allComponents.stream()
@@ -99,7 +119,22 @@ public class ComponentRegistry {
     }
 
     /**
-     * Gets component metadata by simple name (e.g., "SpriteRenderer").
+     * Gets all categories with their components.
+     * Categories are sorted: UI first, then alphabetically, "other" last.
+     */
+    public static Collection<ComponentCategory> getCategories() {
+        return Collections.unmodifiableCollection(categories.values());
+    }
+
+    /**
+     * Gets a specific category by name.
+     */
+    public static ComponentCategory getCategory(String name) {
+        return categories.get(name);
+    }
+
+    /**
+     * Gets component metadata by simple name.
      */
     public static ComponentMeta getBySimpleName(String simpleName) {
         return bySimpleName.get(simpleName);
@@ -114,7 +149,6 @@ public class ComponentRegistry {
 
     /**
      * Creates a new instance of a component by simple name.
-     * Returns null if component not found or can't be instantiated.
      */
     public static Component instantiate(String simpleName) {
         ComponentMeta meta = bySimpleName.get(simpleName);
@@ -148,9 +182,6 @@ public class ComponentRegistry {
     // PRIVATE HELPERS
     // ========================================================================
 
-    /**
-     * Scans the components package for Component subclasses.
-     */
     private static List<Class<? extends Component>> scanComponentClasses() throws Exception {
         List<Class<? extends Component>> result = new ArrayList<>();
 
@@ -171,9 +202,6 @@ public class ComponentRegistry {
         return result;
     }
 
-    /**
-     * Recursively scans a directory for .class files.
-     */
     @SuppressWarnings("unchecked")
     private static void scanDirectory(File directory, String packageName,
                                       List<Class<? extends Component>> result) {
@@ -199,28 +227,20 @@ public class ComponentRegistry {
         }
     }
 
-    /**
-     * Builds metadata for a component class.
-     *
-     * @throws IllegalStateException if component lacks no-arg constructor
-     */
     private static ComponentMeta buildMeta(Class<? extends Component> clazz) {
         String className = clazz.getName();
         String simpleName = clazz.getSimpleName();
         String displayName = ComponentMeta.toDisplayName(simpleName);
 
-        // Enforce no-arg constructor
         boolean hasNoArgConstructor = false;
         try {
             clazz.getDeclaredConstructor();
             hasNoArgConstructor = true;
         } catch (NoSuchMethodException e) {
             throw new IllegalStateException(
-                    "Component " + simpleName + " must have a no-arg constructor for serialization. " +
-                    "Add a no-arg constructor or make configurable fields settable via setters.");
+                    "Component " + simpleName + " must have a no-arg constructor for serialization.");
         }
 
-        // Collect fields
         List<FieldMeta> fields = new ArrayList<>();
         List<ComponentRefMeta> references = new ArrayList<>();
         collectFields(clazz, fields, references);
@@ -236,67 +256,50 @@ public class ComponentRegistry {
         );
     }
 
-    /**
-     * Collects all editable fields and component references from a class and its superclasses.
-     * Stops at Component base class.
-     */
     private static void collectFields(Class<?> clazz, List<FieldMeta> fields,
-                                       List<ComponentRefMeta> references) {
+                                      List<ComponentRefMeta> references) {
         if (clazz == null || clazz == Component.class || clazz == Object.class) {
             return;
         }
 
-        // Process superclass first (parent fields appear first)
         collectFields(clazz.getSuperclass(), fields, references);
 
-        // Process this class's fields
         for (Field field : clazz.getDeclaredFields()) {
-            // Skip static fields
             if (Modifier.isStatic(field.getModifiers())) {
                 continue;
             }
-            // Skip transient fields
             if (Modifier.isTransient(field.getModifiers())) {
                 continue;
             }
-            // Skip fields named "gameObject" or "started" (from Component base)
             String name = field.getName();
             if (name.equals("gameObject") || name.equals("started") || name.equals("enabled")) {
                 continue;
             }
 
-            // Check for @ComponentRef annotation
             ComponentRef refAnnotation = field.getAnnotation(ComponentRef.class);
             if (refAnnotation != null) {
-                // This is a reference field - collect separately
                 ComponentRefMeta refMeta = buildRefMeta(field, refAnnotation);
                 if (refMeta != null) {
                     references.add(refMeta);
                 }
-                continue; // Don't add to regular fields
+                continue;
             }
 
-            // Skip @HideInInspector fields
             if (field.isAnnotationPresent(HideInInspector.class)) {
                 continue;
             }
 
-            // Regular serializable field
             Object defaultValue = getDefaultValue(field.getType());
             fields.add(new FieldMeta(name, field.getType(), field, defaultValue));
         }
     }
 
-    /**
-     * Builds metadata for a @ComponentRef field.
-     */
     @SuppressWarnings("unchecked")
     private static ComponentRefMeta buildRefMeta(Field field, ComponentRef annotation) {
         Class<?> fieldType = field.getType();
         Class<?> componentType;
         boolean isList = false;
 
-        // Check if it's a List<Component> field
         if (List.class.isAssignableFrom(fieldType)) {
             isList = true;
             Type genericType = field.getGenericType();
@@ -307,21 +310,17 @@ public class ComponentRegistry {
                     if (Component.class.isAssignableFrom(typeArg)) {
                         componentType = typeArg;
                     } else {
-                        System.err.println("@ComponentRef List must have Component type: " + field);
                         return null;
                     }
                 } else {
-                    System.err.println("@ComponentRef List missing type parameter: " + field);
                     return null;
                 }
             } else {
-                System.err.println("@ComponentRef List must be parameterized: " + field);
                 return null;
             }
         } else if (Component.class.isAssignableFrom(fieldType)) {
             componentType = fieldType;
         } else {
-            System.err.println("@ComponentRef must be on Component or List<Component> field: " + field);
             return null;
         }
 
@@ -335,9 +334,6 @@ public class ComponentRegistry {
         );
     }
 
-    /**
-     * Gets a sensible default value for a field type.
-     */
     private static Object getDefaultValue(Class<?> type) {
         if (type == int.class || type == Integer.class) return 0;
         if (type == float.class || type == Float.class) return 0f;

@@ -1,6 +1,5 @@
 package com.pocket.rpg.editor.utils;
 
-import com.pocket.rpg.editor.panels.AssetPickerPopup;
 import com.pocket.rpg.editor.scene.EditorEntity;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.SetComponentFieldCommand;
@@ -13,37 +12,29 @@ import com.pocket.rpg.serialization.ComponentRegistry;
 import com.pocket.rpg.serialization.FieldMeta;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
-import imgui.type.ImInt;
-import imgui.type.ImString;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
  * Renders ImGui controls for component fields using reflection.
  * <p>
+ * Uses FieldEditors for the actual field rendering.
  * All field changes are wrapped in undo commands.
  */
 public class ReflectionFieldEditor {
 
-    private static final ImString stringBuffer = new ImString(256);
-    private static final ImInt intBuffer = new ImInt();
-    private static final float[] floatBuffer = new float[4];
-
-    private static final Map<Class<?>, Object[]> enumCache = new HashMap<>();
-
-    private static final AssetPickerPopup assetPicker = new AssetPickerPopup();
-    private static ComponentData assetPickerTargetData = null;
-    private static String assetPickerFieldName = null;
-    private static EditorEntity assetPickerTargetEntity = null;
-
     public static boolean drawComponent(ComponentData component, EditorEntity entity) {
         if (component == null) {
             return false;
+        }
+
+        // Check for custom editor first
+        if (CustomComponentEditorRegistry.hasCustomEditor(component.getType())) {
+            return CustomComponentEditorRegistry.drawCustomEditor(component, entity);
         }
 
         ComponentMeta meta = ComponentRegistry.getByClassName(component.getType());
@@ -79,149 +70,69 @@ public class ReflectionFieldEditor {
     public static boolean drawField(ComponentData data, FieldMeta meta, EditorEntity entity) {
         Class<?> type = meta.type();
         String fieldName = meta.name();
-        Object value = data.getFields().get(fieldName);
+        Map<String, Object> fields = data.getFields();
+        Object oldValue = fields.get(fieldName);
         String label = meta.getDisplayName();
 
         boolean changed = false;
-        Object newValue = value;
 
         ImGui.pushID(fieldName);
 
         // PRIMITIVES
         if (type == int.class || type == Integer.class) {
-            int intValue = value instanceof Number n ? n.intValue() : 0;
-            intBuffer.set(intValue);
-            if (ImGui.inputInt(label, intBuffer)) {
-                newValue = intBuffer.get();
-                changed = true;
-            }
+            changed = FieldEditors.drawInt(label, fields, fieldName);
         } else if (type == float.class || type == Float.class) {
-            float floatValue = value instanceof Number n ? n.floatValue() : 0f;
-            floatBuffer[0] = floatValue;
-            if (ImGui.dragFloat(label, floatBuffer, 0.1f)) {
-                newValue = floatBuffer[0];
-                changed = true;
-            }
+            changed = FieldEditors.drawFloat(label, fields, fieldName, 0.1f);
         } else if (type == double.class || type == Double.class) {
-            double doubleValue = value instanceof Number n ? n.doubleValue() : 0.0;
-            floatBuffer[0] = (float) doubleValue;
-            if (ImGui.dragFloat(label, floatBuffer, 0.1f)) {
-                newValue = (double) floatBuffer[0];
+            // Handle double as float for UI
+            float floatValue = oldValue instanceof Number n ? n.floatValue() : 0f;
+            float[] buf = {floatValue};
+            if (ImGui.dragFloat(label, buf, 0.1f)) {
+                fields.put(fieldName, (double) buf[0]);
                 changed = true;
             }
         } else if (type == boolean.class || type == Boolean.class) {
-            boolean boolValue = value instanceof Boolean b && b;
-            if (ImGui.checkbox(label, boolValue)) {
-                newValue = !boolValue;
-                changed = true;
-            }
+            changed = FieldEditors.drawBoolean(label, fields, fieldName);
         } else if (type == String.class) {
-            String strValue = value != null ? (String) value : "";
-            stringBuffer.set(strValue);
-            if (ImGui.inputText(label, stringBuffer)) {
-                newValue = stringBuffer.get();
-                changed = true;
-            }
+            changed = FieldEditors.drawString(label, fields, fieldName);
         }
 
         // VECTORS
         else if (type == Vector2f.class) {
-            Vector2f vec = toVector2f(value);
-            floatBuffer[0] = vec.x;
-            floatBuffer[1] = vec.y;
-            if (ImGui.dragFloat2(label, floatBuffer, 0.1f)) {
-                newValue = new Vector2f(floatBuffer[0], floatBuffer[1]);
-                changed = true;
-            }
+            changed = FieldEditors.drawVector2f(label, fields, fieldName);
         } else if (type == Vector3f.class) {
-            Vector3f vec = toVector3f(value);
-            floatBuffer[0] = vec.x;
-            floatBuffer[1] = vec.y;
-            floatBuffer[2] = vec.z;
-            if (ImGui.dragFloat3(label, floatBuffer, 0.1f)) {
-                newValue = new Vector3f(floatBuffer[0], floatBuffer[1], floatBuffer[2]);
-                changed = true;
-            }
+            changed = FieldEditors.drawVector3f(label, fields, fieldName);
         } else if (type == Vector4f.class) {
-            Vector4f vec = toVector4f(value);
-            floatBuffer[0] = vec.x;
-            floatBuffer[1] = vec.y;
-            floatBuffer[2] = vec.z;
-            floatBuffer[3] = vec.w;
-            if (ImGui.colorEdit4(label, floatBuffer)) {
-                newValue = new Vector4f(floatBuffer[0], floatBuffer[1], floatBuffer[2], floatBuffer[3]);
-                changed = true;
-            }
+            changed = FieldEditors.drawColor(label, fields, fieldName);
         }
 
         // ENUMS
         else if (type.isEnum()) {
-            Object[] constants = getEnumConstants(type);
-            int currentIndex = 0;
-
-            if (value != null) {
-                String valueStr = value instanceof Enum<?> e ? e.name() : value.toString();
-                for (int i = 0; i < constants.length; i++) {
-                    if (constants[i].toString().equals(valueStr)) {
-                        currentIndex = i;
-                        break;
-                    }
-                }
-            }
-
-            String[] names = new String[constants.length];
-            for (int i = 0; i < constants.length; i++) {
-                names[i] = constants[i].toString();
-            }
-
-            intBuffer.set(currentIndex);
-            if (ImGui.combo(label, intBuffer, names)) {
-                newValue = constants[intBuffer.get()].toString();
-                changed = true;
-            }
+            changed = FieldEditors.drawEnum(label, fields, fieldName, type);
         }
 
         // ASSETS
         else if (type == Sprite.class || type == Texture.class) {
-            String display = getAssetDisplayName(value, type);
-
-            ImGui.text(label);
-            ImGui.sameLine(130);
-            ImGui.setNextItemWidth(-60);
-            ImGui.inputText("##" + fieldName, new ImString(display), imgui.flag.ImGuiInputTextFlags.ReadOnly);
-            ImGui.sameLine();
-
-            if (ImGui.smallButton("...##" + fieldName)) {
-                assetPickerTargetData = data;
-                assetPickerFieldName = fieldName;
-                assetPickerTargetEntity = entity;
-                Object oldValue = data.getFields().get(fieldName);
-                assetPicker.open(type, selectedAsset -> {
-                    if (assetPickerTargetData != null && assetPickerFieldName != null) {
-                        UndoManager.getInstance().execute(
-                                new SetComponentFieldCommand(assetPickerTargetData, assetPickerFieldName,
-                                        oldValue, selectedAsset, assetPickerTargetEntity)
-                        );
-                    }
-                });
-            }
+            changed = FieldEditors.drawAsset(label, fields, fieldName, type, data, entity);
         }
 
         // UNKNOWN
         else {
-            String display = value != null ? value.toString() : "(null)";
-            ImGui.labelText(label, display);
-            ImGui.sameLine();
-            ImGui.textDisabled("(read-only: " + type.getSimpleName() + ")");
+            FieldEditors.drawReadOnly(label, fields, fieldName, type.getSimpleName());
         }
 
         ImGui.popID();
 
-        // Apply change via undo command
-        if (changed && !valuesEqual(value, newValue)) {
-            UndoManager.getInstance().execute(
-                    new SetComponentFieldCommand(data, fieldName, value, newValue, entity)
-            );
+        // Wrap change in undo command
+        if (changed) {
+            Object newValue = fields.get(fieldName);
+            if (!valuesEqual(oldValue, newValue)) {
+                // Revert the direct change, apply via command
+                fields.put(fieldName, oldValue);
+                UndoManager.getInstance().execute(
+                        new SetComponentFieldCommand(data, fieldName, oldValue, newValue, entity)
+                );
+            }
         }
 
         return changed;
@@ -345,61 +256,10 @@ public class ReflectionFieldEditor {
         return false;
     }
 
-    private static Object[] getEnumConstants(Class<?> enumType) {
-        return enumCache.computeIfAbsent(enumType, Class::getEnumConstants);
-    }
-
-    private static Vector2f toVector2f(Object value) {
-        if (value instanceof Vector2f v) return v;
-        if (value instanceof List<?> list && list.size() >= 2) {
-            return new Vector2f(
-                    ((Number) list.get(0)).floatValue(),
-                    ((Number) list.get(1)).floatValue()
-            );
-        }
-        return new Vector2f();
-    }
-
-    private static Vector3f toVector3f(Object value) {
-        if (value instanceof Vector3f v) return v;
-        if (value instanceof List<?> list && list.size() >= 3) {
-            return new Vector3f(
-                    ((Number) list.get(0)).floatValue(),
-                    ((Number) list.get(1)).floatValue(),
-                    ((Number) list.get(2)).floatValue()
-            );
-        }
-        return new Vector3f();
-    }
-
-    private static Vector4f toVector4f(Object value) {
-        if (value instanceof Vector4f v) return v;
-        if (value instanceof List<?> list && list.size() >= 4) {
-            return new Vector4f(
-                    ((Number) list.get(0)).floatValue(),
-                    ((Number) list.get(1)).floatValue(),
-                    ((Number) list.get(2)).floatValue(),
-                    ((Number) list.get(3)).floatValue()
-            );
-        }
-        return new Vector4f();
-    }
-
-    private static String getAssetDisplayName(Object value, Class<?> type) {
-        if (value == null) return "(none)";
-        if (value instanceof Sprite sprite) {
-            return sprite.getName() != null ? sprite.getName() : "(unnamed sprite)";
-        }
-        if (value instanceof Texture texture) {
-            return texture.getFilePath() != null ? texture.getFilePath() : "(unnamed texture)";
-        }
-        if (value instanceof String s) {
-            return s.isEmpty() ? "(none)" : s;
-        }
-        return value.toString();
-    }
-
+    /**
+     * Renders the asset picker popup. Call once per frame from InspectorPanel.
+     */
     public static void renderAssetPicker() {
-        assetPicker.render();
+        FieldEditors.renderAssetPicker();
     }
 }

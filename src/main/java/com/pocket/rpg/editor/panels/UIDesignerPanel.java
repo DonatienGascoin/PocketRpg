@@ -357,6 +357,16 @@ public class UIDesignerPanel {
             if (buttonComp != null) {
                 contentRendered = renderSprite(drawList, buttonComp.getFields().get("sprite"),
                         buttonComp.getFields().get("color"), left, top, right, bottom);
+
+                // If no sprite, render button background color
+                if (!contentRendered) {
+                    Object colorObj = buttonComp.getFields().get("color");
+                    int fillColor = parseColorForFill(colorObj);
+                    if (fillColor != 0) {
+                        drawList.addRectFilled(left, top, right, bottom, fillColor);
+                        contentRendered = true;
+                    }
+                }
             }
         }
 
@@ -368,7 +378,17 @@ public class UIDesignerPanel {
             }
         }
 
-        if (!contentRendered) {
+        // UIText - render actual text content
+        if (entity.hasComponent("UIText")) {
+            var textComp = entity.getComponentByType("UIText");
+            if (textComp != null) {
+                renderTextElement(drawList, textComp, left, top, right, bottom);
+                contentRendered = true;
+            }
+        }
+
+        // Fallback background (skip for UIText - keep transparent)
+        if (!contentRendered && !entity.hasComponent("UIText")) {
             int fillColor = getElementFillColor(entity);
             if (fillColor != 0) {
                 drawList.addRectFilled(left, top, right, bottom, fillColor);
@@ -380,10 +400,218 @@ public class UIDesignerPanel {
                 : ImGui.colorConvertFloat4ToU32(0.5f, 0.5f, 0.5f, 0.8f);
         drawList.addRect(left, top, right, bottom, borderColor, 0, 0, selected ? 2.0f : 1.0f);
 
-        // Element name
-        drawList.addText(left + 2, top + 2,
-                ImGui.colorConvertFloat4ToU32(0.8f, 0.8f, 0.8f, 1.0f),
-                entity.getName());
+//        // Element name (smaller, top-left corner for non-text elements)
+//        if (!entity.hasComponent("UIText")) {
+//            drawList.addText(left + 2, top + 2,
+//                    ImGui.colorConvertFloat4ToU32(0.8f, 0.8f, 0.8f, 1.0f),
+//                    entity.getName());
+//        }
+    }
+
+    private void renderTextElement(imgui.ImDrawList drawList, ComponentData textComp,
+                                   float left, float top, float right, float bottom) {
+        Map<String, Object> fields = textComp.getFields();
+
+        String text = fields.get("text") != null ? fields.get("text").toString() : "";
+        if (text.isEmpty()) {
+            text = "[Empty Text]";
+        }
+
+        // Get color
+        int color = ImGui.colorConvertFloat4ToU32(1f, 1f, 1f, 1f);
+        Object colorObj = fields.get("color");
+        if (colorObj instanceof org.joml.Vector4f v) {
+            color = ImGui.colorConvertFloat4ToU32(v.x, v.y, v.z, v.w);
+        } else if (colorObj instanceof Map<?, ?> colorMap) {
+            float r = getFloatFromMap(colorMap, "x", 1f);
+            float g = getFloatFromMap(colorMap, "y", 1f);
+            float b = getFloatFromMap(colorMap, "z", 1f);
+            float a = getFloatFromMap(colorMap, "w", 1f);
+            color = ImGui.colorConvertFloat4ToU32(r, g, b, a);
+        }
+
+        // Get horizontal alignment
+        String hAlign = "LEFT";
+        Object hAlignObj = fields.get("horizontalAlignment");
+        if (hAlignObj != null) {
+            hAlign = hAlignObj.toString().toUpperCase();
+        }
+
+        // Get vertical alignment
+        String vAlign = "TOP";
+        Object vAlignObj = fields.get("verticalAlignment");
+        if (vAlignObj != null) {
+            vAlign = vAlignObj.toString().toUpperCase();
+        }
+
+        // Get word wrap
+        boolean wordWrap = false;
+        Object wrapObj = fields.get("wordWrap");
+        if (wrapObj instanceof Boolean b) {
+            wordWrap = b;
+        }
+
+        // Try to get Font for accurate metrics
+        com.pocket.rpg.ui.text.Font font = loadFontFromField(fields.get("font"));
+
+        float boxWidth = right - left;
+        float boxHeight = bottom - top;
+
+        // Split text into lines (handle word wrap)
+        String[] lines = splitTextIntoLines(text, font, boxWidth, wordWrap);
+
+        // Calculate line metrics
+        float lineHeight;
+        float[] lineWidths = new float[lines.length];
+
+        if (font != null) {
+            lineHeight = font.getLineHeight();
+            for (int i = 0; i < lines.length; i++) {
+                lineWidths[i] = font.getStringWidth(lines[i]);
+            }
+        } else {
+            ImVec2 textSize = new ImVec2();
+            ImGui.calcTextSize(textSize, "Hg");  // Reference height
+            lineHeight = textSize.y;
+            for (int i = 0; i < lines.length; i++) {
+                ImGui.calcTextSize(textSize, lines[i]);
+                lineWidths[i] = textSize.x;
+            }
+        }
+
+        float totalTextHeight = lines.length * lineHeight;
+
+        // Calculate vertical start position
+        float startY;
+        switch (vAlign) {
+            case "MIDDLE" -> startY = top + (boxHeight - totalTextHeight) / 2;
+            case "BOTTOM" -> startY = bottom - totalTextHeight;
+            default -> startY = top;  // TOP
+        }
+
+        // Render each line
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i];
+            float lineWidth = lineWidths[i];
+
+            // Calculate horizontal position for this line
+            float lineX;
+            switch (hAlign) {
+                case "CENTER" -> lineX = left + (boxWidth - lineWidth) / 2;
+                case "RIGHT" -> lineX = right - lineWidth;
+                default -> lineX = left;  // LEFT
+            }
+
+            float lineY = startY + i * lineHeight;
+
+            drawList.addText(lineX, lineY, color, line);
+        }
+    }
+
+    /**
+     * Splits text into lines, optionally with word wrapping.
+     */
+    private String[] splitTextIntoLines(String text, com.pocket.rpg.ui.text.Font font,
+                                        float maxWidth, boolean wordWrap) {
+        // First split by explicit newlines
+        String[] paragraphs = text.split("\n", -1);
+
+        if (!wordWrap || maxWidth <= 0) {
+            return paragraphs;
+        }
+
+        // Word wrap each paragraph
+        java.util.List<String> wrappedLines = new java.util.ArrayList<>();
+
+        for (String paragraph : paragraphs) {
+            if (paragraph.isEmpty()) {
+                wrappedLines.add("");
+                continue;
+            }
+
+            String[] words = paragraph.split(" ");
+            StringBuilder currentLine = new StringBuilder();
+            float currentWidth = 0;
+            float spaceWidth = getTextWidth(" ", font);
+
+            for (String word : words) {
+                float wordWidth = getTextWidth(word, font);
+
+                if (currentLine.length() == 0) {
+                    // First word on line
+                    currentLine.append(word);
+                    currentWidth = wordWidth;
+                } else if (currentWidth + spaceWidth + wordWidth <= maxWidth) {
+                    // Word fits on current line
+                    currentLine.append(" ").append(word);
+                    currentWidth += spaceWidth + wordWidth;
+                } else {
+                    // Word doesn't fit - start new line
+                    wrappedLines.add(currentLine.toString());
+                    currentLine = new StringBuilder(word);
+                    currentWidth = wordWidth;
+                }
+            }
+
+            // Add remaining text
+            if (currentLine.length() > 0) {
+                wrappedLines.add(currentLine.toString());
+            }
+        }
+
+        return wrappedLines.toArray(new String[0]);
+    }
+
+    /**
+     * Gets text width using font if available, otherwise ImGui.
+     */
+    private float getTextWidth(String text, com.pocket.rpg.ui.text.Font font) {
+        if (font != null) {
+            return font.getStringWidth(text);
+        }
+        ImVec2 size = new ImVec2();
+        ImGui.calcTextSize(size, text);
+        return size.x;
+    }
+
+    /**
+     * Attempts to load a Font from a field value (can be Font, String path, or Map).
+     */
+    private com.pocket.rpg.ui.text.Font loadFontFromField(Object fontObj) {
+        if (fontObj == null) return null;
+
+        if (fontObj instanceof com.pocket.rpg.ui.text.Font f) {
+            return f;
+        }
+
+        String fontPath = null;
+
+        if (fontObj instanceof String s && !s.isEmpty()) {
+            fontPath = s;
+        } else if (fontObj instanceof Map<?, ?> fontMap) {
+            Object pathObj = fontMap.get("path");
+            if (pathObj != null) {
+                fontPath = pathObj.toString();
+            }
+        }
+
+        if (fontPath != null && !fontPath.isEmpty()) {
+            try {
+                return Assets.load(fontPath, com.pocket.rpg.ui.text.Font.class);
+            } catch (Exception e) {
+                // Font not loadable, fall back to ImGui
+            }
+        }
+
+        return null;
+    }
+
+    private float getFloatFromMap(Map<?, ?> map, String key, float defaultValue) {
+        Object value = map.get(key);
+        if (value instanceof Number n) {
+            return n.floatValue();
+        }
+        return defaultValue;
     }
 
     private boolean renderSprite(imgui.ImDrawList drawList, Object spriteObj, Object colorObj,
@@ -1579,11 +1807,17 @@ public class UIDesignerPanel {
     // UTILITY
     // ========================================================================
 
-    private float getFloatFromMap(Map<?, ?> map, String key, float defaultValue) {
-        Object value = map.get(key);
-        if (value instanceof Number n) {
-            return n.floatValue();
+    private int parseColorForFill(Object colorObj) {
+        if (colorObj instanceof org.joml.Vector4f v) {
+            return ImGui.colorConvertFloat4ToU32(v.x, v.y, v.z, v.w);
+        } else if (colorObj instanceof Map<?, ?> colorMap) {
+            float r = getFloatFromMap(colorMap, "x", 0.5f);
+            float g = getFloatFromMap(colorMap, "y", 0.5f);
+            float b = getFloatFromMap(colorMap, "z", 0.5f);
+            float a = getFloatFromMap(colorMap, "w", 1f);
+            return ImGui.colorConvertFloat4ToU32(r, g, b, a);
         }
-        return defaultValue;
+        // Default button color
+        return ImGui.colorConvertFloat4ToU32(0.4f, 0.4f, 0.4f, 0.8f);
     }
 }

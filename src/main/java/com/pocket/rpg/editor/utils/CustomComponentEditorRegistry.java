@@ -77,7 +77,7 @@ public class CustomComponentEditorRegistry {
      */
     public static void initBuiltInEditors() {
         // UI Components
-        register("com.pocket.rpg.components.ui.UITransform", new UITransformEditor());
+        register("com.pocket.rpg.components.ui.UITransform", new UITransformEditor(true));
         register("com.pocket.rpg.components.ui.UICanvas", new UICanvasEditor());
         register("com.pocket.rpg.components.ui.UIImage", new UIImageEditor());
         register("com.pocket.rpg.components.ui.UIPanel", new UIPanelEditor());

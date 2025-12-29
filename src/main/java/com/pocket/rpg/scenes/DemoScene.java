@@ -356,7 +356,7 @@ public class DemoScene extends Scene {
         btnText.setAutoFit(true);  // Automatically fills parent button
         btnText.setHorizontalAlignment(HorizontalAlignment.CENTER);
         btnText.setVerticalAlignment(VerticalAlignment.MIDDLE);
-        btnText.setColor(.2f, .2f, .2f);
+        btnText.setColor(.2f, .2f, .2f, 1f);
         textObj.addComponent(btnText);
         buttonObj.addChild(textObj);
 

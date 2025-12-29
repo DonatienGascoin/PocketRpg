@@ -6,8 +6,10 @@ import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.utils.FieldEditors;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.resources.Assets;
+import com.pocket.rpg.serialization.ComponentData;
 import imgui.ImDrawList;
 import imgui.ImGui;
+import imgui.ImVec2;
 import org.joml.Vector2f;
 import org.joml.Vector4f;
 
@@ -104,6 +106,13 @@ public class UIPreviewRenderer {
                         buttonComp.getFields().get("sprite"),
                         buttonComp.getFields().get("color"),
                         left, top, right, bottom);
+
+                // If no sprite, draw solid color
+                if (!contentRendered) {
+                    int color = parseColor(buttonComp.getFields().get("color"));
+                    drawList.addRectFilled(left, top, right, bottom, color);
+                    contentRendered = true;
+                }
             }
         }
 
@@ -126,22 +135,15 @@ public class UIPreviewRenderer {
             }
         }
 
-        // UIText - render placeholder box (actual text rendering requires Font)
+        // UIText - render with alignment
         if (entity.hasComponent("UIText")) {
             var textComp = entity.getComponentByType("UIText");
             if (textComp != null) {
-                int color = parseColor(textComp.getFields().get("color"));
-                String text = textComp.getFields().get("text") != null ?
-                        textComp.getFields().get("text").toString() : "";
-
-                // Draw text using ImGui (simplified - real text rendering needs Font)
-                if (!text.isEmpty()) {
-                    drawList.addText(left, top, color, text);
-                }
+                renderTextElement(drawList, textComp, left, top, right, bottom);
             }
         }
 
-        // Fallback - draw placeholder
+        // Fallback - draw placeholder (skip for UIText)
         if (!contentRendered && !entity.hasComponent("UIText")) {
             int fillColor = getElementFillColor(entity);
             if (fillColor != 0) {
@@ -220,6 +222,194 @@ public class UIPreviewRenderer {
             return ImGui.colorConvertFloat4ToU32(r, g, b, a);
         }
         return ImGui.colorConvertFloat4ToU32(1f, 1f, 1f, 1f);
+    }
+
+    private void renderTextElement(ImDrawList drawList, ComponentData textComp,
+                                   float left, float top, float right, float bottom) {
+        Map<String, Object> fields = textComp.getFields();
+
+        String text = fields.get("text") != null ? fields.get("text").toString() : "";
+        if (text.isEmpty()) {
+            return;  // Don't render empty text
+        }
+
+        // Get color
+        int color = parseColor(fields.get("color"));
+
+        // Get horizontal alignment
+        String hAlign = "LEFT";
+        Object hAlignObj = fields.get("horizontalAlignment");
+        if (hAlignObj != null) {
+            hAlign = hAlignObj.toString().toUpperCase();
+        }
+
+        // Get vertical alignment
+        String vAlign = "TOP";
+        Object vAlignObj = fields.get("verticalAlignment");
+        if (vAlignObj != null) {
+            vAlign = vAlignObj.toString().toUpperCase();
+        }
+
+        // Get word wrap
+        boolean wordWrap = false;
+        Object wrapObj = fields.get("wordWrap");
+        if (wrapObj instanceof Boolean b) {
+            wordWrap = b;
+        }
+
+        // Try to get Font for accurate metrics
+        com.pocket.rpg.ui.text.Font font = loadFontFromField(fields.get("font"));
+
+        float boxWidth = right - left;
+        float boxHeight = bottom - top;
+
+        // Split text into lines (handle word wrap)
+        String[] lines = splitTextIntoLines(text, font, boxWidth, wordWrap);
+
+        // Calculate line metrics
+        float lineHeight;
+        float[] lineWidths = new float[lines.length];
+
+        if (font != null) {
+            lineHeight = font.getLineHeight();
+            for (int i = 0; i < lines.length; i++) {
+                lineWidths[i] = font.getStringWidth(lines[i]);
+            }
+        } else {
+            ImVec2 textSize = new ImVec2();
+            ImGui.calcTextSize(textSize, "Hg");  // Reference height
+            lineHeight = textSize.y;
+            for (int i = 0; i < lines.length; i++) {
+                ImGui.calcTextSize(textSize, lines[i]);
+                lineWidths[i] = textSize.x;
+            }
+        }
+
+        float totalTextHeight = lines.length * lineHeight;
+
+        // Calculate vertical start position
+        float startY;
+        switch (vAlign) {
+            case "MIDDLE" -> startY = top + (boxHeight - totalTextHeight) / 2;
+            case "BOTTOM" -> startY = bottom - totalTextHeight;
+            default -> startY = top;  // TOP
+        }
+
+        // Render each line
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i];
+            float lineWidth = lineWidths[i];
+
+            // Calculate horizontal position for this line
+            float lineX;
+            switch (hAlign) {
+                case "CENTER" -> lineX = left + (boxWidth - lineWidth) / 2;
+                case "RIGHT" -> lineX = right - lineWidth;
+                default -> lineX = left;  // LEFT
+            }
+
+            float lineY = startY + i * lineHeight;
+
+            drawList.addText(lineX, lineY, color, line);
+        }
+    }
+
+    /**
+     * Splits text into lines, optionally with word wrapping.
+     */
+    private String[] splitTextIntoLines(String text, com.pocket.rpg.ui.text.Font font,
+                                        float maxWidth, boolean wordWrap) {
+        // First split by explicit newlines
+        String[] paragraphs = text.split("\n", -1);
+
+        if (!wordWrap || maxWidth <= 0) {
+            return paragraphs;
+        }
+
+        // Word wrap each paragraph
+        java.util.List<String> wrappedLines = new java.util.ArrayList<>();
+
+        for (String paragraph : paragraphs) {
+            if (paragraph.isEmpty()) {
+                wrappedLines.add("");
+                continue;
+            }
+
+            String[] words = paragraph.split(" ");
+            StringBuilder currentLine = new StringBuilder();
+            float currentWidth = 0;
+            float spaceWidth = getTextWidth(" ", font);
+
+            for (String word : words) {
+                float wordWidth = getTextWidth(word, font);
+
+                if (currentLine.length() == 0) {
+                    // First word on line
+                    currentLine.append(word);
+                    currentWidth = wordWidth;
+                } else if (currentWidth + spaceWidth + wordWidth <= maxWidth) {
+                    // Word fits on current line
+                    currentLine.append(" ").append(word);
+                    currentWidth += spaceWidth + wordWidth;
+                } else {
+                    // Word doesn't fit - start new line
+                    wrappedLines.add(currentLine.toString());
+                    currentLine = new StringBuilder(word);
+                    currentWidth = wordWidth;
+                }
+            }
+
+            // Add remaining text
+            if (currentLine.length() > 0) {
+                wrappedLines.add(currentLine.toString());
+            }
+        }
+
+        return wrappedLines.toArray(new String[0]);
+    }
+
+    /**
+     * Gets text width using font if available, otherwise ImGui.
+     */
+    private float getTextWidth(String text, com.pocket.rpg.ui.text.Font font) {
+        if (font != null) {
+            return font.getStringWidth(text);
+        }
+        ImVec2 size = new ImVec2();
+        ImGui.calcTextSize(size, text);
+        return size.x;
+    }
+
+    /**
+     * Attempts to load a Font from a field value (can be Font, String path, or Map).
+     */
+    private com.pocket.rpg.ui.text.Font loadFontFromField(Object fontObj) {
+        if (fontObj == null) return null;
+
+        if (fontObj instanceof com.pocket.rpg.ui.text.Font f) {
+            return f;
+        }
+
+        String fontPath = null;
+
+        if (fontObj instanceof String s && !s.isEmpty()) {
+            fontPath = s;
+        } else if (fontObj instanceof Map<?, ?> fontMap) {
+            Object pathObj = fontMap.get("path");
+            if (pathObj != null) {
+                fontPath = pathObj.toString();
+            }
+        }
+
+        if (fontPath != null && !fontPath.isEmpty()) {
+            try {
+                return Assets.load(fontPath, com.pocket.rpg.ui.text.Font.class);
+            } catch (Exception e) {
+                // Font not loadable, fall back to ImGui
+            }
+        }
+
+        return null;
     }
 
     private int getElementFillColor(EditorEntity entity) {

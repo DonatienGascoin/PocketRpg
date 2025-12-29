@@ -8,6 +8,7 @@ import com.pocket.rpg.rendering.SpriteSheet;
 import com.pocket.rpg.rendering.Texture;
 import com.pocket.rpg.resources.loaders.*;
 import com.pocket.rpg.serialization.SceneData;
+import com.pocket.rpg.ui.text.Font;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -61,6 +62,7 @@ public class AssetManager implements AssetContext {
         registerLoader(SpriteSheet.class, new SpriteSheetLoader());
         registerLoader(SceneData.class, new SceneDataLoader());
         registerLoader(JsonPrefab.class, new JsonPrefabLoader());
+        registerLoader(Font.class, new FontLoader());
 
     }
 
@@ -390,7 +392,12 @@ public class AssetManager implements AssetContext {
 
     @Override
     public String getRelativePath(String fullPath) {
-        return fullPath.substring(assetRoot.length());
+        try {
+            return fullPath.substring(assetRoot.length());
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            throw e;
+        }
     }
 
     @Override

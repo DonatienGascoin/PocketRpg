@@ -4,9 +4,13 @@ import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.scene.EditorEntity;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.UITransformDragCommand;
+import com.pocket.rpg.rendering.Sprite;
+import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.serialization.ComponentData;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
+import lombok.Getter;
+import lombok.Setter;
 import org.joml.Vector2f;
 
 import java.util.ArrayList;
@@ -63,6 +67,25 @@ public class UITransformEditor implements CustomComponentEditor {
     private float lastWidth = 0;
     private float lastHeight = 0;
 
+    /**
+     * When true, anchor and pivot grids are displayed side by side (compact).
+     * When false, they are stacked vertically (default).
+     * -- SETTER --
+     *  Sets the layout mode.
+     *
+     *
+     * -- GETTER --
+     *  Returns whether compact layout is enabled.
+     @param compact true for side-by-side anchor/pivot, false for stacked
+
+     */
+    @Getter
+    @Setter private boolean compactLayout = false;
+
+    public UITransformEditor(boolean compactLayout) {
+        this.compactLayout = compactLayout;
+    }
+
     // Track editing state for undo
     private boolean isEditingSize = false;
     private float editStartWidth;
@@ -95,23 +118,46 @@ public class UITransformEditor implements CustomComponentEditor {
         Map<String, Object> fields = data.getFields();
         boolean changed = false;
 
-        // Section: Anchor
-        ImGui.text(FontAwesomeIcons.Anchor + " Anchor");
-        ImGui.sameLine(100);
         Vector2f anchor = FieldEditors.getVector2f(fields, "anchor");
-        ImGui.textDisabled(String.format("(%.2f, %.2f)", anchor.x, anchor.y));
-
-        changed |= drawPresetGrid("anchor", fields, anchor, entity, data);
-
-        ImGui.spacing();
-
-        // Section: Pivot
-        ImGui.text(FontAwesomeIcons.Crosshairs + " Pivot");
-        ImGui.sameLine(100);
         Vector2f pivot = FieldEditors.getVector2f(fields, "pivot");
-        ImGui.textDisabled(String.format("(%.2f, %.2f)", pivot.x, pivot.y));
 
-        changed |= drawPresetGrid("pivot", fields, pivot, entity, data);
+        if (compactLayout) {
+            // Compact layout: Anchor and Pivot side by side
+            float halfWidth = ImGui.getContentRegionAvailX() / 2 - 10;
+
+            // Anchor (left side)
+            ImGui.beginGroup();
+            ImGui.text(FontAwesomeIcons.Anchor + " Anchor");
+            ImGui.sameLine();
+            ImGui.textDisabled(String.format("(%.1f,%.1f)", anchor.x, anchor.y));
+            changed |= drawPresetGrid("anchor", fields, anchor, entity, data);
+            ImGui.endGroup();
+
+            ImGui.sameLine(halfWidth + 20);
+
+            // Pivot (right side)
+            ImGui.beginGroup();
+            ImGui.text(FontAwesomeIcons.Crosshairs + " Pivot");
+            ImGui.sameLine();
+            ImGui.textDisabled(String.format("(%.1f,%.1f)", pivot.x, pivot.y));
+            changed |= drawPresetGrid("pivot", fields, pivot, entity, data);
+            ImGui.endGroup();
+        } else {
+            // Normal layout: Anchor and Pivot stacked
+            // Section: Anchor
+            ImGui.text(FontAwesomeIcons.Anchor + " Anchor");
+            ImGui.sameLine(100);
+            ImGui.textDisabled(String.format("(%.2f, %.2f)", anchor.x, anchor.y));
+            changed |= drawPresetGrid("anchor", fields, anchor, entity, data);
+
+            ImGui.spacing();
+
+            // Section: Pivot
+            ImGui.text(FontAwesomeIcons.Crosshairs + " Pivot");
+            ImGui.sameLine(100);
+            ImGui.textDisabled(String.format("(%.2f, %.2f)", pivot.x, pivot.y));
+            changed |= drawPresetGrid("pivot", fields, pivot, entity, data);
+        }
 
         ImGui.spacing();
         ImGui.separator();
@@ -246,12 +292,53 @@ public class UITransformEditor implements CustomComponentEditor {
         changed |= drawSizePreset(fields, entity, data, "64x64", 64, 64);
         ImGui.sameLine();
         changed |= drawSizePreset(fields, entity, data, "128x128", 128, 128);
-        ImGui.sameLine();
-        if (ImGui.smallButton("100%##fullsize")) {
-            // Would need canvas/parent size
+
+        // Texture size button (only if entity has a sprite)
+        float[] textureDims = getSpriteTextureDimensions(entity);
+        if (textureDims != null) {
+            ImGui.sameLine();
+            if (ImGui.smallButton(FontAwesomeIcons.Image + "##textureSize")) {
+                float oldWidth = FieldEditors.getFloat(fields, "width", 100);
+                float oldHeight = FieldEditors.getFloat(fields, "height", 100);
+
+                if (oldWidth != textureDims[0] || oldHeight != textureDims[1]) {
+                    startSizeEdit(fields, entity);
+                    applySizeChange(fields, entity, oldWidth, oldHeight, textureDims[0], textureDims[1]);
+                    commitSizeEdit(fields, entity, data);
+                    changed = true;
+                }
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("Match texture size (" + (int)textureDims[0] + "x" + (int)textureDims[1] + ")");
+            }
         }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("Match parent size (not implemented)");
+
+        // Match parent size button
+        EditorEntity parentEntity = entity.getParent();
+        if (parentEntity != null) {
+            ComponentData parentTransform = parentEntity.getComponentByType("UITransform");
+            if (parentTransform != null) {
+                ImGui.sameLine();
+                if (ImGui.smallButton(FontAwesomeIcons.Expand + "##matchParent")) {
+                    float parentWidth = FieldEditors.getFloat(parentTransform.getFields(), "width", 100);
+                    float parentHeight = FieldEditors.getFloat(parentTransform.getFields(), "height", 100);
+                    float oldWidth = FieldEditors.getFloat(fields, "width", 100);
+                    float oldHeight = FieldEditors.getFloat(fields, "height", 100);
+
+                    if (oldWidth != parentWidth || oldHeight != parentHeight) {
+                        startSizeEdit(fields, entity);
+                        applySizeChange(fields, entity, oldWidth, oldHeight, parentWidth, parentHeight);
+                        fields.put("offset", new Vector2f(0, 0));  // Center in parent
+                        commitSizeEdit(fields, entity, data);
+                        changed = true;
+                    }
+                }
+                if (ImGui.isItemHovered()) {
+                    ImGui.setTooltip("Match parent size (" +
+                            (int)FieldEditors.getFloat(parentTransform.getFields(), "width", 100) + "x" +
+                            (int)FieldEditors.getFloat(parentTransform.getFields(), "height", 100) + ")");
+                }
+            }
         }
 
         return changed;
@@ -536,5 +623,80 @@ public class UITransformEditor implements CustomComponentEditor {
 
         // Execute through UndoManager
         UndoManager.getInstance().execute(command);
+    }
+
+    /**
+     * Gets the texture dimensions from an entity's sprite (UIImage or UIButton).
+     * @return float[2] with {width, height}, or null if no sprite found
+     */
+    private float[] getSpriteTextureDimensions(EditorEntity entity) {
+        Object spriteObj = null;
+
+        // Check UIImage
+        ComponentData imageComp = entity.getComponentByType("UIImage");
+        if (imageComp != null) {
+            spriteObj = imageComp.getFields().get("sprite");
+        }
+
+        // Check UIButton
+        if (spriteObj == null) {
+            ComponentData buttonComp = entity.getComponentByType("UIButton");
+            if (buttonComp != null) {
+                spriteObj = buttonComp.getFields().get("sprite");
+            }
+        }
+
+        if (spriteObj == null) return null;
+
+        // Handle Sprite instance
+        if (spriteObj instanceof com.pocket.rpg.rendering.Sprite sprite) {
+            if (sprite.getTexture() != null) {
+                return new float[] { sprite.getWidth(), sprite.getHeight() };
+            }
+        }
+
+        // Handle Map (deserialized from JSON)
+        if (spriteObj instanceof java.util.Map<?, ?> spriteMap) {
+            String texturePath = getStringFromMap(spriteMap, "texturePath");
+            if (texturePath == null || texturePath.isEmpty()) {
+                texturePath = getStringFromMap(spriteMap, "name");
+            }
+            if (texturePath != null && !texturePath.isEmpty()) {
+                try {
+                    var sprite = Assets.load(texturePath,
+                            Sprite.class);
+                    if (sprite != null && sprite.getTexture() != null) {
+                        // Use sprite dimensions (may be cropped from texture)
+                        float w = getFloatFromMap(spriteMap, "width", sprite.getWidth());
+                        float h = getFloatFromMap(spriteMap, "height", sprite.getHeight());
+                        return new float[] { w, h };
+                    }
+                } catch (Exception e) {
+                    // Try as texture
+                    try {
+                        var texture = Assets.load(texturePath,
+                                com.pocket.rpg.rendering.Texture.class);
+                        if (texture != null) {
+                            return new float[] { texture.getWidth(), texture.getHeight() };
+                        }
+                    } catch (Exception ignored) {}
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private String getStringFromMap(java.util.Map<?, ?> map, String key) {
+        Object value = map.get(key);
+        return value != null ? value.toString() : null;
+    }
+
+    private float getFloatFromMap(java.util.Map<?, ?> map, String key, float defaultValue) {
+        Object value = map.get(key);
+        if (value instanceof Number n) {
+            return n.floatValue();
+        }
+        return defaultValue;
     }
 }

@@ -21,6 +21,7 @@ public class Texture {
     private final int width;
     private final int height;
     private final int channels;
+    private final boolean ownsTexture;
 
     /**
      * Loads a texture from the specified file path.
@@ -30,6 +31,8 @@ public class Texture {
      */
     public Texture(String filepath) {
         this.filePath = filepath;
+        this.ownsTexture = true;
+
         // Flip image vertically (OpenGL expects bottom-left origin)
         STBImage.stbi_set_flip_vertically_on_load(true);
 
@@ -91,6 +94,32 @@ public class Texture {
     }
 
     /**
+     * Private constructor for wrapping existing textures.
+     */
+    private Texture(int textureId, int width, int height, int channels, String filePath, boolean ownsTexture) {
+        this.textureId = textureId;
+        this.width = width;
+        this.height = height;
+        this.channels = channels;
+        this.filePath = filePath;
+        this.ownsTexture = ownsTexture;
+    }
+
+    /**
+     * Wraps an existing OpenGL texture ID.
+     * The wrapped texture will NOT be deleted when destroy() is called.
+     * Use this for textures managed elsewhere (e.g., font atlases).
+     *
+     * @param textureId Existing OpenGL texture ID
+     * @param width Texture width in pixels
+     * @param height Texture height in pixels
+     * @return Texture wrapper (does not own the underlying GL texture)
+     */
+    public static Texture wrap(int textureId, int width, int height) {
+        return new Texture(textureId, width, height, 4, "[wrapped]", false);
+    }
+
+    /**
      * Binds this texture to the specified texture unit.
      *
      * @param unit Texture unit (0-31, corresponding to GL_TEXTURE0-GL_TEXTURE31)
@@ -126,9 +155,12 @@ public class Texture {
 
     /**
      * Frees the OpenGL texture resource.
+     * Only deletes the texture if this instance owns it (not a wrapped texture).
      */
     public void destroy() {
-        glDeleteTextures(textureId);
+        if (ownsTexture) {
+            glDeleteTextures(textureId);
+        }
     }
 
     // Getters
@@ -147,5 +179,13 @@ public class Texture {
 
     public int getChannels() {
         return channels;
+    }
+
+    /**
+     * Returns true if this texture owns its OpenGL resource.
+     * Wrapped textures do not own their resources.
+     */
+    public boolean ownsTexture() {
+        return ownsTexture;
     }
 }

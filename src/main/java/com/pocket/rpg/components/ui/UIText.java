@@ -1,5 +1,6 @@
 package com.pocket.rpg.components.ui;
 
+import com.pocket.rpg.rendering.Texture;
 import com.pocket.rpg.ui.UIRendererBackend;
 import com.pocket.rpg.ui.text.Font;
 import com.pocket.rpg.ui.text.Glyph;
@@ -243,8 +244,9 @@ public class UIText extends UIComponent {
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
         // Bind font atlas and begin batch
-        font.bind(0);
-        backend.beginBatch(null);  // We manually bound the texture
+        Texture atlasTexture = font.getAtlasTexture();
+        if (atlasTexture == null) return;
+        backend.beginBatch(atlasTexture);
 
         // Render shadow first (if enabled)
         if (shadow) {

@@ -19,6 +19,7 @@ import com.pocket.rpg.prefab.PrefabRegistry;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.resources.ErrorMode;
 import com.pocket.rpg.serialization.Serializer;
+import com.pocket.rpg.ui.text.Font;
 import imgui.ImGui;
 
 import static org.lwjgl.glfw.GLFW.*;

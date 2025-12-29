@@ -1,5 +1,7 @@
 package com.pocket.rpg.ui.text;
 
+import com.pocket.rpg.rendering.Texture;
+import lombok.Getter;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.stb.STBTTFontinfo;
 import org.lwjgl.stb.STBTTPackContext;
@@ -24,14 +26,14 @@ import static org.lwjgl.stb.STBTruetype.*;
 /**
  * Loads a TrueType font and creates a texture atlas for rendering.
  * Each Font instance is rasterized at a specific pixel size.
- *
+ * <p>
  * Usage:
- *   Font font = new Font("fonts/arial.ttf", 24);
- *   Glyph g = font.getGlyph('A');
- *   font.getAtlasTexture().bind(0);
- *   // render using glyph UVs
- *   font.destroy();
- *
+ * Font font = new Font("fonts/arial.ttf", 24);
+ * Glyph g = font.getGlyph('A');
+ * font.getAtlasTexture().bind(0);
+ * // render using glyph UVs
+ * font.destroy();
+ * <p>
  * Character range: ASCII 32-126 by default (printable characters).
  * Extended Unicode support can be added via overloaded constructor.
  */
@@ -40,13 +42,15 @@ public class Font {
     private static final int FIRST_CHAR = 32;   // Space
     private static final int LAST_CHAR = 126;   // Tilde
     private static final int CHAR_COUNT = LAST_CHAR - FIRST_CHAR + 1;
-
+    @Getter
     private final String path;
     private final int size;
 
     private int atlasTextureId;
     private int atlasWidth;
     private int atlasHeight;
+    @Getter
+    private transient Texture atlasTexture;
 
     private final Map<Integer, Glyph> glyphs = new HashMap<>();
 
@@ -190,7 +194,7 @@ public class Font {
                     u0, v0, u1, v1);
             glyphs.put(codepoint, glyph);
         }
-
+        atlasTexture = Texture.wrap(atlasTextureId, atlasWidth, atlasHeight);
         packedChars.free();
     }
 
@@ -304,6 +308,7 @@ public class Font {
         if (atlasTextureId != 0) {
             glDeleteTextures(atlasTextureId);
             atlasTextureId = 0;
+            atlasTexture = null;
         }
         glyphs.clear();
         System.out.println("Font destroyed: " + path);

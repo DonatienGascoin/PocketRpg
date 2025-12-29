@@ -6,10 +6,13 @@ import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.scene.EditorEntity;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.tools.ToolManager;
+import com.pocket.rpg.editor.undo.UndoManager;
+import com.pocket.rpg.editor.undo.commands.UITransformDragCommand;
 import com.pocket.rpg.editor.utils.FieldEditors;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.Texture;
 import com.pocket.rpg.resources.Assets;
+import com.pocket.rpg.serialization.ComponentData;
 import imgui.ImGui;
 import imgui.ImVec2;
 import imgui.flag.ImGuiKey;
@@ -20,6 +23,8 @@ import lombok.Setter;
 import org.joml.Vector2f;
 import org.joml.Vector4f;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -32,6 +37,8 @@ import java.util.Map;
  * - Resize handles on selected elements
  * - Anchor and pivot visualization
  * - Optional snap to canvas edges
+ * - Cascading resize (children scale with parent)
+ * - Undo/redo support
  */
 public class UIDesignerPanel {
 
@@ -78,6 +85,14 @@ public class UIDesignerPanel {
     private float entityStartAnchorX, entityStartAnchorY;
     private float entityStartPivotX, entityStartPivotY;
     private ResizeHandle activeHandle = null;
+
+    // Undo tracking - stores old values at drag start
+    private Vector2f dragOldOffset;
+    private float dragOldWidth;
+    private float dragOldHeight;
+    private Vector2f dragOldAnchor;
+    private Vector2f dragOldPivot;
+    private List<UITransformDragCommand.ChildTransformState> dragChildStates;
 
     // Resize handles
     private enum ResizeHandle {
@@ -154,7 +169,7 @@ public class UIDesignerPanel {
         ImGui.spacing();
         ImGui.sameLine();
 
-        // Snap toggle (save state before button to fix push/pop)
+        // Snap toggle
         boolean wasSnapEnabled = snapEnabled;
         if (wasSnapEnabled) {
             ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, 0.3f, 0.6f, 0.3f, 1f);
@@ -666,11 +681,9 @@ public class UIDesignerPanel {
     }
 
     private void drawSnapGuides(imgui.ImDrawList drawList) {
-        // Draw canvas edge snap guides when close
         float canvasWidth = gameConfig.getGameWidth();
         float canvasHeight = gameConfig.getGameHeight();
 
-        // Get current drag position in canvas coords
         if (draggedEntity == null) return;
 
         float[] bounds = calculateElementBounds(draggedEntity);
@@ -681,7 +694,6 @@ public class UIDesignerPanel {
         float elemRight = elemLeft + bounds[2];
         float elemBottom = elemTop + bounds[3];
 
-        // Check proximity to canvas edges and draw guides
         float threshold = SNAP_THRESHOLD / zoom;
 
         // Left edge
@@ -766,12 +778,16 @@ public class UIDesignerPanel {
         }
 
         if (ImGui.isMouseReleased(ImGuiMouseButton.Left)) {
+            // Commit undo command on release
+            commitDragCommand();
+
             isDraggingElement = false;
             isDraggingHandle = false;
             isDraggingAnchor = false;
             isDraggingPivot = false;
             draggedEntity = null;
             activeHandle = null;
+            dragChildStates = null;
         }
     }
 
@@ -843,6 +859,10 @@ public class UIDesignerPanel {
         }
     }
 
+    // ========================================================================
+    // DRAG START METHODS (capture old values for undo)
+    // ========================================================================
+
     private void startMoveDrag(EditorEntity entity, float canvasX, float canvasY) {
         isDraggingElement = true;
         isDraggingHandle = false;
@@ -854,9 +874,13 @@ public class UIDesignerPanel {
 
         var transform = entity.getComponentByType("UITransform");
         if (transform != null) {
-            Vector2f offset = FieldEditors.getVector2f(transform.getFields(), "offset");
+            Map<String, Object> fields = transform.getFields();
+            Vector2f offset = FieldEditors.getVector2f(fields, "offset");
             entityStartOffsetX = offset.x;
             entityStartOffsetY = offset.y;
+
+            // Capture for undo
+            captureOldValuesForUndo(entity, transform);
         }
     }
 
@@ -881,6 +905,13 @@ public class UIDesignerPanel {
             entityStartOffsetY = offset.y;
             entityStartWidth = FieldEditors.getFloat(fields, "width", 100);
             entityStartHeight = FieldEditors.getFloat(fields, "height", 100);
+
+            // Capture for undo
+            captureOldValuesForUndo(entity, transform);
+
+            // Capture child states for cascading resize
+            dragChildStates = new ArrayList<>();
+            captureChildStates(entity, dragChildStates);
         }
     }
 
@@ -897,6 +928,9 @@ public class UIDesignerPanel {
             Vector2f anchor = FieldEditors.getVector2f(fields, "anchor");
             entityStartAnchorX = anchor.x;
             entityStartAnchorY = anchor.y;
+
+            // Capture for undo
+            captureOldValuesForUndo(entity, transform);
         }
     }
 
@@ -913,76 +947,106 @@ public class UIDesignerPanel {
             Vector2f pivot = FieldEditors.getVector2f(fields, "pivot");
             entityStartPivotX = pivot.x;
             entityStartPivotY = pivot.y;
+
+            // Capture for undo
+            captureOldValuesForUndo(entity, transform);
         }
     }
 
-    private boolean hitTestAnchor(EditorEntity entity, float screenX, float screenY) {
-        float[] anchorPos = calculateAnchorScreenPos(entity);
-        if (anchorPos == null) return false;
-
-        float hitSize = 12f;
-        return Math.abs(screenX - anchorPos[0]) < hitSize &&
-                Math.abs(screenY - anchorPos[1]) < hitSize;
+    private void captureOldValuesForUndo(EditorEntity entity, ComponentData transform) {
+        Map<String, Object> fields = transform.getFields();
+        dragOldOffset = new Vector2f(FieldEditors.getVector2f(fields, "offset"));
+        dragOldWidth = FieldEditors.getFloat(fields, "width", 100);
+        dragOldHeight = FieldEditors.getFloat(fields, "height", 100);
+        dragOldAnchor = new Vector2f(FieldEditors.getVector2f(fields, "anchor"));
+        dragOldPivot = new Vector2f(FieldEditors.getVector2f(fields, "pivot"));
     }
 
-    private boolean hitTestPivot(EditorEntity entity, float screenX, float screenY) {
-        float[] pivotPos = calculatePivotScreenPos(entity);
-        if (pivotPos == null) return false;
+    /**
+     * Recursively captures child transform states for cascading resize.
+     */
+    private void captureChildStates(EditorEntity parent, List<UITransformDragCommand.ChildTransformState> states) {
+        for (EditorEntity child : parent.getChildren()) {
+            var childTransform = child.getComponentByType("UITransform");
+            if (childTransform != null) {
+                Map<String, Object> fields = childTransform.getFields();
+                Vector2f offset = FieldEditors.getVector2f(fields, "offset");
+                float width = FieldEditors.getFloat(fields, "width", 100);
+                float height = FieldEditors.getFloat(fields, "height", 100);
 
-        float hitSize = 10f;
-        return Math.abs(screenX - pivotPos[0]) < hitSize &&
-                Math.abs(screenY - pivotPos[1]) < hitSize;
+                UITransformDragCommand.ChildTransformState state =
+                        new UITransformDragCommand.ChildTransformState(child, childTransform, offset, width, height);
+                states.add(state);
+
+                // Recurse into grandchildren
+                captureChildStates(child, states);
+            }
+        }
     }
 
-    private float[] calculateAnchorScreenPos(EditorEntity entity) {
-        var transform = entity.getComponentByType("UITransform");
-        if (transform == null) return null;
+    /**
+     * Commits the drag command to undo manager on mouse release.
+     */
+    private void commitDragCommand() {
+        if (draggedEntity == null || dragOldOffset == null) return;
+
+        var transform = draggedEntity.getComponentByType("UITransform");
+        if (transform == null) return;
 
         Map<String, Object> fields = transform.getFields();
-        Vector2f anchor = FieldEditors.getVector2f(fields, "anchor");
+        Vector2f newOffset = FieldEditors.getVector2f(fields, "offset");
+        float newWidth = FieldEditors.getFloat(fields, "width", 100);
+        float newHeight = FieldEditors.getFloat(fields, "height", 100);
+        Vector2f newAnchor = FieldEditors.getVector2f(fields, "anchor");
+        Vector2f newPivot = FieldEditors.getVector2f(fields, "pivot");
 
-        float canvasWidth = gameConfig.getGameWidth();
-        float canvasHeight = gameConfig.getGameHeight();
+        // Determine description
+        String description;
+        if (isDraggingHandle) {
+            description = "Resize " + draggedEntity.getName();
+        } else if (isDraggingAnchor) {
+            description = "Move Anchor " + draggedEntity.getName();
+        } else if (isDraggingPivot) {
+            description = "Move Pivot " + draggedEntity.getName();
+        } else {
+            description = "Move " + draggedEntity.getName();
+        }
 
-        float parentWidth = canvasWidth;
-        float parentHeight = canvasHeight;
-        float parentX = 0;
-        float parentY = 0;
+        UITransformDragCommand command = new UITransformDragCommand(
+                draggedEntity, transform,
+                dragOldOffset, dragOldWidth, dragOldHeight, dragOldAnchor, dragOldPivot,
+                newOffset, newWidth, newHeight, newAnchor, newPivot,
+                description
+        );
 
-        EditorEntity parent = findParentWithUITransform(entity);
-        if (parent != null) {
-            float[] parentBounds = calculateElementBounds(parent);
-            if (parentBounds != null) {
-                parentX = parentBounds[0];
-                parentY = parentBounds[1];
-                parentWidth = parentBounds[2];
-                parentHeight = parentBounds[3];
+        // Add child states if present
+        if (dragChildStates != null) {
+            for (UITransformDragCommand.ChildTransformState state : dragChildStates) {
+                state.captureNewValues();
+                command.addChildState(state);
             }
         }
 
-        float anchorX = parentX + anchor.x * parentWidth;
-        float anchorY = parentY + anchor.y * parentHeight;
+        // Only push if something changed
+        if (command.hasChanges()) {
+            // Revert to old values first
+            command.undo();
+            // Then execute through UndoManager (which calls execute())
+            UndoManager.getInstance().execute(command);
 
-        Vector2f screenPos = canvasToScreen(anchorX, anchorY);
-        return new float[]{screenPos.x, screenPos.y};
+            EditorScene scene = context.getCurrentScene();
+            if (scene != null) {
+                scene.markDirty();
+            }
+        }
+
+        // Clear captured values
+        dragOldOffset = null;
     }
 
-    private float[] calculatePivotScreenPos(EditorEntity entity) {
-        float[] bounds = calculateElementBounds(entity);
-        if (bounds == null) return null;
-
-        var transform = entity.getComponentByType("UITransform");
-        if (transform == null) return null;
-
-        Map<String, Object> fields = transform.getFields();
-        Vector2f pivot = FieldEditors.getVector2f(fields, "pivot");
-
-        float pivotX = bounds[0] + pivot.x * bounds[2];
-        float pivotY = bounds[1] + pivot.y * bounds[3];
-
-        Vector2f screenPos = canvasToScreen(pivotX, pivotY);
-        return new float[]{screenPos.x, screenPos.y};
-    }
+    // ========================================================================
+    // DRAG HANDLERS
+    // ========================================================================
 
     private void handleMoveDrag() {
         if (draggedEntity == null) return;
@@ -1011,7 +1075,6 @@ public class UIDesignerPanel {
                 float canvasWidth = gameConfig.getGameWidth();
                 float canvasHeight = gameConfig.getGameHeight();
 
-                // Calculate element edges with new offset
                 float anchorX = anchor.x * canvasWidth;
                 float anchorY = anchor.y * canvasHeight;
                 float elemX = anchorX + newOffsetX - pivot.x * width;
@@ -1021,19 +1084,15 @@ public class UIDesignerPanel {
 
                 float threshold = SNAP_THRESHOLD / zoom;
 
-                // Snap left edge to canvas left
                 if (Math.abs(elemX) < threshold) {
                     newOffsetX = pivot.x * width - anchorX;
                 }
-                // Snap right edge to canvas right
                 if (Math.abs(elemRight - canvasWidth) < threshold) {
                     newOffsetX = canvasWidth - width + pivot.x * width - anchorX;
                 }
-                // Snap top edge to canvas top
                 if (Math.abs(elemY) < threshold) {
                     newOffsetY = pivot.y * height - anchorY;
                 }
-                // Snap bottom edge to canvas bottom
                 if (Math.abs(elemBottom - canvasHeight) < threshold) {
                     newOffsetY = canvasHeight - height + pivot.y * height - anchorY;
                 }
@@ -1113,18 +1172,48 @@ public class UIDesignerPanel {
             }
         }
 
-        // Apply snap to canvas edges if enabled
-        if (snapEnabled) {
-            // TODO: Snap during resize (more complex, skipping for now)
-        }
+        // Calculate scale factors for cascading resize
+        float scaleX = newWidth / entityStartWidth;
+        float scaleY = newHeight / entityStartHeight;
 
         fields.put("width", newWidth);
         fields.put("height", newHeight);
         fields.put("offset", new Vector2f(newOffsetX, newOffsetY));
 
+        // Apply cascading resize to children
+        if (dragChildStates != null) {
+            applyCascadingResize(scaleX, scaleY);
+        }
+
         EditorScene scene = context.getCurrentScene();
         if (scene != null) {
             scene.markDirty();
+        }
+    }
+
+    /**
+     * Applies cascading resize to all children proportionally.
+     */
+    private void applyCascadingResize(float scaleX, float scaleY) {
+        if (dragChildStates == null) return;
+
+        for (UITransformDragCommand.ChildTransformState state : dragChildStates) {
+            ComponentData childTransform = state.entity.getComponentByType("UITransform");
+            if (childTransform == null) continue;
+
+            Map<String, Object> fields = childTransform.getFields();
+
+            // Scale size
+            float newWidth = state.oldWidth * scaleX;
+            float newHeight = state.oldHeight * scaleY;
+
+            // Scale offset (position relative to parent)
+            float newOffsetX = state.oldOffset.x * scaleX;
+            float newOffsetY = state.oldOffset.y * scaleY;
+
+            fields.put("width", Math.max(1, newWidth));
+            fields.put("height", Math.max(1, newHeight));
+            fields.put("offset", new Vector2f(newOffsetX, newOffsetY));
         }
     }
 
@@ -1134,7 +1223,6 @@ public class UIDesignerPanel {
         ImVec2 mousePos = ImGui.getMousePos();
         Vector2f canvasPos = screenToCanvas(mousePos.x - viewportX, mousePos.y - viewportY);
 
-        // Calculate parent bounds
         float canvasWidth = gameConfig.getGameWidth();
         float canvasHeight = gameConfig.getGameHeight();
 
@@ -1154,15 +1242,12 @@ public class UIDesignerPanel {
             }
         }
 
-        // Calculate new anchor based on mouse position relative to parent
         float newAnchorX = (canvasPos.x - parentX) / parentWidth;
         float newAnchorY = (canvasPos.y - parentY) / parentHeight;
 
-        // Clamp to 0-1
         newAnchorX = Math.max(0, Math.min(1, newAnchorX));
         newAnchorY = Math.max(0, Math.min(1, newAnchorY));
 
-        // Snap to common values (0, 0.5, 1)
         float snapThreshold = 0.05f;
         newAnchorX = snapToValue(newAnchorX, 0f, snapThreshold);
         newAnchorX = snapToValue(newAnchorX, 0.5f, snapThreshold);
@@ -1175,11 +1260,9 @@ public class UIDesignerPanel {
         if (transform != null) {
             Map<String, Object> fields = transform.getFields();
 
-            // Get current values to adjust offset
             Vector2f oldAnchor = FieldEditors.getVector2f(fields, "anchor");
             Vector2f offset = FieldEditors.getVector2f(fields, "offset");
 
-            // Adjust offset to keep element in same visual position
             float anchorDeltaX = (newAnchorX - oldAnchor.x) * parentWidth;
             float anchorDeltaY = (newAnchorY - oldAnchor.y) * parentHeight;
 
@@ -1209,13 +1292,10 @@ public class UIDesignerPanel {
         float width = FieldEditors.getFloat(fields, "width", 100);
         float height = FieldEditors.getFloat(fields, "height", 100);
 
-        // Calculate new pivot based on mouse position relative to element
-        // Need to account for current pivot affecting position
         Vector2f oldPivot = FieldEditors.getVector2f(fields, "pivot");
         Vector2f offset = FieldEditors.getVector2f(fields, "offset");
         Vector2f anchor = FieldEditors.getVector2f(fields, "anchor");
 
-        // Calculate parent anchor position
         float canvasWidth = gameConfig.getGameWidth();
         float canvasHeight = gameConfig.getGameHeight();
         float parentWidth = canvasWidth;
@@ -1234,19 +1314,15 @@ public class UIDesignerPanel {
             }
         }
 
-        // Calculate where the element would be positioned (anchor + offset point)
         float anchorPosX = parentX + anchor.x * parentWidth + offset.x;
         float anchorPosY = parentY + anchor.y * parentHeight + offset.y;
 
-        // Calculate new pivot: where is mouse relative to anchor+offset, normalized by size
         float newPivotX = (canvasPos.x - anchorPosX + oldPivot.x * width) / width;
         float newPivotY = (canvasPos.y - anchorPosY + oldPivot.y * height) / height;
 
-        // Clamp to 0-1
         newPivotX = Math.max(0, Math.min(1, newPivotX));
         newPivotY = Math.max(0, Math.min(1, newPivotY));
 
-        // Snap to common values
         float snapThreshold = 0.05f;
         newPivotX = snapToValue(newPivotX, 0f, snapThreshold);
         newPivotX = snapToValue(newPivotX, 0.5f, snapThreshold);
@@ -1255,7 +1331,6 @@ public class UIDesignerPanel {
         newPivotY = snapToValue(newPivotY, 0.5f, snapThreshold);
         newPivotY = snapToValue(newPivotY, 1f, snapThreshold);
 
-        // Adjust offset to keep element in same visual position
         float pivotDeltaX = (newPivotX - oldPivot.x) * width;
         float pivotDeltaY = (newPivotY - oldPivot.y) * height;
 
@@ -1273,6 +1348,78 @@ public class UIDesignerPanel {
             return target;
         }
         return value;
+    }
+
+    // ========================================================================
+    // HIT TESTING
+    // ========================================================================
+
+    private boolean hitTestAnchor(EditorEntity entity, float screenX, float screenY) {
+        float[] anchorPos = calculateAnchorScreenPos(entity);
+        if (anchorPos == null) return false;
+
+        float hitSize = 12f;
+        return Math.abs(screenX - anchorPos[0]) < hitSize &&
+                Math.abs(screenY - anchorPos[1]) < hitSize;
+    }
+
+    private boolean hitTestPivot(EditorEntity entity, float screenX, float screenY) {
+        float[] pivotPos = calculatePivotScreenPos(entity);
+        if (pivotPos == null) return false;
+
+        float hitSize = 10f;
+        return Math.abs(screenX - pivotPos[0]) < hitSize &&
+                Math.abs(screenY - pivotPos[1]) < hitSize;
+    }
+
+    private float[] calculateAnchorScreenPos(EditorEntity entity) {
+        var transform = entity.getComponentByType("UITransform");
+        if (transform == null) return null;
+
+        Map<String, Object> fields = transform.getFields();
+        Vector2f anchor = FieldEditors.getVector2f(fields, "anchor");
+
+        float canvasWidth = gameConfig.getGameWidth();
+        float canvasHeight = gameConfig.getGameHeight();
+
+        float parentWidth = canvasWidth;
+        float parentHeight = canvasHeight;
+        float parentX = 0;
+        float parentY = 0;
+
+        EditorEntity parent = findParentWithUITransform(entity);
+        if (parent != null) {
+            float[] parentBounds = calculateElementBounds(parent);
+            if (parentBounds != null) {
+                parentX = parentBounds[0];
+                parentY = parentBounds[1];
+                parentWidth = parentBounds[2];
+                parentHeight = parentBounds[3];
+            }
+        }
+
+        float anchorX = parentX + anchor.x * parentWidth;
+        float anchorY = parentY + anchor.y * parentHeight;
+
+        Vector2f screenPos = canvasToScreen(anchorX, anchorY);
+        return new float[]{screenPos.x, screenPos.y};
+    }
+
+    private float[] calculatePivotScreenPos(EditorEntity entity) {
+        float[] bounds = calculateElementBounds(entity);
+        if (bounds == null) return null;
+
+        var transform = entity.getComponentByType("UITransform");
+        if (transform == null) return null;
+
+        Map<String, Object> fields = transform.getFields();
+        Vector2f pivot = FieldEditors.getVector2f(fields, "pivot");
+
+        float pivotX = bounds[0] + pivot.x * bounds[2];
+        float pivotY = bounds[1] + pivot.y * bounds[3];
+
+        Vector2f screenPos = canvasToScreen(pivotX, pivotY);
+        return new float[]{screenPos.x, screenPos.y};
     }
 
     private ResizeHandle hitTestHandles(EditorEntity entity, float screenX, float screenY) {
@@ -1296,13 +1443,11 @@ public class UIDesignerPanel {
 
         float hitSize = HANDLE_HIT_SIZE;
 
-        // Check corners first (higher priority)
         if (hitTestHandle(screenX, screenY, left, top, hitSize)) return ResizeHandle.TOP_LEFT;
         if (hitTestHandle(screenX, screenY, right, top, hitSize)) return ResizeHandle.TOP_RIGHT;
         if (hitTestHandle(screenX, screenY, left, bottom, hitSize)) return ResizeHandle.BOTTOM_LEFT;
         if (hitTestHandle(screenX, screenY, right, bottom, hitSize)) return ResizeHandle.BOTTOM_RIGHT;
 
-        // Then edges
         if (hitTestHandle(screenX, screenY, midX, top, hitSize)) return ResizeHandle.TOP;
         if (hitTestHandle(screenX, screenY, midX, bottom, hitSize)) return ResizeHandle.BOTTOM;
         if (hitTestHandle(screenX, screenY, left, midY, hitSize)) return ResizeHandle.LEFT;

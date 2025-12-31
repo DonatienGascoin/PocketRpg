@@ -1,8 +1,10 @@
 package com.pocket.rpg.editor.ui;
 
+import com.pocket.rpg.editor.assets.SceneViewportDropTarget;
 import com.pocket.rpg.editor.camera.EditorCamera;
 import com.pocket.rpg.editor.core.EditorConfig;
 import com.pocket.rpg.editor.rendering.EditorFramebuffer;
+import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.tools.*;
 import imgui.ImGui;
 import imgui.ImVec2;
@@ -75,6 +77,8 @@ public class SceneViewport {
     @Getter
     @Setter
     private boolean contentVisible = false;
+    @Setter
+    private EditorScene scene;
 
     public SceneViewport(EditorCamera camera, EditorConfig config) {
         this.camera = camera;
@@ -206,6 +210,10 @@ public class SceneViewport {
             );
             // Use ImGui's z-order aware hover detection
             isHovered = ImGui.isItemHovered();
+
+            if (scene != null) {
+                SceneViewportDropTarget.handleDropTarget(camera, scene, viewportX, viewportY);
+            }
         } else {
             isHovered = false;
         }
@@ -542,6 +550,11 @@ public class SceneViewport {
         }
 
         activeTool.renderOverlay(camera, hoveredTileX, hoveredTileY);
+
+        if (scene != null) {
+            SceneViewportDropTarget.renderDragOverlay(
+                    camera, viewportX, viewportY, viewportWidth, viewportHeight);
+        }
     }
 
     /**

@@ -1,7 +1,11 @@
 package com.pocket.rpg.prefab;
 
+import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.scene.EditorEntity;
+import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.resources.AssetLoader;
 import com.pocket.rpg.serialization.Serializer;
+import org.joml.Vector3f;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -67,5 +71,45 @@ public class JsonPrefabLoader implements AssetLoader<JsonPrefab> {
     @Override
     public boolean supportsHotReload() {
         return true;
+    }
+
+    // ========================================================================
+    // EDITOR INSTANTIATION SUPPORT
+    // ========================================================================
+
+    @Override
+    public boolean canInstantiate() {
+        return true;
+    }
+
+    @Override
+    public EditorEntity instantiate(JsonPrefab asset, String assetPath, Vector3f position) {
+        if (asset == null) {
+            return null;
+        }
+
+        // Create prefab instance (not scratch entity)
+        EditorEntity entity = new EditorEntity(asset.getId(), position);
+
+        // Name from prefab display name
+        String displayName = asset.getDisplayName();
+        if (displayName != null && !displayName.isEmpty()) {
+            entity.setName(displayName + "_" + entity.getId().substring(0, 4));
+        }
+
+        return entity;
+    }
+
+    @Override
+    public Sprite getPreviewSprite(JsonPrefab asset) {
+        if (asset != null) {
+            return asset.getPreviewSprite();
+        }
+        return null;
+    }
+
+    @Override
+    public String getIconCodepoint() {
+        return FontAwesomeIcons.Cubes;
     }
 }

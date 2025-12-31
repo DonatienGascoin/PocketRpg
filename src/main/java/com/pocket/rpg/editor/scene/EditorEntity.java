@@ -333,6 +333,10 @@ public class EditorEntity {
         return getComponentByType(simpleName) != null;
     }
 
+    public boolean hasComponent(Class<?> clazz) {
+        return getComponentByType(clazz.getSimpleName()) != null;
+    }
+
     // ========================================================================
     // PREFAB INSTANCE FIELD OVERRIDES
     // ========================================================================

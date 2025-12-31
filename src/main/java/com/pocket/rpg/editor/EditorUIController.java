@@ -52,6 +52,9 @@ public class EditorUIController {
     private ConfigPanel configPanel;
 
     @Getter
+    private AssetBrowserPanel assetBrowserPanel;
+
+    @Getter
     private EditorMenuBar menuBar;
 
     @Getter
@@ -69,6 +72,7 @@ public class EditorUIController {
         sceneViewport = new SceneViewport(context.getCamera(), context.getConfig());
         sceneViewport.init(context.getWindow().getWidth(), context.getWindow().getHeight());
         sceneViewport.setToolManager(context.getToolManager());
+        sceneViewport.setScene(context.getCurrentScene());
 
         sceneToolbar = new SceneViewToolbar(context, toolController);
 
@@ -108,6 +112,10 @@ public class EditorUIController {
         prefabBrowserPanel.setModeManager(context.getModeManager());
         prefabBrowserPanel.setToolManager(context.getToolManager());
         prefabBrowserPanel.setEntityPlacerTool(toolController.getEntityPlacerTool());
+
+        assetBrowserPanel = new AssetBrowserPanel();
+        assetBrowserPanel.initialize();
+
         toolController.getEntityPlacerTool().setPrefabPanel(prefabBrowserPanel);
         toolController.setPrefabBrowserPanel(prefabBrowserPanel);
 
@@ -146,6 +154,8 @@ public class EditorUIController {
         statusBar.setCurrentScene(scene);
         hierarchyPanel.setScene(scene);
         inspectorPanel.setScene(scene);
+        sceneViewport.setScene(scene);
+        // TODO assetBrowserPanel.setScene(scene);
     }
 
     public void setupDocking() {
@@ -350,6 +360,7 @@ public class EditorUIController {
         } else if (context.getModeManager().isCollisionMode()) {
             collisionPanel.render();
         } else if (context.getModeManager().isEntityMode()) {
+            assetBrowserPanel.render();
             prefabBrowserPanel.render();
         }
     }

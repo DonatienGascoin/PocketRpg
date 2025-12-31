@@ -44,37 +44,14 @@ public class ReparentEntityCommand implements EditorCommand {
         oldIndex = oldSiblings.indexOf(entity);
         if (oldIndex == -1) oldIndex = 0;
 
-        System.out.println("[REPARENT-EXEC] " + entity.getName() +
-                ": oldParent=" + (oldParent != null ? oldParent.getName() : "null") +
-                ", oldIndex=" + oldIndex +
-                ", newParent=" + (newParent != null ? newParent.getName() : "null") +
-                ", insertIndex=" + insertIndex);
-
         scene.insertEntityAtPosition(entity, newParent, insertIndex);
         scene.markDirty();
     }
 
     @Override
     public void undo() {
-        System.out.println("[REPARENT-UNDO] " + entity.getName() +
-                ": restoring to oldParent=" + (oldParent != null ? oldParent.getName() : "null") +
-                ", oldIndex=" + oldIndex);
-
         scene.insertEntityAtPosition(entity, oldParent, oldIndex);
         scene.markDirty();
-
-        // Debug: print scene state after undo
-        System.out.println("[REPARENT-UNDO] Scene @" + System.identityHashCode(scene) + " state after undo:");
-        System.out.println("[REPARENT-UNDO]   Total entities in list: " + scene.getEntities().size());
-        for (EditorEntity e : scene.getEntities()) {
-            System.out.println("[REPARENT-UNDO]     [ALL] " + e.getName() +
-                    " (parentId=" + e.getParentId() + ", order=" + e.getOrder() + ")");
-        }
-        System.out.println("[REPARENT-UNDO]   Root entities (parentId=null): " + scene.getRootEntities().size());
-        for (EditorEntity e : scene.getRootEntities()) {
-            System.out.println("[REPARENT-UNDO]     [ROOT] " + e.getName() + " (order=" + e.getOrder() +
-                    ", children=" + e.getChildren().size() + ")");
-        }
     }
 
     @Override

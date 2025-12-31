@@ -1,5 +1,6 @@
 package com.pocket.rpg.editor.panels;
 
+import com.pocket.rpg.editor.utils.IconUtils;
 import com.pocket.rpg.editor.utils.ReflectionFieldEditor;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.scene.EditorEntity;
@@ -98,7 +99,7 @@ public class InspectorPanel {
     // ========================================================================
 
     private void renderMultiSelectionInspector(Set<EditorEntity> selected) {
-        ImGui.text(FontAwesomeIcons.ObjectGroup + " " + selected.size() + " entities selected");
+        ImGui.text(IconUtils.getMultipleEntitiesIcon() + " " + selected.size() + " entities selected");
         ImGui.separator();
 
         // Bulk position offset
@@ -129,7 +130,7 @@ public class InspectorPanel {
         ImGui.text("Selected:");
         ImGui.beginChild("##selectedList", 0, 100, true);
         for (EditorEntity entity : selected) {
-            String icon = entity.isScratchEntity() ? FontAwesomeIcons.Cube : FontAwesomeIcons.Cubes;
+            String icon = IconUtils.getIconForEntity(entity);
             ImGui.text(icon + " " + entity.getName());
         }
         ImGui.endChild();
@@ -157,7 +158,7 @@ public class InspectorPanel {
     // ========================================================================
 
     private void renderCameraInspector() {
-        ImGui.text(FontAwesomeIcons.Camera + " Scene Camera");
+        ImGui.text(IconUtils.getCameraIcon() + " Scene Camera");
         ImGui.separator();
 
         SceneCameraSettings cam = scene.getCameraSettings();
@@ -225,7 +226,7 @@ public class InspectorPanel {
     // ========================================================================
 
     private void renderTilemapLayersInspector() {
-        ImGui.text(FontAwesomeIcons.LayerGroup + " Tilemap Layers");
+        ImGui.text(IconUtils.getLayersIcon() + " Tilemap Layers");
         ImGui.separator();
 
         renderLayerControls();
@@ -434,14 +435,15 @@ public class InspectorPanel {
         ImGui.textDisabled("(higher = front)");
     }
 
-    private record LayerEntry(int originalIndex, TilemapLayer layer) {}
+    private record LayerEntry(int originalIndex, TilemapLayer layer) {
+    }
 
     // ========================================================================
     // COLLISION MAP INSPECTOR
     // ========================================================================
 
     private void renderCollisionMapInspector() {
-        ImGui.text(FontAwesomeIcons.BorderAll + " Collision Map");
+        ImGui.text(IconUtils.getCollisionsIcon() + " Collision Map");
         ImGui.separator();
 
         boolean collisionVisible = scene.isCollisionVisible();
@@ -465,9 +467,7 @@ public class InspectorPanel {
     // ========================================================================
 
     private void renderEntityInspector(EditorEntity entity) {
-        String icon = entity.isScratchEntity() ? FontAwesomeIcons.Cube
-                : entity.isPrefabValid() ? FontAwesomeIcons.Cubes
-                : FontAwesomeIcons.ExclamationTriangle;
+        String icon = IconUtils.getIconForEntity(entity);
 
         ImGui.text(icon);
         ImGui.sameLine();
@@ -552,7 +552,9 @@ public class InspectorPanel {
             Vector3f newPos = entity.getPosition();
             if (!newPos.equals(oldPos)) {
                 UndoManager.getInstance().execute(new MoveEntityCommand(entity, oldPos, newPos) {
-                    @Override public void execute() {}
+                    @Override
+                    public void execute() {
+                    }
                 });
             }
             scene.markDirty();
@@ -663,7 +665,8 @@ public class InspectorPanel {
                     comp.getFields().put(fieldName, entity.getFieldDefault(componentType, fieldName));
                     scene.markDirty();
                 }
-                if (ImGui.isItemHovered()) ImGui.setTooltip("Reset to default: " + entity.getFieldDefault(componentType, fieldName));
+                if (ImGui.isItemHovered())
+                    ImGui.setTooltip("Reset to default: " + entity.getFieldDefault(componentType, fieldName));
             }
 
             if (changed) {
@@ -720,6 +723,9 @@ public class InspectorPanel {
         public NoOpWrapperCommand(MoveEntityCommand original, EditorEntity entity, Vector3f oldPos) {
             super(entity, oldPos, entity.getPosition());
         }
-        @Override public void execute() {}
+
+        @Override
+        public void execute() {
+        }
     }
 }

@@ -1,36 +1,32 @@
 package com.pocket.rpg.editor.panels;
 
+import com.pocket.rpg.components.ui.UICanvas;
+import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.editor.EditorModeManager;
+import com.pocket.rpg.editor.assets.HierarchyDropTarget;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.scene.EditorEntity;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.UIEntityFactory;
+import com.pocket.rpg.editor.tools.EditorTool;
+import com.pocket.rpg.editor.tools.ToolManager;
 import com.pocket.rpg.editor.undo.UndoManager;
+import com.pocket.rpg.editor.undo.commands.AddEntitiesCommand;
 import com.pocket.rpg.editor.undo.commands.AddEntityCommand;
 import com.pocket.rpg.editor.undo.commands.BulkDeleteCommand;
 import com.pocket.rpg.editor.undo.commands.ReparentEntityCommand;
-import com.pocket.rpg.serialization.ComponentData;
-import com.pocket.rpg.editor.tools.EditorTool;
-import com.pocket.rpg.editor.tools.ToolManager;
+import com.pocket.rpg.editor.utils.IconUtils;
 import com.pocket.rpg.prefab.Prefab;
+import com.pocket.rpg.serialization.ComponentData;
 import imgui.ImGui;
 import imgui.ImVec2;
-import imgui.flag.ImGuiCol;
-import imgui.flag.ImGuiDragDropFlags;
-import imgui.flag.ImGuiInputTextFlags;
-import imgui.flag.ImGuiKey;
-import imgui.flag.ImGuiMouseButton;
-import imgui.flag.ImGuiTreeNodeFlags;
+import imgui.flag.*;
 import imgui.type.ImString;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector3f;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Unified hierarchy panel with drag-drop reordering and multi-selection.
@@ -86,7 +82,8 @@ public class HierarchyPanel {
         BEFORE, ON, AFTER
     }
 
-    private record DropTarget(EditorEntity entity, DropPosition position) {}
+    private record DropTarget(EditorEntity entity, DropPosition position) {
+    }
 
     public void init() {
         if (modeManager != null) {
@@ -123,7 +120,15 @@ public class HierarchyPanel {
                 return;
             }
 
-            ImGui.text(FontAwesomeIcons.Map + " " + scene.getName());
+            ImGui.text(IconUtils.getSceneIcon() + " " + scene.getName());
+            ImGui.sameLine(ImGui.getContentRegionMaxX() - 15);
+            if (ImGui.smallButton(FontAwesomeIcons.Plus)) {
+                ImGui.openPopup("CreateEntity_Popup");
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("Add...");
+            }
+
             ImGui.separator();
 
             renderCameraItem();
@@ -133,6 +138,7 @@ public class HierarchyPanel {
             ImGui.separator();
 
             renderEntitiesSection();
+            renderEntityCreationMenu();
         }
         ImGui.end();
 
@@ -150,7 +156,7 @@ public class HierarchyPanel {
             flags |= ImGuiTreeNodeFlags.Selected;
         }
 
-        ImGui.treeNodeEx("##camera", flags, FontAwesomeIcons.Camera + " Scene Camera");
+        ImGui.treeNodeEx("##camera", flags, IconUtils.getCameraIcon() + " Scene Camera");
 
         if (ImGui.isItemClicked()) {
             selectCamera();
@@ -178,7 +184,7 @@ public class HierarchyPanel {
         }
 
         int layerCount = scene != null ? scene.getLayerCount() : 0;
-        ImGui.treeNodeEx("##tilemapLayers", flags, FontAwesomeIcons.LayerGroup + " Tilemap Layers (" + layerCount + ")");
+        ImGui.treeNodeEx("##tilemapLayers", flags, IconUtils.getLayersIcon() + " Tilemap Layers (" + layerCount + ")");
 
         if (ImGui.isItemClicked()) {
             selectTilemapLayers();
@@ -205,7 +211,7 @@ public class HierarchyPanel {
             flags |= ImGuiTreeNodeFlags.Selected;
         }
 
-        ImGui.treeNodeEx("##collisionMap", flags, FontAwesomeIcons.BorderAll + " Collision Map");
+        ImGui.treeNodeEx("##collisionMap", flags, IconUtils.getCollisionsIcon() + " Collision Map");
 
         if (ImGui.isItemClicked()) {
             selectCollisionMap();
@@ -247,18 +253,42 @@ public class HierarchyPanel {
             renderDropZone(null, rootEntities.size(), null);
         }
 
-        ImGui.separator();
-
-        if (ImGui.smallButton(FontAwesomeIcons.Plus + " New Entity")) {
-            createEmptyEntity();
-        }
-        ImGui.sameLine();
-        renderCreateUIMenu();
-        ImGui.sameLine();
-        ImGui.textDisabled("or use Prefabs panel");
-
         // Multi-selection context menu
         renderMultiSelectionContextMenu();
+
+
+        HierarchyDropTarget.handleEmptyAreaDrop(scene);
+    }
+
+    private void renderEntityCreationMenu() {
+        if (ImGui.beginPopup("CreateEntity_Popup")) {
+
+            if (ImGui.menuItem(IconUtils.getScratchEntityIcon() + " New Entity")) {
+                createEmptyEntity();
+            }
+
+            if (ImGui.beginMenu(FontAwesomeIcons.WindowMaximize + " Create UI")) {
+                if (ImGui.menuItem(IconUtils.getUICanvasIcon() + " Canvas")) {
+                    createUIElement("Canvas");
+                }
+                ImGui.separator();
+                if (ImGui.menuItem(IconUtils.getUIPanelIcon() + " Panel")) {
+                    createUIElement("Panel");
+                }
+                if (ImGui.menuItem(IconUtils.getUIImageIcon() + " Image")) {
+                    createUIElement("Image");
+                }
+                if (ImGui.menuItem(IconUtils.getUIButtonIcon() + " Button")) {
+                    createUIElement("Button");
+                }
+                if (ImGui.menuItem(IconUtils.getUITextIcon() + " Text")) {
+                    createUIElement("Text");
+                }
+                ImGui.endMenu();
+            }
+
+            ImGui.endPopup();
+        }
     }
 
     private void renderEntityTree(EditorEntity entity, int depth) {
@@ -294,7 +324,7 @@ public class HierarchyPanel {
         if (isRenaming) {
             renderRenameField(entity);
         } else {
-            String icon = getEntityIcon(entity);
+            String icon = IconUtils.getIconForEntity(entity);
             String label = icon + " " + entity.getName();
 
             boolean nodeOpen = ImGui.treeNodeEx("##entity", flags, label);
@@ -334,6 +364,8 @@ public class HierarchyPanel {
         }
 
         ImGui.popID();
+
+        HierarchyDropTarget.handleEntityDrop(scene, entity);
     }
 
     private void renderRenameField(EditorEntity entity) {
@@ -395,9 +427,9 @@ public class HierarchyPanel {
 
             int selectedCount = scene.getSelectedEntities().size();
             if (selectedCount > 1) {
-                ImGui.text(FontAwesomeIcons.ObjectGroup + " " + selectedCount + " entities");
+                ImGui.text(IconUtils.getMultipleEntitiesIcon() + " " + selectedCount + " entities");
             } else {
-                ImGui.text(FontAwesomeIcons.Cube + " " + entity.getName());
+                ImGui.text(IconUtils.getScratchEntityIcon() + " " + entity.getName());
             }
 
             ImGui.endDragDropSource();
@@ -593,25 +625,25 @@ public class HierarchyPanel {
                     scene.clearSelection();
                 }
             } else {
-                if (ImGui.menuItem(FontAwesomeIcons.Plus + " New Entity")) {
+                if (ImGui.menuItem(IconUtils.getScratchEntityIcon() + " New Entity")) {
                     createEmptyEntity();
                 }
 
                 if (ImGui.beginMenu(FontAwesomeIcons.WindowMaximize + " Create UI")) {
-                    if (ImGui.menuItem(FontAwesomeIcons.Desktop + " Canvas")) {
+                    if (ImGui.menuItem(IconUtils.getUICanvasIcon() + " Canvas")) {
                         createUIElement("Canvas");
                     }
                     ImGui.separator();
-                    if (ImGui.menuItem(FontAwesomeIcons.Square + " Panel")) {
+                    if (ImGui.menuItem(IconUtils.getUIPanelIcon() + " Panel")) {
                         createUIElement("Panel");
                     }
-                    if (ImGui.menuItem(FontAwesomeIcons.Image + " Image")) {
+                    if (ImGui.menuItem(IconUtils.getUIImageIcon() + " Image")) {
                         createUIElement("Image");
                     }
-                    if (ImGui.menuItem(FontAwesomeIcons.HandPointer + " Button")) {
+                    if (ImGui.menuItem(IconUtils.getUIButtonIcon() + " Button")) {
                         createUIElement("Button");
                     }
-                    if (ImGui.menuItem(FontAwesomeIcons.Font + " Text")) {
+                    if (ImGui.menuItem(IconUtils.getUITextIcon() + " Text")) {
                         createUIElement("Text");
                     }
                     ImGui.endMenu();
@@ -619,32 +651,6 @@ public class HierarchyPanel {
             }
 
             ImGui.endPopup();
-        }
-    }
-
-    private String getEntityIcon(EditorEntity entity) {
-        // Check for UI components first
-        if (entity.hasComponent("UICanvas")) {
-            return FontAwesomeIcons.Desktop;
-        } else if (entity.hasComponent("UIButton")) {
-            return FontAwesomeIcons.HandPointer;
-        } else if (entity.hasComponent("UIText")) {
-            return FontAwesomeIcons.Font;
-        } else if (entity.hasComponent("UIImage")) {
-            return FontAwesomeIcons.Image;
-        } else if (entity.hasComponent("UIPanel")) {
-            return FontAwesomeIcons.Square;
-        } else if (entity.hasComponent("UITransform")) {
-            return FontAwesomeIcons.WindowMaximize;
-        }
-
-        // Default icons
-        if (entity.isScratchEntity()) {
-            return FontAwesomeIcons.Cube;
-        } else if (entity.isPrefabValid()) {
-            return FontAwesomeIcons.Cubes;
-        } else {
-            return FontAwesomeIcons.ExclamationTriangle;
         }
     }
 
@@ -746,31 +752,8 @@ public class HierarchyPanel {
     // UI ENTITY CREATION
     // ========================================================================
 
-    private void renderCreateUIMenu() {
-        if (ImGui.beginMenu(FontAwesomeIcons.WindowMaximize + " Create UI")) {
-            if (ImGui.menuItem(FontAwesomeIcons.Desktop + " Canvas")) {
-                createUIElement("Canvas");
-            }
-            ImGui.separator();
-            if (ImGui.menuItem(FontAwesomeIcons.Square + " Panel")) {
-                createUIElement("Panel");
-            }
-            if (ImGui.menuItem(FontAwesomeIcons.Image + " Image")) {
-                createUIElement("Image");
-            }
-            if (ImGui.menuItem(FontAwesomeIcons.HandPointer + " Button")) {
-                createUIElement("Button");
-            }
-            if (ImGui.menuItem(FontAwesomeIcons.Font + " Text")) {
-                createUIElement("Text");
-            }
-            ImGui.endMenu();
-        }
-    }
-
     private void createUIElement(String uiType) {
         if (scene == null || uiFactory == null) return;
-
         EditorEntity entity = uiFactory.create(uiType, null);
         if (entity == null) return;
 
@@ -778,7 +761,7 @@ public class HierarchyPanel {
         EditorEntity selected = scene.getSelectedEntity();
 
         if (selected != null) {
-            if (selected.hasComponent("UITransform") || selected.hasComponent("UICanvas")) {
+            if (selected.hasComponent(UITransform.class) || selected.hasComponent(UICanvas.class)) {
                 // Selected is UI element: create as direct child
                 parent = selected;
             } else {
@@ -795,19 +778,28 @@ public class HierarchyPanel {
             parent = findOrCreateCanvas();
         }
         // No selection + Canvas: stays at root (parent = null)
+        List<EditorEntity> entitiesToAdd = new ArrayList<>();
 
         if (parent != null) {
             entity.setParent(parent);
             entity.setOrder(parent.getChildren().size());
+            entitiesToAdd.add(parent);
         } else {
             entity.setOrder(getNextChildOrder(null));
         }
 
-        scene.addEntity(entity);
+        entitiesToAdd.add(entity);
+        UndoManager.getInstance().execute(new AddEntitiesCommand(scene, entitiesToAdd));
         selectEntity(entity);
         scene.markDirty();
     }
 
+    /**
+     * Find or create a canvas under a specified entity: Warning, will not add it to the scene !
+     *
+     * @param parent Parent entity
+     * @return create EditorEntity with UICanvas component
+     */
     private EditorEntity findOrCreateCanvasUnder(EditorEntity parent) {
         // Look for existing canvas child
         for (EditorEntity child : parent.getChildren()) {
@@ -820,10 +812,14 @@ public class HierarchyPanel {
         EditorEntity canvas = uiFactory.create("Canvas", "UI Canvas");
         canvas.setParent(parent);
         canvas.setOrder(parent.getChildren().size());
-        scene.addEntity(canvas);
         return canvas;
     }
 
+    /**
+     * Find or create a canvas: Warning, will not add it to the scene !
+     *
+     * @return create EditorEntity with UICanvas component
+     */
     private EditorEntity findOrCreateCanvas() {
         // Look for existing canvas
         for (EditorEntity entity : scene.getEntities()) {
@@ -835,16 +831,6 @@ public class HierarchyPanel {
         // Create new canvas
         EditorEntity canvas = uiFactory.create("Canvas", "UI Canvas");
         canvas.setOrder(getNextChildOrder(null));
-        scene.addEntity(canvas);
         return canvas;
-    }
-
-    public void clearSelection() {
-        cameraSelected = false;
-        tilemapLayersSelected = false;
-        collisionMapSelected = false;
-        if (scene != null) {
-            scene.clearSelection();
-        }
     }
 }

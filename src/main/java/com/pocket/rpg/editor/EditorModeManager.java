@@ -35,7 +35,7 @@ public class EditorModeManager {
     }
 
     @Getter
-    private Mode currentMode = Mode.TILEMAP;
+    private Mode currentMode = Mode.ENTITY;
 
     // Mode change listeners
     private final List<Consumer<Mode>> modeChangedListeners = new ArrayList<>();
@@ -78,6 +78,7 @@ public class EditorModeManager {
 
     /**
      * Toggles between tilemap and collision modes.
+     *
      * @deprecated Use switchTo() for explicit mode switching
      */
     @Deprecated

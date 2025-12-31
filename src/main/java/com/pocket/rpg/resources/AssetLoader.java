@@ -1,64 +1,69 @@
 package com.pocket.rpg.resources;
 
+import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.scene.EditorEntity;
+import com.pocket.rpg.rendering.Sprite;
+import org.joml.Vector3f;
+
 import java.io.IOException;
 
 /**
  * Interface for loading and saving assets.
  * Implementations handle specific asset types (textures, shaders, etc.).
- * 
+ *
  * @param <T> The type of asset this loader handles
  */
 public interface AssetLoader<T> {
-    
+
     /**
      * Loads a resource from the given path.
-     * 
+     *
      * @param path Path to the resource file
      * @return Loaded resource
      * @throws IOException if loading fails
      */
     T load(String path) throws IOException;
-    
+
     /**
      * Saves a resource back to disk.
-     * 
+     *
      * @param resource The resource to save
      * @param path The path to save to
      * @throws IOException if saving fails
      * @throws UnsupportedOperationException if this loader doesn't support saving
      */
     void save(T resource, String path) throws IOException;
-    
+
     /**
      * Returns a placeholder for this type (used on load failure).
      * The placeholder allows the game to continue running with a visible indicator.
-     * 
+     *
      * @return Placeholder resource (e.g., magenta texture for textures)
      */
     T getPlaceholder();
-    
+
     /**
      * Returns supported file extensions (e.g., [".png", ".jpg"]).
      * This is used for automatic type registration.
      * Extensions should include the dot and be lowercase.
-     * 
+     *
      * @return Array of supported extensions
      */
     String[] getSupportedExtensions();
-    
+
     /**
      * Hot reload support (future feature).
-     * 
+     *
      * @return true if this loader supports reloading
      */
     default boolean supportsHotReload() {
         return false;
     }
-    
+
     /**
      * Reloads a resource (future feature).
      * Default implementation just calls load().
-     * 
+     *
      * @param existing The existing resource
      * @param path Path to reload from
      * @return Reloaded resource
@@ -66,5 +71,53 @@ public interface AssetLoader<T> {
      */
     default T reload(T existing, String path) throws IOException {
         return load(path);
+    }
+
+    // ========================================================================
+    // EDITOR INSTANTIATION SUPPORT
+    // ========================================================================
+
+    /**
+     * Returns whether this asset type can be instantiated as an entity in the editor.
+     * Override to return true for assets that can be dragged into scenes.
+     *
+     * @return true if this asset can create entities
+     */
+    default boolean canInstantiate() {
+        return false;
+    }
+
+    /**
+     * Creates an EditorEntity from this asset.
+     * Called when the asset is dropped into the scene viewport or hierarchy.
+     *
+     * @param asset The loaded asset
+     * @param assetPath Relative path to the asset (for component configuration)
+     * @param position World position to place the entity
+     * @return New EditorEntity with appropriate components, or null if not supported
+     */
+    default EditorEntity instantiate(T asset, String assetPath, Vector3f position) {
+        return null;
+    }
+
+    /**
+     * Gets a preview sprite for displaying in the asset browser.
+     * Return null to use the default icon instead.
+     *
+     * @param asset The loaded asset
+     * @return Preview sprite, or null for icon fallback
+     */
+    default Sprite getPreviewSprite(T asset) {
+        return null;
+    }
+
+    /**
+     * Gets the FontAwesome icon codepoint for this asset type.
+     * Used when no preview sprite is available.
+     *
+     * @return FontAwesome icon string (e.g., FontAwesomeIcons.File)
+     */
+    default String getIconCodepoint() {
+        return FontAwesomeIcons.File;
     }
 }

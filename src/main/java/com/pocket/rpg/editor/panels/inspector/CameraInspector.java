@@ -1,5 +1,6 @@
 package com.pocket.rpg.editor.panels.inspector;
 
+import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.SceneCameraSettings;
 import com.pocket.rpg.editor.utils.IconUtils;
@@ -20,6 +21,16 @@ public class CameraInspector {
 
     public void render() {
         ImGui.text(IconUtils.getCameraIcon() + " Scene Camera");
+        
+        // FIX: Add reset button
+        ImGui.sameLine(ImGui.getContentRegionMaxX() - 80);
+        if (ImGui.smallButton(FontAwesomeIcons.Undo + " Reset")) {
+            resetToDefaults();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("Reset camera to game config defaults");
+        }
+        
         ImGui.separator();
 
         SceneCameraSettings cam = scene.getCameraSettings();
@@ -80,5 +91,22 @@ public class CameraInspector {
                 scene.markDirty();
             }
         }
+    }
+
+    /**
+     * Resets camera settings to game config defaults.
+     */
+    private void resetToDefaults() {
+        SceneCameraSettings cam = scene.getCameraSettings();
+        
+        // Reset to defaults (matching SceneCameraSettings constructor defaults)
+        cam.setPosition(0, 0);
+        cam.setOrthographicSize(10f);
+        cam.setFollowPlayer(false);
+        cam.setFollowTargetName("");
+        cam.setUseBounds(false);
+        cam.setBounds(0, 0, 100, 100);
+        
+        scene.markDirty();
     }
 }

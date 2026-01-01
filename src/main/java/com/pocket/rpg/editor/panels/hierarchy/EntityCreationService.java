@@ -38,7 +38,9 @@ public class EntityCreationService {
         EditorEntity entity = new EditorEntity(name, position, false);
         entity.setOrder(getNextChildOrder(null));
         UndoManager.getInstance().execute(new AddEntityCommand(scene, entity));
-        selectEntity(entity);
+        
+        // FIX: Properly select and switch mode
+        selectAndSwitchMode(entity);
         scene.markDirty();
     }
 
@@ -77,7 +79,9 @@ public class EntityCreationService {
 
         entitiesToAdd.add(entity);
         UndoManager.getInstance().execute(new AddEntitiesCommand(scene, entitiesToAdd));
-        selectEntity(entity);
+        
+        // FIX: Properly select and switch mode
+        selectAndSwitchMode(entity);
         scene.markDirty();
     }
 
@@ -108,8 +112,37 @@ public class EntityCreationService {
         copy.setOrder(original.getOrder() + 1);
 
         scene.addEntity(copy);
-        selectEntity(copy);
+        
+        // FIX: Properly select and switch mode
+        selectAndSwitchMode(copy);
         scene.markDirty();
+    }
+
+    /**
+     * FIX: Centralized selection and mode switching logic.
+     * Switches to entity mode and focuses appropriate panel based on entity type.
+     */
+    private void selectAndSwitchMode(EditorEntity entity) {
+        if (selectionHandler != null) {
+            // Use selection handler which properly triggers mode switching
+            scene.setSelection(Set.of(entity));
+            selectionHandler.selectEntity(entity);
+        } else {
+            // Fallback if selection handler not set
+            scene.setSelection(Set.of(entity));
+        }
+    }
+
+    /**
+     * Checks if entity is a UI entity.
+     */
+    private boolean isUIEntity(EditorEntity entity) {
+        return entity.hasComponent("UICanvas") ||
+                entity.hasComponent("UITransform") ||
+                entity.hasComponent("UIPanel") ||
+                entity.hasComponent("UIImage") ||
+                entity.hasComponent("UIButton") ||
+                entity.hasComponent("UIText");
     }
 
     private EditorEntity findOrCreateCanvasUnder(EditorEntity parent) {
@@ -142,12 +175,5 @@ public class EntityCreationService {
             return scene.getRootEntities().size();
         }
         return parent.getChildren().size();
-    }
-
-    private void selectEntity(EditorEntity entity) {
-        if (selectionHandler != null) {
-            scene.setSelection(Set.of(entity));
-            // Selection handler will manage mode switching
-        }
     }
 }

@@ -275,6 +275,7 @@ public class FieldEditors {
 
     /**
      * Draws an asset picker field (Sprite or Texture).
+     * FIX: Display asset name as read-only text, not editable input
      */
     public static boolean drawAsset(String label, Map<String, Object> fields, String key,
                                      Class<?> assetType, ComponentData data, EditorEntity entity) {
@@ -283,19 +284,34 @@ public class FieldEditors {
 
         ImGui.pushID(key);
 
+        // Label
         ImGui.text(label);
         ImGui.sameLine(130);
-        ImGui.setNextItemWidth(-60);
-        ImGui.inputText("##field", new ImString(display), imgui.flag.ImGuiInputTextFlags.ReadOnly);
-        ImGui.sameLine();
 
-        boolean changed = false;
+        // FIX: Display as colored text (green if set, gray if none)
+        if (value != null) {
+            ImGui.textColored(0.6f, 0.9f, 0.6f, 1.0f, display);
+        } else {
+            ImGui.textDisabled(display);
+        }
+
+        // Browse button
+        ImGui.sameLine();
         if (ImGui.smallButton("...")) {
             assetPickerTargetData = data;
             assetPickerFieldName = key;
             assetPickerTargetEntity = entity;
             Object oldValue = fields.get(key);
-            assetPicker.open(assetType, selectedAsset -> {
+            
+            // Get current path for initial selection
+            String currentPath = null;
+            if (oldValue instanceof Sprite sprite) {
+                currentPath = sprite.getTexture() != null ? sprite.getTexture().getFilePath() : null;
+            } else if (oldValue instanceof Texture texture) {
+                currentPath = texture.getFilePath();
+            }
+            
+            assetPicker.open(assetType, currentPath, selectedAsset -> {
                 if (assetPickerTargetData != null && assetPickerFieldName != null) {
                     UndoManager.getInstance().execute(
                             new SetComponentFieldCommand(assetPickerTargetData, assetPickerFieldName,
@@ -306,7 +322,7 @@ public class FieldEditors {
         }
 
         ImGui.popID();
-        return changed;
+        return false; // Asset changes handled via undo command
     }
 
     /**
@@ -419,14 +435,27 @@ public class FieldEditors {
     private static String getAssetDisplayName(Object value, Class<?> type) {
         if (value == null) return "(none)";
         if (value instanceof Sprite sprite) {
+            Texture tex = sprite.getTexture();
+            if (tex != null && tex.getFilePath() != null) {
+                return getFileName(tex.getFilePath());
+            }
             return sprite.getName() != null ? sprite.getName() : "(unnamed sprite)";
         }
         if (value instanceof Texture texture) {
-            return texture.getFilePath() != null ? texture.getFilePath() : "(unnamed texture)";
+            if (texture.getFilePath() != null) {
+                return getFileName(texture.getFilePath());
+            }
+            return "(unnamed texture)";
         }
         if (value instanceof String s) {
-            return s.isEmpty() ? "(none)" : s;
+            return s.isEmpty() ? "(none)" : getFileName(s);
         }
         return value.toString();
+    }
+
+    private static String getFileName(String path) {
+        if (path == null || path.isEmpty()) return "(none)";
+        int lastSlash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+        return lastSlash >= 0 ? path.substring(lastSlash + 1) : path;
     }
 }

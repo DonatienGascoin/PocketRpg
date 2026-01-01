@@ -16,6 +16,7 @@ import org.joml.Vector2f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -23,9 +24,12 @@ import java.util.Map;
  * Renders ImGui controls for component fields using reflection.
  * <p>
  * Uses FieldEditors for the actual field rendering.
- * All field changes are wrapped in undo commands.
+ * All field changes are wrapped in undo commands when editing completes.
  */
 public class ReflectionFieldEditor {
+
+    // Track original values for undo when editing starts
+    private static final Map<String, Object> editingOriginalValues = new HashMap<>();
 
     public static boolean drawComponent(ComponentData component, EditorEntity entity) {
         if (component == null) {
@@ -71,49 +75,53 @@ public class ReflectionFieldEditor {
         Class<?> type = meta.type();
         String fieldName = meta.name();
         Map<String, Object> fields = data.getFields();
-        Object oldValue = fields.get(fieldName);
         String label = meta.getDisplayName();
 
-        boolean changed = false;
+        // Create unique key for tracking this field's edit state
+        String editKey = data.getType() + "." + fieldName + "@" + System.identityHashCode(data);
 
         ImGui.pushID(fieldName);
 
+        boolean fieldChanged = false;
+        boolean wasActive = ImGui.isAnyItemActive();
+
         // PRIMITIVES
         if (type == int.class || type == Integer.class) {
-            changed = FieldEditors.drawInt(label, fields, fieldName);
+            fieldChanged = FieldEditors.drawInt(label, fields, fieldName);
         } else if (type == float.class || type == Float.class) {
-            changed = FieldEditors.drawFloat(label, fields, fieldName, 0.1f);
+            fieldChanged = FieldEditors.drawFloat(label, fields, fieldName, 0.1f);
         } else if (type == double.class || type == Double.class) {
             // Handle double as float for UI
+            Object oldValue = fields.get(fieldName);
             float floatValue = oldValue instanceof Number n ? n.floatValue() : 0f;
             float[] buf = {floatValue};
             if (ImGui.dragFloat(label, buf, 0.1f)) {
                 fields.put(fieldName, (double) buf[0]);
-                changed = true;
+                fieldChanged = true;
             }
         } else if (type == boolean.class || type == Boolean.class) {
-            changed = FieldEditors.drawBoolean(label, fields, fieldName);
+            fieldChanged = FieldEditors.drawBoolean(label, fields, fieldName);
         } else if (type == String.class) {
-            changed = FieldEditors.drawString(label, fields, fieldName);
+            fieldChanged = FieldEditors.drawString(label, fields, fieldName);
         }
 
         // VECTORS
         else if (type == Vector2f.class) {
-            changed = FieldEditors.drawVector2f(label, fields, fieldName);
+            fieldChanged = FieldEditors.drawVector2f(label, fields, fieldName);
         } else if (type == Vector3f.class) {
-            changed = FieldEditors.drawVector3f(label, fields, fieldName);
+            fieldChanged = FieldEditors.drawVector3f(label, fields, fieldName);
         } else if (type == Vector4f.class) {
-            changed = FieldEditors.drawColor(label, fields, fieldName);
+            fieldChanged = FieldEditors.drawColor(label, fields, fieldName);
         }
 
         // ENUMS
         else if (type.isEnum()) {
-            changed = FieldEditors.drawEnum(label, fields, fieldName, type);
+            fieldChanged = FieldEditors.drawEnum(label, fields, fieldName, type);
         }
 
-        // ASSETS
+        // ASSETS (handled separately with their own undo)
         else if (type == Sprite.class || type == Texture.class) {
-            changed = FieldEditors.drawAsset(label, fields, fieldName, type, data, entity);
+            fieldChanged = FieldEditors.drawAsset(label, fields, fieldName, type, data, entity);
         }
 
         // UNKNOWN
@@ -121,21 +129,44 @@ public class ReflectionFieldEditor {
             FieldEditors.drawReadOnly(label, fields, fieldName, type.getSimpleName());
         }
 
-        ImGui.popID();
+        // FIX: Track editing state and only create undo when editing completes
+        boolean isActive = ImGui.isItemActive();
+        boolean editCompleted = ImGui.isItemDeactivatedAfterEdit();
 
-        // Wrap change in undo command
-        if (changed) {
-            Object newValue = fields.get(fieldName);
-            if (!valuesEqual(oldValue, newValue)) {
-                // Revert the direct change, apply via command
-                fields.put(fieldName, oldValue);
+        // When user starts editing, save original value
+        if (isActive && !wasActive) {
+            editingOriginalValues.put(editKey, cloneValue(fields.get(fieldName)));
+        }
+
+        // When editing completes, create undo command
+        if (editCompleted && editingOriginalValues.containsKey(editKey)) {
+            Object originalValue = editingOriginalValues.remove(editKey);
+            Object currentValue = fields.get(fieldName);
+
+            if (!valuesEqual(originalValue, currentValue)) {
                 UndoManager.getInstance().execute(
-                        new SetComponentFieldCommand(data, fieldName, oldValue, newValue, entity)
+                        new SetComponentFieldCommand(data, fieldName, originalValue, currentValue, entity)
                 );
             }
         }
 
-        return changed;
+        // Clean up if editing was cancelled
+        if (!isActive && editingOriginalValues.containsKey(editKey)) {
+            editingOriginalValues.remove(editKey);
+        }
+
+        ImGui.popID();
+
+        return fieldChanged;
+    }
+
+    private static Object cloneValue(Object value) {
+        if (value == null) return null;
+        if (value instanceof Vector2f v) return new Vector2f(v);
+        if (value instanceof Vector3f v) return new Vector3f(v);
+        if (value instanceof Vector4f v) return new Vector4f(v);
+        // Primitives, Strings, enums are immutable
+        return value;
     }
 
     private static boolean valuesEqual(Object a, Object b) {

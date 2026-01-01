@@ -112,7 +112,11 @@ public class HierarchySelectionHandler {
         lastClickedEntity = entity;
     }
 
-    private void selectEntity(EditorEntity entity) {
+    /**
+     * FIX: Make public for EntityCreationService to use.
+     * Selects entity and switches to appropriate mode.
+     */
+    public void selectEntity(EditorEntity entity) {
         cameraSelected = false;
         tilemapLayersSelected = false;
         collisionMapSelected = false;

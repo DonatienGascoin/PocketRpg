@@ -98,12 +98,12 @@ public class SceneViewport {
         updateHoveredTile();
 
         gridRenderer.render(camera, viewportX, viewportY, viewportWidth, viewportHeight);
-        coordRenderer.render(camera, viewportX, viewportY, viewportWidth, viewportHeight, 
-                           hoveredTileX, hoveredTileY, isHovered);
+        coordRenderer.render(camera, viewportX, viewportY, viewportWidth, viewportHeight,
+                hoveredTileX, hoveredTileY, isHovered);
 
         if (isHovered || inputHandler.isDraggingCamera()) {
-            inputHandler.handleInput(isHovered, isFocused, viewportX, viewportY, 
-                                    hoveredTileX, hoveredTileY);
+            inputHandler.handleInput(isHovered, isFocused, viewportX, viewportY,
+                    hoveredTileX, hoveredTileY);
         }
 
         ImGui.end();
@@ -119,6 +119,8 @@ public class SceneViewport {
 
         calculateViewportBoundsFromCursor();
         renderer.render(viewportX, viewportY, viewportWidth, viewportHeight);
+
+        // FIX: Check hover IMMEDIATELY after image render, before any other ImGui calls
         isHovered = ImGui.isItemHovered();
 
         if (scene != null) {
@@ -128,12 +130,12 @@ public class SceneViewport {
         updateHoveredTile();
 
         gridRenderer.render(camera, viewportX, viewportY, viewportWidth, viewportHeight);
-        coordRenderer.render(camera, viewportX, viewportY, viewportWidth, viewportHeight, 
-                           hoveredTileX, hoveredTileY, isHovered);
+        coordRenderer.render(camera, viewportX, viewportY, viewportWidth, viewportHeight,
+                hoveredTileX, hoveredTileY, isHovered);
 
         if (isHovered || inputHandler.isDraggingCamera()) {
-            inputHandler.handleInput(isHovered, isFocused, viewportX, viewportY, 
-                                    hoveredTileX, hoveredTileY);
+            inputHandler.handleInput(isHovered, isFocused, viewportX, viewportY,
+                    hoveredTileX, hoveredTileY);
         }
     }
 
@@ -144,9 +146,9 @@ public class SceneViewport {
         if (!renderer.isContentVisible()) return;
         if (ImGui.isPopupOpen("", imgui.flag.ImGuiPopupFlags.AnyPopupId)) return;
 
-        EditorTool activeTool = inputHandler.getToolManager() != null 
-            ? inputHandler.getToolManager().getActiveTool() 
-            : null;
+        EditorTool activeTool = inputHandler.getToolManager() != null
+                ? inputHandler.getToolManager().getActiveTool()
+                : null;
         if (activeTool == null) return;
 
         updateToolViewportBounds(activeTool);

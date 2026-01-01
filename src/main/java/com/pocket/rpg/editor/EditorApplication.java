@@ -19,8 +19,10 @@ import com.pocket.rpg.prefab.PrefabRegistry;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.resources.ErrorMode;
 import com.pocket.rpg.serialization.Serializer;
-import com.pocket.rpg.ui.text.Font;
 import imgui.ImGui;
+import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiKey;
+import imgui.flag.ImGuiWindowFlags;
 
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL33.*;
@@ -57,6 +59,13 @@ public class EditorApplication {
 
     // Escape key state for edge detection
     private boolean escapeWasPressed = false;
+
+    // Exit confirmation state
+    private boolean showExitConfirmation = false;
+    private boolean exitRequested = false;
+
+    // FIX: Track first frame for initial focus
+    private boolean isFirstFrame = true;
 
     public static void main(String[] args) {
         System.out.println("===========================================");
@@ -134,6 +143,9 @@ public class EditorApplication {
             sceneRenderer.onResize(window.getWidth(), window.getHeight());
         });
 
+        // FIX: Initialize mode properly - notify all listeners
+        initializeEditorMode();
+
         System.out.println("Scene Editor initialized successfully");
     }
 
@@ -175,7 +187,7 @@ public class EditorApplication {
         uiController.getMenuBar().setOnOpenScene(sceneController::openScene);
         uiController.getMenuBar().setOnSaveScene(sceneController::saveScene);
         uiController.getMenuBar().setOnSaveSceneAs(sceneController::saveSceneAs);
-        uiController.getMenuBar().setOnExit(context::requestExit);
+        uiController.getMenuBar().setOnExit(this::requestExit);
 
         // Wire scene change listener
         context.onSceneChanged(this::onSceneChanged);
@@ -185,6 +197,19 @@ public class EditorApplication {
 
         // Pass viewport to tool manager
         uiController.getSceneViewport().setToolManager(context.getToolManager());
+    }
+
+    /**
+     * FIX: Properly initialize editor mode and tool on startup.
+     * This ensures mode listeners are triggered and UI state is consistent.
+     */
+    private void initializeEditorMode() {
+        // Default mode is ENTITY (from EditorModeManager)
+        // Explicitly trigger mode change to initialize everything properly
+        context.switchToEntityMode();
+        
+        // Set default tool for entity mode
+        context.getToolManager().setActiveTool(toolController.getSelectionTool());
     }
 
     private void onSceneChanged(EditorScene scene) {
@@ -200,6 +225,13 @@ public class EditorApplication {
         while (context.isRunning() && !window.shouldClose()) {
             window.pollEvents();
 
+            // Check if window close was requested
+            if (window.shouldClose() && !exitRequested) {
+                requestExit();
+                // Cancel the window close to show confirmation first
+                glfwSetWindowShouldClose(window.getWindowHandle(), false);
+            }
+
             if (window.isMinimized()) {
                 sleep(100);
                 continue;
@@ -209,6 +241,12 @@ public class EditorApplication {
             render();
 
             window.swapBuffers();
+
+            // FIX: Set Scene focus on first frame
+            if (isFirstFrame) {
+                isFirstFrame = false;
+                // Focus will be set after first render
+            }
         }
 
         System.out.println("Exited main loop");
@@ -282,8 +320,95 @@ public class EditorApplication {
         uiController.setupDocking();
         uiController.renderUI();
 
+        // Render exit confirmation popup
+        renderExitConfirmation();
+
         // End ImGui frame
         imGuiLayer.render();
+
+        // FIX: Focus Scene window on first render (after ImGui windows exist)
+        if (!isFirstFrame && ImGui.getFrameCount() == 2) {
+            ImGui.setWindowFocus("Scene");
+        }
+    }
+
+    /**
+     * Request exit - shows confirmation if scene is dirty
+     */
+    private void requestExit() {
+        EditorScene scene = context.getCurrentScene();
+        if (scene != null && scene.isDirty()) {
+            showExitConfirmation = true;
+            exitRequested = true;
+        } else {
+            context.requestExit();
+        }
+    }
+
+    /**
+     * Render exit confirmation dialog
+     */
+    private void renderExitConfirmation() {
+        if (!showExitConfirmation) {
+            return;
+        }
+
+        ImGui.openPopup("Exit Editor?");
+
+        ImGui.setNextWindowSize(400, 0);
+        if (ImGui.beginPopupModal("Exit Editor?", ImGuiWindowFlags.AlwaysAutoResize)) {
+            EditorScene scene = context.getCurrentScene();
+            
+            ImGui.text("Scene '" + scene.getName() + "' has unsaved changes.");
+            ImGui.spacing();
+            ImGui.textColored(1.0f, 0.8f, 0.2f, 1.0f, "Do you want to save before exiting?");
+            ImGui.spacing();
+            ImGui.separator();
+            ImGui.spacing();
+
+            // Save and Exit
+            ImGui.pushStyleColor(ImGuiCol.Button, 0.2f, 0.6f, 0.2f, 1.0f);
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.3f, 0.7f, 0.3f, 1.0f);
+            if (ImGui.button("Save and Exit", 120, 0)) {
+                sceneController.saveScene();
+                context.requestExit();
+                showExitConfirmation = false;
+                exitRequested = false;
+                ImGui.closeCurrentPopup();
+            }
+            ImGui.popStyleColor(2);
+
+            ImGui.sameLine();
+
+            // Exit without Saving
+            ImGui.pushStyleColor(ImGuiCol.Button, 0.6f, 0.2f, 0.2f, 1.0f);
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.7f, 0.3f, 0.3f, 1.0f);
+            if (ImGui.button("Exit without Saving", 160, 0)) {
+                context.requestExit();
+                showExitConfirmation = false;
+                exitRequested = false;
+                ImGui.closeCurrentPopup();
+            }
+            ImGui.popStyleColor(2);
+
+            ImGui.sameLine();
+
+            // Cancel
+            if (ImGui.button("Cancel", 80, 0)) {
+                showExitConfirmation = false;
+                exitRequested = false;
+                ImGui.closeCurrentPopup();
+            }
+
+            // ESC to cancel
+            if (ImGui.isKeyPressed(ImGuiKey.Escape)) {
+                showExitConfirmation = false;
+                exitRequested = false;
+                ImGui.closeCurrentPopup();
+            }
+
+            ImGui.endPopup();
+        }
     }
 
     private void sleep(int millis) {

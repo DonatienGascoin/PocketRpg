@@ -7,6 +7,7 @@ import com.pocket.rpg.editor.scene.EditorEntity;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.BulkDeleteCommand;
+import com.pocket.rpg.editor.undo.commands.RemoveEntityCommand;
 import com.pocket.rpg.editor.undo.commands.ReparentEntityCommand;
 import com.pocket.rpg.editor.utils.IconUtils;
 import com.pocket.rpg.prefab.Prefab;
@@ -67,7 +68,7 @@ public class HierarchyTreeRenderer {
             renderRenameField(entity);
         } else {
             String label = IconUtils.getIconForEntity(entity) + " " + entity.getName();
-            boolean nodeOpen = ImGui.treeNodeEx("##entity", flags, label);
+            boolean nodeOpen = ImGui.treeNodeEx("##entity_" + entity.getId(), flags, label);
 
             handleEntityInteraction(entity);
             dragDropHandler.handleDragSource(entity);
@@ -181,7 +182,7 @@ public class HierarchyTreeRenderer {
                 ImGui.separator();
 
                 if (ImGui.menuItem(FontAwesomeIcons.Trash + " Delete")) {
-                    scene.removeEntity(entity);
+                    UndoManager.getInstance().execute(new RemoveEntityCommand(scene, entity));
                 }
             }
 

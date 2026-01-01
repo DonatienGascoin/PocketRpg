@@ -34,7 +34,7 @@ import java.util.*;
 public class HierarchyPanel {
 
     private static final String DRAG_DROP_TYPE = "ENTITY_DND";
-    private static final float INDENT_WIDTH = 16f;
+    private static final float INDENT_WIDTH = 2f;
     private static final float DROP_ZONE_HEIGHT = 4f;
 
     @Setter
@@ -246,7 +246,7 @@ public class HierarchyPanel {
                 // Drop zone before this entity
                 renderDropZone(null, i, entity);
 
-                renderEntityTree(entity, 0);
+                renderEntityTree(entity);
             }
 
             // Drop zone after last root entity
@@ -291,27 +291,18 @@ public class HierarchyPanel {
         }
     }
 
-    private void renderEntityTree(EditorEntity entity, int depth) {
+    private void renderEntityTree(EditorEntity entity) {
         boolean isSelected = scene.isSelected(entity);
         boolean isRenaming = entity == renamingItem;
         boolean hasChildren = entity.hasChildren();
 
         ImGui.pushID(entity.getId());
 
-        // Indentation
-        if (depth > 0) {
-            ImGui.indent(INDENT_WIDTH * depth);
-        }
-
+        // Tree node flags
         int flags = ImGuiTreeNodeFlags.SpanAvailWidth | ImGuiTreeNodeFlags.OpenOnArrow;
-        if (isSelected) {
-            flags |= ImGuiTreeNodeFlags.Selected;
-        }
-        if (!hasChildren) {
-            flags |= ImGuiTreeNodeFlags.Leaf | ImGuiTreeNodeFlags.NoTreePushOnOpen;
-        } else {
-            flags |= ImGuiTreeNodeFlags.DefaultOpen;
-        }
+        if (isSelected) flags |= ImGuiTreeNodeFlags.Selected;
+        if (!hasChildren) flags |= ImGuiTreeNodeFlags.Leaf | ImGuiTreeNodeFlags.NoTreePushOnOpen;
+        else flags |= ImGuiTreeNodeFlags.DefaultOpen;
 
         // Highlight if drop target
         boolean isDropTarget = currentDropTarget != null &&
@@ -321,17 +312,20 @@ public class HierarchyPanel {
             ImGui.pushStyleColor(ImGuiCol.Header, 0.3f, 0.5f, 0.8f, 0.5f);
         }
 
+        // Render node: either rename field or label
         if (isRenaming) {
             renderRenameField(entity);
         } else {
-            String icon = IconUtils.getIconForEntity(entity);
-            String label = icon + " " + entity.getName();
-
+            String label = IconUtils.getIconForEntity(entity) + " " + entity.getName();
             boolean nodeOpen = ImGui.treeNodeEx("##entity", flags, label);
 
-            handleEntityInteraction(entity, depth);
+            // Selection & interaction
+            handleEntityInteraction(entity, 0);
+
+            // Drag-drop
             handleDragDrop(entity);
 
+            // Render children recursively
             if (hasChildren && nodeOpen) {
                 List<EditorEntity> children = new ArrayList<>(entity.getChildren());
                 children.sort(Comparator.comparingInt(EditorEntity::getOrder));
@@ -339,10 +333,11 @@ public class HierarchyPanel {
                 for (int i = 0; i < children.size(); i++) {
                     EditorEntity child = children.get(i);
 
-                    // Drop zone before this child
+                    // Drop zone before child
                     renderDropZone(entity, i, child);
 
-                    renderEntityTree(child, depth + 1);
+                    // Recursive call
+                    renderEntityTree(child);
                 }
 
                 // Drop zone after last child
@@ -351,6 +346,7 @@ public class HierarchyPanel {
                 ImGui.treePop();
             }
 
+            // Context menu and tooltip
             renderEntityContextMenu(entity);
             renderEntityTooltip(entity);
         }
@@ -359,14 +355,12 @@ public class HierarchyPanel {
             ImGui.popStyleColor();
         }
 
-        if (depth > 0) {
-            ImGui.unindent(INDENT_WIDTH * depth);
-        }
-
         ImGui.popID();
 
+        // External drop handling
         HierarchyDropTarget.handleEntityDrop(scene, entity);
     }
+
 
     private void renderRenameField(EditorEntity entity) {
         ImGui.setNextItemWidth(150);

@@ -1,5 +1,6 @@
 package com.pocket.rpg.resources;
 
+import com.pocket.rpg.rendering.Sprite;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -233,5 +234,26 @@ public final class Assets {
             return null;
         }
         return context.getRelativePath(fullPath);
+    }
+
+    /**
+     * Gets a preview sprite for an asset using its loader.
+     *
+     * @param path Asset path
+     * @param type Asset type class
+     * @return Preview sprite, or null if not available
+     */
+    public static Sprite getPreviewSprite(String path, Class<?> type) {
+        return getContext().getPreviewSprite(path, type);
+    }
+
+    /**
+     * Gets the asset type for a path based on registered loaders.
+     *
+     * @param path Asset path
+     * @return Asset type class, or null if no loader handles this extension
+     */
+    public static Class<?> getTypeForPath(String path) {
+        return getContext().getTypeForPath(path);
     }
 }

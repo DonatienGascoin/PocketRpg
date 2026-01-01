@@ -5,15 +5,14 @@ import com.pocket.rpg.editor.assets.ThumbnailCache;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.SpriteSheet;
+import com.pocket.rpg.resources.AssetLoader;
 import com.pocket.rpg.resources.AssetManager;
 import com.pocket.rpg.resources.Assets;
 import imgui.ImGui;
-import imgui.flag.ImGuiCol;
-import imgui.flag.ImGuiDragDropFlags;
-import imgui.flag.ImGuiMouseButton;
-import imgui.flag.ImGuiTreeNodeFlags;
+import imgui.flag.*;
 import imgui.type.ImString;
 import lombok.Getter;
+import lombok.Setter;
 
 import java.util.*;
 
@@ -35,9 +34,14 @@ public class AssetBrowserPanel {
     // ========================================================================
 
     private static final float FOLDER_TREE_WIDTH = 180f;
-    private static final float THUMBNAIL_SIZE = 64f;
+    private static final float BASE_THUMBNAIL_SIZE = 48f;
     private static final float THUMBNAIL_PADDING = 8f;
-    private static final float SPRITESHEET_CHILD_SIZE = 48f;
+    private static final float SPRITESHEET_CHILD_SIZE = 40f;
+
+    // Zoom settings
+    private static final float MIN_ZOOM = 0.5f;
+    private static final float MAX_ZOOM = 2.0f;
+    private static final float DEFAULT_ZOOM = 1f;
 
     // ========================================================================
     // STATE
@@ -53,11 +57,15 @@ public class AssetBrowserPanel {
 
     // Asset data
     private List<AssetEntry> currentAssets = new ArrayList<>();
+    private List<AssetEntry> allAssets = new ArrayList<>(); // For global search
     private final Set<String> expandedSpritesheets = new HashSet<>();
 
     // Selection
     @Getter
     private AssetEntry selectedAsset = null;
+
+    // Zoom level (affects thumbnail size)
+    private float zoomLevel = DEFAULT_ZOOM;
 
     // Refresh tracking
     private boolean needsRefresh = true;
@@ -89,11 +97,22 @@ public class AssetBrowserPanel {
         // Scan all assets
         List<String> allPaths = Assets.scanAll();
 
-        // Build folder tree
+        // Build folder tree and all assets list
         rootFolder = new FolderNode("");
+        allAssets.clear();
+
         for (String path : allPaths) {
             addPathToTree(path);
+
+            // Add to allAssets for global search
+            AssetEntry entry = createAssetEntry(path);
+            if (entry != null) {
+                allAssets.add(entry);
+            }
         }
+
+        // Sort all assets by filename
+        allAssets.sort(Comparator.comparing(e -> e.filename.toLowerCase()));
 
         // Set current folder to root if not set
         if (currentFolder == null) {
@@ -148,8 +167,7 @@ public class AssetBrowserPanel {
 
     private AssetEntry createAssetEntry(String path) {
         // Determine asset type from extension
-        AssetManager manager = (AssetManager) Assets.getContext();
-        Class<?> type = getTypeFromPath(path);
+        Class<?> type = Assets.getTypeForPath(path);
 
         if (type == null) {
             return null;
@@ -160,33 +178,6 @@ public class AssetBrowserPanel {
         String filename = lastSlash >= 0 ? path.substring(lastSlash + 1) : path;
 
         return new AssetEntry(path, filename, type);
-    }
-
-    private Class<?> getTypeFromPath(String path) {
-        // Match extension to loader type
-        String lowerPath = path.toLowerCase();
-
-        if (lowerPath.endsWith(".png") || lowerPath.endsWith(".jpg") ||
-                lowerPath.endsWith(".jpeg") || lowerPath.endsWith(".bmp") ||
-                lowerPath.endsWith(".tga")) {
-            return Sprite.class; // Default to Sprite for images
-        }
-        if (lowerPath.endsWith(".spritesheet") || lowerPath.endsWith(".spritesheet.json") ||
-                lowerPath.endsWith(".ss.json")) {
-            return SpriteSheet.class;
-        }
-        if (lowerPath.endsWith(".prefab.json") || lowerPath.endsWith(".prefab")) {
-            return com.pocket.rpg.prefab.JsonPrefab.class;
-        }
-        if (lowerPath.endsWith(".glsl") || lowerPath.endsWith(".shader") ||
-                lowerPath.endsWith(".vs") || lowerPath.endsWith(".fs")) {
-            return com.pocket.rpg.rendering.Shader.class;
-        }
-        if (lowerPath.endsWith(".scene")) {
-            return com.pocket.rpg.serialization.SceneData.class;
-        }
-
-        return null;
     }
 
     // ========================================================================
@@ -207,8 +198,8 @@ public class AssetBrowserPanel {
 
             ImGui.separator();
 
-            // Breadcrumb
-            renderBreadcrumb();
+            // Breadcrumb + item count on same line
+            renderBreadcrumbWithInfo();
 
             ImGui.separator();
 
@@ -216,9 +207,25 @@ public class AssetBrowserPanel {
             float availableWidth = ImGui.getContentRegionAvailX();
             float availableHeight = ImGui.getContentRegionAvailY();
 
-            // Left panel: folder tree
-            if (ImGui.beginChild("FolderTree", FOLDER_TREE_WIDTH, availableHeight, true)) {
-                renderFolderTree(rootFolder, "");
+            // Left panel: folder tree with zoom slider
+            if (ImGui.beginChild("FolderTreeContainer", FOLDER_TREE_WIDTH, availableHeight, true, ImGuiWindowFlags.NoScrollbar)) {
+                // Folder tree (scrollable area)
+                float treeHeight = availableHeight - 50; // Reserve space for zoom slider
+                if (ImGui.beginChild("FolderTree", -1, treeHeight, false, ImGuiWindowFlags.HorizontalScrollbar)) {
+                    renderFolderTree(rootFolder, "");
+                }
+                ImGui.endChild();
+
+                // Zoom slider at bottom (always visible)
+                ImGui.separator();
+                ImGui.setNextItemWidth(-1);
+                float[] zoom = {zoomLevel};
+                if (ImGui.sliderFloat("##zoom", zoom, MIN_ZOOM, MAX_ZOOM, "%.1fx")) {
+                    zoomLevel = zoom[0];
+                }
+                if (ImGui.isItemHovered()) {
+                    ImGui.setTooltip("Thumbnail zoom");
+                }
             }
             ImGui.endChild();
 
@@ -249,8 +256,8 @@ public class AssetBrowserPanel {
         }
     }
 
-    private void renderBreadcrumb() {
-        // Root
+    private void renderBreadcrumbWithInfo() {
+        // Left side: breadcrumb navigation
         if (ImGui.smallButton(FontAwesomeIcons.Home)) {
             navigateTo(rootFolder, "");
         }
@@ -280,6 +287,36 @@ public class AssetBrowserPanel {
                 pathBuilder.append("/");
             }
         }
+
+        // Right side: item count and selection info
+        String filter = searchFilter.get().trim();
+        boolean isSearching = !filter.isEmpty();
+
+        int itemCount = isSearching ? countFilteredAssets(filter) : currentAssets.size();
+        String infoText = itemCount + " item" + (itemCount != 1 ? "s" : "");
+        if (isSearching) {
+            infoText += " (searching all)";
+        }
+        if (selectedAsset != null) {
+            infoText += " | " + selectedAsset.filename;
+        }
+
+        float infoWidth = ImGui.calcTextSize(infoText).x;
+        float availableWidth = ImGui.getContentRegionAvailX();
+
+        ImGui.sameLine(ImGui.getCursorPosX() + availableWidth - infoWidth - 5);
+        ImGui.textDisabled(infoText);
+    }
+
+    private int countFilteredAssets(String filter) {
+        String lowerFilter = filter.toLowerCase();
+        int count = 0;
+        for (AssetEntry entry : allAssets) {
+            if (entry.filename.toLowerCase().contains(lowerFilter)) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private void renderFolderTree(FolderNode node, String path) {
@@ -322,13 +359,21 @@ public class AssetBrowserPanel {
 
     private void renderAssetGrid() {
         String filter = searchFilter.get().toLowerCase().trim();
+        boolean isSearching = !filter.isEmpty();
+
+        // Calculate thumbnail size based on zoom
+        float thumbnailSize = BASE_THUMBNAIL_SIZE * zoomLevel;
+
         float windowWidth = ImGui.getContentRegionAvailX();
-        int columns = Math.max(1, (int) ((windowWidth) / (THUMBNAIL_SIZE + THUMBNAIL_PADDING)));
+        int columns = Math.max(1, (int) ((windowWidth) / (thumbnailSize + THUMBNAIL_PADDING)));
+
+        // Determine which assets to show
+        List<AssetEntry> assetsToShow = isSearching ? allAssets : currentAssets;
 
         int column = 0;
-        for (AssetEntry entry : currentAssets) {
+        for (AssetEntry entry : assetsToShow) {
             // Apply search filter
-            if (!filter.isEmpty() && !entry.filename.toLowerCase().contains(filter)) {
+            if (isSearching && !entry.filename.toLowerCase().contains(filter)) {
                 continue;
             }
 
@@ -336,28 +381,22 @@ public class AssetBrowserPanel {
                 ImGui.sameLine();
             }
 
-            renderAssetItem(entry);
+            renderAssetItem(entry, thumbnailSize);
 
             // If this is an expanded spritesheet, render child sprites
             if (expandedSpritesheets.contains(entry.path)) {
                 column = 0; // Reset column after expansion
-                renderSpritesheetChildren(entry);
+                renderSpritesheetChildren(entry, thumbnailSize);
             } else {
                 column = (column + 1) % columns;
             }
         }
-
-        // Status bar
-        ImGui.separator();
-        ImGui.text(currentAssets.size() + " items");
-        if (selectedAsset != null) {
-            ImGui.sameLine();
-            ImGui.text(" | Selected: " + selectedAsset.filename);
-        }
     }
 
-    private void renderAssetItem(AssetEntry entry) {
+    private void renderAssetItem(AssetEntry entry, float thumbnailSize) {
         boolean isSelected = entry == selectedAsset;
+        boolean isSpriteSheet = entry.type == SpriteSheet.class;
+        boolean isExpanded = expandedSpritesheets.contains(entry.path);
 
         ImGui.pushID(entry.path);
         ImGui.beginGroup();
@@ -365,7 +404,7 @@ public class AssetBrowserPanel {
         // Selection highlight
         if (isSelected) {
             ImGui.pushStyleColor(ImGuiCol.Button, 0.3f, 0.6f, 1.0f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.4f, 0.7f, 1.0f, 1.0f);
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.5f, 0.7f, 1.0f, 1.0f);
         }
 
         boolean clicked = false;
@@ -377,27 +416,41 @@ public class AssetBrowserPanel {
             float[] uv = thumbnailCache.getUVCoords(entry.path);
 
             // Flip V for OpenGL
-            clicked = ImGui.imageButton(entry.path, texId, THUMBNAIL_SIZE, THUMBNAIL_SIZE,
+            clicked = ImGui.imageButton(entry.path, texId, thumbnailSize, thumbnailSize,
                     uv[0], uv[3], uv[2], uv[1]);
         } else {
             // Fallback: icon button
             String icon = getIconForType(entry.type);
-            clicked = ImGui.button(icon + "\n" + truncateFilename(entry.filename, 8),
-                    THUMBNAIL_SIZE, THUMBNAIL_SIZE);
+            int maxChars = Math.max(4, (int)(thumbnailSize / 8));
+            clicked = ImGui.button(icon + "\n" + truncateFilename(entry.filename, maxChars),
+                    thumbnailSize, thumbnailSize);
         }
 
         if (isSelected) {
             ImGui.popStyleColor(2);
         }
 
+        // SpriteSheet expand/collapse button (Unity-style arrow)
+        if (isSpriteSheet) {
+            ImGui.sameLine(0, 2);
+            String expandIcon = isExpanded ? FontAwesomeIcons.ChevronUp : FontAwesomeIcons.ChevronDown;
+            if (ImGui.smallButton(expandIcon + "##expand_" + entry.path)) {
+                toggleSpritesheetExpansion(entry.path);
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip(isExpanded ? "Collapse" : "Expand sprites");
+            }
+        }
+
         // Filename label below
-        String displayName = truncateFilename(entry.filename, 10);
+        int maxLabelChars = Math.max(6, (int)(thumbnailSize / 6));
+        String displayName = truncateFilename(entry.filename, maxLabelChars);
         float textWidth = ImGui.calcTextSize(displayName).x;
-        float offset = (THUMBNAIL_SIZE - textWidth) / 2f;
+        float offset = (thumbnailSize - textWidth) / 2f;
         if (offset > 0) {
             ImGui.setCursorPosX(ImGui.getCursorPosX() + offset);
         }
-        ImGui.textWrapped(displayName);
+        ImGui.text(displayName);
 
         ImGui.endGroup();
 
@@ -406,20 +459,19 @@ public class AssetBrowserPanel {
             selectedAsset = entry;
         }
 
-        // Double-click to expand spritesheets
-        if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(ImGuiMouseButton.Left)) {
-            if (entry.type == SpriteSheet.class) {
-                toggleSpritesheetExpansion(entry.path);
-            }
-        }
-
-        // Drag source
-        if (ImGui.beginDragDropSource(ImGuiDragDropFlags.SourceAllowNullID)) {
+        // Drag source with sprite preview
+        if (canInstantiate(entry) && ImGui.beginDragDropSource(ImGuiDragDropFlags.SourceAllowNullID)) {
             AssetDragPayload payload = AssetDragPayload.of(entry.path, entry.type, null);
             ImGui.setDragDropPayload(AssetDragPayload.DRAG_TYPE, payload.serialize());
 
-            // Drag preview
-            ImGui.text(FontAwesomeIcons.ArrowsAlt + " " + entry.filename);
+            // Drag preview with sprite thumbnail
+            if (preview != null && preview.getTexture() != null) {
+                int texId = thumbnailCache.getTextureId(entry.path, preview);
+                float[] uv = thumbnailCache.getUVCoords(entry.path);
+                ImGui.image(texId, 32, 32, uv[0], uv[3], uv[2], uv[1]);
+                ImGui.sameLine();
+            }
+            ImGui.text(entry.filename);
 
             ImGui.endDragDropSource();
         }
@@ -431,9 +483,9 @@ public class AssetBrowserPanel {
             ImGui.textDisabled("Type: " + entry.type.getSimpleName());
             ImGui.textDisabled("Path: " + entry.path);
 
-            if (entry.type == SpriteSheet.class) {
+            if (isSpriteSheet) {
                 ImGui.separator();
-                ImGui.textDisabled("Double-click to expand");
+                ImGui.text(FontAwesomeIcons.ChevronDown + " Click arrow to expand");
             }
 
             // Show if instantiable
@@ -448,7 +500,7 @@ public class AssetBrowserPanel {
         ImGui.popID();
     }
 
-    private void renderSpritesheetChildren(AssetEntry entry) {
+    private void renderSpritesheetChildren(AssetEntry entry, float parentThumbnailSize) {
         // Load spritesheet if needed
         SpriteSheet sheet;
         try {
@@ -463,11 +515,14 @@ public class AssetBrowserPanel {
             return;
         }
 
+        // Child sprite size scales with zoom but stays smaller than parent
+        float childSize = Math.min(SPRITESHEET_CHILD_SIZE * zoomLevel, parentThumbnailSize * 0.75f);
+
         // Render child sprites in indented grid
         ImGui.indent(20);
 
         float windowWidth = ImGui.getContentRegionAvailX();
-        int columns = Math.max(1, (int) (windowWidth / (SPRITESHEET_CHILD_SIZE + THUMBNAIL_PADDING)));
+        int columns = Math.max(1, (int) (windowWidth / (childSize + THUMBNAIL_PADDING)));
 
         int totalFrames = sheet.getTotalFrames();
         for (int i = 0; i < totalFrames; i++) {
@@ -475,20 +530,14 @@ public class AssetBrowserPanel {
                 ImGui.sameLine();
             }
 
-            renderSpritesheetSprite(entry, sheet, i);
+            renderSpritesheetSprite(entry, sheet, i, childSize);
         }
 
         ImGui.unindent(20);
-
-        // Collapse button
-        if (ImGui.smallButton("Collapse " + FontAwesomeIcons.ChevronUp)) {
-            expandedSpritesheets.remove(entry.path);
-        }
-
         ImGui.separator();
     }
 
-    private void renderSpritesheetSprite(AssetEntry sheetEntry, SpriteSheet sheet, int index) {
+    private void renderSpritesheetSprite(AssetEntry sheetEntry, SpriteSheet sheet, int index, float size) {
         Sprite sprite = sheet.getSprite(index);
         if (sprite == null) return;
 
@@ -499,19 +548,21 @@ public class AssetBrowserPanel {
         float[] uv = thumbnailCache.getUVCoords(sheetEntry.path, index);
 
         // Flip V for OpenGL
-        if (ImGui.imageButton(spriteId, texId, SPRITESHEET_CHILD_SIZE, SPRITESHEET_CHILD_SIZE,
+        if (ImGui.imageButton(spriteId, texId, size, size,
                 uv[0], uv[3], uv[2], uv[1])) {
             // Selected this sprite
             selectedAsset = sheetEntry; // Keep sheet selected
         }
 
-        // Drag source for individual sprite
-        if (ImGui.beginDragDropSource(ImGuiDragDropFlags.SourceAllowNullID)) {
+        // Drag source for individual sprite with preview
+        if (canInstantiate(sheetEntry) && ImGui.beginDragDropSource(ImGuiDragDropFlags.SourceAllowNullID)) {
             AssetDragPayload payload = AssetDragPayload.ofSpriteSheet(sheetEntry.path, sheet, index);
             ImGui.setDragDropPayload(AssetDragPayload.DRAG_TYPE, payload.serialize());
 
-            // Drag preview
-            ImGui.text(FontAwesomeIcons.ArrowsAlt + " " + sheetEntry.filename + " [" + index + "]");
+            // Drag preview with sprite thumbnail
+            ImGui.image(texId, 32, 32, uv[0], uv[3], uv[2], uv[1]);
+            ImGui.sameLine();
+            ImGui.text(sheetEntry.filename + " [" + index + "]");
 
             ImGui.endDragDropSource();
         }
@@ -547,26 +598,7 @@ public class AssetBrowserPanel {
     }
 
     private Sprite getPreviewSprite(AssetEntry entry) {
-        try {
-            Object asset = Assets.load(entry.path, entry.type);
-            if (asset == null) return null;
-
-            AssetManager manager = (AssetManager) Assets.getContext();
-            // Get loader and call getPreviewSprite
-            // For now, handle known types directly
-            if (asset instanceof Sprite sprite) {
-                return sprite;
-            }
-            if (asset instanceof SpriteSheet sheet) {
-                return sheet.getSprite(0);
-            }
-            if (asset instanceof com.pocket.rpg.prefab.JsonPrefab prefab) {
-                return prefab.getPreviewSprite();
-            }
-        } catch (Exception e) {
-            // Ignore - will show icon instead
-        }
-        return null;
+        return Assets.getPreviewSprite(entry.path, entry.type);
     }
 
     private String getIconForType(Class<?> type) {

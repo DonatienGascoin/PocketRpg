@@ -74,9 +74,6 @@ public class HierarchyDropTarget {
     /**
      * Handles drop on an existing entity.
      * Creates entity as child of the target entity.
-     * <p>
-     * Note: Parenting is pending implementation. Currently creates
-     * entity at same position as parent.
      *
      * @param scene The editor scene
      * @param parentEntity The entity being dropped onto
@@ -94,21 +91,19 @@ public class HierarchyDropTarget {
                 AssetDragPayload payload = AssetDragPayload.deserialize(payloadData);
 
                 if (payload != null && AssetDropHandler.canInstantiate(payload)) {
-                    // Position at parent's location (will be relative when parenting is implemented)
-                    Vector3f position = parentEntity.getPosition();
+                    // Create at origin (will be relative to parent)
+                    Vector3f position = new Vector3f(0, 0, 0);
 
                     EditorEntity entity = AssetDropHandler.handleDrop(payload, position);
 
                     if (entity != null) {
-                        // TODO: Set parent when parenting system is implemented
-                        // entity.setParent(parentEntity);
+                        // Set parent relationship
+                        entity.setParent(parentEntity);
+                        entity.setOrder(parentEntity.getChildren().size());
 
                         UndoManager.getInstance().execute(new AddEntityCommand(scene, entity));
                         scene.setSelectedEntity(entity);
                         scene.markDirty();
-
-                        System.out.println("Created entity as child of " + parentEntity.getName() +
-                                " (parenting pending implementation)");
 
                         ImGui.endDragDropTarget();
                         return true;

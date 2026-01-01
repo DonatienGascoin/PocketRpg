@@ -1,5 +1,7 @@
 package com.pocket.rpg.resources;
 
+import com.pocket.rpg.rendering.Sprite;
+
 import java.util.List;
 import java.util.Set;
 
@@ -120,4 +122,18 @@ public interface AssetContext {
     void setStatisticsEnabled(boolean enableStatistics);
 
     String getRelativePath(String fullPath);
+
+    /**
+     * Gets a preview sprite for the asset at the given path.
+     * Delegates to the appropriate loader's getPreviewSprite method.
+     */
+    Sprite getPreviewSprite(String path, Class<?> type);
+
+    /**
+     * Gets the asset type for a path based on registered loaders.
+     *
+     * @param path Asset path
+     * @return Asset type class, or null if no loader handles this extension
+     */
+    Class<?> getTypeForPath(String path);
 }

@@ -401,6 +401,27 @@ public class AssetManager implements AssetContext {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
+    public Sprite getPreviewSprite(String path, Class<?> type) {
+        AssetLoader<?> loader = loaders.get(type);
+        if (loader == null) {
+            return null;
+        }
+
+        try {
+            Object asset = load(path, type);
+            return ((AssetLoader<Object>) loader).getPreviewSprite(asset);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    @Override
+    public Class<?> getTypeForPath(String path) {
+        return getTypeFromExtension(path);
+    }
+
+    @Override
     public String toString() {
         return String.format("AssetManager[root=%s, errorMode=%s, %s]",
                 assetRoot, errorMode, cache);

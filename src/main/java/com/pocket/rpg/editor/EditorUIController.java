@@ -92,10 +92,10 @@ public class EditorUIController {
         EditorScene scene = context.getCurrentScene();
 
         tilesetPalette = new TilesetPalettePanel(context.getToolManager());
-        tilesetPalette.setScene(scene);
         tilesetPalette.setBrushTool(toolController.getBrushTool());
         tilesetPalette.setFillTool(toolController.getFillTool());
         tilesetPalette.setRectangleTool(toolController.getRectangleTool());
+        tilesetPalette.setHorizontalLayout(true);
 
         collisionPanel = new CollisionPanel();
         collisionPanel.setScene(scene);
@@ -105,6 +105,7 @@ public class EditorUIController {
         collisionPanel.setFillTool(toolController.getCollisionFillTool());
         collisionPanel.setRectangleTool(toolController.getCollisionRectangleTool());
         collisionPanel.setPickerTool(toolController.getCollisionPickerTool());
+        collisionPanel.setHorizontalLayout(true);
 
         toolController.setCollisionPanel(collisionPanel);
 
@@ -148,14 +149,12 @@ public class EditorUIController {
     }
 
     public void updateSceneReferences(EditorScene scene) {
-        tilesetPalette.setScene(scene);
         collisionPanel.setScene(scene);
         menuBar.setCurrentScene(scene);
         statusBar.setCurrentScene(scene);
         hierarchyPanel.setScene(scene);
         inspectorPanel.setScene(scene);
         sceneViewport.setScene(scene);
-        // TODO assetBrowserPanel.setScene(scene);
     }
 
     public void setupDocking() {

@@ -96,23 +96,20 @@ public class GamePreviewRenderer {
 
         // Update camera from scene settings
         SceneCameraSettings settings = scene.getCameraSettings();
-        float targetOrthoSize = settings.getOrthographicSize();
-        System.out.println("[GamePreview] Setting orthoSize to: " + targetOrthoSize);
 
+        float zoom = settings.getOrthographicSize() > 0
+                ? gameConfig.getGameHeight() / (/*2f **/ settings.getOrthographicSize())
+                : 1f;
+        previewCamera.setZoom(zoom);
         previewCamera.setPosition(settings.getPosition().x, settings.getPosition().y);
-        previewCamera.setOrthographicSize(settings.getOrthographicSize());
-        System.out.println("[GamePreview] After set, orthoSize is: " + previewCamera.getOrthographicSize());
-        // DEBUG: verify camera actually received the values
-        System.out.println("[GamePreview] previewCamera orthoSize: " + previewCamera.getOrthographicSize());
-        System.out.println("[GamePreview] previewCamera zoom: " + previewCamera.getZoom());
-        System.out.println("[GamePreview] World bounds: " + java.util.Arrays.toString(previewCamera.getWorldBounds()));
 
         // Bind framebuffer and set viewport
         framebuffer.bind();
         glViewport(0, 0, framebuffer.getWidth(), framebuffer.getHeight());
 
         // Clear with dark background
-        framebuffer.clear(0.1f, 0.1f, 0.1f, 1.0f);
+        Vector4f bgColor = renderingConfig.getClearColor();
+        framebuffer.clear(bgColor.x, bgColor.y, bgColor.z, 1.0f);
 
         // Enable blending
         glEnable(GL_BLEND);
@@ -194,6 +191,7 @@ public class GamePreviewRenderer {
         float bottom = bounds[1];
         float right = bounds[2];
         float top = bounds[3];
+        System.out.printf("L: %s, B: %s, L: %s, R: %s%n", left, bottom, right, top);
 
         // Calculate visible chunks
         float tileSize = tilemap.getTileSize();

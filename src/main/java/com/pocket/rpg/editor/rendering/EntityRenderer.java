@@ -4,6 +4,7 @@ import com.pocket.rpg.editor.scene.EditorEntity;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.SpriteBatch;
+import com.pocket.rpg.serialization.ComponentData;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
@@ -64,16 +65,21 @@ public class EntityRenderer {
 
         Vector3f pos = entity.getPositionRef();
         Vector2f size = entity.getPreviewSize();
+        if (size == null) size = new Vector2f(1f, 1f);
 
-        if (size == null) {
-            size = new Vector2f(1f, 1f);
+        // Get origin from SpriteRenderer component (default 0,0 = bottom-left)
+        float originX = 0f;
+        float originY = 0f;
+        ComponentData spriteRenderer = entity.getComponentByType("SpriteRenderer");
+        if (spriteRenderer != null) {
+            Object ox = spriteRenderer.getFields().get("originX");
+            Object oy = spriteRenderer.getFields().get("originY");
+            if (ox instanceof Number) originX = ((Number)ox).floatValue();
+            if (oy instanceof Number) originY = ((Number)oy).floatValue();
         }
 
-        // Calculate draw position (assuming bottom-center origin for entities)
-        float drawX = pos.x - size.x / 2f;
-        float drawY = pos.y;
-
-        // Use entity's Z position or default
+        float drawX = pos.x - (size.x * originX);
+        float drawY = pos.y - (size.y * originY);
         float zIndex = pos.z != 0 ? pos.z : DEFAULT_ENTITY_Z_INDEX;
 
         batch.draw(sprite, drawX, drawY, size.x, size.y, zIndex, tint);

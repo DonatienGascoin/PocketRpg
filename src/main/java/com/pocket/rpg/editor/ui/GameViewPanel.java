@@ -184,9 +184,8 @@ public class GameViewPanel {
         }
 
         // Scene became dirty?
-        if (scene != null && scene.isDirty() != lastSceneDirty) {
+        if (scene != null && scene.isDirty()) {
             needsRender = true;
-            lastSceneDirty = scene.isDirty();
         }
 
         // Render preview if needed

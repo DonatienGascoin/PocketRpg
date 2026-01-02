@@ -598,7 +598,6 @@ public class SpriteBatch {
             putVertex(x1, y1, u1, v1, r, g, b, a); // Top-right
             putVertex(x1, y0, u1, v0, r, g, b, a); // Bottom-right
         }
-
     }
 
     /**

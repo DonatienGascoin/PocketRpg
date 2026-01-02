@@ -53,6 +53,7 @@ public class OrthographicFrustumCuller extends FrustumCuller {
         worldBottom = bounds[1];
         worldRight = bounds[2];
         worldTop = bounds[3];
+        System.out.printf("L: %s, B: %s, L: %s, R: %s%n", worldLeft, worldBottom, worldRight, worldTop);
     }
 
     /**

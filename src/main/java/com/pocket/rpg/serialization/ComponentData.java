@@ -1,6 +1,9 @@
 package com.pocket.rpg.serialization;
 
 import com.pocket.rpg.components.Component;
+import com.pocket.rpg.rendering.Sprite;
+import com.pocket.rpg.rendering.Texture;
+import com.pocket.rpg.resources.Assets;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector2f;
@@ -189,6 +192,12 @@ public class ComponentData {
             return value;
         }
 
+        if (value instanceof Sprite sprite) {
+            return Map.of("_type", "Sprite", "path", Assets.getRelativePath(sprite.getTexture().getFilePath()));
+        }
+        if (value instanceof Texture texture) {
+            return Map.of("_type", "Texture", "path", Assets.getRelativePath(texture.getFilePath()));
+        }
         // Unknown - try toString
         return value.toString();
     }
@@ -249,6 +258,17 @@ public class ComponentData {
             }
             if (targetType == long.class || targetType == Long.class) {
                 return n.longValue();
+            }
+        }
+
+        if (value instanceof Map<?, ?> map && map.containsKey("_type")) {
+            String assetType = (String) map.get("_type");
+            String path = (String) map.get("path");
+            if ("Sprite".equals(assetType)) {
+                return Assets.load(path, Sprite.class);
+            }
+            if ("Texture".equals(assetType)) {
+                return Assets.load(path, Texture.class);
             }
         }
 

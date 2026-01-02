@@ -4,6 +4,8 @@ import com.pocket.rpg.editor.serialization.EntityData;
 import com.pocket.rpg.prefab.Prefab;
 import com.pocket.rpg.prefab.PrefabRegistry;
 import com.pocket.rpg.rendering.Sprite;
+import com.pocket.rpg.rendering.Texture;
+import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.serialization.ComponentData;
 import lombok.Getter;
 import lombok.Setter;
@@ -470,7 +472,21 @@ public class EditorEntity {
             return;
         }
 
-        previewSprite = PrefabRegistry.getInstance().getPreviewSprite(prefabId);
+        // Try prefab sprite first (for prefab instances)
+        if (isPrefabInstance()) {
+            previewSprite = PrefabRegistry.getInstance().getPreviewSprite(prefabId);
+        } else {
+            // For scratch entities, check SpriteRenderer component
+            ComponentData spriteRenderer = getComponentByType("SpriteRenderer");
+            if (spriteRenderer != null) {
+                Object spritePathObj = spriteRenderer.getFields().get("sprite");
+                if (spritePathObj instanceof Sprite sprite) {
+                    previewSprite = sprite;
+                } else if (spritePathObj instanceof Texture texture) {
+                    previewSprite = new Sprite(texture);
+                }
+            }
+        }
 
         if (previewSprite != null) {
             previewSize = new Vector2f(

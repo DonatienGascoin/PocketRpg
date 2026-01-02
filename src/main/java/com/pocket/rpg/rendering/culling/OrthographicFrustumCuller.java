@@ -1,11 +1,11 @@
 package com.pocket.rpg.rendering.culling;
 
 import com.pocket.rpg.components.SpriteRenderer;
-import com.pocket.rpg.core.GameCamera;
+import com.pocket.rpg.rendering.RenderCamera;
 
 /**
  * Frustum culler for orthographic (2D) cameras.
- * Uses Camera.getWorldBounds() for frustum calculation.
+ * Uses RenderCamera.getWorldBounds() for frustum calculation.
  * <p>
  * Coordinate system (Y-up):
  * <ul>
@@ -17,29 +17,19 @@ import com.pocket.rpg.core.GameCamera;
  */
 public class OrthographicFrustumCuller extends FrustumCuller {
 
-    // Camera frustum bounds in world space (Y-up)
     private float worldLeft;
     private float worldBottom;
     private float worldRight;
     private float worldTop;
 
     public OrthographicFrustumCuller() {
-        // Default constructor
     }
 
-    /**
-     * Updates the orthographic frustum bounds from camera.
-     * Uses Camera.getWorldBounds() which accounts for:
-     * - Camera position (center of view)
-     * - Camera zoom
-     * - Orthographic size
-     */
     @Override
-    public void updateFromCamera(GameCamera camera) {
+    public void updateFromCamera(RenderCamera camera) {
         this.camera = camera;
 
         if (camera == null) {
-            // Fallback: no culling
             worldLeft = Float.MIN_VALUE;
             worldRight = Float.MAX_VALUE;
             worldBottom = Float.MIN_VALUE;
@@ -47,46 +37,33 @@ public class OrthographicFrustumCuller extends FrustumCuller {
             return;
         }
 
-        // Get bounds from camera [left, bottom, right, top] (Y-up)
         float[] bounds = camera.getWorldBounds();
         worldLeft = bounds[0];
         worldBottom = bounds[1];
         worldRight = bounds[2];
         worldTop = bounds[3];
-        System.out.printf("L: %s, B: %s, L: %s, R: %s%n", worldLeft, worldBottom, worldRight, worldTop);
     }
 
-    /**
-     * Tests if a sprite is visible in the orthographic frustum.
-     *
-     * @param spriteRenderer The sprite to test
-     * @return true if sprite intersects the camera frustum
-     */
     @Override
     public boolean isVisible(SpriteRenderer spriteRenderer) {
         if (spriteRenderer == null || spriteRenderer.getSprite() == null) {
             return false;
         }
 
-        // Calculate sprite AABB with rotation padding (conservative)
-        // Returns [minX, minY, maxX, maxY]
         float[] spriteAABB = calculateAABB(spriteRenderer, true);
         if (spriteAABB == null) {
             return false;
         }
 
-        // Camera frustum AABB [minX, minY, maxX, maxY]
         float[] cameraAABB = new float[]{
                 worldLeft, worldBottom, worldRight, worldTop
         };
 
-        // Test intersection
         return aabbIntersects(spriteAABB, cameraAABB);
     }
 
     /**
      * Gets the camera frustum bounds in world space.
-     * Useful for debugging and visualization.
      *
      * @return [left, bottom, right, top] in world coordinates (Y-up)
      */
@@ -94,16 +71,10 @@ public class OrthographicFrustumCuller extends FrustumCuller {
         return new float[]{worldLeft, worldBottom, worldRight, worldTop};
     }
 
-    /**
-     * Gets the visible world width.
-     */
     public float getVisibleWidth() {
         return worldRight - worldLeft;
     }
 
-    /**
-     * Gets the visible world height.
-     */
     public float getVisibleHeight() {
         return worldTop - worldBottom;
     }

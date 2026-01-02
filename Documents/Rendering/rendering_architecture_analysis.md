@@ -165,6 +165,8 @@ for (EditorEntity entity : scene.getEntities()) {
 
 **Problem**: Editor entities don't go through the same component resolution as runtime. When animations are added, `SpriteRenderer.getSprite()` will need to return animated frames, but `EditorEntity.getPreviewSprite()` won't automatically benefit.
 
+**Fix**: Simple - change `EditorEntity.getPreviewSprite()` to resolve dynamically instead of returning cached sprite. No new interfaces needed.
+
 ### 2.5 🟡 MEDIUM: UI Designer Uses Different Tech Stack
 
 `UIDesignerPanel` renders entirely through ImGui draw lists:
@@ -191,12 +193,7 @@ private void renderSprite(ImDrawList drawList, Object spriteObj, ...) {
 
 When implementing animations, you'll need to update sprites per-frame. Current architecture requires changes in:
 
-| Component | Required Change |
-|-----------|-----------------|
-| `SpriteRenderer` | Add `getCurrentSprite()` that returns animated frame |
-| `EntityRenderer` | Must call component's current sprite, not cached preview |
-| `UIDesignerPanel` | Must poll animation state for UI animations |
-| `GamePreviewRenderer` | Currently uses `EditorEntity.getPreviewSprite()` - won't animate |
+**Fix**: `EditorEntity.getCurrentSprite()` resolves from component data. When animation is added, it reads the current frame from Animator component - same data `SpriteRenderer.getSprite()` uses at runtime.
 
 **Risk**: With 4 rendering paths, animation updates must be applied in 4 places.
 
@@ -394,11 +391,11 @@ If these differ, the visible chunks and entity positions will be wrong.
 2. Create `SceneRenderingBackend` shared by editor and game
 3. Remove duplicated `BatchRenderer` instances
 
-### Phase 4: Unified Entity Rendering
-1. Create `RenderableEntity` interface
-2. Make `EditorEntity` provide `getCurrentSprite()` (supports animation)
-3. Single `EntityRenderer` for both runtime and editor
-4. Animation automatically works in all contexts
+### Phase 4: Fix EditorEntity Sprite Resolution
+1. Rename `EditorEntity.getPreviewSprite()` → `getCurrentSprite()`
+2. Resolve sprite dynamically from component data (not cached)
+3. When animation added, read from Animator component
+4. No changes to GameObject or runtime Renderable
 
 ### Phase 5: UI Rendering Alignment
 1. Create `UIBatchRenderer` using `SpriteBatch`

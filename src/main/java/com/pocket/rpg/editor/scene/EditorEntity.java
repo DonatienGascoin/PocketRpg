@@ -5,7 +5,6 @@ import com.pocket.rpg.prefab.Prefab;
 import com.pocket.rpg.prefab.PrefabRegistry;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.Texture;
-import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.serialization.ComponentData;
 import lombok.Getter;
 import lombok.Setter;
@@ -41,44 +40,24 @@ public class EditorEntity {
 
     private Map<String, Map<String, Object>> componentOverrides;
 
-    // ========================================================================
-    // HIERARCHY
-    // ========================================================================
-
-    /**
-     * Parent entity ID (serialized).
-     */
     @Getter
     @Setter
     private String parentId;
 
-    /**
-     * Sibling order (lower = earlier in list).
-     */
     @Getter
     @Setter
     private int order;
 
-    /**
-     * Parent reference (transient, rebuilt after load).
-     */
     @Getter
     private transient EditorEntity parent;
 
-    /**
-     * Children list (transient, rebuilt after load).
-     */
     private transient List<EditorEntity> children;
-
-    // ========================================================================
-    // CACHED PREVIEW DATA (not serialized)
-    // ========================================================================
 
     private transient Sprite previewSprite;
     private transient Vector2f previewSize;
     private transient boolean previewCached = false;
 
-    private static final float DEFAULT_PPU = 16f;
+    private static final float DEFAULT_ENTITY_Z_INDEX = 100f;
 
     // ========================================================================
     // CONSTRUCTORS
@@ -132,10 +111,6 @@ public class EditorEntity {
     // HIERARCHY MANAGEMENT
     // ========================================================================
 
-    /**
-     * Sets the parent entity. Updates both parentId and transient reference.
-     * Also updates the old and new parent's children lists.
-     */
     public void setParent(EditorEntity newParent) {
         if (newParent == this) {
             System.err.println("Cannot set entity as its own parent!");
@@ -147,7 +122,6 @@ public class EditorEntity {
             return;
         }
 
-        // Remove from old parent's children
         if (this.parent != null) {
             this.parent.children.remove(this);
         }
@@ -155,7 +129,6 @@ public class EditorEntity {
         this.parent = newParent;
         this.parentId = (newParent != null) ? newParent.getId() : null;
 
-        // Add to new parent's children
         if (newParent != null) {
             if (newParent.children == null) {
                 newParent.children = new ArrayList<>();
@@ -164,9 +137,6 @@ public class EditorEntity {
         }
     }
 
-    /**
-     * Checks if this entity is an ancestor of the given entity.
-     */
     public boolean isAncestorOf(EditorEntity other) {
         EditorEntity current = other.parent;
         while (current != null) {
@@ -176,9 +146,6 @@ public class EditorEntity {
         return false;
     }
 
-    /**
-     * Returns unmodifiable list of children.
-     */
     public List<EditorEntity> getChildren() {
         if (children == null) {
             children = new ArrayList<>();
@@ -186,9 +153,6 @@ public class EditorEntity {
         return Collections.unmodifiableList(children);
     }
 
-    /**
-     * Returns mutable children list for internal use.
-     */
     List<EditorEntity> getChildrenMutable() {
         if (children == null) {
             children = new ArrayList<>();
@@ -196,16 +160,10 @@ public class EditorEntity {
         return children;
     }
 
-    /**
-     * Checks if this entity has any children.
-     */
     public boolean hasChildren() {
         return children != null && !children.isEmpty();
     }
 
-    /**
-     * Gets the depth level in the hierarchy (0 = root).
-     */
     public int getDepth() {
         int depth = 0;
         EditorEntity current = parent;
@@ -216,9 +174,6 @@ public class EditorEntity {
         return depth;
     }
 
-    /**
-     * Clears parent reference (internal use for removal).
-     */
     void clearParent() {
         if (this.parent != null) {
             this.parent.children.remove(this);
@@ -227,10 +182,6 @@ public class EditorEntity {
         this.parentId = null;
     }
 
-    /**
-     * Directly sets the transient parent reference without side effects.
-     * Used by EditorScene.insertEntityAtPosition for controlled hierarchy updates.
-     */
     void setParentDirect(EditorEntity newParent) {
         this.parent = newParent;
     }
@@ -272,7 +223,7 @@ public class EditorEntity {
     }
 
     // ========================================================================
-    // SCRATCH ENTITY COMPONENT MANAGEMENT
+    // COMPONENT MANAGEMENT
     // ========================================================================
 
     public List<ComponentData> getComponents() {
@@ -313,13 +264,18 @@ public class EditorEntity {
                     "Cannot add components to prefab instance. Convert to scratch entity first.");
         }
         getComponents().add(componentData);
+        invalidatePreviewCache();
     }
 
     public boolean removeComponent(ComponentData componentData) {
         if (components == null) {
             return false;
         }
-        return components.remove(componentData);
+        boolean removed = components.remove(componentData);
+        if (removed) {
+            invalidatePreviewCache();
+        }
+        return removed;
     }
 
     public ComponentData getComponentByType(String simpleName) {
@@ -340,7 +296,7 @@ public class EditorEntity {
     }
 
     // ========================================================================
-    // PREFAB INSTANCE FIELD OVERRIDES
+    // FIELD OVERRIDES
     // ========================================================================
 
     public Object getFieldValue(String componentType, String fieldName) {
@@ -363,12 +319,19 @@ public class EditorEntity {
             ComponentData comp = findComponentByType(componentType);
             if (comp != null) {
                 comp.getFields().put(fieldName, value);
+                if ("SpriteRenderer".equals(comp.getSimpleName()) && "sprite".equals(fieldName)) {
+                    invalidatePreviewCache();
+                }
             }
             return;
         }
 
         componentOverrides.computeIfAbsent(componentType, k -> new HashMap<>())
                 .put(fieldName, value);
+
+        if (componentType.endsWith("SpriteRenderer") && "sprite".equals(fieldName)) {
+            invalidatePreviewCache();
+        }
     }
 
     public boolean isFieldOverridden(String componentType, String fieldName) {
@@ -449,12 +412,31 @@ public class EditorEntity {
     }
 
     // ========================================================================
-    // PREVIEW CACHING
+    // SPRITE ACCESS (for rendering)
     // ========================================================================
 
-    public Sprite getPreviewSprite() {
-        ensurePreviewCached();
-        return previewSprite;
+    /**
+     * Gets the current sprite for rendering.
+     * Resolves dynamically from component data to support animation.
+     */
+    public Sprite getCurrentSprite() {
+
+        ComponentData spriteRenderer = getComponentByType("SpriteRenderer");
+        if (spriteRenderer != null) {
+            Object spriteObj = spriteRenderer.getFields().get("sprite");
+            if (spriteObj instanceof Sprite sprite) {
+                return sprite;
+            }
+            if (spriteObj instanceof Texture texture) {
+                return new Sprite(texture);
+            }
+        }
+
+        if (isPrefabInstance()) {
+            return PrefabRegistry.getInstance().getPreviewSprite(prefabId);
+        }
+
+        return null;
     }
 
     public Vector2f getPreviewSize() {
@@ -463,41 +445,35 @@ public class EditorEntity {
     }
 
     public void refreshPreviewCache() {
-        previewCached = false;
+        invalidatePreviewCache();
         ensurePreviewCached();
     }
 
+    public void invalidatePreviewCache() {
+        previewCached = false;
+        previewSprite = null;
+        previewSize = null;
+    }
+
     private void ensurePreviewCached() {
-        if (previewCached) {
-            return;
-        }
+        if (previewCached) return;
 
-        // Try prefab sprite first (for prefab instances)
-        if (isPrefabInstance()) {
-            previewSprite = PrefabRegistry.getInstance().getPreviewSprite(prefabId);
-        } else {
-            // For scratch entities, check SpriteRenderer component
-            ComponentData spriteRenderer = getComponentByType("SpriteRenderer");
-            if (spriteRenderer != null) {
-                Object spritePathObj = spriteRenderer.getFields().get("sprite");
-                if (spritePathObj instanceof Sprite sprite) {
-                    previewSprite = sprite;
-                } else if (spritePathObj instanceof Texture texture) {
-                    previewSprite = new Sprite(texture);
-                }
-            }
-        }
-
-        if (previewSprite != null) {
-            previewSize = new Vector2f(
-                    previewSprite.getWidth() / DEFAULT_PPU,
-                    previewSprite.getHeight() / DEFAULT_PPU
-            );
-        } else {
-            previewSize = new Vector2f(1f, 1f);
-        }
-
+        previewSprite = getCurrentSprite();
+        previewSize = (previewSprite != null)
+                ? new Vector2f(previewSprite.getWorldWidth(), previewSprite.getWorldHeight())
+                : new Vector2f(1f, 1f);
         previewCached = true;
+    }
+
+    public float getZIndex() {
+        if (position.z != 0) return position.z;
+
+        ComponentData spriteRenderer = getComponentByType("SpriteRenderer");
+        if (spriteRenderer != null) {
+            Object z = spriteRenderer.getFields().get("zIndex");
+            if (z instanceof Number) return ((Number) z).floatValue();
+        }
+        return DEFAULT_ENTITY_Z_INDEX;
     }
 
     // ========================================================================
@@ -538,39 +514,22 @@ public class EditorEntity {
                 pos != null && pos.length > 2 ? pos[2] : 0
         );
 
-        EditorEntity entity;
         if (data.isPrefabInstance()) {
-            entity = new EditorEntity(
-                    data.getId(),
-                    data.getPrefabId(),
-                    data.getName(),
-                    position,
-                    null,
-                    data.getComponentOverrides(),
-                    data.getParentId(),
-                    data.getOrder()
+            return new EditorEntity(
+                    data.getId(), data.getPrefabId(), data.getName(), position,
+                    null, data.getComponentOverrides(), data.getParentId(), data.getOrder()
             );
         } else {
-            String name = data.getName() != null ? data.getName() : "Entity";
-            entity = new EditorEntity(
-                    data.getId(),
-                    null,
-                    name,
-                    position,
+            return new EditorEntity(
+                    data.getId(), null, data.getName() != null ? data.getName() : "Entity", position,
                     data.getComponents() != null ? new ArrayList<>(data.getComponents()) : new ArrayList<>(),
-                    null,
-                    data.getParentId(),
-                    data.getOrder()
+                    null, data.getParentId(), data.getOrder()
             );
         }
-
-        return entity;
     }
 
     private static Map<String, Map<String, Object>> copyOverrides(Map<String, Map<String, Object>> source) {
-        if (source == null) {
-            return new HashMap<>();
-        }
+        if (source == null) return new HashMap<>();
         Map<String, Map<String, Object>> copy = new HashMap<>();
         for (Map.Entry<String, Map<String, Object>> entry : source.entrySet()) {
             copy.put(entry.getKey(), new HashMap<>(entry.getValue()));
@@ -600,8 +559,7 @@ public class EditorEntity {
     public boolean equals(Object obj) {
         if (this == obj) return true;
         if (obj == null || getClass() != obj.getClass()) return false;
-        EditorEntity other = (EditorEntity) obj;
-        return id.equals(other.id);
+        return id.equals(((EditorEntity) obj).id);
     }
 
     @Override

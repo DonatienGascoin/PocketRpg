@@ -39,7 +39,7 @@ public class OpenGLRenderer implements RenderInterface {
         renderer = new BatchRenderer(config);
         renderer.init(width, height);
 
-        renderPipeline = new RenderPipeline(renderer, config);
+        renderPipeline = new RenderPipeline(renderer, viewportConfig, config);
 
         // Initialize overlay renderer
         overlayRenderer = new OpenGLOverlayRenderer();

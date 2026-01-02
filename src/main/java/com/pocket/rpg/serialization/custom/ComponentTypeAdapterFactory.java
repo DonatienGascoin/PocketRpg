@@ -16,7 +16,7 @@ import java.util.Map;
  * TypeAdapterFactory that provides:
  * 1. Polymorphic serialization for all Components (type + properties wrapper)
  * 2. Special sparse serialization for TilemapRenderer
- *
+ * <p>
  * This replaces both ComponentSerializer/Deserializer and any TilemapRenderer-specific adapters.
  */
 public class ComponentTypeAdapterFactory implements TypeAdapterFactory {
@@ -129,7 +129,6 @@ public class ComponentTypeAdapterFactory implements TypeAdapterFactory {
         // Write basic properties
         out.name("zIndex").value(tilemap.getZIndex());
         out.name("tileSize").value(tilemap.getTileSize());
-        out.name("isStatic").value(tilemap.isStatic());
 
         // Write chunks sparsely
         out.name("chunks");
@@ -154,7 +153,8 @@ public class ComponentTypeAdapterFactory implements TypeAdapterFactory {
             // Write chunk if it has tiles
             if (!tiles.isEmpty()) {
                 out.name(cx + "," + cy);
-                gson.toJson(tiles, new TypeToken<Map<String, TilemapRenderer.Tile>>(){}.getType(), out);
+                gson.toJson(tiles, new TypeToken<Map<String, TilemapRenderer.Tile>>() {
+                }.getType(), out);
             }
         }
 
@@ -176,14 +176,14 @@ public class ComponentTypeAdapterFactory implements TypeAdapterFactory {
         // Create tilemap
         TilemapRenderer tilemap = new TilemapRenderer(tileSize);
         tilemap.setZIndex(zIndex);
-        tilemap.setStatic(isStatic);
 
         // Read chunks
         if (json.has("chunks")) {
             JsonObject chunksJson = json.getAsJsonObject("chunks");
 
             TypeToken<Map<String, TilemapRenderer.Tile>> tileMapType =
-                    new TypeToken<Map<String, TilemapRenderer.Tile>>(){};
+                    new TypeToken<Map<String, TilemapRenderer.Tile>>() {
+                    };
 
             for (var chunkEntry : chunksJson.entrySet()) {
                 String[] coords = chunkEntry.getKey().split(",");

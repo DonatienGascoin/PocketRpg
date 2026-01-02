@@ -108,7 +108,6 @@ public class EditorSceneSerializer {
         TilemapRenderer tilemap = layer.getTilemap();
         TilemapRenderer componentForSerialization = new TilemapRenderer(tilemap.getTileSize());
         componentForSerialization.setZIndex(tilemap.getZIndex());
-        componentForSerialization.setStatic(false);
 
         // Copy all tiles from original tilemap
         for (Long chunkKey : tilemap.chunkKeys()) {
@@ -160,7 +159,6 @@ public class EditorSceneSerializer {
         // Copy tilemap data to new component instance
         TilemapRenderer newTilemap = new TilemapRenderer(tilemap.getTileSize());
         newTilemap.setZIndex(tilemap.getZIndex());
-        newTilemap.setStatic(false);
 
         // Copy all tiles
         for (Long chunkKey : tilemap.chunkKeys()) {

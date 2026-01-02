@@ -1,7 +1,7 @@
 package com.pocket.rpg.rendering.culling;
 
 import com.pocket.rpg.components.SpriteRenderer;
-import com.pocket.rpg.core.Camera;
+import com.pocket.rpg.core.GameCamera;
 
 /**
  * Frustum culler for orthographic (2D) cameras.
@@ -35,7 +35,7 @@ public class OrthographicFrustumCuller extends FrustumCuller {
      * - Orthographic size
      */
     @Override
-    public void updateFromCamera(Camera camera) {
+    public void updateFromCamera(GameCamera camera) {
         this.camera = camera;
 
         if (camera == null) {

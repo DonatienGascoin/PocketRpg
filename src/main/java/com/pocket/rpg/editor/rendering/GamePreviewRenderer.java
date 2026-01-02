@@ -3,11 +3,12 @@ package com.pocket.rpg.editor.rendering;
 import com.pocket.rpg.components.TilemapRenderer;
 import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.config.RenderingConfig;
-import com.pocket.rpg.core.Camera;
+import com.pocket.rpg.core.GameCamera;
 import com.pocket.rpg.core.ViewportConfig;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.SceneCameraSettings;
 import com.pocket.rpg.editor.scene.TilemapLayer;
+import com.pocket.rpg.rendering.PreviewCamera;
 import com.pocket.rpg.rendering.SpriteBatch;
 import com.pocket.rpg.rendering.renderers.BatchRenderer;
 import org.joml.Matrix4f;
@@ -38,7 +39,7 @@ public class GamePreviewRenderer {
     private EditorFramebuffer framebuffer;
     private BatchRenderer batchRenderer;
     private EntityRenderer entityRenderer;
-    private Camera previewCamera;
+    private PreviewCamera previewCamera;
     private ViewportConfig viewportConfig;
 
     private boolean initialized = false;
@@ -66,7 +67,7 @@ public class GamePreviewRenderer {
         viewportConfig = new ViewportConfig(gameConfig);
 
         // Create preview camera (will be configured per-render from scene settings)
-        previewCamera = new Camera(viewportConfig);
+        previewCamera = new PreviewCamera(viewportConfig);
 
         // Create batch renderer
         batchRenderer = new BatchRenderer(renderingConfig);
@@ -97,11 +98,7 @@ public class GamePreviewRenderer {
         // Update camera from scene settings
         SceneCameraSettings settings = scene.getCameraSettings();
 
-        float zoom = settings.getOrthographicSize() > 0
-                ? gameConfig.getGameHeight() / (/*2f **/ settings.getOrthographicSize())
-                : 1f;
-        previewCamera.setZoom(zoom);
-        previewCamera.setPosition(settings.getPosition().x, settings.getPosition().y);
+        previewCamera.applySceneSettings(settings.getPosition(), settings.getOrthographicSize());
 
         // Bind framebuffer and set viewport
         framebuffer.bind();
@@ -191,7 +188,6 @@ public class GamePreviewRenderer {
         float bottom = bounds[1];
         float right = bounds[2];
         float top = bounds[3];
-        System.out.printf("L: %s, B: %s, L: %s, R: %s%n", left, bottom, right, top);
 
         // Calculate visible chunks
         float tileSize = tilemap.getTileSize();

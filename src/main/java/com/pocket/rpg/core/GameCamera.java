@@ -1,5 +1,6 @@
 package com.pocket.rpg.core;
 
+import com.pocket.rpg.rendering.RenderCamera;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Matrix4f;
@@ -8,7 +9,7 @@ import org.joml.Vector3f;
 import org.joml.Vector4f;
 
 /**
- * Unified Camera for 2D orthographic rendering with world-unit coordinate system.
+ * Runtime camera for 2D orthographic rendering with world-unit coordinate system.
  * <p>
  * Handles:
  * - Transform (position, rotation, zoom)
@@ -32,24 +33,17 @@ import org.joml.Vector4f;
  * Visible Width  = Visible Height × aspectRatio
  * </pre>
  *
- * <h2>Unity-Style Behavior</h2>
- * <ul>
- *   <li>{@code camera.setPosition(player.position)} centers the player on screen</li>
- *   <li>{@code screenToWorldPoint()} converts mouse position to world coordinates</li>
- *   <li>{@code worldToScreenPoint()} converts world position to screen coordinates</li>
- * </ul>
- *
  * @see com.pocket.rpg.config.RenderingConfig#getDefaultOrthographicSize(int)
  */
-public class Camera {
+public class GameCamera implements RenderCamera {
 
     // ======================================================================
-    // STATIC - Main Camera Reference (Unity's Camera.main equivalent)
+    // STATIC - Main Camera Reference
     // ======================================================================
 
     @Getter
     @Setter
-    private static Camera mainCamera;
+    private static GameCamera mainCamera;
 
     // ======================================================================
     // SHARED CONFIGURATION
@@ -91,7 +85,7 @@ public class Camera {
      * Larger values = zoomed out (more world units visible).
      */
     @Getter
-    private float orthographicSize = 15f;  // Default: 30 units visible vertically
+    private float orthographicSize = 15f;
 
     // ======================================================================
     // CACHED MATRICES
@@ -112,13 +106,12 @@ public class Camera {
      *
      * @param viewport Shared viewport config (game resolution, window size, scaling)
      */
-    public Camera(ViewportConfig viewport) {
+    public GameCamera(ViewportConfig viewport) {
         if (viewport == null) {
             throw new IllegalArgumentException("ViewportConfig cannot be null");
         }
         this.viewport = viewport;
 
-        // Initialize matrices
         updateProjectionMatrix();
         updateViewMatrix();
     }
@@ -129,7 +122,7 @@ public class Camera {
      * @param viewport         Shared viewport config
      * @param orthographicSize Half-height in world units
      */
-    public Camera(ViewportConfig viewport, float orthographicSize) {
+    public GameCamera(ViewportConfig viewport, float orthographicSize) {
         this(viewport);
         setOrthographicSize(orthographicSize);
     }
@@ -138,17 +131,6 @@ public class Camera {
     // PROJECTION MATRIX - Centered Y-Up
     // ======================================================================
 
-    /**
-     * Updates the orthographic projection matrix.
-     * <p>
-     * Uses centered projection with Y-up coordinate system:
-     * <pre>
-     * left   = -halfWidth
-     * right  = +halfWidth
-     * bottom = -orthographicSize (accounting for zoom)
-     * top    = +orthographicSize (accounting for zoom)
-     * </pre>
-     */
     private void updateProjectionMatrix() {
         float aspectRatio = (float) viewport.getGameWidth() / viewport.getGameHeight();
 
@@ -162,16 +144,13 @@ public class Camera {
         projectionMatrix.identity().ortho(
                 -halfWidth, halfWidth,    // left, right
                 -halfHeight, halfHeight,  // bottom, top (Y-up!)
-                1000f, -1000f             // near, far (generous range for Z sorting)
+                1000f, -1000f             // near, far
         );
 
         projectionDirty = false;
     }
 
-    /**
-     * Gets the projection matrix.
-     * Returns a copy to prevent external modification.
-     */
+    @Override
     public Matrix4f getProjectionMatrix() {
         if (projectionDirty) {
             updateProjectionMatrix();
@@ -183,30 +162,19 @@ public class Camera {
     // VIEW MATRIX
     // ======================================================================
 
-    /**
-     * Updates the view matrix.
-     * <p>
-     * The view matrix translates and rotates the world opposite to camera movement.
-     * Camera position represents the center of the visible area.
-     */
     private void updateViewMatrix() {
         viewMatrix.identity();
 
-        // Apply rotation around Z axis (screen center)
         if (rotation != 0) {
             viewMatrix.rotateZ((float) Math.toRadians(-rotation));
         }
 
-        // Translate world opposite to camera position
         viewMatrix.translate(-position.x, -position.y, -position.z);
 
         viewDirty = false;
     }
 
-    /**
-     * Gets the view matrix.
-     * Returns a copy to prevent external modification.
-     */
+    @Override
     public Matrix4f getViewMatrix() {
         if (viewDirty) {
             updateViewMatrix();
@@ -214,9 +182,6 @@ public class Camera {
         return new Matrix4f(viewMatrix);
     }
 
-    /**
-     * Marks matrices as needing recalculation.
-     */
     private void markViewDirty() {
         viewDirty = true;
     }
@@ -231,12 +196,6 @@ public class Camera {
 
     /**
      * Sets the orthographic size (half-height in world units).
-     * <p>
-     * This controls how much of the world is visible:
-     * <ul>
-     *   <li>Smaller values = zoomed in (fewer units visible)</li>
-     *   <li>Larger values = zoomed out (more units visible)</li>
-     * </ul>
      *
      * @param orthographicSize Half-height in world units (must be positive)
      */
@@ -253,49 +212,30 @@ public class Camera {
     // TRANSFORM - Position
     // ======================================================================
 
-    /**
-     * Sets camera position in world space.
-     * The camera will be centered on this position.
-     */
     public void setPosition(Vector3f pos) {
         this.position.set(pos);
         markViewDirty();
     }
 
-    /**
-     * Sets camera position in world space (2D convenience).
-     */
     public void setPosition(float x, float y) {
         this.position.set(x, y, 0);
         markViewDirty();
     }
 
-    /**
-     * Sets camera position in world space.
-     */
     public void setPosition(float x, float y, float z) {
         this.position.set(x, y, z);
         markViewDirty();
     }
 
-    /**
-     * Gets camera position (returns a copy).
-     */
     public Vector3f getPosition() {
         return new Vector3f(position);
     }
 
-    /**
-     * Moves camera by offset in world units.
-     */
     public void translate(float dx, float dy) {
         this.position.add(dx, dy, 0);
         markViewDirty();
     }
 
-    /**
-     * Moves camera by offset in world units.
-     */
     public void translate(float dx, float dy, float dz) {
         this.position.add(dx, dy, dz);
         markViewDirty();
@@ -305,17 +245,11 @@ public class Camera {
     // TRANSFORM - Rotation
     // ======================================================================
 
-    /**
-     * Sets camera rotation (Z-axis, in degrees).
-     */
     public void setRotation(float degrees) {
         this.rotation = degrees;
         markViewDirty();
     }
 
-    /**
-     * Rotates camera by offset (in degrees).
-     */
     public void rotate(float degrees) {
         this.rotation += degrees;
         markViewDirty();
@@ -325,18 +259,6 @@ public class Camera {
     // TRANSFORM - Zoom
     // ======================================================================
 
-    /**
-     * Sets camera zoom level.
-     * <p>
-     * This is a multiplier on top of orthographicSize:
-     * <ul>
-     *   <li>1.0 = normal (orthographicSize units visible)</li>
-     *   <li>2.0 = 2× zoom in (half as many units visible)</li>
-     *   <li>0.5 = 2× zoom out (twice as many units visible)</li>
-     * </ul>
-     *
-     * @param zoom Zoom level (must be positive)
-     */
     public void setZoom(float zoom) {
         if (zoom <= 0) {
             System.err.println("WARNING: Zoom must be positive, got: " + zoom);
@@ -346,11 +268,6 @@ public class Camera {
         markProjectionDirty();
     }
 
-    /**
-     * Adjusts zoom by a multiplier.
-     *
-     * @param factor Multiplier (2.0 = double zoom, 0.5 = halve zoom)
-     */
     public void zoomBy(float factor) {
         if (factor <= 0) {
             System.err.println("WARNING: Zoom factor must be positive, got: " + factor);
@@ -361,43 +278,20 @@ public class Camera {
     }
 
     // ======================================================================
-    // COORDINATE CONVERSION - Unity-style API
+    // COORDINATE CONVERSION - RenderCamera interface
     // ======================================================================
 
-    /**
-     * Convert screen (window) coordinates to world coordinates.
-     * Unity equivalent: Camera.ScreenToWorldPoint()
-     * <p>
-     * Handles pillarbox/letterbox scaling automatically.
-     *
-     * @param screenX X coordinate in window pixels
-     * @param screenY Y coordinate in window pixels
-     * @return Position in world space
-     */
-    public Vector3f screenToWorldPoint(float screenX, float screenY) {
-        return screenToWorldPoint(screenX, screenY, 0);
-    }
-
-    /**
-     * Convert screen (window) coordinates to world coordinates.
-     *
-     * @param screenX X coordinate in window pixels
-     * @param screenY Y coordinate in window pixels
-     * @param depth   Z-depth (typically 0 for 2D)
-     * @return Position in world space
-     */
-    public Vector3f screenToWorldPoint(float screenX, float screenY, float depth) {
+    @Override
+    public Vector3f screenToWorld(float screenX, float screenY) {
         // Step 1: Window → Game (using ViewportConfig scaling)
         float gameX = viewport.windowToGameX(screenX);
         float gameY = viewport.windowToGameY(screenY);
 
         // Step 2: Game → NDC
-        // Game coordinates: (0,0) top-left to (gameWidth, gameHeight) bottom-right
-        // NDC: (-1,-1) bottom-left to (1,1) top-right
         float ndcX = (2f * gameX / viewport.getGameWidth()) - 1f;
-        float ndcY = 1f - (2f * gameY / viewport.getGameHeight());  // Flip Y for screen coords
+        float ndcY = 1f - (2f * gameY / viewport.getGameHeight());
 
-        // Step 3: NDC → World (using inverse matrices)
+        // Step 3: NDC → World
         Matrix4f invProjection = new Matrix4f(getProjectionMatrix()).invert();
         Matrix4f invView = new Matrix4f(getViewMatrix()).invert();
 
@@ -405,40 +299,22 @@ public class Camera {
         invProjection.transform(clipCoords);
         invView.transform(clipCoords);
 
-        return new Vector3f(clipCoords.x, clipCoords.y, depth);
+        return new Vector3f(clipCoords.x, clipCoords.y, 0);
     }
 
-    /**
-     * Convert screen coordinates to world coordinates.
-     *
-     * @param screenPos Position in window pixels
-     * @return Position in world space
-     */
-    public Vector3f screenToWorldPoint(Vector2f screenPos) {
-        return screenToWorldPoint(screenPos.x, screenPos.y, 0);
-    }
-
-    /**
-     * Convert world coordinates to screen (window) coordinates.
-     * Unity equivalent: Camera.WorldToScreenPoint()
-     *
-     * @param worldPos Position in world space
-     * @return Position in window pixels
-     */
-    public Vector2f worldToScreenPoint(Vector3f worldPos) {
+    @Override
+    public Vector2f worldToScreen(float worldX, float worldY) {
         // Step 1: World → Clip space
         Matrix4f projection = getProjectionMatrix();
         Matrix4f view = getViewMatrix();
 
-        Vector4f pos = new Vector4f(worldPos.x, worldPos.y, worldPos.z, 1f);
+        Vector4f pos = new Vector4f(worldX, worldY, 0, 1f);
         view.transform(pos);
         projection.transform(pos);
 
         // Step 2: NDC → Game coordinates
-        // NDC: (-1,-1) to (1,1)
-        // Game: (0,0) top-left to (gameWidth, gameHeight) bottom-right
         float gameX = (pos.x + 1f) * 0.5f * viewport.getGameWidth();
-        float gameY = (1f - pos.y) * 0.5f * viewport.getGameHeight();  // Flip Y for screen coords
+        float gameY = (1f - pos.y) * 0.5f * viewport.getGameHeight();
 
         // Step 3: Game → Window
         float windowX = viewport.gameToWindowX(gameX);
@@ -447,27 +323,32 @@ public class Camera {
         return new Vector2f(windowX, windowY);
     }
 
+    // ======================================================================
+    // COORDINATE CONVERSION - Extended API
+    // ======================================================================
+
     /**
-     * Convert world coordinates to screen coordinates.
-     *
-     * @param worldX X in world space
-     * @param worldY Y in world space
-     * @return Position in window pixels
+     * Convert screen coordinates to world coordinates with depth.
      */
-    public Vector2f worldToScreenPoint(float worldX, float worldY) {
-        return worldToScreenPoint(new Vector3f(worldX, worldY, 0));
+    public Vector3f screenToWorld(float screenX, float screenY, float depth) {
+        Vector3f result = screenToWorld(screenX, screenY);
+        result.z = depth;
+        return result;
+    }
+
+    public Vector3f screenToWorld(Vector2f screenPos) {
+        return screenToWorld(screenPos.x, screenPos.y);
+    }
+
+    public Vector2f worldToScreen(Vector3f worldPos) {
+        return worldToScreen(worldPos.x, worldPos.y);
     }
 
     // ======================================================================
     // VISIBLE BOUNDS
     // ======================================================================
 
-    /**
-     * Gets the visible world bounds (accounting for zoom and orthographicSize).
-     * Camera is at the CENTER of these bounds.
-     *
-     * @return [left, bottom, right, top] in world coordinates (Y-up)
-     */
+    @Override
     public float[] getWorldBounds() {
         float aspectRatio = (float) viewport.getGameWidth() / viewport.getGameHeight();
         float effectiveOrthoSize = orthographicSize / zoom;
@@ -483,28 +364,17 @@ public class Camera {
         };
     }
 
-    /**
-     * Gets the visible world width in world units (accounting for zoom).
-     */
     public float getVisibleWidth() {
         float aspectRatio = (float) viewport.getGameWidth() / viewport.getGameHeight();
         float effectiveOrthoSize = orthographicSize / zoom;
         return effectiveOrthoSize * 2 * aspectRatio;
     }
 
-    /**
-     * Gets the visible world height in world units (accounting for zoom).
-     */
     public float getVisibleHeight() {
         float effectiveOrthoSize = orthographicSize / zoom;
         return effectiveOrthoSize * 2;
     }
 
-    /**
-     * Gets the world-space corners visible by this camera.
-     *
-     * @return Array of 4 corners: [bottomLeft, bottomRight, topRight, topLeft]
-     */
     public Vector3f[] getWorldCorners() {
         float[] bounds = getWorldBounds();
         return new Vector3f[]{
@@ -515,13 +385,6 @@ public class Camera {
         };
     }
 
-    /**
-     * Checks if a world point is visible on screen.
-     *
-     * @param worldX X in world space
-     * @param worldY Y in world space
-     * @return true if visible
-     */
     public boolean isPointVisible(float worldX, float worldY) {
         float[] bounds = getWorldBounds();
         return worldX >= bounds[0] && worldX <= bounds[2] &&
@@ -532,23 +395,14 @@ public class Camera {
     // VIEWPORT ACCESS
     // ======================================================================
 
-    /**
-     * Gets the shared viewport config.
-     */
     public ViewportConfig getViewport() {
         return viewport;
     }
 
-    /**
-     * Gets the game width from viewport config (in pixels).
-     */
     public int getGameWidth() {
         return viewport.getGameWidth();
     }
 
-    /**
-     * Gets the game height from viewport config (in pixels).
-     */
     public int getGameHeight() {
         return viewport.getGameHeight();
     }
@@ -557,17 +411,13 @@ public class Camera {
     // UTILITY
     // ======================================================================
 
-    /**
-     * Called each frame to update camera state.
-     * Currently just clears dirty flags after updates.
-     */
     public void update(float deltaTime) {
-        // Future: could add smoothing, shake effects, etc.
+        // Future: smoothing, shake effects, etc.
     }
 
     @Override
     public String toString() {
-        return String.format("Camera[pos=(%.1f,%.1f,%.1f), rot=%.1f°, orthoSize=%.1f, zoom=%.2f, visible=%.1fx%.1f]",
+        return String.format("GameCamera[pos=(%.1f,%.1f,%.1f), rot=%.1f°, orthoSize=%.1f, zoom=%.2f, visible=%.1fx%.1f]",
                 position.x, position.y, position.z, rotation, orthographicSize, zoom,
                 getVisibleWidth(), getVisibleHeight());
     }

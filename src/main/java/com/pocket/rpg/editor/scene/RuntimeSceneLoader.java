@@ -220,7 +220,6 @@ public class RuntimeSceneLoader {
         if (tilemapData != null) {
             TilemapRenderer tilemap = new TilemapRenderer(tilemapData.getTileSize());
             tilemap.setZIndex(tilemapData.getZIndex());
-            tilemap.setStatic(true); // Runtime tilemaps are static for batching
 
             // Copy all tiles
             copyTilemapData(tilemapData, tilemap);

@@ -3,24 +3,18 @@ package com.pocket.rpg.rendering;
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.components.TilemapRenderer;
 import com.pocket.rpg.config.RenderingConfig;
-import com.pocket.rpg.core.Camera;
-import com.pocket.rpg.core.ViewportConfig;
+import com.pocket.rpg.core.GameCamera;
 import com.pocket.rpg.rendering.culling.CullingSystem;
 import com.pocket.rpg.rendering.renderers.BatchRenderer;
 import com.pocket.rpg.rendering.renderers.Renderer;
-import com.pocket.rpg.rendering.stats.StatisticsReporter;
 import com.pocket.rpg.scenes.Scene;
 import lombok.Getter;
-import lombok.Setter;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
 
 import java.util.List;
 
-import static org.lwjgl.opengl.GL33.GL_COLOR_BUFFER_BIT;
-import static org.lwjgl.opengl.GL33.GL_DEPTH_BUFFER_BIT;
-import static org.lwjgl.opengl.GL33.glClear;
-import static org.lwjgl.opengl.GL33.glClearColor;
+import static org.lwjgl.opengl.GL33.*;
 
 /**
  * Orchestrates the complete rendering pipeline:
@@ -46,23 +40,16 @@ public class RenderPipeline {
     private final CullingSystem cullingSystem;
     @Getter
     private final Renderer renderer;
-    private final ViewportConfig viewportConfig;
-    @Setter
-    private StatisticsReporter statisticsReporter;
 
     private final Vector4f clearColor;
 
     /**
      * Creates a render pipeline with the specified components.
      */
-    public RenderPipeline(Renderer renderer, ViewportConfig viewportConfig, RenderingConfig config) {
+    public RenderPipeline(Renderer renderer, RenderingConfig config) {
         this.renderer = renderer;
-        this.viewportConfig = viewportConfig;
         this.cullingSystem = new CullingSystem();
         this.clearColor = config.getClearColor();
-        if (config.isEnableStatistics()) {
-            this.statisticsReporter = config.getReporter();
-        }
     }
 
     /**
@@ -78,7 +65,7 @@ public class RenderPipeline {
 
         try {
             // 1. Get camera from scene (each scene owns its camera)
-            Camera activeCamera = scene.getCamera();
+            GameCamera activeCamera = scene.getCamera();
             if (activeCamera == null) {
                 System.err.println("ERROR: Scene has no camera: " + scene.getName());
                 return;
@@ -86,12 +73,6 @@ public class RenderPipeline {
 
             // 2. Update culling system with camera bounds
             cullingSystem.updateFrame(activeCamera);
-
-            // 3. Check if static batch needs rebuilding (flag-based, no casting)
-            if (scene.isStaticBatchDirty()) {
-                handleStaticBatchDirty();
-                scene.clearStaticBatchDirty();
-            }
 
             // 4. Get rendering matrices FROM CAMERA (not CameraSystem)
             Matrix4f projectionMatrix = activeCamera.getProjectionMatrix();
@@ -116,11 +97,6 @@ public class RenderPipeline {
 
             // 8. End rendering
             renderer.end();
-
-            // 9. Report statistics if reporter is set
-            if (statisticsReporter != null) {
-                statisticsReporter.report(cullingSystem.getStatistics());
-            }
         } catch (Exception e) {
             System.err.println("ERROR during rendering: " + e.getMessage());
             e.printStackTrace();
@@ -199,16 +175,5 @@ public class RenderPipeline {
         // If needed, could create temporary SpriteRenderers or
         // add drawTile() method to base Renderer
         System.err.println("WARNING: Tilemap rendering requires BatchRenderer");
-    }
-
-    /**
-     * Handles static batch dirty flag.
-     * Uses polymorphism to avoid casting in main render method.
-     */
-    private void handleStaticBatchDirty() {
-        // Polymorphic call - BatchRenderer will handle it, Renderer will ignore it
-        if (renderer instanceof BatchRenderer batchRenderer) {
-            batchRenderer.getBatch().markStaticBatchDirty();
-        }
     }
 }

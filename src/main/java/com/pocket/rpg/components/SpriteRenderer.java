@@ -72,16 +72,6 @@ public class SpriteRenderer extends Component implements Renderable {
     @Setter
     private int zIndex = 0;
 
-    /**
-     * If true, this sprite's vertices are cached (not recalculated each frame).
-     * Use for sprites that never move, rotate, or scale (background tiles, buildings).
-     * <p>
-     * WARNING: If you modify a static sprite's transform, call
-     * scene.markStaticBatchDirty() to rebuild the cache!
-     */
-    @Getter
-    private boolean isStatic = false;
-
     public SpriteRenderer() {
 
     }
@@ -123,10 +113,7 @@ public class SpriteRenderer extends Component implements Renderable {
         if (gameObject == null || !gameObject.isEnabled()) {
             return false;
         }
-        if (sprite == null) {
-            return false;
-        }
-        return true;
+        return sprite != null;
     }
 
     // ========================================================================
@@ -216,26 +203,6 @@ public class SpriteRenderer extends Component implements Renderable {
     }
 
     // ========================================================================
-    // STATIC BATCHING
-    // ========================================================================
-
-    /**
-     * Marks this sprite as static for vertex caching.
-     *
-     * @param isStatic true to enable caching
-     */
-    public void setStatic(boolean isStatic) {
-        if (this.isStatic != isStatic) {
-            this.isStatic = isStatic;
-
-            // Notify scene to rebuild static batch
-            if (gameObject != null && gameObject.getScene() != null) {
-                gameObject.getScene().markStaticBatchDirty();
-            }
-        }
-    }
-
-    // ========================================================================
     // LIFECYCLE
     // ========================================================================
 
@@ -246,9 +213,9 @@ public class SpriteRenderer extends Component implements Renderable {
 
     @Override
     public String toString() {
-        return String.format("SpriteRenderer[sprite=%s, origin=(%.2f,%.2f), useSpritePivot=%b, zIndex=%d, static=%b]",
+        return String.format("SpriteRenderer[sprite=%s, origin=(%.2f,%.2f), useSpritePivot=%b, zIndex=%d]",
                 sprite != null ? sprite.getName() : "null",
                 getEffectiveOriginX(), getEffectiveOriginY(),
-                useSpritePivot, zIndex, isStatic);
+                useSpritePivot, zIndex);
     }
 }

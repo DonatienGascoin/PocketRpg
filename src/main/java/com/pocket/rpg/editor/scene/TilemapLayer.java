@@ -67,9 +67,6 @@ public class TilemapLayer {
         this.tilemap = new TilemapRenderer(1.0f); // 1 world unit per tile
         this.tilemap.setZIndex(zIndex);
 
-        // IMPORTANT: Set to non-static for editor so tiles render immediately
-        this.tilemap.setStatic(false);
-
         this.gameObject.addComponent(tilemap);
     }
 
@@ -86,9 +83,6 @@ public class TilemapLayer {
             throw new IllegalArgumentException("GameObject must have a TilemapRenderer component");
         }
         this.name = name;
-
-        // Set non-static for editor
-        this.tilemap.setStatic(false);
     }
 
     // ========================================================================

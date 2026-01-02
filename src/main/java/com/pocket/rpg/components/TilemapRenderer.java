@@ -55,13 +55,6 @@ public class TilemapRenderer extends Component implements Renderable {
     @Setter
     private float tileSize = 1.0f;
 
-    /**
-     * If true, chunk vertex data can be pre-baked for performance.
-     * Use for tilemaps that don't change at runtime.
-     */
-    @Getter
-    private boolean isStatic = true;
-
     // Track dirty chunks for static batching invalidation
     private transient final Map<Long, Boolean> dirtyChunks = new HashMap<>();
 
@@ -164,9 +157,6 @@ public class TilemapRenderer extends Component implements Renderable {
         int ty = tileY - cy * TileChunk.CHUNK_SIZE;
 
         chunk.set(tx, ty, tile);
-
-        // Mark chunk as dirty for static batch invalidation
-        markChunkDirty(cx, cy);
     }
 
     /**
@@ -305,67 +295,6 @@ public class TilemapRenderer extends Component implements Renderable {
     }
 
     // ========================================================================
-    // STATIC BATCHING
-    // ========================================================================
-
-    /**
-     * Sets whether this tilemap is static (for chunk pre-batching).
-     *
-     * @param isStatic true to enable static batching
-     */
-    public void setStatic(boolean isStatic) {
-        if (this.isStatic != isStatic) {
-            this.isStatic = isStatic;
-
-            if (gameObject != null && gameObject.getScene() != null) {
-                gameObject.getScene().markStaticBatchDirty();
-            }
-        }
-    }
-
-    /**
-     * Marks a chunk as dirty (needs rebatching).
-     *
-     * @param cx Chunk X coordinate
-     * @param cy Chunk Y coordinate
-     */
-    public void markChunkDirty(int cx, int cy) {
-        dirtyChunks.put(key(cx, cy), true);
-
-        if (isStatic && gameObject != null && gameObject.getScene() != null) {
-            gameObject.getScene().markStaticBatchDirty();
-        }
-    }
-
-    /**
-     * Checks if a chunk is dirty.
-     *
-     * @param cx Chunk X coordinate
-     * @param cy Chunk Y coordinate
-     * @return true if chunk needs rebatching
-     */
-    public boolean isChunkDirty(int cx, int cy) {
-        return dirtyChunks.getOrDefault(key(cx, cy), false);
-    }
-
-    /**
-     * Clears the dirty flag for a chunk.
-     *
-     * @param cx Chunk X coordinate
-     * @param cy Chunk Y coordinate
-     */
-    public void clearChunkDirty(int cx, int cy) {
-        dirtyChunks.remove(key(cx, cy));
-    }
-
-    /**
-     * Clears all dirty flags.
-     */
-    public void clearAllDirty() {
-        dirtyChunks.clear();
-    }
-
-    // ========================================================================
     // UTILITY METHODS
     // ========================================================================
 
@@ -444,8 +373,7 @@ public class TilemapRenderer extends Component implements Renderable {
 
     @Override
     public String toString() {
-        return String.format("Tilemap[chunks=%d, tileSize=%.2f, zIndex=%d, static=%b]",
-                chunks.size(), tileSize, zIndex, isStatic);
+        return String.format("Tilemap[chunks=%d, tileSize=%.2f, zIndex=%d]", chunks.size(), tileSize, zIndex);
     }
 
     // ========================================================================

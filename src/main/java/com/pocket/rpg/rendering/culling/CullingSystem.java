@@ -2,7 +2,7 @@ package com.pocket.rpg.rendering.culling;
 
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.components.TilemapRenderer;
-import com.pocket.rpg.core.Camera;
+import com.pocket.rpg.core.GameCamera;
 import lombok.Getter;
 
 import java.util.ArrayList;
@@ -47,7 +47,7 @@ public class CullingSystem {
      *
      * @param camera The camera to use for culling
      */
-    public void updateFrame(Camera camera) {
+    public void updateFrame(GameCamera camera) {
         if (camera == null) {
             System.err.println("WARNING: CullingSystem.updateFrame called with null camera");
             return;

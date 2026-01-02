@@ -5,13 +5,13 @@ import com.pocket.rpg.collision.CollisionSystem;
 import com.pocket.rpg.collision.EntityOccupancyMap;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.SpriteRenderer;
+import com.pocket.rpg.components.ui.UICanvas;
 import com.pocket.rpg.config.RenderingConfig;
-import com.pocket.rpg.core.Camera;
+import com.pocket.rpg.core.GameCamera;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.core.ViewportConfig;
 import com.pocket.rpg.rendering.Renderable;
 import com.pocket.rpg.serialization.ComponentRefResolver;
-import com.pocket.rpg.components.ui.UICanvas;
 import lombok.Getter;
 
 import java.util.ArrayList;
@@ -31,7 +31,7 @@ public abstract class Scene {
     private final String name;
 
     @Getter
-    protected Camera camera;
+    protected GameCamera camera;
 
     @Getter
     private ViewportConfig viewportConfig;
@@ -55,9 +55,6 @@ public abstract class Scene {
     private final CollisionSystem collisionSystem;
 
     private boolean initialized = false;
-
-    @Getter
-    private boolean staticBatchDirty = false;
 
     public Scene(String name) {
         this.name = name;
@@ -88,8 +85,8 @@ public abstract class Scene {
         this.initialized = true;
         this.viewportConfig = viewportConfig;
         // Create camera with viewport config
-        this.camera = new Camera(viewportConfig, renderingConfig.getDefaultOrthographicSize(viewportConfig.getGameHeight()));
-        Camera.setMainCamera(camera);
+        this.camera = new GameCamera(viewportConfig, renderingConfig.getDefaultOrthographicSize(viewportConfig.getGameHeight()));
+        GameCamera.setMainCamera(camera);
 
         onLoad();
 
@@ -341,17 +338,5 @@ public abstract class Scene {
      */
     public List<UICanvas> getUICanvases() {
         return new ArrayList<>(uiCanvases);
-    }
-
-    // ===========================================
-    // Static Batch Management
-    // ===========================================
-
-    public void markStaticBatchDirty() {
-        staticBatchDirty = true;
-    }
-
-    public void clearStaticBatchDirty() {
-        staticBatchDirty = false;
     }
 }

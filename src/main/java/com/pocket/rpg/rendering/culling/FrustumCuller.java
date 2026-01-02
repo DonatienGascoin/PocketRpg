@@ -2,7 +2,7 @@ package com.pocket.rpg.rendering.culling;
 
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.components.Transform;
-import com.pocket.rpg.core.Camera;
+import com.pocket.rpg.core.GameCamera;
 import com.pocket.rpg.rendering.Sprite;
 import org.joml.Vector3f;
 
@@ -14,7 +14,7 @@ import org.joml.Vector3f;
  */
 public abstract class FrustumCuller {
 
-    protected Camera camera;
+    protected GameCamera camera;
 
     /**
      * Updates the culler from the camera's current state.
@@ -22,7 +22,7 @@ public abstract class FrustumCuller {
      *
      * @param camera The camera to use for culling
      */
-    public abstract void updateFromCamera(Camera camera);
+    public abstract void updateFromCamera(GameCamera camera);
 
     /**
      * Tests if a sprite is visible in the camera frustum.

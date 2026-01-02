@@ -1,7 +1,7 @@
 package com.pocket.rpg.scenes;
 
 import com.pocket.rpg.config.RenderingConfig;
-import com.pocket.rpg.core.Camera;
+import com.pocket.rpg.core.GameCamera;
 import com.pocket.rpg.core.ViewportConfig;
 import lombok.Getter;
 import lombok.NonNull;
@@ -116,7 +116,7 @@ public class SceneManager {
             currentScene.destroy();
             fireSceneUnloaded(currentScene);
         }
-        Camera.setMainCamera(null);
+        GameCamera.setMainCamera(null);
         scenes.clear();
         lifecycleListeners.clear();
     }

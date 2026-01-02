@@ -19,49 +19,44 @@ import static org.lwjgl.opengl.GL33.*;
 
 /**
  * Batches sprites by texture to minimize draw calls.
- * Supports depth sorting, static sprites, and configurable sorting strategies.
+ * Supports depth sorting and configurable sorting strategies.
+ * <p>
+ * Uses deferred submission with global sorting and auto-flush for unlimited sprite counts.
+ * Sprites are buffered during begin/end, then globally sorted and rendered in batches.
  * <p>
  * Uses world units for all position and size calculations.
  * Sprite dimensions come from {@link Sprite#getWorldWidth()} and {@link Sprite#getWorldHeight()}.
- *
- * <p>Tilemap Support
  */
 public class SpriteBatch {
 
-    // Maximum sprites per batch
+    // Maximum sprites per GPU batch (vertex buffer size)
     private final int maxBatchSize;
 
-    // Batch data
-    private final List<BatchItem> dynamicItems;
-    private final List<BatchItem> staticItems;
+    // Submission buffers (unbounded)
+    private final List<SpriteSubmission> spriteSubmissions = new ArrayList<>();
+    private final List<TileSubmission> tileSubmissions = new ArrayList<>();
+
+    // Processed items for rendering
+    private final List<BatchItem> batchItems = new ArrayList<>();
+
+    // Vertex buffer (fixed size, reused each flush)
     private final FloatBuffer vertexBuffer;
 
     // OpenGL resources
     private int vao;
     private int vbo;
 
-    /**
-     * -- SETTER --
-     * Sets the sorting strategy.
-     */
-    // Sorting strategy
     @Getter
     @Setter
     private SortingStrategy sortingStrategy;
 
-    // Current batch state
     private boolean isBatching = false;
-    private boolean staticBatchDirty = true;
 
     // Statistics
     @Getter
     private int drawCalls = 0;
     @Getter
     private int totalSprites = 0;
-    @Getter
-    private int staticSpritesRendered = 0;
-    @Getter
-    private int dynamicSpritesRendered = 0;
 
     /**
      * Sorting strategies for batch rendering.
@@ -89,8 +84,37 @@ public class SpriteBatch {
         BALANCED
     }
 
+    // ========================================================================
+    // SUBMISSION RECORDS (buffered until end())
+    // ========================================================================
+
     /**
-     * Represents a sprite submitted to the batch.
+     * Buffered sprite submission from SpriteRenderer.
+     */
+    private record SpriteSubmission(
+            SpriteRenderer spriteRenderer,
+            Vector4f tintColor
+    ) {}
+
+    /**
+     * Buffered tile submission.
+     */
+    private record TileSubmission(
+            Sprite sprite,
+            float x,
+            float y,
+            float width,
+            float height,
+            float zIndex,
+            Vector4f tintColor
+    ) {}
+
+    // ========================================================================
+    // BATCH ITEM (created during processing)
+    // ========================================================================
+
+    /**
+     * Processed item ready for sorting and rendering.
      */
     private static class BatchItem {
         // For SpriteRenderer-based items
@@ -107,24 +131,22 @@ public class SpriteBatch {
         int textureId;
         float zIndex;
         float yPosition;
-        boolean isStatic;
         boolean isTile;
         Vector4f tintColor;
 
         // Constructor for SpriteRenderer
-        BatchItem(SpriteRenderer spriteRenderer, int textureId, float zIndex, float yPosition, boolean isStatic, Vector4f tintColor) {
+        BatchItem(SpriteRenderer spriteRenderer, int textureId, float zIndex, float yPosition, Vector4f tintColor) {
             this.spriteRenderer = spriteRenderer;
             this.textureId = textureId;
             this.zIndex = zIndex;
             this.yPosition = yPosition;
-            this.isStatic = isStatic;
             this.tintColor = tintColor;
             this.isTile = false;
         }
 
         // Constructor for Tile
         BatchItem(Sprite sprite, float x, float y, float width, float height,
-                  int textureId, float zIndex, boolean isStatic, Vector4f tintColor) {
+                  int textureId, float zIndex, Vector4f tintColor) {
             this.tileSprite = sprite;
             this.tileX = x;
             this.tileY = y;
@@ -133,7 +155,6 @@ public class SpriteBatch {
             this.textureId = textureId;
             this.zIndex = zIndex;
             this.yPosition = y;
-            this.isStatic = isStatic;
             this.tintColor = tintColor;
             this.isTile = true;
         }
@@ -142,8 +163,6 @@ public class SpriteBatch {
     public SpriteBatch(RenderingConfig config) {
         this.maxBatchSize = config.getMaxBatchSize();
         this.sortingStrategy = config.getSortingStrategy();
-        dynamicItems = new ArrayList<>(maxBatchSize);
-        staticItems = new ArrayList<>(maxBatchSize);
 
         // Allocate vertex buffer (off-heap for performance)
         int bufferSize = maxBatchSize * VertexLayout.FLOATS_PER_SPRITE;
@@ -152,9 +171,6 @@ public class SpriteBatch {
         initGL();
     }
 
-    /**
-     * Initializes OpenGL resources.
-     */
     private void initGL() {
         vao = glGenVertexArrays();
         vbo = glGenBuffers();
@@ -166,7 +182,6 @@ public class SpriteBatch {
         int bufferSizeBytes = maxBatchSize * VertexLayout.BYTES_PER_SPRITE;
         glBufferData(GL_ARRAY_BUFFER, bufferSizeBytes, GL_DYNAMIC_DRAW);
 
-        // Setup vertex attributes using VertexLayout
         VertexLayout.setupVertexAttributes();
 
         glBindVertexArray(0);
@@ -177,18 +192,18 @@ public class SpriteBatch {
     }
 
     /**
-     * Begins a new batch.
+     * Begins a new batch frame.
      */
     public void begin() {
         if (isBatching) {
             throw new IllegalStateException("Already batching! Call end() first.");
         }
 
-        dynamicItems.clear();
+        spriteSubmissions.clear();
+        tileSubmissions.clear();
+        batchItems.clear();
         drawCalls = 0;
         totalSprites = 0;
-        staticSpritesRendered = 0;
-        dynamicSpritesRendered = 0;
         isBatching = true;
     }
 
@@ -205,28 +220,7 @@ public class SpriteBatch {
             return;
         }
 
-        // Get sprite properties
-        int textureId = sprite.getTexture().getTextureId();
-        Transform transform = spriteRenderer.getGameObject().getTransform();
-
-        // Use SpriteRenderer.zIndex for sorting (NOT transform.position.z!)
-        float zIndex = spriteRenderer.getZIndex();
-        float yPosition = transform.getPosition().y;
-        boolean isStatic = spriteRenderer.isStatic();
-
-        // Create batch item
-        BatchItem item = new BatchItem(spriteRenderer, textureId, zIndex, yPosition, isStatic, tintColor);
-
-        // Add to appropriate list
-        if (isStatic) {
-            // Static sprites only need to be added once
-            if (staticBatchDirty) { // TODO: Does this work ? What is staticBatchDirty is false and this item hasn't been added yet ?
-                staticItems.add(item);
-            }
-        } else {
-            dynamicItems.add(item);
-        }
-
+        spriteSubmissions.add(new SpriteSubmission(spriteRenderer, tintColor));
         totalSprites++;
     }
 
@@ -236,11 +230,6 @@ public class SpriteBatch {
 
     /**
      * Submits all tiles from a chunk to the batch.
-     * More efficient than calling submitTile for each tile individually.
-     *
-     * @param tilemapRenderer The tilemap
-     * @param cx              Chunk X coordinate
-     * @param cy              Chunk Y coordinate
      */
     public void submitChunk(TilemapRenderer tilemapRenderer, int cx, int cy, Vector4f tintColor) {
         if (!isBatching) {
@@ -255,7 +244,6 @@ public class SpriteBatch {
         Vector3f tilemapPos = tilemapRenderer.getGameObject().getTransform().getPosition();
         float tileSize = tilemapRenderer.getTileSize();
         float zIndex = tilemapRenderer.getZIndex();
-        boolean isStatic = tilemapRenderer.isStatic();
 
         int chunkSize = TilemapRenderer.TileChunk.CHUNK_SIZE;
         int baseX = cx * chunkSize;
@@ -270,27 +258,15 @@ public class SpriteBatch {
                     continue;
                 }
 
-                Sprite sprite = tile.sprite();
-                int textureId = sprite.getTexture().getTextureId();
-
                 int tileX = baseX + tx;
                 int tileY = baseY + ty;
 
                 float worldX = tilemapPos.x + (tileX * tileSize);
                 float worldY = tilemapPos.y + (tileY * tileSize);
 
-                // Use tile size for dimensions (sprites are scaled to fit)
-                BatchItem item = new BatchItem(sprite, worldX, worldY, tileSize, tileSize,
-                        textureId, zIndex, isStatic, tintColor);
-
-                if (isStatic) {
-                    if (staticBatchDirty) {
-                        staticItems.add(item);
-                    }
-                } else {
-                    dynamicItems.add(item);
-                }
-
+                tileSubmissions.add(new TileSubmission(
+                        tile.sprite(), worldX, worldY, tileSize, tileSize, zIndex, tintColor
+                ));
                 totalSprites++;
             }
         }
@@ -299,14 +275,6 @@ public class SpriteBatch {
     /**
      * Draws a sprite directly without requiring a SpriteRenderer.
      * Useful for editor previews, UI elements, etc.
-     *
-     * @param sprite Sprite to draw
-     * @param x      World X position (left edge)
-     * @param y      World Y position (bottom edge)
-     * @param width  Width in world units
-     * @param height Height in world units
-     * @param zIndex Z-index for sorting
-     * @param tint   Tint color
      */
     public void draw(Sprite sprite, float x, float y, float width, float height, float zIndex, Vector4f tint) {
         if (!isBatching) {
@@ -317,9 +285,7 @@ public class SpriteBatch {
             return;
         }
 
-        int textureId = sprite.getTexture().getTextureId();
-        BatchItem item = new BatchItem(sprite, x, y, width, height, textureId, zIndex, false, tint);
-        dynamicItems.add(item);
+        tileSubmissions.add(new TileSubmission(sprite, x, y, width, height, zIndex, tint));
         totalSprites++;
     }
 
@@ -330,14 +296,7 @@ public class SpriteBatch {
         draw(sprite, x, y, width, height, zIndex, new Vector4f(1f, 1f, 1f, 1f));
     }
 
-    /**
-     * Marks the static batch as dirty, forcing a rebuild.
-     * Call this when static sprites are added/removed/modified.
-     */
-    public void markStaticBatchDirty() {
-        staticBatchDirty = true;
-        staticItems.clear();
-    }
+
 
     /**
      * Ends batching and renders everything.
@@ -347,24 +306,44 @@ public class SpriteBatch {
             throw new IllegalStateException("Not batching! Call begin() first.");
         }
 
-        // Render static sprites (only rebuild if dirty)
-        if (!staticItems.isEmpty()) {
-            if (staticBatchDirty) {
-                sortItems(staticItems);
-                staticBatchDirty = false;
-            }
-            staticSpritesRendered = staticItems.size();
-            flushItems(staticItems);
-        }
-
-        // Render dynamic sprites (always rebuild)
-        if (!dynamicItems.isEmpty()) {
-            sortItems(dynamicItems);
-            dynamicSpritesRendered = dynamicItems.size();
-            flushItems(dynamicItems);
-        }
-
+        processBatches();
         isBatching = false;
+    }
+
+    /**
+     * Converts submissions to BatchItems, sorts globally, and renders in batches.
+     */
+    private void processBatches() {
+        // Convert sprite submissions to batch items
+        for (SpriteSubmission sub : spriteSubmissions) {
+            SpriteRenderer sr = sub.spriteRenderer();
+            Sprite sprite = sr.getSprite();
+            int textureId = sprite.getTexture().getTextureId();
+            Transform transform = sr.getGameObject().getTransform();
+            float zIndex = sr.getZIndex();
+            float yPosition = transform.getPosition().y;
+
+            batchItems.add(new BatchItem(sr, textureId, zIndex, yPosition, sub.tintColor()));
+        }
+
+        // Convert tile submissions to batch items
+        for (TileSubmission sub : tileSubmissions) {
+            int textureId = sub.sprite().getTexture().getTextureId();
+            batchItems.add(new BatchItem(
+                    sub.sprite(), sub.x(), sub.y(), sub.width(), sub.height(),
+                    textureId, sub.zIndex(), sub.tintColor()
+            ));
+        }
+
+        if (batchItems.isEmpty()) {
+            return;
+        }
+
+        // Global sort
+        sortItems(batchItems);
+
+        // Render with auto-flush
+        renderWithAutoFlush();
     }
 
     /**
@@ -400,7 +379,6 @@ public class SpriteBatch {
 
             case BALANCED:
                 // Z-index → Texture (group nearby Y) → Y-position
-                // Note: tolerance is now in world units (was 64 pixels, now ~4 world units)
                 items.sort((a, b) -> {
                     int zCompare = Float.compare(a.zIndex, b.zIndex);
                     if (zCompare != 0) return zCompare;
@@ -420,52 +398,54 @@ public class SpriteBatch {
     }
 
     /**
-     * Flushes a list of items to the GPU.
-     * Groups sprites by texture and renders each group.
+     * Renders all batch items, automatically flushing when buffer is full.
+     * Groups consecutive same-texture items for efficient batching.
      */
-    private void flushItems(List<BatchItem> items) {
-        if (items.isEmpty()) return;
-
+    private void renderWithAutoFlush() {
         int currentTextureId = -1;
-        int batchStart = 0;
+        int batchStartIndex = 0;
+        int spriteCountInBuffer = 0;
 
-        for (int i = 0; i <= items.size(); i++) {
-            boolean needsFlush;
-            int textureId = -1;
+        for (int i = 0; i < batchItems.size(); i++) {
+            BatchItem item = batchItems.get(i);
 
-            if (i < items.size()) {
-                textureId = items.get(i).textureId;
-                needsFlush = (textureId != currentTextureId && currentTextureId != -1);
-            } else {
-                needsFlush = true; // Flush remaining items
+            // Check if we need to flush due to texture change
+            boolean textureChanged = (item.textureId != currentTextureId && currentTextureId != -1);
+
+            // Check if we need to flush due to buffer full
+            boolean bufferFull = (spriteCountInBuffer >= maxBatchSize);
+
+            if (textureChanged || bufferFull) {
+                // Flush current batch
+                if (spriteCountInBuffer > 0) {
+                    flushBuffer(currentTextureId, spriteCountInBuffer);
+                    spriteCountInBuffer = 0;
+                }
             }
 
-            if (needsFlush) {
-                renderBatch(items, batchStart, i, currentTextureId);
-                batchStart = i;
-            }
-
-            currentTextureId = textureId;
-        }
-    }
-
-    /**
-     * Renders a subset of items with the same texture.
-     */
-    private void renderBatch(List<BatchItem> items, int start, int end, int textureId) {
-        if (start >= end) return;
-        int count = end - start;
-
-        // Fill vertex buffer
-        vertexBuffer.clear();
-        for (int i = start; i < end; i++) {
-            BatchItem item = items.get(i);
+            // Add item to buffer
             if (item.isTile) {
                 addTileVertices(item);
             } else {
                 addSpriteVertices(item);
             }
+
+            currentTextureId = item.textureId;
+            spriteCountInBuffer++;
         }
+
+        // Flush remaining
+        if (spriteCountInBuffer > 0) {
+            flushBuffer(currentTextureId, spriteCountInBuffer);
+        }
+    }
+
+    /**
+     * Uploads vertex buffer to GPU and draws.
+     */
+    private void flushBuffer(int textureId, int spriteCount) {
+        if (spriteCount == 0) return;
+
         vertexBuffer.flip();
 
         // Upload to GPU
@@ -478,15 +458,17 @@ public class SpriteBatch {
 
         // Draw
         glBindVertexArray(vao);
-        glDrawArrays(GL_TRIANGLES, 0, count * VertexLayout.VERTICES_PER_SPRITE);
+        glDrawArrays(GL_TRIANGLES, 0, spriteCount * VertexLayout.VERTICES_PER_SPRITE);
         glBindVertexArray(0);
 
         drawCalls++;
+
+        // Reset buffer for next batch
+        vertexBuffer.clear();
     }
 
     /**
      * Adds vertex data for a tile to the vertex buffer.
-     * Tiles are axis-aligned (no rotation) and use bottom-left origin.
      */
     private void addTileVertices(BatchItem item) {
         Sprite sprite = item.tileSprite;
@@ -527,10 +509,6 @@ public class SpriteBatch {
 
     /**
      * Adds vertex data for a sprite to the vertex buffer.
-     * <p>
-     * Uses world units for all calculations:
-     * - Position from Transform (world units)
-     * - Size from Sprite.getWorldWidth/Height() (world units)
      */
     private void addSpriteVertices(BatchItem item) {
         SpriteRenderer spriteRenderer = item.spriteRenderer;
@@ -561,10 +539,10 @@ public class SpriteBatch {
         float x1 = pos.x + (width - originX);
         float y1 = pos.y + (height - originY);
 
-        float r = item.spriteRenderer.getTintColor().x * item.tintColor.x;
-        float g = item.spriteRenderer.getTintColor().y * item.tintColor.y;
-        float b = item.spriteRenderer.getTintColor().z * item.tintColor.z;
-        float a = item.spriteRenderer.getTintColor().w * item.tintColor.w;
+        float r = spriteRenderer.getTintColor().x * item.tintColor.x;
+        float g = spriteRenderer.getTintColor().y * item.tintColor.y;
+        float b = spriteRenderer.getTintColor().z * item.tintColor.z;
+        float a = spriteRenderer.getTintColor().w * item.tintColor.w;
 
         // Rotation (Z axis)
         float angle = (float) Math.toRadians(rotation.z);
@@ -576,27 +554,27 @@ public class SpriteBatch {
             float[] corners = rotateQuad(x0, y0, x1, y1, centerX, centerY, angle);
 
             // Triangle 1
-            putVertex(corners[0], corners[1], u0, v0, r, b, g, a); // Bottom-left
-            putVertex(corners[2], corners[3], u0, v1, r, b, g, a); // Top-left
-            putVertex(corners[4], corners[5], u1, v1, r, b, g, a); // Top-right
+            putVertex(corners[0], corners[1], u0, v0, r, g, b, a);
+            putVertex(corners[2], corners[3], u0, v1, r, g, b, a);
+            putVertex(corners[4], corners[5], u1, v1, r, g, b, a);
 
             // Triangle 2
-            putVertex(corners[0], corners[1], u0, v0, r, g, b, a); // Bottom-left
-            putVertex(corners[4], corners[5], u1, v1, r, g, b, a); // Top-right
-            putVertex(corners[6], corners[7], u1, v0, r, g, b, a); // Bottom-right
+            putVertex(corners[0], corners[1], u0, v0, r, g, b, a);
+            putVertex(corners[4], corners[5], u1, v1, r, g, b, a);
+            putVertex(corners[6], corners[7], u1, v0, r, g, b, a);
 
         } else {
             // No rotation — fast path
 
             // Triangle 1
-            putVertex(x0, y0, u0, v0, r, g, b, a); // Bottom-left
-            putVertex(x0, y1, u0, v1, r, g, b, a); // Top-left
-            putVertex(x1, y1, u1, v1, r, g, b, a); // Top-right
+            putVertex(x0, y0, u0, v0, r, g, b, a);
+            putVertex(x0, y1, u0, v1, r, g, b, a);
+            putVertex(x1, y1, u1, v1, r, g, b, a);
 
             // Triangle 2
-            putVertex(x0, y0, u0, v0, r, g, b, a); // Bottom-left
-            putVertex(x1, y1, u1, v1, r, g, b, a); // Top-right
-            putVertex(x1, y0, u1, v0, r, g, b, a); // Bottom-right
+            putVertex(x0, y0, u0, v0, r, g, b, a);
+            putVertex(x1, y1, u1, v1, r, g, b, a);
+            putVertex(x1, y0, u1, v0, r, g, b, a);
         }
     }
 
@@ -611,19 +589,12 @@ public class SpriteBatch {
 
         float[] corners = new float[8];
 
-        // Bottom-left (x0, y0)
         corners[0] = rotateX(x0, y0, centerX, centerY, cos, sin);
         corners[1] = rotateY(x0, y0, centerX, centerY, cos, sin);
-
-        // Top-left (x0, y1)
         corners[2] = rotateX(x0, y1, centerX, centerY, cos, sin);
         corners[3] = rotateY(x0, y1, centerX, centerY, cos, sin);
-
-        // Top-right (x1, y1)
         corners[4] = rotateX(x1, y1, centerX, centerY, cos, sin);
         corners[5] = rotateY(x1, y1, centerX, centerY, cos, sin);
-
-        // Bottom-right (x1, y0)
         corners[6] = rotateX(x1, y0, centerX, centerY, cos, sin);
         corners[7] = rotateY(x1, y0, centerX, centerY, cos, sin);
 
@@ -652,4 +623,5 @@ public class SpriteBatch {
             MemoryUtil.memFree(vertexBuffer);
         }
     }
+
 }

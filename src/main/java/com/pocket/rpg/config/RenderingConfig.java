@@ -85,7 +85,7 @@ import org.joml.Vector4f;
  *
  * @see com.pocket.rpg.rendering.Sprite#getWorldWidth()
  * @see com.pocket.rpg.rendering.Sprite#getWorldHeight()
- * @see com.pocket.rpg.core.Camera#setOrthographicSize(float)
+ * @see com.pocket.rpg.core.GameCamera#setOrthographicSize(float)
  */
 @Data
 @Builder
@@ -215,7 +215,7 @@ public class RenderingConfig {
      * Default: null (auto-calculate for pixel-perfect rendering)
      *
      * @see #getDefaultOrthographicSize(int)
-     * @see com.pocket.rpg.core.Camera#setOrthographicSize(float)
+     * @see com.pocket.rpg.core.GameCamera#setOrthographicSize(float)
      */
     @Builder.Default
     private Float defaultOrthographicSize = null;

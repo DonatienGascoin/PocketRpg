@@ -41,6 +41,27 @@ public class FieldEditors {
     private static String assetPickerFieldName = null;
     private static EditorEntity assetPickerTargetEntity = null;
 
+    private static final float LABEL_WIDTH = 120f;
+
+    private static void inspectorRow(String label, Runnable field) {
+        // Measure label width
+        float textWidth = ImGui.calcTextSize(label).x;
+
+        ImGui.text(label);
+
+        // Show tooltip if label exceeds column width
+        if (textWidth > LABEL_WIDTH) {
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip(label);
+            }
+        }
+
+        ImGui.sameLine(LABEL_WIDTH);
+        ImGui.setNextItemWidth(-1);
+        field.run();
+    }
+
+
     // ========================================================================
     // PRIMITIVES
     // ========================================================================
@@ -54,50 +75,65 @@ public class FieldEditors {
         intBuffer.set(intValue);
 
         ImGui.pushID(key);
-        boolean changed = ImGui.inputInt(label, intBuffer);
+
+        final boolean[] changed = {false};
+        inspectorRow(label, () -> {
+            changed[0] = ImGui.inputInt("##" + key, intBuffer);
+        });
+
         ImGui.popID();
 
-        if (changed) {
+        if (changed[0]) {
             fields.put(key, intBuffer.get());
         }
-        return changed;
+        return changed[0];
     }
+
 
     /**
      * Draws a float drag field.
      */
     public static boolean drawFloat(String label, Map<String, Object> fields, String key, float speed) {
         Object value = fields.get(key);
-        float floatValue = value instanceof Number n ? n.floatValue() : 0f;
-        floatBuffer[0] = floatValue;
+        floatBuffer[0] = value instanceof Number n ? n.floatValue() : 0f;
 
         ImGui.pushID(key);
-        boolean changed = ImGui.dragFloat(label, floatBuffer, speed);
+
+        final boolean[] changed = {false};
+        inspectorRow(label, () -> {
+            changed[0] = ImGui.dragFloat("##" + key, floatBuffer, speed);
+        });
+
         ImGui.popID();
 
-        if (changed) {
+        if (changed[0]) {
             fields.put(key, floatBuffer[0]);
         }
-        return changed;
+        return changed[0];
     }
+
 
     /**
      * Draws a float drag field with min/max constraints.
      */
-    public static boolean drawFloat(String label, Map<String, Object> fields, String key, 
+    public static boolean drawFloat(String label, Map<String, Object> fields, String key,
                                      float speed, float min, float max) {
         Object value = fields.get(key);
-        float floatValue = value instanceof Number n ? n.floatValue() : 0f;
-        floatBuffer[0] = floatValue;
+        floatBuffer[0] = value instanceof Number n ? n.floatValue() : 0f;
 
         ImGui.pushID(key);
-        boolean changed = ImGui.dragFloat(label, floatBuffer, speed, min, max);
+
+        final boolean[] changed = {false};
+        inspectorRow(label, () -> {
+            changed[0] = ImGui.dragFloat("##" + key, floatBuffer, speed, min, max);
+        });
+
         ImGui.popID();
 
-        if (changed) {
+        if (changed[0]) {
             fields.put(key, floatBuffer[0]);
         }
-        return changed;
+        return changed[0];
     }
 
     /**
@@ -108,13 +144,18 @@ public class FieldEditors {
         boolean boolValue = value instanceof Boolean b && b;
 
         ImGui.pushID(key);
-        boolean changed = ImGui.checkbox(label, boolValue);
+
+        final boolean[] changed = {false};
+        inspectorRow(label, () -> {
+            changed[0] = ImGui.checkbox("##" + key, boolValue);
+        });
+
         ImGui.popID();
 
-        if (changed) {
-            fields.put(key, !boolValue);
+        if (changed[0]) {
+            fields.put(key, floatBuffer[0]);
         }
-        return changed;
+        return changed[0];
     }
 
     /**
@@ -126,13 +167,18 @@ public class FieldEditors {
         stringBuffer.set(strValue);
 
         ImGui.pushID(key);
-        boolean changed = ImGui.inputText(label, stringBuffer);
+
+        final boolean[] changed = {false};
+        inspectorRow(label, () -> {
+            changed[0] = ImGui.inputText("##" + key, stringBuffer);
+        });
+
         ImGui.popID();
 
-        if (changed) {
-            fields.put(key, stringBuffer.get());
+        if (changed[0]) {
+            fields.put(key, floatBuffer[0]);
         }
-        return changed;
+        return changed[0];
     }
 
     // ========================================================================
@@ -155,13 +201,18 @@ public class FieldEditors {
         floatBuffer[1] = vec.y;
 
         ImGui.pushID(key);
-        boolean changed = ImGui.dragFloat2(label, floatBuffer, speed);
+
+        final boolean[] changed = {false};
+        inspectorRow(label, () -> {
+            changed[0] = ImGui.dragFloat2("##" + key, floatBuffer, speed);
+        });
+
         ImGui.popID();
 
-        if (changed) {
+        if (changed[0]) {
             fields.put(key, new Vector2f(floatBuffer[0], floatBuffer[1]));
         }
-        return changed;
+        return changed[0];
     }
 
     /**
@@ -181,13 +232,18 @@ public class FieldEditors {
         floatBuffer[2] = vec.z;
 
         ImGui.pushID(key);
-        boolean changed = ImGui.dragFloat3(label, floatBuffer, speed);
+
+        final boolean[] changed = {false};
+        inspectorRow(label, () -> {
+            changed[0] = ImGui.dragFloat3("##" + key, floatBuffer, speed);
+        });
+
         ImGui.popID();
 
-        if (changed) {
+        if (changed[0]) {
             fields.put(key, new Vector3f(floatBuffer[0], floatBuffer[1], floatBuffer[2]));
         }
-        return changed;
+        return changed[0];
     }
 
     /**
@@ -201,13 +257,18 @@ public class FieldEditors {
         floatBuffer[3] = vec.w;
 
         ImGui.pushID(key);
-        boolean changed = ImGui.colorEdit4(label, floatBuffer);
+
+        final boolean[] changed = {false};
+        inspectorRow(label, () -> {
+            changed[0] = ImGui.colorEdit4("##" + key, floatBuffer);
+        });
+
         ImGui.popID();
 
-        if (changed) {
-            fields.put(key, new Vector4f(floatBuffer[0], floatBuffer[1], floatBuffer[2], floatBuffer[3]));
+        if (changed[0]) {
+            fields.put(key, new Vector2f(floatBuffer[0], floatBuffer[1]));
         }
-        return changed;
+        return changed[0];
     }
 
     /**
@@ -221,13 +282,18 @@ public class FieldEditors {
         floatBuffer[3] = vec.w;
 
         ImGui.pushID(key);
-        boolean changed = ImGui.dragFloat4(label, floatBuffer, 0.1f);
+
+        final boolean[] changed = {false};
+        inspectorRow(label, () -> {
+            changed[0] = ImGui.dragFloat4("##" + key, floatBuffer, 0.1f);
+        });
+
         ImGui.popID();
 
-        if (changed) {
-            fields.put(key, new Vector4f(floatBuffer[0], floatBuffer[1], floatBuffer[2], floatBuffer[3]));
+        if (changed[0]) {
+            fields.put(key, new Vector2f(floatBuffer[0], floatBuffer[1]));
         }
-        return changed;
+        return changed[0];
     }
 
     // ========================================================================
@@ -260,70 +326,75 @@ public class FieldEditors {
         intBuffer.set(currentIndex);
 
         ImGui.pushID(key);
-        boolean changed = ImGui.combo(label, intBuffer, names);
+
+        final boolean[] changed = {false};
+        inspectorRow(label, () -> {
+            changed[0] = ImGui.combo("##" + key, intBuffer, names);
+        });
+
         ImGui.popID();
 
-        if (changed) {
+        if (changed[0]) {
             fields.put(key, constants[intBuffer.get()].toString());
         }
-        return changed;
+        return changed[0];
     }
+
 
     // ========================================================================
     // ASSETS
     // ========================================================================
 
     /**
-     * Draws an asset picker field (Sprite or Texture).
-     * FIX: Display asset name as read-only text, not editable input
+     * Draws an asset picker field.
      */
     public static boolean drawAsset(String label, Map<String, Object> fields, String key,
-                                     Class<?> assetType, ComponentData data, EditorEntity entity) {
+                                    Class<?> assetType, ComponentData data, EditorEntity entity) {
         Object value = fields.get(key);
         String display = getAssetDisplayName(value, assetType);
 
         ImGui.pushID(key);
 
-        // Label
-        ImGui.text(label);
-        ImGui.sameLine(130);
+        inspectorRow(label, () -> {
 
-        // FIX: Display as colored text (green if set, gray if none)
-        if (value != null) {
-            ImGui.textColored(0.6f, 0.9f, 0.6f, 1.0f, display);
-        } else {
-            ImGui.textDisabled(display);
-        }
-
-        // Browse button
-        ImGui.sameLine();
-        if (ImGui.smallButton("...")) {
-            assetPickerTargetData = data;
-            assetPickerFieldName = key;
-            assetPickerTargetEntity = entity;
-            Object oldValue = fields.get(key);
-            
-            // Get current path for initial selection
-            String currentPath = null;
-            if (oldValue instanceof Sprite sprite) {
-                currentPath = sprite.getTexture() != null ? sprite.getTexture().getFilePath() : null;
-            } else if (oldValue instanceof Texture texture) {
-                currentPath = texture.getFilePath();
+            if (value != null) {
+                ImGui.textColored(0.6f, 0.9f, 0.6f, 1.0f, display);
+            } else {
+                ImGui.textDisabled(display);
             }
-            
-            assetPicker.open(assetType, currentPath, selectedAsset -> {
-                if (assetPickerTargetData != null && assetPickerFieldName != null) {
-                    UndoManager.getInstance().execute(
-                            new SetComponentFieldCommand(assetPickerTargetData, assetPickerFieldName,
-                                    oldValue, selectedAsset, assetPickerTargetEntity)
-                    );
+
+            ImGui.sameLine();
+            if (ImGui.smallButton("...")) {
+                assetPickerTargetData = data;
+                assetPickerFieldName = key;
+                assetPickerTargetEntity = entity;
+                Object oldValue = fields.get(key);
+
+                String currentPath = null;
+                if (oldValue instanceof Sprite sprite && sprite.getTexture() != null) {
+                    currentPath = sprite.getTexture().getFilePath();
+                } else if (oldValue instanceof Texture texture) {
+                    currentPath = texture.getFilePath();
                 }
-            });
-        }
+
+                assetPicker.open(assetType, currentPath, selectedAsset -> {
+                    UndoManager.getInstance().execute(
+                            new SetComponentFieldCommand(
+                                    assetPickerTargetData,
+                                    assetPickerFieldName,
+                                    oldValue,
+                                    selectedAsset,
+                                    assetPickerTargetEntity
+                            )
+                    );
+                });
+            }
+        });
 
         ImGui.popID();
-        return false; // Asset changes handled via undo command
+        return false;
     }
+
 
     /**
      * Renders the asset picker popup. Call once per frame from InspectorPanel.
@@ -344,11 +415,16 @@ public class FieldEditors {
         String display = value != null ? value.toString() : "(null)";
 
         ImGui.pushID(key);
-        ImGui.labelText(label, display);
-        ImGui.sameLine();
-        ImGui.textDisabled("(read-only: " + typeName + ")");
+
+        inspectorRow(label, () -> {
+            ImGui.textDisabled(display);
+            ImGui.sameLine();
+            ImGui.textDisabled("(read-only: " + typeName + ")");
+        });
+
         ImGui.popID();
     }
+
 
     // ========================================================================
     // VECTOR GETTERS (handle multiple storage formats)

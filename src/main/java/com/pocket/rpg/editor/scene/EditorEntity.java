@@ -11,12 +11,7 @@ import lombok.Setter;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Editor-side representation of a placed entity instance.
@@ -35,6 +30,8 @@ public class EditorEntity {
     private String name;
 
     private final Vector3f position;
+    private final Vector3f rotation;
+    private final Vector3f scale;
 
     private List<ComponentData> components;
 
@@ -71,6 +68,8 @@ public class EditorEntity {
         this.componentOverrides = new HashMap<>();
         this.children = new ArrayList<>();
         this.order = 0;
+        this.rotation = new Vector3f(0);
+        this.scale = new Vector3f(1);
     }
 
     public EditorEntity(String name, Vector3f position, boolean isPrefab) {
@@ -80,6 +79,8 @@ public class EditorEntity {
         this.position = new Vector3f(position);
         this.children = new ArrayList<>();
         this.order = 0;
+        this.rotation = new Vector3f(0);
+        this.scale = new Vector3f(1);
 
         if (isPrefab) {
             this.componentOverrides = new HashMap<>();
@@ -96,6 +97,8 @@ public class EditorEntity {
         this.prefabId = prefabId;
         this.name = name;
         this.position = new Vector3f(position);
+        this.rotation = new Vector3f(0);
+        this.scale = new Vector3f(1);
         this.components = components;
         this.componentOverrides = componentOverrides != null ? new HashMap<>(componentOverrides) : new HashMap<>();
         this.parentId = parentId;
@@ -208,6 +211,42 @@ public class EditorEntity {
 
     public void setPosition(Vector3f pos) {
         position.set(pos);
+    }
+
+    // ========================================================================
+    // ROTATION
+    // ========================================================================
+
+    public Vector3f getRotation() {
+        return new Vector3f(rotation);
+    }
+
+    public void setRotation(Vector3f rotation) {
+        this.rotation.set(rotation);
+    }
+
+    public void setRotation(float z) {
+        rotation.set(0, 0, z);
+    }
+
+    // ========================================================================
+    // SCALE
+    // ========================================================================
+
+    public Vector3f getScale() {
+        return new Vector3f(scale);
+    }
+
+    public void setScale(Vector3f scale) {
+        this.scale.set(scale);
+    }
+
+    public void setScale(Vector2f scale) {
+        this.scale.set(scale, this.scale.z);
+    }
+
+    public void setScale(float x, float y) {
+        scale.set(x, y, 1);
     }
 
     // ========================================================================

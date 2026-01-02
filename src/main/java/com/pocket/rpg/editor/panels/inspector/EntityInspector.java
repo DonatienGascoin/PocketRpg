@@ -6,10 +6,7 @@ import com.pocket.rpg.editor.panels.SavePrefabPopup;
 import com.pocket.rpg.editor.scene.EditorEntity;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.undo.UndoManager;
-import com.pocket.rpg.editor.undo.commands.AddComponentCommand;
-import com.pocket.rpg.editor.undo.commands.MoveEntityCommand;
-import com.pocket.rpg.editor.undo.commands.RemoveComponentCommand;
-import com.pocket.rpg.editor.undo.commands.RemoveEntityCommand;
+import com.pocket.rpg.editor.undo.commands.*;
 import com.pocket.rpg.editor.utils.IconUtils;
 import com.pocket.rpg.prefab.Prefab;
 import com.pocket.rpg.serialization.ComponentData;
@@ -74,24 +71,13 @@ public class EntityInspector {
         if (ImGui.isItemHovered()) ImGui.setTooltip("Delete Entity");
 
         ImGui.separator();
-        renderPositionEditor(entity);
 
-        if (entity.getParent() != null) {
-            ImGui.textDisabled("Parent: " + entity.getParent().getName());
-        }
-        if (entity.hasChildren()) {
-            ImGui.textDisabled("Children: " + entity.getChildren().size());
-        }
-
-        ImGui.separator();
 
         if (entity.isPrefabInstance()) {
             renderPrefabInfo(entity);
-            ImGui.separator();
-        } else {
-            ImGui.textDisabled("Scratch Entity");
         }
 
+        renderTransformEditor(entity);
         renderComponentList(entity);
         componentBrowserPopup.render();
         savePrefabPopup.render();
@@ -136,44 +122,103 @@ public class EntityInspector {
         }
     }
 
-    private void renderPositionEditor(EditorEntity entity) {
+    private Vector3f dragStartRotation = null;
+    private Vector3f dragStartScale = null;
+    private static final String transformHeader = "Transform";
+
+    private void renderTransformEditor(EditorEntity entity) {
+        boolean open = ImGui.collapsingHeader(transformHeader, ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.AllowOverlap);
+        if (!open) {
+            return;
+        }
+
+        // ===== POSITION =====
         Vector3f pos = entity.getPosition();
         floatBuffer[0] = pos.x;
         floatBuffer[1] = pos.y;
 
-        if (ImGui.isItemActive() && draggingEntity != entity) {
-            draggingEntity = entity;
-            dragStartPosition = new Vector3f(pos);
-        }
-
-        if (ImGui.dragFloat2("Position", floatBuffer, 0.1f)) {
-            entity.setPosition(floatBuffer[0], floatBuffer[1]);
-            scene.markDirty();
-        }
-
-        if (draggingEntity == entity && !ImGui.isItemActive()) {
-            Vector3f newPos = entity.getPosition();
-            if (!newPos.equals(dragStartPosition)) {
-                UndoManager.getInstance().execute(new NoOpWrapperCommand(null, entity, dragStartPosition));
+        inspectorRow("Position", () -> {
+            if (ImGui.dragFloat2("##Position", floatBuffer, 0.1f)) {
+                entity.setPosition(floatBuffer[0], floatBuffer[1]);
+                scene.markDirty();
             }
-            draggingEntity = null;
-            dragStartPosition = null;
-        }
 
-        ImGui.sameLine();
-        if (ImGui.smallButton("Snap")) {
-            Vector3f oldPos = new Vector3f(entity.getPosition());
-            entity.setPosition(Math.round(pos.x * 2) / 2f, Math.round(pos.y));
-            Vector3f newPos = entity.getPosition();
-            if (!newPos.equals(oldPos)) {
-                UndoManager.getInstance().execute(new MoveEntityCommand(entity, oldPos, newPos) {
-                    @Override
-                    public void execute() {
-                    }
-                });
+            if (ImGui.isItemActivated()) {
+                draggingEntity = entity;
+                dragStartPosition = new Vector3f(pos);
             }
-            scene.markDirty();
-        }
+
+            if (ImGui.isItemDeactivatedAfterEdit() && draggingEntity == entity) {
+                Vector3f newPos = entity.getPosition();
+                if (!newPos.equals(dragStartPosition)) {
+                    UndoManager.getInstance().execute(
+                            new MoveEntityCommand(entity, dragStartPosition, newPos)
+                    );
+                }
+                draggingEntity = null;
+                dragStartPosition = null;
+            }
+        });
+
+        // ===== ROTATION =====
+        Vector3f rotation = entity.getRotation();
+        floatBuffer[0] = rotation.z;
+
+        inspectorRow("Rotation", () -> {
+            if (ImGui.dragFloat("##Rotation", floatBuffer, 0.5f)) {
+                entity.setRotation(floatBuffer[0]);
+                scene.markDirty();
+            }
+
+            if (ImGui.isItemActivated()) {
+                dragStartRotation = rotation;
+            }
+
+            if (ImGui.isItemDeactivatedAfterEdit() && dragStartRotation != null) {
+                if (!dragStartRotation.equals(entity.getRotation())) {
+                    UndoManager.getInstance().execute(
+                            new RotateEntityCommand(entity, dragStartRotation, entity.getRotation())
+                    );
+                }
+                dragStartRotation = null;
+            }
+        });
+
+        // ===== SCALE =====
+        Vector3f scale = entity.getScale();
+        floatBuffer[0] = scale.x;
+        floatBuffer[1] = scale.y;
+
+        inspectorRow("Scale", () -> {
+            if (ImGui.dragFloat2("##Scale", floatBuffer, 0.01f)) {
+                entity.setScale(floatBuffer[0], floatBuffer[1]);
+                scene.markDirty();
+            }
+
+            if (ImGui.isItemActivated()) {
+                dragStartScale = new Vector3f(scale);
+            }
+
+            if (ImGui.isItemDeactivatedAfterEdit() && dragStartScale != null) {
+                Vector3f newScale = entity.getScale();
+                if (!newScale.equals(dragStartScale)) {
+                    UndoManager.getInstance().execute(
+                            new ScaleEntityCommand(entity, dragStartScale, newScale)
+                    );
+                }
+                dragStartScale = null;
+            }
+        });
+    }
+
+
+    private static final float LABEL_WIDTH = 90f;
+
+    private void inspectorRow(String label, Runnable field) {
+        ImGui.text(label);
+        ImGui.sameLine(LABEL_WIDTH);
+        ImGui.setNextItemWidth(-1);
+        field.run();
     }
 
     private void renderPrefabInfo(EditorEntity entity) {
@@ -224,11 +269,11 @@ public class EntityInspector {
                 }
 
                 if (open) {
-                    ImGui.indent();
+                  //  ImGui.indent();
                     if (fieldEditor.renderComponentFields(entity, comp, isPrefab)) {
                         scene.markDirty();
                     }
-                    ImGui.unindent();
+                    // ImGui.unindent();
                 }
 
                 ImGui.popID();

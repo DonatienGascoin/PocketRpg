@@ -72,7 +72,7 @@ public class PrefabRegistry {
 
         // Try to load default preview sprite
         try {
-            registry.defaultPreviewSprite = Assets.load("editor/prefabDefault.png");
+            registry.defaultPreviewSprite = Assets.load("editor/prefabDefault.png"); // TODO: Can't work: always appending gameData/assets/
         } catch (Exception e) {
             System.out.println("Default prefab preview sprite not found, using null");
             registry.defaultPreviewSprite = null;

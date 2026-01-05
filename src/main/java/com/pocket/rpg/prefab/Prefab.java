@@ -112,6 +112,7 @@ public interface Prefab {
                 continue;
             }
 
+            System.out.println("DEBUG: Applying overrides: " + overrides);
             // Apply overrides for this component type
             if (overrides != null) {
                 Map<String, Object> fieldOverrides = overrides.get(compData.getType());
@@ -141,7 +142,12 @@ public interface Prefab {
                 try {
                     Field field = fieldMeta.field();
                     field.setAccessible(true);
-                    field.set(component, override);
+
+                    // Convert override value to proper type
+                    Object converted = ComponentData.fromSerializable(override, field.getType());
+                    field.set(component, converted);
+
+                    System.out.println("DEBUG: Set field " + field.getName() + " = " + converted);
                 } catch (Exception e) {
                     System.err.println("Failed to apply override for " + fieldMeta.name() + ": " + e.getMessage());
                 }

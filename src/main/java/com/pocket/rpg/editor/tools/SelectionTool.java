@@ -157,7 +157,7 @@ public class SelectionTool implements EditorTool, ViewportAwareTool {
      */
     private void renderSelectionHighlight(ImDrawList drawList, EditorCamera camera, EditorEntity entity) {
         Vector3f pos = entity.getPositionRef();
-        Vector2f size = entity.getPreviewSize();
+        Vector2f size = entity.getCurrentSize();
 
         if (size == null) {
             size = new Vector2f(1f, 1f);
@@ -208,7 +208,7 @@ public class SelectionTool implements EditorTool, ViewportAwareTool {
      */
     private void renderHoverHighlight(ImDrawList drawList, EditorCamera camera, EditorEntity entity) {
         Vector3f pos = entity.getPositionRef();
-        Vector2f size = entity.getPreviewSize();
+        Vector2f size = entity.getCurrentSize();
 
         if (size == null) {
             size = new Vector2f(1f, 1f);

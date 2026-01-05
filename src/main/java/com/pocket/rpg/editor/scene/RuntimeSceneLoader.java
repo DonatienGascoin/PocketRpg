@@ -1,6 +1,7 @@
 package com.pocket.rpg.editor.scene;
 
 import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.components.TilemapRenderer;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.core.GameObject;
@@ -156,6 +157,7 @@ public class RuntimeSceneLoader {
             // Only add root entities (no parent or parent not found in this batch)
             if (entityData != null && entityData.getParentId() == null) {
                 try {
+                    System.out.println("DEBUG: Adding root entity '" + go.getName() + "' to scene");
                     scene.addGameObject(go);
                 } catch (Exception e) {
                     System.err.println("Failed to add entity '" + entityData.getName() +
@@ -173,19 +175,23 @@ public class RuntimeSceneLoader {
                 }
             }
         }
+        System.out.println("DEBUG: Scene object count after adding entities: " + scene.getGameObjects().size());
     }
 
     /**
      * Creates a GameObject from entity data without adding to scene.
      */
     private GameObject createEntityGameObject(EntityData entityData) {
-        // Get position
         float[] pos = entityData.getPosition();
         Vector3f position = new Vector3f(
                 pos != null && pos.length >= 1 ? pos[0] : 0,
                 pos != null && pos.length >= 2 ? pos[1] : 0,
                 pos != null && pos.length >= 3 ? pos[2] : 0
         );
+
+        System.out.println("DEBUG: Creating entity '" + entityData.getName() +
+                "' isScratch=" + entityData.isScratchEntity() +
+                " prefabId=" + entityData.getPrefabId());
 
         if (entityData.isScratchEntity()) {
             return createScratchEntity(entityData, position);
@@ -299,15 +305,28 @@ public class RuntimeSceneLoader {
             return null;
         }
 
-        // Instantiate prefab with properties as overrides
+        System.out.println("DEBUG: Instantiating prefab '" + prefabId + "' at " + position);
+
         GameObject entity = prefab.instantiate(position, entityData.getComponentOverrides());
 
         if (entity != null) {
-            // Apply instance name if set
             String instanceName = entityData.getName();
             if (instanceName != null && !instanceName.isBlank()) {
                 entity.setName(instanceName);
             }
+            System.out.println("DEBUG: Created prefab instance: " + entity.getName() +
+                    " components=" + entity.getAllComponents().size());
+        } else {
+            System.err.println("DEBUG: prefab.instantiate() returned null for " + prefabId);
+        }
+
+        var sr = entity.getComponent(SpriteRenderer.class);
+        if (sr != null) {
+            System.out.println("DEBUG: Player SpriteRenderer - sprite=" + sr.getSprite() +
+                    " zIndex=" + sr.getZIndex() +
+                    " visible=" + sr.isRenderVisible());
+        } else {
+            System.out.println("DEBUG: Player has no SpriteRenderer!");
         }
 
         return entity;

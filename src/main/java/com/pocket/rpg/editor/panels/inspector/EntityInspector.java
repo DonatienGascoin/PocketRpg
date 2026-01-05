@@ -33,6 +33,7 @@ public class EntityInspector {
 
     private final ImString stringBuffer = new ImString(256);
     private final float[] floatBuffer = new float[4];
+    private final float[] floatBuffer1 = new float[4];
 
     private EditorEntity pendingDeleteEntity = null;
     private EditorEntity draggingEntity = null;
@@ -125,6 +126,24 @@ public class EntityInspector {
     private Vector3f dragStartRotation = null;
     private Vector3f dragStartScale = null;
     private static final String transformHeader = "Transform";
+    private static final float[] AXIS_X_COLOR = {0.85f, 0.3f, 0.3f, 1.0f};
+    private static final float[] AXIS_Y_COLOR = {0.3f, 0.85f, 0.3f, 1.0f};
+    private static final float[] AXIS_Z_COLOR = {0.3f, 0.5f, 0.95f, 1.0f};
+
+    private void axisLabel(String label, float[] color) {
+        ImGui.textColored(color[0], color[1], color[2], color[3], label);
+        ImGui.sameLine();
+    }
+
+    private float getAxisFieldWidth(int axisCount) {
+        float avail = ImGui.getContentRegionAvailX();
+        float label = ImGui.calcTextSize("X").x + ImGui.getStyle().getItemInnerSpacingX();
+        float spacing = ImGui.getStyle().getItemSpacingX();
+
+        float used = axisCount * (label + spacing);
+        return (avail - used) / axisCount;
+    }
+
 
     private void renderTransformEditor(EditorEntity entity) {
         boolean open = ImGui.collapsingHeader(transformHeader, ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.AllowOverlap);
@@ -135,11 +154,23 @@ public class EntityInspector {
         // ===== POSITION =====
         Vector3f pos = entity.getPosition();
         floatBuffer[0] = pos.x;
-        floatBuffer[1] = pos.y;
+        floatBuffer1[0] = pos.y;
 
         inspectorRow("Position", () -> {
-            if (ImGui.dragFloat2("##Position", floatBuffer, 0.1f)) {
-                entity.setPosition(floatBuffer[0], floatBuffer[1]);
+            ImGui.pushID("Position");
+            float axisWidth = getAxisFieldWidth(2);
+
+            axisLabel("X", AXIS_X_COLOR);
+            ImGui.setNextItemWidth(axisWidth);
+            boolean changedX = ImGui.dragFloat("##X", floatBuffer, 0.1f);
+            ImGui.sameLine();
+
+            axisLabel("Y", AXIS_Y_COLOR);
+            ImGui.setNextItemWidth(axisWidth);
+            boolean changedY = ImGui.dragFloat("##Y", floatBuffer1, 0.1f);
+
+            if (changedX || changedY) {
+                entity.setPosition(floatBuffer[0], floatBuffer1[0]);
                 scene.markDirty();
             }
 
@@ -158,20 +189,29 @@ public class EntityInspector {
                 draggingEntity = null;
                 dragStartPosition = null;
             }
+
+            ImGui.popID();
         });
+
 
         // ===== ROTATION =====
         Vector3f rotation = entity.getRotation();
         floatBuffer[0] = rotation.z;
 
         inspectorRow("Rotation", () -> {
-            if (ImGui.dragFloat("##Rotation", floatBuffer, 0.5f)) {
+            ImGui.pushID("Rotation");
+            float axisWidth = getAxisFieldWidth(2);
+
+            axisLabel("Z", AXIS_Z_COLOR);
+            ImGui.setNextItemWidth(axisWidth);
+
+            if (ImGui.dragFloat("##Z", floatBuffer, 0.5f)) {
                 entity.setRotation(floatBuffer[0]);
                 scene.markDirty();
             }
 
             if (ImGui.isItemActivated()) {
-                dragStartRotation = rotation;
+                dragStartRotation = new Vector3f(rotation);
             }
 
             if (ImGui.isItemDeactivatedAfterEdit() && dragStartRotation != null) {
@@ -182,16 +222,31 @@ public class EntityInspector {
                 }
                 dragStartRotation = null;
             }
+
+            ImGui.popID();
         });
+
 
         // ===== SCALE =====
         Vector3f scale = entity.getScale();
         floatBuffer[0] = scale.x;
-        floatBuffer[1] = scale.y;
+        floatBuffer1[0] = scale.y;
 
         inspectorRow("Scale", () -> {
-            if (ImGui.dragFloat2("##Scale", floatBuffer, 0.01f)) {
-                entity.setScale(floatBuffer[0], floatBuffer[1]);
+            ImGui.pushID("Scale");
+            float axisWidth = getAxisFieldWidth(2);
+
+            axisLabel("X", AXIS_X_COLOR);
+            ImGui.setNextItemWidth(axisWidth);
+            boolean changedX = ImGui.dragFloat("##X", floatBuffer, 0.01f);
+            ImGui.sameLine();
+
+            axisLabel("Y", AXIS_Y_COLOR);
+            ImGui.setNextItemWidth(axisWidth);
+            boolean changedY = ImGui.dragFloat("##Y", floatBuffer1, 0.01f);
+
+            if (changedX || changedY) {
+                entity.setScale(floatBuffer[0], floatBuffer1[0]);
                 scene.markDirty();
             }
 
@@ -208,8 +263,12 @@ public class EntityInspector {
                 }
                 dragStartScale = null;
             }
+
+            ImGui.popID();
         });
+
     }
+
 
 
     private static final float LABEL_WIDTH = 90f;

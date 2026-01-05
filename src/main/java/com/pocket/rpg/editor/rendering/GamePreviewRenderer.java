@@ -3,18 +3,15 @@ package com.pocket.rpg.editor.rendering;
 import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.core.ViewportConfig;
+import com.pocket.rpg.editor.camera.PreviewCamera;
 import com.pocket.rpg.editor.scene.EditorScene;
+import com.pocket.rpg.editor.scene.LayerUtils;
+import com.pocket.rpg.editor.scene.LayerUtils.LayerRenderInfo;
 import com.pocket.rpg.editor.scene.SceneCameraSettings;
-import com.pocket.rpg.editor.scene.TilemapLayer;
-import com.pocket.rpg.rendering.PreviewCamera;
 import com.pocket.rpg.rendering.SceneRenderingBackend;
 import com.pocket.rpg.rendering.SpriteBatch;
 import lombok.Getter;
 import org.joml.Vector4f;
-
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
 
 import static org.lwjgl.opengl.GL33.glViewport;
 
@@ -105,25 +102,8 @@ public class GamePreviewRenderer {
     }
 
     private void renderTilemapLayers(EditorScene scene) {
-        int layerCount = scene.getLayerCount();
-        if (layerCount == 0) return;
-
-        List<int[]> layerOrder = new ArrayList<>();
-        for (int i = 0; i < layerCount; i++) {
-            TilemapLayer layer = scene.getLayer(i);
-            if (layer != null && layer.isVisible()) {
-                layerOrder.add(new int[]{i, layer.getZIndex()});
-            }
-        }
-
-        layerOrder.sort(Comparator.comparingInt(a -> a[1]));
-
-        for (int[] pair : layerOrder) {
-            int layerIndex = pair[0];
-            TilemapLayer layer = scene.getLayer(layerIndex);
-            if (layer == null) continue;
-
-            backend.renderTilemap(layer.getTilemap());
+        for (LayerRenderInfo info : LayerUtils.getLayersForPreviewRendering(scene)) {
+            backend.renderTilemap(info.layer().getTilemap());
         }
     }
 

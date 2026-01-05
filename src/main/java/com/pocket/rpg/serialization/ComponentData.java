@@ -11,6 +11,7 @@ import org.joml.Vector3f;
 import org.joml.Vector4f;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -206,13 +207,68 @@ public class ComponentData {
      * Converts a serialized value back to the target type.
      */
     @SuppressWarnings("unchecked")
-    private static Object fromSerializable(Object value, Class<?> targetType) {
+    public static Object fromSerializable(Object value, Class<?> targetType) {
         if (value == null) {
             return null;
         }
 
-        // Handle arrays → Vectors
-        if (value instanceof List<?> list) {
+        // Handle Map objects (from Gson deserialization)
+        if (value instanceof Map<?, ?> map) {
+            // Custom asset types with _type marker
+            if (map.containsKey("_type")) {
+                String assetType = (String) map.get("_type");
+                String path = (String) map.get("path");
+
+                if ("Sprite".equals(assetType)) {
+                    return Assets.load(path, Sprite.class);
+                }
+                if ("Texture".equals(assetType)) {
+                    return Assets.load(path, Texture.class);
+                }
+                if ("Font".equals(assetType)) {
+                    return Assets.load(path, com.pocket.rpg.ui.text.Font.class);
+                }
+            }
+
+            // Handle Sprite serialized without _type marker (from full object serialization)
+            if (targetType == Sprite.class && map.containsKey("texturePath")) {
+                String path = (String) map.get("texturePath");
+                return Assets.load(path, Sprite.class);
+            }
+
+            // Handle Texture serialized without _type marker
+            if (targetType == Texture.class && map.containsKey("filePath")) {
+                String path = (String) map.get("filePath");
+                return Assets.load(path, Texture.class);
+            }
+
+            // Handle Font serialized without _type marker
+            if (targetType == com.pocket.rpg.ui.text.Font.class && map.containsKey("path")) {
+                String path = (String) map.get("path");
+                return Assets.load(path, com.pocket.rpg.ui.text.Font.class);
+            }
+
+            // Convert Map to List for Vector types
+            if (targetType == Vector2f.class || targetType == Vector3f.class || targetType == Vector4f.class) {
+                if (!map.isEmpty()) {
+                    value = new ArrayList<>(map.values());
+                }
+            }
+        }
+
+        // Handle arrays and lists → Vectors
+        Object listValue = value;
+        if (value.getClass().isArray()) {
+            if (value instanceof float[] arr) {
+                listValue = new ArrayList<>();
+                for (float f : arr) ((List<Object>)listValue).add(f);
+            } else if (value instanceof double[] arr) {
+                listValue = new ArrayList<>();
+                for (double d : arr) ((List<Object>)listValue).add(d);
+            }
+        }
+
+        if (listValue instanceof List<?> list) {
             if (targetType == Vector2f.class && list.size() >= 2) {
                 return new Vector2f(
                         ((Number) list.get(0)).floatValue(),
@@ -245,7 +301,7 @@ public class ComponentData {
             }
         }
 
-        // Handle number conversions (Gson may load as Double)
+        // Handle number conversions
         if (value instanceof Number n) {
             if (targetType == int.class || targetType == Integer.class) {
                 return n.intValue();
@@ -259,16 +315,8 @@ public class ComponentData {
             if (targetType == long.class || targetType == Long.class) {
                 return n.longValue();
             }
-        }
-
-        if (value instanceof Map<?, ?> map && map.containsKey("_type")) {
-            String assetType = (String) map.get("_type");
-            String path = (String) map.get("path");
-            if ("Sprite".equals(assetType)) {
-                return Assets.load(path, Sprite.class);
-            }
-            if ("Texture".equals(assetType)) {
-                return Assets.load(path, Texture.class);
+            if (targetType == boolean.class || targetType == Boolean.class) {
+                return n.intValue() != 0;
             }
         }
 

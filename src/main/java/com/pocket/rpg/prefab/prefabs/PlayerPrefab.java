@@ -72,8 +72,7 @@ public class PlayerPrefab implements Prefab {
 
         // SpriteRenderer component
         ComponentData spriteRenderer = new ComponentData(SPRITE_RENDERER_TYPE);
-        spriteRenderer.getFields().put("spritePath", "spritesheets/player.spritesheet");
-        spriteRenderer.getFields().put("spriteIndex", 0);
+        spriteRenderer.getFields().put("sprite", playerSheet.getSprite(0));
         spriteRenderer.getFields().put("originBottomCenter", true);
         result.add(spriteRenderer);
 

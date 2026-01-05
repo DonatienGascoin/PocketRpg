@@ -5,6 +5,7 @@ import com.pocket.rpg.prefab.Prefab;
 import com.pocket.rpg.prefab.PrefabRegistry;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.Texture;
+import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.serialization.ComponentData;
 import lombok.Getter;
 import lombok.Setter;
@@ -49,10 +50,6 @@ public class EditorEntity {
     private transient EditorEntity parent;
 
     private transient List<EditorEntity> children;
-
-    private transient Sprite previewSprite;
-    private transient Vector2f previewSize;
-    private transient boolean previewCached = false;
 
     private static final float DEFAULT_ENTITY_Z_INDEX = 100f;
 
@@ -303,18 +300,13 @@ public class EditorEntity {
                     "Cannot add components to prefab instance. Convert to scratch entity first.");
         }
         getComponents().add(componentData);
-        invalidatePreviewCache();
     }
 
     public boolean removeComponent(ComponentData componentData) {
         if (components == null) {
             return false;
         }
-        boolean removed = components.remove(componentData);
-        if (removed) {
-            invalidatePreviewCache();
-        }
-        return removed;
+        return components.remove(componentData);
     }
 
     public ComponentData getComponentByType(String simpleName) {
@@ -358,19 +350,12 @@ public class EditorEntity {
             ComponentData comp = findComponentByType(componentType);
             if (comp != null) {
                 comp.getFields().put(fieldName, value);
-                if ("SpriteRenderer".equals(comp.getSimpleName()) && "sprite".equals(fieldName)) {
-                    invalidatePreviewCache();
-                }
             }
             return;
         }
 
         componentOverrides.computeIfAbsent(componentType, k -> new HashMap<>())
                 .put(fieldName, value);
-
-        if (componentType.endsWith("SpriteRenderer") && "sprite".equals(fieldName)) {
-            invalidatePreviewCache();
-        }
     }
 
     public boolean isFieldOverridden(String componentType, String fieldName) {
@@ -451,15 +436,16 @@ public class EditorEntity {
     }
 
     // ========================================================================
-    // SPRITE ACCESS (for rendering)
+    // SPRITE ACCESS (for rendering) - DYNAMIC RESOLUTION
     // ========================================================================
 
     /**
      * Gets the current sprite for rendering.
      * Resolves dynamically from component data to support animation.
+     *
+     * @return Current sprite, or null if not renderable
      */
     public Sprite getCurrentSprite() {
-
         ComponentData spriteRenderer = getComponentByType("SpriteRenderer");
         if (spriteRenderer != null) {
             Object spriteObj = spriteRenderer.getFields().get("sprite");
@@ -472,36 +458,28 @@ public class EditorEntity {
         }
 
         if (isPrefabInstance()) {
-            return PrefabRegistry.getInstance().getPreviewSprite(prefabId);
+            if (isPrefabValid()) {
+                return PrefabRegistry.getInstance().getPreviewSprite(prefabId);
+            } else {
+                return Assets.load("editor/brokenPrefabLink.png");
+            }
         }
 
         return null;
     }
 
-    public Vector2f getPreviewSize() {
-        ensurePreviewCached();
-        return previewSize;
-    }
-
-    public void refreshPreviewCache() {
-        invalidatePreviewCache();
-        ensurePreviewCached();
-    }
-
-    public void invalidatePreviewCache() {
-        previewCached = false;
-        previewSprite = null;
-        previewSize = null;
-    }
-
-    private void ensurePreviewCached() {
-        if (previewCached) return;
-
-        previewSprite = getCurrentSprite();
-        previewSize = (previewSprite != null)
-                ? new Vector2f(previewSprite.getWorldWidth(), previewSprite.getWorldHeight())
-                : new Vector2f(1f, 1f);
-        previewCached = true;
+    /**
+     * Gets the current size for rendering.
+     * Resolves dynamically from getCurrentSprite().
+     *
+     * @return Size in world units, or (1,1) if no sprite
+     */
+    public Vector2f getCurrentSize() {
+        Sprite sprite = getCurrentSprite();
+        if (sprite != null) {
+            return new Vector2f(sprite.getWorldWidth(), sprite.getWorldHeight());
+        }
+        return new Vector2f(1f, 1f);
     }
 
     public float getZIndex() {

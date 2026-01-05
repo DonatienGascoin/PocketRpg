@@ -49,7 +49,7 @@ public class EntityData {
 
     // Common fields
     private String name;
-    private float[] position;
+    private float[] position; // TODO: What about scale and rotation ?
 
     // Prefab instance fields (when prefabId is set)
     private String prefabId;

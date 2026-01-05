@@ -1,8 +1,10 @@
 package com.pocket.rpg.editor.panels;
 
 import com.pocket.rpg.config.GameConfig;
+import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.editor.EditorContext;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.rendering.UIRenderingBackend;
 import com.pocket.rpg.editor.scene.EditorEntity;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.tools.ToolManager;
@@ -30,6 +32,9 @@ import java.util.Map;
 /**
  * UI Designer panel - visual editor for UI elements.
  * <p>
+ * Uses UIRenderingBackend (SpriteBatch) for consistent UI element rendering,
+ * with ImGui DrawList overlay for editor gizmos (handles, anchors, selection).
+ * <p>
  * Features:
  * - Canvas bounds rectangle showing game resolution
  * - Background toggle: World (scene behind) or Gray (neutral)
@@ -44,6 +49,11 @@ public class UIDesignerPanel {
 
     private final EditorContext context;
     private final GameConfig gameConfig;
+    private final RenderingConfig renderingConfig;
+
+    // UI Rendering backend (SpriteBatch-based)
+    private UIRenderingBackend uiRenderer;
+    private boolean rendererInitialized = false;
 
     // Viewport state
     @Getter
@@ -70,7 +80,7 @@ public class UIDesignerPanel {
     private boolean snapEnabled = false;
     @Getter @Setter
     private boolean showAnchorLines = false;
-    private static final float SNAP_THRESHOLD = 8f; // pixels in screen space
+    private static final float SNAP_THRESHOLD = 8f;
 
     // Dragging state
     private boolean isDraggingCamera = false;
@@ -86,7 +96,7 @@ public class UIDesignerPanel {
     private float entityStartPivotX, entityStartPivotY;
     private ResizeHandle activeHandle = null;
 
-    // Undo tracking - stores old values at drag start
+    // Undo tracking
     private Vector2f dragOldOffset;
     private float dragOldWidth;
     private float dragOldHeight;
@@ -102,7 +112,7 @@ public class UIDesignerPanel {
     }
 
     private static final float HANDLE_SIZE = 8f;
-    private static final float HANDLE_HIT_SIZE = 12f; // Larger hit area
+    private static final float HANDLE_HIT_SIZE = 12f;
     private ResizeHandle hoveredHandle = null;
     private EditorEntity hoveredHandleEntity = null;
 
@@ -114,7 +124,7 @@ public class UIDesignerPanel {
     @Setter
     private int sceneTextureId = 0;
 
-    // Colors
+    // Colors (for ImGui gizmos)
     private static final int COLOR_HANDLE = ImGui.colorConvertFloat4ToU32(1f, 1f, 1f, 1f);
     private static final int COLOR_HANDLE_HOVERED = ImGui.colorConvertFloat4ToU32(1f, 0.8f, 0.2f, 1f);
     private static final int COLOR_HANDLE_BORDER = ImGui.colorConvertFloat4ToU32(0.2f, 0.2f, 0.2f, 1f);
@@ -123,9 +133,25 @@ public class UIDesignerPanel {
     private static final int COLOR_SELECTION = ImGui.colorConvertFloat4ToU32(0.2f, 0.6f, 1f, 1f);
     private static final int COLOR_SNAP_GUIDE = ImGui.colorConvertFloat4ToU32(1f, 0.5f, 0.2f, 0.8f);
 
+    // Tint colors for SpriteBatch
+    private static final Vector4f TINT_WHITE = new Vector4f(1f, 1f, 1f, 1f);
+
     public UIDesignerPanel(EditorContext context) {
         this.context = context;
         this.gameConfig = context.getGameConfig();
+        this.renderingConfig = context.getRenderingConfig();
+    }
+
+    /**
+     * Initializes the UI rendering backend.
+     * Called lazily on first render.
+     */
+    private void initRenderer() {
+        if (rendererInitialized) return;
+
+        uiRenderer = new UIRenderingBackend(renderingConfig);
+        uiRenderer.init(gameConfig.getGameWidth(), gameConfig.getGameHeight());
+        rendererInitialized = true;
     }
 
     /**
@@ -237,9 +263,9 @@ public class UIDesignerPanel {
             return;
         }
 
-        // Draw background
         var drawList = ImGui.getWindowDrawList();
 
+        // Draw background
         if (backgroundMode == BackgroundMode.GRAY) {
             drawList.addRectFilled(
                     viewportX, viewportY,
@@ -258,10 +284,19 @@ public class UIDesignerPanel {
         // Draw canvas bounds
         drawCanvasBounds(drawList);
 
-        // Draw UI elements
-        drawUIElements(drawList);
+        // Render UI elements via UIRenderingBackend
+        renderUIElementsToTexture();
 
-        // Draw selection gizmos (handles, anchor, pivot)
+        // Display the rendered UI texture with zoom/pan
+        displayUITexture(drawList);
+
+        // Draw text elements via ImGui (until we have font rendering in SpriteBatch)
+        drawTextElements(drawList);
+
+        // Draw selection borders (ImGui overlay)
+        drawSelectionBorders(drawList);
+
+        // Draw selection gizmos (handles, anchor, pivot) - ImGui overlay
         drawSelectionGizmos(drawList);
 
         // Draw snap guides if snapping
@@ -280,7 +315,179 @@ public class UIDesignerPanel {
         }
     }
 
-    private void drawCanvasBounds(imgui.ImDrawList drawList) {
+    // ========================================================================
+    // UI ELEMENT RENDERING (SpriteBatch-based)
+    // ========================================================================
+
+    /**
+     * Renders all UI elements to the UIRenderingBackend texture.
+     * Elements are rendered in canvas coordinates (no zoom).
+     */
+    private void renderUIElementsToTexture() {
+        if (!rendererInitialized) {
+            initRenderer();
+        }
+
+        EditorScene scene = context.getCurrentScene();
+        if (scene == null) return;
+
+        int canvasWidth = gameConfig.getGameWidth();
+        int canvasHeight = gameConfig.getGameHeight();
+
+        uiRenderer.begin(canvasWidth, canvasHeight);
+
+        // Render elements in hierarchy order (parents before children)
+        for (EditorEntity entity : scene.getEntities()) {
+            if (!isUIEntity(entity)) continue;
+            if (entity.hasComponent("UICanvas")) continue;
+
+            renderUIElementContent(entity);
+        }
+
+        uiRenderer.end();
+    }
+
+    /**
+     * Renders a single UI element's content (sprite/background).
+     * Text is handled separately via ImGui.
+     */
+    private void renderUIElementContent(EditorEntity entity) {
+        var transformComp = entity.getComponentByType("UITransform");
+        if (transformComp == null) return;
+
+        float[] bounds = calculateElementBounds(entity);
+        if (bounds == null) return;
+
+        float x = bounds[0];
+        float y = bounds[1];
+        float width = bounds[2];
+        float height = bounds[3];
+
+        float zIndex = getEntityZIndex(entity);
+
+        // Try to render sprite content
+        boolean contentRendered = false;
+
+        if (entity.hasComponent("UIImage")) {
+            var imageComp = entity.getComponentByType("UIImage");
+            if (imageComp != null) {
+                contentRendered = renderSpriteToBackend(
+                        imageComp.getFields().get("sprite"),
+                        imageComp.getFields().get("color"),
+                        x, y, width, height, zIndex
+                );
+            }
+        }
+
+        if (!contentRendered && entity.hasComponent("UIButton")) {
+            var buttonComp = entity.getComponentByType("UIButton");
+            if (buttonComp != null) {
+                contentRendered = renderSpriteToBackend(
+                        buttonComp.getFields().get("sprite"),
+                        buttonComp.getFields().get("color"),
+                        x, y, width, height, zIndex
+                );
+
+                // Button background color if no sprite
+                if (!contentRendered) {
+                    Vector4f color = parseColorVec4(buttonComp.getFields().get("color"));
+                    if (color.w > 0) {
+                        uiRenderer.drawRect(x, y, width, height, color, zIndex);
+                        contentRendered = true;
+                    }
+                }
+            }
+        }
+
+        if (!contentRendered && entity.hasComponent("UIPanel")) {
+            var panelComp = entity.getComponentByType("UIPanel");
+            if (panelComp != null) {
+                contentRendered = renderSpriteToBackend(
+                        panelComp.getFields().get("backgroundSprite"),
+                        panelComp.getFields().get("backgroundColor"),
+                        x, y, width, height, zIndex
+                );
+            }
+        }
+
+        // Fallback background (skip for UIText)
+        if (!contentRendered && !entity.hasComponent("UIText")) {
+            Vector4f fillColor = getElementFillColorVec4(entity);
+            if (fillColor.w > 0) {
+                uiRenderer.drawRect(x, y, width, height, fillColor, zIndex);
+            }
+        }
+    }
+
+    /**
+     * Renders a sprite to the UIRenderingBackend.
+     */
+    private boolean renderSpriteToBackend(Object spriteObj, Object colorObj,
+                                          float x, float y, float width, float height, float zIndex) {
+        Sprite sprite = resolveSprite(spriteObj);
+        if (sprite == null) return false;
+
+        Vector4f tint = parseColorVec4(colorObj);
+        uiRenderer.drawSprite(sprite, x, y, width, height, zIndex, tint);
+        return true;
+    }
+
+    /**
+     * Resolves a sprite from various object types (Sprite, String path, Map).
+     */
+    private Sprite resolveSprite(Object spriteObj) {
+        if (spriteObj == null) return null;
+
+        if (spriteObj instanceof Sprite s) {
+            return s;
+        }
+
+        if (spriteObj instanceof String spritePath && !spritePath.isEmpty()) {
+            try {
+                return Assets.load(spritePath, Sprite.class);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        if (spriteObj instanceof Map<?, ?> spriteMap) {
+            String texturePath = getStringFromMap(spriteMap, "texturePath");
+            if (texturePath == null || texturePath.isEmpty()) {
+                texturePath = getStringFromMap(spriteMap, "name");
+            }
+            if (texturePath != null && !texturePath.isEmpty()) {
+                try {
+                    return Assets.load(texturePath, Sprite.class);
+                } catch (Exception e) {
+                    try {
+                        Texture texture = Assets.load(texturePath, Texture.class);
+                        if (texture != null) {
+                            float u0 = getFloatFromMap(spriteMap, "u0", 0f);
+                            float v0 = getFloatFromMap(spriteMap, "v0", 0f);
+                            float u1 = getFloatFromMap(spriteMap, "u1", 1f);
+                            float v1 = getFloatFromMap(spriteMap, "v1", 1f);
+                            float w = getFloatFromMap(spriteMap, "width", texture.getWidth());
+                            float h = getFloatFromMap(spriteMap, "height", texture.getHeight());
+                            Sprite sprite = new Sprite(texture, w, h);
+                            sprite.setUVs(u0, v0, u1, v1);
+                            return sprite;
+                        }
+                    } catch (Exception e2) {
+                        return null;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Displays the rendered UI texture with zoom/pan applied.
+     */
+    private void displayUITexture(imgui.ImDrawList drawList) {
+        if (uiRenderer == null || uiRenderer.getOutputTexture() == 0) return;
+
         float canvasWidth = gameConfig.getGameWidth();
         float canvasHeight = gameConfig.getGameHeight();
 
@@ -292,120 +499,46 @@ public class UIDesignerPanel {
         float right = viewportX + bottomRight.x;
         float bottom = viewportY + bottomRight.y;
 
-        // Canvas area
-        drawList.addRectFilled(left, top, right, bottom,
-                ImGui.colorConvertFloat4ToU32(0.15f, 0.15f, 0.15f, 1.0f));
-
-        // Canvas border
-        drawList.addRect(left, top, right, bottom,
-                ImGui.colorConvertFloat4ToU32(0.5f, 0.5f, 0.5f, 1.0f), 0, 0, 2.0f);
-
-        // Resolution label
-        String label = gameConfig.getGameWidth() + " x " + gameConfig.getGameHeight();
-        drawList.addText(left + 5, top + 5,
-                ImGui.colorConvertFloat4ToU32(0.6f, 0.6f, 0.6f, 1.0f), label);
+        // Draw the UI texture (Y is already correct in canvas space)
+        drawList.addImage(
+                uiRenderer.getOutputTexture(),
+                left, top, right, bottom,
+                0, 0, 1, 1  // UVs: normal orientation
+        );
     }
 
-    private void drawUIElements(imgui.ImDrawList drawList) {
+    private float getEntityZIndex(EditorEntity entity) {
+        // Use sibling order or explicit z-index if available
+        return entity.getOrder();
+    }
+
+    // ========================================================================
+    // TEXT RENDERING (ImGui - until we have font rendering in SpriteBatch)
+    // ========================================================================
+
+    private void drawTextElements(imgui.ImDrawList drawList) {
         EditorScene scene = context.getCurrentScene();
         if (scene == null) return;
 
         for (EditorEntity entity : scene.getEntities()) {
-            if (!isUIEntity(entity)) continue;
-            drawUIElement(drawList, entity);
-        }
-    }
+            if (!entity.hasComponent("UIText")) continue;
 
-    private void drawUIElement(imgui.ImDrawList drawList, EditorEntity entity) {
-        var transformComp = entity.getComponentByType("UITransform");
-        if (transformComp == null && !entity.hasComponent("UICanvas")) return;
-        if (entity.hasComponent("UICanvas")) return;
-        if (transformComp == null) return;
-
-        float[] bounds = calculateElementBounds(entity);
-        if (bounds == null) return;
-
-        float x = bounds[0];
-        float y = bounds[1];
-        float width = bounds[2];
-        float height = bounds[3];
-
-        Vector2f screenPos = canvasToScreen(x, y);
-        Vector2f screenEnd = canvasToScreen(x + width, y + height);
-
-        float left = viewportX + screenPos.x;
-        float top = viewportY + screenPos.y;
-        float right = viewportX + screenEnd.x;
-        float bottom = viewportY + screenEnd.y;
-
-        EditorScene scene = context.getCurrentScene();
-        boolean selected = scene != null && scene.isSelected(entity);
-
-        // Render sprite content
-        boolean contentRendered = false;
-
-        if (entity.hasComponent("UIImage")) {
-            var imageComp = entity.getComponentByType("UIImage");
-            if (imageComp != null) {
-                contentRendered = renderSprite(drawList, imageComp.getFields().get("sprite"),
-                        imageComp.getFields().get("color"), left, top, right, bottom);
-            }
-        }
-
-        if (!contentRendered && entity.hasComponent("UIButton")) {
-            var buttonComp = entity.getComponentByType("UIButton");
-            if (buttonComp != null) {
-                contentRendered = renderSprite(drawList, buttonComp.getFields().get("sprite"),
-                        buttonComp.getFields().get("color"), left, top, right, bottom);
-
-                // If no sprite, render button background color
-                if (!contentRendered) {
-                    Object colorObj = buttonComp.getFields().get("color");
-                    int fillColor = parseColorForFill(colorObj);
-                    if (fillColor != 0) {
-                        drawList.addRectFilled(left, top, right, bottom, fillColor);
-                        contentRendered = true;
-                    }
-                }
-            }
-        }
-
-        if (!contentRendered && entity.hasComponent("UIPanel")) {
-            var panelComp = entity.getComponentByType("UIPanel");
-            if (panelComp != null) {
-                contentRendered = renderSprite(drawList, panelComp.getFields().get("backgroundSprite"),
-                        panelComp.getFields().get("backgroundColor"), left, top, right, bottom);
-            }
-        }
-
-        // UIText - render actual text content
-        if (entity.hasComponent("UIText")) {
             var textComp = entity.getComponentByType("UIText");
-            if (textComp != null) {
-                renderTextElement(drawList, textComp, left, top, right, bottom);
-                contentRendered = true;
-            }
+            if (textComp == null) continue;
+
+            float[] bounds = calculateElementBounds(entity);
+            if (bounds == null) continue;
+
+            Vector2f screenPos = canvasToScreen(bounds[0], bounds[1]);
+            Vector2f screenEnd = canvasToScreen(bounds[0] + bounds[2], bounds[1] + bounds[3]);
+
+            float left = viewportX + screenPos.x;
+            float top = viewportY + screenPos.y;
+            float right = viewportX + screenEnd.x;
+            float bottom = viewportY + screenEnd.y;
+
+            renderTextElement(drawList, textComp, left, top, right, bottom);
         }
-
-        // Fallback background (skip for UIText - keep transparent)
-        if (!contentRendered && !entity.hasComponent("UIText")) {
-            int fillColor = getElementFillColor(entity);
-            if (fillColor != 0) {
-                drawList.addRectFilled(left, top, right, bottom, fillColor);
-            }
-        }
-
-        // Border
-        int borderColor = selected ? COLOR_SELECTION
-                : ImGui.colorConvertFloat4ToU32(0.5f, 0.5f, 0.5f, 0.8f);
-        drawList.addRect(left, top, right, bottom, borderColor, 0, 0, selected ? 2.0f : 1.0f);
-
-//        // Element name (smaller, top-left corner for non-text elements)
-//        if (!entity.hasComponent("UIText")) {
-//            drawList.addText(left + 2, top + 2,
-//                    ImGui.colorConvertFloat4ToU32(0.8f, 0.8f, 0.8f, 1.0f),
-//                    entity.getName());
-//        }
     }
 
     private void renderTextElement(imgui.ImDrawList drawList, ComponentData textComp,
@@ -417,10 +550,9 @@ public class UIDesignerPanel {
             text = "[Empty Text]";
         }
 
-        // Get color
         int color = ImGui.colorConvertFloat4ToU32(1f, 1f, 1f, 1f);
         Object colorObj = fields.get("color");
-        if (colorObj instanceof org.joml.Vector4f v) {
+        if (colorObj instanceof Vector4f v) {
             color = ImGui.colorConvertFloat4ToU32(v.x, v.y, v.z, v.w);
         } else if (colorObj instanceof Map<?, ?> colorMap) {
             float r = getFloatFromMap(colorMap, "x", 1f);
@@ -430,48 +562,42 @@ public class UIDesignerPanel {
             color = ImGui.colorConvertFloat4ToU32(r, g, b, a);
         }
 
-        // Get horizontal alignment
         String hAlign = "LEFT";
         Object hAlignObj = fields.get("horizontalAlignment");
         if (hAlignObj != null) {
             hAlign = hAlignObj.toString().toUpperCase();
         }
 
-        // Get vertical alignment
         String vAlign = "TOP";
         Object vAlignObj = fields.get("verticalAlignment");
         if (vAlignObj != null) {
             vAlign = vAlignObj.toString().toUpperCase();
         }
 
-        // Get word wrap
         boolean wordWrap = false;
         Object wrapObj = fields.get("wordWrap");
         if (wrapObj instanceof Boolean b) {
             wordWrap = b;
         }
 
-        // Try to get Font for accurate metrics
         com.pocket.rpg.ui.text.Font font = loadFontFromField(fields.get("font"));
 
         float boxWidth = right - left;
         float boxHeight = bottom - top;
 
-        // Split text into lines (handle word wrap)
         String[] lines = splitTextIntoLines(text, font, boxWidth, wordWrap);
 
-        // Calculate line metrics
         float lineHeight;
         float[] lineWidths = new float[lines.length];
 
         if (font != null) {
-            lineHeight = font.getLineHeight();
+            lineHeight = font.getLineHeight() * zoom;
             for (int i = 0; i < lines.length; i++) {
-                lineWidths[i] = font.getStringWidth(lines[i]);
+                lineWidths[i] = font.getStringWidth(lines[i]) * zoom;
             }
         } else {
             ImVec2 textSize = new ImVec2();
-            ImGui.calcTextSize(textSize, "Hg");  // Reference height
+            ImGui.calcTextSize(textSize, "Hg");
             lineHeight = textSize.y;
             for (int i = 0; i < lines.length; i++) {
                 ImGui.calcTextSize(textSize, lines[i]);
@@ -481,47 +607,38 @@ public class UIDesignerPanel {
 
         float totalTextHeight = lines.length * lineHeight;
 
-        // Calculate vertical start position
         float startY;
         switch (vAlign) {
             case "MIDDLE" -> startY = top + (boxHeight - totalTextHeight) / 2;
             case "BOTTOM" -> startY = bottom - totalTextHeight;
-            default -> startY = top;  // TOP
+            default -> startY = top;
         }
 
-        // Render each line
         for (int i = 0; i < lines.length; i++) {
             String line = lines[i];
             float lineWidth = lineWidths[i];
 
-            // Calculate horizontal position for this line
             float lineX;
             switch (hAlign) {
                 case "CENTER" -> lineX = left + (boxWidth - lineWidth) / 2;
                 case "RIGHT" -> lineX = right - lineWidth;
-                default -> lineX = left;  // LEFT
+                default -> lineX = left;
             }
 
             float lineY = startY + i * lineHeight;
-
             drawList.addText(lineX, lineY, color, line);
         }
     }
 
-    /**
-     * Splits text into lines, optionally with word wrapping.
-     */
     private String[] splitTextIntoLines(String text, com.pocket.rpg.ui.text.Font font,
                                         float maxWidth, boolean wordWrap) {
-        // First split by explicit newlines
         String[] paragraphs = text.split("\n", -1);
 
         if (!wordWrap || maxWidth <= 0) {
             return paragraphs;
         }
 
-        // Word wrap each paragraph
-        java.util.List<String> wrappedLines = new java.util.ArrayList<>();
+        List<String> wrappedLines = new ArrayList<>();
 
         for (String paragraph : paragraphs) {
             if (paragraph.isEmpty()) {
@@ -538,22 +655,18 @@ public class UIDesignerPanel {
                 float wordWidth = getTextWidth(word, font);
 
                 if (currentLine.length() == 0) {
-                    // First word on line
                     currentLine.append(word);
                     currentWidth = wordWidth;
                 } else if (currentWidth + spaceWidth + wordWidth <= maxWidth) {
-                    // Word fits on current line
                     currentLine.append(" ").append(word);
                     currentWidth += spaceWidth + wordWidth;
                 } else {
-                    // Word doesn't fit - start new line
                     wrappedLines.add(currentLine.toString());
                     currentLine = new StringBuilder(word);
                     currentWidth = wordWidth;
                 }
             }
 
-            // Add remaining text
             if (currentLine.length() > 0) {
                 wrappedLines.add(currentLine.toString());
             }
@@ -562,9 +675,6 @@ public class UIDesignerPanel {
         return wrappedLines.toArray(new String[0]);
     }
 
-    /**
-     * Gets text width using font if available, otherwise ImGui.
-     */
     private float getTextWidth(String text, com.pocket.rpg.ui.text.Font font) {
         if (font != null) {
             return font.getStringWidth(text);
@@ -574,9 +684,6 @@ public class UIDesignerPanel {
         return size.x;
     }
 
-    /**
-     * Attempts to load a Font from a field value (can be Font, String path, or Map).
-     */
     private com.pocket.rpg.ui.text.Font loadFontFromField(Object fontObj) {
         if (fontObj == null) return null;
 
@@ -599,124 +706,81 @@ public class UIDesignerPanel {
             try {
                 return Assets.load(fontPath, com.pocket.rpg.ui.text.Font.class);
             } catch (Exception e) {
-                // Font not loadable, fall back to ImGui
+                return null;
             }
         }
 
         return null;
     }
 
-    private float getFloatFromMap(Map<?, ?> map, String key, float defaultValue) {
-        Object value = map.get(key);
-        if (value instanceof Number n) {
-            return n.floatValue();
+    // ========================================================================
+    // SELECTION BORDERS (ImGui overlay)
+    // ========================================================================
+
+    private void drawSelectionBorders(imgui.ImDrawList drawList) {
+        EditorScene scene = context.getCurrentScene();
+        if (scene == null) return;
+
+        for (EditorEntity entity : scene.getEntities()) {
+            if (!isUIEntity(entity)) continue;
+            if (entity.hasComponent("UICanvas")) continue;
+
+            float[] bounds = calculateElementBounds(entity);
+            if (bounds == null) continue;
+
+            Vector2f screenPos = canvasToScreen(bounds[0], bounds[1]);
+            Vector2f screenEnd = canvasToScreen(bounds[0] + bounds[2], bounds[1] + bounds[3]);
+
+            float left = viewportX + screenPos.x;
+            float top = viewportY + screenPos.y;
+            float right = viewportX + screenEnd.x;
+            float bottom = viewportY + screenEnd.y;
+
+            boolean selected = scene.isSelected(entity);
+
+            int borderColor = selected ? COLOR_SELECTION
+                    : ImGui.colorConvertFloat4ToU32(0.5f, 0.5f, 0.5f, 0.8f);
+            drawList.addRect(left, top, right, bottom, borderColor, 0, 0, selected ? 2.0f : 1.0f);
         }
-        return defaultValue;
     }
 
-    private boolean renderSprite(imgui.ImDrawList drawList, Object spriteObj, Object colorObj,
-                                 float left, float top, float right, float bottom) {
-        if (spriteObj == null) return false;
+    private void drawCanvasBounds(imgui.ImDrawList drawList) {
+        float canvasWidth = gameConfig.getGameWidth();
+        float canvasHeight = gameConfig.getGameHeight();
 
-        Sprite sprite = null;
+        Vector2f topLeft = canvasToScreen(0, 0);
+        Vector2f bottomRight = canvasToScreen(canvasWidth, canvasHeight);
 
-        if (spriteObj instanceof Sprite s) {
-            sprite = s;
-        } else if (spriteObj instanceof String spritePath && !spritePath.isEmpty()) {
-            try {
-                sprite = Assets.load(spritePath, Sprite.class);
-            } catch (Exception e) {
-                // Ignore load errors
-            }
-        } else if (spriteObj instanceof Map<?, ?> spriteMap) {
-            // Sprite was serialized as JSON - load from texturePath or name
-            String texturePath = getStringFromMap(spriteMap, "texturePath");
-            if (texturePath == null || texturePath.isEmpty()) {
-                texturePath = getStringFromMap(spriteMap, "name");
-            }
-            if (texturePath != null && !texturePath.isEmpty()) {
-                try {
-                    sprite = Assets.load(texturePath, Sprite.class);
-                } catch (Exception e) {
-                    // Try loading as texture and creating sprite
-                    try {
-                        Texture texture = Assets.load(texturePath, Texture.class);
-                        if (texture != null) {
-                            float u0 = getFloatFromMap(spriteMap, "u0", 0f);
-                            float v0 = getFloatFromMap(spriteMap, "v0", 0f);
-                            float u1 = getFloatFromMap(spriteMap, "u1", 1f);
-                            float v1 = getFloatFromMap(spriteMap, "v1", 1f);
-                            float w = getFloatFromMap(spriteMap, "width", texture.getWidth());
-                            float h = getFloatFromMap(spriteMap, "height", texture.getHeight());
-                            sprite = new Sprite(texture, w, h);
-                            sprite.setUVs(u0, v0, u1, v1);
-                        }
-                    } catch (Exception e2) {
-                        // Ignore
-                    }
-                }
-            }
-        }
+        float left = viewportX + topLeft.x;
+        float top = viewportY + topLeft.y;
+        float right = viewportX + bottomRight.x;
+        float bottom = viewportY + bottomRight.y;
 
-        if (sprite == null || sprite.getTexture() == null) return false;
+        // Canvas area background
+        drawList.addRectFilled(left, top, right, bottom,
+                ImGui.colorConvertFloat4ToU32(0.15f, 0.15f, 0.15f, 1.0f));
 
-        int textureId = sprite.getTexture().getTextureId();
-        float u0 = sprite.getU0();
-        float v0 = sprite.getV0();
-        float u1 = sprite.getU1();
-        float v1 = sprite.getV1();
+        // Canvas border
+        drawList.addRect(left, top, right, bottom,
+                ImGui.colorConvertFloat4ToU32(0.5f, 0.5f, 0.5f, 1.0f), 0, 0, 2.0f);
 
-        int tintColor = parseColor(colorObj);
-        drawList.addImage(textureId, left, top, right, bottom, u0, v0, u1, v1, tintColor);
-        return true;
-    }
-
-    private String getStringFromMap(Map<?, ?> map, String key) {
-        Object value = map.get(key);
-        return value != null ? value.toString() : null;
-    }
-
-    private int parseColor(Object colorObj) {
-        if (colorObj instanceof Vector4f v) {
-            return ImGui.colorConvertFloat4ToU32(v.x, v.y, v.z, v.w);
-        }
-        if (colorObj instanceof Map<?, ?> colorMap) {
-            float r = getFloatFromMap(colorMap, "x", 1f);
-            float g = getFloatFromMap(colorMap, "y", 1f);
-            float b = getFloatFromMap(colorMap, "z", 1f);
-            float a = getFloatFromMap(colorMap, "w", 1f);
-            return ImGui.colorConvertFloat4ToU32(r, g, b, a);
-        }
-        return ImGui.colorConvertFloat4ToU32(1f, 1f, 1f, 1f);
-    }
-
-    private int getElementFillColor(EditorEntity entity) {
-        if (entity.hasComponent("UIPanel")) {
-            return ImGui.colorConvertFloat4ToU32(0.3f, 0.3f, 0.4f, 0.6f);
-        } else if (entity.hasComponent("UIButton")) {
-            return ImGui.colorConvertFloat4ToU32(0.3f, 0.5f, 0.3f, 0.6f);
-        } else if (entity.hasComponent("UIImage")) {
-            return ImGui.colorConvertFloat4ToU32(0.4f, 0.4f, 0.3f, 0.6f);
-        } else if (entity.hasComponent("UIText")) {
-            return ImGui.colorConvertFloat4ToU32(0.4f, 0.3f, 0.4f, 0.6f);
-        } else {
-            return ImGui.colorConvertFloat4ToU32(0.3f, 0.3f, 0.3f, 0.4f);
-        }
+        // Resolution label
+        String label = gameConfig.getGameWidth() + " x " + gameConfig.getGameHeight();
+        drawList.addText(left + 5, top + 5,
+                ImGui.colorConvertFloat4ToU32(0.6f, 0.6f, 0.6f, 1.0f), label);
     }
 
     // ========================================================================
-    // SELECTION GIZMOS
+    // SELECTION GIZMOS (handles, anchor, pivot)
     // ========================================================================
 
     private void drawSelectionGizmos(imgui.ImDrawList drawList) {
         EditorScene scene = context.getCurrentScene();
         if (scene == null) return;
 
-        // Reset hover state
         hoveredHandle = null;
         hoveredHandleEntity = null;
 
-        // Get mouse position for hover detection
         ImVec2 mousePos = ImGui.getMousePos();
         float localX = mousePos.x - viewportX;
         float localY = mousePos.y - viewportY;
@@ -725,7 +789,6 @@ public class UIDesignerPanel {
             if (!isUIEntity(entity)) continue;
             if (entity.hasComponent("UICanvas")) continue;
 
-            // Check for hovered handle
             if (isHovered && !isDraggingElement && !isDraggingHandle && !isDraggingAnchor && !isDraggingPivot) {
                 ResizeHandle handle = hitTestHandles(entity, localX, localY);
                 if (handle != null) {
@@ -755,13 +818,8 @@ public class UIDesignerPanel {
         float right = viewportX + screenEnd.x;
         float bottom = viewportY + screenEnd.y;
 
-        // Draw resize handles
         drawResizeHandles(drawList, entity, left, top, right, bottom);
-
-        // Draw anchor point
         drawAnchorPoint(drawList, entity, x, y, width, height);
-
-        // Draw pivot point
         drawPivotPoint(drawList, entity, x, y, width, height);
     }
 
@@ -772,13 +830,11 @@ public class UIDesignerPanel {
 
         boolean isThisEntity = entity == hoveredHandleEntity;
 
-        // Corner handles
         drawHandle(drawList, left, top, isThisEntity && hoveredHandle == ResizeHandle.TOP_LEFT);
         drawHandle(drawList, right, top, isThisEntity && hoveredHandle == ResizeHandle.TOP_RIGHT);
         drawHandle(drawList, left, bottom, isThisEntity && hoveredHandle == ResizeHandle.BOTTOM_LEFT);
         drawHandle(drawList, right, bottom, isThisEntity && hoveredHandle == ResizeHandle.BOTTOM_RIGHT);
 
-        // Edge handles
         drawHandle(drawList, midX, top, isThisEntity && hoveredHandle == ResizeHandle.TOP);
         drawHandle(drawList, midX, bottom, isThisEntity && hoveredHandle == ResizeHandle.BOTTOM);
         drawHandle(drawList, left, midY, isThisEntity && hoveredHandle == ResizeHandle.LEFT);
@@ -800,7 +856,6 @@ public class UIDesignerPanel {
         Map<String, Object> fields = transform.getFields();
         Vector2f anchor = FieldEditors.getVector2f(fields, "anchor");
 
-        // Anchor is relative to parent, calculate its position
         float canvasWidth = gameConfig.getGameWidth();
         float canvasHeight = gameConfig.getGameHeight();
 
@@ -827,13 +882,11 @@ public class UIDesignerPanel {
         float sx = viewportX + screenAnchor.x;
         float sy = viewportY + screenAnchor.y;
 
-        // Check if hovered
         ImVec2 mousePos = ImGui.getMousePos();
         float localX = mousePos.x - viewportX;
         float localY = mousePos.y - viewportY;
         boolean hovered = Math.abs(localX - screenAnchor.x) < 12 && Math.abs(localY - screenAnchor.y) < 12;
 
-        // Draw anchor as diamond (larger if hovered)
         float size = hovered ? 8 : 6;
         int color = hovered ? ImGui.colorConvertFloat4ToU32(0.4f, 1f, 0.4f, 1f) : COLOR_ANCHOR;
 
@@ -852,7 +905,6 @@ public class UIDesignerPanel {
                 COLOR_HANDLE_BORDER
         );
 
-        // Draw line from anchor to element center (only if enabled)
         if (showAnchorLines) {
             float elemCenterX = elemX + elemWidth / 2;
             float elemCenterY = elemY + elemHeight / 2;
@@ -861,7 +913,6 @@ public class UIDesignerPanel {
                     ImGui.colorConvertFloat4ToU32(0.2f, 0.8f, 0.2f, 0.3f), 1f);
         }
 
-        // Label
         if (hovered || isDraggingAnchor) {
             String label = String.format("Anchor (%.2f, %.2f)", anchor.x, anchor.y);
             drawList.addText(sx + 10, sy - 10, COLOR_ANCHOR, label);
@@ -876,7 +927,6 @@ public class UIDesignerPanel {
         Map<String, Object> fields = transform.getFields();
         Vector2f pivot = FieldEditors.getVector2f(fields, "pivot");
 
-        // Pivot is relative to element bounds
         float pivotX = elemX + pivot.x * elemWidth;
         float pivotY = elemY + pivot.y * elemHeight;
 
@@ -884,24 +934,20 @@ public class UIDesignerPanel {
         float sx = viewportX + screenPivot.x;
         float sy = viewportY + screenPivot.y;
 
-        // Check if hovered
         ImVec2 mousePos = ImGui.getMousePos();
         float localX = mousePos.x - viewportX;
         float localY = mousePos.y - viewportY;
         boolean hovered = Math.abs(localX - screenPivot.x) < 10 && Math.abs(localY - screenPivot.y) < 10;
 
-        // Draw pivot as circle with crosshair (larger if hovered)
         float radius = hovered ? 7 : 5;
         int color = hovered ? ImGui.colorConvertFloat4ToU32(0.4f, 0.8f, 1f, 1f) : COLOR_PIVOT;
 
         drawList.addCircleFilled(sx, sy, radius, color);
         drawList.addCircle(sx, sy, radius, COLOR_HANDLE_BORDER);
 
-        // Crosshair
         drawList.addLine(sx - radius - 2, sy, sx + radius + 2, sy, color, 1f);
         drawList.addLine(sx, sy - radius - 2, sx, sy + radius + 2, color, 1f);
 
-        // Label
         if (hovered || isDraggingPivot) {
             String label = String.format("Pivot (%.2f, %.2f)", pivot.x, pivot.y);
             drawList.addText(sx + 10, sy + 5, COLOR_PIVOT, label);
@@ -924,7 +970,6 @@ public class UIDesignerPanel {
 
         float threshold = SNAP_THRESHOLD / zoom;
 
-        // Left edge
         if (Math.abs(elemLeft) < threshold || Math.abs(elemRight) < threshold) {
             Vector2f top = canvasToScreen(0, 0);
             Vector2f bottom = canvasToScreen(0, canvasHeight);
@@ -932,7 +977,6 @@ public class UIDesignerPanel {
                     viewportX + bottom.x, viewportY + bottom.y, COLOR_SNAP_GUIDE, 1f);
         }
 
-        // Right edge
         if (Math.abs(elemLeft - canvasWidth) < threshold || Math.abs(elemRight - canvasWidth) < threshold) {
             Vector2f top = canvasToScreen(canvasWidth, 0);
             Vector2f bottom = canvasToScreen(canvasWidth, canvasHeight);
@@ -940,7 +984,6 @@ public class UIDesignerPanel {
                     viewportX + bottom.x, viewportY + bottom.y, COLOR_SNAP_GUIDE, 1f);
         }
 
-        // Top edge
         if (Math.abs(elemTop) < threshold || Math.abs(elemBottom) < threshold) {
             Vector2f left = canvasToScreen(0, 0);
             Vector2f right = canvasToScreen(canvasWidth, 0);
@@ -948,7 +991,6 @@ public class UIDesignerPanel {
                     viewportX + right.x, viewportY + right.y, COLOR_SNAP_GUIDE, 1f);
         }
 
-        // Bottom edge
         if (Math.abs(elemTop - canvasHeight) < threshold || Math.abs(elemBottom - canvasHeight) < threshold) {
             Vector2f left = canvasToScreen(0, canvasHeight);
             Vector2f right = canvasToScreen(canvasWidth, canvasHeight);
@@ -958,11 +1000,10 @@ public class UIDesignerPanel {
     }
 
     // ========================================================================
-    // INPUT HANDLING
+    // INPUT HANDLING (unchanged from original)
     // ========================================================================
 
     private void handleInput() {
-        // Middle mouse drag for camera pan
         if (ImGui.isMouseClicked(ImGuiMouseButton.Middle) && isHovered) {
             isDraggingCamera = true;
         }
@@ -979,7 +1020,6 @@ public class UIDesignerPanel {
             }
         }
 
-        // Scroll wheel zoom
         if (isHovered) {
             float scroll = ImGui.getIO().getMouseWheel();
             if (scroll != 0) {
@@ -988,7 +1028,6 @@ public class UIDesignerPanel {
             }
         }
 
-        // Left click/drag
         if (ImGui.isMouseClicked(ImGuiMouseButton.Left) && isHovered) {
             handleClick();
         }
@@ -1006,7 +1045,6 @@ public class UIDesignerPanel {
         }
 
         if (ImGui.isMouseReleased(ImGuiMouseButton.Left)) {
-            // Commit undo command on release
             commitDragCommand();
 
             isDraggingElement = false;
@@ -1027,23 +1065,19 @@ public class UIDesignerPanel {
         EditorScene scene = context.getCurrentScene();
         if (scene == null) return;
 
-        // First check if clicking on anchor or pivot of selected entity
         for (EditorEntity entity : scene.getSelectedEntities()) {
             if (!isUIEntity(entity) || entity.hasComponent("UICanvas")) continue;
 
-            // Check anchor hit
             if (hitTestAnchor(entity, localX, localY)) {
                 startAnchorDrag(entity);
                 return;
             }
 
-            // Check pivot hit
             if (hitTestPivot(entity, localX, localY)) {
                 startPivotDrag(entity);
                 return;
             }
 
-            // Check resize handles
             ResizeHandle handle = hitTestHandles(entity, localX, localY);
             if (handle != null) {
                 startResizeDrag(entity, handle);
@@ -1051,7 +1085,6 @@ public class UIDesignerPanel {
             }
         }
 
-        // Otherwise, check for element click
         Vector2f canvasPos = screenToCanvas(localX, localY);
 
         EditorEntity clicked = null;
@@ -1088,7 +1121,7 @@ public class UIDesignerPanel {
     }
 
     // ========================================================================
-    // DRAG START METHODS (capture old values for undo)
+    // DRAG START METHODS
     // ========================================================================
 
     private void startMoveDrag(EditorEntity entity, float canvasX, float canvasY) {
@@ -1107,7 +1140,6 @@ public class UIDesignerPanel {
             entityStartOffsetX = offset.x;
             entityStartOffsetY = offset.y;
 
-            // Capture for undo
             captureOldValuesForUndo(entity, transform);
         }
     }
@@ -1134,10 +1166,8 @@ public class UIDesignerPanel {
             entityStartWidth = FieldEditors.getFloat(fields, "width", 100);
             entityStartHeight = FieldEditors.getFloat(fields, "height", 100);
 
-            // Capture for undo
             captureOldValuesForUndo(entity, transform);
 
-            // Capture child states for cascading resize
             dragChildStates = new ArrayList<>();
             captureChildStates(entity, dragChildStates);
         }
@@ -1157,7 +1187,6 @@ public class UIDesignerPanel {
             entityStartAnchorX = anchor.x;
             entityStartAnchorY = anchor.y;
 
-            // Capture for undo
             captureOldValuesForUndo(entity, transform);
         }
     }
@@ -1176,7 +1205,6 @@ public class UIDesignerPanel {
             entityStartPivotX = pivot.x;
             entityStartPivotY = pivot.y;
 
-            // Capture for undo
             captureOldValuesForUndo(entity, transform);
         }
     }
@@ -1190,9 +1218,6 @@ public class UIDesignerPanel {
         dragOldPivot = new Vector2f(FieldEditors.getVector2f(fields, "pivot"));
     }
 
-    /**
-     * Recursively captures child transform states for cascading resize.
-     */
     private void captureChildStates(EditorEntity parent, List<UITransformDragCommand.ChildTransformState> states) {
         for (EditorEntity child : parent.getChildren()) {
             var childTransform = child.getComponentByType("UITransform");
@@ -1206,15 +1231,11 @@ public class UIDesignerPanel {
                         new UITransformDragCommand.ChildTransformState(child, childTransform, offset, width, height);
                 states.add(state);
 
-                // Recurse into grandchildren
                 captureChildStates(child, states);
             }
         }
     }
 
-    /**
-     * Commits the drag command to undo manager on mouse release.
-     */
     private void commitDragCommand() {
         if (draggedEntity == null || dragOldOffset == null) return;
 
@@ -1228,7 +1249,6 @@ public class UIDesignerPanel {
         Vector2f newAnchor = FieldEditors.getVector2f(fields, "anchor");
         Vector2f newPivot = FieldEditors.getVector2f(fields, "pivot");
 
-        // Determine description
         String description;
         if (isDraggingHandle) {
             description = "Resize " + draggedEntity.getName();
@@ -1247,7 +1267,6 @@ public class UIDesignerPanel {
                 description
         );
 
-        // Add child states if present
         if (dragChildStates != null) {
             for (UITransformDragCommand.ChildTransformState state : dragChildStates) {
                 state.captureNewValues();
@@ -1255,11 +1274,8 @@ public class UIDesignerPanel {
             }
         }
 
-        // Only push if something changed
         if (command.hasChanges()) {
-            // Revert to old values first
             command.undo();
-            // Then execute through UndoManager (which calls execute())
             UndoManager.getInstance().execute(command);
 
             EditorScene scene = context.getCurrentScene();
@@ -1268,7 +1284,6 @@ public class UIDesignerPanel {
             }
         }
 
-        // Clear captured values
         dragOldOffset = null;
     }
 
@@ -1290,7 +1305,6 @@ public class UIDesignerPanel {
         float newOffsetX = entityStartOffsetX + deltaX;
         float newOffsetY = entityStartOffsetY + deltaY;
 
-        // Apply snap if enabled
         if (snapEnabled) {
             var transform = draggedEntity.getComponentByType("UITransform");
             if (transform != null) {
@@ -1400,7 +1414,6 @@ public class UIDesignerPanel {
             }
         }
 
-        // Calculate scale factors for cascading resize
         float scaleX = newWidth / entityStartWidth;
         float scaleY = newHeight / entityStartHeight;
 
@@ -1408,7 +1421,6 @@ public class UIDesignerPanel {
         fields.put("height", newHeight);
         fields.put("offset", new Vector2f(newOffsetX, newOffsetY));
 
-        // Apply cascading resize to children
         if (dragChildStates != null) {
             applyCascadingResize(scaleX, scaleY);
         }
@@ -1419,9 +1431,6 @@ public class UIDesignerPanel {
         }
     }
 
-    /**
-     * Applies cascading resize to all children proportionally.
-     */
     private void applyCascadingResize(float scaleX, float scaleY) {
         if (dragChildStates == null) return;
 
@@ -1431,11 +1440,9 @@ public class UIDesignerPanel {
 
             Map<String, Object> fields = childTransform.getFields();
 
-            // Scale size
             float newWidth = state.oldWidth * scaleX;
             float newHeight = state.oldHeight * scaleY;
 
-            // Scale offset (position relative to parent)
             float newOffsetX = state.oldOffset.x * scaleX;
             float newOffsetY = state.oldOffset.y * scaleY;
 
@@ -1807,17 +1814,55 @@ public class UIDesignerPanel {
     // UTILITY
     // ========================================================================
 
-    private int parseColorForFill(Object colorObj) {
-        if (colorObj instanceof org.joml.Vector4f v) {
-            return ImGui.colorConvertFloat4ToU32(v.x, v.y, v.z, v.w);
-        } else if (colorObj instanceof Map<?, ?> colorMap) {
-            float r = getFloatFromMap(colorMap, "x", 0.5f);
-            float g = getFloatFromMap(colorMap, "y", 0.5f);
-            float b = getFloatFromMap(colorMap, "z", 0.5f);
-            float a = getFloatFromMap(colorMap, "w", 1f);
-            return ImGui.colorConvertFloat4ToU32(r, g, b, a);
+    private Vector4f parseColorVec4(Object colorObj) {
+        if (colorObj instanceof Vector4f v) {
+            return new Vector4f(v);
         }
-        // Default button color
-        return ImGui.colorConvertFloat4ToU32(0.4f, 0.4f, 0.4f, 0.8f);
+        if (colorObj instanceof Map<?, ?> colorMap) {
+            float r = getFloatFromMap(colorMap, "x", 1f);
+            float g = getFloatFromMap(colorMap, "y", 1f);
+            float b = getFloatFromMap(colorMap, "z", 1f);
+            float a = getFloatFromMap(colorMap, "w", 1f);
+            return new Vector4f(r, g, b, a);
+        }
+        return new Vector4f(1f, 1f, 1f, 1f);
+    }
+
+    private Vector4f getElementFillColorVec4(EditorEntity entity) {
+        if (entity.hasComponent("UIPanel")) {
+            return new Vector4f(0.3f, 0.3f, 0.4f, 0.6f);
+        } else if (entity.hasComponent("UIButton")) {
+            return new Vector4f(0.3f, 0.5f, 0.3f, 0.6f);
+        } else if (entity.hasComponent("UIImage")) {
+            return new Vector4f(0.4f, 0.4f, 0.3f, 0.6f);
+        } else if (entity.hasComponent("UIText")) {
+            return new Vector4f(0.4f, 0.3f, 0.4f, 0.6f);
+        } else {
+            return new Vector4f(0.3f, 0.3f, 0.3f, 0.4f);
+        }
+    }
+
+    private String getStringFromMap(Map<?, ?> map, String key) {
+        Object value = map.get(key);
+        return value != null ? value.toString() : null;
+    }
+
+    private float getFloatFromMap(Map<?, ?> map, String key, float defaultValue) {
+        Object value = map.get(key);
+        if (value instanceof Number n) {
+            return n.floatValue();
+        }
+        return defaultValue;
+    }
+
+    /**
+     * Cleans up rendering resources.
+     */
+    public void destroy() {
+        if (uiRenderer != null) {
+            uiRenderer.destroy();
+            uiRenderer = null;
+        }
+        rendererInitialized = false;
     }
 }

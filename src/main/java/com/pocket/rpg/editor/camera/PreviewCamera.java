@@ -1,14 +1,14 @@
-package com.pocket.rpg.rendering;
+package com.pocket.rpg.editor.camera;
 
 import com.pocket.rpg.core.GameCamera;
 import com.pocket.rpg.core.ViewportConfig;
+import com.pocket.rpg.rendering.RenderCamera;
 import lombok.Getter;
 import org.joml.Matrix4f;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
 
 /**
- * TODO: Move to Editor package
  * Camera wrapper for preview rendering in the editor.
  * <p>
  * Ensures preview mode uses the exact same camera math as runtime,
@@ -24,10 +24,6 @@ import org.joml.Vector3f;
 @Getter
 public class PreviewCamera implements RenderCamera {
 
-    /**
-     * -- GETTER --
-     *  Gets the wrapped GameCamera for direct access if needed.
-     */
     private final GameCamera camera;
 
     /**
@@ -60,7 +56,7 @@ public class PreviewCamera implements RenderCamera {
     public void applySceneSettings(Vector2f position, float orthographicSize) {
         camera.setPosition(position.x, position.y);
         camera.setOrthographicSize(orthographicSize);
-        camera.setZoom(1.0f);  // Reset zoom - orthographicSize controls view size
+        camera.setZoom(1.0f);
     }
 
     /**
@@ -76,51 +72,30 @@ public class PreviewCamera implements RenderCamera {
         camera.setZoom(zoom);
     }
 
-    /**
-     * Sets camera position.
-     */
     public void setPosition(float x, float y) {
         camera.setPosition(x, y);
     }
 
-    /**
-     * Sets camera position.
-     */
     public void setPosition(Vector2f position) {
         camera.setPosition(position.x, position.y);
     }
 
-    /**
-     * Sets orthographic size (half-height in world units).
-     */
     public void setOrthographicSize(float orthographicSize) {
         camera.setOrthographicSize(orthographicSize);
     }
 
-    /**
-     * Sets zoom level.
-     */
     public void setZoom(float zoom) {
         camera.setZoom(zoom);
     }
 
-    /**
-     * Gets camera position.
-     */
     public Vector3f getPosition() {
         return camera.getPosition();
     }
 
-    /**
-     * Gets orthographic size.
-     */
     public float getOrthographicSize() {
         return camera.getOrthographicSize();
     }
 
-    /**
-     * Gets zoom level.
-     */
     public float getZoom() {
         return camera.getZoom();
     }

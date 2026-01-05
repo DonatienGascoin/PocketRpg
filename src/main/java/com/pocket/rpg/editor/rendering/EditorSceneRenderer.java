@@ -3,14 +3,11 @@ package com.pocket.rpg.editor.rendering;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.editor.camera.EditorCamera;
 import com.pocket.rpg.editor.scene.EditorScene;
-import com.pocket.rpg.editor.scene.TilemapLayer;
+import com.pocket.rpg.editor.scene.LayerUtils;
+import com.pocket.rpg.editor.scene.LayerUtils.LayerRenderInfo;
 import com.pocket.rpg.rendering.SceneRenderingBackend;
 import com.pocket.rpg.rendering.SpriteBatch;
 import org.joml.Vector4f;
-
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
 
 /**
  * Renders EditorScene content to the editor framebuffer.
@@ -70,35 +67,12 @@ public class EditorSceneRenderer {
     }
 
     private void renderTilemapLayers(EditorScene scene) {
-        int layerCount = scene.getLayerCount();
-        if (layerCount == 0) return;
-
-        List<int[]> layerOrder = new ArrayList<>();
-        for (int i = 0; i < layerCount; i++) {
-            TilemapLayer layer = scene.getLayer(i);
-            if (layer != null) {
-                layerOrder.add(new int[]{i, layer.getZIndex()});
-            }
-        }
-
-        layerOrder.sort(Comparator.comparingInt(a -> a[1]));
-
-        for (int[] pair : layerOrder) {
-            int layerIndex = pair[0];
-
-            if (!scene.isLayerVisible(layerIndex)) {
-                continue;
-            }
-
-            TilemapLayer layer = scene.getLayer(layerIndex);
-            if (layer == null) continue;
-
-            float opacity = scene.getLayerOpacity(layerIndex);
-            Vector4f tint = (opacity >= 1f)
+        for (LayerRenderInfo info : LayerUtils.getLayersForEditorRendering(scene)) {
+            Vector4f tint = (info.opacity() >= 1f)
                     ? new Vector4f(1f, 1f, 1f, 1f)
-                    : new Vector4f(0.8f, 0.8f, 0.8f, opacity);
+                    : new Vector4f(0.8f, 0.8f, 0.8f, info.opacity());
 
-            backend.renderTilemap(layer.getTilemap(), tint);
+            backend.renderTilemap(info.layer().getTilemap(), tint);
         }
     }
 

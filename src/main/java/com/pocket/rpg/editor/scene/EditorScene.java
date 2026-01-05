@@ -11,13 +11,7 @@ import lombok.Setter;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -324,13 +318,6 @@ public class EditorScene {
     }
 
     /**
-     * Gets entity count.
-     */
-    public int getEntityCount() {
-        return entities.size();
-    }
-
-    /**
      * Finds an entity at the given world position.
      * Searches in reverse order (top entities first).
      */
@@ -338,7 +325,7 @@ public class EditorScene {
         for (int i = entities.size() - 1; i >= 0; i--) {
             EditorEntity entity = entities.get(i);
             Vector3f pos = entity.getPositionRef();
-            Vector2f size = entity.getPreviewSize();
+            Vector2f size = entity.getCurrentSize();
 
             if (size == null) {
                 size = new Vector2f(1f, 1f);
@@ -383,13 +370,6 @@ public class EditorScene {
         if (entity != null) {
             selectedEntities.add(entity);
         }
-    }
-
-    /**
-     * Removes an entity from the selection.
-     */
-    public void removeFromSelection(EditorEntity entity) {
-        selectedEntities.remove(entity);
     }
 
     /**
@@ -441,13 +421,6 @@ public class EditorScene {
             selectedEntities.add(entity);
             this.selectedObject = null;
         }
-    }
-
-    /**
-     * Clears entity selection (legacy method).
-     */
-    public void clearEntitySelection() {
-        clearSelection();
     }
 
     // ========================================================================
@@ -662,10 +635,6 @@ public class EditorScene {
             }
         }
         return dirty ? displayName + " *" : displayName;
-    }
-
-    public int getObjectCount() {
-        return layers.size() + entities.size();
     }
 
     @Override

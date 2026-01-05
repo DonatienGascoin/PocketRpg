@@ -5,6 +5,7 @@ import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.editor.EditorContext;
 import com.pocket.rpg.editor.PlayModeController;
 import com.pocket.rpg.editor.PlayModeController.PlayState;
+import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.panels.UIPreviewRenderer;
 import com.pocket.rpg.editor.rendering.GamePreviewRenderer;
 import com.pocket.rpg.editor.scene.EditorScene;
@@ -118,7 +119,7 @@ public class GameViewPanel {
 
         if (state == PlayState.STOPPED) {
             // Play button
-            if (ImGui.button("▶ Play")) {
+            if (ImGui.button(FontAwesomeIcons.Play + " Play")) {
                 playController.play();
             }
 
@@ -127,11 +128,11 @@ public class GameViewPanel {
         } else {
             // Pause/Resume button
             if (state == PlayState.PLAYING) {
-                if (ImGui.button("⏸ Pause")) {
+                if (ImGui.button(FontAwesomeIcons.Pause + " Pause")) {
                     playController.pause();
                 }
             } else {
-                if (ImGui.button("▶ Resume")) {
+                if (ImGui.button(FontAwesomeIcons.Play + " Resume")) {
                     playController.resume();
                 }
             }
@@ -139,7 +140,7 @@ public class GameViewPanel {
             ImGui.sameLine();
 
             // Stop button
-            if (ImGui.button("⏹ Stop")) {
+            if (ImGui.button(FontAwesomeIcons.Stop + " Stop")) {
                 playController.stop();
             }
 
@@ -149,8 +150,8 @@ public class GameViewPanel {
             String stateText = state == PlayState.PLAYING ? "Playing" : "Paused";
             ImGui.textColored(0.4f, 0.8f, 0.4f, 1.0f, stateText);
 
-            ImGui.sameLine();
-            ImGui.text("| FPS: " + (int) ImGui.getIO().getFramerate());
+//            ImGui.sameLine();
+//            ImGui.text("| FPS: " + (int) ImGui.getIO().getFramerate());
         }
     }
 

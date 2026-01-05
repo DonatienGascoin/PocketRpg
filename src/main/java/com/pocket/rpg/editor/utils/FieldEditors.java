@@ -256,6 +256,8 @@ public class FieldEditors {
         floatBuffer[2] = vec.z;
         floatBuffer[3] = vec.w;
 
+        // Pushing key here is good for local scope, but the Caller (drawField)
+        // must ensure the parent scope is unique per Object.
         ImGui.pushID(key);
 
         final boolean[] changed = {false};
@@ -266,7 +268,7 @@ public class FieldEditors {
         ImGui.popID();
 
         if (changed[0]) {
-            fields.put(key, new Vector2f(floatBuffer[0], floatBuffer[1]));
+            fields.put(key, new Vector4f(floatBuffer[0], floatBuffer[1], floatBuffer[2], floatBuffer[3]));
         }
         return changed[0];
     }
@@ -383,8 +385,7 @@ public class FieldEditors {
                                     assetPickerTargetData,
                                     assetPickerFieldName,
                                     oldValue,
-                                    selectedAsset,
-                                    assetPickerTargetEntity
+                                    selectedAsset
                             )
                     );
                 });

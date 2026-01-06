@@ -59,8 +59,8 @@ public class RuntimeSceneLoader {
         scene.initialize(viewportConfig, renderingConfig);
 
         // Load collision map
-        if (data.getCollision() != null) {
-            scene.getCollisionMap().fromSparseFormat(data.getCollision());
+        if(data.getCollisionData() != null) {
+            scene.getCollisionMap().fromBase64(data.getCollisionData());
         }
 
         // Create GameObjects from tilemap layers

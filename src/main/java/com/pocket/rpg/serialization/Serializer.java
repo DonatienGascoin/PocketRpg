@@ -3,14 +3,12 @@ package com.pocket.rpg.serialization;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.pocket.rpg.components.TilemapRenderer;
 import com.pocket.rpg.postProcessing.PostEffect;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.Texture;
 import com.pocket.rpg.resources.AssetContext;
-import com.pocket.rpg.serialization.custom.ComponentTypeAdapterFactory;
-import com.pocket.rpg.serialization.custom.PostEffectTypeAdapter;
-import com.pocket.rpg.serialization.custom.SpriteTypeAdapter;
-import com.pocket.rpg.serialization.custom.TextureTypeAdapter;
+import com.pocket.rpg.serialization.custom.*;
 
 public class Serializer {
     private static Serializer instance;
@@ -26,6 +24,7 @@ public class Serializer {
                 // Asset types
                 .registerTypeAdapter(Sprite.class, new SpriteTypeAdapter(context))
                 .registerTypeAdapter(Texture.class, new TextureTypeAdapter(context))
+                .registerTypeAdapter(TilemapRenderer.class, new TilemapTypeAdapter(context))
                 // Others
                 .registerTypeAdapter(PostEffect.class, new PostEffectTypeAdapter());
 

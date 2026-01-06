@@ -37,7 +37,7 @@ public class PostEffectRegistry {
     public static void initialize() {
         if (initialized) return;
 
-        System.out.println("PostEffectRegistry: Registering effects...");
+        // System.out.println("PostEffectRegistry: Registering effects...");
 
         for (String className : EFFECT_CLASSES) {
             tryRegisterEffect(className);
@@ -87,8 +87,8 @@ public class PostEffectRegistry {
         effects.add(meta);
         bySimpleName.put(simpleName, meta);
 
-        System.out.println("  Registered: " + displayName +
-                (hasNoArgConstructor ? "" : " (requires parameters)"));
+//        System.out.println("  Registered: " + displayName +
+//                (hasNoArgConstructor ? "" : " (requires parameters)"));
     }
 
     /**

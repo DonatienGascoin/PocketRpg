@@ -38,7 +38,7 @@ public class EditorSceneSerializer {
 
         // Collision map
         if (editorScene.getCollisionMap() != null) {
-            data.setCollision(editorScene.getCollisionMap().toSparseFormat());
+            data.setCollisionData(editorScene.getCollisionMap().toBase64());
         }
 
         // Entities (Phase 5)
@@ -70,8 +70,8 @@ public class EditorSceneSerializer {
         }
 
         // Collision map
-        if (data.getCollision() != null) {
-            scene.getCollisionMap().fromSparseFormat(data.getCollision());
+        if (data.getCollisionData() != null) {
+            scene.getCollisionMap().fromBase64(data.getCollisionData());
         }
 
         // Entities (Phase 5)

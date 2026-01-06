@@ -6,7 +6,6 @@ import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Root data structure for scene serialization.
@@ -43,29 +42,7 @@ public class SceneData {
      */
     private CameraData camera;
 
-    /**
-     * Collision map data with Z-level support (sparse format).
-     * <p>
-     * Format: Map<"z-level", Map<"cx,cy", Map<"tx,ty", collisionTypeId>>>
-     * <p>
-     * Example:
-     * <pre>
-     * {
-     *   "0": {                    // Ground level
-     *     "0,0": {                // Chunk at (0,0)
-     *       "5,5": 1,             // SOLID at tile (5,5)
-     *       "10,10": 2            // LEDGE_DOWN at tile (10,10)
-     *     }
-     *   },
-     *   "1": {                    // Bridge level
-     *     "0,0": {
-     *       "5,5": 0              // NONE (walkable bridge)
-     *     }
-     *   }
-     * }
-     * </pre>
-     */
-    private Map<String, Map<String, Map<String, Integer>>> collision;
+    private String collisionData;
 
     /**
      * Placed entity instances.

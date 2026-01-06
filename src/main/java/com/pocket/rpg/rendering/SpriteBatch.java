@@ -187,8 +187,8 @@ public class SpriteBatch {
         glBindVertexArray(0);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-        System.out.println("SpriteBatch initialized:");
-        System.out.println(VertexLayout.describe());
+//        System.out.println("SpriteBatch initialized:");
+//        System.out.println(VertexLayout.describe());
     }
 
     /**

@@ -2,6 +2,7 @@ package com.pocket.rpg.collision;
 
 import lombok.Getter;
 
+import java.io.*;
 import java.util.*;
 
 /**
@@ -194,79 +195,76 @@ public class CollisionMap {
     }
 
     // ========================================================================
-    // SERIALIZATION SUPPORT
+    // SERIALIZATION SUPPORT (Base64 Binary)
     // ========================================================================
 
     /**
-     * Gets collision data in sparse format for serialization.
-     * Format: Map<"z", Map<"cx,cy", Map<"tx,ty", CollisionTypeId>>>
+     * Serializes collision data to a compact Base64 string.
      */
-    public Map<String, Map<String, Map<String, Integer>>> toSparseFormat() {
-        Map<String, Map<String, Map<String, Integer>>> sparse = new HashMap<>();
+    public String toBase64() {
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+             DataOutputStream dos = new DataOutputStream(baos)) {
 
-        for (Map.Entry<Integer, Map<Long, CollisionChunk>> zEntry : zLayers.entrySet()) {
-            int z = zEntry.getKey();
-            Map<Long, CollisionChunk> layer = zEntry.getValue();
+            dos.writeInt(zLayers.size());
+            for (Map.Entry<Integer, Map<Long, CollisionChunk>> zEntry : zLayers.entrySet()) {
+                dos.writeInt(zEntry.getKey());          // Z-Level
+                dos.writeInt(zEntry.getValue().size()); // Chunk Count
 
-            Map<String, Map<String, Integer>> layerData = new HashMap<>();
+                for (CollisionChunk chunk : zEntry.getValue().values()) {
+                    dos.writeInt(chunk.getChunkX());
+                    dos.writeInt(chunk.getChunkY());
+                    dos.writeInt(chunk.getTileCount());
 
-            for (Long chunkKey : layer.keySet()) {
-                int cx = chunkKeyToX(chunkKey);
-                int cy = chunkKeyToY(chunkKey);
-                CollisionChunk chunk = layer.get(chunkKey);
-
-                Map<String, Integer> tiles = new HashMap<>();
-                for (int tx = 0; tx < CollisionChunk.CHUNK_SIZE; tx++) {
-                    for (int ty = 0; ty < CollisionChunk.CHUNK_SIZE; ty++) {
-                        CollisionType type = chunk.get(tx, ty);
-                        if (type != CollisionType.NONE) {
-                            tiles.put(tx + "," + ty, type.getId());
+                    for (int x = 0; x < CollisionChunk.CHUNK_SIZE; x++) {
+                        for (int y = 0; y < CollisionChunk.CHUNK_SIZE; y++) {
+                            CollisionType type = chunk.get(x, y);
+                            if (type != CollisionType.NONE) {
+                                dos.writeByte(x);       // Local X (0-31)
+                                dos.writeByte(y);       // Local Y (0-31)
+                                dos.writeInt(type.getId());
+                            }
                         }
                     }
                 }
-
-                if (!tiles.isEmpty()) {
-                    layerData.put(cx + "," + cy, tiles);
-                }
             }
-
-            if (!layerData.isEmpty()) {
-                sparse.put(String.valueOf(z), layerData);
-            }
+            return Base64.getEncoder().encodeToString(baos.toByteArray());
+        } catch (IOException e) {
+            throw new RuntimeException("Serialization failed", e);
         }
-
-        return sparse;
     }
 
     /**
-     * Loads collision data from sparse format.
+     * Loads collision data from a compact Base64 string.
      */
-    public void fromSparseFormat(Map<String, Map<String, Map<String, Integer>>> sparse) {
-        if (sparse == null) return;
+    public void fromBase64(String data) {
+        if (data == null || data.isEmpty()) return;
+        clear();
 
-        clear(); // Clear existing data
+        try (DataInputStream dis = new DataInputStream(new ByteArrayInputStream(Base64.getDecoder().decode(data)))) {
+            int layers = dis.readInt();
+            while (layers-- > 0) {
+                int z = dis.readInt();
+                int chunks = dis.readInt();
 
-        for (Map.Entry<String, Map<String, Map<String, Integer>>> zEntry : sparse.entrySet()) {
-            int z = Integer.parseInt(zEntry.getKey());
-            Map<String, Map<String, Integer>> layerData = zEntry.getValue();
+                // Get or create Z-layer map
+                Map<Long, CollisionChunk> layer = zLayers.computeIfAbsent(z, k -> new HashMap<>());
 
-            for (Map.Entry<String, Map<String, Integer>> chunkEntry : layerData.entrySet()) {
-                String[] coords = chunkEntry.getKey().split(",");
-                int cx = Integer.parseInt(coords[0]);
-                int cy = Integer.parseInt(coords[1]);
+                while (chunks-- > 0) {
+                    int cx = dis.readInt();
+                    int cy = dis.readInt();
+                    int tiles = dis.readInt();
 
-                for (Map.Entry<String, Integer> tileEntry : chunkEntry.getValue().entrySet()) {
-                    String[] tileCoords = tileEntry.getKey().split(",");
-                    int localX = Integer.parseInt(tileCoords[0]);
-                    int localY = Integer.parseInt(tileCoords[1]);
+                    CollisionChunk chunk = new CollisionChunk(cx, cy);
+                    layer.put(key(cx, cy), chunk);
 
-                    int worldTx = cx * CollisionChunk.CHUNK_SIZE + localX;
-                    int worldTy = cy * CollisionChunk.CHUNK_SIZE + localY;
-
-                    CollisionType type = CollisionType.fromId(tileEntry.getValue());
-                    set(worldTx, worldTy, z, type);
+                    while (tiles-- > 0) {
+                        // Read local coords (byte) and ID (int)
+                        chunk.set(dis.readByte(), dis.readByte(), CollisionType.fromId(dis.readInt()));
+                    }
                 }
             }
+        } catch (IOException e) {
+            throw new RuntimeException("Deserialization failed", e);
         }
     }
 

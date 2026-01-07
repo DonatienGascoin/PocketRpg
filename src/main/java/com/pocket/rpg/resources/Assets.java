@@ -145,6 +145,20 @@ public final class Assets {
     }
 
     /**
+     * Gets the path for a loaded resource.
+     * Returns null if the resource was not loaded through Assets.
+     * <p>
+     * Used by serialization to determine if an object should be
+     * serialized as a path reference or as a full object.
+     *
+     * @param resource The resource object
+     * @return The normalized path, or null if not tracked
+     */
+    public static String getPathForResource(Object resource) {
+        return getContext().getPathForResource(resource);
+    }
+
+    /**
      * Saves a resource back to its original path.
      * Resource must have been loaded through Assets to have a tracked path.
      *

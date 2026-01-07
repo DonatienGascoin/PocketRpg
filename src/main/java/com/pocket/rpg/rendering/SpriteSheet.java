@@ -1,5 +1,6 @@
 package com.pocket.rpg.rendering;
 
+import com.pocket.rpg.resources.Assets;
 import lombok.Getter;
 
 import java.util.*;
@@ -10,6 +11,7 @@ import java.util.*;
  * - independent X/Y spacing
  * - automatic safe grid detection
  * - cached sprite extraction
+ * - source tracking for serialization
  */
 @Getter
 public class SpriteSheet {
@@ -128,6 +130,12 @@ public class SpriteSheet {
                 px, py, spriteWidth, spriteHeight,
                 "Frame_" + frameIndex);
 
+        // NEW: Set source tracking for serialization
+        String sheetPath = Assets.getPathForResource(this);
+        if (sheetPath != null) {
+            sprite.setSource(sheetPath, frameIndex);
+        }
+
         spriteCache.put(frameIndex, sprite);
         allSprites.add(sprite);
 
@@ -169,6 +177,12 @@ public class SpriteSheet {
 
         sprite.setUVsFromPixels(px, py, spriteWidth, spriteHeight);
         sprite.setName("Frame_" + frameIndex);
+
+        // Update source tracking
+        String sheetPath = Assets.getPathForResource(this);
+        if (sheetPath != null) {
+            sprite.setSource(sheetPath, frameIndex);
+        }
     }
 
     // -------------------------------------------------------------------------------------

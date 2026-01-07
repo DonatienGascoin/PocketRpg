@@ -83,6 +83,20 @@ public class Sprite {
     @Setter
     private Float pixelsPerUnitOverride = null;
 
+    /**
+     * The asset path this sprite was loaded from.
+     * Examples:
+     * - "sprites/player.png" (direct sprite)
+     * - "sheets/characters.spritesheet" (from spritesheet)
+     */
+    private String sourcePath;
+
+    /**
+     * If this sprite came from a SpriteSheet, this is the index.
+     * Null if this is a direct sprite.
+     */
+    private Integer spriteIndex;
+
     // ========================================================================
     // CONSTRUCTORS
     // ========================================================================
@@ -334,9 +348,37 @@ public class Sprite {
         this.height = height;
     }
 
+    // ========================================================================
+    // Source tracking methods
+    // ========================================================================
+
+    // Called by SpriteLoader when loading directly
+    void setSourcePath(String path) {
+        this.sourcePath = path;
+        this.spriteIndex = null;
+    }
+
+    // Called by SpriteSheet.getSprite(index)
+    void setSource(String sheetPath, int index) {
+        this.sourcePath = sheetPath;
+        this.spriteIndex = index;
+    }
+
+    // Used by custom SpriteTypeAdapter
+    public boolean isFromSheet() {
+        return spriteIndex != null;
+    }
+
     @Override
     public String toString() {
-        return String.format("Sprite[name=%s, pixels=%.0fx%.0f, world=%.2fx%.2f, pivot=(%.2f,%.2f), ppu=%.0f, uv=(%.2f,%.2f)-(%.2f,%.2f)]",
-                name, width, height, getWorldWidth(), getWorldHeight(), pivotX, pivotY, getPixelsPerUnit(), u0, v0, u1, v1);
+        if (spriteIndex != null) {
+            return "Sprite[" + sourcePath + "#" + spriteIndex + "]";
+        } else if (sourcePath != null) {
+            return "Sprite[" + sourcePath + "]";
+        } else {
+            return String.format("Sprite[programmatic][name=%s, pixels=%.0fx%.0f, world=%.2fx%.2f, pivot=(%.2f,%.2f), ppu=%.0f, uv=(%.2f," +
+                            "%.2f)-(%.2f,%.2f)]",
+                    name, width, height, getWorldWidth(), getWorldHeight(), pivotX, pivotY, getPixelsPerUnit(), u0, v0, u1, v1);
+        }
     }
 }

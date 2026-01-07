@@ -42,7 +42,7 @@ public class JsonPrefabLoader implements AssetLoader<JsonPrefab> {
 
     @Override
     public void save(JsonPrefab prefab, String path) throws IOException {
-        String jsonContent = Serializer.toJson(prefab, true);
+        String jsonContent = Serializer.toPrettyJson(prefab);
 
         Path filePath = Paths.get(path);
 

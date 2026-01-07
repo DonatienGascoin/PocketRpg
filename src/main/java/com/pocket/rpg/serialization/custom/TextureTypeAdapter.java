@@ -18,13 +18,13 @@ import java.lang.reflect.Type;
  */
 public class TextureTypeAdapter implements JsonSerializer<Texture>, JsonDeserializer<Texture> {
 
-    private final AssetContext assetManager;
+    private final AssetContext context;
 
     /**
      * Creates adapter with AssetManager for texture loading.
      */
-    public TextureTypeAdapter(@NonNull AssetContext assetManager) {
-        this.assetManager = assetManager;
+    public TextureTypeAdapter(@NonNull AssetContext context) {
+        this.context = context;
     }
 
     @Override
@@ -32,7 +32,7 @@ public class TextureTypeAdapter implements JsonSerializer<Texture>, JsonDeserial
         if (texture == null) {
             return JsonNull.INSTANCE;
         }
-        return new JsonPrimitive(assetManager.getRelativePath(texture.getFilePath()));
+        return new JsonPrimitive(this.context.getRelativePath(texture.getFilePath()));
     }
 
     @Override
@@ -49,6 +49,6 @@ public class TextureTypeAdapter implements JsonSerializer<Texture>, JsonDeserial
             return null;
         }
 
-        return assetManager.load(filePath);
+        return this.context.load(filePath);
     }
 }

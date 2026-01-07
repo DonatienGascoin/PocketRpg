@@ -19,8 +19,9 @@ public class Serializer {
     public Serializer(AssetContext context) {
         GsonBuilder builder = new GsonBuilder()
                 .enableComplexMapKeySerialization()
+                .registerTypeAdapterFactory(new AssetReferenceTypeAdapterFactory(context))
                 // Component polymorphism
-                .registerTypeAdapterFactory(new ComponentTypeAdapterFactory())
+                .registerTypeAdapterFactory(new ComponentTypeAdapterFactory(context))
                 // Asset types
                 .registerTypeAdapter(Sprite.class, new SpriteTypeAdapter(context))
                 .registerTypeAdapter(Texture.class, new TextureTypeAdapter(context))
@@ -58,14 +59,11 @@ public class Serializer {
     }
 
     public static String toJson(Object obj) {
-        return toJson(obj, false);
+        return getGson().toJson(obj);
     }
 
-    public static String toJson(Object obj, boolean prettyPrint) {
-        if (prettyPrint) {
-            return getPrettyPrintGson().toJson(obj);
-        }
-        return getGson().toJson(obj);
+    public static String toPrettyJson(Object obj) {
+        return getPrettyPrintGson().toJson(obj);
     }
 
     public static <T> T fromJson(String json, Class<T> clazz) {

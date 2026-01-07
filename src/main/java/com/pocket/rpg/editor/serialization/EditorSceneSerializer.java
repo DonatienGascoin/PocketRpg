@@ -8,6 +8,9 @@ import com.pocket.rpg.editor.scene.TilemapLayer;
 import com.pocket.rpg.serialization.GameObjectData;
 import com.pocket.rpg.serialization.SceneData;
 
+import java.util.HashSet;
+import java.util.Set;
+
 /**
  * Handles conversion between EditorScene (editor runtime) and SceneData (serialization).
  * <p>
@@ -85,6 +88,13 @@ public class EditorSceneSerializer {
                 }
             }
             // Rebuild parent-child hierarchy from parentId references
+            // Debug: check for duplicate IDs
+            Set<String> ids = new HashSet<>();
+            for (EditorEntity e : scene.getEntities()) {
+                if (!ids.add(e.getId())) {
+                    System.err.println("DUPLICATE ENTITY ID: " + e.getId() + " - " + e.getName());
+                }
+            }
             scene.resolveHierarchy();
         }
 

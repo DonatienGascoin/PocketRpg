@@ -153,7 +153,7 @@ public class EditorEntity {
         return Collections.unmodifiableList(children);
     }
 
-    List<EditorEntity> getChildrenMutable() {
+    public List<EditorEntity> getChildrenMutable() {
         if (children == null) {
             children = new ArrayList<>();
         }
@@ -454,6 +454,17 @@ public class EditorEntity {
             }
             if (spriteObj instanceof Texture texture) {
                 return new Sprite(texture);
+            }
+            // Handle String path (from JSON deserialization)
+            if (spriteObj instanceof String path && !path.isEmpty()) {
+                int hashIndex = path.indexOf('#');
+                if (hashIndex != -1) {
+                    String sheetPath = path.substring(0, hashIndex);
+                    int spriteIndex = Integer.parseInt(path.substring(hashIndex + 1));
+                    var sheet = Assets.load(sheetPath, com.pocket.rpg.rendering.SpriteSheet.class);
+                    return sheet.getSprite(spriteIndex);
+                }
+                return Assets.load(path, Sprite.class);
             }
         }
 

@@ -29,7 +29,7 @@ public class AssetManager implements AssetContext {
     private final ResourceCache cache;
     private final Map<Class<?>, AssetLoader<?>> loaders;
     private final Map<String, Class<?>> extensionMap;
-    private final Map<Object, String> resourcePaths;  // For persistence
+    private final Map<Object, String> resourcePaths;  // For persistence and serialization
 
     @Getter
     private String assetRoot = "gameData/assets/";
@@ -401,6 +401,11 @@ public class AssetManager implements AssetContext {
     }
 
     @Override
+    public String getPathForResource(Object resource) {
+        return resourcePaths.get(resource);
+    }
+
+    @Override
     @SuppressWarnings("unchecked")
     public Sprite getPreviewSprite(String path, Class<?> type) {
         AssetLoader<?> loader = loaders.get(type);
@@ -420,6 +425,8 @@ public class AssetManager implements AssetContext {
     public Class<?> getTypeForPath(String path) {
         return getTypeFromExtension(path);
     }
+
+
 
     @Override
     public String toString() {

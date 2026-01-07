@@ -3,7 +3,6 @@ package com.pocket.rpg.serialization;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.pocket.rpg.components.TilemapRenderer;
 import com.pocket.rpg.postProcessing.PostEffect;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.Texture;
@@ -19,12 +18,12 @@ public class Serializer {
     public Serializer(AssetContext context) {
         GsonBuilder builder = new GsonBuilder()
                 .enableComplexMapKeySerialization()
+                .registerTypeAdapterFactory(new AssetReferenceTypeAdapterFactory(context))
                 // Component polymorphism
-                .registerTypeAdapterFactory(new ComponentTypeAdapterFactory())
+                .registerTypeAdapterFactory(new ComponentTypeAdapterFactory(context))
                 // Asset types
                 .registerTypeAdapter(Sprite.class, new SpriteTypeAdapter(context))
                 .registerTypeAdapter(Texture.class, new TextureTypeAdapter(context))
-                .registerTypeAdapter(TilemapRenderer.class, new TilemapTypeAdapter(context))
                 // Others
                 .registerTypeAdapter(PostEffect.class, new PostEffectTypeAdapter());
 
@@ -58,14 +57,11 @@ public class Serializer {
     }
 
     public static String toJson(Object obj) {
-        return toJson(obj, false);
+        return getGson().toJson(obj);
     }
 
-    public static String toJson(Object obj, boolean prettyPrint) {
-        if (prettyPrint) {
-            return getPrettyPrintGson().toJson(obj);
-        }
-        return getGson().toJson(obj);
+    public static String toPrettyJson(Object obj) {
+        return getPrettyPrintGson().toJson(obj);
     }
 
     public static <T> T fromJson(String json, Class<T> clazz) {

@@ -65,6 +65,15 @@ public interface AssetContext {
     Set<String> getLoadedPaths();
 
     /**
+     * Gets the path for a loaded resource.
+     * Returns null if the resource was not loaded through Assets.
+     *
+     * @param resource The resource object
+     * @return The normalized path, or null if not tracked
+     */
+    String getPathForResource(Object resource);
+
+    /**
      * Saves a resource back to its original path.
      *
      * @param resource Resource to save

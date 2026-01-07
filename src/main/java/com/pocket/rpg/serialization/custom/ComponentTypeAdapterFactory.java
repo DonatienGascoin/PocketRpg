@@ -7,207 +7,192 @@ import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.TilemapRenderer;
+import com.pocket.rpg.components.TilemapRenderer.LedgeDirection;
+import com.pocket.rpg.components.TilemapRenderer.Tile;
+import com.pocket.rpg.components.TilemapRenderer.TileChunk;
+import com.pocket.rpg.rendering.Sprite;
+import com.pocket.rpg.resources.AssetContext;
 
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
+import java.io.*;
+import java.util.*;
 
-/**
- * TypeAdapterFactory that provides:
- * 1. Polymorphic serialization for all Components (type + properties wrapper)
- * 2. Special sparse serialization for TilemapRenderer
- * <p>
- * This replaces both ComponentSerializer/Deserializer and any TilemapRenderer-specific adapters.
- */
 public class ComponentTypeAdapterFactory implements TypeAdapterFactory {
 
     private static final String TYPE_FIELD = "type";
     private static final String PROPERTIES_FIELD = "properties";
+    private final AssetContext context;
+
+    public ComponentTypeAdapterFactory(AssetContext context) {
+        this.context = context;
+    }
 
     @Override
     public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> type) {
-        // Only handle Component and its subclasses
-        if (!Component.class.isAssignableFrom(type.getRawType())) {
-            return null;
-        }
+        if (!Component.class.isAssignableFrom(type.getRawType())) return null;
 
         return new TypeAdapter<T>() {
             @Override
             public void write(JsonWriter out, T value) throws IOException {
-                if (value == null) {
-                    out.nullValue();
-                    return;
-                }
-
+                if (value == null) { out.nullValue(); return; }
                 Component component = (Component) value;
 
                 out.beginObject();
-
-                // Write type field
-                out.name(TYPE_FIELD);
-                out.value(component.getClass().getCanonicalName());
-
-                // Write properties field
+                out.name(TYPE_FIELD).value(component.getClass().getCanonicalName());
                 out.name(PROPERTIES_FIELD);
 
-                // Special handling for TilemapRenderer
                 if (component instanceof TilemapRenderer) {
-                    writeTilemapRenderer(out, (TilemapRenderer) component, gson);
+                    writeTilemapBinary(out, (TilemapRenderer) component);
                 } else {
-                    // Standard serialization for other components
-                    TypeAdapter<T> delegateAdapter = gson.getDelegateAdapter(
-                            ComponentTypeAdapterFactory.this,
-                            type
-                    );
-                    delegateAdapter.write(out, value);
+                    TypeAdapter<T> delegate = gson.getDelegateAdapter(ComponentTypeAdapterFactory.this, type);
+                    delegate.write(out, value);
                 }
-
                 out.endObject();
             }
 
             @Override
             public T read(JsonReader in) throws IOException {
-                if (in.peek() == com.google.gson.stream.JsonToken.NULL) {
-                    in.nextNull();
-                    return null;
-                }
+                if (in.peek() == com.google.gson.stream.JsonToken.NULL) { in.nextNull(); return null; }
 
                 in.beginObject();
-
                 String componentType = null;
                 JsonElement properties = null;
 
                 while (in.hasNext()) {
                     String name = in.nextName();
-
-                    if (TYPE_FIELD.equals(name)) {
-                        componentType = in.nextString();
-                    } else if (PROPERTIES_FIELD.equals(name)) {
-                        properties = Streams.parse(in);
-                    } else {
-                        in.skipValue();
-                    }
+                    if (TYPE_FIELD.equals(name)) componentType = in.nextString();
+                    else if (PROPERTIES_FIELD.equals(name)) properties = Streams.parse(in);
+                    else in.skipValue();
                 }
-
                 in.endObject();
 
-                if (componentType == null) {
-                    throw new JsonParseException("Component JSON missing 'type' field");
-                }
-                if (properties == null) {
-                    throw new JsonParseException("Component JSON missing 'properties' field");
-                }
-
                 try {
-                    Class<?> componentClass = Class.forName(componentType);
-
-                    if (!Component.class.isAssignableFrom(componentClass)) {
-                        throw new JsonParseException("Type '" + componentType + "' is not a Component");
-                    }
-
-                    // Special handling for TilemapRenderer
-                    if (TilemapRenderer.class.isAssignableFrom(componentClass)) {
-                        return (T) readTilemapRenderer(properties, gson);
+                    Class<?> clazz = Class.forName(componentType);
+                    if (TilemapRenderer.class.isAssignableFrom(clazz)) {
+                        // MIGRATION CHECK: Is it a String (Binary) or Object (Old Map)?
+                        if (properties.isJsonPrimitive() && properties.getAsJsonPrimitive().isString()) {
+                            return (T) readTilemapBinary(properties.getAsString());
+                        } else {
+                            return (T) readLegacyTilemap(properties, gson);
+                        }
                     } else {
-                        // Standard deserialization for other components
-                        return (T) gson.fromJson(properties, componentClass);
+                        return (T) gson.fromJson(properties, (java.lang.reflect.Type) clazz);
                     }
-
-                } catch (ClassNotFoundException e) {
-                    throw new JsonParseException("Unknown component type: " + componentType, e);
+                } catch (Exception e) {
+                    throw new JsonParseException(e);
                 }
             }
         };
     }
 
-    /**
-     * Writes TilemapRenderer with sparse chunk serialization.
-     */
-    private void writeTilemapRenderer(JsonWriter out, TilemapRenderer tilemap, Gson gson) throws IOException {
-        out.beginObject();
+    private void writeTilemapBinary(JsonWriter out, TilemapRenderer tilemap) throws IOException {
+        List<Tile> palette = new ArrayList<>();
+        Map<Tile, Integer> tileToIndex = new HashMap<>();
 
-        // Write basic properties
-        out.name("zIndex").value(tilemap.getZIndex());
-        out.name("tileSize").value(tilemap.getTileSize());
-
-        // Write chunks sparsely
-        out.name("chunks");
-        out.beginObject();
-
-        for (Long chunkKey : tilemap.chunkKeys()) {
-            int cx = TilemapRenderer.chunkKeyToX(chunkKey);
-            int cy = TilemapRenderer.chunkKeyToY(chunkKey);
-            TilemapRenderer.TileChunk chunk = tilemap.getChunk(cx, cy);
-
-            // Collect non-null tiles
-            Map<String, TilemapRenderer.Tile> tiles = new HashMap<>();
-            for (int tx = 0; tx < TilemapRenderer.TileChunk.CHUNK_SIZE; tx++) {
-                for (int ty = 0; ty < TilemapRenderer.TileChunk.CHUNK_SIZE; ty++) {
-                    TilemapRenderer.Tile tile = chunk.get(tx, ty);
-                    if (tile != null && tile.sprite() != null) {
-                        tiles.put(tx + "," + ty, tile);
+        // Collect unique tiles
+        for (TileChunk chunk : tilemap.allChunks()) {
+            for (int x = 0; x < TileChunk.CHUNK_SIZE; x++) {
+                for (int y = 0; y < TileChunk.CHUNK_SIZE; y++) {
+                    Tile t = chunk.get(x, y);
+                    if (t != null && !tileToIndex.containsKey(t)) {
+                        tileToIndex.put(t, palette.size());
+                        palette.add(t);
                     }
                 }
             }
-
-            // Write chunk if it has tiles
-            if (!tiles.isEmpty()) {
-                out.name(cx + "," + cy);
-                gson.toJson(tiles, new TypeToken<Map<String, TilemapRenderer.Tile>>() {
-                }.getType(), out);
-            }
         }
 
-        out.endObject();
-        out.endObject();
-    }
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+             DataOutputStream dos = new DataOutputStream(baos)) {
 
-    /**
-     * Reads TilemapRenderer with sparse chunk deserialization.
-     */
-    private TilemapRenderer readTilemapRenderer(JsonElement properties, Gson gson) {
-        JsonObject json = properties.getAsJsonObject();
+            dos.writeFloat(tilemap.getTileSize());
+            dos.writeInt(tilemap.getZIndex());
 
-        // Read basic properties
-        float tileSize = json.has("tileSize") ? json.get("tileSize").getAsFloat() : 1.0f;
-        int zIndex = json.has("zIndex") ? json.get("zIndex").getAsInt() : 0;
-        boolean isStatic = json.has("isStatic") && json.get("isStatic").getAsBoolean();
+            // Palette
+            dos.writeInt(palette.size());
+            for (Tile t : palette) {
+                dos.writeUTF(t.name() != null ? t.name() : "");
+                dos.writeUTF(t.sprite() != null ? t.sprite().getName() : "");
+                dos.writeBoolean(t.solid());
+                dos.writeByte(t.ledgeDirection().ordinal());
+            }
 
-        // Create tilemap
-        TilemapRenderer tilemap = new TilemapRenderer(tileSize);
-        tilemap.setZIndex(zIndex);
+            // Chunks
+            Collection<TileChunk> chunks = tilemap.allChunks();
+            dos.writeInt(chunks.size());
+            for (TileChunk chunk : chunks) {
+                dos.writeInt(chunk.getChunkX());
+                dos.writeInt(chunk.getChunkY());
+                dos.writeInt(chunk.getTileCount());
 
-        // Read chunks
-        if (json.has("chunks")) {
-            JsonObject chunksJson = json.getAsJsonObject("chunks");
-
-            TypeToken<Map<String, TilemapRenderer.Tile>> tileMapType =
-                    new TypeToken<Map<String, TilemapRenderer.Tile>>() {
-                    };
-
-            for (var chunkEntry : chunksJson.entrySet()) {
-                String[] coords = chunkEntry.getKey().split(",");
-                int cx = Integer.parseInt(coords[0]);
-                int cy = Integer.parseInt(coords[1]);
-
-                Map<String, TilemapRenderer.Tile> tiles = gson.fromJson(
-                        chunkEntry.getValue(),
-                        tileMapType.getType()
-                );
-
-                for (Map.Entry<String, TilemapRenderer.Tile> tileEntry : tiles.entrySet()) {
-                    String[] tileCoords = tileEntry.getKey().split(",");
-                    int localX = Integer.parseInt(tileCoords[0]);
-                    int localY = Integer.parseInt(tileCoords[1]);
-
-                    int worldTx = cx * TilemapRenderer.TileChunk.CHUNK_SIZE + localX;
-                    int worldTy = cy * TilemapRenderer.TileChunk.CHUNK_SIZE + localY;
-
-                    tilemap.set(worldTx, worldTy, tileEntry.getValue());
+                for (int x = 0; x < TileChunk.CHUNK_SIZE; x++) {
+                    for (int y = 0; y < TileChunk.CHUNK_SIZE; y++) {
+                        Tile t = chunk.get(x, y);
+                        if (t != null) {
+                            dos.writeByte(x);
+                            dos.writeByte(y);
+                            dos.writeInt(tileToIndex.get(t)); // ID in palette
+                        }
+                    }
                 }
             }
+            out.value(Base64.getEncoder().encodeToString(baos.toByteArray()));
         }
+    }
 
-        return tilemap;
+    private TilemapRenderer readTilemapBinary(String base64) throws IOException {
+        byte[] bytes = Base64.getDecoder().decode(base64);
+        try (DataInputStream dis = new DataInputStream(new ByteArrayInputStream(bytes))) {
+            float size = dis.readFloat();
+            int z = dis.readInt();
+            TilemapRenderer tilemap = new TilemapRenderer(size);
+            tilemap.setZIndex(z);
+
+            // Read Palette
+            int palSize = dis.readInt();
+            Tile[] palette = new Tile[palSize];
+            for (int i = 0; i < palSize; i++) {
+                String name = dis.readUTF();
+                String spriteName = dis.readUTF();
+                boolean solid = dis.readBoolean();
+                LedgeDirection ledge = LedgeDirection.values()[dis.readByte()];
+//      TODO          palette[i] = new Tile(name, new Sprite(spriteName), solid, ledge);
+            }
+
+            // Read Chunks
+            int chunkCount = dis.readInt();
+            for (int i = 0; i < chunkCount; i++) {
+                int cx = dis.readInt();
+                int cy = dis.readInt();
+                int tCount = dis.readInt();
+                for (int j = 0; j < tCount; j++) {
+                    int tx = dis.readByte();
+                    int ty = dis.readByte();
+                    int palIdx = dis.readInt();
+                    tilemap.set(cx * TileChunk.CHUNK_SIZE + tx, cy * TileChunk.CHUNK_SIZE + ty, palette[palIdx]);
+                }
+            }
+            return tilemap;
+        }
+    }
+
+    private TilemapRenderer readLegacyTilemap(JsonElement props, Gson gson) {
+        JsonObject json = props.getAsJsonObject();
+        TilemapRenderer tm = new TilemapRenderer(json.has("tileSize") ? json.get("tileSize").getAsFloat() : 1.0f);
+        tm.setZIndex(json.has("zIndex") ? json.get("zIndex").getAsInt() : 0);
+
+        if (json.has("chunks")) {
+            JsonObject chunks = json.getAsJsonObject("chunks");
+            java.lang.reflect.Type type = new TypeToken<Map<String, Tile>>(){}.getType();
+            for (Map.Entry<String, JsonElement> entry : chunks.entrySet()) {
+                String[] c = entry.getKey().split(",");
+                int cx = Integer.parseInt(c[0]), cy = Integer.parseInt(c[1]);
+                Map<String, Tile> tiles = gson.fromJson(entry.getValue(), type);
+                tiles.forEach((pos, tile) -> {
+                    String[] p = pos.split(",");
+                    tm.set(cx * 32 + Integer.parseInt(p[0]), cy * 32 + Integer.parseInt(p[1]), tile);
+                });
+            }
+        }
+        return tm;
     }
 }

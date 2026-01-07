@@ -278,10 +278,31 @@ public class EditorScene {
     // ========================================================================
 
     /**
+     * Finds entity by ID.
+     */
+    public EditorEntity getEntityById(String id) {
+        if (id == null) return null;
+        for (EditorEntity entity : entities) {
+            if (id.equals(entity.getId())) {
+                return entity;
+            }
+        }
+        return null;
+    }
+
+    /**
      * Adds an entity to the scene.
      */
     public void addEntity(EditorEntity entity) {
         if (entity == null) return;
+
+        // Check for duplicate ID and regenerate if needed
+        if (getEntityById(entity.getId()) != null) {
+            String oldId = entity.getId();
+            entity.regenerateId();
+            System.out.println("Regenerated duplicate entity ID: " + oldId + " -> " + entity.getId());
+        }
+
         entities.add(entity);
         markDirty();
     }

@@ -21,7 +21,7 @@ import java.util.*;
 public class EditorEntity {
 
     @Getter
-    private final String id;
+    private String id;
 
     @Getter
     private String prefabId;
@@ -575,6 +575,13 @@ public class EditorEntity {
 
     public boolean isPrefabValid() {
         return PrefabRegistry.getInstance().hasPrefab(prefabId);
+    }
+
+    /**
+     * Regenerates this entity's ID. Used when duplicate IDs are detected.
+     */
+    public void regenerateId() {
+        this.id = UUID.randomUUID().toString().substring(0, 8);
     }
 
     @Override

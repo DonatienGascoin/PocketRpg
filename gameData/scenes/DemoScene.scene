@@ -102,16 +102,65 @@
           "type": "com.pocket.rpg.components.ui.UICanvas",
           "fields": {
             "renderMode": "SCREEN_SPACE_OVERLAY",
-            "sortOrder": 0
+            "sortOrder": 0.0
           }
         }
       ]
     },
     {
-      "id": "1b808190",
+      "id": "5f7abbc8",
       "parentId": "4632875d",
-      "order": 1,
-      "name": "Button",
+      "order": 0,
+      "name": "Panel",
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.ui.UITransform",
+          "fields": {
+            "offset": {
+              "x": -10.0,
+              "y": -10.0
+            },
+            "anchor": {
+              "x": 1.0,
+              "y": 1.0
+            },
+            "width": 128.0,
+            "pivot": {
+              "x": 1.0,
+              "y": 1.0
+            },
+            "height": 40.0
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.ui.UIPanel",
+          "fields": {
+            "backgroundColor": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0,
+              "w": 1.0
+            },
+            "color": {
+              "x": 0.21019363,
+              "y": 0.4690268,
+              "z": 0.7258687,
+              "w": 1.0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "36bbf749",
+      "parentId": "5f7abbc8",
+      "order": 0,
+      "name": "Text",
       "position": [
         0.0,
         0.0,
@@ -126,19 +175,19 @@
               "y": 0.0
             },
             "anchor": {
-              "x": 0.5,
-              "y": 0.5
+              "x": 0.0,
+              "y": 0.0
             },
-            "width": 120.0,
+            "width": 128.0,
             "pivot": {
-              "x": 0.5,
-              "y": 0.5
+              "x": 0.0,
+              "y": 0.0
             },
             "height": 40.0
           }
         },
         {
-          "type": "com.pocket.rpg.components.ui.UIButton",
+          "type": "com.pocket.rpg.components.ui.UIText",
           "fields": {
             "color": {
               "x": 1.0,
@@ -146,25 +195,11 @@
               "z": 1.0,
               "w": 1.0
             },
-            "hoverColor": {
-              "x": 0.9,
-              "y": 0.9,
-              "z": 0.9,
-              "w": 1.0
-            },
-            "text": "Button",
-            "pressedColor": {
-              "x": 0.8,
-              "y": 0.8,
-              "z": 0.8,
-              "w": 1.0
-            },
-            "normalColor": {
-              "x": 1.0,
-              "y": 1.0,
-              "z": 1.0,
-              "w": 1.0
-            }
+            "fontSize": 16.0,
+            "text": "New Text",
+            "font": "fonts/zelda60.font.json",
+            "horizontalAlignment": "CENTER",
+            "verticalAlignment": "MIDDLE"
           }
         }
       ]

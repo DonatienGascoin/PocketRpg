@@ -43,7 +43,7 @@ public class FieldEditors {
 
     private static final float LABEL_WIDTH = 120f;
 
-    private static void inspectorRow(String label, Runnable field) {
+    public static void inspectorRow(String label, Runnable field) {
         // Measure label width
         float textWidth = ImGui.calcTextSize(label).x;
 
@@ -117,7 +117,7 @@ public class FieldEditors {
      * Draws a float drag field with min/max constraints.
      */
     public static boolean drawFloat(String label, Map<String, Object> fields, String key,
-                                     float speed, float min, float max) {
+                                    float speed, float min, float max) {
         Object value = fields.get(key);
         floatBuffer[0] = value instanceof Number n ? n.floatValue() : 0f;
 
@@ -126,6 +126,30 @@ public class FieldEditors {
         final boolean[] changed = {false};
         inspectorRow(label, () -> {
             changed[0] = ImGui.dragFloat("##" + key, floatBuffer, speed, min, max);
+        });
+
+        ImGui.popID();
+
+        if (changed[0]) {
+            fields.put(key, floatBuffer[0]);
+        }
+        return changed[0];
+    }
+
+
+    /**
+     * Draws a float slider field with min/max constraints.
+     */
+    public static boolean drawFloatSlider(String label, Map<String, Object> fields, String key,
+                                    float min, float max) {
+        Object value = fields.get(key);
+        floatBuffer[0] = value instanceof Number n ? n.floatValue() : 0f;
+
+        ImGui.pushID(key);
+
+        final boolean[] changed = {false};
+        inspectorRow(label, () -> {
+            changed[0] = ImGui.sliderFloat("##" + key, floatBuffer, min, max);
         });
 
         ImGui.popID();

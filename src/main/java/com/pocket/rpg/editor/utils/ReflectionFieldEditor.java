@@ -36,6 +36,11 @@ public class ReflectionFieldEditor {
             return false;
         }
 
+        // Check for custom editor first
+        if (CustomComponentEditorRegistry.hasCustomEditor(component.getType())) {
+            return CustomComponentEditorRegistry.drawCustomEditor(component, entity);
+        }
+
         boolean changed = false;
         for (FieldMeta fieldMeta : meta.fields()) {
             try {
@@ -69,6 +74,10 @@ public class ReflectionFieldEditor {
     }
 
     private static boolean drawFieldInternal(ComponentData data, FieldMeta meta, EditorEntity entity) {
+        if (data == null) {
+            return false;
+        }
+
         Class<?> type = meta.type();
         String fieldName = meta.name();
         Map<String, Object> fields = data.getFields();

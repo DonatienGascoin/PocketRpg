@@ -55,9 +55,7 @@ public class UITextEditor implements CustomComponentEditor {
 
         // Color
         ImGui.spacing();
-        ImGui.text("Color");
-        ImGui.sameLine(100);
-        changed |= FieldEditors.drawColor("##color", fields, "color");
+        changed |= FieldEditors.drawColor("Color", fields, "color");
 
         // === ALIGNMENT SECTION ===
         ImGui.spacing();

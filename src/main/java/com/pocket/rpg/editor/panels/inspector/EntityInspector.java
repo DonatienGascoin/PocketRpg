@@ -78,7 +78,10 @@ public class EntityInspector {
             renderPrefabInfo(entity);
         }
 
-        renderTransformEditor(entity);
+        if (!isUIEntity(entity)) {
+            renderTransformEditor(entity);
+        }
+
         renderComponentList(entity);
         componentBrowserPopup.render();
         savePrefabPopup.render();
@@ -356,13 +359,11 @@ public class EntityInspector {
         }
     }
 
-    private static class NoOpWrapperCommand extends MoveEntityCommand {
-        public NoOpWrapperCommand(MoveEntityCommand original, EditorEntity entity, Vector3f oldPos) {
-            super(entity, oldPos, entity.getPosition());
-        }
-
-        @Override
-        public void execute() {
-        }
+    /**
+     * Checks if entity is a UI entity (has UITransform or UICanvas).
+     * UI entities use UITransform for positioning, not the regular Transform.
+     */
+    private boolean isUIEntity(EditorEntity entity) {
+        return entity.hasComponent("UITransform") || entity.hasComponent("UICanvas");
     }
 }

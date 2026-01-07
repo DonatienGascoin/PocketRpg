@@ -7,6 +7,7 @@ import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonToken;
 import com.google.gson.stream.JsonWriter;
+import com.pocket.rpg.components.Component;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.resources.AssetContext;
 
@@ -61,6 +62,11 @@ public class AssetReferenceTypeAdapterFactory implements TypeAdapterFactory {
 
         // Skip enums - let Gson handle them
         if (rawType.isEnum()) {
+            return null;
+        }
+
+        // Skip Components - let ComponentTypeAdapterFactory handle them
+        if (Component.class.isAssignableFrom(rawType)) {
             return null;
         }
 

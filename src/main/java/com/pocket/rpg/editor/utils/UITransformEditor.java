@@ -166,16 +166,6 @@ public class UITransformEditor implements CustomComponentEditor {
         // Section: Offset
         ImGui.text(FontAwesomeIcons.ArrowsAlt + " Offset");
 
-        // Track offset changes for undo
-        Vector2f oldOffset = new Vector2f(FieldEditors.getVector2f(fields, "offset"));
-        boolean offsetChanged = FieldEditors.drawVector2f("##offset", fields, "offset", 1.0f);
-
-        if (offsetChanged) {
-            Vector2f newOffset = FieldEditors.getVector2f(fields, "offset");
-            createMoveCommand(entity, data, oldOffset, newOffset, fields);
-            changed = true;
-        }
-
         ImGui.sameLine();
         if (ImGui.smallButton("Reset##offset")) {
             Vector2f currentOffset = FieldEditors.getVector2f(fields, "offset");
@@ -185,6 +175,18 @@ public class UITransformEditor implements CustomComponentEditor {
                 changed = true;
             }
         }
+
+        // Track offset changes for undo
+        Vector2f oldOffset = new Vector2f(FieldEditors.getVector2f(fields, "offset"));
+        boolean offsetChanged = FieldEditors.drawVector2f("offset", fields, "offset", 1.0f);
+
+        if (offsetChanged) {
+            Vector2f newOffset = FieldEditors.getVector2f(fields, "offset");
+            createMoveCommand(entity, data, oldOffset, newOffset, fields);
+            changed = true;
+        }
+
+
 
         ImGui.spacing();
 

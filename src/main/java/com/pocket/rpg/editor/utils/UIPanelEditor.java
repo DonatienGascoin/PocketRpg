@@ -33,14 +33,19 @@ public class UIPanelEditor implements CustomComponentEditor {
 
         // Background Color
         ImGui.text(FontAwesomeIcons.FillDrip + " Background Color");
-        changed |= FieldEditors.drawColor("##color", fields, "color");
+        changed |= FieldEditors.drawColor("Color", fields, "color");
 
         // Quick alpha slider
         ImGui.spacing();
         float alpha = getAlpha(fields);
         float[] alphaBuf = {alpha};
         ImGui.setNextItemWidth(-1);
-        if (ImGui.sliderFloat("Alpha", alphaBuf, 0f, 1f)) {
+
+        final boolean[] alphaChanged = {false};
+        FieldEditors.inspectorRow("Alpha", () -> {
+            alphaChanged[0] = ImGui.sliderFloat("##alpha", alphaBuf, 0f, 1f);
+        });
+        if (alphaChanged[0]) {
             setAlpha(fields, alphaBuf[0]);
             changed = true;
         }

@@ -61,9 +61,17 @@ public class AssetDropHandler {
      */
     private static EditorEntity instantiateSpriteSheetSprite(SpriteSheet sheet, String path,
                                                              Vector3f position, int spriteIndex) {
-        // Use the SpriteSheetLoader's specialized method
-        SpriteSheetLoader loader = new SpriteSheetLoader();
-        return loader.instantiateWithIndex(sheet, path, position, spriteIndex);
+        String entityName = extractEntityName(path) + "_" + spriteIndex;
+        EditorEntity entity = new EditorEntity(entityName, position, false);
+
+        com.pocket.rpg.serialization.ComponentData spriteRenderer =
+                new com.pocket.rpg.serialization.ComponentData("com.pocket.rpg.components.SpriteRenderer");
+        // Store as path string, not Sprite object
+        spriteRenderer.getFields().put("sprite", path + "#" + spriteIndex);
+        spriteRenderer.getFields().put("zIndex", 0);
+        entity.addComponent(spriteRenderer);
+
+        return entity;
     }
 
     /**
@@ -101,7 +109,8 @@ public class AssetDropHandler {
 
         com.pocket.rpg.serialization.ComponentData spriteRenderer =
                 new com.pocket.rpg.serialization.ComponentData("com.pocket.rpg.components.SpriteRenderer");
-        spriteRenderer.getFields().put("sprite", sprite);
+        // Store as path string
+        spriteRenderer.getFields().put("sprite", path);
         spriteRenderer.getFields().put("zIndex", 0);
         entity.addComponent(spriteRenderer);
 

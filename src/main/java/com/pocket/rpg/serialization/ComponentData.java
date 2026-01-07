@@ -121,6 +121,9 @@ public class ComponentData {
         // Apply field values
         for (FieldMeta fieldMeta : meta.fields()) {
             Object value = fields.get(fieldMeta.name());
+            System.out.println("DEBUG ComponentData: field=" + fieldMeta.name() +
+                    " value=" + value +
+                    " targetType=" + fieldMeta.type());
             if (value != null) {
                 try {
                     Field field = fieldMeta.field();
@@ -128,6 +131,7 @@ public class ComponentData {
 
                     // Convert from serialized form
                     Object converted = fromSerializable(value, fieldMeta.type());
+                    System.out.println("DEBUG ComponentData: converted=" + converted);
                     field.set(component, converted);
 
                 } catch (Exception e) {
@@ -194,7 +198,26 @@ public class ComponentData {
         }
 
         if (value instanceof Sprite sprite) {
-            return Map.of("_type", "Sprite", "path", Assets.getRelativePath(sprite.getTexture().getFilePath()));
+            // Use source tracking if available (for spritesheet sprites)
+            String path = sprite.getSourcePath();
+            if (path != null) {
+                if (sprite.getSpriteIndex() != null) {
+                    return path + "#" + sprite.getSpriteIndex();
+                }
+                return path;
+            }
+
+            // Fallback: check Assets registry
+            path = Assets.getPathForResource(sprite);
+            if (path != null) {
+                return path;
+            }
+
+            // Last fallback: texture path
+            if (sprite.getTexture() != null) {
+                return Assets.getRelativePath(sprite.getTexture().getFilePath());
+            }
+            return null;
         }
         if (value instanceof Texture texture) {
             return Map.of("_type", "Texture", "path", Assets.getRelativePath(texture.getFilePath()));
@@ -253,6 +276,27 @@ public class ComponentData {
                 if (!map.isEmpty()) {
                     value = new ArrayList<>(map.values());
                 }
+            }
+        }
+
+        // Handle String → Asset types (Sprite, Texture, Font)
+        if (value instanceof String path && !path.isEmpty()) {
+            if (targetType == Sprite.class) {
+                // Support "path#index" format for spritesheet sprites
+                int hashIndex = path.indexOf('#');
+                if (hashIndex != -1) {
+                    String sheetPath = path.substring(0, hashIndex);
+                    int spriteIndex = Integer.parseInt(path.substring(hashIndex + 1));
+                    var sheet = Assets.load(sheetPath, com.pocket.rpg.rendering.SpriteSheet.class);
+                    return sheet.getSprite(spriteIndex);
+                }
+                return Assets.load(path, Sprite.class);
+            }
+            if (targetType == Texture.class) {
+                return Assets.load(path, Texture.class);
+            }
+            if (targetType == com.pocket.rpg.ui.text.Font.class) {
+                return Assets.load(path, com.pocket.rpg.ui.text.Font.class);
             }
         }
 

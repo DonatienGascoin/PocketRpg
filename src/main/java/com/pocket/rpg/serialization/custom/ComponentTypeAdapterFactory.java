@@ -11,7 +11,9 @@ import com.pocket.rpg.components.TilemapRenderer.LedgeDirection;
 import com.pocket.rpg.components.TilemapRenderer.Tile;
 import com.pocket.rpg.components.TilemapRenderer.TileChunk;
 import com.pocket.rpg.rendering.Sprite;
+import com.pocket.rpg.rendering.SpriteSheet;
 import com.pocket.rpg.resources.AssetContext;
+import com.pocket.rpg.resources.Assets;
 
 import java.io.*;
 import java.util.*;
@@ -111,7 +113,7 @@ public class ComponentTypeAdapterFactory implements TypeAdapterFactory {
             dos.writeInt(palette.size());
             for (Tile t : palette) {
                 dos.writeUTF(t.name() != null ? t.name() : "");
-                dos.writeUTF(t.sprite() != null ? t.sprite().getName() : "");
+                dos.writeUTF(serializeSpriteRef(t.sprite()));
                 dos.writeBoolean(t.solid());
                 dos.writeByte(t.ledgeDirection().ordinal());
             }
@@ -155,7 +157,7 @@ public class ComponentTypeAdapterFactory implements TypeAdapterFactory {
                 String spriteName = dis.readUTF();
                 boolean solid = dis.readBoolean();
                 LedgeDirection ledge = LedgeDirection.values()[dis.readByte()];
-//      TODO          palette[i] = new Tile(name, new Sprite(spriteName), solid, ledge);
+                palette[i] = new Tile(name, resolveSpriteRef(spriteName), solid, ledge);
             }
 
             // Read Chunks
@@ -194,5 +196,35 @@ public class ComponentTypeAdapterFactory implements TypeAdapterFactory {
             }
         }
         return tm;
+    }
+
+    private String serializeSpriteRef(Sprite sprite) {
+        if (sprite == null) return "";
+
+        String path = sprite.getSourcePath();
+        if (path == null) {
+            path = Assets.getPathForResource(sprite);
+        }
+
+        if (path == null) return "";
+
+        if (sprite.getSpriteIndex() != null) {
+            return path + "#" + sprite.getSpriteIndex();
+        }
+        return path;
+    }
+
+    private Sprite resolveSpriteRef(String ref) {
+        if (ref == null || ref.isEmpty()) return null;
+
+        int hashIndex = ref.indexOf('#');
+        if (hashIndex != -1) {
+            String sheetPath = ref.substring(0, hashIndex);
+            int spriteIndex = Integer.parseInt(ref.substring(hashIndex + 1));
+            SpriteSheet sheet = Assets.load(sheetPath, SpriteSheet.class);
+            return sheet.getSprite(spriteIndex);
+        }
+
+        return Assets.load(ref, Sprite.class);
     }
 }

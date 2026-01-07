@@ -7,6 +7,7 @@ import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonToken;
 import com.google.gson.stream.JsonWriter;
+import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.resources.AssetContext;
 
 import java.io.IOException;
@@ -40,7 +41,9 @@ public class AssetReferenceTypeAdapterFactory implements TypeAdapterFactory {
             // Collections
             List.class, ArrayList.class, LinkedList.class,
             Set.class, HashSet.class, LinkedHashSet.class, TreeSet.class,
-            Map.class, HashMap.class, LinkedHashMap.class, TreeMap.class
+            Map.class, HashMap.class, LinkedHashMap.class, TreeMap.class,
+            // Sprites are handled by their own adapter to accommodate for spritesheets
+            Sprite.class
     );
 
     public AssetReferenceTypeAdapterFactory(AssetContext assetContext) {
@@ -54,6 +57,11 @@ public class AssetReferenceTypeAdapterFactory implements TypeAdapterFactory {
         // PERFORMANCE: Skip primitives and common types entirely
         if (rawType.isPrimitive() || SKIP_TYPES.contains(rawType)) {
             return null; // Let Gson handle these with default adapters
+        }
+
+        // Skip enums - let Gson handle them
+        if (rawType.isEnum()) {
+            return null;
         }
 
         // PERFORMANCE: Skip java.* and javax.* packages (unlikely to be assets)

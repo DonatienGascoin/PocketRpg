@@ -8,12 +8,17 @@ import java.util.Set;
 /**
  * Interface for asset management operations.
  * Allows swapping implementations (e.g., for testing).
+ * <p>
+ * Supports sub-asset references using the format "path/to/asset.ext#subId".
+ * For example: "sheets/player.spritesheet#3" loads sprite index 3 from the sheet.
  */
 public interface AssetContext {
 
     /**
      * Loads a resource from the given path.
      * Type is inferred from the return value.
+     * <p>
+     * Supports sub-asset references: "path/to/asset.ext#subId"
      *
      * @param path Resource path
      * @param <T>  Resource type
@@ -23,6 +28,8 @@ public interface AssetContext {
 
     /**
      * Loads a resource with explicit type.
+     * <p>
+     * Supports sub-asset references: "path/to/asset.ext#subId"
      *
      * @param path Resource path
      * @param type Resource type class
@@ -66,6 +73,9 @@ public interface AssetContext {
 
     /**
      * Gets the path for a loaded resource.
+     * Returns the full reference path including sub-asset identifiers
+     * (e.g., "sheet.spritesheet#3").
+     * <p>
      * Returns null if the resource was not loaded through Assets.
      *
      * @param resource The resource object
@@ -145,4 +155,16 @@ public interface AssetContext {
      * @return Asset type class, or null if no loader handles this extension
      */
     Class<?> getTypeForPath(String path);
+
+    /**
+     * Manually registers a resource with a path.
+     * Useful for programmatically created assets that need path tracking.
+     * <p>
+     * This enables {@link #getPathForResource(Object)} to work for assets
+     * not loaded through {@link #load(String, Class)}.
+     *
+     * @param resource The resource to register
+     * @param path     The path to associate with it
+     */
+    void registerResource(Object resource, String path);
 }

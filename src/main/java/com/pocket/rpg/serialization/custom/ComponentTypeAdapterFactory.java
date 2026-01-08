@@ -11,9 +11,8 @@ import com.pocket.rpg.components.TilemapRenderer.LedgeDirection;
 import com.pocket.rpg.components.TilemapRenderer.Tile;
 import com.pocket.rpg.components.TilemapRenderer.TileChunk;
 import com.pocket.rpg.rendering.Sprite;
-import com.pocket.rpg.rendering.SpriteSheet;
 import com.pocket.rpg.resources.AssetContext;
-import com.pocket.rpg.resources.Assets;
+import com.pocket.rpg.resources.SpriteReference;
 
 import java.io.*;
 import java.util.*;
@@ -198,33 +197,21 @@ public class ComponentTypeAdapterFactory implements TypeAdapterFactory {
         return tm;
     }
 
+    /**
+     * Serializes a sprite reference using the centralized SpriteReference utility.
+     * Returns the full path including #index for spritesheet sprites.
+     */
     private String serializeSpriteRef(Sprite sprite) {
         if (sprite == null) return "";
-
-        String path = sprite.getSourcePath();
-        if (path == null) {
-            path = Assets.getPathForResource(sprite);
-        }
-
-        if (path == null) return "";
-
-        if (sprite.getSpriteIndex() != null) {
-            return path + "#" + sprite.getSpriteIndex();
-        }
-        return path;
+        String path = SpriteReference.toPath(sprite);
+        return path != null ? path : "";
     }
 
+    /**
+     * Resolves a sprite reference using SpriteReference utility.
+     * Handles both direct paths and spritesheet#index format.
+     */
     private Sprite resolveSpriteRef(String ref) {
-        if (ref == null || ref.isEmpty()) return null;
-
-        int hashIndex = ref.indexOf('#');
-        if (hashIndex != -1) {
-            String sheetPath = ref.substring(0, hashIndex);
-            int spriteIndex = Integer.parseInt(ref.substring(hashIndex + 1));
-            SpriteSheet sheet = Assets.load(sheetPath, SpriteSheet.class);
-            return sheet.getSprite(spriteIndex);
-        }
-
-        return Assets.load(ref, Sprite.class);
+        return SpriteReference.fromPath(ref);
     }
 }

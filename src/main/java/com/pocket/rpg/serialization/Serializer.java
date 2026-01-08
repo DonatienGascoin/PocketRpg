@@ -5,10 +5,22 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.pocket.rpg.postProcessing.PostEffect;
 import com.pocket.rpg.rendering.Sprite;
-import com.pocket.rpg.rendering.Texture;
 import com.pocket.rpg.resources.AssetContext;
 import com.pocket.rpg.serialization.custom.*;
 
+/**
+ * Central serialization configuration for the engine.
+ * <p>
+ * Asset serialization is handled by:
+ * <ul>
+ *   <li>{@link AssetReferenceTypeAdapterFactory} - Generic assets (Texture, SpriteSheet, Font, etc.)</li>
+ *   <li>{@link SpriteTypeAdapter} - Sprites with object fallback for programmatic sprites</li>
+ *   <li>{@link ComponentTypeAdapterFactory} - Component polymorphism</li>
+ * </ul>
+ * <p>
+ * Note: TextureTypeAdapter was removed as it's redundant with AssetReferenceTypeAdapterFactory.
+ * All asset paths are managed centrally through {@link com.pocket.rpg.resources.AssetManager#getPathForResource(Object)}.
+ */
 public class Serializer {
     private static Serializer instance;
 
@@ -21,12 +33,12 @@ public class Serializer {
                 .registerTypeAdapterFactory(new AssetReferenceTypeAdapterFactory(context))
                 // Component polymorphism
                 .registerTypeAdapterFactory(new ComponentTypeAdapterFactory(context))
-                // Asset types
+                // Sprite with object fallback (for programmatic sprites)
                 .registerTypeAdapter(Sprite.class, new SpriteTypeAdapter(context))
-                .registerTypeAdapter(Texture.class, new TextureTypeAdapter(context))
                 // Others
                 .registerTypeAdapter(PostEffect.class, new PostEffectTypeAdapter());
 
+        // Note: TextureTypeAdapter removed - AssetReferenceTypeAdapterFactory handles Texture
 
         defaultConfig = builder.create();
         prettyPrintConfig = builder

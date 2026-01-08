@@ -5,8 +5,8 @@ import com.pocket.rpg.prefab.JsonPrefab;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.SpriteSheet;
 import com.pocket.rpg.rendering.Texture;
-import com.pocket.rpg.resources.AssetManager;
 import com.pocket.rpg.resources.Assets;
+import com.pocket.rpg.resources.SpriteReference;
 import com.pocket.rpg.resources.loaders.SpriteSheetLoader;
 import org.joml.Vector3f;
 
@@ -31,19 +31,16 @@ public class AssetDropHandler {
         }
 
         try {
+            // Handle sub-asset paths (spritesheet#index) - load as Sprite directly
+            if (payload.isSubAsset()) {
+                return createSpriteEntity(payload.path(), position);
+            }
+
             // Load the asset
             Object asset = Assets.load(payload.path(), payload.type());
             if (asset == null) {
                 System.err.println("Failed to load asset for drop: " + payload.path());
                 return null;
-            }
-
-            // Get the asset manager and loader
-            AssetManager manager = (AssetManager) Assets.getContext();
-
-            // Handle SpriteSheet with specific sprite index
-            if (payload.isSpriteSheetSprite() && asset instanceof SpriteSheet sheet) {
-                return instantiateSpriteSheetSprite(sheet, payload.path(), position, payload.spriteIndex());
             }
 
             // Use loader's instantiate method
@@ -57,17 +54,23 @@ public class AssetDropHandler {
     }
 
     /**
-     * Instantiates a specific sprite from a spritesheet.
+     * Creates an entity with a sprite from a path (handles both direct and #index format).
      */
-    private static EditorEntity instantiateSpriteSheetSprite(SpriteSheet sheet, String path,
-                                                             Vector3f position, int spriteIndex) {
-        String entityName = extractEntityName(path) + "_" + spriteIndex;
+    private static EditorEntity createSpriteEntity(String path, Vector3f position) {
+        String entityName = extractEntityName(path);
+        
+        // Append sub-asset ID to name if present
+        String subId = SpriteReference.getSubAssetId(path);
+        if (subId != null) {
+            entityName = entityName + "_" + subId;
+        }
+        
         EditorEntity entity = new EditorEntity(entityName, position, false);
 
         com.pocket.rpg.serialization.ComponentData spriteRenderer =
                 new com.pocket.rpg.serialization.ComponentData("com.pocket.rpg.components.SpriteRenderer");
-        // Store as path string, not Sprite object
-        spriteRenderer.getFields().put("sprite", path + "#" + spriteIndex);
+        // Store as path string - serialization handles #index format
+        spriteRenderer.getFields().put("sprite", path);
         spriteRenderer.getFields().put("zIndex", 0);
         entity.addComponent(spriteRenderer);
 
@@ -80,12 +83,9 @@ public class AssetDropHandler {
     @SuppressWarnings("unchecked")
     private static EditorEntity instantiateFromLoader(Object asset, String path,
                                                       Vector3f position, Class<?> type) {
-        // Get loader for type
-        AssetManager manager = (AssetManager) Assets.getContext();
-
         // Handle known types with their loaders
         if (asset instanceof Sprite sprite) {
-            return createSpriteEntity(sprite, path, position);
+            return createSpriteEntity(path, position);
         }
         if (asset instanceof Texture texture) {
             return createTextureEntity(texture, path, position);
@@ -101,20 +101,6 @@ public class AssetDropHandler {
 
         System.err.println("No instantiation handler for type: " + type.getSimpleName());
         return null;
-    }
-
-    private static EditorEntity createSpriteEntity(Sprite sprite, String path, Vector3f position) {
-        String entityName = extractEntityName(path);
-        EditorEntity entity = new EditorEntity(entityName, position, false);
-
-        com.pocket.rpg.serialization.ComponentData spriteRenderer =
-                new com.pocket.rpg.serialization.ComponentData("com.pocket.rpg.components.SpriteRenderer");
-        // Store as path string
-        spriteRenderer.getFields().put("sprite", path);
-        spriteRenderer.getFields().put("zIndex", 0);
-        entity.addComponent(spriteRenderer);
-
-        return entity;
     }
 
     private static EditorEntity createTextureEntity(Texture texture, String path, Vector3f position) {
@@ -147,10 +133,15 @@ public class AssetDropHandler {
 
     /**
      * Extracts entity name from asset path.
+     * Handles both direct paths and #index format.
      */
     private static String extractEntityName(String assetPath) {
-        int lastSlash = Math.max(assetPath.lastIndexOf('/'), assetPath.lastIndexOf('\\'));
-        String filename = lastSlash >= 0 ? assetPath.substring(lastSlash + 1) : assetPath;
+        // Get base path (without #index)
+        String basePath = SpriteReference.getBasePath(assetPath);
+        if (basePath == null) basePath = assetPath;
+        
+        int lastSlash = Math.max(basePath.lastIndexOf('/'), basePath.lastIndexOf('\\'));
+        String filename = lastSlash >= 0 ? basePath.substring(lastSlash + 1) : basePath;
 
         int firstDot = filename.indexOf('.');
         return firstDot >= 0 ? filename.substring(0, firstDot) : filename;
@@ -161,6 +152,9 @@ public class AssetDropHandler {
      */
     public static boolean canInstantiate(AssetDragPayload payload) {
         if (payload == null) return false;
+
+        // Sub-assets (spritesheet#index) can always be instantiated as sprites
+        if (payload.isSubAsset()) return true;
 
         Class<?> type = payload.type();
         return type == Sprite.class ||

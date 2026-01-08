@@ -4,6 +4,7 @@ import com.pocket.rpg.components.Component;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.Texture;
 import com.pocket.rpg.resources.Assets;
+import com.pocket.rpg.resources.SpriteReference;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector2f;
@@ -198,22 +199,13 @@ public class ComponentData {
         }
 
         if (value instanceof Sprite sprite) {
-            // Use source tracking if available (for spritesheet sprites)
-            String path = sprite.getSourcePath();
-            if (path != null) {
-                if (sprite.getSpriteIndex() != null) {
-                    return path + "#" + sprite.getSpriteIndex();
-                }
-                return path;
-            }
-
-            // Fallback: check Assets registry
-            path = Assets.getPathForResource(sprite);
+            // Use centralized path lookup (handles both direct sprites and spritesheet#index)
+            String path = SpriteReference.toPath(sprite);
             if (path != null) {
                 return path;
             }
 
-            // Last fallback: texture path
+            // Fallback: texture path for programmatically created sprites
             if (sprite.getTexture() != null) {
                 return Assets.getRelativePath(sprite.getTexture().getFilePath());
             }
@@ -282,15 +274,8 @@ public class ComponentData {
         // Handle String → Asset types (Sprite, Texture, Font)
         if (value instanceof String path && !path.isEmpty()) {
             if (targetType == Sprite.class) {
-                // Support "path#index" format for spritesheet sprites
-                int hashIndex = path.indexOf('#');
-                if (hashIndex != -1) {
-                    String sheetPath = path.substring(0, hashIndex);
-                    int spriteIndex = Integer.parseInt(path.substring(hashIndex + 1));
-                    var sheet = Assets.load(sheetPath, com.pocket.rpg.rendering.SpriteSheet.class);
-                    return sheet.getSprite(spriteIndex);
-                }
-                return Assets.load(path, Sprite.class);
+                // SpriteReference.fromPath handles both direct and #index format
+                return SpriteReference.fromPath(path);
             }
             if (targetType == Texture.class) {
                 return Assets.load(path, Texture.class);

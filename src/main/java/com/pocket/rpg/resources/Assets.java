@@ -270,4 +270,21 @@ public final class Assets {
     public static Class<?> getTypeForPath(String path) {
         return getContext().getTypeForPath(path);
     }
+
+    /**
+     * Manually registers a resource with a path.
+     * Useful for programmatically created assets that need path tracking.
+     * <p>
+     * This enables {@link #getPathForResource(Object)} to work for assets
+     * not loaded through {@link #load(String, Class)}.
+     *
+     * @param resource The resource to register
+     * @param path     The path to associate with it
+     */
+    public static void registerResource(Object resource, String path) {
+        if (context != null) {
+            context.registerResource(resource, path);
+        }
+    }
+
 }

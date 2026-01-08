@@ -120,4 +120,28 @@ public interface AssetLoader<T> {
     default String getIconCodepoint() {
         return FontAwesomeIcons.File;
     }
+
+    // ========================================================================
+    // SUB-ASSET SUPPORT
+    // ========================================================================
+
+    /**
+     * Extracts a sub-asset from a parent asset.
+     * Only override for assets that contain addressable sub-assets (e.g., SpriteSheet).
+     * <p>
+     * Example: SpriteSheetLoader overrides this to return individual sprites by index.
+     *
+     * @param parent  The parent asset
+     * @param subId   The sub-asset identifier (e.g., "3" for sprite index)
+     * @param subType The expected sub-asset type
+     * @param <S>     The sub-asset type
+     * @return The sub-asset
+     * @throws UnsupportedOperationException if this loader doesn't support sub-assets
+     * @throws IllegalArgumentException if subId is invalid or subType is not supported
+     */
+    default <S> S getSubAsset(T parent, String subId, Class<S> subType) {
+        throw new UnsupportedOperationException(
+                "Asset type " + parent.getClass().getSimpleName() + " does not support sub-assets"
+        );
+    }
 }

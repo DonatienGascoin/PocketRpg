@@ -5,14 +5,11 @@ import com.pocket.rpg.editor.assets.ThumbnailCache;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.SpriteSheet;
-import com.pocket.rpg.resources.AssetLoader;
-import com.pocket.rpg.resources.AssetManager;
 import com.pocket.rpg.resources.Assets;
 import imgui.ImGui;
 import imgui.flag.*;
 import imgui.type.ImString;
 import lombok.Getter;
-import lombok.Setter;
 
 import java.util.*;
 
@@ -26,6 +23,9 @@ import java.util.*;
  * - Search/filter
  * - SpriteSheet inline expansion
  * - Drag-drop source for scene placement
+ * <p>
+ * Drag payloads use unified path format (e.g., "sheets/player.spritesheet#3")
+ * that can be used directly with {@code Assets.load(path, type)}.
  */
 public class AssetBrowserPanel {
 
@@ -459,9 +459,9 @@ public class AssetBrowserPanel {
             selectedAsset = entry;
         }
 
-        // Drag source with sprite preview
+        // Drag source - use unified path format
         if (canInstantiate(entry) && ImGui.beginDragDropSource(ImGuiDragDropFlags.SourceAllowNullID)) {
-            AssetDragPayload payload = AssetDragPayload.of(entry.path, entry.type, null);
+            AssetDragPayload payload = AssetDragPayload.of(entry.path, entry.type);
             ImGui.setDragDropPayload(AssetDragPayload.DRAG_TYPE, payload.serialize());
 
             // Drag preview with sprite thumbnail
@@ -541,7 +541,10 @@ public class AssetBrowserPanel {
         Sprite sprite = sheet.getSprite(index);
         if (sprite == null) return;
 
-        String spriteId = sheetEntry.path + "#" + index;
+        // Full path for this specific sprite
+        String spritePath = sheetEntry.path + "#" + index;
+        String spriteId = spritePath;
+
         ImGui.pushID(spriteId);
 
         int texId = thumbnailCache.getTextureId(sheetEntry.path, index, sprite);
@@ -554,15 +557,15 @@ public class AssetBrowserPanel {
             selectedAsset = sheetEntry; // Keep sheet selected
         }
 
-        // Drag source for individual sprite with preview
-        if (canInstantiate(sheetEntry) && ImGui.beginDragDropSource(ImGuiDragDropFlags.SourceAllowNullID)) {
-            AssetDragPayload payload = AssetDragPayload.ofSpriteSheet(sheetEntry.path, sheet, index);
+        // Drag source - use unified path format with #index
+        if (ImGui.beginDragDropSource(ImGuiDragDropFlags.SourceAllowNullID)) {
+            AssetDragPayload payload = AssetDragPayload.ofSpriteSheetSprite(sheetEntry.path, index);
             ImGui.setDragDropPayload(AssetDragPayload.DRAG_TYPE, payload.serialize());
 
             // Drag preview with sprite thumbnail
             ImGui.image(texId, 32, 32, uv[0], uv[3], uv[2], uv[1]);
             ImGui.sameLine();
-            ImGui.text(sheetEntry.filename + " [" + index + "]");
+            ImGui.text(sheetEntry.filename + "#" + index);
 
             ImGui.endDragDropSource();
         }
@@ -571,6 +574,7 @@ public class AssetBrowserPanel {
         if (ImGui.isItemHovered()) {
             ImGui.beginTooltip();
             ImGui.text("Sprite #" + index);
+            ImGui.textDisabled("Path: " + spritePath);
             ImGui.textDisabled("Drag to scene to place");
             ImGui.endTooltip();
         }

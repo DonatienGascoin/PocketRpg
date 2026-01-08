@@ -12,8 +12,10 @@ import java.io.IOException;
 
 /**
  * Loader for sprite assets.
- * Creates sprites from textures. Note: Textures are NOT cached separately,
- * each sprite loads its own texture instance.
+ * Creates sprites from textures.
+ * <p>
+ * Note: Path tracking is handled centrally by {@link com.pocket.rpg.resources.AssetManager#getPathForResource(Object)}.
+ * Sprites loaded through this loader are automatically registered in the resourcePaths map.
  */
 public class SpriteLoader implements AssetLoader<Sprite> {
 
@@ -24,6 +26,7 @@ public class SpriteLoader implements AssetLoader<Sprite> {
             Texture texture = new Texture(path);
 
             // Create sprite from texture
+            // Path tracking is handled by AssetManager.resourcePaths
             return new Sprite(texture, path);
         } catch (RuntimeException e) {
             throw new IOException("Failed to load texture for sprite: " + path, e);

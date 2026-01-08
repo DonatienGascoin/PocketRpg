@@ -22,14 +22,50 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Default implementation of AssetContext.
  * Manages asset loading, caching, and persistence.
+ * <p>
+ * Supports sub-asset references using the format "path/to/asset.ext#subId".
+ * For example: "sheets/player.spritesheet#3" loads sprite index 3 from the sheet.
  */
 public class AssetManager implements AssetContext {
 
+    /** Separator for sub-asset references (e.g., "sheet.spritesheet#3") */
+    public static final char SUB_ASSET_SEPARATOR = '#';
+
+    /**
+     * Stores loaded assets keyed by normalized path.
+     * <p>
+     * Enables {@link #get(String, Class)} for fast lookups and prevents duplicate loading
+     * of the same asset. All assets loaded via {@link #load(String, Class)} are cached here.
+     */
     @Getter
     private final ResourceCache cache;
+
+    /**
+     * Maps asset type (Class) → AssetLoader.
+     * <p>
+     * Determines how each type is loaded, saved, and provides metadata like supported
+     * extensions and preview sprites. Register custom loaders via {@link #registerLoader(Class, AssetLoader)}.
+     */
     private final Map<Class<?>, AssetLoader<?>> loaders;
+
+    /**
+     * Maps file extension (".png", ".spritesheet") → asset type (Texture.class, SpriteSheet.class).
+     * <p>
+     * Used by {@link #load(String)} to infer the asset type from path when not explicitly specified.
+     * Extensions are registered automatically when calling {@link #registerLoader(Class, AssetLoader)}.
+     */
     private final Map<String, Class<?>> extensionMap;
-    private final Map<Object, String> resourcePaths;  // For persistence and serialization
+
+    /**
+     * Reverse mapping: asset object → path.
+     * <p>
+     * <b>Single source of truth for serialization.</b> Used by {@link #getPathForResource(Object)}
+     * to resolve how to serialize an asset reference. Includes #index suffix for sub-assets
+     * (e.g., spritesheet sprites are stored as "sheet.spritesheet#3").
+     * <p>
+     * Populated automatically when assets are loaded via {@link #load(String, Class)}.
+     */
+    private final Map<Object, String> resourcePaths;
 
     @Getter
     private String assetRoot = "gameData/assets/";
@@ -92,7 +128,7 @@ public class AssetManager implements AssetContext {
         // Normalize path
         String normalizedPath = normalizePath(path);
 
-        // Check cache first
+        // Check cache first (including sub-assets)
         T cached = cache.get(normalizedPath);
         if (cached != null) {
             return cached;
@@ -100,6 +136,13 @@ public class AssetManager implements AssetContext {
 
         if (statisticsEnabled) {
             cache.getStats().recordLoad();
+        }
+
+        // Check for sub-asset reference
+        int hashIndex = normalizedPath.indexOf(SUB_ASSET_SEPARATOR);
+        if (hashIndex != -1) {
+            // Use Object.class as wildcard - loader returns appropriate type
+            return (T) loadSubAsset(normalizedPath, hashIndex, Object.class);
         }
 
         // Determine type from extension
@@ -117,7 +160,7 @@ public class AssetManager implements AssetContext {
         // Normalize path
         String normalizedPath = normalizePath(path);
 
-        // Check cache first
+        // Check cache first (including sub-assets)
         T cached = cache.get(normalizedPath);
         if (cached != null) {
             return cached;
@@ -127,7 +170,52 @@ public class AssetManager implements AssetContext {
             cache.getStats().recordLoad();
         }
 
+        // Check for sub-asset reference
+        int hashIndex = normalizedPath.indexOf(SUB_ASSET_SEPARATOR);
+        if (hashIndex != -1) {
+            return loadSubAsset(normalizedPath, hashIndex, type);
+        }
+
         return (T) loadWithType(normalizedPath, type);
+    }
+
+    /**
+     * Loads a sub-asset from a parent asset.
+     * Path format: "path/to/parent.ext#subId"
+     *
+     * @param fullPath  Full path including sub-asset identifier
+     * @param hashIndex Index of the '#' separator
+     * @param subType   Expected sub-asset type class
+     * @param <T>       Expected sub-asset type
+     * @return The loaded sub-asset
+     */
+    @SuppressWarnings("unchecked")
+    private <T> T loadSubAsset(String fullPath, int hashIndex, Class<T> subType) {
+        String basePath = fullPath.substring(0, hashIndex);
+        String subId = fullPath.substring(hashIndex + 1);
+
+        // Determine parent type from extension
+        Class<?> parentType = getTypeFromExtension(basePath);
+        if (parentType == null) {
+            throw new IllegalArgumentException("Unknown parent asset type for: " + basePath);
+        }
+
+        // Load parent asset (will be cached)
+        Object parent = load(basePath, parentType);
+
+        // Get loader and extract sub-asset
+        AssetLoader<?> loader = loaders.get(parentType);
+        if (loader == null) {
+            throw new IllegalArgumentException("No loader for parent type: " + parentType.getSimpleName());
+        }
+
+        T subAsset = ((AssetLoader<Object>) loader).getSubAsset(parent, subId, subType);
+
+        // Cache and register with full reference path
+        cache.put(fullPath, subAsset);
+        resourcePaths.put(subAsset, fullPath);
+
+        return subAsset;
     }
 
     /**
@@ -153,6 +241,8 @@ public class AssetManager implements AssetContext {
 
             // Track normalized path for persistence
             resourcePaths.put(resource, normalizedPath);
+            System.out.println("[DEBUG] Registered: " + resource.getClass().getSimpleName()
+                    + " path=" + normalizedPath + ", identity=" + System.identityHashCode(resource));
 
             return resource;
 
@@ -426,7 +516,21 @@ public class AssetManager implements AssetContext {
         return getTypeFromExtension(path);
     }
 
-
+    /**
+     * Manually registers a resource with a path.
+     * Useful for programmatically created assets that need path tracking.
+     *
+     * @param resource The resource to register
+     * @param path     The path to associate with it
+     */
+    public void registerResource(Object resource, String path) {
+        if (resource == null || path == null) {
+            return;
+        }
+        String normalizedPath = normalizePath(path);
+        resourcePaths.put(resource, normalizedPath);
+        cache.put(normalizedPath, resource);
+    }
 
     @Override
     public String toString() {

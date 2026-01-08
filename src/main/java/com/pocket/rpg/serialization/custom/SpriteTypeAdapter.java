@@ -5,17 +5,25 @@ import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonToken;
 import com.google.gson.stream.JsonWriter;
 import com.pocket.rpg.rendering.Sprite;
-import com.pocket.rpg.rendering.SpriteSheet;
 import com.pocket.rpg.rendering.Texture;
 import com.pocket.rpg.resources.AssetContext;
 import com.pocket.rpg.resources.Assets;
+import com.pocket.rpg.resources.SpriteReference;
 
 import java.io.IOException;
 
 /**
  * Unified TypeAdapter for Sprite serialization.
- * Handles String references ("path/to/sprite.png"), SpriteSheet references ("path#index"),
- * and full Object definitions for custom sprites.
+ * <p>
+ * Handles two formats:
+ * <ul>
+ *   <li>String references - "path/to/sprite.png" or "path/to/sheet.spritesheet#3"</li>
+ *   <li>Object definitions - for programmatic sprites without asset paths</li>
+ * </ul>
+ * <p>
+ * Path resolution is centralized through {@link Assets#getPathForResource(Object)}
+ * and {@link Assets#load(String, Class)}. The #index format for spritesheet sprites
+ * is handled automatically by AssetManager.
  */
 public class SpriteTypeAdapter extends TypeAdapter<Sprite> {
 
@@ -32,27 +40,25 @@ public class SpriteTypeAdapter extends TypeAdapter<Sprite> {
             return;
         }
 
-        // 1. Try to serialize as a Reference String (Path or Sheet index)
-        String path = sprite.getSourcePath();
-        if (path == null) {
-            path = Assets.getPathForResource(sprite);
-        }
+        // Single source of truth - SpriteReference uses resourcePaths map
+        // Path already includes #index for spritesheet sprites
+        String path = SpriteReference.toPath(sprite);
 
         if (path != null) {
-            if (sprite.getSpriteIndex() != null) {
-                out.value(path + "#" + sprite.getSpriteIndex());
-            } else {
-                out.value(path);
-            }
+            out.value(path);
             return;
         }
 
-        // 2. Fallback: Serialize as a Full Object
+        // Fallback: Serialize as full object (programmatic sprites)
         out.beginObject();
         out.name("name").value(sprite.getName());
 
         if (sprite.getTexture() != null && context != null) {
-            out.name("texturePath").value(context.getRelativePath(sprite.getTexture().getFilePath()));
+            String texturePath = context.getPathForResource(sprite.getTexture());
+            if (texturePath == null) {
+                texturePath = context.getRelativePath(sprite.getTexture().getFilePath());
+            }
+            out.name("texturePath").value(texturePath);
         }
 
         out.name("width").value(sprite.getWidth());
@@ -80,22 +86,13 @@ public class SpriteTypeAdapter extends TypeAdapter<Sprite> {
             return null;
         }
 
-        // Handle String Reference ("assets/player.png" or "assets/sheet.png#5")
+        // String reference - SpriteReference.fromPath() handles #index parsing automatically
         if (token == JsonToken.STRING) {
             String value = in.nextString();
-            int hashIndex = value.indexOf('#');
-
-            if (hashIndex != -1) {
-                String sheetPath = value.substring(0, hashIndex);
-                int spriteIndex = Integer.parseInt(value.substring(hashIndex + 1));
-                SpriteSheet sheet = Assets.load(sheetPath, SpriteSheet.class);
-                return sheet.getSprite(spriteIndex);
-            }
-
-            return Assets.load(value, Sprite.class);
+            return SpriteReference.fromPath(value);
         }
 
-        // Handle Object Definition
+        // Object definition - for programmatic sprites
         if (token == JsonToken.BEGIN_OBJECT) {
             return deserializeObject(in);
         }

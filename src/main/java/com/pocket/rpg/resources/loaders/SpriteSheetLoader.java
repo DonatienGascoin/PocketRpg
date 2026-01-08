@@ -156,6 +156,36 @@ public class SpriteSheetLoader implements AssetLoader<SpriteSheet> {
     }
 
     // ========================================================================
+    // SUB-ASSET SUPPORT
+    // ========================================================================
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <S> S getSubAsset(SpriteSheet parent, String subId, Class<S> subType) {
+        // Accept Sprite.class or Object.class (wildcard for type inference)
+        if (subType != Sprite.class && subType != Object.class) {
+            throw new IllegalArgumentException(
+                    "SpriteSheet only provides Sprite sub-assets, not " + subType.getSimpleName()
+            );
+        }
+
+        int index;
+        try {
+            index = Integer.parseInt(subId);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Invalid sprite index: " + subId);
+        }
+
+        if (index < 0 || index >= parent.getTotalFrames()) {
+            throw new IllegalArgumentException(
+                    "Sprite index " + index + " out of range [0, " + parent.getTotalFrames() + ")"
+            );
+        }
+
+        return (S) parent.getSprite(index);
+    }
+
+    // ========================================================================
     // EDITOR INSTANTIATION SUPPORT
     // ========================================================================
 

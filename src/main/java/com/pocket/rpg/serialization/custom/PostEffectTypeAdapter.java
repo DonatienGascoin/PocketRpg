@@ -36,7 +36,6 @@ import java.util.*;
  * this.intensity = intensity;
  * this.radius = radius;
  * }
- * }
  */
 public class PostEffectTypeAdapter implements JsonSerializer<PostEffect>, JsonDeserializer<PostEffect> {
 

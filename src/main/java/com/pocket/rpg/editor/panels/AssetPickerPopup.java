@@ -1,12 +1,11 @@
 package com.pocket.rpg.editor.panels;
 
+import com.pocket.rpg.editor.assets.AssetPreviewRegistry;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.SpriteSheet;
-import com.pocket.rpg.rendering.Texture;
 import com.pocket.rpg.resources.Assets;
-import com.pocket.rpg.ui.text.Font;
+import com.pocket.rpg.resources.SpriteReference;
 import imgui.ImGui;
-import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImString;
 import lombok.Getter;
@@ -16,16 +15,32 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * Popup for selecting asset files (Sprites, Textures, SpriteSheets, Fonts).
+ * Popup for selecting asset files.
+ * <p>
+ * Works with any asset type registered in Assets. For Sprite selection,
+ * also displays individual sprites from spritesheets in an indented list format:
+ * <pre>
+ * player.spritesheet
+ *   └─ player.spritesheet#0
+ *   └─ player.spritesheet#1
+ *   └─ player.spritesheet#2
+ * enemy.png
+ * </pre>
+ * <p>
+ * Selection returns the full path (including #index for spritesheet sprites),
+ * which can be used directly with {@code Assets.load(path, type)}.
  * <p>
  * Usage:
- * assetPicker.open(Sprite.class, sprite -> {
+ * <pre>
+ * assetPicker.open(Sprite.class, currentPath, sprite -> {
  *     myComponent.setSprite(sprite);
  * });
+ * </pre>
  */
 public class AssetPickerPopup {
 
     private static final String POPUP_ID = "Select Asset";
+    private static final float PREVIEW_MAX_SIZE = 180f;
 
     private boolean shouldOpen = false;
     private Class<?> assetType;
@@ -70,52 +85,75 @@ public class AssetPickerPopup {
         }
     }
 
+    /**
+     * Scans for assets of the requested type.
+     * <p>
+     * Special case: For Sprite, also expands spritesheets with individual sprites.
+     * This is the only exception because Sprite can come from multiple source types.
+     */
     private void scanAssets() {
         availableAssets.clear();
 
         try {
-            List<String> paths;
+            List<String> paths = Assets.scanByType(assetType);
 
-            if (assetType == Sprite.class || assetType == Texture.class) {
-                // Scan for image files
-                paths = Assets.scanByType(Texture.class);
-            } else if (assetType == SpriteSheet.class) {
-                paths = Assets.scanByType(SpriteSheet.class);
-            } else if (assetType == Font.class) {
-                // Try scanByType first (uses registered loader extensions)
-                paths = Assets.scanByType(Font.class);
-                // If empty, fallback to manual scan for font files
-                if (paths.isEmpty()) {
-                    paths = scanForFonts();
+            // Special case: Sprite can also come from spritesheets
+            if (assetType == Sprite.class) {
+                paths = new ArrayList<>(paths);  // Make mutable
+                List<String> sheetPaths = Assets.scanByType(SpriteSheet.class);
+                
+                // Add sheets and expand them
+                for (String sheetPath : sheetPaths) {
+                    if (!paths.contains(sheetPath)) {
+                        paths.add(sheetPath);
+                    }
+                }
+                
+                // Sort all paths
+                paths.sort(String::compareToIgnoreCase);
+                
+                // Add entries with spritesheet expansion
+                for (String path : paths) {
+                    String fileName = getFileName(path);
+                    
+                    // Check if this is a spritesheet
+                    Class<?> pathType = Assets.getTypeForPath(path);
+                    if (pathType == SpriteSheet.class) {
+                        // Add the spritesheet header
+                        availableAssets.add(new AssetEntry(path, fileName, false, false));
+                        
+                        // Expand individual sprites
+                        try {
+                            SpriteSheet sheet = Assets.load(path, SpriteSheet.class);
+                            if (sheet != null) {
+                                int totalFrames = sheet.getTotalFrames();
+                                for (int i = 0; i < totalFrames; i++) {
+                                    String spritePath = SpriteReference.buildPath(path, i);
+                                    String spriteName = "  └─ " + fileName + "#" + i;
+                                    availableAssets.add(new AssetEntry(spritePath, spriteName, true, true));
+                                }
+                            }
+                        } catch (Exception e) {
+                            System.err.println("Failed to expand spritesheet: " + path + " - " + e.getMessage());
+                        }
+                    } else {
+                        // Regular image file
+                        availableAssets.add(new AssetEntry(path, fileName, false, true));
+                    }
                 }
             } else {
-                paths = Assets.scanAll();
+                // Standard case: just list the assets
+                for (String path : paths) {
+                    availableAssets.add(new AssetEntry(path, getFileName(path), false, true));
+                }
+                
+                // Sort alphabetically
+                availableAssets.sort((a, b) -> a.displayName.compareToIgnoreCase(b.displayName));
             }
-
-            for (String path : paths) {
-                availableAssets.add(new AssetEntry(path, getFileName(path)));
-            }
-
-            // Sort alphabetically
-            availableAssets.sort((a, b) -> a.name.compareToIgnoreCase(b.name));
 
         } catch (Exception e) {
             System.err.println("Failed to scan assets: " + e.getMessage());
         }
-    }
-
-    private List<String> scanForFonts() {
-        List<String> all = Assets.scanAll();
-        List<String> fonts = new ArrayList<>();
-        for (String path : all) {
-            String lower = path.toLowerCase();
-            // Include both raw font files and font definition files
-            if (lower.endsWith(".ttf") || lower.endsWith(".otf") || lower.endsWith(".fnt") ||
-                    lower.endsWith(".font") || lower.endsWith(".font.json")) {
-                fonts.add(path);
-            }
-        }
-        return fonts;
     }
 
     private String getFileName(String path) {
@@ -135,7 +173,19 @@ public class AssetPickerPopup {
         ImGui.setNextWindowSize(520, 480);
 
         if (ImGui.beginPopupModal(POPUP_ID, ImGuiWindowFlags.NoResize)) {
-            String typeName = assetType != null ? assetType.getSimpleName() : "Asset";
+            try {
+                renderPopupContent();
+            } finally {
+                ImGui.endPopup();
+            }
+        }
+    }
+
+    /**
+     * Renders the popup content. Separated for exception safety.
+     */
+    private void renderPopupContent() {
+        String typeName = assetType != null ? assetType.getSimpleName() : "Asset";
 
             // Header row: Title + Search on same line
             ImGui.text("Select " + typeName);
@@ -170,32 +220,47 @@ public class AssetPickerPopup {
             for (AssetEntry entry : availableAssets) {
                 // Apply filter
                 if (!filter.isEmpty() &&
-                        !entry.name.toLowerCase().contains(filter) &&
+                        !entry.displayName.toLowerCase().contains(filter) &&
                         !entry.path.toLowerCase().contains(filter)) {
                     continue;
                 }
 
                 boolean isSelected = entry.path.equals(selectedPath);
 
-                if (ImGui.selectable(entry.name, isSelected)) {
-                    selectedPath = entry.path;
-                    loadPreview(entry.path);
+                // Indented items have different styling
+                if (entry.isIndented) {
+                    ImGui.pushStyleColor(imgui.flag.ImGuiCol.Text, 0.7f, 0.7f, 0.7f, 1.0f);
+                }
+
+                // Only selectable if it's a valid selection for the requested type
+                if (entry.isSelectable) {
+                    if (ImGui.selectable(entry.displayName, isSelected)) {
+                        selectedPath = entry.path;
+                        loadPreview(entry.path);
+                    }
+
+                    // Double-click to confirm
+                    if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(0)) {
+                        confirmSelection();
+                    }
+                } else {
+                    // Non-selectable header (spritesheet when selecting Sprite)
+                    ImGui.textDisabled(entry.displayName);
+                }
+
+                if (entry.isIndented) {
+                    ImGui.popStyleColor();
                 }
 
                 // Tooltip with full path
                 if (ImGui.isItemHovered()) {
                     ImGui.setTooltip(entry.path);
                 }
-
-                // Double-click to confirm
-                if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(0)) {
-                    confirmSelection();
-                }
             }
 
             ImGui.endChild();
 
-            // Right column: preview (also scrollable for consistency)
+            // Right column: preview
             ImGui.nextColumn();
 
             ImGui.text("Preview");
@@ -220,7 +285,7 @@ public class AssetPickerPopup {
 
             // Buttons
             float buttonWidth = 100;
-            float totalButtonWidth = buttonWidth * 2 + 10;  // 2 buttons + spacing
+            float totalButtonWidth = buttonWidth * 2 + 10;
             float startX = (ImGui.getContentRegionAvailX() - totalButtonWidth) / 2;
             ImGui.setCursorPosX(ImGui.getCursorPosX() + startX);
 
@@ -233,11 +298,12 @@ public class AssetPickerPopup {
             if (ImGui.button("Cancel", buttonWidth, 0)) {
                 ImGui.closeCurrentPopup();
             }
-
-            ImGui.endPopup();
-        }
     }
 
+    /**
+     * Loads preview for the selected path.
+     * Uses type inference from Assets.load().
+     */
     private void loadPreview(String path) {
         if (path.equals(previewPath)) {
             return;  // Already loaded
@@ -247,21 +313,16 @@ public class AssetPickerPopup {
         previewAsset = null;
 
         try {
-            if (assetType == Sprite.class) {
-                previewAsset = Assets.load(path, Sprite.class);
-            } else if (assetType == Texture.class) {
-                previewAsset = Assets.load(path, Texture.class);
-            } else if (assetType == SpriteSheet.class) {
-                previewAsset = Assets.load(path, SpriteSheet.class);
-            } else if (assetType == Font.class) {
-                // FontLoader handles both .font.json and raw TTF/OTF files
-                previewAsset = Assets.load(path, Font.class);
-            }
+            // Type inference handles everything - including #index format
+            previewAsset = Assets.load(path, assetType);
         } catch (Exception e) {
             System.err.println("Failed to load preview: " + e.getMessage());
         }
     }
 
+    /**
+     * Renders preview using the centralized AssetPreviewRegistry.
+     */
     private void renderPreview() {
         if (previewAsset == null) {
             if (selectedPath != null) {
@@ -272,77 +333,8 @@ public class AssetPickerPopup {
             return;
         }
 
-        Texture texture = null;
-        int width = 0;
-        int height = 0;
-
-        if (previewAsset instanceof Sprite sprite) {
-            texture = sprite.getTexture();
-            width = (int) sprite.getWidth();
-            height = (int) sprite.getHeight();
-        } else if (previewAsset instanceof Texture tex) {
-            texture = tex;
-            width = tex.getWidth();
-            height = tex.getHeight();
-        } else if (previewAsset instanceof SpriteSheet sheet) {
-            texture = sheet.getTexture();
-            width = texture.getWidth();
-            height = texture.getHeight();
-        } else if (previewAsset instanceof Font font) {
-            // Font preview - show info and sample text
-            renderFontPreview(font);
-            return;
-        }
-
-        if (texture != null) {
-            // Scale to fit preview area
-            float maxSize = 180;
-            float scale = Math.min(maxSize / width, maxSize / height);
-            if (scale > 1) scale = 1;  // Don't upscale
-
-            int displayWidth = (int) (width * scale);
-            int displayHeight = (int) (height * scale);
-
-            // ImGui.image() needs texture ID
-            ImGui.image(texture.getTextureId(), displayWidth, displayHeight);
-
-            ImGui.text(width + " x " + height + " px");
-        }
-    }
-
-    private void renderFontPreview(Font font) {
-        // Font info - use path from selectedPath since Font doesn't expose name
-        String fontName = selectedPath != null ? getFileName(selectedPath) : "Unknown";
-        ImGui.text("Font: " + fontName);
-        ImGui.text("Size: " + font.getSize() + " px");
-        ImGui.text("Line Height: " + font.getLineHeight() + " px");
-        ImGui.text("Ascent: " + font.getAscent() + " / Descent: " + font.getDescent());
-
-        ImGui.spacing();
-        ImGui.separator();
-        ImGui.spacing();
-
-        // Atlas preview
-        ImGui.text("Atlas:");
-
-        int atlasId = font.getAtlasTextureId();
-        int atlasWidth = font.getAtlasWidth();
-        int atlasHeight = font.getAtlasHeight();
-
-        if (atlasId != 0) {
-            // Show atlas preview (scaled down)
-            float maxSize = 150;
-            float scale = Math.min(maxSize / atlasWidth, maxSize / atlasHeight);
-            if (scale > 1) scale = 1;
-
-            int displayWidth = (int) (atlasWidth * scale);
-            int displayHeight = (int) (atlasHeight * scale);
-
-            ImGui.image(atlasId, displayWidth, displayHeight);
-            ImGui.textDisabled(atlasWidth + "x" + atlasHeight);
-        } else {
-            ImGui.textDisabled("(No atlas available)");
-        }
+        // Delegate to registry - handles all types generically
+        AssetPreviewRegistry.render(previewAsset, PREVIEW_MAX_SIZE);
     }
 
     private void confirmSelection() {
@@ -350,7 +342,6 @@ public class AssetPickerPopup {
 
         if (selectedPath != null) {
             try {
-                // FontLoader handles both .font.json and raw TTF/OTF files
                 result = Assets.load(selectedPath, assetType);
             } catch (Exception e) {
                 System.err.println("Failed to load selected asset: " + e.getMessage());
@@ -365,8 +356,13 @@ public class AssetPickerPopup {
     }
 
     /**
-     * Simple asset entry for the list.
+     * Asset entry for the list.
+     *
+     * @param path        Full path (including #index for sub-assets)
+     * @param displayName Display name (with indentation prefix for sub-assets)
+     * @param isIndented  Whether this is an indented sub-asset entry
+     * @param isSelectable Whether this entry can be selected
      */
-    private record AssetEntry(String path, String name) {
+    private record AssetEntry(String path, String displayName, boolean isIndented, boolean isSelectable) {
     }
 }

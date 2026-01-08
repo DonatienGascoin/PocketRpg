@@ -6,6 +6,7 @@ import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.SetComponentFieldCommand;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.Texture;
+import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.serialization.ComponentData;
 import imgui.ImGui;
 import imgui.type.ImInt;
@@ -141,7 +142,7 @@ public class FieldEditors {
      * Draws a float slider field with min/max constraints.
      */
     public static boolean drawFloatSlider(String label, Map<String, Object> fields, String key,
-                                    float min, float max) {
+                                          float min, float max) {
         Object value = fields.get(key);
         floatBuffer[0] = value instanceof Number n ? n.floatValue() : 0f;
 
@@ -377,46 +378,60 @@ public class FieldEditors {
     public static boolean drawAsset(String label, Map<String, Object> fields, String key,
                                     Class<?> assetType, ComponentData data, EditorEntity entity) {
         Object value = fields.get(key);
-        String display = getAssetDisplayName(value, assetType);
+        // TODO: Remove once the deserialization issue is fixed
+        // Lazy-load: if value is a String path but we expect an asset, resolve it
+        if (value instanceof String path && !path.isEmpty() && assetType != String.class) {
+            try {
+                Object loadedAsset = Assets.load(path, assetType);
+                if (loadedAsset != null) {
+                    fields.put(key, loadedAsset);  // Update the map with resolved asset
+                    value = loadedAsset;
+                }
+            } catch (Exception e) {
+                // Keep as string if loading fails - will show "(unnamed)"
+                System.err.println("Failed to lazy-load asset: " + path + " as " + assetType.getSimpleName());
+            }
+        }
+
+        String display = getAssetDisplayName(value);
 
         ImGui.pushID(key);
 
-        inspectorRow(label, () -> {
+        try {
+            Object finalValue = value;
+            inspectorRow(label, () -> {
 
-            if (value != null) {
-                ImGui.textColored(0.6f, 0.9f, 0.6f, 1.0f, display);
-            } else {
-                ImGui.textDisabled(display);
-            }
-
-            ImGui.sameLine();
-            if (ImGui.smallButton("...")) {
-                assetPickerTargetData = data;
-                assetPickerFieldName = key;
-                assetPickerTargetEntity = entity;
-                Object oldValue = fields.get(key);
-
-                String currentPath = null;
-                if (oldValue instanceof Sprite sprite && sprite.getTexture() != null) {
-                    currentPath = sprite.getTexture().getFilePath();
-                } else if (oldValue instanceof Texture texture) {
-                    currentPath = texture.getFilePath();
+                if (finalValue != null) {
+                    ImGui.textColored(0.6f, 0.9f, 0.6f, 1.0f, display);
+                } else {
+                    ImGui.textDisabled(display);
                 }
 
-                assetPicker.open(assetType, currentPath, selectedAsset -> {
-                    UndoManager.getInstance().execute(
-                            new SetComponentFieldCommand(
-                                    assetPickerTargetData,
-                                    assetPickerFieldName,
-                                    oldValue,
-                                    selectedAsset
-                            )
-                    );
-                });
-            }
-        });
+                ImGui.sameLine();
+                if (ImGui.smallButton("...")) {
+                    assetPickerTargetData = data;
+                    assetPickerFieldName = key;
+                    assetPickerTargetEntity = entity;
+                    Object oldValue = fields.get(key);
 
-        ImGui.popID();
+                    // Get current path from resourcePaths map (null-safe)
+                    String currentPath = oldValue != null ? Assets.getPathForResource(oldValue) : null;
+
+                    assetPicker.open(assetType, currentPath, selectedAsset -> {
+                        UndoManager.getInstance().execute(
+                                new SetComponentFieldCommand(
+                                        assetPickerTargetData,
+                                        assetPickerFieldName,
+                                        oldValue,
+                                        selectedAsset
+                                )
+                        );
+                    });
+                }
+            });
+        } finally {
+            ImGui.popID();
+        }
         return false;
     }
 
@@ -533,25 +548,22 @@ public class FieldEditors {
         return enumCache.computeIfAbsent(enumType, Class::getEnumConstants);
     }
 
-    private static String getAssetDisplayName(Object value, Class<?> type) {
+    /**
+     * Gets display name for an asset using the centralized resourcePaths map.
+     * Works for all asset types without type-specific logic.
+     *
+     * @param value The asset object
+     * @return Display name (filename from path, or "(none)" if null)
+     */
+    private static String getAssetDisplayName(Object value) {
         if (value == null) return "(none)";
-        if (value instanceof Sprite sprite) {
-            Texture tex = sprite.getTexture();
-            if (tex != null && tex.getFilePath() != null) {
-                return getFileName(tex.getFilePath());
-            }
-            return sprite.getName() != null ? sprite.getName() : "(unnamed sprite)";
+
+        String path = Assets.getPathForResource(value);
+        if (path != null) {
+            return getFileName(path);
         }
-        if (value instanceof Texture texture) {
-            if (texture.getFilePath() != null) {
-                return getFileName(texture.getFilePath());
-            }
-            return "(unnamed texture)";
-        }
-        if (value instanceof String s) {
-            return s.isEmpty() ? "(none)" : getFileName(s);
-        }
-        return value.toString();
+
+        return "(unnamed)";
     }
 
     private static String getFileName(String path) {

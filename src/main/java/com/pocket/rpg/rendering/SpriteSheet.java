@@ -1,5 +1,6 @@
 package com.pocket.rpg.rendering;
 
+import com.pocket.rpg.resources.AssetManager;
 import com.pocket.rpg.resources.Assets;
 import lombok.Getter;
 
@@ -11,7 +12,10 @@ import java.util.*;
  * - independent X/Y spacing
  * - automatic safe grid detection
  * - cached sprite extraction
- * - source tracking for serialization
+ * <p>
+ * Path tracking for serialization is handled automatically. When sprites are extracted
+ * via {@link #getSprite(int)}, they are registered in {@link Assets#getPathForResource(Object)}
+ * if the sheet itself is tracked.
  */
 @Getter
 public class SpriteSheet {
@@ -114,6 +118,8 @@ public class SpriteSheet {
             if (cached.getWidth() != width || cached.getHeight() != height) {
                 cached.setSize(width, height);
             }
+            // Ensure cached sprite is registered (may have been cached before sheet was tracked)
+            ensureSpriteRegistered(cached, frameIndex);
             return cached;
         }
 
@@ -125,21 +131,30 @@ public class SpriteSheet {
 
         // Convert top-based Y to bottom-based Y for renderer/UVs
         int py = texture.getHeight() - (pyTop + spriteHeight);
-//        int py = pyTop;
+
         Sprite sprite = new Sprite(texture, width, height,
                 px, py, spriteWidth, spriteHeight,
                 "Frame_" + frameIndex);
 
-        // NEW: Set source tracking for serialization
-        String sheetPath = Assets.getPathForResource(this);
-        if (sheetPath != null) {
-            sprite.setSource(sheetPath, frameIndex);
-        }
+        // Register sprite in resourcePaths if sheet is tracked
+        ensureSpriteRegistered(sprite, frameIndex);
 
         spriteCache.put(frameIndex, sprite);
         allSprites.add(sprite);
 
         return sprite;
+    }
+
+    /**
+     * Ensures a sprite is registered in Assets.resourcePaths if the sheet is tracked.
+     */
+    private void ensureSpriteRegistered(Sprite sprite, int frameIndex) {
+        // Only register if sheet is tracked and sprite is not already registered
+        String sheetPath = Assets.getPathForResource(this);
+        if (sheetPath != null && Assets.getPathForResource(sprite) == null) {
+            String spritePath = sheetPath + AssetManager.SUB_ASSET_SEPARATOR + frameIndex;
+            Assets.registerResource(sprite, spritePath);
+        }
     }
 
     public Sprite getSpriteAt(int col, int row) {
@@ -177,12 +192,6 @@ public class SpriteSheet {
 
         sprite.setUVsFromPixels(px, py, spriteWidth, spriteHeight);
         sprite.setName("Frame_" + frameIndex);
-
-        // Update source tracking
-        String sheetPath = Assets.getPathForResource(this);
-        if (sheetPath != null) {
-            sprite.setSource(sheetPath, frameIndex);
-        }
     }
 
     // -------------------------------------------------------------------------------------

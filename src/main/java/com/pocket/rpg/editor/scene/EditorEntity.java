@@ -542,18 +542,30 @@ public class EditorEntity {
                 pos != null && pos.length > 2 ? pos[2] : 0
         );
 
+        EditorEntity entity;
         if (data.isPrefabInstance()) {
-            return new EditorEntity(
+            entity = new EditorEntity(
                     data.getId(), data.getPrefabId(), data.getName(), position,
                     null, data.getComponentOverrides(), data.getParentId(), data.getOrder()
             );
         } else {
-            return new EditorEntity(
+            List<ComponentData> components = data.getComponents() != null
+                    ? new ArrayList<>(data.getComponents())
+                    : new ArrayList<>();
+
+            // Resolve asset references (String paths → actual asset objects)
+            for (ComponentData comp : components) {
+                comp.resolveAssetReferences();
+            }
+
+            entity = new EditorEntity(
                     data.getId(), null, data.getName() != null ? data.getName() : "Entity", position,
-                    data.getComponents() != null ? new ArrayList<>(data.getComponents()) : new ArrayList<>(),
+                    components,
                     null, data.getParentId(), data.getOrder()
             );
         }
+
+        return entity;
     }
 
     private static Map<String, Map<String, Object>> copyOverrides(Map<String, Map<String, Object>> source) {

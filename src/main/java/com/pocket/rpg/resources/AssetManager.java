@@ -34,7 +34,7 @@ public class AssetManager implements AssetContext {
     /**
      * Stores loaded assets keyed by normalized path.
      * <p>
-     * Enables {@link #get(String, Class)} for fast lookups and prevents duplicate loading
+     * Enables {@link #get(String)} for fast lookups and prevents duplicate loading
      * of the same asset. All assets loaded via {@link #load(String, Class)} are cached here.
      */
     @Getter
@@ -241,8 +241,6 @@ public class AssetManager implements AssetContext {
 
             // Track normalized path for persistence
             resourcePaths.put(resource, normalizedPath);
-            System.out.println("[DEBUG] Registered: " + resource.getClass().getSimpleName()
-                    + " path=" + normalizedPath + ", identity=" + System.identityHashCode(resource));
 
             return resource;
 

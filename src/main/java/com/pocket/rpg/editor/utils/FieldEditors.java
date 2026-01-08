@@ -378,30 +378,15 @@ public class FieldEditors {
     public static boolean drawAsset(String label, Map<String, Object> fields, String key,
                                     Class<?> assetType, ComponentData data, EditorEntity entity) {
         Object value = fields.get(key);
-        // TODO: Remove once the deserialization issue is fixed
-        // Lazy-load: if value is a String path but we expect an asset, resolve it
-        if (value instanceof String path && !path.isEmpty() && assetType != String.class) {
-            try {
-                Object loadedAsset = Assets.load(path, assetType);
-                if (loadedAsset != null) {
-                    fields.put(key, loadedAsset);  // Update the map with resolved asset
-                    value = loadedAsset;
-                }
-            } catch (Exception e) {
-                // Keep as string if loading fails - will show "(unnamed)"
-                System.err.println("Failed to lazy-load asset: " + path + " as " + assetType.getSimpleName());
-            }
-        }
 
         String display = getAssetDisplayName(value);
 
         ImGui.pushID(key);
 
         try {
-            Object finalValue = value;
             inspectorRow(label, () -> {
 
-                if (finalValue != null) {
+                if (value != null) {
                     ImGui.textColored(0.6f, 0.9f, 0.6f, 1.0f, display);
                 } else {
                     ImGui.textDisabled(display);

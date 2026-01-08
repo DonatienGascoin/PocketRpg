@@ -73,9 +73,6 @@ public class Font {
 
         ByteBuffer fontData = loadResource(resourcePath);
         createAtlas(fontData);
-
-        System.out.println("Font loaded: " + resourcePath + " @ " + pixelSize + "px" +
-                " (atlas: " + atlasWidth + "x" + atlasHeight + ", " + glyphs.size() + " glyphs)");
     }
 
     private ByteBuffer loadResource(String resourcePath) {

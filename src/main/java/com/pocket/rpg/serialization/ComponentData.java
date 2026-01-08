@@ -122,9 +122,6 @@ public class ComponentData {
         // Apply field values
         for (FieldMeta fieldMeta : meta.fields()) {
             Object value = fields.get(fieldMeta.name());
-            System.out.println("DEBUG ComponentData: field=" + fieldMeta.name() +
-                    " value=" + value +
-                    " targetType=" + fieldMeta.type());
             if (value != null) {
                 try {
                     Field field = fieldMeta.field();
@@ -132,8 +129,12 @@ public class ComponentData {
 
                     // Convert from serialized form
                     Object converted = fromSerializable(value, fieldMeta.type());
-                    System.out.println("DEBUG ComponentData: converted=" + converted);
                     field.set(component, converted);
+
+                    // Update fields map with resolved asset (so editor shows correct name)
+                    if (converted != value) {
+                        fields.put(fieldMeta.name(), converted);
+                    }
 
                 } catch (Exception e) {
                     System.err.println("Failed to set field " + fieldMeta.name() + ": " + e.getMessage());
@@ -163,6 +164,36 @@ public class ComponentData {
     public String getSimpleName() {
         int lastDot = type.lastIndexOf('.');
         return lastDot >= 0 ? type.substring(lastDot + 1) : type;
+    }
+
+    // ========================================================================
+    // ASSET RESOLUTION
+    // ========================================================================
+
+    /**
+     * Resolves asset references in the fields map.
+     * Converts String paths to actual asset objects (Sprite, Texture, Font, etc.)
+     * <p>
+     * Call this after deserializing ComponentData to ensure the fields map
+     * contains resolved asset objects instead of path strings.
+     */
+    public void resolveAssetReferences() {
+        ComponentMeta meta = ComponentRegistry.getByClassName(type);
+        if (meta == null) {
+            return;
+        }
+
+        for (FieldMeta fieldMeta : meta.fields()) {
+            String fieldName = fieldMeta.name();
+            Object value = fields.get(fieldName);
+
+            if (value != null) {
+                Object resolved = fromSerializable(value, fieldMeta.type());
+                if (resolved != value) {
+                    fields.put(fieldName, resolved);
+                }
+            }
+        }
     }
 
     // ========================================================================

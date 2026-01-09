@@ -1,22 +1,30 @@
 package com.pocket.rpg.editor.scene;
 
+import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.editor.serialization.EntityData;
 import com.pocket.rpg.prefab.Prefab;
 import com.pocket.rpg.prefab.PrefabRegistry;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.Texture;
 import com.pocket.rpg.resources.Assets;
-import com.pocket.rpg.serialization.ComponentData;
+import com.pocket.rpg.serialization.ComponentMeta;
+import com.pocket.rpg.serialization.ComponentRegistry;
+import com.pocket.rpg.serialization.FieldMeta;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
 
+import java.lang.reflect.Field;
 import java.util.*;
 
 /**
  * Editor-side representation of a placed entity instance.
  * Supports parent-child hierarchy and sibling ordering.
+ * <p>
+ * Components are stored as actual Component instances, enabling direct
+ * field access via reflection and proper type safety.
  */
 public class EditorEntity {
 
@@ -34,8 +42,15 @@ public class EditorEntity {
     private final Vector3f rotation;
     private final Vector3f scale;
 
-    private List<ComponentData> components;
+    /**
+     * Components for scratch entities. Stored as actual Component instances.
+     */
+    private List<Component> components;
 
+    /**
+     * Component field overrides for prefab instances.
+     * Structure: componentType -> (fieldName -> value)
+     */
     private Map<String, Map<String, Object>> componentOverrides;
 
     @Getter
@@ -87,7 +102,7 @@ public class EditorEntity {
     }
 
     private EditorEntity(String id, String prefabId, String name, Vector3f position,
-                         List<ComponentData> components,
+                         List<Component> components,
                          Map<String, Map<String, Object>> componentOverrides,
                          String parentId, int order) {
         this.id = (id != null && !id.isEmpty()) ? id : generateId();
@@ -262,7 +277,12 @@ public class EditorEntity {
     // COMPONENT MANAGEMENT
     // ========================================================================
 
-    public List<ComponentData> getComponents() {
+    /**
+     * Gets all components for this entity.
+     * For scratch entities: returns the component list directly.
+     * For prefab instances: returns cloned prefab components with overrides applied.
+     */
+    public List<Component> getComponents() {
         if (isScratchEntity()) {
             if (components == null) {
                 components = new ArrayList<>();
@@ -273,45 +293,114 @@ public class EditorEntity {
         }
     }
 
-    private List<ComponentData> getMergedComponents() {
+    /**
+     * Creates component instances from prefab with overrides applied.
+     */
+    private List<Component> getMergedComponents() {
         Prefab prefab = getPrefab();
         if (prefab == null) {
             return new ArrayList<>();
         }
 
-        List<ComponentData> result = new ArrayList<>();
-        for (ComponentData baseComp : prefab.getComponents()) {
-            ComponentData merged = new ComponentData(baseComp.getType());
-            merged.getFields().putAll(baseComp.getFields());
-
-            Map<String, Object> overrides = componentOverrides.get(baseComp.getType());
-            if (overrides != null) {
-                merged.getFields().putAll(overrides);
+        List<Component> result = new ArrayList<>();
+        for (Component baseComp : prefab.getComponentInstances()) {
+            Component cloned = cloneComponent(baseComp);
+            if (cloned != null) {
+                // Apply overrides
+                Map<String, Object> overrides = componentOverrides.get(baseComp.getClass().getName());
+                if (overrides != null) {
+                    applyOverrides(cloned, overrides);
+                }
+                result.add(cloned);
             }
-
-            result.add(merged);
         }
         return result;
     }
 
-    public void addComponent(ComponentData componentData) {
+    /**
+     * Clones a component by instantiating a new one and copying field values.
+     */
+    private Component cloneComponent(Component source) {
+        ComponentMeta meta = ComponentRegistry.getByClassName(source.getClass().getName());
+        if (meta == null) {
+            return null;
+        }
+
+        Component clone = ComponentRegistry.instantiateByClassName(source.getClass().getName());
+        if (clone == null) {
+            return null;
+        }
+
+        for (FieldMeta fieldMeta : meta.fields()) {
+            try {
+                Field field = fieldMeta.field();
+                field.setAccessible(true);
+                Object value = field.get(source);
+                field.set(clone, value);
+            } catch (IllegalAccessException e) {
+                System.err.println("Failed to clone field " + fieldMeta.name() + ": " + e.getMessage());
+            }
+        }
+
+        return clone;
+    }
+
+    /**
+     * Applies field overrides to a component via reflection.
+     */
+    private void applyOverrides(Component component, Map<String, Object> overrides) {
+        ComponentMeta meta = ComponentRegistry.getByClassName(component.getClass().getName());
+        if (meta == null) {
+            return;
+        }
+
+        for (Map.Entry<String, Object> entry : overrides.entrySet()) {
+            String fieldName = entry.getKey();
+            Object value = entry.getValue();
+
+            FieldMeta fieldMeta = findFieldMeta(meta, fieldName);
+            if (fieldMeta != null) {
+                try {
+                    Field field = fieldMeta.field();
+                    field.setAccessible(true);
+                    // Use ComponentData.fromSerializable for full conversion (assets, vectors, etc.)
+                    Object converted = com.pocket.rpg.serialization.ComponentData.fromSerializable(value, fieldMeta.type());
+                    field.set(component, converted);
+                } catch (Exception e) {
+                    System.err.println("Failed to apply override for " + fieldName + ": " + e.getMessage());
+                }
+            }
+        }
+    }
+
+    public void addComponent(Component component) {
         if (isPrefabInstance()) {
             throw new IllegalStateException(
                     "Cannot add components to prefab instance. Convert to scratch entity first.");
         }
-        getComponents().add(componentData);
+        getComponents().add(component);
     }
 
-    public boolean removeComponent(ComponentData componentData) {
+    public boolean removeComponent(Component component) {
         if (components == null) {
             return false;
         }
-        return components.remove(componentData);
+        return components.remove(component);
     }
 
-    public ComponentData getComponentByType(String simpleName) {
-        for (ComponentData comp : getComponents()) {
-            if (comp.getSimpleName().equals(simpleName)) {
+    @SuppressWarnings("unchecked")
+    public <T extends Component> T getComponent(Class<T> type) {
+        for (Component comp : getComponents()) {
+            if (type.isInstance(comp)) {
+                return (T) comp;
+            }
+        }
+        return null;
+    }
+
+    public Component getComponentByType(String simpleName) {
+        for (Component comp : getComponents()) {
+            if (comp.getClass().getSimpleName().equals(simpleName)) {
                 return comp;
             }
         }
@@ -323,39 +412,109 @@ public class EditorEntity {
     }
 
     public boolean hasComponent(Class<?> clazz) {
-        return getComponentByType(clazz.getSimpleName()) != null;
+        return getComponent((Class<? extends Component>) clazz) != null;
     }
 
     // ========================================================================
-    // FIELD OVERRIDES
+    // FIELD ACCESS VIA REFLECTION
     // ========================================================================
 
+    /**
+     * Gets a field value from a component.
+     * For scratch entities: reads from component directly.
+     * For prefab instances: returns override if present, otherwise prefab default.
+     */
     public Object getFieldValue(String componentType, String fieldName) {
         if (isScratchEntity()) {
-            ComponentData comp = findComponentByType(componentType);
-            return comp != null ? comp.getFields().get(fieldName) : null;
+            Component comp = findComponentByType(componentType);
+            return comp != null ? getFieldFromComponent(comp, fieldName) : null;
         }
 
+        // Check overrides first
         Map<String, Object> overrides = componentOverrides.get(componentType);
         if (overrides != null && overrides.containsKey(fieldName)) {
             return overrides.get(fieldName);
         }
 
+        // Fall back to prefab default
         Prefab prefab = getPrefab();
         return prefab != null ? prefab.getFieldDefault(componentType, fieldName) : null;
     }
 
+    /**
+     * Sets a field value on a component.
+     * For scratch entities: sets on component directly.
+     * For prefab instances: stores as override.
+     */
     public void setFieldValue(String componentType, String fieldName, Object value) {
         if (isScratchEntity()) {
-            ComponentData comp = findComponentByType(componentType);
+            Component comp = findComponentByType(componentType);
             if (comp != null) {
-                comp.getFields().put(fieldName, value);
+                setFieldOnComponent(comp, fieldName, value);
             }
             return;
         }
 
+        // Store as override for prefab instances
         componentOverrides.computeIfAbsent(componentType, k -> new HashMap<>())
                 .put(fieldName, value);
+    }
+
+    /**
+     * Gets a field value from a component via reflection.
+     */
+    private Object getFieldFromComponent(Component component, String fieldName) {
+        ComponentMeta meta = ComponentRegistry.getByClassName(component.getClass().getName());
+        if (meta == null) {
+            return null;
+        }
+
+        FieldMeta fieldMeta = findFieldMeta(meta, fieldName);
+        if (fieldMeta == null) {
+            return null;
+        }
+
+        try {
+            Field field = fieldMeta.field();
+            field.setAccessible(true);
+            return field.get(component);
+        } catch (IllegalAccessException e) {
+            System.err.println("Failed to read field " + fieldName + ": " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Sets a field value on a component via reflection.
+     */
+    private void setFieldOnComponent(Component component, String fieldName, Object value) {
+        ComponentMeta meta = ComponentRegistry.getByClassName(component.getClass().getName());
+        if (meta == null) {
+            return;
+        }
+
+        FieldMeta fieldMeta = findFieldMeta(meta, fieldName);
+        if (fieldMeta == null) {
+            return;
+        }
+
+        try {
+            Field field = fieldMeta.field();
+            field.setAccessible(true);
+            Object converted = com.pocket.rpg.serialization.ComponentData.fromSerializable(value, fieldMeta.type());
+            field.set(component, converted);
+        } catch (Exception e) {
+            System.err.println("Failed to set field " + fieldName + ": " + e.getMessage());
+        }
+    }
+
+    private FieldMeta findFieldMeta(ComponentMeta meta, String fieldName) {
+        for (FieldMeta fm : meta.fields()) {
+            if (fm.name().equals(fieldName)) {
+                return fm;
+            }
+        }
+        return null;
     }
 
     public boolean isFieldOverridden(String componentType, String fieldName) {
@@ -423,12 +582,12 @@ public class EditorEntity {
         return count;
     }
 
-    private ComponentData findComponentByType(String componentType) {
+    private Component findComponentByType(String componentType) {
         if (components == null) {
             return null;
         }
-        for (ComponentData comp : components) {
-            if (comp.getType().equals(componentType)) {
+        for (Component comp : components) {
+            if (comp.getClass().getName().equals(componentType)) {
                 return comp;
             }
         }
@@ -436,35 +595,19 @@ public class EditorEntity {
     }
 
     // ========================================================================
-    // SPRITE ACCESS (for rendering) - DYNAMIC RESOLUTION
+    // SPRITE ACCESS (for rendering)
     // ========================================================================
 
     /**
      * Gets the current sprite for rendering.
-     * Resolves dynamically from component data to support animation.
-     *
-     * @return Current sprite, or null if not renderable
+     * Resolves from SpriteRenderer component if present.
      */
     public Sprite getCurrentSprite() {
-        ComponentData spriteRenderer = getComponentByType("SpriteRenderer");
+        SpriteRenderer spriteRenderer = getComponent(SpriteRenderer.class);
         if (spriteRenderer != null) {
-            Object spriteObj = spriteRenderer.getFields().get("sprite");
-            if (spriteObj instanceof Sprite sprite) {
+            Sprite sprite = spriteRenderer.getSprite();
+            if (sprite != null) {
                 return sprite;
-            }
-            if (spriteObj instanceof Texture texture) {
-                return new Sprite(texture);
-            }
-            // Handle String path (from JSON deserialization)
-            if (spriteObj instanceof String path && !path.isEmpty()) {
-                int hashIndex = path.indexOf('#');
-                if (hashIndex != -1) {
-                    String sheetPath = path.substring(0, hashIndex);
-                    int spriteIndex = Integer.parseInt(path.substring(hashIndex + 1));
-                    var sheet = Assets.load(sheetPath, com.pocket.rpg.rendering.SpriteSheet.class);
-                    return sheet.getSprite(spriteIndex);
-                }
-                return Assets.load(path, Sprite.class);
             }
         }
 
@@ -481,9 +624,6 @@ public class EditorEntity {
 
     /**
      * Gets the current size for rendering.
-     * Resolves dynamically from getCurrentSprite().
-     *
-     * @return Size in world units, or (1,1) if no sprite
      */
     public Vector2f getCurrentSize() {
         Sprite sprite = getCurrentSprite();
@@ -496,10 +636,9 @@ public class EditorEntity {
     public float getZIndex() {
         if (position.z != 0) return position.z;
 
-        ComponentData spriteRenderer = getComponentByType("SpriteRenderer");
+        SpriteRenderer spriteRenderer = getComponent(SpriteRenderer.class);
         if (spriteRenderer != null) {
-            Object z = spriteRenderer.getFields().get("zIndex");
-            if (z instanceof Number) return ((Number) z).floatValue();
+            return spriteRenderer.getZIndex();
         }
         return DEFAULT_ENTITY_Z_INDEX;
     }
@@ -549,14 +688,10 @@ public class EditorEntity {
                     null, data.getComponentOverrides(), data.getParentId(), data.getOrder()
             );
         } else {
-            List<ComponentData> components = data.getComponents() != null
+            // Components are already resolved by ComponentTypeAdapterFactory
+            List<Component> components = data.getComponents() != null
                     ? new ArrayList<>(data.getComponents())
                     : new ArrayList<>();
-
-            // Resolve asset references (String paths → actual asset objects)
-            for (ComponentData comp : components) {
-                comp.resolveAssetReferences();
-            }
 
             entity = new EditorEntity(
                     data.getId(), null, data.getName() != null ? data.getName() : "Entity", position,
@@ -589,9 +724,6 @@ public class EditorEntity {
         return PrefabRegistry.getInstance().hasPrefab(prefabId);
     }
 
-    /**
-     * Regenerates this entity's ID. Used when duplicate IDs are detected.
-     */
     public void regenerateId() {
         this.id = UUID.randomUUID().toString().substring(0, 8);
     }

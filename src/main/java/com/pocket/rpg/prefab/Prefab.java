@@ -10,6 +10,7 @@ import com.pocket.rpg.serialization.FieldMeta;
 import org.joml.Vector3f;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -18,38 +19,16 @@ import java.util.Map;
  * <p>
  * Prefabs are component-based: they define a list of components with
  * default field values. Instances can override individual field values.
- * <p>
- * Example implementation:
- * <pre>
- * public class ChestPrefab implements Prefab {
- *     public String getId() { return "chest"; }
- *     public String getDisplayName() { return "Treasure Chest"; }
- *
- *     public List&lt;ComponentData&gt; getComponents() {
- *         ComponentData renderer = new ComponentData("com.pocket.rpg.components.SpriteRenderer");
- *         renderer.getFields().put("spritePath", "sprites/chest.png");
- *         renderer.getFields().put("zIndex", 10);
- *         return List.of(renderer);
- *     }
- * }
- * </pre>
  */
 public interface Prefab {
 
     /**
      * Gets the unique identifier for this prefab.
-     * <p>
-     * This ID is used for serialization and registry lookup.
-     * Should be lowercase with underscores (e.g., "npc_villager", "chest_wooden").
-     *
-     * @return Unique prefab ID
      */
     String getId();
 
     /**
      * Gets the human-readable display name for the editor UI.
-     *
-     * @return Display name (e.g., "Villager NPC", "Wooden Chest")
      */
     String getDisplayName();
 
@@ -57,7 +36,6 @@ public interface Prefab {
      * Gets the component definitions for this prefab.
      * <p>
      * Each ComponentData contains the component type and default field values.
-     * These are used both for instantiation and for the editor inspector.
      *
      * @return List of component data (empty if none)
      */
@@ -65,36 +43,41 @@ public interface Prefab {
 
     /**
      * Gets the preview sprite for editor display.
-     * <p>
-     * This sprite is shown in:
-     * - Prefab browser panel
-     * - Entity placer tool ghost preview
-     * - Hierarchy panel icon (optional)
-     *
-     * @return Preview sprite, or null to use default placeholder
      */
     Sprite getPreviewSprite();
 
     /**
      * Gets the category for grouping in the prefab browser.
-     * <p>
-     * Examples: "Characters", "Props", "Interactables", "Environment"
-     *
-     * @return Category name, or null for uncategorized
      */
     default String getCategory() {
         return null;
     }
 
     /**
-     * Creates a configured GameObject at the given position.
+     * Gets live Component instances from this prefab's component definitions.
      * <p>
-     * Default implementation creates components from getComponents()
-     * and applies any field overrides.
+     * Creates new Component instances each call - use for cloning/merging.
      *
-     * @param position  World position for the entity
-     * @param overrides Field overrides by component type: Map&lt;componentType, Map&lt;fieldName, value&gt;&gt;
-     * @return Fully configured GameObject ready for scene
+     * @return List of Component instances with default values applied
+     */
+    default List<Component> getComponentInstances() {
+        List<ComponentData> componentData = getComponents();
+        if (componentData == null) {
+            return List.of();
+        }
+
+        List<Component> result = new ArrayList<>();
+        for (ComponentData data : componentData) {
+            Component component = data.toComponent();
+            if (component != null) {
+                result.add(component);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Creates a configured GameObject at the given position.
      */
     default GameObject instantiate(Vector3f position, Map<String, Map<String, Object>> overrides) {
         String name = getDisplayName() != null ? getDisplayName() : getId();
@@ -113,7 +96,6 @@ public interface Prefab {
             }
 
             System.out.println("DEBUG: Applying overrides: " + overrides);
-            // Apply overrides for this component type
             if (overrides != null) {
                 Map<String, Object> fieldOverrides = overrides.get(compData.getType());
                 if (fieldOverrides != null && !fieldOverrides.isEmpty()) {
@@ -142,11 +124,8 @@ public interface Prefab {
                 try {
                     Field field = fieldMeta.field();
                     field.setAccessible(true);
-
-                    // Convert override value to proper type
                     Object converted = ComponentData.fromSerializable(override, field.getType());
                     field.set(component, converted);
-
                     System.out.println("DEBUG: Set field " + field.getName() + " = " + converted);
                 } catch (Exception e) {
                     System.err.println("Failed to apply override for " + fieldMeta.name() + ": " + e.getMessage());
@@ -157,10 +136,6 @@ public interface Prefab {
 
     /**
      * Gets the default value for a specific field in a component.
-     *
-     * @param componentType Full class name of the component
-     * @param fieldName     Name of the field
-     * @return Default value, or null if not found
      */
     default Object getFieldDefault(String componentType, String fieldName) {
         List<ComponentData> components = getComponents();
@@ -177,7 +152,7 @@ public interface Prefab {
     }
 
     /**
-     * Gets a copy of component data, useful for creating instances in the editor.
+     * Gets a copy of component data.
      */
     default List<ComponentData> getComponentsCopy() {
         List<ComponentData> components = getComponents();

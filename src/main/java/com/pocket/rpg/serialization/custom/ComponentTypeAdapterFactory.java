@@ -1,7 +1,6 @@
 package com.pocket.rpg.serialization.custom;
 
 import com.google.gson.*;
-import com.google.gson.internal.Streams;
 import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
@@ -13,14 +12,30 @@ import com.pocket.rpg.components.TilemapRenderer.TileChunk;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.resources.AssetContext;
 import com.pocket.rpg.resources.SpriteReference;
+import com.pocket.rpg.serialization.ComponentMeta;
+import com.pocket.rpg.serialization.ComponentRegistry;
+import com.pocket.rpg.serialization.FieldMeta;
 
 import java.io.*;
+import java.lang.reflect.Field;
 import java.util.*;
 
+/**
+ * Gson TypeAdapterFactory for Component serialization/deserialization.
+ * <p>
+ * Handles all components generically via reflection, with special binary
+ * encoding for TilemapRenderer.
+ * <p>
+ * Asset fields are serialized as "ClassName:path" format for type safety.
+ * Legacy plain string format is supported for backwards compatibility.
+ */
 public class ComponentTypeAdapterFactory implements TypeAdapterFactory {
 
     private static final String TYPE_FIELD = "type";
     private static final String PROPERTIES_FIELD = "properties";
+    private static final String LEGACY_FIELDS_KEY = "fields"; // Backwards compatibility
+    private static final String ASSET_DELIMITER = ":";
+
     private final AssetContext context;
 
     public ComponentTypeAdapterFactory(AssetContext context) {
@@ -29,30 +44,39 @@ public class ComponentTypeAdapterFactory implements TypeAdapterFactory {
 
     @Override
     public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> type) {
-        if (!Component.class.isAssignableFrom(type.getRawType())) return null;
+        if (!Component.class.isAssignableFrom(type.getRawType())) {
+            return null;
+        }
 
         return new TypeAdapter<T>() {
             @Override
             public void write(JsonWriter out, T value) throws IOException {
-                if (value == null) { out.nullValue(); return; }
-                Component component = (Component) value;
+                if (value == null) {
+                    out.nullValue();
+                    return;
+                }
 
+                Component component = (Component) value;
                 out.beginObject();
                 out.name(TYPE_FIELD).value(component.getClass().getCanonicalName());
                 out.name(PROPERTIES_FIELD);
 
-                if (component instanceof TilemapRenderer) {
-                    writeTilemapBinary(out, (TilemapRenderer) component);
+                if (component instanceof TilemapRenderer tilemap) {
+                    writeTilemapBinary(out, tilemap);
                 } else {
-                    TypeAdapter<T> delegate = gson.getDelegateAdapter(ComponentTypeAdapterFactory.this, type);
-                    delegate.write(out, value);
+                    writeComponentProperties(out, component, gson);
                 }
+
                 out.endObject();
             }
 
             @Override
+            @SuppressWarnings("unchecked")
             public T read(JsonReader in) throws IOException {
-                if (in.peek() == com.google.gson.stream.JsonToken.NULL) { in.nextNull(); return null; }
+                if (in.peek() == com.google.gson.stream.JsonToken.NULL) {
+                    in.nextNull();
+                    return null;
+                }
 
                 in.beginObject();
                 String componentType = null;
@@ -60,36 +84,186 @@ public class ComponentTypeAdapterFactory implements TypeAdapterFactory {
 
                 while (in.hasNext()) {
                     String name = in.nextName();
-                    if (TYPE_FIELD.equals(name)) componentType = in.nextString();
-                    else if (PROPERTIES_FIELD.equals(name)) properties = Streams.parse(in);
-                    else in.skipValue();
+                    if (TYPE_FIELD.equals(name)) {
+                        componentType = in.nextString();
+                    } else if (PROPERTIES_FIELD.equals(name) || LEGACY_FIELDS_KEY.equals(name)) {
+                        properties = JsonParser.parseReader(in);
+                    } else {
+                        in.skipValue();
+                    }
                 }
                 in.endObject();
 
+                if (componentType == null) {
+                    throw new JsonParseException("Missing 'type' field in component");
+                }
+
                 try {
                     Class<?> clazz = Class.forName(componentType);
+
                     if (TilemapRenderer.class.isAssignableFrom(clazz)) {
-                        // MIGRATION CHECK: Is it a String (Binary) or Object (Old Map)?
                         if (properties.isJsonPrimitive() && properties.getAsJsonPrimitive().isString()) {
                             return (T) readTilemapBinary(properties.getAsString());
                         } else {
                             return (T) readLegacyTilemap(properties, gson);
                         }
                     } else {
-                        return (T) gson.fromJson(properties, (java.lang.reflect.Type) clazz);
+                        return (T) readComponentProperties(properties.getAsJsonObject(), clazz, gson);
                     }
-                } catch (Exception e) {
-                    throw new JsonParseException(e);
+                } catch (ClassNotFoundException e) {
+                    throw new JsonParseException("Unknown component type: " + componentType, e);
                 }
             }
         };
     }
 
+    // ========================================================================
+    // GENERIC COMPONENT SERIALIZATION
+    // ========================================================================
+
+    private void writeComponentProperties(JsonWriter out, Component component, Gson gson) throws IOException {
+        ComponentMeta meta = ComponentRegistry.getByClassName(component.getClass().getName());
+
+        out.beginObject();
+
+        if (meta != null) {
+            for (FieldMeta fieldMeta : meta.fields()) {
+                Field field = fieldMeta.field();
+                field.setAccessible(true);
+
+                try {
+                    Object value = field.get(component);
+                    if (value == null) {
+                        continue;
+                    }
+
+                    out.name(fieldMeta.name());
+                    writeFieldValue(out, value, gson);
+                } catch (IllegalAccessException e) {
+                    System.err.println("Failed to read field " + fieldMeta.name() + ": " + e.getMessage());
+                }
+            }
+        } else {
+            // Fallback: component not in registry, use default Gson
+            System.err.println("Component not in registry: " + component.getClass().getName());
+            gson.toJson(component, component.getClass(), out);
+            return;
+        }
+
+        out.endObject();
+    }
+
+    private void writeFieldValue(JsonWriter out, Object value, Gson gson) throws IOException {
+        // Check if value is an asset
+        String assetPath = context.getPathForResource(value);
+        if (assetPath != null) {
+            // Serialize as "full.class.Name:path"
+            String className = value.getClass().getName();
+            out.value(className + ASSET_DELIMITER + assetPath);
+            return;
+        }
+
+        // Delegate to Gson for non-asset types
+        gson.toJson(value, value.getClass(), out);
+    }
+
+    private Component readComponentProperties(JsonObject json, Class<?> clazz, Gson gson) {
+        ComponentMeta meta = ComponentRegistry.getByClassName(clazz.getName());
+
+        if (meta == null) {
+            // Fallback: not in registry
+            return (Component) gson.fromJson(json, clazz);
+        }
+
+        Component component = ComponentRegistry.instantiateByClassName(clazz.getName());
+        if (component == null) {
+            throw new JsonParseException("Failed to instantiate component: " + clazz.getName());
+        }
+
+        for (FieldMeta fieldMeta : meta.fields()) {
+            JsonElement element = json.get(fieldMeta.name());
+            if (element == null || element.isJsonNull()) {
+                continue;
+            }
+
+            Field field = fieldMeta.field();
+            field.setAccessible(true);
+
+            try {
+                Object value = readFieldValue(element, fieldMeta.type(), gson);
+                field.set(component, value);
+            } catch (Exception e) {
+                System.err.println("Failed to set field " + fieldMeta.name() + ": " + e.getMessage());
+            }
+        }
+
+        return component;
+    }
+
+    private Object readFieldValue(JsonElement element, Class<?> targetType, Gson gson) {
+        // Check for asset reference string
+        if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isString()) {
+            String stringValue = element.getAsString();
+
+            // Check for typed asset format "full.class.Name:path"
+            int delimiterIndex = stringValue.indexOf(ASSET_DELIMITER);
+            if (delimiterIndex > 0) {
+                String className = stringValue.substring(0, delimiterIndex);
+                String path = stringValue.substring(delimiterIndex + 1);
+
+                // Resolve asset type from full class name
+                Class<?> assetType = resolveClass(className);
+                if (assetType != null && targetType.isAssignableFrom(assetType)) {
+                    return loadAsset(path, assetType);
+                }
+            }
+
+            // Legacy format: plain string, use field type
+            if (!String.class.equals(targetType) && !targetType.isPrimitive()) {
+                Object loaded = loadAsset(stringValue, targetType);
+                if (loaded != null) {
+                    return loaded;
+                }
+            }
+        }
+
+        // Default: delegate to Gson
+        return gson.fromJson(element, targetType);
+    }
+
+    private Class<?> resolveClass(String fullName) {
+        try {
+            return Class.forName(fullName);
+        } catch (ClassNotFoundException e) {
+            return null;
+        }
+    }
+
+    private Object loadAsset(String path, Class<?> type) {
+        if (path == null || path.isEmpty()) {
+            return null;
+        }
+
+        try {
+            // Special handling for Sprite via SpriteReference (handles spritesheet#index)
+            if (Sprite.class.equals(type)) {
+                return SpriteReference.fromPath(path);
+            }
+            return context.load(path, type);
+        } catch (Exception e) {
+            System.err.println("Failed to load asset: " + path + " as " + type.getSimpleName() + ": " + e.getMessage());
+            return null;
+        }
+    }
+
+    // ========================================================================
+    // TILEMAP BINARY SERIALIZATION (unchanged)
+    // ========================================================================
+
     private void writeTilemapBinary(JsonWriter out, TilemapRenderer tilemap) throws IOException {
         List<Tile> palette = new ArrayList<>();
         Map<Tile, Integer> tileToIndex = new HashMap<>();
 
-        // Collect unique tiles
         for (TileChunk chunk : tilemap.allChunks()) {
             for (int x = 0; x < TileChunk.CHUNK_SIZE; x++) {
                 for (int y = 0; y < TileChunk.CHUNK_SIZE; y++) {
@@ -108,7 +282,6 @@ public class ComponentTypeAdapterFactory implements TypeAdapterFactory {
             dos.writeFloat(tilemap.getTileSize());
             dos.writeInt(tilemap.getZIndex());
 
-            // Palette
             dos.writeInt(palette.size());
             for (Tile t : palette) {
                 dos.writeUTF(t.name() != null ? t.name() : "");
@@ -117,7 +290,6 @@ public class ComponentTypeAdapterFactory implements TypeAdapterFactory {
                 dos.writeByte(t.ledgeDirection().ordinal());
             }
 
-            // Chunks
             Collection<TileChunk> chunks = tilemap.allChunks();
             dos.writeInt(chunks.size());
             for (TileChunk chunk : chunks) {
@@ -131,7 +303,7 @@ public class ComponentTypeAdapterFactory implements TypeAdapterFactory {
                         if (t != null) {
                             dos.writeByte(x);
                             dos.writeByte(y);
-                            dos.writeInt(tileToIndex.get(t)); // ID in palette
+                            dos.writeInt(tileToIndex.get(t));
                         }
                     }
                 }
@@ -148,7 +320,6 @@ public class ComponentTypeAdapterFactory implements TypeAdapterFactory {
             TilemapRenderer tilemap = new TilemapRenderer(size);
             tilemap.setZIndex(z);
 
-            // Read Palette
             int palSize = dis.readInt();
             Tile[] palette = new Tile[palSize];
             for (int i = 0; i < palSize; i++) {
@@ -159,7 +330,6 @@ public class ComponentTypeAdapterFactory implements TypeAdapterFactory {
                 palette[i] = new Tile(name, resolveSpriteRef(spriteName), solid, ledge);
             }
 
-            // Read Chunks
             int chunkCount = dis.readInt();
             for (int i = 0; i < chunkCount; i++) {
                 int cx = dis.readInt();
@@ -197,20 +367,12 @@ public class ComponentTypeAdapterFactory implements TypeAdapterFactory {
         return tm;
     }
 
-    /**
-     * Serializes a sprite reference using the centralized SpriteReference utility.
-     * Returns the full path including #index for spritesheet sprites.
-     */
     private String serializeSpriteRef(Sprite sprite) {
         if (sprite == null) return "";
         String path = SpriteReference.toPath(sprite);
         return path != null ? path : "";
     }
 
-    /**
-     * Resolves a sprite reference using SpriteReference utility.
-     * Handles both direct paths and spritesheet#index format.
-     */
     private Sprite resolveSpriteRef(String ref) {
         return SpriteReference.fromPath(ref);
     }

@@ -1,26 +1,12 @@
 package com.pocket.rpg.serialization;
 
-
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.pocket.rpg.postProcessing.PostEffect;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.resources.AssetContext;
+import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.serialization.custom.*;
 
-/**
- * Central serialization configuration for the engine.
- * <p>
- * Asset serialization is handled by:
- * <ul>
- *   <li>{@link AssetReferenceTypeAdapterFactory} - Generic assets (Texture, SpriteSheet, Font, etc.)</li>
- *   <li>{@link SpriteTypeAdapter} - Sprites with object fallback for programmatic sprites</li>
- *   <li>{@link ComponentTypeAdapterFactory} - Component polymorphism</li>
- * </ul>
- * <p>
- * Note: TextureTypeAdapter was removed as it's redundant with AssetReferenceTypeAdapterFactory.
- * All asset paths are managed centrally through {@link com.pocket.rpg.resources.AssetManager#getPathForResource(Object)}.
- */
 public class Serializer {
     private static Serializer instance;
 
@@ -31,14 +17,15 @@ public class Serializer {
         GsonBuilder builder = new GsonBuilder()
                 .enableComplexMapKeySerialization()
                 .registerTypeAdapterFactory(new AssetReferenceTypeAdapterFactory(context))
+                // NEW: Bridge adapter for ComponentData gradual migration
+                .registerTypeAdapter(ComponentData.class, new ComponentDataTypeAdapter(context))
                 // Component polymorphism
                 .registerTypeAdapterFactory(new ComponentTypeAdapterFactory(context))
                 // Sprite with object fallback (for programmatic sprites)
-                .registerTypeAdapter(Sprite.class, new SpriteTypeAdapter(context))
+                .registerTypeAdapter(Sprite.class, new SpriteTypeAdapter(Assets.getContext()))
                 // Others
-                .registerTypeAdapter(PostEffect.class, new PostEffectTypeAdapter());
+                .registerTypeAdapter(com.pocket.rpg.postProcessing.PostEffect.class, new PostEffectTypeAdapter());
 
-        // Note: TextureTypeAdapter removed - AssetReferenceTypeAdapterFactory handles Texture
 
         defaultConfig = builder.create();
         prettyPrintConfig = builder
@@ -48,11 +35,7 @@ public class Serializer {
     }
 
     public static void init(AssetContext context) {
-        if (instance != null) {
-            return;
-        }
         instance = new Serializer(context);
-
     }
 
     public static Gson getGson() {
@@ -69,6 +52,13 @@ public class Serializer {
     }
 
     public static String toJson(Object obj) {
+        return toJson(obj, false);
+    }
+
+    public static String toJson(Object obj, boolean prettyPrint) {
+        if (prettyPrint) {
+            return getPrettyPrintGson().toJson(obj);
+        }
         return getGson().toJson(obj);
     }
 

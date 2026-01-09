@@ -102,7 +102,7 @@
           "type": "com.pocket.rpg.components.ui.UICanvas",
           "fields": {
             "renderMode": "SCREEN_SPACE_OVERLAY",
-            "sortOrder": 0.0
+            "sortOrder": 0
           }
         }
       ]
@@ -200,6 +200,25 @@
             "font": "fonts/zelda60.font.json",
             "horizontalAlignment": "CENTER",
             "verticalAlignment": "MIDDLE"
+          }
+        }
+      ]
+    },
+    {
+      "id": "26ca5e33",
+      "order": 2,
+      "name": "Entity_5",
+      "position": [
+        -14.2,
+        0.0,
+        0.0
+      ],
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.SpriteRenderer",
+          "fields": {
+            "originX": 0.5,
+            "sprite": "sprites/hudBg.png"
           }
         }
       ]

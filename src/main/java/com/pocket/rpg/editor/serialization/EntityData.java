@@ -1,6 +1,6 @@
 package com.pocket.rpg.editor.serialization;
 
-import com.pocket.rpg.serialization.ComponentData;
+import com.pocket.rpg.components.Component;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -19,7 +19,7 @@ import java.util.Map;
  * - componentOverrides: field overrides per component type
  * <p>
  * For scratch entities:
- * - components: inline component definitions
+ * - components: inline component definitions (serialized via ComponentTypeAdapterFactory)
  */
 @Getter
 @Setter
@@ -29,38 +29,37 @@ public class EntityData {
     /**
      * Unique entity ID (preserved across save/load).
      */
-    @Getter
-    @Setter
     private String id;
 
     /**
      * Parent entity ID for hierarchy (null for root entities).
      */
-    @Getter
-    @Setter
     private String parentId;
 
     /**
      * Sibling order (lower = earlier in list).
      */
-    @Getter
-    @Setter
     private int order;
 
     // Common fields
     private String name;
-    private float[] position; // TODO: What about scale and rotation ?
+    private float[] position;
 
     // Prefab instance fields (when prefabId is set)
     private String prefabId;
+
     /**
-     * Component field overrides.
+     * Component field overrides for prefab instances.
      * Structure: componentType -> (fieldName -> value)
      */
     private Map<String, Map<String, Object>> componentOverrides;
 
     // Scratch entity fields (when prefabId is null/empty)
-    private List<ComponentData> components;
+    /**
+     * Components for scratch entities.
+     * Serialized via ComponentTypeAdapterFactory with automatic asset resolution.
+     */
+    private List<Component> components;
 
     /**
      * Constructor for prefab instances.
@@ -78,7 +77,7 @@ public class EntityData {
     /**
      * Constructor for scratch entities.
      */
-    public EntityData(String name, float[] position, List<ComponentData> components) {
+    public EntityData(String name, float[] position, List<Component> components) {
         this.prefabId = null;
         this.name = name;
         this.position = position;

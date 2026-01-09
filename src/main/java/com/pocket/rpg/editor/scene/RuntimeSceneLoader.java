@@ -11,7 +11,6 @@ import com.pocket.rpg.prefab.Prefab;
 import com.pocket.rpg.prefab.PrefabRegistry;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.scenes.RuntimeScene;
-import com.pocket.rpg.serialization.ComponentData;
 import com.pocket.rpg.serialization.ComponentRefResolver;
 import com.pocket.rpg.serialization.GameObjectData;
 import com.pocket.rpg.serialization.SceneData;
@@ -45,21 +44,17 @@ public class RuntimeSceneLoader {
 
     /**
      * Loads a RuntimeScene from SceneData (for initial scene from editor).
-     *
-     * @param data The scene data to load
-     * @return Initialized RuntimeScene ready for play
      */
     public RuntimeScene load(SceneData data) {
         if (data == null) {
             throw new IllegalArgumentException("SceneData cannot be null");
         }
 
-        // Create and initialize scene
         RuntimeScene scene = new RuntimeScene(data.getName());
         scene.initialize(viewportConfig, renderingConfig);
 
         // Load collision map
-        if(data.getCollisionData() != null) {
+        if (data.getCollisionData() != null) {
             scene.getCollisionMap().fromBase64(data.getCollisionData());
         }
 
@@ -96,7 +91,6 @@ public class RuntimeSceneLoader {
 
     /**
      * Instantiates all entities respecting parent-child relationships.
-     * Creates all GameObjects first, then sets up hierarchy, then adds to scene.
      */
     private void instantiateEntitiesWithHierarchy(RuntimeScene scene, List<EntityData> entities) {
         // Phase 1: Create all GameObjects (without adding to scene)
@@ -138,8 +132,7 @@ public class RuntimeSceneLoader {
             }
         }
 
-        // Phase 3: Add only root entities to scene (children are added via parent)
-        // Sort by order if available
+        // Phase 3: Add only root entities to scene
         List<Map.Entry<String, GameObject>> sortedEntries = new ArrayList<>(gameObjectsById.entrySet());
         sortedEntries.sort((a, b) -> {
             EntityData dataA = entityDataById.get(a.getKey());
@@ -154,7 +147,6 @@ public class RuntimeSceneLoader {
             GameObject go = entry.getValue();
             EntityData entityData = entityDataById.get(id);
 
-            // Only add root entities (no parent or parent not found in this batch)
             if (entityData != null && entityData.getParentId() == null) {
                 try {
                     System.out.println("DEBUG: Adding root entity '" + go.getName() + "' to scene");
@@ -165,7 +157,6 @@ public class RuntimeSceneLoader {
                     e.printStackTrace();
                 }
             } else if (entityData != null && !gameObjectsById.containsKey(entityData.getParentId())) {
-                // Parent wasn't in this batch, add as root
                 try {
                     scene.addGameObject(go);
                 } catch (Exception e) {
@@ -202,9 +193,6 @@ public class RuntimeSceneLoader {
 
     /**
      * Loads a RuntimeScene from a file path (for scene transitions).
-     *
-     * @param scenePath Path to the .scene file
-     * @return Initialized RuntimeScene
      */
     public RuntimeScene loadFromPath(String scenePath) {
         SceneData data = Assets.load(scenePath);
@@ -221,15 +209,11 @@ public class RuntimeSceneLoader {
         GameObject go = new GameObject(goData.getName());
         go.setEnabled(goData.isActive());
 
-        // Handle TilemapRenderer component
         TilemapRenderer tilemapData = goData.getComponent(TilemapRenderer.class);
         if (tilemapData != null) {
             TilemapRenderer tilemap = new TilemapRenderer(tilemapData.getTileSize());
             tilemap.setZIndex(tilemapData.getZIndex());
-
-            // Copy all tiles
             copyTilemapData(tilemapData, tilemap);
-
             go.addComponent(tilemap);
         }
 
@@ -260,6 +244,7 @@ public class RuntimeSceneLoader {
 
     /**
      * Creates a GameObject from scratch entity data (no prefab).
+     * Components are already deserialized as Component instances.
      */
     private GameObject createScratchEntity(EntityData entityData, Vector3f position) {
         String name = entityData.getName();
@@ -270,19 +255,14 @@ public class RuntimeSceneLoader {
         GameObject entity = new GameObject(name);
         entity.getTransform().setPosition(position);
 
-        // Add components from serialized data
-        List<ComponentData> components = entityData.getComponents();
+        // Components are already Component instances (resolved by ComponentTypeAdapterFactory)
+        List<Component> components = entityData.getComponents();
         if (components != null) {
-            for (ComponentData compData : components) {
-                try {
-                    Component component = compData.toComponent();
-                    if (component != null) {
-                        entity.addComponent(component);
-                    } else {
-                        System.err.println("Failed to create component: " + compData.getType());
-                    }
-                } catch (Exception e) {
-                    System.err.println("Error creating component " + compData.getType() + ": " + e.getMessage());
+            for (Component component : components) {
+                if (component != null) {
+                    entity.addComponent(component);
+                } else {
+                    System.err.println("Null component in entity: " + name);
                 }
             }
         }
@@ -340,13 +320,11 @@ public class RuntimeSceneLoader {
             return;
         }
 
-        // Set position
         float[] pos = cameraData.getPosition();
         if (pos != null && pos.length >= 2) {
             scene.getCamera().setPosition(pos[0], pos[1]);
         }
 
-        // Set orthographic size
         scene.getCamera().setOrthographicSize(cameraData.getOrthographicSize());
     }
 }

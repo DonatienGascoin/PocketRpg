@@ -67,11 +67,6 @@ public class RuntimeSceneLoader {
             configureCamera(scene, data.getCamera());
         }
 
-        // Resolve component references after all GameObjects are established
-        for (GameObject go : scene.getGameObjects()) {
-            ComponentRefResolver.resolveReferences(go);
-        }
-
         System.out.println("Loaded runtime scene: " + data.getName() +
                 " (objects=" + scene.getGameObjects().size() + ")");
 
@@ -138,7 +133,12 @@ public class RuntimeSceneLoader {
             }
         }
 
-        // Phase 3: Add root objects to scene (sorted by order)
+        // Phase 3: Resolve references BEFORE adding to scene
+        for (GameObject go : gameObjectsById.values()) {
+            ComponentRefResolver.resolveReferences(go);
+        }
+
+        // Phase 4: Add root objects to scene (sorted by order)
         List<Map.Entry<String, GameObject>> sortedEntries = new ArrayList<>(gameObjectsById.entrySet());
         sortedEntries.sort((a, b) -> {
             GameObjectData dataA = dataById.get(a.getKey());

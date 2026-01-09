@@ -1,6 +1,7 @@
 package com.pocket.rpg.prefab;
 
 import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.Transform;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.serialization.ComponentMeta;
@@ -66,14 +67,29 @@ public interface Prefab {
         }
 
         for (Component template : components) {
-            // Clone the component so each instance is independent
+            // Handle Transform specially - use template directly, don't clone
+            if (template instanceof Transform t) {
+                Transform existing = gameObject.getTransform();
+                existing.setLocalPosition(t.getLocalPosition());
+                existing.setLocalRotation(t.getLocalRotation());
+                existing.setLocalScale(t.getLocalScale());
+
+                if (overrides != null) {
+                    Map<String, Object> transformOverrides = overrides.get(Transform.class.getName());
+                    if (transformOverrides != null && !transformOverrides.isEmpty()) {
+                        applyOverrides(existing, transformOverrides);
+                    }
+                }
+                continue;
+            }
+
+            // Clone other components
             Component component = ComponentReflectionUtils.cloneComponent(template);
             if (component == null) {
                 System.err.println("Failed to clone component: " + template.getClass().getName());
                 continue;
             }
 
-            // Apply overrides
             if (overrides != null) {
                 Map<String, Object> fieldOverrides = overrides.get(component.getClass().getName());
                 if (fieldOverrides != null && !fieldOverrides.isEmpty()) {

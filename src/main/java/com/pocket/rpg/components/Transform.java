@@ -421,6 +421,20 @@ public class Transform extends Component {
     }
 
     /**
+     * Sets the local scale.
+     *
+     * @param localScale localScale
+     */
+    public void setLocalScale(Vector3f localScale) {
+        if (this.localScale.x == localScale.x && this.localScale.y == localScale.y && this.localScale.z == localScale.z) {
+            return;
+        }
+
+        this.localScale.set(new Vector3f(localScale));
+        markDirtyAndNotify();
+    }
+
+    /**
      * Sets uniform local scale on all axes.
      *
      * @param uniformScale Scale value for all axes

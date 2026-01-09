@@ -217,14 +217,6 @@ public class ComponentTypeAdapterFactory implements TypeAdapterFactory {
                     return loadAsset(path, assetType);
                 }
             }
-
-            // Legacy format: plain string, use field type
-            if (!String.class.equals(targetType) && !targetType.isPrimitive()) {
-                Object loaded = loadAsset(stringValue, targetType);
-                if (loaded != null) {
-                    return loaded;
-                }
-            }
         }
 
         // Default: delegate to Gson
@@ -257,7 +249,7 @@ public class ComponentTypeAdapterFactory implements TypeAdapterFactory {
     }
 
     // ========================================================================
-    // TILEMAP BINARY SERIALIZATION (unchanged)
+    // TILEMAP BINARY SERIALIZATION
     // ========================================================================
 
     private void writeTilemapBinary(JsonWriter out, TilemapRenderer tilemap) throws IOException {

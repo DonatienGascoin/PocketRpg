@@ -1,19 +1,20 @@
 package com.pocket.rpg.editor.undo.commands;
 
+import com.pocket.rpg.components.Component;
 import com.pocket.rpg.editor.undo.EditorCommand;
-import com.pocket.rpg.serialization.ComponentData;
+import com.pocket.rpg.serialization.ComponentReflectionUtils;
 
 /**
  * Command for changing a component field value.
  */
 public class SetComponentFieldCommand implements EditorCommand {
 
-    private final ComponentData component;
+    private final Component component;
     private final String fieldName;
     private final Object oldValue;
     private Object newValue;
 
-    public SetComponentFieldCommand(ComponentData component, String fieldName,
+    public SetComponentFieldCommand(Component component, String fieldName,
                                     Object oldValue, Object newValue) {
         this.component = component;
         this.fieldName = fieldName;
@@ -23,16 +24,12 @@ public class SetComponentFieldCommand implements EditorCommand {
 
     @Override
     public void execute() {
-        component.getFields().put(fieldName, newValue);
+        ComponentReflectionUtils.setFieldValue(component, fieldName, newValue);
     }
 
     @Override
     public void undo() {
-        if (oldValue == null) {
-            component.getFields().remove(fieldName);
-        } else {
-            component.getFields().put(fieldName, oldValue);
-        }
+        ComponentReflectionUtils.setFieldValue(component, fieldName, oldValue);
     }
 
     @Override

@@ -1,7 +1,7 @@
 package com.pocket.rpg.resources;
 
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
-import com.pocket.rpg.editor.scene.EditorEntity;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.rendering.Sprite;
 import org.joml.Vector3f;
 
@@ -96,7 +96,7 @@ public interface AssetLoader<T> {
      * @param position World position to place the entity
      * @return New EditorEntity with appropriate components, or null if not supported
      */
-    default EditorEntity instantiate(T asset, String assetPath, Vector3f position) {
+    default EditorGameObject instantiate(T asset, String assetPath, Vector3f position) {
         return null;
     }
 

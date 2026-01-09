@@ -1,12 +1,13 @@
 package com.pocket.rpg.editor.utils;
 
+import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
-import com.pocket.rpg.editor.scene.EditorEntity;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.rendering.Sprite;
-import com.pocket.rpg.serialization.ComponentData;
+import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import imgui.ImGui;
-
-import java.util.Map;
+import org.joml.Vector4f;
 
 /**
  * Custom editor for UIImage component.
@@ -14,16 +15,15 @@ import java.util.Map;
 public class UIImageEditor implements CustomComponentEditor {
 
     @Override
-    public boolean draw(ComponentData data, EditorEntity entity) {
-        Map<String, Object> fields = data.getFields();
+    public boolean draw(Component component, EditorGameObject entity) {
         boolean changed = false;
 
         // Sprite
         ImGui.text(FontAwesomeIcons.Image + " Sprite");
-        changed |= FieldEditors.drawAsset("##sprite", fields, "sprite", Sprite.class, data, entity);
+        changed |= FieldEditors.drawAsset("##sprite", component, "sprite", Sprite.class, entity);
 
         // Reset size to sprite size button
-        Object spriteObj = fields.get("sprite");
+        Object spriteObj = ComponentReflectionUtils.getFieldValue(component, "sprite");
         if (spriteObj instanceof Sprite sprite && sprite.getTexture() != null) {
             ImGui.sameLine();
             if (ImGui.smallButton(FontAwesomeIcons.Expand + "##resetSize")) {
@@ -39,40 +39,30 @@ public class UIImageEditor implements CustomComponentEditor {
 
         // Color (tint)
         ImGui.text(FontAwesomeIcons.Palette + " Tint Color");
-        changed |= FieldEditors.drawColor("##color", fields, "color");
+        changed |= FieldEditors.drawColor("##color", component, "color");
 
         // Quick alpha slider
         ImGui.spacing();
-        float alpha = getAlpha(fields);
-        float[] alphaBuf = {alpha};
+        Vector4f color = FieldEditors.getVector4f(component, "color");
+        float[] alphaBuf = {color.w};
         ImGui.setNextItemWidth(-1);
         if (ImGui.sliderFloat("Alpha", alphaBuf, 0f, 1f)) {
-            setAlpha(fields, alphaBuf[0]);
+            color.w = alphaBuf[0];
+            ComponentReflectionUtils.setFieldValue(component, "color", color);
             changed = true;
         }
 
         return changed;
     }
 
-    private boolean resetSizeToSprite(EditorEntity entity, Sprite sprite) {
+    private boolean resetSizeToSprite(EditorGameObject entity, Sprite sprite) {
         if (entity == null) return false;
 
-        var transform = entity.getComponentByType("UITransform");
+        Component transform = entity.getComponent(UITransform.class);
         if (transform == null) return false;
 
-        Map<String, Object> transformFields = transform.getFields();
-        transformFields.put("width", sprite.getWidth());
-        transformFields.put("height", sprite.getHeight());
+        ComponentReflectionUtils.setFieldValue(transform, "width", sprite.getWidth());
+        ComponentReflectionUtils.setFieldValue(transform, "height", sprite.getHeight());
         return true;
-    }
-
-    private float getAlpha(Map<String, Object> fields) {
-        return FieldEditors.getVector4f(fields, "color").w;
-    }
-
-    private void setAlpha(Map<String, Object> fields, float alpha) {
-        var color = FieldEditors.getVector4f(fields, "color");
-        color.w = alpha;
-        fields.put("color", color);
     }
 }

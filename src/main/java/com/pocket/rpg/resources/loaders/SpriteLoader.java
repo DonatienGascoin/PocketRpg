@@ -1,11 +1,11 @@
 package com.pocket.rpg.resources.loaders;
 
+import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
-import com.pocket.rpg.editor.scene.EditorEntity;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.Texture;
 import com.pocket.rpg.resources.AssetLoader;
-import com.pocket.rpg.serialization.ComponentData;
 import org.joml.Vector3f;
 
 import java.io.IOException;
@@ -72,17 +72,17 @@ public class SpriteLoader implements AssetLoader<Sprite> {
     }
 
     @Override
-    public EditorEntity instantiate(Sprite asset, String assetPath, Vector3f position) {
+    public EditorGameObject instantiate(Sprite asset, String assetPath, Vector3f position) {
         // Extract entity name from filename
         String entityName = extractEntityName(assetPath);
 
         // Create scratch entity
-        EditorEntity entity = new EditorEntity(entityName, position, false);
+        EditorGameObject entity = new EditorGameObject(entityName, position, false);
 
         // Add SpriteRenderer component with actual Sprite object
-        ComponentData spriteRenderer = new ComponentData("com.pocket.rpg.components.SpriteRenderer");
-        spriteRenderer.getFields().put("sprite", asset);
-        spriteRenderer.getFields().put("zIndex", 0);
+        SpriteRenderer spriteRenderer = new SpriteRenderer();
+        spriteRenderer.setSprite(asset);
+        spriteRenderer.setZIndex(0);
         entity.addComponent(spriteRenderer);
 
         return entity;

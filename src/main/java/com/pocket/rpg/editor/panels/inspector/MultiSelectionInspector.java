@@ -1,7 +1,7 @@
 package com.pocket.rpg.editor.panels.inspector;
 
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
-import com.pocket.rpg.editor.scene.EditorEntity;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.BulkDeleteCommand;
@@ -24,7 +24,7 @@ public class MultiSelectionInspector {
 
     private final float[] floatBuffer = new float[4];
 
-    public void render(Set<EditorEntity> selected) {
+    public void render(Set<EditorGameObject> selected) {
         ImGui.text(IconUtils.getMultipleEntitiesIcon() + " " + selected.size() + " entities selected");
         ImGui.separator();
 
@@ -43,7 +43,7 @@ public class MultiSelectionInspector {
 
         ImGui.sameLine();
         if (ImGui.smallButton("Snap All")) {
-            for (EditorEntity entity : selected) {
+            for (EditorGameObject entity : selected) {
                 Vector3f pos = entity.getPosition();
                 entity.setPosition(Math.round(pos.x * 2) / 2f, Math.round(pos.y));
             }
@@ -55,7 +55,7 @@ public class MultiSelectionInspector {
         // List selected entities
         ImGui.text("Selected:");
         ImGui.beginChild("##selectedList", 0, 100, true);
-        for (EditorEntity entity : selected) {
+        for (EditorGameObject entity : selected) {
             String icon = IconUtils.getIconForEntity(entity);
             ImGui.text(icon + " " + entity.getName());
         }

@@ -2,7 +2,7 @@ package com.pocket.rpg.editor.tools;
 
 import com.pocket.rpg.editor.camera.EditorCamera;
 import com.pocket.rpg.editor.panels.PrefabBrowserPanel;
-import com.pocket.rpg.editor.scene.EditorEntity;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.AddEntityCommand;
@@ -65,7 +65,7 @@ public class EntityPlacerTool implements EditorTool, ViewportAwareTool {
         }
 
         // Create entity
-        EditorEntity entity = new EditorEntity(prefabId, position);
+        EditorGameObject entity = new EditorGameObject(prefabId, position);
 
         // Use undo command for entity creation
         UndoManager.getInstance().execute(new AddEntityCommand(scene, entity));

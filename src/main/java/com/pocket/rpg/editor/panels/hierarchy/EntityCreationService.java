@@ -1,14 +1,13 @@
 package com.pocket.rpg.editor.panels.hierarchy;
 
-import com.pocket.rpg.components.ui.UICanvas;
-import com.pocket.rpg.components.ui.UITransform;
-import com.pocket.rpg.editor.scene.EditorEntity;
+import com.pocket.rpg.components.Component;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.UIEntityFactory;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.AddEntitiesCommand;
 import com.pocket.rpg.editor.undo.commands.AddEntityCommand;
-import com.pocket.rpg.serialization.ComponentData;
+import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import lombok.Setter;
 import org.joml.Vector3f;
 
@@ -35,7 +34,7 @@ public class EntityCreationService {
         int count = scene.getEntities().size();
         String name = "Entity_" + (count + 1);
 
-        EditorEntity entity = new EditorEntity(name, position, false);
+        EditorGameObject entity = new EditorGameObject(name, position, false);
         entity.setOrder(getNextRootOrder());
         UndoManager.getInstance().execute(new AddEntityCommand(scene, entity));
 
@@ -46,11 +45,11 @@ public class EntityCreationService {
     public void createUIElement(String uiType) {
         if (scene == null || uiFactory == null) return;
 
-        EditorEntity newEntity = uiFactory.create(uiType, null);
+        EditorGameObject newEntity = uiFactory.create(uiType, null);
         if (newEntity == null) return;
 
-        List<EditorEntity> newEntitiesToAdd = new ArrayList<>();
-        EditorEntity parent = determineParentForUIElement(uiType, newEntitiesToAdd);
+        List<EditorGameObject> newEntitiesToAdd = new ArrayList<>();
+        EditorGameObject parent = determineParentForUIElement(uiType, newEntitiesToAdd);
 
         // Set up parent-child relationship and order
         if (parent != null) {
@@ -84,8 +83,8 @@ public class EntityCreationService {
      * @param newEntitiesToAdd  List to add any newly created parent entities (e.g., canvas)
      * @return Parent entity, or null if creating at root level
      */
-    private EditorEntity determineParentForUIElement(String uiType, List<EditorEntity> newEntitiesToAdd) {
-        EditorEntity selected = scene.getSelectedEntity();
+    private EditorGameObject determineParentForUIElement(String uiType, List<EditorGameObject> newEntitiesToAdd) {
+        EditorGameObject selected = scene.getSelectedEntity();
         boolean isCreatingCanvas = "Canvas".equals(uiType);
 
         // Case 1: Something is selected
@@ -102,13 +101,13 @@ public class EntityCreationService {
             } else {
                 // Creating non-canvas UI element under non-UI entity
                 // Need to find or create a canvas under this entity
-                EditorEntity existingCanvas = findCanvasChildOf(selected);
+                EditorGameObject existingCanvas = findCanvasChildOf(selected);
                 if (existingCanvas != null) {
                     return existingCanvas;
                 }
 
                 // Create new canvas under selected entity
-                EditorEntity newCanvas = uiFactory.create("Canvas", "UI Canvas");
+                EditorGameObject newCanvas = uiFactory.create("Canvas", "UI Canvas");
                 newCanvas.setParent(selected);
                 newCanvas.setOrder(selected.getChildren().size());
                 newEntitiesToAdd.add(newCanvas);
@@ -123,13 +122,13 @@ public class EntityCreationService {
         } else {
             // Creating non-canvas UI element with no selection
             // Find existing root canvas or create one
-            EditorEntity existingCanvas = findRootCanvas();
+            EditorGameObject existingCanvas = findRootCanvas();
             if (existingCanvas != null) {
                 return existingCanvas;
             }
 
             // Create new canvas at root
-            EditorEntity newCanvas = uiFactory.create("Canvas", "UI Canvas");
+            EditorGameObject newCanvas = uiFactory.create("Canvas", "UI Canvas");
             newCanvas.setOrder(getNextRootOrder());
             newEntitiesToAdd.add(newCanvas);
             return newCanvas;
@@ -139,15 +138,15 @@ public class EntityCreationService {
     /**
      * Checks if entity is a UI element (has UICanvas or UITransform component).
      */
-    private boolean isUIElement(EditorEntity entity) {
+    private boolean isUIElement(EditorGameObject entity) {
         return entity.hasComponent("UICanvas") || entity.hasComponent("UITransform");
     }
 
     /**
      * Finds an existing canvas that is a direct child of the given parent.
      */
-    private EditorEntity findCanvasChildOf(EditorEntity parent) {
-        for (EditorEntity child : parent.getChildren()) {
+    private EditorGameObject findCanvasChildOf(EditorGameObject parent) {
+        for (EditorGameObject child : parent.getChildren()) {
             if (child.hasComponent("UICanvas")) {
                 return child;
             }
@@ -158,8 +157,8 @@ public class EntityCreationService {
     /**
      * Finds an existing root-level canvas.
      */
-    private EditorEntity findRootCanvas() {
-        for (EditorEntity entity : scene.getRootEntities()) {
+    private EditorGameObject findRootCanvas() {
+        for (EditorGameObject entity : scene.getRootEntities()) {
             if (entity.hasComponent("UICanvas")) {
                 return entity;
             }
@@ -170,9 +169,9 @@ public class EntityCreationService {
     /**
      * Counts entities in the list that have the specified parent.
      */
-    private int countEntitiesWithParent(List<EditorEntity> entities, EditorEntity parent) {
+    private int countEntitiesWithParent(List<EditorGameObject> entities, EditorGameObject parent) {
         int count = 0;
-        for (EditorEntity e : entities) {
+        for (EditorGameObject e : entities) {
             if (e.getParent() == parent) {
                 count++;
             }
@@ -180,22 +179,25 @@ public class EntityCreationService {
         return count;
     }
 
-    public void duplicateEntity(EditorEntity original) {
+    public void duplicateEntity(EditorGameObject original) {
         Vector3f newPos = new Vector3f(original.getPosition()).add(1, 0, 0);
-        EditorEntity copy;
+        EditorGameObject copy;
 
         if (original.isScratchEntity()) {
-            copy = new EditorEntity(original.getName() + "_copy", newPos, false);
-            for (ComponentData comp : original.getComponents()) {
-                ComponentData compCopy = new ComponentData(comp.getType());
-                compCopy.getFields().putAll(comp.getFields());
-                copy.addComponent(compCopy);
+            copy = new EditorGameObject(original.getName() + "_copy", newPos, false);
+            // Clone all components using reflection
+            for (Component comp : original.getComponents()) {
+                Component compCopy = ComponentReflectionUtils.cloneComponent(comp);
+                if (compCopy != null) {
+                    copy.addComponent(compCopy);
+                }
             }
         } else {
-            copy = new EditorEntity(original.getPrefabId(), newPos);
+            copy = new EditorGameObject(original.getPrefabId(), newPos);
             copy.setName(original.getName() + "_copy");
-            for (ComponentData comp : original.getComponents()) {
-                String componentType = comp.getType();
+            // Copy overridden field values
+            for (Component comp : original.getComponents()) {
+                String componentType = comp.getClass().getName();
                 for (String fieldName : original.getOverriddenFields(componentType)) {
                     Object value = original.getFieldValue(componentType, fieldName);
                     copy.setFieldValue(componentType, fieldName, value);
@@ -218,12 +220,12 @@ public class EntityCreationService {
     /**
      * Shifts the order of siblings that come after the given entity.
      */
-    private void shiftSiblingsAfter(EditorEntity entity) {
-        List<EditorEntity> siblings = (entity.getParent() != null)
+    private void shiftSiblingsAfter(EditorGameObject entity) {
+        List<EditorGameObject> siblings = (entity.getParent() != null)
                 ? entity.getParent().getChildrenMutable()
                 : scene.getRootEntities();
 
-        for (EditorEntity sibling : siblings) {
+        for (EditorGameObject sibling : siblings) {
             if (sibling != entity && sibling.getOrder() > entity.getOrder()) {
                 sibling.setOrder(sibling.getOrder() + 1);
             }
@@ -233,7 +235,7 @@ public class EntityCreationService {
     /**
      * Selects entity and switches to entity mode.
      */
-    private void selectAndSwitchMode(EditorEntity entity) {
+    private void selectAndSwitchMode(EditorGameObject entity) {
         if (selectionHandler != null) {
             scene.setSelection(Set.of(entity));
             selectionHandler.selectEntity(entity);

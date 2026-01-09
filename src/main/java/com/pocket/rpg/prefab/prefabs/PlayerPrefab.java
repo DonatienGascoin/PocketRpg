@@ -1,10 +1,14 @@
 package com.pocket.rpg.prefab.prefabs;
 
+import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.GridMovement;
+import com.pocket.rpg.components.PlayerCameraFollow;
+import com.pocket.rpg.components.PlayerMovement;
+import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.prefab.Prefab;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.SpriteSheet;
 import com.pocket.rpg.resources.Assets;
-import com.pocket.rpg.serialization.ComponentData;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,14 +24,9 @@ import java.util.List;
  */
 public class PlayerPrefab implements Prefab {
 
-    private static final String SPRITE_RENDERER_TYPE = "com.pocket.rpg.components.SpriteRenderer";
-    private static final String PLAYER_CAMERA_FOLLOW_TYPE = "com.pocket.rpg.components.PlayerCameraFollow";
-    private static final String GRID_MOVEMENT_TYPE = "com.pocket.rpg.components.GridMovement";
-    private static final String PLAYER_MOVEMENT_TYPE = "com.pocket.rpg.components.PlayerMovement";
-
     private SpriteSheet playerSheet;
     private Sprite previewSprite;
-    private List<ComponentData> components;
+    private List<Component> components;
 
     public PlayerPrefab() {
         try {
@@ -55,7 +54,7 @@ public class PlayerPrefab implements Prefab {
     }
 
     @Override
-    public List<ComponentData> getComponents() {
+    public List<Component> getComponents() {
         if (components == null) {
             components = buildComponents();
         }
@@ -67,27 +66,29 @@ public class PlayerPrefab implements Prefab {
         return previewSprite;
     }
 
-    private List<ComponentData> buildComponents() {
-        List<ComponentData> result = new ArrayList<>();
+    private List<Component> buildComponents() {
+        List<Component> result = new ArrayList<>();
 
         // SpriteRenderer component
-        ComponentData spriteRenderer = new ComponentData(SPRITE_RENDERER_TYPE);
-        spriteRenderer.getFields().put("sprite", playerSheet.getSprite(0));
-        spriteRenderer.getFields().put("originBottomCenter", true);
+        SpriteRenderer spriteRenderer = new SpriteRenderer();
+        if (playerSheet != null) {
+            spriteRenderer.setSprite(playerSheet.getSprite(0));
+        }
+        spriteRenderer.setOriginBottomCenter();
         result.add(spriteRenderer);
 
         // PlayerCameraFollow component
-        ComponentData cameraFollow = new ComponentData(PLAYER_CAMERA_FOLLOW_TYPE);
+        PlayerCameraFollow cameraFollow = new PlayerCameraFollow();
         result.add(cameraFollow);
 
         // GridMovement component
-        ComponentData gridMovement = new ComponentData(GRID_MOVEMENT_TYPE);
-        gridMovement.getFields().put("gridSize", 1);
-        gridMovement.getFields().put("baseSpeed", 4.0f);
+        GridMovement gridMovement = new GridMovement();
+        gridMovement.setTileSize(1);
+        gridMovement.setBaseSpeed(4.0f);
         result.add(gridMovement);
 
         // PlayerMovement component
-        ComponentData playerMovement = new ComponentData(PLAYER_MOVEMENT_TYPE);
+        PlayerMovement playerMovement = new PlayerMovement();
         result.add(playerMovement);
 
         return result;

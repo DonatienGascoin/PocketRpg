@@ -1,7 +1,7 @@
 package com.pocket.rpg.editor.panels.hierarchy;
 
 import com.pocket.rpg.editor.EditorModeManager;
-import com.pocket.rpg.editor.scene.EditorEntity;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.tools.EditorTool;
 import com.pocket.rpg.editor.tools.ToolManager;
@@ -41,7 +41,7 @@ public class HierarchySelectionHandler {
     @Getter
     private boolean collisionMapSelected = false;
 
-    private EditorEntity lastClickedEntity = null;
+    private EditorGameObject lastClickedEntity = null;
 
     public void init() {
         if (modeManager != null) {
@@ -97,7 +97,7 @@ public class HierarchySelectionHandler {
         }
     }
 
-    public void handleEntityClick(EditorEntity entity) {
+    public void handleEntityClick(EditorGameObject entity) {
         boolean ctrlHeld = ImGui.isKeyDown(ImGuiKey.LeftCtrl) || ImGui.isKeyDown(ImGuiKey.RightCtrl);
         boolean shiftHeld = ImGui.isKeyDown(ImGuiKey.LeftShift) || ImGui.isKeyDown(ImGuiKey.RightShift);
 
@@ -116,7 +116,7 @@ public class HierarchySelectionHandler {
      * FIX: Make public for EntityCreationService to use.
      * Selects entity and switches to appropriate mode.
      */
-    public void selectEntity(EditorEntity entity) {
+    public void selectEntity(EditorGameObject entity) {
         cameraSelected = false;
         tilemapLayersSelected = false;
         collisionMapSelected = false;
@@ -133,8 +133,8 @@ public class HierarchySelectionHandler {
         }
     }
 
-    private void selectRange(EditorEntity from, EditorEntity to) {
-        List<EditorEntity> flat = new ArrayList<>();
+    private void selectRange(EditorGameObject from, EditorGameObject to) {
+        List<EditorGameObject> flat = new ArrayList<>();
         flattenEntities(scene.getRootEntities(), flat);
 
         int fromIdx = flat.indexOf(from);
@@ -145,7 +145,7 @@ public class HierarchySelectionHandler {
         int start = Math.min(fromIdx, toIdx);
         int end = Math.max(fromIdx, toIdx);
 
-        Set<EditorEntity> rangeSet = new HashSet<>();
+        Set<EditorGameObject> rangeSet = new HashSet<>();
         for (int i = start; i <= end; i++) {
             rangeSet.add(flat.get(i));
         }
@@ -154,12 +154,12 @@ public class HierarchySelectionHandler {
         switchToEntityMode();
     }
 
-    private void flattenEntities(List<EditorEntity> entities, List<EditorEntity> result) {
-        for (EditorEntity entity : entities) {
+    private void flattenEntities(List<EditorGameObject> entities, List<EditorGameObject> result) {
+        for (EditorGameObject entity : entities) {
             result.add(entity);
             if (entity.hasChildren()) {
-                List<EditorEntity> children = new ArrayList<>(entity.getChildren());
-                children.sort(Comparator.comparingInt(EditorEntity::getOrder));
+                List<EditorGameObject> children = new ArrayList<>(entity.getChildren());
+                children.sort(Comparator.comparingInt(EditorGameObject::getOrder));
                 flattenEntities(children, result);
             }
         }

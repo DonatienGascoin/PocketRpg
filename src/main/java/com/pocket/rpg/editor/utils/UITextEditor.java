@@ -1,15 +1,16 @@
 package com.pocket.rpg.editor.utils;
 
+import com.pocket.rpg.components.Component;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
-import com.pocket.rpg.editor.scene.EditorEntity;
-import com.pocket.rpg.serialization.ComponentData;
+import com.pocket.rpg.editor.scene.EditorGameObject;
+import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import com.pocket.rpg.ui.text.Font;
 import imgui.ImGui;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.type.ImInt;
 import imgui.type.ImString;
-
-import java.util.Map;
+import org.joml.Vector2f;
+import org.joml.Vector4f;
 
 /**
  * Custom editor for UIText component.
@@ -23,8 +24,7 @@ public class UITextEditor implements CustomComponentEditor {
     private final ImString textBuffer = new ImString(1024);
 
     @Override
-    public boolean draw(ComponentData data, EditorEntity entity) {
-        Map<String, Object> fields = data.getFields();
+    public boolean draw(Component component, EditorGameObject entity) {
         boolean changed = false;
 
         // === CONTENT SECTION ===
@@ -33,17 +33,17 @@ public class UITextEditor implements CustomComponentEditor {
 
         // Font
         ImGui.spacing();
-        changed |= FieldEditors.drawAsset("Font", fields, "font", Font.class, data, entity);
+        changed |= FieldEditors.drawAsset("Font", component, "font", Font.class, entity);
 
         // Text (multiline)
         ImGui.spacing();
         ImGui.text("Text");
-        String currentText = fields.get("text") != null ? fields.get("text").toString() : "";
+        String currentText = ComponentReflectionUtils.getString(component, "text", "");
         textBuffer.set(currentText);
-        
+
         ImGui.setNextItemWidth(-1);
         if (ImGui.inputTextMultiline("##text", textBuffer, -1, 60, ImGuiInputTextFlags.AllowTabInput)) {
-            fields.put("text", textBuffer.get());
+            ComponentReflectionUtils.setFieldValue(component, "text", textBuffer.get());
             changed = true;
         }
 
@@ -55,7 +55,7 @@ public class UITextEditor implements CustomComponentEditor {
 
         // Color
         ImGui.spacing();
-        changed |= FieldEditors.drawColor("Color", fields, "color");
+        changed |= FieldEditors.drawColor("Color", component, "color");
 
         // === ALIGNMENT SECTION ===
         ImGui.spacing();
@@ -67,53 +67,53 @@ public class UITextEditor implements CustomComponentEditor {
         ImGui.spacing();
         ImGui.text("Horizontal");
         ImGui.sameLine(100);
-        
-        String hAlign = getEnumValue(fields, "horizontalAlignment", "LEFT");
+
+        String hAlign = getEnumValue(component, "horizontalAlignment", "LEFT");
         int hIndex = indexOf(H_ALIGNMENTS, hAlign);
-        
+
         ImGui.setNextItemWidth(120);
         ImInt hSelected = new ImInt(hIndex);
         if (ImGui.combo("##hAlign", hSelected, H_ALIGNMENTS)) {
-            fields.put("horizontalAlignment", H_ALIGNMENTS[hSelected.get()]);
+            setEnumValue(component, "horizontalAlignment", H_ALIGNMENTS[hSelected.get()]);
             changed = true;
         }
 
         // Quick alignment buttons
         ImGui.sameLine();
         if (ImGui.smallButton(FontAwesomeIcons.AlignLeft)) {
-            fields.put("horizontalAlignment", "LEFT");
+            setEnumValue(component, "horizontalAlignment", "LEFT");
             changed = true;
         }
         ImGui.sameLine();
         if (ImGui.smallButton(FontAwesomeIcons.AlignCenter)) {
-            fields.put("horizontalAlignment", "CENTER");
+            setEnumValue(component, "horizontalAlignment", "CENTER");
             changed = true;
         }
         ImGui.sameLine();
         if (ImGui.smallButton(FontAwesomeIcons.AlignRight)) {
-            fields.put("horizontalAlignment", "RIGHT");
+            setEnumValue(component, "horizontalAlignment", "RIGHT");
             changed = true;
         }
 
         // Vertical alignment
         ImGui.text("Vertical");
         ImGui.sameLine(100);
-        
-        String vAlign = getEnumValue(fields, "verticalAlignment", "TOP");
+
+        String vAlign = getEnumValue(component, "verticalAlignment", "TOP");
         int vIndex = indexOf(V_ALIGNMENTS, vAlign);
-        
+
         ImGui.setNextItemWidth(120);
         ImInt vSelected = new ImInt(vIndex);
         if (ImGui.combo("##vAlign", vSelected, V_ALIGNMENTS)) {
-            fields.put("verticalAlignment", V_ALIGNMENTS[vSelected.get()]);
+            setEnumValue(component, "verticalAlignment", V_ALIGNMENTS[vSelected.get()]);
             changed = true;
         }
 
         // Word wrap
         ImGui.spacing();
-        boolean wordWrap = getBool(fields, "wordWrap", false);
+        boolean wordWrap = FieldEditors.getBoolean(component, "wordWrap", false);
         if (ImGui.checkbox("Word Wrap", wordWrap)) {
-            fields.put("wordWrap", !wordWrap);
+            ComponentReflectionUtils.setFieldValue(component, "wordWrap", !wordWrap);
             changed = true;
         }
 
@@ -124,13 +124,13 @@ public class UITextEditor implements CustomComponentEditor {
         ImGui.separator();
 
         ImGui.spacing();
-        boolean autoFit = getBool(fields, "autoFit", false);
+        boolean autoFit = FieldEditors.getBoolean(component, "autoFit", false);
         if (ImGui.checkbox("Enable Auto-Fit", autoFit)) {
-            fields.put("autoFit", !autoFit);
+            ComponentReflectionUtils.setFieldValue(component, "autoFit", !autoFit);
             changed = true;
             autoFit = !autoFit;
         }
-        
+
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("Scale text to fit within UITransform bounds");
         }
@@ -141,22 +141,22 @@ public class UITextEditor implements CustomComponentEditor {
             // Min/Max scale
             ImGui.text("Scale Range");
             ImGui.sameLine(100);
-            
-            float minScale = FieldEditors.getFloat(fields, "minScale", 0.5f);
-            float maxScale = FieldEditors.getFloat(fields, "maxScale", 1.0f);
+
+            float minScale = FieldEditors.getFloat(component, "minScale", 0.5f);
+            float maxScale = FieldEditors.getFloat(component, "maxScale", 1.0f);
             float[] range = {minScale, maxScale};
-            
+
             ImGui.setNextItemWidth(-1);
             if (ImGui.dragFloat2("##scaleRange", range, 0.01f, 0.1f, 5.0f, "%.2f")) {
-                fields.put("minScale", Math.max(0.1f, range[0]));
-                fields.put("maxScale", Math.max(range[0], range[1]));
+                ComponentReflectionUtils.setFieldValue(component, "minScale", Math.max(0.1f, range[0]));
+                ComponentReflectionUtils.setFieldValue(component, "maxScale", Math.max(range[0], range[1]));
                 changed = true;
             }
 
             // Maintain aspect ratio
-            boolean maintainAspect = getBool(fields, "maintainAspectRatio", true);
+            boolean maintainAspect = FieldEditors.getBoolean(component, "maintainAspectRatio", true);
             if (ImGui.checkbox("Maintain Aspect Ratio", maintainAspect)) {
-                fields.put("maintainAspectRatio", !maintainAspect);
+                ComponentReflectionUtils.setFieldValue(component, "maintainAspectRatio", !maintainAspect);
                 changed = true;
             }
 
@@ -170,9 +170,9 @@ public class UITextEditor implements CustomComponentEditor {
         ImGui.separator();
 
         ImGui.spacing();
-        boolean shadow = getBool(fields, "shadow", false);
+        boolean shadow = FieldEditors.getBoolean(component, "shadow", false);
         if (ImGui.checkbox("Enable Shadow", shadow)) {
-            fields.put("shadow", !shadow);
+            ComponentReflectionUtils.setFieldValue(component, "shadow", !shadow);
             changed = true;
             shadow = !shadow;
         }
@@ -183,33 +183,33 @@ public class UITextEditor implements CustomComponentEditor {
             // Shadow color
             ImGui.text("Color");
             ImGui.sameLine(100);
-            changed |= FieldEditors.drawColor("##shadowColor", fields, "shadowColor");
+            changed |= FieldEditors.drawColor("##shadowColor", component, "shadowColor");
 
             // Shadow offset
             ImGui.text("Offset");
             ImGui.sameLine(100);
-            changed |= FieldEditors.drawVector2f("##shadowOffset", fields, "shadowOffset", 0.5f);
+            changed |= FieldEditors.drawVector2f("##shadowOffset", component, "shadowOffset", 0.5f);
 
             // Quick presets
             ImGui.spacing();
             ImGui.text("Presets:");
             ImGui.sameLine();
-            
+
             if (ImGui.smallButton("Subtle")) {
-                fields.put("shadowOffset", new org.joml.Vector2f(1, 1));
-                fields.put("shadowColor", new org.joml.Vector4f(0, 0, 0, 0.3f));
+                ComponentReflectionUtils.setFieldValue(component, "shadowOffset", new Vector2f(1, 1));
+                ComponentReflectionUtils.setFieldValue(component, "shadowColor", new Vector4f(0, 0, 0, 0.3f));
                 changed = true;
             }
             ImGui.sameLine();
             if (ImGui.smallButton("Normal")) {
-                fields.put("shadowOffset", new org.joml.Vector2f(2, 2));
-                fields.put("shadowColor", new org.joml.Vector4f(0, 0, 0, 0.5f));
+                ComponentReflectionUtils.setFieldValue(component, "shadowOffset", new Vector2f(2, 2));
+                ComponentReflectionUtils.setFieldValue(component, "shadowColor", new Vector4f(0, 0, 0, 0.5f));
                 changed = true;
             }
             ImGui.sameLine();
             if (ImGui.smallButton("Strong")) {
-                fields.put("shadowOffset", new org.joml.Vector2f(3, 3));
-                fields.put("shadowColor", new org.joml.Vector4f(0, 0, 0, 0.8f));
+                ComponentReflectionUtils.setFieldValue(component, "shadowOffset", new Vector2f(3, 3));
+                ComponentReflectionUtils.setFieldValue(component, "shadowColor", new Vector4f(0, 0, 0, 0.8f));
                 changed = true;
             }
 
@@ -219,17 +219,24 @@ public class UITextEditor implements CustomComponentEditor {
         return changed;
     }
 
-    private String getEnumValue(Map<String, Object> fields, String key, String defaultValue) {
-        Object value = fields.get(key);
+    private String getEnumValue(Component component, String fieldName, String defaultValue) {
+        Object value = ComponentReflectionUtils.getFieldValue(component, fieldName);
         if (value == null) return defaultValue;
         if (value instanceof Enum<?> e) return e.name();
         return value.toString();
     }
 
-    private boolean getBool(Map<String, Object> fields, String key, boolean defaultValue) {
-        Object value = fields.get(key);
-        if (value instanceof Boolean b) return b;
-        return defaultValue;
+    private void setEnumValue(Component component, String fieldName, String enumName) {
+        // Get the field's enum type and set the value
+        var meta = ComponentReflectionUtils.getFieldMeta(component, fieldName);
+        if (meta != null && meta.type().isEnum()) {
+            for (Object constant : meta.type().getEnumConstants()) {
+                if (constant.toString().equals(enumName)) {
+                    ComponentReflectionUtils.setFieldValue(component, fieldName, constant);
+                    return;
+                }
+            }
+        }
     }
 
     private int indexOf(String[] array, String value) {

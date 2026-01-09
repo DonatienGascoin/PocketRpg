@@ -1,15 +1,16 @@
 package com.pocket.rpg.editor.panels.inspector;
 
+import com.pocket.rpg.components.Component;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.panels.ComponentBrowserPopup;
 import com.pocket.rpg.editor.panels.SavePrefabPopup;
-import com.pocket.rpg.editor.scene.EditorEntity;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.*;
 import com.pocket.rpg.editor.utils.IconUtils;
 import com.pocket.rpg.prefab.Prefab;
-import com.pocket.rpg.serialization.ComponentData;
+import com.pocket.rpg.serialization.ComponentRegistry;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiTreeNodeFlags;
@@ -32,14 +33,10 @@ public class EntityInspector {
     private final SavePrefabPopup savePrefabPopup = new SavePrefabPopup();
 
     private final ImString stringBuffer = new ImString(256);
-    private final float[] floatBuffer = new float[4];
-    private final float[] floatBuffer1 = new float[4];
 
-    private EditorEntity pendingDeleteEntity = null;
-    private EditorEntity draggingEntity = null;
-    private Vector3f dragStartPosition = null;
+    private EditorGameObject pendingDeleteEntity = null;
 
-    public void render(EditorEntity entity) {
+    public void render(EditorGameObject entity) {
         fieldEditor.setScene(scene);
 
         String icon = IconUtils.getIconForEntity(entity);
@@ -76,10 +73,6 @@ public class EntityInspector {
 
         if (entity.isPrefabInstance()) {
             renderPrefabInfo(entity);
-        }
-
-        if (!isUIEntity(entity)) {
-            renderTransformEditor(entity);
         }
 
         renderComponentList(entity);
@@ -126,152 +119,6 @@ public class EntityInspector {
         }
     }
 
-    private Vector3f dragStartRotation = null;
-    private Vector3f dragStartScale = null;
-    private static final String transformHeader = "Transform";
-    private static final float[] AXIS_X_COLOR = {0.85f, 0.3f, 0.3f, 1.0f};
-    private static final float[] AXIS_Y_COLOR = {0.3f, 0.85f, 0.3f, 1.0f};
-    private static final float[] AXIS_Z_COLOR = {0.3f, 0.5f, 0.95f, 1.0f};
-
-    private void axisLabel(String label, float[] color) {
-        ImGui.textColored(color[0], color[1], color[2], color[3], label);
-        ImGui.sameLine();
-    }
-
-    private float getAxisFieldWidth(int axisCount) {
-        float avail = ImGui.getContentRegionAvailX();
-        float label = ImGui.calcTextSize("X").x + ImGui.getStyle().getItemInnerSpacingX();
-        float spacing = ImGui.getStyle().getItemSpacingX();
-
-        float used = axisCount * (label + spacing);
-        return (avail - used) / axisCount;
-    }
-
-
-    private void renderTransformEditor(EditorEntity entity) {
-        boolean open = ImGui.collapsingHeader(transformHeader, ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.AllowOverlap);
-        if (!open) {
-            return;
-        }
-
-        // ===== POSITION =====
-        Vector3f pos = entity.getPosition();
-        floatBuffer[0] = pos.x;
-        floatBuffer1[0] = pos.y;
-
-        inspectorRow("Position", () -> {
-            ImGui.pushID("Position");
-            float axisWidth = getAxisFieldWidth(2);
-
-            axisLabel("X", AXIS_X_COLOR);
-            ImGui.setNextItemWidth(axisWidth);
-            boolean changedX = ImGui.dragFloat("##X", floatBuffer, 0.1f);
-            ImGui.sameLine();
-
-            axisLabel("Y", AXIS_Y_COLOR);
-            ImGui.setNextItemWidth(axisWidth);
-            boolean changedY = ImGui.dragFloat("##Y", floatBuffer1, 0.1f);
-
-            if (changedX || changedY) {
-                entity.setPosition(floatBuffer[0], floatBuffer1[0]);
-                scene.markDirty();
-            }
-
-            if (ImGui.isItemActivated()) {
-                draggingEntity = entity;
-                dragStartPosition = new Vector3f(pos);
-            }
-
-            if (ImGui.isItemDeactivatedAfterEdit() && draggingEntity == entity) {
-                Vector3f newPos = entity.getPosition();
-                if (!newPos.equals(dragStartPosition)) {
-                    UndoManager.getInstance().execute(
-                            new MoveEntityCommand(entity, dragStartPosition, newPos)
-                    );
-                }
-                draggingEntity = null;
-                dragStartPosition = null;
-            }
-
-            ImGui.popID();
-        });
-
-
-        // ===== ROTATION =====
-        Vector3f rotation = entity.getRotation();
-        floatBuffer[0] = rotation.z;
-
-        inspectorRow("Rotation", () -> {
-            ImGui.pushID("Rotation");
-            float axisWidth = getAxisFieldWidth(2);
-
-            axisLabel("Z", AXIS_Z_COLOR);
-            ImGui.setNextItemWidth(axisWidth);
-
-            if (ImGui.dragFloat("##Z", floatBuffer, 0.5f)) {
-                entity.setRotation(floatBuffer[0]);
-                scene.markDirty();
-            }
-
-            if (ImGui.isItemActivated()) {
-                dragStartRotation = new Vector3f(rotation);
-            }
-
-            if (ImGui.isItemDeactivatedAfterEdit() && dragStartRotation != null) {
-                if (!dragStartRotation.equals(entity.getRotation())) {
-                    UndoManager.getInstance().execute(
-                            new RotateEntityCommand(entity, dragStartRotation, entity.getRotation())
-                    );
-                }
-                dragStartRotation = null;
-            }
-
-            ImGui.popID();
-        });
-
-
-        // ===== SCALE =====
-        Vector3f scale = entity.getScale();
-        floatBuffer[0] = scale.x;
-        floatBuffer1[0] = scale.y;
-
-        inspectorRow("Scale", () -> {
-            ImGui.pushID("Scale");
-            float axisWidth = getAxisFieldWidth(2);
-
-            axisLabel("X", AXIS_X_COLOR);
-            ImGui.setNextItemWidth(axisWidth);
-            boolean changedX = ImGui.dragFloat("##X", floatBuffer, 0.01f);
-            ImGui.sameLine();
-
-            axisLabel("Y", AXIS_Y_COLOR);
-            ImGui.setNextItemWidth(axisWidth);
-            boolean changedY = ImGui.dragFloat("##Y", floatBuffer1, 0.01f);
-
-            if (changedX || changedY) {
-                entity.setScale(floatBuffer[0], floatBuffer1[0]);
-                scene.markDirty();
-            }
-
-            if (ImGui.isItemActivated()) {
-                dragStartScale = new Vector3f(scale);
-            }
-
-            if (ImGui.isItemDeactivatedAfterEdit() && dragStartScale != null) {
-                Vector3f newScale = entity.getScale();
-                if (!newScale.equals(dragStartScale)) {
-                    UndoManager.getInstance().execute(
-                            new ScaleEntityCommand(entity, dragStartScale, newScale)
-                    );
-                }
-                dragStartScale = null;
-            }
-
-            ImGui.popID();
-        });
-
-    }
-
 
 
     private static final float LABEL_WIDTH = 90f;
@@ -283,7 +130,7 @@ public class EntityInspector {
         field.run();
     }
 
-    private void renderPrefabInfo(EditorEntity entity) {
+    private void renderPrefabInfo(EditorGameObject entity) {
         Prefab prefab = entity.getPrefab();
         ImGui.labelText("Prefab", prefab != null ? prefab.getDisplayName() : entity.getPrefabId() + " (missing)");
 
@@ -302,8 +149,8 @@ public class EntityInspector {
         }
     }
 
-    private void renderComponentList(EditorEntity entity) {
-        List<ComponentData> components = entity.getComponents();
+    private void renderComponentList(EditorGameObject entity) {
+        List<Component> components = entity.getComponents();
         boolean isPrefab = entity.isPrefabInstance();
 
         if (components.isEmpty()) {
@@ -311,14 +158,17 @@ public class EntityInspector {
             ImGui.textDisabled("No components");
             ImGui.spacing();
         } else {
-            ComponentData toRemove = null;
+            Component toRemove = null;
 
             for (int i = 0; i < components.size(); i++) {
-                ComponentData comp = components.get(i);
+                Component comp = components.get(i);
                 ImGui.pushID(i);
 
-                String label = comp.getDisplayName();
-                if (isPrefab && !entity.getOverriddenFields(comp.getType()).isEmpty()) label += " *";
+                String componentType = comp.getClass().getName();
+                String label = comp.getClass().getSimpleName();
+                if (isPrefab && !entity.getOverriddenFields(componentType).isEmpty()) {
+                    label += " *";
+                }
 
                 boolean open = ImGui.collapsingHeader(label, ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.AllowOverlap);
 
@@ -331,11 +181,9 @@ public class EntityInspector {
                 }
 
                 if (open) {
-                  //  ImGui.indent();
                     if (fieldEditor.renderComponentFields(entity, comp, isPrefab)) {
                         scene.markDirty();
                     }
-                    // ImGui.unindent();
                 }
 
                 ImGui.popID();
@@ -351,19 +199,13 @@ public class EntityInspector {
             ImGui.separator();
             if (ImGui.button(FontAwesomeIcons.Plus + " Add Component", -1, 0)) {
                 componentBrowserPopup.open(meta -> {
-                    ComponentData componentData = new ComponentData(meta.className());
-                    UndoManager.getInstance().execute(new AddComponentCommand(entity, componentData));
-                    scene.markDirty();
+                    Component component = ComponentRegistry.instantiateByClassName(meta.className());
+                    if (component != null) {
+                        UndoManager.getInstance().execute(new AddComponentCommand(entity, component));
+                        scene.markDirty();
+                    }
                 });
             }
         }
-    }
-
-    /**
-     * Checks if entity is a UI entity (has UITransform or UICanvas).
-     * UI entities use UITransform for positioning, not the regular Transform.
-     */
-    private boolean isUIEntity(EditorEntity entity) {
-        return entity.hasComponent("UITransform") || entity.hasComponent("UICanvas");
     }
 }

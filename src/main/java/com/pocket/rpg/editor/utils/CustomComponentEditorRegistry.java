@@ -1,7 +1,9 @@
 package com.pocket.rpg.editor.utils;
 
-import com.pocket.rpg.editor.scene.EditorEntity;
-import com.pocket.rpg.serialization.ComponentData;
+import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.components.ui.*;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -15,16 +17,6 @@ import java.util.Map;
 public class CustomComponentEditorRegistry {
 
     private static final Map<String, CustomComponentEditor> editors = new HashMap<>();
-
-    /**
-     * Registers a custom editor for a component type.
-     *
-     * @param componentType Full class name (e.g., "com.pocket.rpg.components.ui.UITransform")
-     * @param editor        The custom editor implementation
-     */
-    public static void register(String componentType, CustomComponentEditor editor) {
-        editors.put(componentType, editor);
-    }
 
     /**
      * Registers a custom editor using the component class.
@@ -47,28 +39,18 @@ public class CustomComponentEditorRegistry {
     }
 
     /**
-     * Gets the custom editor for a component type.
-     *
-     * @param componentType Full class name
-     * @return The custom editor, or null if none registered
-     */
-    public static CustomComponentEditor getEditor(String componentType) {
-        return editors.get(componentType);
-    }
-
-    /**
      * Draws the custom editor for a component if one exists.
      *
-     * @param data   The component data
-     * @param entity The owning entity (may be null)
+     * @param component The component
+     * @param entity    The owning entity (may be null)
      * @return true if a field changed, false if no custom editor or no change
      */
-    public static boolean drawCustomEditor(ComponentData data, EditorEntity entity) {
-        CustomComponentEditor editor = editors.get(data.getType());
+    public static boolean drawCustomEditor(Component component, EditorGameObject entity) {
+        CustomComponentEditor editor = editors.get(component.getClass().getName());
         if (editor == null) {
             return false;
         }
-        return editor.draw(data, entity);
+        return editor.draw(component, entity);
     }
 
     /**
@@ -77,12 +59,13 @@ public class CustomComponentEditorRegistry {
      */
     public static void initBuiltInEditors() {
         // UI Components
-        register("com.pocket.rpg.components.ui.UITransform", new UITransformEditor(true));
-        register("com.pocket.rpg.components.ui.UICanvas", new UICanvasEditor());
-        register("com.pocket.rpg.components.ui.UIImage", new UIImageEditor());
-        register("com.pocket.rpg.components.ui.UIPanel", new UIPanelEditor());
-        register("com.pocket.rpg.components.ui.UIButton", new UIButtonEditor());
-        register("com.pocket.rpg.components.ui.UIText", new UITextEditor());
+        register(UITransform.class, new UITransformEditor(true));
+        register(UICanvas.class, new UICanvasEditor());
+        register(UIImage.class, new UIImageEditor());
+        register(UIPanel.class, new UIPanelEditor());
+        register(UIButton.class, new UIButtonEditor());
+        register(UIText.class, new UITextEditor());
+        register(Transform.class, new TransformEditor());
     }
 
     /**

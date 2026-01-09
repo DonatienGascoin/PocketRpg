@@ -1,6 +1,6 @@
 package com.pocket.rpg.editor.panels.hierarchy;
 
-import com.pocket.rpg.editor.scene.EditorEntity;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.ReparentEntityCommand;
@@ -23,27 +23,27 @@ public class HierarchyDragDropHandler {
     @Setter
     private EditorScene scene;
 
-    private EditorEntity draggedEntity = null;
+    private EditorGameObject draggedEntity = null;
     private DropTarget currentDropTarget = null;
 
     private enum DropPosition {
         BEFORE, ON, AFTER
     }
 
-    private record DropTarget(EditorEntity entity, DropPosition position) {
+    private record DropTarget(EditorGameObject entity, DropPosition position) {
     }
 
     public void resetDropTarget() {
         currentDropTarget = null;
     }
 
-    public boolean isDropTarget(EditorEntity entity) {
+    public boolean isDropTarget(EditorGameObject entity) {
         return currentDropTarget != null &&
                 currentDropTarget.entity == entity &&
                 currentDropTarget.position == DropPosition.ON;
     }
 
-    public void handleDragSource(EditorEntity entity) {
+    public void handleDragSource(EditorGameObject entity) {
         if (ImGui.beginDragDropSource(ImGuiDragDropFlags.None)) {
             draggedEntity = entity;
 
@@ -64,15 +64,15 @@ public class HierarchyDragDropHandler {
         }
     }
 
-    public void handleDropTarget(EditorEntity entity) {
+    public void handleDropTarget(EditorGameObject entity) {
         if (ImGui.beginDragDropTarget()) {
             currentDropTarget = new DropTarget(entity, DropPosition.ON);
 
             byte[] payload = ImGui.acceptDragDropPayload(DRAG_DROP_TYPE);
             if (payload != null) {
-                Set<EditorEntity> selected = scene.getSelectedEntities();
+                Set<EditorGameObject> selected = scene.getSelectedEntities();
                 int insertIdx = entity.getChildren().size();
-                for (EditorEntity dragged : selected) {
+                for (EditorGameObject dragged : selected) {
                     if (dragged != entity && !dragged.isAncestorOf(entity)) {
                         UndoManager.getInstance().execute(
                                 new ReparentEntityCommand(scene, dragged, entity, insertIdx)
@@ -86,7 +86,7 @@ public class HierarchyDragDropHandler {
         }
     }
 
-    public void renderDropZone(EditorEntity targetParent, int insertIndex, EditorEntity nextEntity) {
+    public void renderDropZone(EditorGameObject targetParent, int insertIndex, EditorGameObject nextEntity) {
         String zoneId = "##dropzone_" +
                 (targetParent != null ? targetParent.getId() : "root") + "_" +
                 insertIndex + "_" +
@@ -109,9 +109,9 @@ public class HierarchyDragDropHandler {
 
             byte[] payload = ImGui.acceptDragDropPayload(DRAG_DROP_TYPE);
             if (payload != null) {
-                Set<EditorEntity> selected = scene.getSelectedEntities();
+                Set<EditorGameObject> selected = scene.getSelectedEntities();
                 int offset = 0;
-                for (EditorEntity dragged : selected) {
+                for (EditorGameObject dragged : selected) {
                     if (dragged == targetParent || (targetParent != null && dragged.isAncestorOf(targetParent))) {
                         continue;
                     }

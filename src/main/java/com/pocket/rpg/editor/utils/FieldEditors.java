@@ -1,14 +1,15 @@
 package com.pocket.rpg.editor.utils;
 
+import com.pocket.rpg.components.Component;
+import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.panels.AssetPickerPopup;
-import com.pocket.rpg.editor.scene.EditorEntity;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.SetComponentFieldCommand;
-import com.pocket.rpg.rendering.Sprite;
-import com.pocket.rpg.rendering.Texture;
 import com.pocket.rpg.resources.Assets;
-import com.pocket.rpg.serialization.ComponentData;
+import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import imgui.ImGui;
+import imgui.flag.ImGuiCol;
 import imgui.type.ImInt;
 import imgui.type.ImString;
 import org.joml.Vector2f;
@@ -22,10 +23,10 @@ import java.util.Map;
 /**
  * Reusable field drawing utilities for component editors.
  * <p>
- * All methods work directly with field maps and field names,
+ * All methods work directly with Component instances using reflection,
  * making them usable by both ReflectionFieldEditor and custom editors.
  * <p>
- * Changes are wrapped in undo commands when ComponentData and entity are provided.
+ * Supports prefab override tracking via beginOverrideContext/endOverrideContext.
  */
 public class FieldEditors {
 
@@ -38,19 +39,92 @@ public class FieldEditors {
 
     // Asset picker state
     private static final AssetPickerPopup assetPicker = new AssetPickerPopup();
-    private static ComponentData assetPickerTargetData = null;
+    private static Component assetPickerTargetComponent = null;
     private static String assetPickerFieldName = null;
-    private static EditorEntity assetPickerTargetEntity = null;
+    private static EditorGameObject assetPickerTargetEntity = null;
 
     private static final float LABEL_WIDTH = 120f;
+    private static final float RESET_BUTTON_WIDTH = 25f;
+
+    // ========================================================================
+    // OVERRIDE CONTEXT
+    // ========================================================================
+
+    private static EditorGameObject overrideEntity = null;
+    private static String overrideComponentType = null;
+
+    /**
+     * Begins override context for prefab instance editing.
+     * When active, fields show override styling and reset buttons.
+     */
+    public static void beginOverrideContext(EditorGameObject entity, Component component) {
+        overrideEntity = entity;
+        overrideComponentType = component.getClass().getName();
+    }
+
+    /**
+     * Ends override context.
+     */
+    public static void endOverrideContext() {
+        overrideEntity = null;
+        overrideComponentType = null;
+    }
+
+    private static boolean isOverrideContextActive() {
+        return overrideEntity != null && overrideComponentType != null;
+    }
+
+    private static boolean isFieldOverridden(String fieldName) {
+        return isOverrideContextActive() && overrideEntity.isFieldOverridden(overrideComponentType, fieldName);
+    }
+
+    private static void markFieldOverridden(String fieldName, Object value) {
+        if (isOverrideContextActive()) {
+            overrideEntity.setFieldValue(overrideComponentType, fieldName, value);
+        }
+    }
+
+    /**
+     * Draws reset button if field is overridden. Returns true if reset was clicked.
+     */
+    private static boolean drawResetButtonIfNeeded(Component component, String fieldName) {
+        if (!isOverrideContextActive()) return false;
+        if (!isFieldOverridden(fieldName)) return false;
+
+        ImGui.sameLine();
+        if (ImGui.smallButton(FontAwesomeIcons.Undo + "##reset_" + fieldName)) {
+            Object defaultValue = overrideEntity.getFieldDefault(overrideComponentType, fieldName);
+            ComponentReflectionUtils.setFieldValue(component, fieldName, defaultValue);
+            overrideEntity.resetFieldToDefault(overrideComponentType, fieldName);
+            return true;
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("Reset to prefab default");
+        }
+        return false;
+    }
+
+    private static void pushOverrideStyle(String fieldName) {
+        if (isFieldOverridden(fieldName)) {
+            ImGui.pushStyleColor(ImGuiCol.Text, 0.4f, 0.8f, 1.0f, 1.0f);
+        }
+    }
+
+    private static void popOverrideStyle(String fieldName) {
+        if (isFieldOverridden(fieldName)) {
+            ImGui.popStyleColor();
+        }
+    }
+
+    // ========================================================================
+    // LAYOUT
+    // ========================================================================
 
     public static void inspectorRow(String label, Runnable field) {
-        // Measure label width
         float textWidth = ImGui.calcTextSize(label).x;
 
         ImGui.text(label);
 
-        // Show tooltip if label exceeds column width
         if (textWidth > LABEL_WIDTH) {
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip(label);
@@ -58,280 +132,299 @@ public class FieldEditors {
         }
 
         ImGui.sameLine(LABEL_WIDTH);
-        ImGui.setNextItemWidth(-1);
+
+        // Reserve space for reset button when override context active
+        float width = isOverrideContextActive() ? -RESET_BUTTON_WIDTH : -1;
+        ImGui.setNextItemWidth(width);
+
         field.run();
     }
-
 
     // ========================================================================
     // PRIMITIVES
     // ========================================================================
 
-    /**
-     * Draws an int input field.
-     */
-    public static boolean drawInt(String label, Map<String, Object> fields, String key) {
-        Object value = fields.get(key);
-        int intValue = value instanceof Number n ? n.intValue() : 0;
+    public static boolean drawInt(String label, Component component, String fieldName) {
+        int intValue = ComponentReflectionUtils.getInt(component, fieldName, 0);
         intBuffer.set(intValue);
 
-        ImGui.pushID(key);
+        ImGui.pushID(fieldName);
+        pushOverrideStyle(fieldName);
 
         final boolean[] changed = {false};
         inspectorRow(label, () -> {
-            changed[0] = ImGui.inputInt("##" + key, intBuffer);
+            changed[0] = ImGui.inputInt("##" + fieldName, intBuffer);
         });
 
-        ImGui.popID();
+        popOverrideStyle(fieldName);
 
         if (changed[0]) {
-            fields.put(key, intBuffer.get());
+            ComponentReflectionUtils.setFieldValue(component, fieldName, intBuffer.get());
+            markFieldOverridden(fieldName, intBuffer.get());
         }
-        return changed[0];
+
+        boolean reset = drawResetButtonIfNeeded(component, fieldName);
+        ImGui.popID();
+
+        return changed[0] || reset;
     }
 
+    public static boolean drawFloat(String label, Component component, String fieldName, float speed) {
+        floatBuffer[0] = ComponentReflectionUtils.getFloat(component, fieldName, 0f);
 
-    /**
-     * Draws a float drag field.
-     */
-    public static boolean drawFloat(String label, Map<String, Object> fields, String key, float speed) {
-        Object value = fields.get(key);
-        floatBuffer[0] = value instanceof Number n ? n.floatValue() : 0f;
-
-        ImGui.pushID(key);
+        ImGui.pushID(fieldName);
+        pushOverrideStyle(fieldName);
 
         final boolean[] changed = {false};
         inspectorRow(label, () -> {
-            changed[0] = ImGui.dragFloat("##" + key, floatBuffer, speed);
+            changed[0] = ImGui.dragFloat("##" + fieldName, floatBuffer, speed);
         });
 
-        ImGui.popID();
+        popOverrideStyle(fieldName);
 
         if (changed[0]) {
-            fields.put(key, floatBuffer[0]);
+            ComponentReflectionUtils.setFieldValue(component, fieldName, floatBuffer[0]);
+            markFieldOverridden(fieldName, floatBuffer[0]);
         }
-        return changed[0];
+
+        boolean reset = drawResetButtonIfNeeded(component, fieldName);
+        ImGui.popID();
+
+        return changed[0] || reset;
     }
 
-
-    /**
-     * Draws a float drag field with min/max constraints.
-     */
-    public static boolean drawFloat(String label, Map<String, Object> fields, String key,
+    public static boolean drawFloat(String label, Component component, String fieldName,
                                     float speed, float min, float max) {
-        Object value = fields.get(key);
-        floatBuffer[0] = value instanceof Number n ? n.floatValue() : 0f;
+        floatBuffer[0] = ComponentReflectionUtils.getFloat(component, fieldName, 0f);
 
-        ImGui.pushID(key);
+        ImGui.pushID(fieldName);
+        pushOverrideStyle(fieldName);
 
         final boolean[] changed = {false};
         inspectorRow(label, () -> {
-            changed[0] = ImGui.dragFloat("##" + key, floatBuffer, speed, min, max);
+            changed[0] = ImGui.dragFloat("##" + fieldName, floatBuffer, speed, min, max);
         });
 
-        ImGui.popID();
+        popOverrideStyle(fieldName);
 
         if (changed[0]) {
-            fields.put(key, floatBuffer[0]);
+            ComponentReflectionUtils.setFieldValue(component, fieldName, floatBuffer[0]);
+            markFieldOverridden(fieldName, floatBuffer[0]);
         }
-        return changed[0];
+
+        boolean reset = drawResetButtonIfNeeded(component, fieldName);
+        ImGui.popID();
+
+        return changed[0] || reset;
     }
 
-
-    /**
-     * Draws a float slider field with min/max constraints.
-     */
-    public static boolean drawFloatSlider(String label, Map<String, Object> fields, String key,
+    public static boolean drawFloatSlider(String label, Component component, String fieldName,
                                           float min, float max) {
-        Object value = fields.get(key);
-        floatBuffer[0] = value instanceof Number n ? n.floatValue() : 0f;
+        floatBuffer[0] = ComponentReflectionUtils.getFloat(component, fieldName, 0f);
 
-        ImGui.pushID(key);
-
-        final boolean[] changed = {false};
-        inspectorRow(label, () -> {
-            changed[0] = ImGui.sliderFloat("##" + key, floatBuffer, min, max);
-        });
-
-        ImGui.popID();
-
-        if (changed[0]) {
-            fields.put(key, floatBuffer[0]);
-        }
-        return changed[0];
-    }
-
-    /**
-     * Draws a boolean checkbox.
-     */
-    public static boolean drawBoolean(String label, Map<String, Object> fields, String key) {
-        Object value = fields.get(key);
-        boolean boolValue = value instanceof Boolean b && b;
-
-        ImGui.pushID(key);
+        ImGui.pushID(fieldName);
+        pushOverrideStyle(fieldName);
 
         final boolean[] changed = {false};
         inspectorRow(label, () -> {
-            changed[0] = ImGui.checkbox("##" + key, boolValue);
+            changed[0] = ImGui.sliderFloat("##" + fieldName, floatBuffer, min, max);
         });
 
-        ImGui.popID();
+        popOverrideStyle(fieldName);
 
         if (changed[0]) {
-            fields.put(key, floatBuffer[0]);
+            ComponentReflectionUtils.setFieldValue(component, fieldName, floatBuffer[0]);
+            markFieldOverridden(fieldName, floatBuffer[0]);
         }
-        return changed[0];
+
+        boolean reset = drawResetButtonIfNeeded(component, fieldName);
+        ImGui.popID();
+
+        return changed[0] || reset;
     }
 
-    /**
-     * Draws a string input field.
-     */
-    public static boolean drawString(String label, Map<String, Object> fields, String key) {
-        Object value = fields.get(key);
-        String strValue = value != null ? value.toString() : "";
+    public static boolean drawBoolean(String label, Component component, String fieldName) {
+        boolean boolValue = ComponentReflectionUtils.getBoolean(component, fieldName, false);
+
+        ImGui.pushID(fieldName);
+        pushOverrideStyle(fieldName);
+
+        final boolean[] changed = {false};
+        inspectorRow(label, () -> {
+            changed[0] = ImGui.checkbox("##" + fieldName, boolValue);
+        });
+
+        popOverrideStyle(fieldName);
+
+        if (changed[0]) {
+            boolean newValue = !boolValue;
+            ComponentReflectionUtils.setFieldValue(component, fieldName, newValue);
+            markFieldOverridden(fieldName, newValue);
+        }
+
+        boolean reset = drawResetButtonIfNeeded(component, fieldName);
+        ImGui.popID();
+
+        return changed[0] || reset;
+    }
+
+    public static boolean drawString(String label, Component component, String fieldName) {
+        String strValue = ComponentReflectionUtils.getString(component, fieldName, "");
         stringBuffer.set(strValue);
 
-        ImGui.pushID(key);
+        ImGui.pushID(fieldName);
+        pushOverrideStyle(fieldName);
 
         final boolean[] changed = {false};
         inspectorRow(label, () -> {
-            changed[0] = ImGui.inputText("##" + key, stringBuffer);
+            changed[0] = ImGui.inputText("##" + fieldName, stringBuffer);
         });
 
-        ImGui.popID();
+        popOverrideStyle(fieldName);
 
         if (changed[0]) {
-            fields.put(key, floatBuffer[0]);
+            String newValue = stringBuffer.get();
+            ComponentReflectionUtils.setFieldValue(component, fieldName, newValue);
+            markFieldOverridden(fieldName, newValue);
         }
-        return changed[0];
+
+        boolean reset = drawResetButtonIfNeeded(component, fieldName);
+        ImGui.popID();
+
+        return changed[0] || reset;
     }
 
     // ========================================================================
     // VECTORS
     // ========================================================================
 
-    /**
-     * Draws a Vector2f drag field.
-     */
-    public static boolean drawVector2f(String label, Map<String, Object> fields, String key) {
-        return drawVector2f(label, fields, key, 0.1f);
+    public static boolean drawVector2f(String label, Component component, String fieldName) {
+        return drawVector2f(label, component, fieldName, 0.1f);
     }
 
-    /**
-     * Draws a Vector2f drag field with custom speed.
-     */
-    public static boolean drawVector2f(String label, Map<String, Object> fields, String key, float speed) {
-        Vector2f vec = getVector2f(fields, key);
+    public static boolean drawVector2f(String label, Component component, String fieldName, float speed) {
+        Vector2f vec = getVector2f(component, fieldName);
         floatBuffer[0] = vec.x;
         floatBuffer[1] = vec.y;
 
-        ImGui.pushID(key);
+        ImGui.pushID(fieldName);
+        pushOverrideStyle(fieldName);
 
         final boolean[] changed = {false};
         inspectorRow(label, () -> {
-            changed[0] = ImGui.dragFloat2("##" + key, floatBuffer, speed);
+            changed[0] = ImGui.dragFloat2("##" + fieldName, floatBuffer, speed);
         });
 
-        ImGui.popID();
+        popOverrideStyle(fieldName);
 
         if (changed[0]) {
-            fields.put(key, new Vector2f(floatBuffer[0], floatBuffer[1]));
+            Vector2f newValue = new Vector2f(floatBuffer[0], floatBuffer[1]);
+            ComponentReflectionUtils.setFieldValue(component, fieldName, newValue);
+            markFieldOverridden(fieldName, newValue);
         }
-        return changed[0];
+
+        boolean reset = drawResetButtonIfNeeded(component, fieldName);
+        ImGui.popID();
+
+        return changed[0] || reset;
     }
 
-    /**
-     * Draws a Vector3f drag field.
-     */
-    public static boolean drawVector3f(String label, Map<String, Object> fields, String key) {
-        return drawVector3f(label, fields, key, 0.1f);
+    public static boolean drawVector3f(String label, Component component, String fieldName) {
+        return drawVector3f(label, component, fieldName, 0.1f);
     }
 
-    /**
-     * Draws a Vector3f drag field with custom speed.
-     */
-    public static boolean drawVector3f(String label, Map<String, Object> fields, String key, float speed) {
-        Vector3f vec = getVector3f(fields, key);
+    public static boolean drawVector3f(String label, Component component, String fieldName, float speed) {
+        Vector3f vec = getVector3f(component, fieldName);
         floatBuffer[0] = vec.x;
         floatBuffer[1] = vec.y;
         floatBuffer[2] = vec.z;
 
-        ImGui.pushID(key);
+        ImGui.pushID(fieldName);
+        pushOverrideStyle(fieldName);
 
         final boolean[] changed = {false};
         inspectorRow(label, () -> {
-            changed[0] = ImGui.dragFloat3("##" + key, floatBuffer, speed);
+            changed[0] = ImGui.dragFloat3("##" + fieldName, floatBuffer, speed);
         });
 
-        ImGui.popID();
+        popOverrideStyle(fieldName);
 
         if (changed[0]) {
-            fields.put(key, new Vector3f(floatBuffer[0], floatBuffer[1], floatBuffer[2]));
+            Vector3f newValue = new Vector3f(floatBuffer[0], floatBuffer[1], floatBuffer[2]);
+            ComponentReflectionUtils.setFieldValue(component, fieldName, newValue);
+            markFieldOverridden(fieldName, newValue);
         }
-        return changed[0];
-    }
 
-    /**
-     * Draws a Vector4f as a color picker.
-     */
-    public static boolean drawColor(String label, Map<String, Object> fields, String key) {
-        Vector4f vec = getVector4f(fields, key);
-        floatBuffer[0] = vec.x;
-        floatBuffer[1] = vec.y;
-        floatBuffer[2] = vec.z;
-        floatBuffer[3] = vec.w;
-
-        // Pushing key here is good for local scope, but the Caller (drawField)
-        // must ensure the parent scope is unique per Object.
-        ImGui.pushID(key);
-
-        final boolean[] changed = {false};
-        inspectorRow(label, () -> {
-            changed[0] = ImGui.colorEdit4("##" + key, floatBuffer);
-        });
-
+        boolean reset = drawResetButtonIfNeeded(component, fieldName);
         ImGui.popID();
 
-        if (changed[0]) {
-            fields.put(key, new Vector4f(floatBuffer[0], floatBuffer[1], floatBuffer[2], floatBuffer[3]));
-        }
-        return changed[0];
+        return changed[0] || reset;
     }
 
-    /**
-     * Draws a Vector4f as drag fields (not color).
-     */
-    public static boolean drawVector4f(String label, Map<String, Object> fields, String key) {
-        Vector4f vec = getVector4f(fields, key);
+    public static boolean drawColor(String label, Component component, String fieldName) {
+        Vector4f vec = getVector4f(component, fieldName);
         floatBuffer[0] = vec.x;
         floatBuffer[1] = vec.y;
         floatBuffer[2] = vec.z;
         floatBuffer[3] = vec.w;
 
-        ImGui.pushID(key);
+        ImGui.pushID(fieldName);
+        pushOverrideStyle(fieldName);
 
         final boolean[] changed = {false};
         inspectorRow(label, () -> {
-            changed[0] = ImGui.dragFloat4("##" + key, floatBuffer, 0.1f);
+            changed[0] = ImGui.colorEdit4("##" + fieldName, floatBuffer);
         });
 
-        ImGui.popID();
+        popOverrideStyle(fieldName);
 
         if (changed[0]) {
-            fields.put(key, new Vector2f(floatBuffer[0], floatBuffer[1]));
+            Vector4f newValue = new Vector4f(floatBuffer[0], floatBuffer[1], floatBuffer[2], floatBuffer[3]);
+            ComponentReflectionUtils.setFieldValue(component, fieldName, newValue);
+            markFieldOverridden(fieldName, newValue);
         }
-        return changed[0];
+
+        boolean reset = drawResetButtonIfNeeded(component, fieldName);
+        ImGui.popID();
+
+        return changed[0] || reset;
+    }
+
+    public static boolean drawVector4f(String label, Component component, String fieldName) {
+        Vector4f vec = getVector4f(component, fieldName);
+        floatBuffer[0] = vec.x;
+        floatBuffer[1] = vec.y;
+        floatBuffer[2] = vec.z;
+        floatBuffer[3] = vec.w;
+
+        ImGui.pushID(fieldName);
+        pushOverrideStyle(fieldName);
+
+        final boolean[] changed = {false};
+        inspectorRow(label, () -> {
+            changed[0] = ImGui.dragFloat4("##" + fieldName, floatBuffer, 0.1f);
+        });
+
+        popOverrideStyle(fieldName);
+
+        if (changed[0]) {
+            Vector4f newValue = new Vector4f(floatBuffer[0], floatBuffer[1], floatBuffer[2], floatBuffer[3]);
+            ComponentReflectionUtils.setFieldValue(component, fieldName, newValue);
+            markFieldOverridden(fieldName, newValue);
+        }
+
+        boolean reset = drawResetButtonIfNeeded(component, fieldName);
+        ImGui.popID();
+
+        return changed[0] || reset;
     }
 
     // ========================================================================
     // ENUMS
     // ========================================================================
 
-    /**
-     * Draws an enum combo box.
-     */
-    public static boolean drawEnum(String label, Map<String, Object> fields, String key, Class<?> enumClass) {
-        Object value = fields.get(key);
+    public static boolean drawEnum(String label, Component component, String fieldName, Class<?> enumClass) {
+        Object value = ComponentReflectionUtils.getFieldValue(component, fieldName);
         Object[] constants = getEnumConstants(enumClass);
 
         int currentIndex = 0;
@@ -352,40 +445,42 @@ public class FieldEditors {
 
         intBuffer.set(currentIndex);
 
-        ImGui.pushID(key);
+        ImGui.pushID(fieldName);
+        pushOverrideStyle(fieldName);
 
         final boolean[] changed = {false};
         inspectorRow(label, () -> {
-            changed[0] = ImGui.combo("##" + key, intBuffer, names);
+            changed[0] = ImGui.combo("##" + fieldName, intBuffer, names);
         });
 
-        ImGui.popID();
+        popOverrideStyle(fieldName);
 
         if (changed[0]) {
-            fields.put(key, constants[intBuffer.get()].toString());
+            Object newValue = constants[intBuffer.get()];
+            ComponentReflectionUtils.setFieldValue(component, fieldName, newValue);
+            markFieldOverridden(fieldName, newValue);
         }
-        return changed[0];
-    }
 
+        boolean reset = drawResetButtonIfNeeded(component, fieldName);
+        ImGui.popID();
+
+        return changed[0] || reset;
+    }
 
     // ========================================================================
     // ASSETS
     // ========================================================================
 
-    /**
-     * Draws an asset picker field.
-     */
-    public static boolean drawAsset(String label, Map<String, Object> fields, String key,
-                                    Class<?> assetType, ComponentData data, EditorEntity entity) {
-        Object value = fields.get(key);
-
+    public static boolean drawAsset(String label, Component component, String fieldName,
+                                    Class<?> assetType, EditorGameObject entity) {
+        Object value = ComponentReflectionUtils.getFieldValue(component, fieldName);
         String display = getAssetDisplayName(value);
 
-        ImGui.pushID(key);
+        ImGui.pushID(fieldName);
+        pushOverrideStyle(fieldName);
 
         try {
             inspectorRow(label, () -> {
-
                 if (value != null) {
                     ImGui.textColored(0.6f, 0.9f, 0.6f, 1.0f, display);
                 } else {
@@ -394,36 +489,35 @@ public class FieldEditors {
 
                 ImGui.sameLine();
                 if (ImGui.smallButton("...")) {
-                    assetPickerTargetData = data;
-                    assetPickerFieldName = key;
+                    assetPickerTargetComponent = component;
+                    assetPickerFieldName = fieldName;
                     assetPickerTargetEntity = entity;
-                    Object oldValue = fields.get(key);
-
-                    // Get current path from resourcePaths map (null-safe)
+                    Object oldValue = ComponentReflectionUtils.getFieldValue(component, fieldName);
                     String currentPath = oldValue != null ? Assets.getPathForResource(oldValue) : null;
 
                     assetPicker.open(assetType, currentPath, selectedAsset -> {
                         UndoManager.getInstance().execute(
                                 new SetComponentFieldCommand(
-                                        assetPickerTargetData,
+                                        assetPickerTargetComponent,
                                         assetPickerFieldName,
                                         oldValue,
                                         selectedAsset
                                 )
                         );
+                        markFieldOverridden(assetPickerFieldName, selectedAsset);
                     });
                 }
             });
+
+            popOverrideStyle(fieldName);
+            drawResetButtonIfNeeded(component, fieldName);
+
         } finally {
             ImGui.popID();
         }
         return false;
     }
 
-
-    /**
-     * Renders the asset picker popup. Call once per frame from InspectorPanel.
-     */
     public static void renderAssetPicker() {
         assetPicker.render();
     }
@@ -432,14 +526,11 @@ public class FieldEditors {
     // READ-ONLY DISPLAY
     // ========================================================================
 
-    /**
-     * Displays a read-only label.
-     */
-    public static void drawReadOnly(String label, Map<String, Object> fields, String key, String typeName) {
-        Object value = fields.get(key);
+    public static void drawReadOnly(String label, Component component, String fieldName, String typeName) {
+        Object value = ComponentReflectionUtils.getFieldValue(component, fieldName);
         String display = value != null ? value.toString() : "(null)";
 
-        ImGui.pushID(key);
+        ImGui.pushID(fieldName);
 
         inspectorRow(label, () -> {
             ImGui.textDisabled(display);
@@ -450,13 +541,12 @@ public class FieldEditors {
         ImGui.popID();
     }
 
-
     // ========================================================================
-    // VECTOR GETTERS (handle multiple storage formats)
+    // VECTOR GETTERS (unchanged)
     // ========================================================================
 
-    public static Vector2f getVector2f(Map<String, Object> fields, String key) {
-        Object value = fields.get(key);
+    public static Vector2f getVector2f(Component component, String fieldName) {
+        Object value = ComponentReflectionUtils.getFieldValue(component, fieldName);
         if (value instanceof Vector2f v) return new Vector2f(v);
         if (value instanceof Map<?, ?> m) {
             float x = getFloatFromMap(m, "x", 0f);
@@ -471,8 +561,8 @@ public class FieldEditors {
         return new Vector2f();
     }
 
-    public static Vector3f getVector3f(Map<String, Object> fields, String key) {
-        Object value = fields.get(key);
+    public static Vector3f getVector3f(Component component, String fieldName) {
+        Object value = ComponentReflectionUtils.getFieldValue(component, fieldName);
         if (value instanceof Vector3f v) return new Vector3f(v);
         if (value instanceof Map<?, ?> m) {
             float x = getFloatFromMap(m, "x", 0f);
@@ -489,8 +579,8 @@ public class FieldEditors {
         return new Vector3f();
     }
 
-    public static Vector4f getVector4f(Map<String, Object> fields, String key) {
-        Object value = fields.get(key);
+    public static Vector4f getVector4f(Component component, String fieldName) {
+        Object value = ComponentReflectionUtils.getFieldValue(component, fieldName);
         if (value instanceof Vector4f v) return new Vector4f(v);
         if (value instanceof Map<?, ?> m) {
             float x = getFloatFromMap(m, "x", 0f);
@@ -509,12 +599,20 @@ public class FieldEditors {
         return new Vector4f(0, 0, 0, 1);
     }
 
-    public static float getFloat(Map<String, Object> fields, String key, float defaultValue) {
-        Object value = fields.get(key);
-        if (value instanceof Number n) {
-            return n.floatValue();
-        }
-        return defaultValue;
+    public static float getFloat(Component component, String fieldName, float defaultValue) {
+        return ComponentReflectionUtils.getFloat(component, fieldName, defaultValue);
+    }
+
+    public static int getInt(Component component, String fieldName, int defaultValue) {
+        return ComponentReflectionUtils.getInt(component, fieldName, defaultValue);
+    }
+
+    public static boolean getBoolean(Component component, String fieldName, boolean defaultValue) {
+        return ComponentReflectionUtils.getBoolean(component, fieldName, defaultValue);
+    }
+
+    public static String getString(Component component, String fieldName, String defaultValue) {
+        return ComponentReflectionUtils.getString(component, fieldName, defaultValue);
     }
 
     // ========================================================================
@@ -533,21 +631,12 @@ public class FieldEditors {
         return enumCache.computeIfAbsent(enumType, Class::getEnumConstants);
     }
 
-    /**
-     * Gets display name for an asset using the centralized resourcePaths map.
-     * Works for all asset types without type-specific logic.
-     *
-     * @param value The asset object
-     * @return Display name (filename from path, or "(none)" if null)
-     */
     private static String getAssetDisplayName(Object value) {
         if (value == null) return "(none)";
-
         String path = Assets.getPathForResource(value);
         if (path != null) {
             return getFileName(path);
         }
-
         return "(unnamed)";
     }
 

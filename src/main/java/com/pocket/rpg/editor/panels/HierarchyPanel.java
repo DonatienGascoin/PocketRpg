@@ -7,7 +7,7 @@ import com.pocket.rpg.editor.panels.hierarchy.EntityCreationService;
 import com.pocket.rpg.editor.panels.hierarchy.HierarchyDragDropHandler;
 import com.pocket.rpg.editor.panels.hierarchy.HierarchySelectionHandler;
 import com.pocket.rpg.editor.panels.hierarchy.HierarchyTreeRenderer;
-import com.pocket.rpg.editor.scene.EditorEntity;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.UIEntityFactory;
 import com.pocket.rpg.editor.tools.EditorTool;
@@ -180,15 +180,15 @@ public class HierarchyPanel {
     }
 
     private void renderEntitiesSection() {
-        List<EditorEntity> rootEntities = scene.getRootEntities();
-        rootEntities.sort(Comparator.comparingInt(EditorEntity::getOrder));
+        List<EditorGameObject> rootEntities = scene.getRootEntities();
+        rootEntities.sort(Comparator.comparingInt(EditorGameObject::getOrder));
 
         if (rootEntities.isEmpty()) {
             ImGui.textDisabled("No entities");
             dragDropHandler.renderDropZone(null, 0, null);
         } else {
             for (int i = 0; i < rootEntities.size(); i++) {
-                EditorEntity entity = rootEntities.get(i);
+                EditorGameObject entity = rootEntities.get(i);
                 dragDropHandler.renderDropZone(null, i, entity);
                 treeRenderer.renderEntityTree(entity);
             }
@@ -231,7 +231,7 @@ public class HierarchyPanel {
 
     private void renderMultiSelectionContextMenu() {
         if (ImGui.beginPopupContextWindow("hierarchy_ctx", ImGuiMouseButton.Right)) {
-            Set<EditorEntity> selected = scene.getSelectedEntities();
+            Set<EditorGameObject> selected = scene.getSelectedEntities();
 
             if (!selected.isEmpty()) {
                 ImGui.text(selected.size() + " selected");

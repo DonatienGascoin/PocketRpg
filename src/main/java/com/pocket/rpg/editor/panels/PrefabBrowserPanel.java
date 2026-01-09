@@ -20,6 +20,7 @@ import lombok.Setter;
  * - Search/filter functionality
  * - Preview images for each prefab
  * - Clicking prefab switches to entity mode
+ * TODO: Delete
  */
 public class PrefabBrowserPanel {
 

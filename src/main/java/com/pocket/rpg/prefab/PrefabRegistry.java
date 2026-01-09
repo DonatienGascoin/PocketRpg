@@ -1,6 +1,5 @@
 package com.pocket.rpg.prefab;
 
-import com.pocket.rpg.prefab.prefabs.ChestPrefab;
 import com.pocket.rpg.prefab.prefabs.PlayerPrefab;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.resources.Assets;
@@ -89,7 +88,6 @@ public class PrefabRegistry {
     }
 
     private void registerBuiltInPrefabs() {
-        register(new ChestPrefab());
         register(new PlayerPrefab());
     }
 

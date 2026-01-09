@@ -1,6 +1,6 @@
 package com.pocket.rpg.editor.undo.commands;
 
-import com.pocket.rpg.editor.scene.EditorEntity;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.undo.EditorCommand;
 
@@ -17,13 +17,13 @@ import java.util.Set;
 public class BulkDeleteCommand implements EditorCommand {
 
     private final EditorScene scene;
-    private final List<EditorEntity> entities;
+    private final List<EditorGameObject> entities;
 
     // Saved state for undo
-    private final Map<EditorEntity, String> savedParentIds = new HashMap<>();
-    private final Map<EditorEntity, Integer> savedOrders = new HashMap<>();
+    private final Map<EditorGameObject, String> savedParentIds = new HashMap<>();
+    private final Map<EditorGameObject, Integer> savedOrders = new HashMap<>();
 
-    public BulkDeleteCommand(EditorScene scene, Set<EditorEntity> entities) {
+    public BulkDeleteCommand(EditorScene scene, Set<EditorGameObject> entities) {
         this.scene = scene;
         this.entities = new ArrayList<>(entities);
     }
@@ -31,13 +31,13 @@ public class BulkDeleteCommand implements EditorCommand {
     @Override
     public void execute() {
         // Save hierarchy state before removal
-        for (EditorEntity entity : entities) {
+        for (EditorGameObject entity : entities) {
             savedParentIds.put(entity, entity.getParentId());
             savedOrders.put(entity, entity.getOrder());
         }
 
         // Remove all entities
-        for (EditorEntity entity : entities) {
+        for (EditorGameObject entity : entities) {
             scene.removeEntity(entity);
         }
 
@@ -48,7 +48,7 @@ public class BulkDeleteCommand implements EditorCommand {
     @Override
     public void undo() {
         // Re-add entities
-        for (EditorEntity entity : entities) {
+        for (EditorGameObject entity : entities) {
             scene.addEntity(entity);
         }
 
@@ -56,7 +56,7 @@ public class BulkDeleteCommand implements EditorCommand {
         scene.resolveHierarchy();
 
         // Restore orders
-        for (EditorEntity entity : entities) {
+        for (EditorGameObject entity : entities) {
             Integer order = savedOrders.get(entity);
             if (order != null) {
                 entity.setOrder(order);

@@ -1,6 +1,6 @@
 package com.pocket.rpg.editor.undo.commands;
 
-import com.pocket.rpg.editor.scene.EditorEntity;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.undo.EditorCommand;
 
@@ -14,12 +14,12 @@ import java.util.List;
 public class ReorderEntityCommand implements EditorCommand {
 
     private final EditorScene scene;
-    private final EditorEntity entity;
+    private final EditorGameObject entity;
     private final int newIndex;
 
     private int oldIndex;
 
-    public ReorderEntityCommand(EditorScene scene, EditorEntity entity, int newIndex) {
+    public ReorderEntityCommand(EditorScene scene, EditorGameObject entity, int newIndex) {
         this.scene = scene;
         this.entity = entity;
         this.newIndex = newIndex;
@@ -28,14 +28,14 @@ public class ReorderEntityCommand implements EditorCommand {
     @Override
     public void execute() {
         // Save actual position in sibling list
-        EditorEntity parent = entity.getParent();
-        List<EditorEntity> siblings;
+        EditorGameObject parent = entity.getParent();
+        List<EditorGameObject> siblings;
         if (parent == null) {
             siblings = scene.getRootEntities();
         } else {
             siblings = new ArrayList<>(parent.getChildren());
         }
-        siblings.sort(Comparator.comparingInt(EditorEntity::getOrder));
+        siblings.sort(Comparator.comparingInt(EditorGameObject::getOrder));
         oldIndex = siblings.indexOf(entity);
         if (oldIndex == -1) oldIndex = 0;
 

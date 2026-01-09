@@ -1,7 +1,7 @@
 package com.pocket.rpg.editor.assets;
 
 import com.pocket.rpg.editor.camera.EditorCamera;
-import com.pocket.rpg.editor.scene.EditorEntity;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.AddEntityCommand;
@@ -55,7 +55,7 @@ public class SceneViewportDropTarget {
                     Vector3f worldPos = camera.screenToWorld(localX, localY);
 
                     // Create entity
-                    EditorEntity entity = AssetDropHandler.handleDrop(payload, worldPos);
+                    EditorGameObject entity = AssetDropHandler.handleDrop(payload, worldPos);
 
                     if (entity != null) {
                         // Add to scene with undo support

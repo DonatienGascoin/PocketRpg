@@ -3,10 +3,10 @@ package com.pocket.rpg.prefab;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.rendering.Sprite;
-import com.pocket.rpg.serialization.ComponentData;
 import com.pocket.rpg.serialization.ComponentMeta;
-import com.pocket.rpg.serialization.ComponentRegistry;
+import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import com.pocket.rpg.serialization.FieldMeta;
+import com.pocket.rpg.serialization.SerializationUtils;
 import org.joml.Vector3f;
 
 import java.lang.reflect.Field;
@@ -35,11 +35,11 @@ public interface Prefab {
     /**
      * Gets the component definitions for this prefab.
      * <p>
-     * Each ComponentData contains the component type and default field values.
+     * Each Component contains default field values.
      *
-     * @return List of component data (empty if none)
+     * @return List of components (empty if none)
      */
-    List<ComponentData> getComponents();
+    List<Component> getComponents();
 
     /**
      * Gets the preview sprite for editor display.
@@ -54,52 +54,30 @@ public interface Prefab {
     }
 
     /**
-     * Gets live Component instances from this prefab's component definitions.
-     * <p>
-     * Creates new Component instances each call - use for cloning/merging.
-     *
-     * @return List of Component instances with default values applied
-     */
-    default List<Component> getComponentInstances() {
-        List<ComponentData> componentData = getComponents();
-        if (componentData == null) {
-            return List.of();
-        }
-
-        List<Component> result = new ArrayList<>();
-        for (ComponentData data : componentData) {
-            Component component = data.toComponent();
-            if (component != null) {
-                result.add(component);
-            }
-        }
-        return result;
-    }
-
-    /**
      * Creates a configured GameObject at the given position.
      */
     default GameObject instantiate(Vector3f position, Map<String, Map<String, Object>> overrides) {
         String name = getDisplayName() != null ? getDisplayName() : getId();
         GameObject gameObject = new GameObject(name, position);
 
-        List<ComponentData> components = getComponents();
+        List<Component> components = getComponents();
         if (components == null) {
             return gameObject;
         }
 
-        for (ComponentData compData : components) {
-            Component component = compData.toComponent();
+        for (Component template : components) {
+            // Clone the component so each instance is independent
+            Component component = ComponentReflectionUtils.cloneComponent(template);
             if (component == null) {
-                System.err.println("Failed to instantiate component: " + compData.getType());
+                System.err.println("Failed to clone component: " + template.getClass().getName());
                 continue;
             }
 
-            System.out.println("DEBUG: Applying overrides: " + overrides);
+            // Apply overrides
             if (overrides != null) {
-                Map<String, Object> fieldOverrides = overrides.get(compData.getType());
+                Map<String, Object> fieldOverrides = overrides.get(component.getClass().getName());
                 if (fieldOverrides != null && !fieldOverrides.isEmpty()) {
-                    applyOverrides(component, compData.getType(), fieldOverrides);
+                    applyOverrides(component, fieldOverrides);
                 }
             }
 
@@ -112,8 +90,8 @@ public interface Prefab {
     /**
      * Applies field overrides to a component instance.
      */
-    private static void applyOverrides(Component component, String componentType, Map<String, Object> overrides) {
-        ComponentMeta meta = ComponentRegistry.getByClassName(componentType);
+    private static void applyOverrides(Component component, Map<String, Object> overrides) {
+        ComponentMeta meta = ComponentReflectionUtils.getMeta(component);
         if (meta == null) {
             return;
         }
@@ -124,9 +102,8 @@ public interface Prefab {
                 try {
                     Field field = fieldMeta.field();
                     field.setAccessible(true);
-                    Object converted = ComponentData.fromSerializable(override, field.getType());
+                    Object converted = SerializationUtils.fromSerializable(override, field.getType());
                     field.set(component, converted);
-                    System.out.println("DEBUG: Set field " + field.getName() + " = " + converted);
                 } catch (Exception e) {
                     System.err.println("Failed to apply override for " + fieldMeta.name() + ": " + e.getMessage());
                 }
@@ -138,34 +115,35 @@ public interface Prefab {
      * Gets the default value for a specific field in a component.
      */
     default Object getFieldDefault(String componentType, String fieldName) {
-        List<ComponentData> components = getComponents();
+        List<Component> components = getComponents();
         if (components == null) {
             return null;
         }
 
-        for (ComponentData comp : components) {
-            if (comp.getType().equals(componentType)) {
-                return comp.getFields().get(fieldName);
+        for (Component comp : components) {
+            if (comp.getClass().getName().equals(componentType)) {
+                return ComponentReflectionUtils.getFieldValue(comp, fieldName);
             }
         }
         return null;
     }
 
     /**
-     * Gets a copy of component data.
+     * Gets a deep copy of all components.
      */
-    default List<ComponentData> getComponentsCopy() {
-        List<ComponentData> components = getComponents();
+    default List<Component> getComponentsCopy() {
+        List<Component> components = getComponents();
         if (components == null) {
             return List.of();
         }
 
-        return components.stream()
-                .map(comp -> {
-                    ComponentData copy = new ComponentData(comp.getType());
-                    copy.getFields().putAll(comp.getFields());
-                    return copy;
-                })
-                .toList();
+        List<Component> copies = new ArrayList<>();
+        for (Component comp : components) {
+            Component copy = ComponentReflectionUtils.cloneComponent(comp);
+            if (copy != null) {
+                copies.add(copy);
+            }
+        }
+        return copies;
     }
 }

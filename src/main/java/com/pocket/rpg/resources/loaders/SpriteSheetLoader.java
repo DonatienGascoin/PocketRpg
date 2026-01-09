@@ -4,14 +4,14 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
-import com.pocket.rpg.editor.scene.EditorEntity;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.SpriteSheet;
 import com.pocket.rpg.rendering.Texture;
 import com.pocket.rpg.resources.AssetLoader;
 import com.pocket.rpg.resources.Assets;
-import com.pocket.rpg.serialization.ComponentData;
 import org.joml.Vector3f;
 
 import java.io.IOException;
@@ -200,7 +200,7 @@ public class SpriteSheetLoader implements AssetLoader<SpriteSheet> {
      * For specific sprite selection, use {@link #instantiateWithIndex(SpriteSheet, String, Vector3f, int)}.
      */
     @Override
-    public EditorEntity instantiate(SpriteSheet asset, String assetPath, Vector3f position) {
+    public EditorGameObject instantiate(SpriteSheet asset, String assetPath, Vector3f position) {
         return instantiateWithIndex(asset, assetPath, position, 0);
     }
 
@@ -213,7 +213,7 @@ public class SpriteSheetLoader implements AssetLoader<SpriteSheet> {
      * @param spriteIndex Index of the sprite within the sheet
      * @return New EditorEntity with SpriteRenderer configured for the specific sprite
      */
-    public EditorEntity instantiateWithIndex(SpriteSheet asset, String assetPath, Vector3f position, int spriteIndex) {
+    public EditorGameObject instantiateWithIndex(SpriteSheet asset, String assetPath, Vector3f position, int spriteIndex) {
         // Validate sprite index
         if (asset != null && (spriteIndex < 0 || spriteIndex >= asset.getTotalFrames())) {
             spriteIndex = 0;
@@ -227,12 +227,12 @@ public class SpriteSheetLoader implements AssetLoader<SpriteSheet> {
         Sprite sprite = asset.getSprite(spriteIndex);
 
         // Create scratch entity
-        EditorEntity entity = new EditorEntity(entityName, position, false);
+        EditorGameObject entity = new EditorGameObject(entityName, position, false);
 
         // Add SpriteRenderer component with the actual Sprite
-        ComponentData spriteRenderer = new ComponentData("com.pocket.rpg.components.SpriteRenderer");
-        spriteRenderer.getFields().put("sprite", sprite);
-        spriteRenderer.getFields().put("zIndex", 0);
+        SpriteRenderer spriteRenderer = new SpriteRenderer();
+        spriteRenderer.setSprite(sprite);
+        spriteRenderer.setZIndex(0);
         entity.addComponent(spriteRenderer);
 
         return entity;

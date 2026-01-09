@@ -1,12 +1,13 @@
 package com.pocket.rpg.editor.panels.inspector;
 
+import com.pocket.rpg.components.Component;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
-import com.pocket.rpg.editor.scene.EditorEntity;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
+import com.pocket.rpg.editor.utils.FieldEditors;
 import com.pocket.rpg.editor.utils.ReflectionFieldEditor;
-import com.pocket.rpg.serialization.ComponentData;
 import com.pocket.rpg.serialization.ComponentMeta;
-import com.pocket.rpg.serialization.ComponentRegistry;
+import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import com.pocket.rpg.serialization.FieldMeta;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
@@ -20,32 +21,38 @@ public class ComponentFieldEditor {
     @Setter
     private EditorScene scene;
 
-    public boolean renderComponentFields(EditorEntity entity, ComponentData comp, boolean isPrefabInstance) {
+    public boolean renderComponentFields(EditorGameObject entity, Component component, boolean isPrefabInstance) {
         if (isPrefabInstance) {
-            return renderWithOverrides(entity, comp);
-        } else {
-            return ReflectionFieldEditor.drawComponent(comp, entity);
+            FieldEditors.beginOverrideContext(entity, component);
         }
+
+        boolean changed = ReflectionFieldEditor.drawComponent(component, entity);
+
+        if (isPrefabInstance) {
+            FieldEditors.endOverrideContext();
+        }
+
+        return changed;
     }
 
-    private boolean renderWithOverrides(EditorEntity entity, ComponentData comp) {
-        ComponentMeta meta = ComponentRegistry.getByClassName(comp.getType());
+    private boolean renderWithOverrides(EditorGameObject entity, Component component) {
+        ComponentMeta meta = ComponentReflectionUtils.getMeta(component);
         if (meta == null) {
             ImGui.textDisabled("Unknown component type");
             return false;
         }
 
         boolean changed = false;
+        String componentType = component.getClass().getName();
 
         for (FieldMeta fieldMeta : meta.fields()) {
             String fieldName = fieldMeta.name();
-            String componentType = comp.getType();
             boolean isOverridden = entity.isFieldOverridden(componentType, fieldName);
 
             ImGui.pushID(fieldName);
             if (isOverridden) ImGui.pushStyleColor(ImGuiCol.Text, 0.4f, 0.8f, 1.0f, 1.0f);
 
-            boolean fieldChanged = ReflectionFieldEditor.drawField(comp, fieldMeta);
+            boolean fieldChanged = ReflectionFieldEditor.drawField(component, fieldMeta);
 
             if (isOverridden) ImGui.popStyleColor();
 
@@ -53,7 +60,8 @@ public class ComponentFieldEditor {
                 ImGui.sameLine();
                 if (ImGui.smallButton(FontAwesomeIcons.Undo + "##reset")) {
                     entity.resetFieldToDefault(componentType, fieldName);
-                    comp.getFields().put(fieldName, entity.getFieldDefault(componentType, fieldName));
+                    Object defaultValue = entity.getFieldDefault(componentType, fieldName);
+                    ComponentReflectionUtils.setFieldValue(component, fieldName, defaultValue);
                     if (scene != null) scene.markDirty();
                     changed = true;
                 }
@@ -63,7 +71,8 @@ public class ComponentFieldEditor {
             }
 
             if (fieldChanged) {
-                entity.setFieldValue(componentType, fieldName, comp.getFields().get(fieldName));
+                Object currentValue = ComponentReflectionUtils.getFieldValue(component, fieldName);
+                entity.setFieldValue(componentType, fieldName, currentValue);
                 if (scene != null) scene.markDirty();
                 changed = true;
             }

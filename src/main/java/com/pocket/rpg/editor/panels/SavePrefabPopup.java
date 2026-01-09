@@ -1,9 +1,10 @@
 package com.pocket.rpg.editor.panels;
 
-import com.pocket.rpg.editor.scene.EditorEntity;
-import com.pocket.rpg.serialization.ComponentData;
+import com.pocket.rpg.components.Component;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.prefab.JsonPrefab;
 import com.pocket.rpg.prefab.PrefabRegistry;
+import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImString;
@@ -19,7 +20,7 @@ public class SavePrefabPopup {
     private static final String POPUP_ID = "Save as Prefab";
 
     private boolean shouldOpen = false;
-    private EditorEntity sourceEntity;
+    private EditorGameObject sourceEntity;
     private Consumer<JsonPrefab> onSaved;
 
     private final ImString idBuffer = new ImString(64);
@@ -32,7 +33,7 @@ public class SavePrefabPopup {
     /**
      * Opens the popup for the given entity.
      */
-    public void open(EditorEntity entity, Consumer<JsonPrefab> callback) {
+    public void open(EditorGameObject entity, Consumer<JsonPrefab> callback) {
         this.sourceEntity = entity;
         this.onSaved = callback;
         this.shouldOpen = true;
@@ -100,8 +101,8 @@ public class SavePrefabPopup {
             ImGui.separator();
             ImGui.text("Components to include:");
             ImGui.beginChild("ComponentList", 0);
-            for (ComponentData comp : sourceEntity.getComponents()) {
-                ImGui.bulletText(comp.getDisplayName());
+            for (Component comp : sourceEntity.getComponents()) {
+                ImGui.bulletText(comp.getClass().getSimpleName());
             }
             if (sourceEntity.getComponents().isEmpty()) {
                 ImGui.textDisabled("(no components)");
@@ -160,11 +161,12 @@ public class SavePrefabPopup {
         JsonPrefab prefab = new JsonPrefab(id, displayName);
         prefab.setCategory(category.isEmpty() ? null : category);
 
-        // Copy components from entity
-        for (ComponentData comp : sourceEntity.getComponents()) {
-            ComponentData copy = new ComponentData(comp.getType());
-            copy.getFields().putAll(comp.getFields());
-            prefab.getComponents().add(copy);
+        // Copy components from entity (clone each component)
+        for (Component comp : sourceEntity.getComponents()) {
+            Component copy = ComponentReflectionUtils.cloneComponent(comp);
+            if (copy != null) {
+                prefab.addComponent(copy);
+            }
         }
 
         // Save to disk

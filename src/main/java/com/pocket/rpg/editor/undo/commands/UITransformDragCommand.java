@@ -1,14 +1,14 @@
 package com.pocket.rpg.editor.undo.commands;
 
-import com.pocket.rpg.editor.scene.EditorEntity;
+import com.pocket.rpg.components.Component;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.undo.EditorCommand;
-import com.pocket.rpg.serialization.ComponentData;
+import com.pocket.rpg.serialization.ComponentReflectionUtils;
+import lombok.Getter;
 import org.joml.Vector2f;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Command for undoing/redoing UI Designer drag operations.
@@ -18,8 +18,8 @@ import java.util.Map;
 public class UITransformDragCommand implements EditorCommand {
 
     private final String description;
-    private final EditorEntity entity;
-    private final ComponentData transformData;
+    private final EditorGameObject entity;
+    private final Component transform;
 
     // Main entity old/new values
     private final Vector2f oldOffset;
@@ -41,19 +41,24 @@ public class UITransformDragCommand implements EditorCommand {
      * Captures a child entity's transform state.
      */
     public static class ChildTransformState {
-        public final EditorEntity entity;
-        public final ComponentData transformData;
+        // Getters for inspection
+        @Getter
+        public final EditorGameObject entity;
+        public final Component transform;
+        @Getter
         public final Vector2f oldOffset;
+        @Getter
         public final float oldWidth;
+        @Getter
         public final float oldHeight;
         public Vector2f newOffset;
         public float newWidth;
         public float newHeight;
 
-        public ChildTransformState(EditorEntity entity, ComponentData transformData,
+        public ChildTransformState(EditorGameObject entity, Component transform,
                                    Vector2f offset, float width, float height) {
             this.entity = entity;
-            this.transformData = transformData;
+            this.transform = transform;
             this.oldOffset = new Vector2f(offset);
             this.oldWidth = width;
             this.oldHeight = height;
@@ -76,60 +81,45 @@ public class UITransformDragCommand implements EditorCommand {
          * Captures new values from current transform state.
          */
         public void captureNewValues() {
-            if (transformData != null) {
-                Map<String, Object> fields = transformData.getFields();
-                Object offsetObj = fields.get("offset");
+            if (transform != null) {
+                Object offsetObj = ComponentReflectionUtils.getFieldValue(transform, "offset");
                 if (offsetObj instanceof Vector2f v) {
                     newOffset = new Vector2f(v);
                 }
-                Object widthObj = fields.get("width");
-                if (widthObj instanceof Number n) {
-                    newWidth = n.floatValue();
-                }
-                Object heightObj = fields.get("height");
-                if (heightObj instanceof Number n) {
-                    newHeight = n.floatValue();
-                }
+                newWidth = ComponentReflectionUtils.getFloat(transform, "width", newWidth);
+                newHeight = ComponentReflectionUtils.getFloat(transform, "height", newHeight);
             }
         }
 
         public void applyOld() {
-            if (transformData != null) {
-                Map<String, Object> fields = transformData.getFields();
-                fields.put("offset", new Vector2f(oldOffset));
-                fields.put("width", oldWidth);
-                fields.put("height", oldHeight);
+            if (transform != null) {
+                ComponentReflectionUtils.setFieldValue(transform, "offset", new Vector2f(oldOffset));
+                ComponentReflectionUtils.setFieldValue(transform, "width", oldWidth);
+                ComponentReflectionUtils.setFieldValue(transform, "height", oldHeight);
             }
         }
 
         public void applyNew() {
-            if (transformData != null) {
-                Map<String, Object> fields = transformData.getFields();
-                fields.put("offset", new Vector2f(newOffset));
-                fields.put("width", newWidth);
-                fields.put("height", newHeight);
+            if (transform != null) {
+                ComponentReflectionUtils.setFieldValue(transform, "offset", new Vector2f(newOffset));
+                ComponentReflectionUtils.setFieldValue(transform, "width", newWidth);
+                ComponentReflectionUtils.setFieldValue(transform, "height", newHeight);
             }
         }
-
-        // Getters for inspection
-        public EditorEntity getEntity() { return entity; }
-        public Vector2f getOldOffset() { return oldOffset; }
-        public float getOldWidth() { return oldWidth; }
-        public float getOldHeight() { return oldHeight; }
     }
 
     /**
      * Creates a drag command.
      */
     public UITransformDragCommand(
-            EditorEntity entity,
-            ComponentData transformData,
+            EditorGameObject entity,
+            Component transform,
             Vector2f oldOffset, float oldWidth, float oldHeight, Vector2f oldAnchor, Vector2f oldPivot,
             Vector2f newOffset, float newWidth, float newHeight, Vector2f newAnchor, Vector2f newPivot,
             String description
     ) {
         this.entity = entity;
-        this.transformData = transformData;
+        this.transform = transform;
         this.oldOffset = new Vector2f(oldOffset);
         this.oldWidth = oldWidth;
         this.oldHeight = oldHeight;
@@ -163,13 +153,13 @@ public class UITransformDragCommand implements EditorCommand {
      * Convenience constructor for move operations.
      */
     public static UITransformDragCommand move(
-            EditorEntity entity,
-            ComponentData transformData,
+            EditorGameObject entity,
+            Component transform,
             Vector2f oldOffset, Vector2f newOffset,
             float width, float height, Vector2f anchor, Vector2f pivot
     ) {
         return new UITransformDragCommand(
-                entity, transformData,
+                entity, transform,
                 oldOffset, width, height, anchor, pivot,
                 newOffset, width, height, anchor, pivot,
                 "Move " + entity.getName()
@@ -180,14 +170,14 @@ public class UITransformDragCommand implements EditorCommand {
      * Convenience constructor for resize operations.
      */
     public static UITransformDragCommand resize(
-            EditorEntity entity,
-            ComponentData transformData,
+            EditorGameObject entity,
+            Component transform,
             Vector2f oldOffset, float oldWidth, float oldHeight,
             Vector2f newOffset, float newWidth, float newHeight,
             Vector2f anchor, Vector2f pivot
     ) {
         return new UITransformDragCommand(
-                entity, transformData,
+                entity, transform,
                 oldOffset, oldWidth, oldHeight, anchor, pivot,
                 newOffset, newWidth, newHeight, anchor, pivot,
                 "Resize " + entity.getName()
@@ -198,14 +188,14 @@ public class UITransformDragCommand implements EditorCommand {
      * Convenience constructor for anchor changes.
      */
     public static UITransformDragCommand anchor(
-            EditorEntity entity,
-            ComponentData transformData,
+            EditorGameObject entity,
+            Component transform,
             Vector2f oldAnchor, Vector2f oldOffset,
             Vector2f newAnchor, Vector2f newOffset,
             float width, float height, Vector2f pivot
     ) {
         return new UITransformDragCommand(
-                entity, transformData,
+                entity, transform,
                 oldOffset, width, height, oldAnchor, pivot,
                 newOffset, width, height, newAnchor, pivot,
                 "Move Anchor " + entity.getName()
@@ -216,14 +206,14 @@ public class UITransformDragCommand implements EditorCommand {
      * Convenience constructor for pivot changes.
      */
     public static UITransformDragCommand pivot(
-            EditorEntity entity,
-            ComponentData transformData,
+            EditorGameObject entity,
+            Component transform,
             Vector2f oldPivot, Vector2f oldOffset,
             Vector2f newPivot, Vector2f newOffset,
             float width, float height, Vector2f anchor
     ) {
         return new UITransformDragCommand(
-                entity, transformData,
+                entity, transform,
                 oldOffset, width, height, anchor, oldPivot,
                 newOffset, width, height, anchor, newPivot,
                 "Move Pivot " + entity.getName()
@@ -247,14 +237,13 @@ public class UITransformDragCommand implements EditorCommand {
     }
 
     private void applyValues(Vector2f offset, float width, float height, Vector2f anchor, Vector2f pivot) {
-        if (transformData == null) return;
+        if (transform == null) return;
 
-        var fields = transformData.getFields();
-        fields.put("offset", new Vector2f(offset));
-        fields.put("width", width);
-        fields.put("height", height);
-        fields.put("anchor", new Vector2f(anchor));
-        fields.put("pivot", new Vector2f(pivot));
+        ComponentReflectionUtils.setFieldValue(transform, "offset", new Vector2f(offset));
+        ComponentReflectionUtils.setFieldValue(transform, "width", width);
+        ComponentReflectionUtils.setFieldValue(transform, "height", height);
+        ComponentReflectionUtils.setFieldValue(transform, "anchor", new Vector2f(anchor));
+        ComponentReflectionUtils.setFieldValue(transform, "pivot", new Vector2f(pivot));
     }
 
     @Override

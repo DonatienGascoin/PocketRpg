@@ -31,12 +31,12 @@ public class Transform extends Component {
     private final Vector3f localRotation;
     private final Vector3f localScale;
 
-    // Cached world transform
-    private final Vector3f worldPosition;
-    private final Vector3f worldRotation;
-    private final Vector3f worldScale;
-    private final Matrix4f worldMatrix;
-    private boolean worldDirty = true;
+    // Cached world transform - recomputed at runtime
+    private transient final Vector3f worldPosition;
+    private transient final Vector3f worldRotation;
+    private transient final Vector3f worldScale;
+    private transient final Matrix4f worldMatrix;
+    private transient boolean worldDirty = true;
 
     // ========================================================================
     // CONSTRUCTORS

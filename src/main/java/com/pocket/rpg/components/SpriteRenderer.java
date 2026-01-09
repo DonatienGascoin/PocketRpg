@@ -55,7 +55,7 @@ public class SpriteRenderer extends Component implements Renderable {
      * Only used when {@link #useSpritePivot} is false.
      */
     @Getter
-    private float originY = 0.5f;
+    private float originY = 0f;
 
     /**
      * Sorting order for rendering. Higher values render on top.

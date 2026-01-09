@@ -1,6 +1,6 @@
 package com.pocket.rpg.editor.undo.commands;
 
-import com.pocket.rpg.editor.scene.EditorEntity;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.undo.EditorCommand;
 import org.joml.Vector3f;
 
@@ -9,11 +9,11 @@ import org.joml.Vector3f;
  */
 public class MoveEntityCommand implements EditorCommand {
 
-    private final EditorEntity entity;
+    private final EditorGameObject entity;
     private final Vector3f oldPosition;
     private Vector3f newPosition;
 
-    public MoveEntityCommand(EditorEntity entity, Vector3f oldPosition, Vector3f newPosition) {
+    public MoveEntityCommand(EditorGameObject entity, Vector3f oldPosition, Vector3f newPosition) {
         this.entity = entity;
         this.oldPosition = new Vector3f(oldPosition);
         this.newPosition = new Vector3f(newPosition);

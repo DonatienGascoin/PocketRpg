@@ -3,7 +3,7 @@ package com.pocket.rpg.editor;
 import com.pocket.rpg.collision.CollisionType;
 import com.pocket.rpg.editor.panels.CollisionPanel;
 import com.pocket.rpg.editor.panels.PrefabBrowserPanel;
-import com.pocket.rpg.editor.scene.EditorEntity;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.tools.*;
 import imgui.ImGui;
@@ -209,7 +209,7 @@ public class EditorToolController {
         if (ImGui.isKeyPressed(ImGuiKey.Delete) || ImGui.isKeyPressed(ImGuiKey.Backspace)) {
             EditorScene scene = context.getCurrentScene();
             if (scene != null) {
-                EditorEntity selected = scene.getSelectedEntity();
+                EditorGameObject selected = scene.getSelectedEntity();
                 if (selected != null) {
                     String name = selected.getName();
                     scene.removeEntity(selected);

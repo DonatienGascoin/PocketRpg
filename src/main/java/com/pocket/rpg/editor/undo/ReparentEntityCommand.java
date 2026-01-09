@@ -1,6 +1,6 @@
 package com.pocket.rpg.editor.undo;
 
-import com.pocket.rpg.editor.scene.EditorEntity;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 
 import java.util.ArrayList;
@@ -13,15 +13,15 @@ import java.util.List;
 public class ReparentEntityCommand implements EditorCommand {
 
     private final EditorScene scene;
-    private final EditorEntity entity;
-    private final EditorEntity newParent;
+    private final EditorGameObject entity;
+    private final EditorGameObject newParent;
     private final int insertIndex;
 
-    private EditorEntity oldParent;
+    private EditorGameObject oldParent;
     private int oldIndex;
 
-    public ReparentEntityCommand(EditorScene scene, EditorEntity entity, 
-                                  EditorEntity newParent, int insertIndex) {
+    public ReparentEntityCommand(EditorScene scene, EditorGameObject entity,
+                                 EditorGameObject newParent, int insertIndex) {
         this.scene = scene;
         this.entity = entity;
         this.newParent = newParent;
@@ -33,13 +33,13 @@ public class ReparentEntityCommand implements EditorCommand {
         oldParent = entity.getParent();
         
         // Save actual position in sibling list (not just order field)
-        List<EditorEntity> oldSiblings;
+        List<EditorGameObject> oldSiblings;
         if (oldParent == null) {
             oldSiblings = scene.getRootEntities();
         } else {
             oldSiblings = new ArrayList<>(oldParent.getChildren());
         }
-        oldSiblings.sort(Comparator.comparingInt(EditorEntity::getOrder));
+        oldSiblings.sort(Comparator.comparingInt(EditorGameObject::getOrder));
         oldIndex = oldSiblings.indexOf(entity);
         if (oldIndex == -1) oldIndex = 0;
 

@@ -1,7 +1,7 @@
 package com.pocket.rpg.editor.utils;
 
-import com.pocket.rpg.editor.scene.EditorEntity;
-import com.pocket.rpg.serialization.ComponentData;
+import com.pocket.rpg.components.Component;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 
 /**
  * Interface for custom component editors.
@@ -16,9 +16,9 @@ public interface CustomComponentEditor {
     /**
      * Draws the custom editor UI for the component.
      *
-     * @param data   The component data to edit
-     * @param entity The entity owning this component (for undo support), may be null
+     * @param component The component to edit
+     * @param entity    The entity owning this component (for undo support), may be null
      * @return true if any field was changed
      */
-    boolean draw(ComponentData data, EditorEntity entity);
+    boolean draw(Component component, EditorGameObject entity);
 }

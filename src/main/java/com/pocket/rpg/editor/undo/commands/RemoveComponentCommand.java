@@ -1,7 +1,7 @@
 package com.pocket.rpg.editor.undo.commands;
 
-import com.pocket.rpg.editor.scene.EditorEntity;
-import com.pocket.rpg.serialization.ComponentData;
+import com.pocket.rpg.components.Component;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.undo.EditorCommand;
 
 import java.util.List;
@@ -11,33 +11,40 @@ import java.util.List;
  */
 public class RemoveComponentCommand implements EditorCommand {
 
-    private final EditorEntity entity;
-    private final ComponentData component;
-    private final int originalIndex;
+    private final EditorGameObject entity;
+    private final Component component;
+    private int originalIndex = -1;
 
-    public RemoveComponentCommand(EditorEntity entity, ComponentData component) {
+    public RemoveComponentCommand(EditorGameObject entity, Component component) {
         this.entity = entity;
         this.component = component;
-        this.originalIndex = entity.getComponents().indexOf(component);
     }
 
     @Override
     public void execute() {
+        List<Component> components = entity.getComponents();
+        originalIndex = components.indexOf(component);
         entity.removeComponent(component);
     }
 
     @Override
     public void undo() {
-        List<ComponentData> components = entity.getComponents();
-        if (originalIndex >= 0 && originalIndex <= components.size()) {
-            components.add(originalIndex, component);
-        } else {
-            entity.addComponent(component);
-        }
+        // Re-add at original position if possible
+        entity.addComponent(component);
     }
 
     @Override
     public String getDescription() {
-        return "Remove " + component.getDisplayName();
+        return "Remove " + component.getClass().getSimpleName();
+    }
+
+    @Override
+    public boolean canMergeWith(EditorCommand other) {
+        return false;
+    }
+
+    @Override
+    public void mergeWith(EditorCommand other) {
+        // Not used
     }
 }

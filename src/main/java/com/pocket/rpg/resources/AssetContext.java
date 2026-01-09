@@ -167,4 +167,11 @@ public interface AssetContext {
      * @param path     The path to associate with it
      */
     void registerResource(Object resource, String path);
+
+    /**
+     * Checks if a type has a registered loader.
+     * @param type Class to check
+     * @return true if this type can be loaded through Assets
+     */
+    boolean isAssetType(Class<?> type);
 }

@@ -1,11 +1,11 @@
 package com.pocket.rpg.editor.utils;
 
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
-import com.pocket.rpg.editor.scene.EditorEntity;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 
 public class IconUtils {
 
-    public static String getIconForEntity(EditorEntity entity) {
+    public static String getIconForEntity(EditorGameObject entity) {
         // Check for UI components first
         if (entity.hasComponent("UICanvas")) {
             return getUICanvasIcon();

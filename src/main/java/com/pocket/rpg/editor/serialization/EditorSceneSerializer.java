@@ -1,25 +1,26 @@
 package com.pocket.rpg.editor.serialization;
 
+import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.TilemapRenderer;
+import com.pocket.rpg.components.Transform;
 import com.pocket.rpg.core.GameObject;
-import com.pocket.rpg.editor.scene.EditorEntity;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.TilemapLayer;
 import com.pocket.rpg.serialization.GameObjectData;
 import com.pocket.rpg.serialization.SceneData;
 
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Handles conversion between EditorScene (editor runtime) and SceneData (serialization).
  * <p>
  * Architecture:
- * - EditorScene uses TilemapLayer wrappers for editor features
- * - SceneData uses GameObjectData with TilemapRenderer components for runtime
+ * - EditorScene uses TilemapLayer wrappers and EditorGameObject for editor features
+ * - SceneData uses unified GameObjectData for all objects
  * - This serializer bridges the two representations
  * <p>
- * Phase 5: Added entity and camera serialization support
+ * Version 4: Unified GameObjectData (no separate entities list)
  */
 public class EditorSceneSerializer {
 
@@ -28,7 +29,7 @@ public class EditorSceneSerializer {
      */
     public static SceneData toSceneData(EditorScene editorScene) {
         SceneData data = new SceneData(editorScene.getName());
-        data.setVersion(3); // Version 3 includes entities
+        data.setVersion(4);
 
         // Camera settings
         data.setCamera(editorScene.getCameraSettings().toData());
@@ -44,9 +45,10 @@ public class EditorSceneSerializer {
             data.setCollisionData(editorScene.getCollisionMap().toBase64());
         }
 
-        // Entities (Phase 5)
-        for (EditorEntity entity : editorScene.getEntities()) {
-            data.addEntity(entity.toData());
+        // Convert EditorGameObjects to GameObjectData
+        for (EditorGameObject entity : editorScene.getEntities()) {
+            GameObjectData goData = entity.toData();
+            data.addGameObject(goData);
         }
 
         return data;
@@ -64,11 +66,21 @@ public class EditorSceneSerializer {
             scene.getCameraSettings().fromData(data.getCamera());
         }
 
-        // Convert GameObjects with TilemapRenderer to TilemapLayers
+        // Process all GameObjects
         for (GameObjectData goData : data.getGameObjects()) {
             if (hasTilemapRenderer(goData)) {
+                // Tilemap → TilemapLayer
                 TilemapLayer layer = convertToTilemapLayer(goData);
                 scene.addExistingLayer(layer);
+            } else {
+                // Regular entity → EditorGameObject
+                try {
+                    EditorGameObject entity = EditorGameObject.fromData(goData);
+                    scene.addEntity(entity);
+                } catch (Exception e) {
+                    System.err.println("Failed to load entity: " + e.getMessage());
+                    e.printStackTrace();
+                }
             }
         }
 
@@ -77,80 +89,51 @@ public class EditorSceneSerializer {
             scene.getCollisionMap().fromBase64(data.getCollisionData());
         }
 
-        // Entities (Phase 5)
-        if (data.getEntities() != null) {
-            for (EntityData entityData : data.getEntities()) {
-                try {
-                    EditorEntity entity = EditorEntity.fromData(entityData);
-                    scene.addEntity(entity);
-                } catch (Exception e) {
-                    System.err.println("Failed to load entity: " + e.getMessage());
-                }
-            }
-            // Rebuild parent-child hierarchy from parentId references
-            // Debug: check for duplicate IDs
-            Set<String> ids = new HashSet<>();
-            for (EditorEntity e : scene.getEntities()) {
-                if (!ids.add(e.getId())) {
-                    System.err.println("DUPLICATE ENTITY ID: " + e.getId() + " - " + e.getName());
-                }
-            }
-            scene.resolveHierarchy();
-        }
+        // Rebuild parent-child hierarchy and validate IDs
+        validateUniqueIds(scene);
+        scene.resolveHierarchy();
 
         scene.clearDirty();
         return scene;
     }
 
     // ========================================================================
-    // LAYER -> GAMEOBJECT CONVERSION
-    // ========================================================================
-
-    /**
-     * Converts a TilemapLayer to GameObjectData for serialization.
-     */
-    private static GameObjectData convertTilemapLayer(TilemapLayer layer) {
-        GameObjectData goData = new GameObjectData();
-        goData.setName(layer.getName());
-        goData.setActive(layer.isVisible());
-
-        // Convert TilemapRenderer component
-        TilemapRenderer tilemap = layer.getTilemap();
-        TilemapRenderer componentForSerialization = new TilemapRenderer(tilemap.getTileSize());
-        componentForSerialization.setZIndex(tilemap.getZIndex());
-
-        // Copy all tiles from original tilemap
-        for (Long chunkKey : tilemap.chunkKeys()) {
-            int cx = TilemapRenderer.chunkKeyToX(chunkKey);
-            int cy = TilemapRenderer.chunkKeyToY(chunkKey);
-            TilemapRenderer.TileChunk chunk = tilemap.getChunk(cx, cy);
-
-            for (int tx = 0; tx < TilemapRenderer.TileChunk.CHUNK_SIZE; tx++) {
-                for (int ty = 0; ty < TilemapRenderer.TileChunk.CHUNK_SIZE; ty++) {
-                    TilemapRenderer.Tile tile = chunk.get(tx, ty);
-                    if (tile != null) {
-                        int worldTx = cx * TilemapRenderer.TileChunk.CHUNK_SIZE + tx;
-                        int worldTy = cy * TilemapRenderer.TileChunk.CHUNK_SIZE + ty;
-                        componentForSerialization.set(worldTx, worldTy, tile);
-                    }
-                }
-            }
-        }
-
-        goData.addComponent(componentForSerialization);
-
-        return goData;
-    }
-
-    // ========================================================================
-    // GAMEOBJECT -> LAYER CONVERSION
+    // TILEMAP LAYER CONVERSION
     // ========================================================================
 
     /**
      * Checks if a GameObjectData has a TilemapRenderer component.
      */
     private static boolean hasTilemapRenderer(GameObjectData goData) {
-        return goData.getComponent(TilemapRenderer.class) != null;
+        return goData.hasComponent(TilemapRenderer.class);
+    }
+
+    /**
+     * Converts a TilemapLayer to GameObjectData for serialization.
+     */
+    private static GameObjectData convertTilemapLayer(TilemapLayer layer) {
+        List<Component> components = new ArrayList<>();
+
+        // Add Transform at origin
+        components.add(new Transform());
+
+        // Convert TilemapRenderer component
+        TilemapRenderer tilemap = layer.getTilemap();
+        TilemapRenderer componentForSerialization = new TilemapRenderer(tilemap.getTileSize());
+        componentForSerialization.setZIndex(tilemap.getZIndex());
+
+        // Copy all tiles
+        copyTilemapData(tilemap, componentForSerialization);
+        components.add(componentForSerialization);
+
+        GameObjectData goData = new GameObjectData(
+                UUID.randomUUID().toString().substring(0, 8),
+                layer.getName(),
+                components
+        );
+        goData.setActive(layer.isVisible());
+
+        return goData;
     }
 
     /**
@@ -169,12 +152,21 @@ public class EditorSceneSerializer {
         // Copy tilemap data to new component instance
         TilemapRenderer newTilemap = new TilemapRenderer(tilemap.getTileSize());
         newTilemap.setZIndex(tilemap.getZIndex());
+        copyTilemapData(tilemap, newTilemap);
 
-        // Copy all tiles
-        for (Long chunkKey : tilemap.chunkKeys()) {
+        gameObject.addComponent(newTilemap);
+
+        return new TilemapLayer(gameObject, goData.getName());
+    }
+
+    /**
+     * Copies tile data from source to destination tilemap.
+     */
+    private static void copyTilemapData(TilemapRenderer source, TilemapRenderer dest) {
+        for (Long chunkKey : source.chunkKeys()) {
             int cx = TilemapRenderer.chunkKeyToX(chunkKey);
             int cy = TilemapRenderer.chunkKeyToY(chunkKey);
-            TilemapRenderer.TileChunk chunk = tilemap.getChunk(cx, cy);
+            TilemapRenderer.TileChunk chunk = source.getChunk(cx, cy);
 
             for (int tx = 0; tx < TilemapRenderer.TileChunk.CHUNK_SIZE; tx++) {
                 for (int ty = 0; ty < TilemapRenderer.TileChunk.CHUNK_SIZE; ty++) {
@@ -182,17 +174,24 @@ public class EditorSceneSerializer {
                     if (tile != null) {
                         int worldTx = cx * TilemapRenderer.TileChunk.CHUNK_SIZE + tx;
                         int worldTy = cy * TilemapRenderer.TileChunk.CHUNK_SIZE + ty;
-                        newTilemap.set(worldTx, worldTy, tile);
+                        dest.set(worldTx, worldTy, tile);
                     }
                 }
             }
         }
+    }
 
-        gameObject.addComponent(newTilemap);
+    // ========================================================================
+    // VALIDATION
+    // ========================================================================
 
-        // Create TilemapLayer wrapper
-        TilemapLayer layer = new TilemapLayer(gameObject, goData.getName());
-
-        return layer;
+    private static void validateUniqueIds(EditorScene scene) {
+        Set<String> ids = new HashSet<>();
+        for (EditorGameObject e : scene.getEntities()) {
+            if (!ids.add(e.getId())) {
+                System.err.println("DUPLICATE ENTITY ID: " + e.getId() + " - " + e.getName());
+                e.regenerateId();
+            }
+        }
     }
 }

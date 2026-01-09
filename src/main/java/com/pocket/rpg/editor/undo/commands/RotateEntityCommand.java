@@ -1,15 +1,15 @@
 package com.pocket.rpg.editor.undo.commands;
 
-import com.pocket.rpg.editor.scene.EditorEntity;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.undo.EditorCommand;
 import org.joml.Vector3f;
 
 public class RotateEntityCommand implements EditorCommand {
-    private final EditorEntity entity;
+    private final EditorGameObject entity;
     private final Vector3f oldRot;
     private Vector3f newRot;
 
-    public RotateEntityCommand(EditorEntity entity, Vector3f oldRot, Vector3f newRot) {
+    public RotateEntityCommand(EditorGameObject entity, Vector3f oldRot, Vector3f newRot) {
         this.entity = entity;
         this.oldRot = new Vector3f(oldRot);
         this.newRot = new Vector3f(newRot);

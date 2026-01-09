@@ -1,25 +1,25 @@
 package com.pocket.rpg.editor.utils;
 
+import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
-import com.pocket.rpg.editor.scene.EditorEntity;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.rendering.Sprite;
-import com.pocket.rpg.serialization.ComponentData;
+import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
-
-import java.util.Map;
+import org.joml.Vector4f;
 
 /**
  * Custom editor for UIButton component.
  *
- * Note: Runtime-only fields (onClick, onHover, onExit, hovered, pressed) 
+ * Note: Runtime-only fields (onClick, onHover, onExit, hovered, pressed)
  * are not shown as they are set via code.
  */
 public class UIButtonEditor implements CustomComponentEditor {
 
     @Override
-    public boolean draw(ComponentData data, EditorEntity entity) {
-        Map<String, Object> fields = data.getFields();
+    public boolean draw(Component component, EditorGameObject entity) {
         boolean changed = false;
 
         // === APPEARANCE SECTION ===
@@ -28,10 +28,10 @@ public class UIButtonEditor implements CustomComponentEditor {
 
         // Sprite
         ImGui.spacing();
-        changed |= FieldEditors.drawAsset("Sprite", fields, "sprite", Sprite.class, data, entity);
+        changed |= FieldEditors.drawAsset("Sprite", component, "sprite", Sprite.class, entity);
 
         // Reset size to sprite size button
-        Object spriteObj = fields.get("sprite");
+        Object spriteObj = ComponentReflectionUtils.getFieldValue(component, "sprite");
         if (spriteObj instanceof Sprite sprite && sprite.getTexture() != null) {
             ImGui.sameLine();
             if (ImGui.smallButton(FontAwesomeIcons.Expand + "##resetSize")) {
@@ -47,16 +47,17 @@ public class UIButtonEditor implements CustomComponentEditor {
         ImGui.spacing();
         ImGui.text("Color");
         ImGui.sameLine(130);
-        changed |= FieldEditors.drawColor("##color", fields, "color");
+        changed |= FieldEditors.drawColor("##color", component, "color");
 
         // Alpha slider
-        float alpha = getAlpha(fields);
-        float[] alphaBuf = {alpha};
+        Vector4f color = FieldEditors.getVector4f(component, "color");
+        float[] alphaBuf = {color.w};
         ImGui.text("Alpha");
         ImGui.sameLine(130);
         ImGui.setNextItemWidth(-1);
         if (ImGui.sliderFloat("##alpha", alphaBuf, 0f, 1f)) {
-            setAlpha(fields, alphaBuf[0]);
+            color.w = alphaBuf[0];
+            ComponentReflectionUtils.setFieldValue(component, "color", color);
             changed = true;
         }
 
@@ -68,15 +69,15 @@ public class UIButtonEditor implements CustomComponentEditor {
 
         // Hover tint
         ImGui.spacing();
-        Object hoverTintObj = fields.get("hoverTint");
+        Object hoverTintObj = ComponentReflectionUtils.getFieldValue(component, "hoverTint");
         boolean hasCustomTint = hoverTintObj != null;
 
         // Checkbox to enable custom tint
         if (ImGui.checkbox("Custom Hover Tint", hasCustomTint)) {
             if (hasCustomTint) {
-                fields.put("hoverTint", null);
+                ComponentReflectionUtils.setFieldValue(component, "hoverTint", null);
             } else {
-                fields.put("hoverTint", 0.1f);
+                ComponentReflectionUtils.setFieldValue(component, "hoverTint", 0.1f);
             }
             changed = true;
             hasCustomTint = !hasCustomTint;
@@ -94,7 +95,7 @@ public class UIButtonEditor implements CustomComponentEditor {
             ImGui.sameLine(130);
             ImGui.setNextItemWidth(-1);
             if (ImGui.sliderFloat("##hoverTint", tintBuf, 0f, 0.5f, "%.2f")) {
-                fields.put("hoverTint", tintBuf[0]);
+                ComponentReflectionUtils.setFieldValue(component, "hoverTint", tintBuf[0]);
                 changed = true;
             }
 
@@ -117,25 +118,14 @@ public class UIButtonEditor implements CustomComponentEditor {
         return changed;
     }
 
-    private boolean resetSizeToSprite(EditorEntity entity, Sprite sprite) {
+    private boolean resetSizeToSprite(EditorGameObject entity, Sprite sprite) {
         if (entity == null) return false;
 
-        var transform = entity.getComponentByType("UITransform");
+        Component transform = entity.getComponent(UITransform.class);
         if (transform == null) return false;
 
-        Map<String, Object> transformFields = transform.getFields();
-        transformFields.put("width", sprite.getWidth());
-        transformFields.put("height", sprite.getHeight());
+        ComponentReflectionUtils.setFieldValue(transform, "width", sprite.getWidth());
+        ComponentReflectionUtils.setFieldValue(transform, "height", sprite.getHeight());
         return true;
-    }
-
-    private float getAlpha(Map<String, Object> fields) {
-        return FieldEditors.getVector4f(fields, "color").w;
-    }
-
-    private void setAlpha(Map<String, Object> fields, float alpha) {
-        var color = FieldEditors.getVector4f(fields, "color");
-        color.w = alpha;
-        fields.put("color", color);
     }
 }

@@ -12,7 +12,6 @@ import com.pocket.rpg.rendering.Sprite;
  * <ul>
  *   <li>{@link com.pocket.rpg.serialization.custom.SpriteTypeAdapter}</li>
  *   <li>{@link com.pocket.rpg.serialization.custom.ComponentTypeAdapterFactory} (for TilemapRenderer)</li>
- *   <li>{@link com.pocket.rpg.serialization.ComponentData}</li>
  * </ul>
  */
 public final class SpriteReference {

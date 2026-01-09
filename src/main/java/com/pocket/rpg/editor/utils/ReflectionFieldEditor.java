@@ -1,15 +1,14 @@
 package com.pocket.rpg.editor.utils;
 
-import com.pocket.rpg.editor.scene.EditorEntity;
+import com.pocket.rpg.components.Component;
+import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.SetComponentFieldCommand;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.Texture;
-import com.pocket.rpg.serialization.ComponentData;
-import com.pocket.rpg.serialization.ComponentMeta;
-import com.pocket.rpg.serialization.ComponentRefMeta;
-import com.pocket.rpg.serialization.ComponentRegistry;
-import com.pocket.rpg.serialization.FieldMeta;
+import com.pocket.rpg.resources.Assets;
+import com.pocket.rpg.serialization.*;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import org.joml.Vector2f;
@@ -27,24 +26,23 @@ public class ReflectionFieldEditor {
 
     private static final Map<String, Object> editingOriginalValues = new HashMap<>();
 
-    public static boolean drawComponent(ComponentData component, EditorEntity entity) {
+    public static boolean drawComponent(Component component, EditorGameObject entity) {
         if (component == null) return false;
 
-        ComponentMeta meta = ComponentRegistry.getByClassName(component.getType());
+        ComponentMeta meta = ComponentReflectionUtils.getMeta(component);
         if (meta == null) {
-            ImGui.textDisabled("Unknown component type: " + component.getSimpleName());
+            ImGui.textDisabled("Unknown component type: " + component.getClass().getSimpleName());
             return false;
         }
 
         // Check for custom editor first
-        if (CustomComponentEditorRegistry.hasCustomEditor(component.getType())) {
+        if (CustomComponentEditorRegistry.hasCustomEditor(component.getClass().getName())) {
             return CustomComponentEditorRegistry.drawCustomEditor(component, entity);
         }
 
         boolean changed = false;
         for (FieldMeta fieldMeta : meta.fields()) {
             try {
-                // When drawing the whole component, we want the integrated Undo logic
                 changed |= drawField(component, fieldMeta, entity);
             } catch (Exception e) {
                 ImGui.textColored(1f, 0.3f, 0.3f, 1f, fieldMeta.name() + ": Error");
@@ -56,91 +54,87 @@ public class ReflectionFieldEditor {
 
     /**
      * DRAW FIELD: Without Undo (e.g., Prefab Overrides)
-     * Resets the ID stack to avoid nesting if the caller already pushed one.
      */
-    public static boolean drawField(ComponentData data, FieldMeta meta) {
-        return drawFieldInternal(data, meta, null);
+    public static boolean drawField(Component component, FieldMeta meta) {
+        return drawFieldInternal(component, meta, null);
     }
 
     /**
      * DRAW FIELD: With Undo logic
      */
-    public static boolean drawField(ComponentData data, FieldMeta meta, EditorEntity entity) {
-        String editKey = data.getType() + "." + meta.name() + "@" + System.identityHashCode(data);
+    public static boolean drawField(Component component, FieldMeta meta, EditorGameObject entity) {
+        String editKey = component.getClass().getName() + "." + meta.name() + "@" + System.identityHashCode(component);
         ImGui.pushID(editKey);
-        boolean changed = drawFieldInternal(data, meta, entity);
+        boolean changed = drawFieldInternal(component, meta, entity);
         ImGui.popID();
         return changed;
     }
 
-    private static boolean drawFieldInternal(ComponentData data, FieldMeta meta, EditorEntity entity) {
-        if (data == null) {
+    private static boolean drawFieldInternal(Component component, FieldMeta meta, EditorGameObject entity) {
+        if (component == null) {
             return false;
         }
 
         Class<?> type = meta.type();
         String fieldName = meta.name();
-        Map<String, Object> fields = data.getFields();
         String label = meta.getDisplayName();
-        String stateKey = data.getType() + "." + fieldName + "@" + System.identityHashCode(data);
+        String stateKey = component.getClass().getName() + "." + fieldName + "@" + System.identityHashCode(component);
 
         boolean wasActive = ImGui.isAnyItemActive();
         boolean fieldChanged = false;
 
         // PRIMITIVES
         if (type == int.class || type == Integer.class) {
-            fieldChanged = FieldEditors.drawInt(label, fields, fieldName);
+            fieldChanged = FieldEditors.drawInt(label, component, fieldName);
         } else if (type == float.class || type == Float.class) {
-            fieldChanged = FieldEditors.drawFloat(label, fields, fieldName, 0.1f);
+            fieldChanged = FieldEditors.drawFloat(label, component, fieldName, 0.1f);
         } else if (type == double.class || type == Double.class) {
-            // Handle double as float for UI
-            Object oldValue = fields.get(fieldName);
-            float floatValue = oldValue instanceof Number n ? n.floatValue() : 0f;
+            float floatValue = ComponentReflectionUtils.getFloat(component, fieldName, 0f);
             float[] buf = {floatValue};
             if (ImGui.dragFloat(label, buf, 0.1f)) {
-                fields.put(fieldName, (double) buf[0]);
+                ComponentReflectionUtils.setFieldValue(component, fieldName, (double) buf[0]);
                 fieldChanged = true;
             }
         } else if (type == boolean.class || type == Boolean.class) {
-            fieldChanged = FieldEditors.drawBoolean(label, fields, fieldName);
+            fieldChanged = FieldEditors.drawBoolean(label, component, fieldName);
         } else if (type == String.class) {
-            fieldChanged = FieldEditors.drawString(label, fields, fieldName);
+            fieldChanged = FieldEditors.drawString(label, component, fieldName);
         }
 
         // VECTORS
         else if (type == Vector2f.class) {
-            fieldChanged = FieldEditors.drawVector2f(label, fields, fieldName);
+            fieldChanged = FieldEditors.drawVector2f(label, component, fieldName);
         } else if (type == Vector3f.class) {
-            fieldChanged = FieldEditors.drawVector3f(label, fields, fieldName);
+            fieldChanged = FieldEditors.drawVector3f(label, component, fieldName);
         } else if (type == Vector4f.class) {
-            fieldChanged = FieldEditors.drawColor(label, fields, fieldName);
+            fieldChanged = FieldEditors.drawColor(label, component, fieldName);
         }
 
         // ENUMS
         else if (type.isEnum()) {
-            fieldChanged = FieldEditors.drawEnum(label, fields, fieldName, type);
+            fieldChanged = FieldEditors.drawEnum(label, component, fieldName, type);
         }
 
-        // ASSETS (handled separately with their own undo)
-        else if (type == Sprite.class || type == Texture.class) {
-            fieldChanged = FieldEditors.drawAsset(label, fields, fieldName, type, data, entity);
+        // ASSETS
+        else if (Assets.isAssetType(type)) {
+            fieldChanged = FieldEditors.drawAsset(label, component, fieldName, type, entity);
         }
 
         // UNKNOWN
         else {
-            FieldEditors.drawReadOnly(label, fields, fieldName, type.getSimpleName());
+            FieldEditors.drawReadOnly(label, component, fieldName, type.getSimpleName());
         }
 
         // UNDO LOGIC
         if (entity != null) {
             if (ImGui.isItemActive() && !wasActive) {
-                editingOriginalValues.put(stateKey, cloneValue(fields.get(fieldName)));
+                editingOriginalValues.put(stateKey, cloneValue(ComponentReflectionUtils.getFieldValue(component, fieldName)));
             }
             if (ImGui.isItemDeactivatedAfterEdit() && editingOriginalValues.containsKey(stateKey)) {
                 Object originalValue = editingOriginalValues.remove(stateKey);
-                Object currentValue = fields.get(fieldName);
+                Object currentValue = ComponentReflectionUtils.getFieldValue(component, fieldName);
                 if (!valuesEqual(originalValue, currentValue)) {
-                    UndoManager.getInstance().execute(new SetComponentFieldCommand(data, fieldName, originalValue, currentValue));
+                    UndoManager.getInstance().execute(new SetComponentFieldCommand(component, fieldName, originalValue, currentValue));
                 }
             }
         }
@@ -159,8 +153,129 @@ public class ReflectionFieldEditor {
         return (a == b) || (a != null && a.equals(b));
     }
 
-    public static void drawComponentReferences(List<ComponentRefMeta> references, EditorEntity entity) {
-        // ... (Reference drawing logic from your file remains unchanged)
+    public static void drawComponentReferences(List<ComponentRefMeta> references, EditorGameObject entity) {
+        if (references == null || references.isEmpty()) return;
+
+        for (ComponentRefMeta ref : references) {
+            ImGui.pushID(ref.name());
+
+            String label = ref.getDisplayName();
+            String description = ref.getEditorDescription();
+
+            // Check if reference can be resolved
+            ReferenceStatus status = checkReferenceStatus(ref, entity);
+
+            // Optional indicator
+            if (!ref.required()) {
+                description += " [optional]";
+            }
+
+            // Status indicator
+            String statusIcon;
+            float r, g, b;
+
+            switch (status) {
+                case FOUND -> {
+                    statusIcon = FontAwesomeIcons.CheckCircle; // ✓
+                    r = 0.3f; g = 0.8f; b = 0.3f; // Green
+                }
+                case NOT_FOUND -> {
+                    statusIcon = FontAwesomeIcons.ExclamationCircle; // ✗
+                    if (ref.required()) {
+                        r = 1.0f; g = 0.3f; b = 0.3f; // Red
+                    } else {
+                        r = 0.8f; g = 0.6f; b = 0.2f; // Orange/yellow for optional
+                    }
+                }
+                case UNKNOWN -> {
+                    statusIcon = FontAwesomeIcons.QuestionCircle;
+                    r = 0.6f; g = 0.6f; b = 0.6f; // Gray
+                }
+                default -> {
+                    statusIcon = FontAwesomeIcons.MinusCircle;
+                    r = 0.5f; g = 0.5f; b = 0.5f;
+                }
+            }
+
+            // Render label with status color
+            ImGui.pushStyleColor(ImGuiCol.Text, r, g, b, 1.0f);
+            ImGui.text("  " + statusIcon + " " + label + ":");
+            ImGui.popStyleColor();
+
+            ImGui.sameLine(170);
+            ImGui.textDisabled(description);
+
+            // Tooltip with details
+            if (ImGui.isItemHovered()) {
+                ImGui.beginTooltip();
+                switch (status) {
+                    case FOUND -> ImGui.textColored(0.3f, 0.8f, 0.3f, 1f, "Reference will be resolved");
+                    case NOT_FOUND -> {
+                        if (ref.required()) {
+                            ImGui.textColored(1f, 0.3f, 0.3f, 1f, "Required component not found!");
+                            ImGui.text("Add " + ref.componentType().getSimpleName() + " to this entity");
+                        } else {
+                            ImGui.textColored(0.8f, 0.6f, 0.2f, 1f, "Optional component not found");
+                        }
+                    }
+                    case UNKNOWN -> {
+                        ImGui.text("Cannot verify - requires parent/children");
+                        ImGui.textDisabled("Will be resolved at runtime");
+                    }
+                }
+                ImGui.endTooltip();
+            }
+
+            ImGui.popID();
+        }
+    }
+
+    private static ReferenceStatus checkReferenceStatus(ComponentRefMeta ref, EditorGameObject entity) {
+        if (entity == null) {
+            return ReferenceStatus.UNKNOWN;
+        }
+
+        return switch (ref.source()) {
+            case SELF -> {
+                // Check if entity has a component of the required type
+                boolean found = hasComponentOfType(entity, ref.componentType());
+                yield found ? ReferenceStatus.FOUND : ReferenceStatus.NOT_FOUND;
+            }
+            case PARENT, CHILDREN, CHILDREN_RECURSIVE -> {
+                // Can't verify parent/children in editor without scene hierarchy
+                yield ReferenceStatus.UNKNOWN;
+            }
+        };
+    }
+
+    /**
+     * Checks if an entity has a component of the given type.
+     */
+    private static boolean hasComponentOfType(EditorGameObject entity, Class<?> componentType) {
+        String targetTypeName = componentType.getName();
+
+        // Check scratch entity components
+        for (Component comp : entity.getComponents()) {
+            if (componentType.isInstance(comp)) {
+                return true;
+            }
+        }
+
+        // Check if it's Transform (always present)
+        if (targetTypeName.equals("com.pocket.rpg.components.Transform")) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Reference resolution status.
+     */
+    private enum ReferenceStatus {
+        FOUND,      // Component exists
+        NOT_FOUND,  // Component missing
+        UNKNOWN     // Can't determine (parent/children reference)
     }
 
     public static void renderAssetPicker() {

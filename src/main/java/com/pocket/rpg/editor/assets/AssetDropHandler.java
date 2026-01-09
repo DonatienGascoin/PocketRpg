@@ -1,6 +1,7 @@
 package com.pocket.rpg.editor.assets;
 
-import com.pocket.rpg.editor.scene.EditorEntity;
+import com.pocket.rpg.components.SpriteRenderer;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.prefab.JsonPrefab;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.SpriteSheet;
@@ -25,7 +26,7 @@ public class AssetDropHandler {
      * @param position World position for the entity
      * @return New EditorEntity, or null if asset cannot be instantiated
      */
-    public static EditorEntity handleDrop(AssetDragPayload payload, Vector3f position) {
+    public static EditorGameObject handleDrop(AssetDragPayload payload, Vector3f position) {
         if (payload == null || payload.path() == null) {
             return null;
         }
@@ -56,7 +57,7 @@ public class AssetDropHandler {
     /**
      * Creates an entity with a sprite from a path (handles both direct and #index format).
      */
-    private static EditorEntity createSpriteEntity(String path, Vector3f position) {
+    private static EditorGameObject createSpriteEntity(String path, Vector3f position) {
         String entityName = extractEntityName(path);
         
         // Append sub-asset ID to name if present
@@ -65,13 +66,19 @@ public class AssetDropHandler {
             entityName = entityName + "_" + subId;
         }
         
-        EditorEntity entity = new EditorEntity(entityName, position, false);
+        EditorGameObject entity = new EditorGameObject(entityName, position, false);
 
-        com.pocket.rpg.serialization.ComponentData spriteRenderer =
-                new com.pocket.rpg.serialization.ComponentData("com.pocket.rpg.components.SpriteRenderer");
-        // Store as path string - serialization handles #index format
-        spriteRenderer.getFields().put("sprite", path);
-        spriteRenderer.getFields().put("zIndex", 0);
+        // Load the sprite
+        Sprite sprite = null;
+        try {
+            sprite = Assets.load(path, Sprite.class);
+        } catch (Exception e) {
+            System.err.println("Failed to load sprite: " + path);
+        }
+
+        SpriteRenderer spriteRenderer = new SpriteRenderer();
+        spriteRenderer.setSprite(sprite);
+        spriteRenderer.setZIndex(0);
         entity.addComponent(spriteRenderer);
 
         return entity;
@@ -81,11 +88,11 @@ public class AssetDropHandler {
      * Instantiates an entity using the appropriate loader.
      */
     @SuppressWarnings("unchecked")
-    private static EditorEntity instantiateFromLoader(Object asset, String path,
-                                                      Vector3f position, Class<?> type) {
+    private static EditorGameObject instantiateFromLoader(Object asset, String path,
+                                                          Vector3f position, Class<?> type) {
         // Handle known types with their loaders
         if (asset instanceof Sprite sprite) {
-            return createSpriteEntity(path, position);
+            return createSpriteEntityFromSprite(sprite, path, position);
         }
         if (asset instanceof Texture texture) {
             return createTextureEntity(texture, path, position);
@@ -103,25 +110,36 @@ public class AssetDropHandler {
         return null;
     }
 
-    private static EditorEntity createTextureEntity(Texture texture, String path, Vector3f position) {
+    private static EditorGameObject createSpriteEntityFromSprite(Sprite sprite, String path, Vector3f position) {
         String entityName = extractEntityName(path);
-        EditorEntity entity = new EditorEntity(entityName, position, false);
+        EditorGameObject entity = new EditorGameObject(entityName, position, false);
 
-        // Create Sprite from Texture
-        com.pocket.rpg.rendering.Sprite sprite = new com.pocket.rpg.rendering.Sprite(texture, path);
-
-        com.pocket.rpg.serialization.ComponentData spriteRenderer =
-                new com.pocket.rpg.serialization.ComponentData("com.pocket.rpg.components.SpriteRenderer");
-        spriteRenderer.getFields().put("sprite", sprite);
-        spriteRenderer.getFields().put("zIndex", 0);
+        SpriteRenderer spriteRenderer = new SpriteRenderer();
+        spriteRenderer.setSprite(sprite);
+        spriteRenderer.setZIndex(0);
         entity.addComponent(spriteRenderer);
 
         return entity;
     }
 
-    private static EditorEntity createPrefabEntity(JsonPrefab prefab, String path, Vector3f position) {
+    private static EditorGameObject createTextureEntity(Texture texture, String path, Vector3f position) {
+        String entityName = extractEntityName(path);
+        EditorGameObject entity = new EditorGameObject(entityName, position, false);
+
+        // Create Sprite from Texture
+        Sprite sprite = new Sprite(texture, path);
+
+        SpriteRenderer spriteRenderer = new SpriteRenderer();
+        spriteRenderer.setSprite(sprite);
+        spriteRenderer.setZIndex(0);
+        entity.addComponent(spriteRenderer);
+
+        return entity;
+    }
+
+    private static EditorGameObject createPrefabEntity(JsonPrefab prefab, String path, Vector3f position) {
         // Create prefab instance
-        EditorEntity entity = new EditorEntity(prefab.getId(), position);
+        EditorGameObject entity = new EditorGameObject(prefab.getId(), position);
 
         String displayName = prefab.getDisplayName();
         if (displayName != null && !displayName.isEmpty()) {

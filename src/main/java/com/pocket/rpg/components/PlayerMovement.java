@@ -25,6 +25,11 @@ public class PlayerMovement extends Component {
     }
 
     @Override
+    protected void onStart() {
+        movement.setGridPosition((int)getTransform().getPosition().x, (int)getTransform().getPosition().y);
+    }
+
+    @Override
     public void update(float deltaTime) {
         if (movement == null) return;
 

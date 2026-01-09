@@ -287,4 +287,13 @@ public final class Assets {
         }
     }
 
+    /**
+     * Checks if a type has a registered loader.
+     * @param type Class to check
+     * @return true if this type can be loaded through Assets
+     */
+    public static boolean isAssetType(Class<?> type) {
+        return getContext().isAssetType(type);
+    }
+
 }

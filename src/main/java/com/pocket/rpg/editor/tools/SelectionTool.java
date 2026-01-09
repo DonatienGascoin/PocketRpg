@@ -1,7 +1,7 @@
 package com.pocket.rpg.editor.tools;
 
 import com.pocket.rpg.editor.camera.EditorCamera;
-import com.pocket.rpg.editor.scene.EditorEntity;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import imgui.ImDrawList;
 import imgui.ImGui;
@@ -27,7 +27,7 @@ public class SelectionTool implements EditorTool, ViewportAwareTool {
     private EditorCamera camera;
 
     // Drag state
-    private EditorEntity draggedEntity = null;
+    private EditorGameObject draggedEntity = null;
     private Vector2f dragOffset = new Vector2f();
     private boolean isDragging = false;
 
@@ -61,7 +61,7 @@ public class SelectionTool implements EditorTool, ViewportAwareTool {
         float worldY = tileY + 0.5f;
 
         // Find entity at position
-        EditorEntity entity = scene.findEntityAt(worldX, worldY);
+        EditorGameObject entity = scene.findEntityAt(worldX, worldY);
 
         if (entity != null) {
             // Select and start drag
@@ -133,7 +133,7 @@ public class SelectionTool implements EditorTool, ViewportAwareTool {
         drawList.pushClipRect(viewportX, viewportY, viewportX + viewportWidth, viewportY + viewportHeight, true);
 
         // Draw selection highlight on selected entity
-        EditorEntity selected = scene.getSelectedEntity();
+        EditorGameObject selected = scene.getSelectedEntity();
         if (selected != null) {
             renderSelectionHighlight(drawList, camera, selected);
         }
@@ -143,7 +143,7 @@ public class SelectionTool implements EditorTool, ViewportAwareTool {
             float worldX = hoveredTileX + 0.5f;
             float worldY = hoveredTileY + 0.5f;
 
-            EditorEntity hovered = scene.findEntityAt(worldX, worldY);
+            EditorGameObject hovered = scene.findEntityAt(worldX, worldY);
             if (hovered != null && hovered != selected) {
                 renderHoverHighlight(drawList, camera, hovered);
             }
@@ -155,7 +155,7 @@ public class SelectionTool implements EditorTool, ViewportAwareTool {
     /**
      * Renders selection highlight (yellow border).
      */
-    private void renderSelectionHighlight(ImDrawList drawList, EditorCamera camera, EditorEntity entity) {
+    private void renderSelectionHighlight(ImDrawList drawList, EditorCamera camera, EditorGameObject entity) {
         Vector3f pos = entity.getPositionRef();
         Vector2f size = entity.getCurrentSize();
 
@@ -206,7 +206,7 @@ public class SelectionTool implements EditorTool, ViewportAwareTool {
     /**
      * Renders hover highlight (subtle cyan border).
      */
-    private void renderHoverHighlight(ImDrawList drawList, EditorCamera camera, EditorEntity entity) {
+    private void renderHoverHighlight(ImDrawList drawList, EditorCamera camera, EditorGameObject entity) {
         Vector3f pos = entity.getPositionRef();
         Vector2f size = entity.getCurrentSize();
 

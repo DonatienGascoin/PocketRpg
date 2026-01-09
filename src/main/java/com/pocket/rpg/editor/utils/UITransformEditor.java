@@ -1,12 +1,13 @@
 package com.pocket.rpg.editor.utils;
 
+import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
-import com.pocket.rpg.editor.scene.EditorEntity;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.UITransformDragCommand;
 import com.pocket.rpg.rendering.Sprite;
-import com.pocket.rpg.resources.Assets;
-import com.pocket.rpg.serialization.ComponentData;
+import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import lombok.Getter;
@@ -15,7 +16,6 @@ import org.joml.Vector2f;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Custom editor for UITransform component.
@@ -67,20 +67,9 @@ public class UITransformEditor implements CustomComponentEditor {
     private float lastWidth = 0;
     private float lastHeight = 0;
 
-    /**
-     * When true, anchor and pivot grids are displayed side by side (compact).
-     * When false, they are stacked vertically (default).
-     * -- SETTER --
-     *  Sets the layout mode.
-     *
-     *
-     * -- GETTER --
-     *  Returns whether compact layout is enabled.
-     @param compact true for side-by-side anchor/pivot, false for stacked
-
-     */
     @Getter
-    @Setter private boolean compactLayout = false;
+    @Setter
+    private boolean compactLayout = false;
 
     public UITransformEditor(boolean compactLayout) {
         this.compactLayout = compactLayout;
@@ -97,29 +86,27 @@ public class UITransformEditor implements CustomComponentEditor {
      * Stores a child's transform state for undo.
      */
     private static class ChildState {
-        final EditorEntity entity;
-        final ComponentData transform;
+        final EditorGameObject entity;
+        final Component transform;
         final Vector2f oldOffset;
         final float oldWidth;
         final float oldHeight;
 
-        ChildState(EditorEntity entity, ComponentData transform) {
+        ChildState(EditorGameObject entity, Component transform) {
             this.entity = entity;
             this.transform = transform;
-            Map<String, Object> fields = transform.getFields();
-            this.oldOffset = new Vector2f(FieldEditors.getVector2f(fields, "offset"));
-            this.oldWidth = FieldEditors.getFloat(fields, "width", 100);
-            this.oldHeight = FieldEditors.getFloat(fields, "height", 100);
+            this.oldOffset = new Vector2f(FieldEditors.getVector2f(transform, "offset"));
+            this.oldWidth = FieldEditors.getFloat(transform, "width", 100);
+            this.oldHeight = FieldEditors.getFloat(transform, "height", 100);
         }
     }
 
     @Override
-    public boolean draw(ComponentData data, EditorEntity entity) {
-        Map<String, Object> fields = data.getFields();
+    public boolean draw(Component component, EditorGameObject entity) {
         boolean changed = false;
 
-        Vector2f anchor = FieldEditors.getVector2f(fields, "anchor");
-        Vector2f pivot = FieldEditors.getVector2f(fields, "pivot");
+        Vector2f anchor = FieldEditors.getVector2f(component, "anchor");
+        Vector2f pivot = FieldEditors.getVector2f(component, "pivot");
 
         if (compactLayout) {
             // Compact layout: Anchor and Pivot side by side
@@ -130,7 +117,7 @@ public class UITransformEditor implements CustomComponentEditor {
             ImGui.text(FontAwesomeIcons.Anchor + " Anchor");
             ImGui.sameLine();
             ImGui.textDisabled(String.format("(%.1f,%.1f)", anchor.x, anchor.y));
-            changed |= drawPresetGrid("anchor", fields, anchor, entity, data);
+            changed |= drawPresetGrid("anchor", component, anchor, entity);
             ImGui.endGroup();
 
             ImGui.sameLine(halfWidth + 20);
@@ -140,23 +127,21 @@ public class UITransformEditor implements CustomComponentEditor {
             ImGui.text(FontAwesomeIcons.Crosshairs + " Pivot");
             ImGui.sameLine();
             ImGui.textDisabled(String.format("(%.1f,%.1f)", pivot.x, pivot.y));
-            changed |= drawPresetGrid("pivot", fields, pivot, entity, data);
+            changed |= drawPresetGrid("pivot", component, pivot, entity);
             ImGui.endGroup();
         } else {
             // Normal layout: Anchor and Pivot stacked
-            // Section: Anchor
             ImGui.text(FontAwesomeIcons.Anchor + " Anchor");
             ImGui.sameLine(100);
             ImGui.textDisabled(String.format("(%.2f, %.2f)", anchor.x, anchor.y));
-            changed |= drawPresetGrid("anchor", fields, anchor, entity, data);
+            changed |= drawPresetGrid("anchor", component, anchor, entity);
 
             ImGui.spacing();
 
-            // Section: Pivot
             ImGui.text(FontAwesomeIcons.Crosshairs + " Pivot");
             ImGui.sameLine(100);
             ImGui.textDisabled(String.format("(%.2f, %.2f)", pivot.x, pivot.y));
-            changed |= drawPresetGrid("pivot", fields, pivot, entity, data);
+            changed |= drawPresetGrid("pivot", component, pivot, entity);
         }
 
         ImGui.spacing();
@@ -168,30 +153,28 @@ public class UITransformEditor implements CustomComponentEditor {
 
         ImGui.sameLine();
         if (ImGui.smallButton("Reset##offset")) {
-            Vector2f currentOffset = FieldEditors.getVector2f(fields, "offset");
+            Vector2f currentOffset = FieldEditors.getVector2f(component, "offset");
             if (currentOffset.x != 0 || currentOffset.y != 0) {
-                createMoveCommand(entity, data, currentOffset, new Vector2f(0, 0), fields);
-                fields.put("offset", new Vector2f(0, 0));
+                createMoveCommand(entity, component, currentOffset, new Vector2f(0, 0));
+                ComponentReflectionUtils.setFieldValue(component, "offset", new Vector2f(0, 0));
                 changed = true;
             }
         }
 
         // Track offset changes for undo
-        Vector2f oldOffset = new Vector2f(FieldEditors.getVector2f(fields, "offset"));
-        boolean offsetChanged = FieldEditors.drawVector2f("offset", fields, "offset", 1.0f);
+        Vector2f oldOffset = new Vector2f(FieldEditors.getVector2f(component, "offset"));
+        boolean offsetChanged = FieldEditors.drawVector2f("offset", component, "offset", 1.0f);
 
         if (offsetChanged) {
-            Vector2f newOffset = FieldEditors.getVector2f(fields, "offset");
-            createMoveCommand(entity, data, oldOffset, newOffset, fields);
+            Vector2f newOffset = FieldEditors.getVector2f(component, "offset");
+            createMoveCommand(entity, component, oldOffset, newOffset);
             changed = true;
         }
-
-
 
         ImGui.spacing();
 
         // Section: Size (with cascading resize)
-        changed |= drawSizeSection(fields, entity, data);
+        changed |= drawSizeSection(component, entity);
 
         return changed;
     }
@@ -199,7 +182,7 @@ public class UITransformEditor implements CustomComponentEditor {
     /**
      * Draws the size section with cascading resize support.
      */
-    private boolean drawSizeSection(Map<String, Object> fields, EditorEntity entity, ComponentData data) {
+    private boolean drawSizeSection(Component component, EditorGameObject entity) {
         boolean changed = false;
 
         ImGui.text(FontAwesomeIcons.ExpandAlt + " Size");
@@ -209,8 +192,8 @@ public class UITransformEditor implements CustomComponentEditor {
         if (ImGui.smallButton(lockAspectRatio ? FontAwesomeIcons.Lock : FontAwesomeIcons.LockOpen)) {
             lockAspectRatio = !lockAspectRatio;
             if (lockAspectRatio) {
-                lastWidth = FieldEditors.getFloat(fields, "width", 100);
-                lastHeight = FieldEditors.getFloat(fields, "height", 100);
+                lastWidth = FieldEditors.getFloat(component, "width", 100);
+                lastHeight = FieldEditors.getFloat(component, "height", 100);
             }
         }
         if (ImGui.isItemHovered()) {
@@ -218,20 +201,20 @@ public class UITransformEditor implements CustomComponentEditor {
         }
 
         // Width
-        float width = FieldEditors.getFloat(fields, "width", 100);
-        float height = FieldEditors.getFloat(fields, "height", 100);
+        float width = FieldEditors.getFloat(component, "width", 100);
+        float height = FieldEditors.getFloat(component, "height", 100);
 
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() * 0.5f - 30);
         float[] widthBuf = {width};
 
         // Start editing on activation
         if (ImGui.isItemActivated() || (!isEditingSize && ImGui.isItemActive())) {
-            startSizeEdit(fields, entity);
+            startSizeEdit(component, entity);
         }
 
         if (ImGui.dragFloat("W", widthBuf, 1.0f, 1.0f, 10000f)) {
             if (!isEditingSize) {
-                startSizeEdit(fields, entity);
+                startSizeEdit(component, entity);
             }
 
             float newWidth = Math.max(1, widthBuf[0]);
@@ -244,32 +227,32 @@ public class UITransformEditor implements CustomComponentEditor {
                 lastHeight = newHeight;
             }
 
-            applySizeChange(fields, entity, editStartWidth, editStartHeight, newWidth, newHeight);
+            applySizeChange(component, entity, editStartWidth, editStartHeight, newWidth, newHeight);
             changed = true;
         }
 
         // End editing on deactivation
         if (ImGui.isItemDeactivatedAfterEdit()) {
-            commitSizeEdit(fields, entity, data);
+            commitSizeEdit(component, entity);
         }
 
         ImGui.sameLine();
 
         // Height
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() - 20);
-        float[] heightBuf = {FieldEditors.getFloat(fields, "height", 100)};
+        float[] heightBuf = {FieldEditors.getFloat(component, "height", 100)};
 
         if (ImGui.isItemActivated() || (!isEditingSize && ImGui.isItemActive())) {
-            startSizeEdit(fields, entity);
+            startSizeEdit(component, entity);
         }
 
         if (ImGui.dragFloat("H", heightBuf, 1.0f, 1.0f, 10000f)) {
             if (!isEditingSize) {
-                startSizeEdit(fields, entity);
+                startSizeEdit(component, entity);
             }
 
             float newHeight = Math.max(1, heightBuf[0]);
-            float currentWidth = FieldEditors.getFloat(fields, "width", 100);
+            float currentWidth = FieldEditors.getFloat(component, "width", 100);
             float newWidth = currentWidth;
 
             if (lockAspectRatio && lastHeight > 0) {
@@ -279,66 +262,66 @@ public class UITransformEditor implements CustomComponentEditor {
                 lastHeight = newHeight;
             }
 
-            applySizeChange(fields, entity, editStartWidth, editStartHeight, newWidth, newHeight);
+            applySizeChange(component, entity, editStartWidth, editStartHeight, newWidth, newHeight);
             changed = true;
         }
 
         if (ImGui.isItemDeactivatedAfterEdit()) {
-            commitSizeEdit(fields, entity, data);
+            commitSizeEdit(component, entity);
         }
 
         // Quick size presets
         ImGui.spacing();
-        changed |= drawSizePreset(fields, entity, data, "32x32", 32, 32);
+        changed |= drawSizePreset(component, entity, "32x32", 32, 32);
         ImGui.sameLine();
-        changed |= drawSizePreset(fields, entity, data, "64x64", 64, 64);
+        changed |= drawSizePreset(component, entity, "64x64", 64, 64);
         ImGui.sameLine();
-        changed |= drawSizePreset(fields, entity, data, "128x128", 128, 128);
+        changed |= drawSizePreset(component, entity, "128x128", 128, 128);
 
         // Texture size button (only if entity has a sprite)
         float[] textureDims = getSpriteTextureDimensions(entity);
         if (textureDims != null) {
             ImGui.sameLine();
             if (ImGui.smallButton(FontAwesomeIcons.Image + "##textureSize")) {
-                float oldWidth = FieldEditors.getFloat(fields, "width", 100);
-                float oldHeight = FieldEditors.getFloat(fields, "height", 100);
+                float oldWidth = FieldEditors.getFloat(component, "width", 100);
+                float oldHeight = FieldEditors.getFloat(component, "height", 100);
 
                 if (oldWidth != textureDims[0] || oldHeight != textureDims[1]) {
-                    startSizeEdit(fields, entity);
-                    applySizeChange(fields, entity, oldWidth, oldHeight, textureDims[0], textureDims[1]);
-                    commitSizeEdit(fields, entity, data);
+                    startSizeEdit(component, entity);
+                    applySizeChange(component, entity, oldWidth, oldHeight, textureDims[0], textureDims[1]);
+                    commitSizeEdit(component, entity);
                     changed = true;
                 }
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("Match texture size (" + (int)textureDims[0] + "x" + (int)textureDims[1] + ")");
+                ImGui.setTooltip("Match texture size (" + (int) textureDims[0] + "x" + (int) textureDims[1] + ")");
             }
         }
 
         // Match parent size button
-        EditorEntity parentEntity = entity.getParent();
+        EditorGameObject parentEntity = entity.getParent();
         if (parentEntity != null) {
-            ComponentData parentTransform = parentEntity.getComponentByType("UITransform");
+            Component parentTransform = parentEntity.getComponent(UITransform.class);
             if (parentTransform != null) {
                 ImGui.sameLine();
                 if (ImGui.smallButton(FontAwesomeIcons.Expand + "##matchParent")) {
-                    float parentWidth = FieldEditors.getFloat(parentTransform.getFields(), "width", 100);
-                    float parentHeight = FieldEditors.getFloat(parentTransform.getFields(), "height", 100);
-                    float oldWidth = FieldEditors.getFloat(fields, "width", 100);
-                    float oldHeight = FieldEditors.getFloat(fields, "height", 100);
+                    float parentWidth = FieldEditors.getFloat(parentTransform, "width", 100);
+                    float parentHeight = FieldEditors.getFloat(parentTransform, "height", 100);
+                    float oldWidth = FieldEditors.getFloat(component, "width", 100);
+                    float oldHeight = FieldEditors.getFloat(component, "height", 100);
 
                     if (oldWidth != parentWidth || oldHeight != parentHeight) {
-                        startSizeEdit(fields, entity);
-                        applySizeChange(fields, entity, oldWidth, oldHeight, parentWidth, parentHeight);
-                        fields.put("offset", new Vector2f(0, 0));  // Center in parent
-                        commitSizeEdit(fields, entity, data);
+                        startSizeEdit(component, entity);
+                        applySizeChange(component, entity, oldWidth, oldHeight, parentWidth, parentHeight);
+                        ComponentReflectionUtils.setFieldValue(component, "offset", new Vector2f(0, 0));
+                        commitSizeEdit(component, entity);
                         changed = true;
                     }
                 }
                 if (ImGui.isItemHovered()) {
                     ImGui.setTooltip("Match parent size (" +
-                            (int)FieldEditors.getFloat(parentTransform.getFields(), "width", 100) + "x" +
-                            (int)FieldEditors.getFloat(parentTransform.getFields(), "height", 100) + ")");
+                            (int) FieldEditors.getFloat(parentTransform, "width", 100) + "x" +
+                            (int) FieldEditors.getFloat(parentTransform, "height", 100) + ")");
                 }
             }
         }
@@ -346,17 +329,16 @@ public class UITransformEditor implements CustomComponentEditor {
         return changed;
     }
 
-    private boolean drawSizePreset(Map<String, Object> fields, EditorEntity entity, ComponentData data,
+    private boolean drawSizePreset(Component component, EditorGameObject entity,
                                    String label, float targetWidth, float targetHeight) {
         if (ImGui.smallButton(label)) {
-            float oldWidth = FieldEditors.getFloat(fields, "width", 100);
-            float oldHeight = FieldEditors.getFloat(fields, "height", 100);
+            float oldWidth = FieldEditors.getFloat(component, "width", 100);
+            float oldHeight = FieldEditors.getFloat(component, "height", 100);
 
             if (oldWidth != targetWidth || oldHeight != targetHeight) {
-                // Capture state for undo
-                startSizeEdit(fields, entity);
-                applySizeChange(fields, entity, oldWidth, oldHeight, targetWidth, targetHeight);
-                commitSizeEdit(fields, entity, data);
+                startSizeEdit(component, entity);
+                applySizeChange(component, entity, oldWidth, oldHeight, targetWidth, targetHeight);
+                commitSizeEdit(component, entity);
                 return true;
             }
         }
@@ -366,13 +348,13 @@ public class UITransformEditor implements CustomComponentEditor {
     /**
      * Starts tracking a size edit for undo.
      */
-    private void startSizeEdit(Map<String, Object> fields, EditorEntity entity) {
+    private void startSizeEdit(Component component, EditorGameObject entity) {
         if (isEditingSize) return;
 
         isEditingSize = true;
-        editStartWidth = FieldEditors.getFloat(fields, "width", 100);
-        editStartHeight = FieldEditors.getFloat(fields, "height", 100);
-        editStartOffset = new Vector2f(FieldEditors.getVector2f(fields, "offset"));
+        editStartWidth = FieldEditors.getFloat(component, "width", 100);
+        editStartHeight = FieldEditors.getFloat(component, "height", 100);
+        editStartOffset = new Vector2f(FieldEditors.getVector2f(component, "offset"));
 
         // Capture child states
         editStartChildStates = new ArrayList<>();
@@ -382,9 +364,9 @@ public class UITransformEditor implements CustomComponentEditor {
     /**
      * Recursively captures child transform states.
      */
-    private void captureChildStates(EditorEntity parent, List<ChildState> states) {
-        for (EditorEntity child : parent.getChildren()) {
-            ComponentData childTransform = child.getComponentByType("UITransform");
+    private void captureChildStates(EditorGameObject parent, List<ChildState> states) {
+        for (EditorGameObject child : parent.getChildren()) {
+            Component childTransform = child.getComponent(UITransform.class);
             if (childTransform != null) {
                 states.add(new ChildState(child, childTransform));
                 captureChildStates(child, states);
@@ -395,11 +377,11 @@ public class UITransformEditor implements CustomComponentEditor {
     /**
      * Applies a size change with cascading to children.
      */
-    private void applySizeChange(Map<String, Object> fields, EditorEntity entity,
+    private void applySizeChange(Component component, EditorGameObject entity,
                                  float oldWidth, float oldHeight, float newWidth, float newHeight) {
         // Apply to parent
-        fields.put("width", newWidth);
-        fields.put("height", newHeight);
+        ComponentReflectionUtils.setFieldValue(component, "width", newWidth);
+        ComponentReflectionUtils.setFieldValue(component, "height", newHeight);
 
         // Calculate scale factors
         float scaleX = (oldWidth > 0) ? newWidth / oldWidth : 1f;
@@ -408,17 +390,15 @@ public class UITransformEditor implements CustomComponentEditor {
         // Apply cascading to children (use original values from edit start)
         if (editStartChildStates != null) {
             for (ChildState state : editStartChildStates) {
-                Map<String, Object> childFields = state.transform.getFields();
-
                 // Scale relative to original values
                 float scaledWidth = state.oldWidth * scaleX;
                 float scaledHeight = state.oldHeight * scaleY;
                 float scaledOffsetX = state.oldOffset.x * scaleX;
                 float scaledOffsetY = state.oldOffset.y * scaleY;
 
-                childFields.put("width", Math.max(1, scaledWidth));
-                childFields.put("height", Math.max(1, scaledHeight));
-                childFields.put("offset", new Vector2f(scaledOffsetX, scaledOffsetY));
+                ComponentReflectionUtils.setFieldValue(state.transform, "width", Math.max(1, scaledWidth));
+                ComponentReflectionUtils.setFieldValue(state.transform, "height", Math.max(1, scaledHeight));
+                ComponentReflectionUtils.setFieldValue(state.transform, "offset", new Vector2f(scaledOffsetX, scaledOffsetY));
             }
         }
     }
@@ -426,14 +406,14 @@ public class UITransformEditor implements CustomComponentEditor {
     /**
      * Commits the size edit and creates undo command.
      */
-    private void commitSizeEdit(Map<String, Object> fields, EditorEntity entity, ComponentData data) {
+    private void commitSizeEdit(Component component, EditorGameObject entity) {
         if (!isEditingSize) return;
 
-        float newWidth = FieldEditors.getFloat(fields, "width", 100);
-        float newHeight = FieldEditors.getFloat(fields, "height", 100);
-        Vector2f newOffset = FieldEditors.getVector2f(fields, "offset");
-        Vector2f anchor = FieldEditors.getVector2f(fields, "anchor");
-        Vector2f pivot = FieldEditors.getVector2f(fields, "pivot");
+        float newWidth = FieldEditors.getFloat(component, "width", 100);
+        float newHeight = FieldEditors.getFloat(component, "height", 100);
+        Vector2f newOffset = FieldEditors.getVector2f(component, "offset");
+        Vector2f anchor = FieldEditors.getVector2f(component, "anchor");
+        Vector2f pivot = FieldEditors.getVector2f(component, "pivot");
 
         // Check if anything changed
         boolean hasChanges = (editStartWidth != newWidth || editStartHeight != newHeight);
@@ -441,7 +421,7 @@ public class UITransformEditor implements CustomComponentEditor {
         if (hasChanges) {
             // Create undo command
             UITransformDragCommand command = UITransformDragCommand.resize(
-                    entity, data,
+                    entity, component,
                     editStartOffset, editStartWidth, editStartHeight,
                     newOffset, newWidth, newHeight,
                     anchor, pivot
@@ -450,10 +430,9 @@ public class UITransformEditor implements CustomComponentEditor {
             // Add child states
             if (editStartChildStates != null) {
                 for (ChildState state : editStartChildStates) {
-                    Map<String, Object> childFields = state.transform.getFields();
-                    Vector2f childNewOffset = FieldEditors.getVector2f(childFields, "offset");
-                    float childNewWidth = FieldEditors.getFloat(childFields, "width", 100);
-                    float childNewHeight = FieldEditors.getFloat(childFields, "height", 100);
+                    Vector2f childNewOffset = FieldEditors.getVector2f(state.transform, "offset");
+                    float childNewWidth = FieldEditors.getFloat(state.transform, "width", 100);
+                    float childNewHeight = FieldEditors.getFloat(state.transform, "height", 100);
 
                     UITransformDragCommand.ChildTransformState childState =
                             new UITransformDragCommand.ChildTransformState(
@@ -478,30 +457,29 @@ public class UITransformEditor implements CustomComponentEditor {
     /**
      * Creates a move command for offset changes.
      */
-    private void createMoveCommand(EditorEntity entity, ComponentData data,
-                                   Vector2f oldOffset, Vector2f newOffset,
-                                   Map<String, Object> fields) {
-        float width = FieldEditors.getFloat(fields, "width", 100);
-        float height = FieldEditors.getFloat(fields, "height", 100);
-        Vector2f anchor = FieldEditors.getVector2f(fields, "anchor");
-        Vector2f pivot = FieldEditors.getVector2f(fields, "pivot");
+    private void createMoveCommand(EditorGameObject entity, Component component,
+                                   Vector2f oldOffset, Vector2f newOffset) {
+        float width = FieldEditors.getFloat(component, "width", 100);
+        float height = FieldEditors.getFloat(component, "height", 100);
+        Vector2f anchor = FieldEditors.getVector2f(component, "anchor");
+        Vector2f pivot = FieldEditors.getVector2f(component, "pivot");
 
         UITransformDragCommand command = UITransformDragCommand.move(
-                entity, data,
+                entity, component,
                 oldOffset, newOffset,
                 width, height, anchor, pivot
         );
 
         // Revert and execute through UndoManager
-        fields.put("offset", new Vector2f(oldOffset));
+        ComponentReflectionUtils.setFieldValue(component, "offset", new Vector2f(oldOffset));
         UndoManager.getInstance().execute(command);
     }
 
     /**
      * Draws a 3x3 preset grid for anchor or pivot.
      */
-    private boolean drawPresetGrid(String fieldKey, Map<String, Object> fields, Vector2f current,
-                                   EditorEntity entity, ComponentData data) {
+    private boolean drawPresetGrid(String fieldKey, Component component, Vector2f current,
+                                   EditorGameObject entity) {
         boolean changed = false;
 
         float buttonSize = 24;
@@ -532,8 +510,8 @@ public class UITransformEditor implements CustomComponentEditor {
                     Vector2f newValue = new Vector2f(presetX, presetY);
 
                     if (!oldValue.equals(newValue)) {
-                        createAnchorPivotCommand(entity, data, fieldKey, oldValue, newValue, fields);
-                        fields.put(fieldKey, newValue);
+                        createAnchorPivotCommand(entity, component, fieldKey, oldValue, newValue);
+                        ComponentReflectionUtils.setFieldValue(component, fieldKey, newValue);
                         changed = true;
                     }
                 }
@@ -571,18 +549,18 @@ public class UITransformEditor implements CustomComponentEditor {
             ImGui.setNextItemWidth(80);
             if (ImGui.sliderFloat("X", xBuf, 0f, 1f)) {
                 Vector2f newValue = new Vector2f(xBuf[0], current.y);
-                createAnchorPivotCommand(entity, data, fieldKey, oldValue, newValue, fields);
+                createAnchorPivotCommand(entity, component, fieldKey, oldValue, newValue);
                 current.x = xBuf[0];
-                fields.put(fieldKey, new Vector2f(current));
+                ComponentReflectionUtils.setFieldValue(component, fieldKey, new Vector2f(current));
                 changed = true;
             }
 
             ImGui.setNextItemWidth(80);
             if (ImGui.sliderFloat("Y", yBuf, 0f, 1f)) {
                 Vector2f newValue = new Vector2f(current.x, yBuf[0]);
-                createAnchorPivotCommand(entity, data, fieldKey, oldValue, newValue, fields);
+                createAnchorPivotCommand(entity, component, fieldKey, oldValue, newValue);
                 current.y = yBuf[0];
-                fields.put(fieldKey, new Vector2f(current));
+                ComponentReflectionUtils.setFieldValue(component, fieldKey, new Vector2f(current));
                 changed = true;
             }
 
@@ -597,26 +575,25 @@ public class UITransformEditor implements CustomComponentEditor {
     /**
      * Creates an undo command for anchor or pivot changes.
      */
-    private void createAnchorPivotCommand(EditorEntity entity, ComponentData data,
-                                          String fieldKey, Vector2f oldValue, Vector2f newValue,
-                                          Map<String, Object> fields) {
-        Vector2f offset = FieldEditors.getVector2f(fields, "offset");
-        float width = FieldEditors.getFloat(fields, "width", 100);
-        float height = FieldEditors.getFloat(fields, "height", 100);
-        Vector2f anchor = FieldEditors.getVector2f(fields, "anchor");
-        Vector2f pivot = FieldEditors.getVector2f(fields, "pivot");
+    private void createAnchorPivotCommand(EditorGameObject entity, Component component,
+                                          String fieldKey, Vector2f oldValue, Vector2f newValue) {
+        Vector2f offset = FieldEditors.getVector2f(component, "offset");
+        float width = FieldEditors.getFloat(component, "width", 100);
+        float height = FieldEditors.getFloat(component, "height", 100);
+        Vector2f anchor = FieldEditors.getVector2f(component, "anchor");
+        Vector2f pivot = FieldEditors.getVector2f(component, "pivot");
 
         UITransformDragCommand command;
         if (fieldKey.equals("anchor")) {
             command = UITransformDragCommand.anchor(
-                    entity, data,
+                    entity, component,
                     oldValue, offset,
-                    newValue, offset,  // offset stays same for preset changes
+                    newValue, offset,
                     width, height, pivot
             );
         } else {
             command = UITransformDragCommand.pivot(
-                    entity, data,
+                    entity, component,
                     oldValue, offset,
                     newValue, offset,
                     width, height, anchor
@@ -629,76 +606,35 @@ public class UITransformEditor implements CustomComponentEditor {
 
     /**
      * Gets the texture dimensions from an entity's sprite (UIImage or UIButton).
+     *
      * @return float[2] with {width, height}, or null if no sprite found
      */
-    private float[] getSpriteTextureDimensions(EditorEntity entity) {
+    private float[] getSpriteTextureDimensions(EditorGameObject entity) {
         Object spriteObj = null;
 
         // Check UIImage
-        ComponentData imageComp = entity.getComponentByType("UIImage");
+        Component imageComp = entity.getComponentByType("com.pocket.rpg.components.ui.UIImage");
         if (imageComp != null) {
-            spriteObj = imageComp.getFields().get("sprite");
+            spriteObj = ComponentReflectionUtils.getFieldValue(imageComp, "sprite");
         }
 
         // Check UIButton
         if (spriteObj == null) {
-            ComponentData buttonComp = entity.getComponentByType("UIButton");
+            Component buttonComp = entity.getComponentByType("com.pocket.rpg.components.ui.UIButton");
             if (buttonComp != null) {
-                spriteObj = buttonComp.getFields().get("sprite");
+                spriteObj = ComponentReflectionUtils.getFieldValue(buttonComp, "sprite");
             }
         }
 
         if (spriteObj == null) return null;
 
         // Handle Sprite instance
-        if (spriteObj instanceof com.pocket.rpg.rendering.Sprite sprite) {
+        if (spriteObj instanceof Sprite sprite) {
             if (sprite.getTexture() != null) {
-                return new float[] { sprite.getWidth(), sprite.getHeight() };
-            }
-        }
-
-        // Handle Map (deserialized from JSON)
-        if (spriteObj instanceof java.util.Map<?, ?> spriteMap) {
-            String texturePath = getStringFromMap(spriteMap, "texturePath");
-            if (texturePath == null || texturePath.isEmpty()) {
-                texturePath = getStringFromMap(spriteMap, "name");
-            }
-            if (texturePath != null && !texturePath.isEmpty()) {
-                try {
-                    var sprite = Assets.load(texturePath,
-                            Sprite.class);
-                    if (sprite != null && sprite.getTexture() != null) {
-                        // Use sprite dimensions (may be cropped from texture)
-                        float w = getFloatFromMap(spriteMap, "width", sprite.getWidth());
-                        float h = getFloatFromMap(spriteMap, "height", sprite.getHeight());
-                        return new float[] { w, h };
-                    }
-                } catch (Exception e) {
-                    // Try as texture
-                    try {
-                        var texture = Assets.load(texturePath,
-                                com.pocket.rpg.rendering.Texture.class);
-                        if (texture != null) {
-                            return new float[] { texture.getWidth(), texture.getHeight() };
-                        }
-                    } catch (Exception ignored) {}
-                }
+                return new float[]{sprite.getWidth(), sprite.getHeight()};
             }
         }
 
         return null;
-    }
-
-    private String getStringFromMap(java.util.Map<?, ?> map, String key) {
-        Object value = map.get(key);
-        return value != null ? value.toString() : null;
-    }
-
-    private float getFloatFromMap(java.util.Map<?, ?> map, String key, float defaultValue) {
-        Object value = map.get(key);
-        if (value instanceof Number n) {
-            return n.floatValue();
-        }
-        return defaultValue;
     }
 }

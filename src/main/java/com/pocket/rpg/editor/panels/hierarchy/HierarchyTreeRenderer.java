@@ -3,7 +3,7 @@ package com.pocket.rpg.editor.panels.hierarchy;
 import com.pocket.rpg.editor.assets.HierarchyDropTarget;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.panels.SavePrefabPopup;
-import com.pocket.rpg.editor.scene.EditorEntity;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.BulkDeleteCommand;
@@ -47,7 +47,7 @@ public class HierarchyTreeRenderer {
     private final ImString renameBuffer = new ImString(64);
     private final SavePrefabPopup savePrefabPopup = new SavePrefabPopup();
 
-    public void renderEntityTree(EditorEntity entity) {
+    public void renderEntityTree(EditorGameObject entity) {
         boolean isSelected = scene.isSelected(entity);
         boolean isRenaming = entity == renamingItem;
         boolean hasChildren = entity.hasChildren();
@@ -75,11 +75,11 @@ public class HierarchyTreeRenderer {
             dragDropHandler.handleDropTarget(entity);
 
             if (hasChildren && nodeOpen) {
-                List<EditorEntity> children = new ArrayList<>(entity.getChildren());
-                children.sort(Comparator.comparingInt(EditorEntity::getOrder));
+                List<EditorGameObject> children = new ArrayList<>(entity.getChildren());
+                children.sort(Comparator.comparingInt(EditorGameObject::getOrder));
 
                 for (int i = 0; i < children.size(); i++) {
-                    EditorEntity child = children.get(i);
+                    EditorGameObject child = children.get(i);
                     dragDropHandler.renderDropZone(entity, i, child);
                     renderEntityTree(child);
                 }
@@ -101,7 +101,7 @@ public class HierarchyTreeRenderer {
         HierarchyDropTarget.handleEntityDrop(scene, entity);
     }
 
-    private void renderRenameField(EditorEntity entity) {
+    private void renderRenameField(EditorGameObject entity) {
         ImGui.setNextItemWidth(150);
         ImGui.setKeyboardFocusHere();
 
@@ -120,7 +120,7 @@ public class HierarchyTreeRenderer {
         }
     }
 
-    private void handleEntityInteraction(EditorEntity entity) {
+    private void handleEntityInteraction(EditorGameObject entity) {
         if (ImGui.isItemClicked(ImGuiMouseButton.Left)) {
             selectionHandler.handleEntityClick(entity);
         }
@@ -131,9 +131,9 @@ public class HierarchyTreeRenderer {
         }
     }
 
-    private void renderEntityContextMenu(EditorEntity entity) {
+    private void renderEntityContextMenu(EditorGameObject entity) {
         if (ImGui.beginPopupContextItem("entity_ctx_" + entity.getId())) {
-            Set<EditorEntity> selected = scene.getSelectedEntities();
+            Set<EditorGameObject> selected = scene.getSelectedEntities();
             boolean multiSelect = selected.size() > 1;
 
             if (multiSelect) {
@@ -145,7 +145,7 @@ public class HierarchyTreeRenderer {
                 }
 
                 if (ImGui.menuItem(FontAwesomeIcons.LevelUpAlt + " Unparent All")) {
-                    for (EditorEntity e : selected) {
+                    for (EditorGameObject e : selected) {
                         if (e.getParent() != null) {
                             UndoManager.getInstance().execute(
                                     new ReparentEntityCommand(scene, e, null, getNextChildOrder(null))
@@ -192,7 +192,7 @@ public class HierarchyTreeRenderer {
         savePrefabPopup.render();
     }
 
-    private void renderEntityTooltip(EditorEntity entity) {
+    private void renderEntityTooltip(EditorGameObject entity) {
         if (ImGui.isItemHovered()) {
             ImGui.beginTooltip();
             if (entity.isScratchEntity()) {
@@ -218,7 +218,7 @@ public class HierarchyTreeRenderer {
         }
     }
 
-    private int getNextChildOrder(EditorEntity parent) {
+    private int getNextChildOrder(EditorGameObject parent) {
         if (parent == null) {
             return scene.getRootEntities().size();
         }

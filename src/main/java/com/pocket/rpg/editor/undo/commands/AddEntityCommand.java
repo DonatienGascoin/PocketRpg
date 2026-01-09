@@ -1,6 +1,6 @@
 package com.pocket.rpg.editor.undo.commands;
 
-import com.pocket.rpg.editor.scene.EditorEntity;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.undo.EditorCommand;
 
@@ -10,9 +10,9 @@ import com.pocket.rpg.editor.undo.EditorCommand;
 public class AddEntityCommand implements EditorCommand {
 
     private final EditorScene scene;
-    private final EditorEntity entity;
+    private final EditorGameObject entity;
 
-    public AddEntityCommand(EditorScene scene, EditorEntity entity) {
+    public AddEntityCommand(EditorScene scene, EditorGameObject entity) {
         this.scene = scene;
         this.entity = entity;
     }

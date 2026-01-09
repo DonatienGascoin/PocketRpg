@@ -1,7 +1,7 @@
 package com.pocket.rpg.editor.undo.commands;
 
-import com.pocket.rpg.editor.scene.EditorEntity;
-import com.pocket.rpg.serialization.ComponentData;
+import com.pocket.rpg.components.Component;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.undo.EditorCommand;
 
 /**
@@ -9,10 +9,10 @@ import com.pocket.rpg.editor.undo.EditorCommand;
  */
 public class AddComponentCommand implements EditorCommand {
 
-    private final EditorEntity entity;
-    private final ComponentData component;
+    private final EditorGameObject entity;
+    private final Component component;
 
-    public AddComponentCommand(EditorEntity entity, ComponentData component) {
+    public AddComponentCommand(EditorGameObject entity, Component component) {
         this.entity = entity;
         this.component = component;
     }
@@ -29,6 +29,16 @@ public class AddComponentCommand implements EditorCommand {
 
     @Override
     public String getDescription() {
-        return "Add " + component.getDisplayName();
+        return "Add " + component.getClass().getSimpleName();
+    }
+
+    @Override
+    public boolean canMergeWith(EditorCommand other) {
+        return false;
+    }
+
+    @Override
+    public void mergeWith(EditorCommand other) {
+        // Not used
     }
 }

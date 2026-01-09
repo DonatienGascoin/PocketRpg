@@ -514,6 +514,11 @@ public class AssetManager implements AssetContext {
         return getTypeFromExtension(path);
     }
 
+    @Override
+    public boolean isAssetType(Class<?> type) {
+        return loaders.containsKey(type);
+    }
+
     /**
      * Manually registers a resource with a path.
      * Useful for programmatically created assets that need path tracking.

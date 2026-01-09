@@ -2,15 +2,12 @@ package com.pocket.rpg.editor.scene;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.SpriteRenderer;
-import com.pocket.rpg.editor.serialization.EntityData;
+import com.pocket.rpg.components.Transform;
 import com.pocket.rpg.prefab.Prefab;
 import com.pocket.rpg.prefab.PrefabRegistry;
 import com.pocket.rpg.rendering.Sprite;
-import com.pocket.rpg.rendering.Texture;
 import com.pocket.rpg.resources.Assets;
-import com.pocket.rpg.serialization.ComponentMeta;
-import com.pocket.rpg.serialization.ComponentRegistry;
-import com.pocket.rpg.serialization.FieldMeta;
+import com.pocket.rpg.serialization.*;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector2f;
@@ -20,36 +17,37 @@ import java.lang.reflect.Field;
 import java.util.*;
 
 /**
- * Editor-side representation of a placed entity instance.
+ * Editor-side representation of a placed game object instance.
  * Supports parent-child hierarchy and sibling ordering.
  * <p>
  * Components are stored as actual Component instances, enabling direct
  * field access via reflection and proper type safety.
+ * <p>
+ * Position, rotation, and scale are stored in the Transform component,
+ * not as separate fields.
  */
-public class EditorEntity {
+public class EditorGameObject {
 
     @Getter
+    @Setter
     private String id;
 
     @Getter
-    private String prefabId;
+    private final String prefabId;
 
     @Getter
     @Setter
     private String name;
 
-    private final Vector3f position;
-    private final Vector3f rotation;
-    private final Vector3f scale;
-
     /**
-     * Components for scratch entities. Stored as actual Component instances.
+     * Components for scratch entities. Includes Transform.
      */
     private List<Component> components;
 
     /**
      * Component field overrides for prefab instances.
      * Structure: componentType -> (fieldName -> value)
+     * Transform overrides (position/rotation/scale) go here too.
      */
     private Map<String, Map<String, Object>> componentOverrides;
 
@@ -62,60 +60,78 @@ public class EditorEntity {
     private int order;
 
     @Getter
-    private transient EditorEntity parent;
+    private transient EditorGameObject parent;
 
-    private transient List<EditorEntity> children;
+    private transient List<EditorGameObject> children;
 
     private static final float DEFAULT_ENTITY_Z_INDEX = 100f;
+    private static final String TRANSFORM_TYPE = Transform.class.getName();
 
     // ========================================================================
     // CONSTRUCTORS
     // ========================================================================
 
-    public EditorEntity(String prefabId, Vector3f position) {
+    /**
+     * Constructor for prefab instances.
+     */
+    public EditorGameObject(String prefabId, Vector3f position) {
         this.id = generateId();
         this.prefabId = prefabId;
         this.name = prefabId + "_" + id;
-        this.position = new Vector3f(position);
-        this.componentOverrides = new HashMap<>();
-        this.children = new ArrayList<>();
         this.order = 0;
-        this.rotation = new Vector3f(0);
-        this.scale = new Vector3f(1);
+        this.children = new ArrayList<>();
+        this.componentOverrides = new HashMap<>();
+        this.components = new ArrayList<>();
+
+        // Store position as Transform override for prefab instances
+        Map<String, Object> transformOverrides = new HashMap<>();
+        transformOverrides.put("position", new float[]{position.x, position.y, position.z});
+        componentOverrides.put(TRANSFORM_TYPE, transformOverrides);
     }
 
-    public EditorEntity(String name, Vector3f position, boolean isPrefab) {
+    /**
+     * Constructor for scratch or prefab entities.
+     */
+    public EditorGameObject(String name, Vector3f position, boolean isPrefab) {
         this.id = generateId();
         this.prefabId = isPrefab ? name : null;
         this.name = isPrefab ? (name + "_" + id) : name;
-        this.position = new Vector3f(position);
-        this.children = new ArrayList<>();
         this.order = 0;
-        this.rotation = new Vector3f(0);
-        this.scale = new Vector3f(1);
+        this.children = new ArrayList<>();
+        this.componentOverrides = new HashMap<>();
+        this.components = new ArrayList<>();
 
         if (isPrefab) {
-            this.componentOverrides = new HashMap<>();
+            // Prefab instance: store position in overrides
+            Map<String, Object> transformOverrides = new HashMap<>();
+            transformOverrides.put("position", new float[]{position.x, position.y, position.z});
+            componentOverrides.put(TRANSFORM_TYPE, transformOverrides);
         } else {
-            this.components = new ArrayList<>();
+            // Scratch entity: add Transform component
+            components.add(new Transform(position));
         }
     }
 
-    private EditorEntity(String id, String prefabId, String name, Vector3f position,
-                         List<Component> components,
-                         Map<String, Map<String, Object>> componentOverrides,
-                         String parentId, int order) {
+    /**
+     * Internal constructor for deserialization.
+     */
+    private EditorGameObject(String id, String prefabId, String name,
+                             List<Component> components,
+                             Map<String, Map<String, Object>> componentOverrides,
+                             String parentId, int order) {
         this.id = (id != null && !id.isEmpty()) ? id : generateId();
         this.prefabId = prefabId;
         this.name = name;
-        this.position = new Vector3f(position);
-        this.rotation = new Vector3f(0);
-        this.scale = new Vector3f(1);
-        this.components = components;
-        this.componentOverrides = componentOverrides != null ? new HashMap<>(componentOverrides) : new HashMap<>();
         this.parentId = parentId;
         this.order = order;
         this.children = new ArrayList<>();
+        this.componentOverrides = componentOverrides != null ? new HashMap<>(componentOverrides) : new HashMap<>();
+        this.components = components != null ? components : new ArrayList<>();
+
+        // Ensure scratch entities have a Transform
+        if (isScratchEntity() && getTransform() == null) {
+            this.components.add(0, new Transform());
+        }
     }
 
     private String generateId() {
@@ -123,10 +139,170 @@ public class EditorEntity {
     }
 
     // ========================================================================
+    // TRANSFORM ACCESS
+    // ========================================================================
+
+    /**
+     * Gets the Transform component (scratch entities only).
+     */
+    public Transform getTransform() {
+        if (components != null) {
+            for (Component comp : components) {
+                if (comp instanceof Transform t) {
+                    return t;
+                }
+            }
+        }
+        return null;
+    }
+
+    // ========================================================================
+    // POSITION
+    // ========================================================================
+
+    public Vector3f getPosition() {
+        if (isScratchEntity()) {
+            Transform t = getTransform();
+            return t != null ? new Vector3f(t.getPosition()) : new Vector3f();
+        } else {
+            // Prefab instance: get from overrides
+            Vector3f result = getTransformVector("position");
+            return result;
+        }
+    }
+
+    public Vector3f getPositionRef() {
+        if (isScratchEntity()) {
+            Transform t = getTransform();
+            return t != null ? t.getPosition() : null;
+        }
+        // Prefab instances don't have a direct reference
+        return getPosition();
+    }
+
+    public void setPosition(float x, float y) {
+        setPosition(x, y, getPosition().z);
+    }
+
+    public void setPosition(float x, float y, float z) {
+        setPosition(new Vector3f(x, y, z));
+    }
+
+    public void setPosition(Vector3f pos) {
+        if (isScratchEntity()) {
+            Transform t = getTransform();
+            if (t != null) {
+                t.setPosition(pos);
+            }
+        } else {
+            // Prefab instance: store in overrides
+            System.out.println("DEBUG setPosition prefab: " + pos);
+            System.out.println("DEBUG before: " + componentOverrides.get(TRANSFORM_TYPE));
+            setTransformVector("position", pos);
+            System.out.println("DEBUG after: " + componentOverrides.get(TRANSFORM_TYPE));
+        }
+    }
+
+    // ========================================================================
+    // ROTATION
+    // ========================================================================
+
+    public Vector3f getRotation() {
+        if (isScratchEntity()) {
+            Transform t = getTransform();
+            return t != null ? new Vector3f(t.getRotation()) : new Vector3f();
+        } else {
+            return getTransformVector("rotation");
+        }
+    }
+
+    public void setRotation(Vector3f rotation) {
+        if (isScratchEntity()) {
+            Transform t = getTransform();
+            if (t != null) {
+                t.setRotation(rotation);
+            }
+        } else {
+            setTransformVector("rotation", rotation);
+        }
+    }
+
+    public void setRotation(float z) {
+        setRotation(new Vector3f(0, 0, z));
+    }
+
+    // ========================================================================
+    // SCALE
+    // ========================================================================
+
+    public Vector3f getScale() {
+        if (isScratchEntity()) {
+            Transform t = getTransform();
+            return t != null ? new Vector3f(t.getScale()) : new Vector3f(1, 1, 1);
+        } else {
+            Vector3f scale = getTransformVector("scale");
+            // Default to 1,1,1 if not set
+            if (scale.x == 0 && scale.y == 0 && scale.z == 0) {
+                return new Vector3f(1, 1, 1);
+            }
+            return scale;
+        }
+    }
+
+    public void setScale(Vector3f scale) {
+        if (isScratchEntity()) {
+            Transform t = getTransform();
+            if (t != null) {
+                t.setScale(scale);
+            }
+        } else {
+            setTransformVector("scale", scale);
+        }
+    }
+
+    public void setScale(Vector2f scale) {
+        setScale(new Vector3f(scale.x, scale.y, 1));
+    }
+
+    public void setScale(float x, float y) {
+        setScale(new Vector3f(x, y, 1));
+    }
+
+    // ========================================================================
+    // TRANSFORM OVERRIDE HELPERS
+    // ========================================================================
+
+    private Vector3f getTransformVector(String fieldName) {
+        Map<String, Object> overrides = componentOverrides.get(TRANSFORM_TYPE);
+        if (overrides != null && overrides.containsKey(fieldName)) {
+            Object value = overrides.get(fieldName);
+            if (value instanceof float[] arr) {
+                return new Vector3f(
+                        arr.length > 0 ? arr[0] : 0,
+                        arr.length > 1 ? arr[1] : 0,
+                        arr.length > 2 ? arr[2] : 0
+                );
+            } else if (value instanceof List<?> list) {
+                return new Vector3f(
+                        !list.isEmpty() ? ((Number) list.get(0)).floatValue() : 0,
+                        list.size() > 1 ? ((Number) list.get(1)).floatValue() : 0,
+                        list.size() > 2 ? ((Number) list.get(2)).floatValue() : 0
+                );
+            }
+        }
+        return new Vector3f();
+    }
+
+    private void setTransformVector(String fieldName, Vector3f value) {
+        componentOverrides.computeIfAbsent(TRANSFORM_TYPE, k -> new HashMap<>())
+                .put(fieldName, new float[]{value.x, value.y, value.z});
+    }
+
+    // ========================================================================
     // HIERARCHY MANAGEMENT
     // ========================================================================
 
-    public void setParent(EditorEntity newParent) {
+    public void setParent(EditorGameObject newParent) {
         if (newParent == this) {
             System.err.println("Cannot set entity as its own parent!");
             return;
@@ -152,8 +328,8 @@ public class EditorEntity {
         }
     }
 
-    public boolean isAncestorOf(EditorEntity other) {
-        EditorEntity current = other.parent;
+    public boolean isAncestorOf(EditorGameObject other) {
+        EditorGameObject current = other.parent;
         while (current != null) {
             if (current == this) return true;
             current = current.parent;
@@ -161,14 +337,14 @@ public class EditorEntity {
         return false;
     }
 
-    public List<EditorEntity> getChildren() {
+    public List<EditorGameObject> getChildren() {
         if (children == null) {
             children = new ArrayList<>();
         }
         return Collections.unmodifiableList(children);
     }
 
-    public List<EditorEntity> getChildrenMutable() {
+    public List<EditorGameObject> getChildrenMutable() {
         if (children == null) {
             children = new ArrayList<>();
         }
@@ -181,7 +357,7 @@ public class EditorEntity {
 
     public int getDepth() {
         int depth = 0;
-        EditorEntity current = parent;
+        EditorGameObject current = parent;
         while (current != null) {
             depth++;
             current = current.parent;
@@ -197,68 +373,8 @@ public class EditorEntity {
         this.parentId = null;
     }
 
-    void setParentDirect(EditorEntity newParent) {
+    void setParentDirect(EditorGameObject newParent) {
         this.parent = newParent;
-    }
-
-    // ========================================================================
-    // POSITION
-    // ========================================================================
-
-    public Vector3f getPosition() {
-        return new Vector3f(position);
-    }
-
-    public Vector3f getPositionRef() {
-        return position;
-    }
-
-    public void setPosition(float x, float y) {
-        position.set(x, y, position.z);
-    }
-
-    public void setPosition(float x, float y, float z) {
-        position.set(x, y, z);
-    }
-
-    public void setPosition(Vector3f pos) {
-        position.set(pos);
-    }
-
-    // ========================================================================
-    // ROTATION
-    // ========================================================================
-
-    public Vector3f getRotation() {
-        return new Vector3f(rotation);
-    }
-
-    public void setRotation(Vector3f rotation) {
-        this.rotation.set(rotation);
-    }
-
-    public void setRotation(float z) {
-        rotation.set(0, 0, z);
-    }
-
-    // ========================================================================
-    // SCALE
-    // ========================================================================
-
-    public Vector3f getScale() {
-        return new Vector3f(scale);
-    }
-
-    public void setScale(Vector3f scale) {
-        this.scale.set(scale);
-    }
-
-    public void setScale(Vector2f scale) {
-        this.scale.set(scale, this.scale.z);
-    }
-
-    public void setScale(float x, float y) {
-        scale.set(x, y, 1);
     }
 
     // ========================================================================
@@ -294,6 +410,19 @@ public class EditorEntity {
     }
 
     /**
+     * Gets components excluding Transform (for inspector display).
+     */
+    public List<Component> getComponentsWithoutTransform() {
+        List<Component> result = new ArrayList<>();
+        for (Component comp : getComponents()) {
+            if (!(comp instanceof Transform)) {
+                result.add(comp);
+            }
+        }
+        return result;
+    }
+
+    /**
      * Creates component instances from prefab with overrides applied.
      */
     private List<Component> getMergedComponents() {
@@ -303,10 +432,21 @@ public class EditorEntity {
         }
 
         List<Component> result = new ArrayList<>();
-        for (Component baseComp : prefab.getComponentInstances()) {
+
+        // Add Transform with position override
+        Transform transform = new Transform();
+        transform.setPosition(getPosition());
+        transform.setRotation(getRotation());
+        transform.setScale(getScale());
+        result.add(transform);
+
+        // Add other components from prefab
+        for (Component baseComp : prefab.getComponents()) {
+            if (baseComp instanceof Transform) {
+                continue; // Skip, we added our own
+            }
             Component cloned = cloneComponent(baseComp);
             if (cloned != null) {
-                // Apply overrides
                 Map<String, Object> overrides = componentOverrides.get(baseComp.getClass().getName());
                 if (overrides != null) {
                     applyOverrides(cloned, overrides);
@@ -363,8 +503,7 @@ public class EditorEntity {
                 try {
                     Field field = fieldMeta.field();
                     field.setAccessible(true);
-                    // Use ComponentData.fromSerializable for full conversion (assets, vectors, etc.)
-                    Object converted = com.pocket.rpg.serialization.ComponentData.fromSerializable(value, fieldMeta.type());
+                    Object converted = SerializationUtils.fromSerializable(value, fieldMeta.type());
                     field.set(component, converted);
                 } catch (Exception e) {
                     System.err.println("Failed to apply override for " + fieldName + ": " + e.getMessage());
@@ -378,10 +517,18 @@ public class EditorEntity {
             throw new IllegalStateException(
                     "Cannot add components to prefab instance. Convert to scratch entity first.");
         }
+        if (component instanceof Transform) {
+            System.err.println("Cannot add Transform - already exists");
+            return;
+        }
         getComponents().add(component);
     }
 
     public boolean removeComponent(Component component) {
+        if (component instanceof Transform) {
+            System.err.println("Cannot remove Transform component");
+            return false;
+        }
         if (components == null) {
             return false;
         }
@@ -411,6 +558,7 @@ public class EditorEntity {
         return getComponentByType(simpleName) != null;
     }
 
+    @SuppressWarnings("unchecked")
     public boolean hasComponent(Class<?> clazz) {
         return getComponent((Class<? extends Component>) clazz) != null;
     }
@@ -421,8 +569,6 @@ public class EditorEntity {
 
     /**
      * Gets a field value from a component.
-     * For scratch entities: reads from component directly.
-     * For prefab instances: returns override if present, otherwise prefab default.
      */
     public Object getFieldValue(String componentType, String fieldName) {
         if (isScratchEntity()) {
@@ -430,21 +576,17 @@ public class EditorEntity {
             return comp != null ? getFieldFromComponent(comp, fieldName) : null;
         }
 
-        // Check overrides first
         Map<String, Object> overrides = componentOverrides.get(componentType);
         if (overrides != null && overrides.containsKey(fieldName)) {
             return overrides.get(fieldName);
         }
 
-        // Fall back to prefab default
         Prefab prefab = getPrefab();
         return prefab != null ? prefab.getFieldDefault(componentType, fieldName) : null;
     }
 
     /**
      * Sets a field value on a component.
-     * For scratch entities: sets on component directly.
-     * For prefab instances: stores as override.
      */
     public void setFieldValue(String componentType, String fieldName, Object value) {
         if (isScratchEntity()) {
@@ -455,24 +597,16 @@ public class EditorEntity {
             return;
         }
 
-        // Store as override for prefab instances
         componentOverrides.computeIfAbsent(componentType, k -> new HashMap<>())
                 .put(fieldName, value);
     }
 
-    /**
-     * Gets a field value from a component via reflection.
-     */
     private Object getFieldFromComponent(Component component, String fieldName) {
         ComponentMeta meta = ComponentRegistry.getByClassName(component.getClass().getName());
-        if (meta == null) {
-            return null;
-        }
+        if (meta == null) return null;
 
         FieldMeta fieldMeta = findFieldMeta(meta, fieldName);
-        if (fieldMeta == null) {
-            return null;
-        }
+        if (fieldMeta == null) return null;
 
         try {
             Field field = fieldMeta.field();
@@ -484,24 +618,17 @@ public class EditorEntity {
         }
     }
 
-    /**
-     * Sets a field value on a component via reflection.
-     */
     private void setFieldOnComponent(Component component, String fieldName, Object value) {
         ComponentMeta meta = ComponentRegistry.getByClassName(component.getClass().getName());
-        if (meta == null) {
-            return;
-        }
+        if (meta == null) return;
 
         FieldMeta fieldMeta = findFieldMeta(meta, fieldName);
-        if (fieldMeta == null) {
-            return;
-        }
+        if (fieldMeta == null) return;
 
         try {
             Field field = fieldMeta.field();
             field.setAccessible(true);
-            Object converted = com.pocket.rpg.serialization.ComponentData.fromSerializable(value, fieldMeta.type());
+            Object converted = SerializationUtils.fromSerializable(value, fieldMeta.type());
             field.set(component, converted);
         } catch (Exception e) {
             System.err.println("Failed to set field " + fieldName + ": " + e.getMessage());
@@ -598,10 +725,6 @@ public class EditorEntity {
     // SPRITE ACCESS (for rendering)
     // ========================================================================
 
-    /**
-     * Gets the current sprite for rendering.
-     * Resolves from SpriteRenderer component if present.
-     */
     public Sprite getCurrentSprite() {
         SpriteRenderer spriteRenderer = getComponent(SpriteRenderer.class);
         if (spriteRenderer != null) {
@@ -622,9 +745,6 @@ public class EditorEntity {
         return null;
     }
 
-    /**
-     * Gets the current size for rendering.
-     */
     public Vector2f getCurrentSize() {
         Sprite sprite = getCurrentSprite();
         if (sprite != null) {
@@ -634,7 +754,8 @@ public class EditorEntity {
     }
 
     public float getZIndex() {
-        if (position.z != 0) return position.z;
+        Vector3f pos = getPosition();
+        if (pos.z != 0) return pos.z;
 
         SpriteRenderer spriteRenderer = getComponent(SpriteRenderer.class);
         if (spriteRenderer != null) {
@@ -647,45 +768,45 @@ public class EditorEntity {
     // SERIALIZATION
     // ========================================================================
 
-    public EntityData toData() {
-        EntityData data;
+    /**
+     * Converts to GameObjectData for serialization.
+     */
+    public GameObjectData toData() {
+        GameObjectData data;
+
         if (isPrefabInstance()) {
-            data = new EntityData(
-                    prefabId,
-                    name,
-                    new float[]{position.x, position.y, position.z},
-                    copyOverrides(componentOverrides)
-            );
+            // Prefab instance: store prefabId + all overrides (including Transform)
+            data = new GameObjectData(id, name, prefabId, copyOverrides(componentOverrides));
         } else {
-            data = new EntityData(
-                    name,
-                    new float[]{position.x, position.y, position.z},
-                    components != null ? new ArrayList<>(components) : new ArrayList<>()
-            );
+            // Scratch entity: store all components (including Transform)
+            List<Component> allComponents = components != null ? new ArrayList<>(components) : new ArrayList<>();
+            data = new GameObjectData(id, name, allComponents);
         }
-        data.setId(id);
+
         data.setParentId(parentId);
         data.setOrder(order);
         return data;
     }
 
-    public static EditorEntity fromData(EntityData data) {
+    /**
+     * Creates EditorGameObject from GameObjectData.
+     */
+    public static EditorGameObject fromData(GameObjectData data) {
         if (data == null) {
-            throw new IllegalArgumentException("EntityData cannot be null");
+            throw new IllegalArgumentException("GameObjectData cannot be null");
         }
 
-        float[] pos = data.getPosition();
-        Vector3f position = new Vector3f(
-                pos != null && pos.length > 0 ? pos[0] : 0,
-                pos != null && pos.length > 1 ? pos[1] : 0,
-                pos != null && pos.length > 2 ? pos[2] : 0
-        );
+        EditorGameObject entity;
 
-        EditorEntity entity;
         if (data.isPrefabInstance()) {
-            entity = new EditorEntity(
-                    data.getId(), data.getPrefabId(), data.getName(), position,
-                    null, data.getComponentOverrides(), data.getParentId(), data.getOrder()
+            entity = new EditorGameObject(
+                    data.getId(),
+                    data.getPrefabId(),
+                    data.getName(),
+                    null,  // No components for prefab instance
+                    data.getComponentOverrides(),
+                    data.getParentId(),
+                    data.getOrder()
             );
         } else {
             // Components are already resolved by ComponentTypeAdapterFactory
@@ -693,10 +814,14 @@ public class EditorEntity {
                     ? new ArrayList<>(data.getComponents())
                     : new ArrayList<>();
 
-            entity = new EditorEntity(
-                    data.getId(), null, data.getName() != null ? data.getName() : "Entity", position,
+            entity = new EditorGameObject(
+                    data.getId(),
+                    null,  // No prefabId
+                    data.getName() != null ? data.getName() : "Entity",
                     components,
-                    null, data.getParentId(), data.getOrder()
+                    null,  // No overrides
+                    data.getParentId(),
+                    data.getOrder()
             );
         }
 
@@ -730,15 +855,16 @@ public class EditorEntity {
 
     @Override
     public String toString() {
-        return String.format("EditorEntity[id=%s, prefab=%s, name=%s, pos=(%.1f,%.1f), parent=%s, order=%d]",
-                id, prefabId, name, position.x, position.y, parentId, order);
+        Vector3f pos = getPosition();
+        return String.format("EditorGameObject[id=%s, prefab=%s, name=%s, pos=(%.1f,%.1f), parent=%s, order=%d]",
+                id, prefabId, name, pos.x, pos.y, parentId, order);
     }
 
     @Override
     public boolean equals(Object obj) {
         if (this == obj) return true;
         if (obj == null || getClass() != obj.getClass()) return false;
-        return id.equals(((EditorEntity) obj).id);
+        return id.equals(((EditorGameObject) obj).id);
     }
 
     @Override

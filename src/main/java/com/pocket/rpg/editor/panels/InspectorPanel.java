@@ -1,7 +1,7 @@
 package com.pocket.rpg.editor.panels;
 
 import com.pocket.rpg.editor.panels.inspector.*;
-import com.pocket.rpg.editor.scene.EditorEntity;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.utils.ReflectionFieldEditor;
 import imgui.ImGui;
@@ -48,7 +48,7 @@ public class InspectorPanel {
             } else if (hierarchyPanel != null && hierarchyPanel.isCollisionMapSelected()) {
                 collisionInspector.render();
             } else {
-                Set<EditorEntity> selected = scene.getSelectedEntities();
+                Set<EditorGameObject> selected = scene.getSelectedEntities();
                 if (selected.size() > 1) {
                     multiSelectionInspector.render(selected);
                 } else if (selected.size() == 1) {

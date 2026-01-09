@@ -67,7 +67,7 @@ public final class ComponentReflectionUtils {
                 try {
                     Field field = fm.field();
                     field.setAccessible(true);
-                    Object converted = ComponentData.fromSerializable(value, fm.type());
+                    Object converted = SerializationUtils.fromSerializable(value, fm.type());
                     field.set(component, converted);
                     return true;
                 } catch (Exception e) {

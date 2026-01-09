@@ -5,7 +5,10 @@ import com.google.gson.GsonBuilder;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.resources.AssetContext;
 import com.pocket.rpg.resources.Assets;
-import com.pocket.rpg.serialization.custom.*;
+import com.pocket.rpg.serialization.custom.AssetReferenceTypeAdapterFactory;
+import com.pocket.rpg.serialization.custom.ComponentTypeAdapterFactory;
+import com.pocket.rpg.serialization.custom.PostEffectTypeAdapter;
+import com.pocket.rpg.serialization.custom.SpriteTypeAdapter;
 
 public class Serializer {
     private static Serializer instance;
@@ -16,9 +19,8 @@ public class Serializer {
     public Serializer(AssetContext context) {
         GsonBuilder builder = new GsonBuilder()
                 .enableComplexMapKeySerialization()
+                // Handles asset serialization. Must be registered FIRST in Gson builder, before other adapters, so it can delegate to them when needed.
                 .registerTypeAdapterFactory(new AssetReferenceTypeAdapterFactory(context))
-                // NEW: Bridge adapter for ComponentData gradual migration
-                .registerTypeAdapter(ComponentData.class, new ComponentDataTypeAdapter(context))
                 // Component polymorphism
                 .registerTypeAdapterFactory(new ComponentTypeAdapterFactory(context))
                 // Sprite with object fallback (for programmatic sprites)

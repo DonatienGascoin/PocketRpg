@@ -1,7 +1,7 @@
 package com.pocket.rpg.prefab;
 
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
-import com.pocket.rpg.editor.scene.EditorEntity;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.resources.AssetLoader;
 import com.pocket.rpg.serialization.Serializer;
@@ -83,13 +83,13 @@ public class JsonPrefabLoader implements AssetLoader<JsonPrefab> {
     }
 
     @Override
-    public EditorEntity instantiate(JsonPrefab asset, String assetPath, Vector3f position) {
+    public EditorGameObject instantiate(JsonPrefab asset, String assetPath, Vector3f position) {
         if (asset == null) {
             return null;
         }
 
         // Create prefab instance (not scratch entity)
-        EditorEntity entity = new EditorEntity(asset.getId(), position);
+        EditorGameObject entity = new EditorGameObject(asset.getId(), position);
 
         // Name from prefab display name
         String displayName = asset.getDisplayName();

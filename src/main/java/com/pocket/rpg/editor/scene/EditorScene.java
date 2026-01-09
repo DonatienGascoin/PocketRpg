@@ -78,9 +78,9 @@ public class EditorScene {
     // ENTITY MANAGEMENT
     // ========================================================================
 
-    private final List<EditorEntity> entities = new ArrayList<>();
+    private final List<EditorGameObject> entities = new ArrayList<>();
 
-    private final Set<EditorEntity> selectedEntities = new HashSet<>();
+    private final Set<EditorGameObject> selectedEntities = new HashSet<>();
 
     // ========================================================================
     // CAMERA SETTINGS
@@ -280,9 +280,9 @@ public class EditorScene {
     /**
      * Finds entity by ID.
      */
-    public EditorEntity getEntityById(String id) {
+    public EditorGameObject getEntityById(String id) {
         if (id == null) return null;
-        for (EditorEntity entity : entities) {
+        for (EditorGameObject entity : entities) {
             if (id.equals(entity.getId())) {
                 return entity;
             }
@@ -293,7 +293,7 @@ public class EditorScene {
     /**
      * Adds an entity to the scene.
      */
-    public void addEntity(EditorEntity entity) {
+    public void addEntity(EditorGameObject entity) {
         if (entity == null) return;
 
         // Check for duplicate ID and regenerate if needed
@@ -310,12 +310,12 @@ public class EditorScene {
     /**
      * Removes an entity and all its children from the scene.
      */
-    public void removeEntity(EditorEntity entity) {
+    public void removeEntity(EditorGameObject entity) {
         if (entity == null) return;
 
         // Remove children first (copy list to avoid concurrent modification)
-        List<EditorEntity> children = new ArrayList<>(entity.getChildren());
-        for (EditorEntity child : children) {
+        List<EditorGameObject> children = new ArrayList<>(entity.getChildren());
+        for (EditorGameObject child : children) {
             removeEntity(child);
         }
 
@@ -334,7 +334,7 @@ public class EditorScene {
     /**
      * Gets all entities (copy).
      */
-    public List<EditorEntity> getEntities() {
+    public List<EditorGameObject> getEntities() {
         return new ArrayList<>(entities);
     }
 
@@ -342,9 +342,9 @@ public class EditorScene {
      * Finds an entity at the given world position.
      * Searches in reverse order (top entities first).
      */
-    public EditorEntity findEntityAt(float worldX, float worldY) {
+    public EditorGameObject findEntityAt(float worldX, float worldY) {
         for (int i = entities.size() - 1; i >= 0; i--) {
-            EditorEntity entity = entities.get(i);
+            EditorGameObject entity = entities.get(i);
             Vector3f pos = entity.getPositionRef();
             Vector2f size = entity.getCurrentSize();
 
@@ -373,21 +373,21 @@ public class EditorScene {
     /**
      * Gets all selected entities (unmodifiable).
      */
-    public Set<EditorEntity> getSelectedEntities() {
+    public Set<EditorGameObject> getSelectedEntities() {
         return Collections.unmodifiableSet(selectedEntities);
     }
 
     /**
      * Checks if an entity is selected.
      */
-    public boolean isSelected(EditorEntity entity) {
+    public boolean isSelected(EditorGameObject entity) {
         return selectedEntities.contains(entity);
     }
 
     /**
      * Adds an entity to the selection.
      */
-    public void addToSelection(EditorEntity entity) {
+    public void addToSelection(EditorGameObject entity) {
         if (entity != null) {
             selectedEntities.add(entity);
         }
@@ -396,7 +396,7 @@ public class EditorScene {
     /**
      * Toggles an entity's selection state.
      */
-    public void toggleSelection(EditorEntity entity) {
+    public void toggleSelection(EditorGameObject entity) {
         if (entity == null) return;
         if (selectedEntities.contains(entity)) {
             selectedEntities.remove(entity);
@@ -408,7 +408,7 @@ public class EditorScene {
     /**
      * Sets the selection to a specific set of entities.
      */
-    public void setSelection(Set<EditorEntity> entities) {
+    public void setSelection(Set<EditorGameObject> entities) {
         selectedEntities.clear();
         if (entities != null) {
             selectedEntities.addAll(entities);
@@ -426,7 +426,7 @@ public class EditorScene {
      * Gets the single selected entity (for backward compatibility).
      * Returns null if 0 or >1 entities selected.
      */
-    public EditorEntity getSelectedEntity() {
+    public EditorGameObject getSelectedEntity() {
         if (selectedEntities.size() == 1) {
             return selectedEntities.iterator().next();
         }
@@ -436,7 +436,7 @@ public class EditorScene {
     /**
      * Sets single entity selection (for backward compatibility).
      */
-    public void setSelectedEntity(EditorEntity entity) {
+    public void setSelectedEntity(EditorGameObject entity) {
         selectedEntities.clear();
         if (entity != null) {
             selectedEntities.add(entity);
@@ -451,14 +451,14 @@ public class EditorScene {
     /**
      * Gets all root entities (entities without a parent), sorted by order.
      */
-    public List<EditorEntity> getRootEntities() {
-        List<EditorEntity> roots = new ArrayList<>();
-        for (EditorEntity entity : entities) {
+    public List<EditorGameObject> getRootEntities() {
+        List<EditorGameObject> roots = new ArrayList<>();
+        for (EditorGameObject entity : entities) {
             if (entity.getParentId() == null || entity.getParentId().isEmpty()) {
                 roots.add(entity);
             }
         }
-        roots.sort(Comparator.comparingInt(EditorEntity::getOrder));
+        roots.sort(Comparator.comparingInt(EditorGameObject::getOrder));
         return roots;
     }
 
@@ -468,19 +468,19 @@ public class EditorScene {
      */
     public void resolveHierarchy() {
         // Build lookup map
-        Map<String, EditorEntity> byId = entities.stream()
-                .collect(Collectors.toMap(EditorEntity::getId, Function.identity()));
+        Map<String, EditorGameObject> byId = entities.stream()
+                .collect(Collectors.toMap(EditorGameObject::getId, Function.identity()));
 
         // Clear existing transient relationships
-        for (EditorEntity entity : entities) {
+        for (EditorGameObject entity : entities) {
             entity.getChildrenMutable().clear();
         }
 
         // Rebuild relationships
-        for (EditorEntity entity : entities) {
+        for (EditorGameObject entity : entities) {
             String parentId = entity.getParentId();
             if (parentId != null && !parentId.isEmpty()) {
-                EditorEntity parent = byId.get(parentId);
+                EditorGameObject parent = byId.get(parentId);
                 if (parent != null) {
                     entity.setParent(parent);
                 } else {
@@ -493,7 +493,7 @@ public class EditorScene {
 
         // Ensure proper order indices for all levels
         reindexSiblings(null); // Root entities
-        for (EditorEntity entity : entities) {
+        for (EditorGameObject entity : entities) {
             if (entity.hasChildren()) {
                 reindexSiblings(entity);
             }
@@ -504,15 +504,15 @@ public class EditorScene {
      * Reindexes sibling order after hierarchy changes.
      * Pass null for root-level entities.
      */
-    public void reindexSiblings(EditorEntity parent) {
-        List<EditorEntity> siblings;
+    public void reindexSiblings(EditorGameObject parent) {
+        List<EditorGameObject> siblings;
         if (parent == null) {
             siblings = getRootEntities();
         } else {
             siblings = new ArrayList<>(parent.getChildren());
         }
 
-        siblings.sort(Comparator.comparingInt(EditorEntity::getOrder));
+        siblings.sort(Comparator.comparingInt(EditorGameObject::getOrder));
 
         for (int i = 0; i < siblings.size(); i++) {
             siblings.get(i).setOrder(i);
@@ -527,14 +527,14 @@ public class EditorScene {
      * @param newParent   New parent (null for root)
      * @param insertIndex Position to insert at (0 = first)
      */
-    public void insertEntityAtPosition(EditorEntity entity, EditorEntity newParent, int insertIndex) {
+    public void insertEntityAtPosition(EditorGameObject entity, EditorGameObject newParent, int insertIndex) {
         // First, detach from current parent and reindex old siblings
-        EditorEntity oldParent = entity.getParent();
+        EditorGameObject oldParent = entity.getParent();
         if (oldParent != null) {
             oldParent.getChildrenMutable().remove(entity);
             // Reindex old siblings
-            List<EditorEntity> oldSiblings = new ArrayList<>(oldParent.getChildrenMutable());
-            oldSiblings.sort(Comparator.comparingInt(EditorEntity::getOrder));
+            List<EditorGameObject> oldSiblings = new ArrayList<>(oldParent.getChildrenMutable());
+            oldSiblings.sort(Comparator.comparingInt(EditorGameObject::getOrder));
             for (int i = 0; i < oldSiblings.size(); i++) {
                 oldSiblings.get(i).setOrder(i);
             }
@@ -545,11 +545,11 @@ public class EditorScene {
         entity.setParentId(newParent != null ? newParent.getId() : null);
         
         // Get target siblings list (now entity has new parentId set)
-        List<EditorEntity> siblings;
+        List<EditorGameObject> siblings;
         if (newParent == null) {
             // Root level - get all root entities except this one
             siblings = new ArrayList<>();
-            for (EditorEntity e : entities) {
+            for (EditorGameObject e : entities) {
                 if (e != entity && (e.getParentId() == null || e.getParentId().isEmpty())) {
                     siblings.add(e);
                 }
@@ -557,7 +557,7 @@ public class EditorScene {
         } else {
             // Child level - get parent's children except this one
             siblings = new ArrayList<>();
-            for (EditorEntity child : newParent.getChildrenMutable()) {
+            for (EditorGameObject child : newParent.getChildrenMutable()) {
                 if (child != entity) {
                     siblings.add(child);
                 }
@@ -565,7 +565,7 @@ public class EditorScene {
         }
         
         // Sort by current order
-        siblings.sort(Comparator.comparingInt(EditorEntity::getOrder));
+        siblings.sort(Comparator.comparingInt(EditorGameObject::getOrder));
         
         // Clamp insert position
         int idx = Math.max(0, Math.min(insertIndex, siblings.size()));

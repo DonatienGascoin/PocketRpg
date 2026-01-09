@@ -1,6 +1,6 @@
 package com.pocket.rpg.editor.undo.commands;
 
-import com.pocket.rpg.editor.scene.EditorEntity;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.undo.EditorCommand;
 
 /**
@@ -10,13 +10,13 @@ import com.pocket.rpg.editor.undo.EditorCommand;
  */
 public class SetFieldCommand implements EditorCommand {
 
-    private final EditorEntity entity;
+    private final EditorGameObject entity;
     private final String componentType;
     private final String fieldName;
     private final Object oldValue;
     private Object newValue;
 
-    public SetFieldCommand(EditorEntity entity, String componentType, String fieldName,
+    public SetFieldCommand(EditorGameObject entity, String componentType, String fieldName,
                            Object oldValue, Object newValue) {
         this.entity = entity;
         this.componentType = componentType;

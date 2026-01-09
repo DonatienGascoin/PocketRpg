@@ -44,9 +44,6 @@ public class ComponentRegistry {
                 if (Modifier.isAbstract(clazz.getModifiers())) {
                     continue;
                 }
-                if (clazz == Transform.class) {
-                    continue;
-                }
                 if (clazz == Component.class) {
                     continue;
                 }

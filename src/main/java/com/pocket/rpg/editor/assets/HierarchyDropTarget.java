@@ -1,6 +1,6 @@
 package com.pocket.rpg.editor.assets;
 
-import com.pocket.rpg.editor.scene.EditorEntity;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.AddEntityCommand;
@@ -52,7 +52,7 @@ public class HierarchyDropTarget {
                 AssetDragPayload payload = AssetDragPayload.deserialize(payloadData);
 
                 if (payload != null && AssetDropHandler.canInstantiate(payload)) {
-                    EditorEntity entity = AssetDropHandler.handleDrop(payload, new Vector3f(ORIGIN));
+                    EditorGameObject entity = AssetDropHandler.handleDrop(payload, new Vector3f(ORIGIN));
 
                     if (entity != null) {
                         UndoManager.getInstance().execute(new AddEntityCommand(scene, entity));
@@ -79,7 +79,7 @@ public class HierarchyDropTarget {
      * @param parentEntity The entity being dropped onto
      * @return true if an entity was created
      */
-    public static boolean handleEntityDrop(EditorScene scene, EditorEntity parentEntity) {
+    public static boolean handleEntityDrop(EditorScene scene, EditorGameObject parentEntity) {
         if (scene == null || parentEntity == null) {
             return false;
         }
@@ -94,7 +94,7 @@ public class HierarchyDropTarget {
                     // Create at origin (will be relative to parent)
                     Vector3f position = new Vector3f(0, 0, 0);
 
-                    EditorEntity entity = AssetDropHandler.handleDrop(payload, position);
+                    EditorGameObject entity = AssetDropHandler.handleDrop(payload, position);
 
                     if (entity != null) {
                         // Set parent relationship
@@ -141,7 +141,7 @@ public class HierarchyDropTarget {
                     AssetDragPayload payload = AssetDragPayload.deserialize(payloadData);
 
                     if (payload != null && AssetDropHandler.canInstantiate(payload)) {
-                        EditorEntity entity = AssetDropHandler.handleDrop(payload, new Vector3f(ORIGIN));
+                        EditorGameObject entity = AssetDropHandler.handleDrop(payload, new Vector3f(ORIGIN));
 
                         if (entity != null) {
                             UndoManager.getInstance().execute(new AddEntityCommand(scene, entity));

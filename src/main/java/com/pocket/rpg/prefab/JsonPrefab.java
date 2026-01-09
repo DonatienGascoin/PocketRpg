@@ -1,8 +1,10 @@
 package com.pocket.rpg.prefab;
 
+import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.resources.Assets;
-import com.pocket.rpg.serialization.ComponentData;
+import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -25,8 +27,8 @@ import java.util.List;
  *   "components": [
  *     {
  *       "type": "com.pocket.rpg.components.SpriteRenderer",
- *       "fields": {
- *         "spritePath": "sprites/chest.png",
+ *       "properties": {
+ *         "sprite": "com.pocket.rpg.rendering.Sprite:sprites/chest.png",
  *         "zIndex": 10
  *       }
  *     }
@@ -43,7 +45,7 @@ public class JsonPrefab implements Prefab {
     private String displayName;
     private String category;
     private String previewSpritePath;
-    private List<ComponentData> components = new ArrayList<>();
+    private List<Component> components = new ArrayList<>();
 
     // Runtime fields (not serialized)
     private transient Sprite cachedPreviewSprite;
@@ -80,7 +82,7 @@ public class JsonPrefab implements Prefab {
     }
 
     @Override
-    public List<ComponentData> getComponents() {
+    public List<Component> getComponents() {
         return components;
     }
 
@@ -106,19 +108,33 @@ public class JsonPrefab implements Prefab {
 
         // Fallback: try to get sprite from SpriteRenderer component
         if (cachedPreviewSprite == null && components != null) {
-            for (ComponentData comp : components) {
-                if (comp.getSimpleName().equals("SpriteRenderer")) {
-                    Object spritePath = comp.getFields().get("spritePath");
-                    if (spritePath instanceof String path && !path.isEmpty()) {
-                        try {
-                            cachedPreviewSprite = Assets.load(path, Sprite.class);
-                        } catch (Exception ignored) {
-                        }
+            for (Component comp : components) {
+                if (comp instanceof SpriteRenderer sr) {
+                    Sprite sprite = sr.getSprite();
+                    if (sprite != null) {
+                        cachedPreviewSprite = sprite;
+                        break;
                     }
-                    break;
+                } else if (comp.getClass().getSimpleName().equals("SpriteRenderer")) {
+                    // Fallback using reflection if not the exact class
+                    Object sprite = ComponentReflectionUtils.getFieldValue(comp, "sprite");
+                    if (sprite instanceof Sprite s) {
+                        cachedPreviewSprite = s;
+                        break;
+                    }
                 }
             }
         }
+    }
+
+    /**
+     * Adds a component to this prefab.
+     */
+    public void addComponent(Component component) {
+        if (components == null) {
+            components = new ArrayList<>();
+        }
+        components.add(component);
     }
 
     @Override

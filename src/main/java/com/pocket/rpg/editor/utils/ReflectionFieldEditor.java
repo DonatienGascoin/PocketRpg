@@ -5,10 +5,12 @@ import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.SetComponentFieldCommand;
-import com.pocket.rpg.rendering.Sprite;
-import com.pocket.rpg.rendering.Texture;
+import com.pocket.rpg.editor.utils.fields.FieldEditorContext;
 import com.pocket.rpg.resources.Assets;
-import com.pocket.rpg.serialization.*;
+import com.pocket.rpg.serialization.ComponentMeta;
+import com.pocket.rpg.serialization.ComponentRefMeta;
+import com.pocket.rpg.serialization.ComponentReflectionUtils;
+import com.pocket.rpg.serialization.FieldMeta;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import org.joml.Vector2f;
@@ -134,7 +136,7 @@ public class ReflectionFieldEditor {
                 Object originalValue = editingOriginalValues.remove(stateKey);
                 Object currentValue = ComponentReflectionUtils.getFieldValue(component, fieldName);
                 if (!valuesEqual(originalValue, currentValue)) {
-                    UndoManager.getInstance().execute(new SetComponentFieldCommand(component, fieldName, originalValue, currentValue));
+                    UndoManager.getInstance().execute(new SetComponentFieldCommand(component, fieldName, originalValue, currentValue, FieldEditorContext.getEntity()));
                 }
             }
         }

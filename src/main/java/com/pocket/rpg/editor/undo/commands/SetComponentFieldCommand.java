@@ -1,6 +1,7 @@
 package com.pocket.rpg.editor.undo.commands;
 
 import com.pocket.rpg.components.Component;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.undo.EditorCommand;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
 
@@ -12,24 +13,29 @@ public class SetComponentFieldCommand implements EditorCommand {
     private final Component component;
     private final String fieldName;
     private final Object oldValue;
+    private final EditorGameObject entity;
     private Object newValue;
 
     public SetComponentFieldCommand(Component component, String fieldName,
-                                    Object oldValue, Object newValue) {
+                                    Object oldValue, Object newValue,
+                                    EditorGameObject entity) {
         this.component = component;
         this.fieldName = fieldName;
         this.oldValue = oldValue;
         this.newValue = newValue;
+        this.entity = entity;
     }
 
     @Override
     public void execute() {
         ComponentReflectionUtils.setFieldValue(component, fieldName, newValue);
+        syncOverride(newValue);
     }
 
     @Override
     public void undo() {
         ComponentReflectionUtils.setFieldValue(component, fieldName, oldValue);
+        syncOverride(oldValue);
     }
 
     @Override
@@ -52,5 +58,24 @@ public class SetComponentFieldCommand implements EditorCommand {
         if (other instanceof SetComponentFieldCommand cmd) {
             this.newValue = cmd.newValue;
         }
+    }
+
+    private void syncOverride(Object value) {
+        if (entity == null || !entity.isPrefabInstance()) return;
+
+        String componentType = component.getClass().getName();
+        Object defaultValue = entity.getFieldDefault(componentType, fieldName);
+
+        if (valuesEqual(value, defaultValue)) {
+            entity.resetFieldToDefault(componentType, fieldName);
+        } else {
+            entity.setFieldValue(componentType, fieldName, value);
+        }
+    }
+
+    private boolean valuesEqual(Object a, Object b) {
+        if (a == null && b == null) return true;
+        if (a == null || b == null) return false;
+        return a.equals(b);
     }
 }

@@ -3,7 +3,7 @@
   "name": "Test",
   "gameObjects": [
     {
-      "id": "a6c89230",
+      "id": "e3edfd21",
       "name": "AbovePlayer",
       "active": true,
       "order": 0,
@@ -35,7 +35,7 @@
       ]
     },
     {
-      "id": "9b00dc37",
+      "id": "7af64cbf",
       "name": "Ground",
       "active": true,
       "order": 0,
@@ -67,7 +67,7 @@
       ]
     },
     {
-      "id": "2f17f057",
+      "id": "8d789e8e",
       "name": "Ground decoration",
       "active": true,
       "order": 0,
@@ -99,7 +99,7 @@
       ]
     },
     {
-      "id": "d7163fff",
+      "id": "9d2734e0",
       "name": "Layer 3",
       "active": true,
       "order": 0,
@@ -139,8 +139,8 @@
       "componentOverrides": {
         "com.pocket.rpg.components.Transform": {
           "localPosition": [
-            9.0,
-            0.0,
+            -6.5,
+            -4.5,
             0.0
           ]
         }

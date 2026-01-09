@@ -12,6 +12,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
+import org.joml.Vector4f;
 
 import java.lang.reflect.Field;
 import java.util.*;
@@ -85,7 +86,7 @@ public class EditorGameObject {
 
         // Store position as Transform override for prefab instances
         Map<String, Object> transformOverrides = new HashMap<>();
-        transformOverrides.put("position", new float[]{position.x, position.y, position.z});
+        transformOverrides.put("localPosition", new float[]{position.x, position.y, position.z});
         componentOverrides.put(TRANSFORM_TYPE, transformOverrides);
     }
 
@@ -104,7 +105,7 @@ public class EditorGameObject {
         if (isPrefab) {
             // Prefab instance: store position in overrides
             Map<String, Object> transformOverrides = new HashMap<>();
-            transformOverrides.put("position", new float[]{position.x, position.y, position.z});
+            transformOverrides.put("localPosition", new float[]{position.x, position.y, position.z});
             componentOverrides.put(TRANSFORM_TYPE, transformOverrides);
         } else {
             // Scratch entity: add Transform component
@@ -166,7 +167,7 @@ public class EditorGameObject {
             return t != null ? new Vector3f(t.getPosition()) : new Vector3f();
         } else {
             // Prefab instance: get from overrides
-            Vector3f result = getTransformVector("position");
+            Vector3f result = getTransformVector("localPosition");
             return result;
         }
     }
@@ -196,10 +197,7 @@ public class EditorGameObject {
             }
         } else {
             // Prefab instance: store in overrides
-            System.out.println("DEBUG setPosition prefab: " + pos);
-            System.out.println("DEBUG before: " + componentOverrides.get(TRANSFORM_TYPE));
-            setTransformVector("position", pos);
-            System.out.println("DEBUG after: " + componentOverrides.get(TRANSFORM_TYPE));
+            setTransformVector("localPosition", pos);
         }
     }
 
@@ -212,7 +210,7 @@ public class EditorGameObject {
             Transform t = getTransform();
             return t != null ? new Vector3f(t.getRotation()) : new Vector3f();
         } else {
-            return getTransformVector("rotation");
+            return getTransformVector("localRotation");
         }
     }
 
@@ -223,7 +221,7 @@ public class EditorGameObject {
                 t.setRotation(rotation);
             }
         } else {
-            setTransformVector("rotation", rotation);
+            setTransformVector("localRotation", rotation);
         }
     }
 
@@ -240,7 +238,7 @@ public class EditorGameObject {
             Transform t = getTransform();
             return t != null ? new Vector3f(t.getScale()) : new Vector3f(1, 1, 1);
         } else {
-            Vector3f scale = getTransformVector("scale");
+            Vector3f scale = getTransformVector("localScale");
             // Default to 1,1,1 if not set
             if (scale.x == 0 && scale.y == 0 && scale.z == 0) {
                 return new Vector3f(1, 1, 1);
@@ -256,7 +254,7 @@ public class EditorGameObject {
                 t.setScale(scale);
             }
         } else {
-            setTransformVector("scale", scale);
+            setTransformVector("localScale", scale);
         }
     }
 
@@ -392,6 +390,7 @@ public class EditorGameObject {
     // ========================================================================
     // COMPONENT MANAGEMENT
     // ========================================================================
+    private transient List<Component> cachedMergedComponents = null;
 
     /**
      * Gets all components for this entity.
@@ -405,8 +404,15 @@ public class EditorGameObject {
             }
             return components;
         } else {
-            return getMergedComponents();
+            if (cachedMergedComponents == null) {
+                cachedMergedComponents = getMergedComponents();
+            }
+            return cachedMergedComponents;
         }
+    }
+
+    public void invalidateComponentCache() {
+        cachedMergedComponents = null;
     }
 
     /**
@@ -432,28 +438,39 @@ public class EditorGameObject {
         }
 
         List<Component> result = new ArrayList<>();
+        boolean hasTransform = false;
 
-        // Add Transform with position override
-        Transform transform = new Transform();
-        transform.setPosition(getPosition());
-        transform.setRotation(getRotation());
-        transform.setScale(getScale());
-        result.add(transform);
-
-        // Add other components from prefab
+        // Clone all components from prefab
         for (Component baseComp : prefab.getComponents()) {
-            if (baseComp instanceof Transform) {
-                continue; // Skip, we added our own
-            }
             Component cloned = cloneComponent(baseComp);
             if (cloned != null) {
-                Map<String, Object> overrides = componentOverrides.get(baseComp.getClass().getName());
+                String compType = baseComp.getClass().getName();
+                Map<String, Object> overrides = componentOverrides.get(compType);
                 if (overrides != null) {
                     applyOverrides(cloned, overrides);
                 }
+
+                // Apply transform overrides from entity
+                if (cloned instanceof Transform t) {
+                    hasTransform = true;
+                    t.setPosition(getPosition());
+                    t.setRotation(getRotation());
+                    t.setScale(getScale());
+                }
+
                 result.add(cloned);
             }
         }
+
+        // Defensive: add Transform if prefab didn't have one
+        if (!hasTransform) {
+            Transform transform = new Transform();
+            transform.setPosition(getPosition());
+            transform.setRotation(getRotation());
+            transform.setScale(getScale());
+            result.add(0, transform);
+        }
+
         return result;
     }
 
@@ -657,13 +674,95 @@ public class EditorGameObject {
         Object currentValue = overrides.get(fieldName);
         Object defaultValue = getFieldDefault(componentType, fieldName);
 
-        if (currentValue == null && defaultValue == null) {
-            return false;
+        return !valuesEqual(currentValue, defaultValue);
+    }
+
+    /**
+     * Compares values with type normalization.
+     * Handles float[]/List vs Vector3f comparisons.
+     */
+    private boolean valuesEqual(Object a, Object b) {
+        if (a == null && b == null) return true;
+        if (a == null || b == null) return false;
+        if (a.equals(b)) return true;
+
+        // Try Vector2f
+        Vector2f vec2A = toVector2f(a);
+        Vector2f vec2B = toVector2f(b);
+        if (vec2A != null && vec2B != null) {
+            return vec2A.equals(vec2B);
         }
-        if (currentValue == null || defaultValue == null) {
-            return true;
+
+        // Try Vector3f
+        Vector3f vec3A = toVector3f(a);
+        Vector3f vec3B = toVector3f(b);
+        if (vec3A != null && vec3B != null) {
+            return vec3A.equals(vec3B);
         }
-        return !currentValue.equals(defaultValue);
+
+        // Try Vector4f
+        Vector4f vec4A = toVector4f(a);
+        Vector4f vec4B = toVector4f(b);
+        if (vec4A != null && vec4B != null) {
+            return vec4A.equals(vec4B);
+        }
+
+        // Primitives, Strings, Enums - equals() already checked above
+        return false;
+    }
+
+    private Vector2f toVector2f(Object value) {
+        if (value instanceof Vector2f v) return v;
+        if (value instanceof float[] arr && arr.length >= 2) {
+            return new Vector2f(arr[0], arr[1]);
+        }
+        if (value instanceof List<?> list && list.size() >= 2) {
+            return new Vector2f(
+                    ((Number) list.get(0)).floatValue(),
+                    ((Number) list.get(1)).floatValue()
+            );
+        }
+        return null;
+    }
+
+    /**
+     * Converts various representations to Vector3f.
+     */
+    private Vector3f toVector3f(Object value) {
+        if (value instanceof Vector3f v) {
+            return v;
+        }
+        if (value instanceof float[] arr) {
+            return new Vector3f(
+                    arr.length > 0 ? arr[0] : 0,
+                    arr.length > 1 ? arr[1] : 0,
+                    arr.length > 2 ? arr[2] : 0
+            );
+        }
+        if (value instanceof List<?> list) {
+            return new Vector3f(
+                    !list.isEmpty() ? ((Number) list.get(0)).floatValue() : 0,
+                    list.size() > 1 ? ((Number) list.get(1)).floatValue() : 0,
+                    list.size() > 2 ? ((Number) list.get(2)).floatValue() : 0
+            );
+        }
+        return null;
+    }
+
+    private Vector4f toVector4f(Object value) {
+        if (value instanceof Vector4f v) return v;
+        if (value instanceof float[] arr && arr.length >= 4) {
+            return new Vector4f(arr[0], arr[1], arr[2], arr[3]);
+        }
+        if (value instanceof List<?> list && list.size() >= 4) {
+            return new Vector4f(
+                    ((Number) list.get(0)).floatValue(),
+                    ((Number) list.get(1)).floatValue(),
+                    ((Number) list.get(2)).floatValue(),
+                    ((Number) list.get(3)).floatValue()
+            );
+        }
+        return null;
     }
 
     public Object getFieldDefault(String componentType, String fieldName) {
@@ -676,7 +775,9 @@ public class EditorGameObject {
         if (overrides != null) {
             overrides.remove(fieldName);
             if (overrides.isEmpty()) {
-                componentOverrides.remove(componentType);
+                if (componentOverrides.remove(componentType) != null) {
+                    invalidateComponentCache();
+                }
             }
         }
     }

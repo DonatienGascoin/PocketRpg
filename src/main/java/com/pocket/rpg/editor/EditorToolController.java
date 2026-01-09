@@ -6,6 +6,8 @@ import com.pocket.rpg.editor.panels.PrefabBrowserPanel;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.tools.*;
+import com.pocket.rpg.editor.undo.UndoManager;
+import com.pocket.rpg.editor.undo.commands.RemoveEntityCommand;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiKey;
@@ -206,13 +208,13 @@ public class EditorToolController {
         }
 
         // Delete - Remove selected entity
-        if (ImGui.isKeyPressed(ImGuiKey.Delete) || ImGui.isKeyPressed(ImGuiKey.Backspace)) {
+        if (ImGui.isKeyPressed(ImGuiKey.Delete) || ImGui.isKeyPressed(ImGuiKey.Backspace)) { // TODO: Move to Inspector binding so delete popup can be shown
             EditorScene scene = context.getCurrentScene();
             if (scene != null) {
                 EditorGameObject selected = scene.getSelectedEntity();
                 if (selected != null) {
                     String name = selected.getName();
-                    scene.removeEntity(selected);
+                    UndoManager.getInstance().execute(new RemoveEntityCommand(scene, selected));
                     showMessage("Deleted: " + name);
                 }
             }

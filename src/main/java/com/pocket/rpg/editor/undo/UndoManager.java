@@ -84,6 +84,26 @@ public class UndoManager {
         }
     }
 
+
+    /**
+     * Adds a command to history without executing it.
+     * Use when the change was already applied (e.g., during drag).
+     */
+    public void push(EditorCommand command) {
+        if (!enabled || command == null) {
+            return;
+        }
+
+        undoStack.push(command);
+        redoStack.clear();
+        lastCommand = command;
+        lastCommandTime = System.currentTimeMillis();
+
+        while (undoStack.size() > maxHistorySize) {
+            undoStack.removeLast();
+        }
+    }
+
     /**
      * Undoes the last command.
      *

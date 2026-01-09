@@ -1,10 +1,6 @@
 package com.pocket.rpg.prefab.prefabs;
 
-import com.pocket.rpg.components.Component;
-import com.pocket.rpg.components.GridMovement;
-import com.pocket.rpg.components.PlayerCameraFollow;
-import com.pocket.rpg.components.PlayerMovement;
-import com.pocket.rpg.components.SpriteRenderer;
+import com.pocket.rpg.components.*;
 import com.pocket.rpg.prefab.Prefab;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.rendering.SpriteSheet;
@@ -68,6 +64,9 @@ public class PlayerPrefab implements Prefab {
 
     private List<Component> buildComponents() {
         List<Component> result = new ArrayList<>();
+
+        Transform transform = new Transform();
+        result.add(transform);
 
         // SpriteRenderer component
         SpriteRenderer spriteRenderer = new SpriteRenderer();

@@ -63,7 +63,7 @@ public class EntityInspector {
         ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.6f, 0.3f, 0.3f, 1f);
         if (ImGui.button(FontAwesomeIcons.Trash + "##delete")) {
             pendingDeleteEntity = entity;
-            ImGui.openPopup("Delete Entity?");
+            ImGui.openPopup("Delete Entity");
         }
         ImGui.popStyleColor(2);
         if (ImGui.isItemHovered()) ImGui.setTooltip("Delete Entity");
@@ -81,7 +81,7 @@ public class EntityInspector {
     }
 
     public void renderDeleteConfirmationPopup() {
-        if (ImGui.beginPopupModal("Delete Entity?", imgui.flag.ImGuiWindowFlags.AlwaysAutoResize)) {
+        if (ImGui.beginPopupModal("Delete Entity", imgui.flag.ImGuiWindowFlags.AlwaysAutoResize)) {
             if (pendingDeleteEntity != null) {
                 ImGui.text("Delete entity '" + pendingDeleteEntity.getName() + "'?");
 

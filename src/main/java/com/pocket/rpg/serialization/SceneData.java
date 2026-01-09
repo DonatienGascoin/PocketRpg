@@ -182,7 +182,7 @@ public class SceneData {
             // Add Transform override with position
             Map<String, Object> transformOverride = overrides.computeIfAbsent(
                     "com.pocket.rpg.components.Transform", k -> new HashMap<>());
-            transformOverride.put("position", pos);
+            transformOverride.put("localPosition", pos);
 
             data = new GameObjectData(
                     legacy.getId(),

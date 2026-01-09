@@ -6,11 +6,13 @@ import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.MoveEntityCommand;
 import com.pocket.rpg.editor.undo.commands.RotateEntityCommand;
 import com.pocket.rpg.editor.undo.commands.ScaleEntityCommand;
+import com.pocket.rpg.prefab.Prefab;
+import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import org.joml.Vector3f;
 
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.List;
 
 /**
  * Custom editor for Transform component.
@@ -22,15 +24,13 @@ public class TransformEditor implements CustomComponentEditor {
 
     private final float[] posX = new float[1];
     private final float[] posY = new float[1];
-    private final float[] posZ = new float[1];
-    private final float[] rotX = new float[1];
-    private final float[] rotY = new float[1];
+
     private final float[] rotZ = new float[1];
+
     private final float[] scaleX = new float[1];
     private final float[] scaleY = new float[1];
 
     // Drag start values for undo
-    private EditorGameObject draggingEntity = null;
     private Vector3f dragStartPosition = null;
     private Vector3f dragStartRotation = null;
     private Vector3f dragStartScale = null;
@@ -43,19 +43,13 @@ public class TransformEditor implements CustomComponentEditor {
 
     @Override
     public boolean draw(Component component, EditorGameObject entity) {
-        AtomicBoolean changed = new AtomicBoolean(false);
-        boolean isPrefab = entity.isPrefabInstance();
+        boolean changed = false;
 
-        // Position
-        changed.set(drawPosition(entity, isPrefab) || changed.get());
+        changed |= drawPosition(entity, entity.isPrefabInstance());
+        changed |= drawScale(entity, entity.isPrefabInstance());
+        changed |= drawRotation(entity, entity.isPrefabInstance());
 
-        // Rotation
-        changed.set(drawRotation(entity, isPrefab) || changed.get());
-
-        // Scale
-        changed.set(drawScale(entity, isPrefab) || changed.get());
-
-        return changed.get();
+        return changed;
     }
 
     // ========================================================================
@@ -66,12 +60,12 @@ public class TransformEditor implements CustomComponentEditor {
         Vector3f pos = entity.getPosition();
         posX[0] = pos.x;
         posY[0] = pos.y;
-        posZ[0] = pos.z;
 
-        boolean isOverridden = isPrefab && entity.isFieldOverridden(TRANSFORM_TYPE, "position");
-        boolean changed = false;
-
+        boolean isOverridden = isPrefab && entity.isFieldOverridden(TRANSFORM_TYPE, "localPosition");
         String label = isOverridden ? "Position *" : "Position";
+
+        final boolean[] changed = {false};
+        final boolean[] deactivated = {false};
 
         FieldEditors.inspectorRow(label, () -> {
             ImGui.pushID("Position");
@@ -80,61 +74,70 @@ public class TransformEditor implements CustomComponentEditor {
                 ImGui.pushStyleColor(ImGuiCol.Text, OVERRIDE_COLOR);
             }
 
-            float fieldWidth = calcFieldWidth(3, isOverridden);
+            float fieldWidth = calcFieldWidth(2, isOverridden);
 
             // X
             axisLabel("X", AXIS_X_COLOR);
             ImGui.setNextItemWidth(fieldWidth);
-            boolean changedX = ImGui.dragFloat("##X", posX, 0.1f);
+            if (ImGui.dragFloat("##X", posX, 0.1f)) changed[0] = true;
+            if (ImGui.isItemActivated()) capturePositionStart(pos);
+            if (ImGui.isItemDeactivatedAfterEdit()) deactivated[0] = true;
             ImGui.sameLine();
 
             // Y
             axisLabel("Y", AXIS_Y_COLOR);
             ImGui.setNextItemWidth(fieldWidth);
-            boolean changedY = ImGui.dragFloat("##Y", posY, 0.1f);
-            ImGui.sameLine();
-
-            // Z (depth)
-            axisLabel("Z", AXIS_Z_COLOR);
-            ImGui.setNextItemWidth(fieldWidth);
-            boolean changedZ = ImGui.dragFloat("##Z", posZ, 0.1f);
+            if (ImGui.dragFloat("##Y", posY, 0.1f)) changed[0] = true;
+            if (ImGui.isItemActivated()) capturePositionStart(pos);
+            if (ImGui.isItemDeactivatedAfterEdit()) deactivated[0] = true;
 
             if (isOverridden) {
                 ImGui.popStyleColor();
                 ImGui.sameLine();
                 if (ImGui.smallButton("Reset##pos")) {
-                    entity.resetFieldToDefault(TRANSFORM_TYPE, "position");
+                    Vector3f oldValue = new Vector3f(entity.getPosition());
+                    Object defaultObj = entity.getFieldDefault(TRANSFORM_TYPE, "localPosition");
+                    Vector3f defaultValue = defaultObj instanceof Vector3f v ? v : new Vector3f();
+
+                    entity.setPosition(defaultValue.x, defaultValue.y, defaultValue.z);
+                    entity.resetFieldToDefault(TRANSFORM_TYPE, "localPosition");
+
+                    // Update buffers so the code below doesn't overwrite
+                    posX[0] = defaultValue.x;
+                    posY[0] = defaultValue.y;
+
+                    UndoManager.getInstance().push(
+                            new MoveEntityCommand(entity, oldValue, defaultValue)
+                    );
+                    changed[0] = true;
                 }
             }
-
-            if (changedX || changedY || changedZ) {
-                entity.setPosition(posX[0], posY[0], posZ[0]);
-            }
-
-            // Undo tracking
-            handlePositionUndo(entity, pos);
 
             ImGui.popID();
         });
 
-        return changed || !pos.equals(entity.getPosition());
-    }
-
-    private void handlePositionUndo(EditorGameObject entity, Vector3f originalPos) {
-        if (ImGui.isItemActivated()) {
-            draggingEntity = entity;
-            dragStartPosition = new Vector3f(originalPos);
+        // Apply change directly during drag/type
+        if (changed[0]) {
+            entity.setPosition(posX[0], posY[0], pos.z);
         }
 
-        if (ImGui.isItemDeactivatedAfterEdit() && draggingEntity == entity && dragStartPosition != null) {
-            Vector3f newPos = entity.getPosition();
+        // Commit undo on release
+        if (deactivated[0] && dragStartPosition != null) {
+            Vector3f newPos = new Vector3f(posX[0], posY[0], pos.z);
             if (!newPos.equals(dragStartPosition)) {
-                UndoManager.getInstance().execute(
+                UndoManager.getInstance().push(
                         new MoveEntityCommand(entity, dragStartPosition, newPos)
                 );
             }
-            draggingEntity = null;
             dragStartPosition = null;
+        }
+
+        return changed[0];
+    }
+
+    private void capturePositionStart(Vector3f current) {
+        if (dragStartPosition == null) {
+            dragStartPosition = new Vector3f(current);
         }
     }
 
@@ -144,14 +147,16 @@ public class TransformEditor implements CustomComponentEditor {
 
     private boolean drawRotation(EditorGameObject entity, boolean isPrefab) {
         Vector3f rot = entity.getRotation();
-        rotX[0] = rot.x;
-        rotY[0] = rot.y;
+        // Commented out as only Z rotation is used in 2D
+        // rotX[0] = rot.x;
+        // rotY[0] = rot.y;
         rotZ[0] = rot.z;
 
-        boolean isOverridden = isPrefab && entity.isFieldOverridden(TRANSFORM_TYPE, "rotation");
-        boolean changed = false;
-
+        boolean isOverridden = isPrefab && entity.isFieldOverridden(TRANSFORM_TYPE, "localRotation");
         String label = isOverridden ? "Rotation *" : "Rotation";
+
+        final boolean[] changed = {false};
+        final boolean[] deactivated = {false};
 
         FieldEditors.inspectorRow(label, () -> {
             ImGui.pushID("Rotation");
@@ -160,59 +165,69 @@ public class TransformEditor implements CustomComponentEditor {
                 ImGui.pushStyleColor(ImGuiCol.Text, OVERRIDE_COLOR);
             }
 
-            float fieldWidth = calcFieldWidth(3, isOverridden);
+            float fieldWidth = calcFieldWidth(1, isOverridden);
 
-            // X
+            /*
+           // Commented out as only Z rotation is used in 2D
+           // X
             axisLabel("X", AXIS_X_COLOR);
             ImGui.setNextItemWidth(fieldWidth);
-            boolean changedX = ImGui.dragFloat("##X", rotX, 0.5f);
+            if (ImGui.dragFloat("##X", rotX, 0.5f)) changed[0] = true;
+            if (ImGui.isItemActivated()) captureRotationStart(rot);
+            if (ImGui.isItemDeactivatedAfterEdit()) deactivated[0] = true;
             ImGui.sameLine();
 
             // Y
             axisLabel("Y", AXIS_Y_COLOR);
             ImGui.setNextItemWidth(fieldWidth);
-            boolean changedY = ImGui.dragFloat("##Y", rotY, 0.5f);
+            if (ImGui.dragFloat("##Y", rotY, 0.5f)) changed[0] = true;
+            if (ImGui.isItemActivated()) captureRotationStart(rot);
+            if (ImGui.isItemDeactivatedAfterEdit()) deactivated[0] = true;
             ImGui.sameLine();
+            */
 
             // Z
-            axisLabel("Z", AXIS_Z_COLOR);
+//            axisLabel("  ", AXIS_Z_COLOR);
+            ImGui.setCursorPosX(ImGui.getCursorPosX() + ImGui.calcTextSizeX("Z") + 2 * ImGui.getStyle().getItemInnerSpacingX());
             ImGui.setNextItemWidth(fieldWidth);
-            boolean changedZ = ImGui.dragFloat("##Z", rotZ, 0.5f);
+            if (ImGui.dragFloat("##Z", rotZ, 0.5f)) changed[0] = true;
+            if (ImGui.isItemActivated()) captureRotationStart(rot);
+            if (ImGui.isItemDeactivatedAfterEdit()) deactivated[0] = true;
 
             if (isOverridden) {
                 ImGui.popStyleColor();
                 ImGui.sameLine();
                 if (ImGui.smallButton("Reset##rot")) {
-                    entity.resetFieldToDefault(TRANSFORM_TYPE, "rotation");
+                    entity.resetFieldToDefault(TRANSFORM_TYPE, "localRotation");
+                    changed[0] = true;
                 }
             }
-
-            if (changedX || changedY || changedZ) {
-                entity.setRotation(new Vector3f(rotX[0], rotY[0], rotZ[0]));
-            }
-
-            // Undo tracking
-            handleRotationUndo(entity, rot);
 
             ImGui.popID();
         });
 
-        return changed || !rot.equals(entity.getRotation());
-    }
-
-    private void handleRotationUndo(EditorGameObject entity, Vector3f originalRot) {
-        if (ImGui.isItemActivated()) {
-            dragStartRotation = new Vector3f(originalRot);
+        // Apply change directly
+        if (changed[0]) {
+            entity.setRotation(new Vector3f(rot.x, rot.y, rotZ[0]));
         }
 
-        if (ImGui.isItemDeactivatedAfterEdit() && dragStartRotation != null) {
-            Vector3f newRot = entity.getRotation();
+        // Commit undo on release
+        if (deactivated[0] && dragStartRotation != null) {
+            Vector3f newRot = new Vector3f(rot.x, rot.y, rotZ[0]);
             if (!newRot.equals(dragStartRotation)) {
-                UndoManager.getInstance().execute(
+                UndoManager.getInstance().push(
                         new RotateEntityCommand(entity, dragStartRotation, newRot)
                 );
             }
             dragStartRotation = null;
+        }
+
+        return changed[0];
+    }
+
+    private void captureRotationStart(Vector3f current) {
+        if (dragStartRotation == null) {
+            dragStartRotation = new Vector3f(current);
         }
     }
 
@@ -225,13 +240,14 @@ public class TransformEditor implements CustomComponentEditor {
         scaleX[0] = scale.x;
         scaleY[0] = scale.y;
 
-        boolean isOverridden = isPrefab && entity.isFieldOverridden(TRANSFORM_TYPE, "scale");
-        boolean changed = false;
-
+        boolean isOverridden = isPrefab && entity.isFieldOverridden(TRANSFORM_TYPE, "localScale");
         String label = isOverridden ? "Scale *" : "Scale";
 
+        final boolean[] changed = {false};
+        final boolean[] deactivated = {false};
+
         FieldEditors.inspectorRow(label, () -> {
-            ImGui.pushID("Scale");
+            ImGui.pushID("localScale");
 
             if (isOverridden) {
                 ImGui.pushStyleColor(ImGuiCol.Text, OVERRIDE_COLOR);
@@ -242,48 +258,52 @@ public class TransformEditor implements CustomComponentEditor {
             // X
             axisLabel("X", AXIS_X_COLOR);
             ImGui.setNextItemWidth(fieldWidth);
-            boolean changedX = ImGui.dragFloat("##X", scaleX, 0.01f);
+            if (ImGui.dragFloat("##X", scaleX, 0.01f)) changed[0] = true;
+            if (ImGui.isItemActivated()) captureScaleStart(scale);
+            if (ImGui.isItemDeactivatedAfterEdit()) deactivated[0] = true;
             ImGui.sameLine();
 
             // Y
             axisLabel("Y", AXIS_Y_COLOR);
             ImGui.setNextItemWidth(fieldWidth);
-            boolean changedY = ImGui.dragFloat("##Y", scaleY, 0.01f);
+            if (ImGui.dragFloat("##Y", scaleY, 0.01f)) changed[0] = true;
+            if (ImGui.isItemActivated()) captureScaleStart(scale);
+            if (ImGui.isItemDeactivatedAfterEdit()) deactivated[0] = true;
 
             if (isOverridden) {
                 ImGui.popStyleColor();
                 ImGui.sameLine();
                 if (ImGui.smallButton("Reset##scale")) {
-                    entity.resetFieldToDefault(TRANSFORM_TYPE, "scale");
+                    entity.resetFieldToDefault(TRANSFORM_TYPE, "localScale");
+                    changed[0] = true;
                 }
             }
-
-            if (changedX || changedY) {
-                entity.setScale(scaleX[0], scaleY[0]);
-            }
-
-            // Undo tracking
-            handleScaleUndo(entity, scale);
 
             ImGui.popID();
         });
 
-        return changed || !scale.equals(entity.getScale());
-    }
-
-    private void handleScaleUndo(EditorGameObject entity, Vector3f originalScale) {
-        if (ImGui.isItemActivated()) {
-            dragStartScale = new Vector3f(originalScale);
+        // Apply change directly
+        if (changed[0]) {
+            entity.setScale(scaleX[0], scaleY[0]);
         }
 
-        if (ImGui.isItemDeactivatedAfterEdit() && dragStartScale != null) {
-            Vector3f newScale = entity.getScale();
+        // Commit undo on release
+        if (deactivated[0] && dragStartScale != null) {
+            Vector3f newScale = new Vector3f(scaleX[0], scaleY[0], scale.z);
             if (!newScale.equals(dragStartScale)) {
-                UndoManager.getInstance().execute(
+                UndoManager.getInstance().push(
                         new ScaleEntityCommand(entity, dragStartScale, newScale)
                 );
             }
             dragStartScale = null;
+        }
+
+        return changed[0];
+    }
+
+    private void captureScaleStart(Vector3f current) {
+        if (dragStartScale == null) {
+            dragStartScale = new Vector3f(current);
         }
     }
 

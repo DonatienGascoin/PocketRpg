@@ -58,9 +58,9 @@ public class InspectorPanel {
                 }
             }
         }
-        ImGui.end();
-
         ReflectionFieldEditor.renderAssetPicker();
         entityInspector.renderDeleteConfirmationPopup();
+        ImGui.end();
+
     }
 }

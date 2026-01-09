@@ -85,7 +85,7 @@ public class GameObjectData {
      * Structure: componentType -> (fieldName -> value)
      * <p>
      * Transform overrides go here too:
-     * "com.pocket.rpg.components.Transform" -> {"position": [x, y, z]}
+     * "com.pocket.rpg.components.Transform" -> {"localPosition": [x, y, z]}
      */
     private Map<String, Map<String, Object>> componentOverrides;
 
@@ -205,8 +205,8 @@ public class GameObjectData {
             // Check overrides for prefab instance
             if (componentOverrides != null) {
                 var transformOverrides = componentOverrides.get(TRANSFORM_TYPE);
-                if (transformOverrides != null && transformOverrides.containsKey("position")) {
-                    Object pos = transformOverrides.get("position");
+                if (transformOverrides != null && transformOverrides.containsKey("localPosition")) {
+                    Object pos = transformOverrides.get("localPosition");
                     if (pos instanceof float[] arr) return arr;
                     if (pos instanceof List<?> list) {
                         return new float[]{

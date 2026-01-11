@@ -1,4 +1,4 @@
-package com.pocket.rpg.editor.utils;
+package com.pocket.rpg.editor.ui.inspectors;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.Transform;
@@ -16,7 +16,7 @@ import java.util.Map;
  */
 public class CustomComponentEditorRegistry {
 
-    private static final Map<String, CustomComponentEditor> editors = new HashMap<>();
+    private static final Map<String, CustomComponentInspector> editors = new HashMap<>();
 
     /**
      * Registers a custom editor using the component class.
@@ -24,7 +24,7 @@ public class CustomComponentEditorRegistry {
      * @param componentClass The component class
      * @param editor         The custom editor implementation
      */
-    public static void register(Class<?> componentClass, CustomComponentEditor editor) {
+    public static void register(Class<?> componentClass, CustomComponentInspector editor) {
         editors.put(componentClass.getName(), editor);
     }
 
@@ -46,7 +46,7 @@ public class CustomComponentEditorRegistry {
      * @return true if a field changed, false if no custom editor or no change
      */
     public static boolean drawCustomEditor(Component component, EditorGameObject entity) {
-        CustomComponentEditor editor = editors.get(component.getClass().getName());
+        CustomComponentInspector editor = editors.get(component.getClass().getName());
         if (editor == null) {
             return false;
         }
@@ -59,13 +59,13 @@ public class CustomComponentEditorRegistry {
      */
     public static void initBuiltInEditors() {
         // UI Components
-        register(UITransform.class, new UITransformEditor(true));
-        register(UICanvas.class, new UICanvasEditor());
-        register(UIImage.class, new UIImageEditor());
-        register(UIPanel.class, new UIPanelEditor());
-        register(UIButton.class, new UIButtonEditor());
-        register(UIText.class, new UITextEditor());
-        register(Transform.class, new TransformEditor());
+        register(UITransform.class, new UITransformInspector(true));
+        register(UICanvas.class, new UICanvasInspector());
+        register(UIImage.class, new UIImageInspector());
+        register(UIPanel.class, new UIPanelInspector());
+        register(UIButton.class, new UIButtonInspector());
+        register(UIText.class, new UITextInspector());
+        register(Transform.class, new TransformInspector());
     }
 
     /**

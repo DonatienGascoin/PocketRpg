@@ -1,8 +1,7 @@
-package com.pocket.rpg.editor.utils;
+package com.pocket.rpg.editor.ui.fields;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.editor.scene.EditorGameObject;
-import com.pocket.rpg.editor.utils.fields.*;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import imgui.ImGui;
 import org.joml.Vector2f;

@@ -1,9 +1,10 @@
-package com.pocket.rpg.editor.utils;
+package com.pocket.rpg.editor.ui.inspectors;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
+import com.pocket.rpg.editor.ui.fields.FieldEditors;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import imgui.ImGui;
@@ -16,7 +17,7 @@ import org.joml.Vector4f;
  * Note: Runtime-only fields (onClick, onHover, onExit, hovered, pressed)
  * are not shown as they are set via code.
  */
-public class UIButtonEditor implements CustomComponentEditor {
+public class UIButtonInspector implements CustomComponentInspector {
 
     @Override
     public boolean draw(Component component, EditorGameObject entity) {

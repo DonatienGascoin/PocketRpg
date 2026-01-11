@@ -1,6 +1,7 @@
 package com.pocket.rpg.editor.panels;
 
 import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.ui.*;
 import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
@@ -42,7 +43,7 @@ public class UIPreviewRenderer {
 
         for (EditorGameObject entity : scene.getEntities()) {
             if (!isUIEntity(entity)) continue;
-            if (entity.hasComponent("UICanvas")) continue;
+            if (entity.hasComponent(UICanvas.class)) continue;
 
             int sortOrder = getCanvasSortOrder(entity);
             renderQueue.add(new UIRenderEntry(entity, sortOrder));
@@ -157,9 +158,9 @@ public class UIPreviewRenderer {
         float u1 = sprite.getU1();
         float v1 = sprite.getV1();
 
-        int tintColor = color != null 
-            ? ImGui.colorConvertFloat4ToU32(color.x, color.y, color.z, color.w)
-            : ImGui.colorConvertFloat4ToU32(1f, 1f, 1f, 1f);
+        int tintColor = color != null
+                ? ImGui.colorConvertFloat4ToU32(color.x, color.y, color.z, color.w)
+                : ImGui.colorConvertFloat4ToU32(1f, 1f, 1f, 1f);
         drawList.addImage(textureId, left, top, right, bottom, u0, v0, u1, v1, tintColor);
         return true;
     }
@@ -304,13 +305,13 @@ public class UIPreviewRenderer {
     }
 
     private int getElementFillColor(EditorGameObject entity) {
-        if (entity.hasComponent("UIPanel")) {
+        if (entity.hasComponent(UIPanel.class)) {
             return ImGui.colorConvertFloat4ToU32(0.3f, 0.3f, 0.4f, 0.6f);
-        } else if (entity.hasComponent("UIButton")) {
+        } else if (entity.hasComponent(UIButton.class)) {
             return ImGui.colorConvertFloat4ToU32(0.3f, 0.5f, 0.3f, 0.6f);
-        } else if (entity.hasComponent("UIImage")) {
+        } else if (entity.hasComponent(UIImage.class)) {
             return ImGui.colorConvertFloat4ToU32(0.4f, 0.4f, 0.3f, 0.6f);
-        } else if (entity.hasComponent("UIText")) {
+        } else if (entity.hasComponent(UIText.class)) {
             return 0;
         } else {
             return ImGui.colorConvertFloat4ToU32(0.3f, 0.3f, 0.3f, 0.4f);
@@ -323,13 +324,13 @@ public class UIPreviewRenderer {
 
         float width = ComponentReflectionUtils.getFloat(transformComp, "width", 100f);
         float height = ComponentReflectionUtils.getFloat(transformComp, "height", 100f);
-        
+
         Object offsetObj = ComponentReflectionUtils.getFieldValue(transformComp, "offset");
         Vector2f offset = offsetObj instanceof Vector2f v ? v : new Vector2f(0, 0);
-        
+
         Object anchorObj = ComponentReflectionUtils.getFieldValue(transformComp, "anchor");
         Vector2f anchor = anchorObj instanceof Vector2f v ? v : new Vector2f(0, 0);
-        
+
         Object pivotObj = ComponentReflectionUtils.getFieldValue(transformComp, "pivot");
         Vector2f pivot = pivotObj instanceof Vector2f v ? v : new Vector2f(0, 0);
 
@@ -364,8 +365,8 @@ public class UIPreviewRenderer {
     private EditorGameObject findParentWithUITransform(EditorGameObject entity) {
         EditorGameObject parent = entity.getParent();
         while (parent != null) {
-            if (parent.hasComponent("UITransform") || parent.hasComponent("UICanvas")) {
-                if (parent.hasComponent("UITransform")) {
+            if (parent.hasComponent(UITransform.class) || parent.hasComponent(UICanvas.class)) {
+                if (parent.hasComponent(UITransform.class)) {
                     return parent;
                 }
                 return null;
@@ -378,7 +379,7 @@ public class UIPreviewRenderer {
     private int getCanvasSortOrder(EditorGameObject entity) {
         EditorGameObject current = entity;
         while (current != null) {
-            if (current.hasComponent("UICanvas")) {
+            if (current.hasComponent(UICanvas.class)) {
                 Component canvas = current.getComponentByType("UICanvas");
                 if (canvas != null) {
                     return ComponentReflectionUtils.getInt(canvas, "sortOrder", 0);
@@ -391,12 +392,12 @@ public class UIPreviewRenderer {
     }
 
     private boolean isUIEntity(EditorGameObject entity) {
-        return entity.hasComponent("UICanvas") ||
-                entity.hasComponent("UITransform") ||
-                entity.hasComponent("UIPanel") ||
-                entity.hasComponent("UIImage") ||
-                entity.hasComponent("UIButton") ||
-                entity.hasComponent("UIText");
+        return entity.hasComponent(UICanvas.class) ||
+                entity.hasComponent(UITransform.class) ||
+                entity.hasComponent(UIPanel.class) ||
+                entity.hasComponent(UIImage.class) ||
+                entity.hasComponent(UIButton.class) ||
+                entity.hasComponent(UIText.class);
     }
 
     private static class UIRenderEntry {

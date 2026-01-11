@@ -1,8 +1,9 @@
-package com.pocket.rpg.editor.utils;
+package com.pocket.rpg.editor.ui.inspectors;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
+import com.pocket.rpg.editor.ui.fields.FieldEditors;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import com.pocket.rpg.ui.text.Font;
 import imgui.ImGui;
@@ -16,7 +17,7 @@ import org.joml.Vector4f;
  * Custom editor for UIText component.
  * Organizes fields into logical sections.
  */
-public class UITextEditor implements CustomComponentEditor {
+public class UITextInspector implements CustomComponentInspector {
 
     private static final String[] H_ALIGNMENTS = {"LEFT", "CENTER", "RIGHT"};
     private static final String[] V_ALIGNMENTS = {"TOP", "MIDDLE", "BOTTOM"};

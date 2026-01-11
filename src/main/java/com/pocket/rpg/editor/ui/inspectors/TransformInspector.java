@@ -1,7 +1,8 @@
-package com.pocket.rpg.editor.utils;
+package com.pocket.rpg.editor.ui.inspectors;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.editor.scene.EditorGameObject;
+import com.pocket.rpg.editor.ui.fields.FieldEditors;
 
 /**
  * Custom editor for Transform component.
@@ -12,7 +13,7 @@ import com.pocket.rpg.editor.scene.EditorGameObject;
  * - Undo capture/push
  * - XYZ axis coloring
  */
-public class TransformEditor implements CustomComponentEditor {
+public class TransformInspector implements CustomComponentInspector {
 
     @Override
     public boolean draw(Component component, EditorGameObject entity) {

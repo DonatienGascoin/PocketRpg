@@ -1,9 +1,10 @@
-package com.pocket.rpg.editor.utils;
+package com.pocket.rpg.editor.ui.inspectors;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
+import com.pocket.rpg.editor.ui.fields.FieldEditors;
 import com.pocket.rpg.rendering.Sprite;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import imgui.ImGui;
@@ -12,7 +13,7 @@ import org.joml.Vector4f;
 /**
  * Custom editor for UIImage component.
  */
-public class UIImageEditor implements CustomComponentEditor {
+public class UIImageInspector implements CustomComponentInspector {
 
     @Override
     public boolean draw(Component component, EditorGameObject entity) {

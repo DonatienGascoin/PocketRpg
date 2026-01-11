@@ -1,9 +1,10 @@
-package com.pocket.rpg.editor.utils;
+package com.pocket.rpg.editor.ui.inspectors;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ui.UICanvas;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
+import com.pocket.rpg.editor.ui.fields.FieldEditors;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import imgui.ImGui;
 import imgui.type.ImInt;
@@ -12,7 +13,7 @@ import imgui.type.ImInt;
  * Custom editor for UICanvas component.
  * Shows planeDistance only when renderMode is SCREEN_SPACE_CAMERA.
  */
-public class UICanvasEditor implements CustomComponentEditor {
+public class UICanvasInspector implements CustomComponentInspector {
 
     private static final String[] RENDER_MODES = {
             "SCREEN_SPACE_OVERLAY",

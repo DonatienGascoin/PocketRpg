@@ -3,7 +3,7 @@ package com.pocket.rpg.editor.panels;
 import com.pocket.rpg.editor.panels.inspector.*;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
-import com.pocket.rpg.editor.utils.ReflectionFieldEditor;
+import com.pocket.rpg.editor.ui.fields.ReflectionFieldEditor;
 import imgui.ImGui;
 import lombok.Setter;
 

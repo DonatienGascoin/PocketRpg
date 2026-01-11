@@ -571,10 +571,6 @@ public class EditorGameObject {
         return null;
     }
 
-    public boolean hasComponent(String simpleName) {
-        return getComponentByType(simpleName) != null;
-    }
-
     @SuppressWarnings("unchecked")
     public boolean hasComponent(Class<?> clazz) {
         return getComponent((Class<? extends Component>) clazz) != null;

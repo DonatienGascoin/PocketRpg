@@ -1,4 +1,4 @@
-package com.pocket.rpg.editor.utils.fields;
+package com.pocket.rpg.editor.ui.fields;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;

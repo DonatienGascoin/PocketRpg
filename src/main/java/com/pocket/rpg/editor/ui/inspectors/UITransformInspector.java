@@ -1,9 +1,10 @@
-package com.pocket.rpg.editor.utils;
+package com.pocket.rpg.editor.ui.inspectors;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
+import com.pocket.rpg.editor.ui.fields.FieldEditors;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.UITransformDragCommand;
 import com.pocket.rpg.rendering.Sprite;
@@ -28,7 +29,7 @@ import java.util.List;
  * - Cascading resize (children scale with parent)
  * - Undo/redo support
  */
-public class UITransformEditor implements CustomComponentEditor {
+public class UITransformInspector implements CustomComponentInspector {
 
     // Anchor/Pivot preset positions
     private static final float[][] PRESETS = {
@@ -71,7 +72,7 @@ public class UITransformEditor implements CustomComponentEditor {
     @Setter
     private boolean compactLayout = false;
 
-    public UITransformEditor(boolean compactLayout) {
+    public UITransformInspector(boolean compactLayout) {
         this.compactLayout = compactLayout;
     }
 

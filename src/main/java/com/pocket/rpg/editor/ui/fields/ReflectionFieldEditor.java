@@ -1,11 +1,11 @@
-package com.pocket.rpg.editor.utils;
+package com.pocket.rpg.editor.ui.fields;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.SetComponentFieldCommand;
-import com.pocket.rpg.editor.utils.fields.FieldEditorContext;
+import com.pocket.rpg.editor.ui.inspectors.CustomComponentEditorRegistry;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.serialization.ComponentMeta;
 import com.pocket.rpg.serialization.ComponentRefMeta;

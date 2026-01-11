@@ -1,4 +1,4 @@
-package com.pocket.rpg.editor.utils;
+package com.pocket.rpg.editor.ui.inspectors;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.editor.scene.EditorGameObject;
@@ -9,9 +9,9 @@ import com.pocket.rpg.editor.scene.EditorGameObject;
  * Implement this to provide a specialized UI for editing specific component types
  * instead of the default reflection-based field editor.
  * <p>
- * Register implementations via {@link CustomComponentEditorRegistry#register(String, CustomComponentEditor)}.
+ * Register implementations via {@link CustomComponentEditorRegistry#register(Class, CustomComponentInspector)}.
  */
-public interface CustomComponentEditor {
+public interface CustomComponentInspector {
 
     /**
      * Draws the custom editor UI for the component.

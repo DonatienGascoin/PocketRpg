@@ -1,5 +1,6 @@
 package com.pocket.rpg.editor.utils;
 
+import com.pocket.rpg.components.ui.*;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 
@@ -7,17 +8,17 @@ public class IconUtils {
 
     public static String getIconForEntity(EditorGameObject entity) {
         // Check for UI components first
-        if (entity.hasComponent("UICanvas")) {
+        if (entity.hasComponent(UICanvas.class)) {
             return getUICanvasIcon();
-        } else if (entity.hasComponent("UIButton")) {
+        } else if (entity.hasComponent(UIButton.class)) {
             return getUIButtonIcon();
-        } else if (entity.hasComponent("UIText")) {
+        } else if (entity.hasComponent(UIText.class)) {
             return getUITextIcon();
-        } else if (entity.hasComponent("UIImage")) {
+        } else if (entity.hasComponent(UIImage.class)) {
             return getUIImageIcon();
-        } else if (entity.hasComponent("UIPanel")) {
+        } else if (entity.hasComponent(UIPanel.class)) {
             return getUIPanelIcon();
-        } else if (entity.hasComponent("UITransform")) {
+        } else if (entity.hasComponent(UITransform.class)) {
             return getUITransformIcon();
         }
 

@@ -1,6 +1,7 @@
 package com.pocket.rpg.editor.panels;
 
 import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.ui.*;
 import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.editor.EditorContext;
@@ -54,13 +55,17 @@ public class UIDesignerPanel {
     private float cameraY = 0;
     private float zoom = 1.0f;
 
-    public enum BackgroundMode { WORLD, GRAY }
-    @Getter @Setter
+    public enum BackgroundMode {WORLD, GRAY}
+
+    @Getter
+    @Setter
     private BackgroundMode backgroundMode = BackgroundMode.GRAY;
 
-    @Getter @Setter
+    @Getter
+    @Setter
     private boolean snapEnabled = false;
-    @Getter @Setter
+    @Getter
+    @Setter
     private boolean showAnchorLines = false;
     private static final float SNAP_THRESHOLD = 8f;
 
@@ -272,7 +277,7 @@ public class UIDesignerPanel {
 
         for (EditorGameObject entity : scene.getEntities()) {
             if (!isUIEntity(entity)) continue;
-            if (entity.hasComponent("UICanvas")) continue;
+            if (entity.hasComponent(UICanvas.class)) continue;
             renderUIElementContent(entity);
         }
 
@@ -295,7 +300,7 @@ public class UIDesignerPanel {
 
         boolean contentRendered = false;
 
-        if (entity.hasComponent("UIImage")) {
+        if (entity.hasComponent(UIImage.class)) {
             Component imageComp = entity.getComponentByType("UIImage");
             if (imageComp != null) {
                 contentRendered = renderSpriteToBackend(
@@ -306,7 +311,7 @@ public class UIDesignerPanel {
             }
         }
 
-        if (!contentRendered && entity.hasComponent("UIButton")) {
+        if (!contentRendered && entity.hasComponent(UIButton.class)) {
             Component buttonComp = entity.getComponentByType("UIButton");
             if (buttonComp != null) {
                 contentRendered = renderSpriteToBackend(
@@ -325,7 +330,7 @@ public class UIDesignerPanel {
             }
         }
 
-        if (!contentRendered && entity.hasComponent("UIPanel")) {
+        if (!contentRendered && entity.hasComponent(UIPanel.class)) {
             Component panelComp = entity.getComponentByType("UIPanel");
             if (panelComp != null) {
                 contentRendered = renderSpriteToBackend(
@@ -336,7 +341,7 @@ public class UIDesignerPanel {
             }
         }
 
-        if (!contentRendered && !entity.hasComponent("UIText")) {
+        if (!contentRendered && !entity.hasComponent(UIText.class)) {
             Vector4f fillColor = getElementFillColorVec4(entity);
             if (fillColor.w > 0) {
                 uiRenderer.drawRect(x, y, width, height, fillColor, zIndex);
@@ -431,7 +436,7 @@ public class UIDesignerPanel {
         if (scene == null) return;
 
         for (EditorGameObject entity : scene.getEntities()) {
-            if (!entity.hasComponent("UIText")) continue;
+            if (!entity.hasComponent(UIText.class)) continue;
 
             Component textComp = entity.getComponentByType("UIText");
             if (textComp == null) continue;
@@ -611,7 +616,7 @@ public class UIDesignerPanel {
 
         for (EditorGameObject entity : scene.getEntities()) {
             if (!isUIEntity(entity)) continue;
-            if (entity.hasComponent("UICanvas")) continue;
+            if (entity.hasComponent(UICanvas.class)) continue;
 
             float[] bounds = calculateElementBounds(entity);
             if (bounds == null) continue;
@@ -668,7 +673,7 @@ public class UIDesignerPanel {
 
         for (EditorGameObject entity : scene.getSelectedEntities()) {
             if (!isUIEntity(entity)) continue;
-            if (entity.hasComponent("UICanvas")) continue;
+            if (entity.hasComponent(UICanvas.class)) continue;
 
             if (isHovered && !isDraggingElement && !isDraggingHandle && !isDraggingAnchor && !isDraggingPivot) {
                 ResizeHandle handle = hitTestHandles(entity, localX, localY);
@@ -945,7 +950,7 @@ public class UIDesignerPanel {
         if (scene == null) return;
 
         for (EditorGameObject entity : scene.getSelectedEntities()) {
-            if (!isUIEntity(entity) || entity.hasComponent("UICanvas")) continue;
+            if (!isUIEntity(entity) || entity.hasComponent(UICanvas.class)) continue;
 
             if (hitTestAnchor(entity, localX, localY)) {
                 startAnchorDrag(entity);
@@ -971,7 +976,7 @@ public class UIDesignerPanel {
         for (int i = entities.size() - 1; i >= 0; i--) {
             EditorGameObject entity = entities.get(i);
             if (!isUIEntity(entity)) continue;
-            if (entity.hasComponent("UICanvas")) continue;
+            if (entity.hasComponent(UICanvas.class)) continue;
 
             if (hitTest(entity, canvasPos.x, canvasPos.y)) {
                 clicked = entity;
@@ -1618,8 +1623,8 @@ public class UIDesignerPanel {
     private EditorGameObject findParentWithUITransform(EditorGameObject entity) {
         EditorGameObject parent = entity.getParent();
         while (parent != null) {
-            if (parent.hasComponent("UITransform") || parent.hasComponent("UICanvas")) {
-                if (parent.hasComponent("UITransform")) {
+            if (parent.hasComponent(UITransform.class) || parent.hasComponent(UICanvas.class)) {
+                if (parent.hasComponent(UITransform.class)) {
                     return parent;
                 }
                 return null;
@@ -1630,12 +1635,12 @@ public class UIDesignerPanel {
     }
 
     private boolean isUIEntity(EditorGameObject entity) {
-        return entity.hasComponent("UICanvas") ||
-                entity.hasComponent("UITransform") ||
-                entity.hasComponent("UIPanel") ||
-                entity.hasComponent("UIImage") ||
-                entity.hasComponent("UIButton") ||
-                entity.hasComponent("UIText");
+        return entity.hasComponent(UICanvas.class) ||
+                entity.hasComponent(UITransform.class) ||
+                entity.hasComponent(UIPanel.class) ||
+                entity.hasComponent(UIImage.class) ||
+                entity.hasComponent(UIButton.class) ||
+                entity.hasComponent(UIText.class);
     }
 
     // ========================================================================
@@ -1697,13 +1702,13 @@ public class UIDesignerPanel {
     }
 
     private Vector4f getElementFillColorVec4(EditorGameObject entity) {
-        if (entity.hasComponent("UIPanel")) {
+        if (entity.hasComponent(UIPanel.class)) {
             return new Vector4f(0.3f, 0.3f, 0.4f, 0.6f);
-        } else if (entity.hasComponent("UIButton")) {
+        } else if (entity.hasComponent(UIButton.class)) {
             return new Vector4f(0.3f, 0.5f, 0.3f, 0.6f);
-        } else if (entity.hasComponent("UIImage")) {
+        } else if (entity.hasComponent(UIImage.class)) {
             return new Vector4f(0.4f, 0.4f, 0.3f, 0.6f);
-        } else if (entity.hasComponent("UIText")) {
+        } else if (entity.hasComponent(UIText.class)) {
             return new Vector4f(0.4f, 0.3f, 0.4f, 0.6f);
         } else {
             return new Vector4f(0.3f, 0.3f, 0.3f, 0.4f);

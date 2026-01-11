@@ -1,6 +1,8 @@
 package com.pocket.rpg.editor.panels.hierarchy;
 
 import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.ui.UICanvas;
+import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.UIEntityFactory;
@@ -139,7 +141,7 @@ public class EntityCreationService {
      * Checks if entity is a UI element (has UICanvas or UITransform component).
      */
     private boolean isUIElement(EditorGameObject entity) {
-        return entity.hasComponent("UICanvas") || entity.hasComponent("UITransform");
+        return entity.hasComponent(UICanvas.class) || entity.hasComponent(UITransform.class);
     }
 
     /**
@@ -147,7 +149,7 @@ public class EntityCreationService {
      */
     private EditorGameObject findCanvasChildOf(EditorGameObject parent) {
         for (EditorGameObject child : parent.getChildren()) {
-            if (child.hasComponent("UICanvas")) {
+            if (child.hasComponent(UICanvas.class)) {
                 return child;
             }
         }
@@ -159,7 +161,7 @@ public class EntityCreationService {
      */
     private EditorGameObject findRootCanvas() {
         for (EditorGameObject entity : scene.getRootEntities()) {
-            if (entity.hasComponent("UICanvas")) {
+            if (entity.hasComponent(UICanvas.class)) {
                 return entity;
             }
         }

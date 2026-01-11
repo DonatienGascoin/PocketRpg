@@ -1,8 +1,9 @@
-package com.pocket.rpg.editor.utils;
+package com.pocket.rpg.editor.ui.inspectors;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
+import com.pocket.rpg.editor.ui.fields.FieldEditors;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import imgui.ImGui;
 import org.joml.Vector4f;
@@ -10,7 +11,7 @@ import org.joml.Vector4f;
 /**
  * Custom editor for UIPanel component.
  */
-public class UIPanelEditor implements CustomComponentEditor {
+public class UIPanelInspector implements CustomComponentInspector {
 
     // Common color presets
     private static final float[][] COLOR_PRESETS = {

@@ -4,7 +4,7 @@ import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.components.TilemapRenderer;
 import com.pocket.rpg.components.TilemapRenderer.Tile;
 import com.pocket.rpg.core.GameObject;
-import com.pocket.rpg.rendering.Sprite;
+import com.pocket.rpg.rendering.resources.Sprite;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;

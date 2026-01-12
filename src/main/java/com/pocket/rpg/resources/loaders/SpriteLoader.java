@@ -3,8 +3,8 @@ package com.pocket.rpg.resources.loaders;
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
-import com.pocket.rpg.rendering.Sprite;
-import com.pocket.rpg.rendering.Texture;
+import com.pocket.rpg.rendering.resources.Sprite;
+import com.pocket.rpg.rendering.resources.Texture;
 import com.pocket.rpg.resources.AssetLoader;
 import org.joml.Vector3f;
 

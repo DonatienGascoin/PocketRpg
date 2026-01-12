@@ -2,10 +2,10 @@ package com.pocket.rpg.resources;
 
 import com.pocket.rpg.prefab.JsonPrefab;
 import com.pocket.rpg.prefab.JsonPrefabLoader;
-import com.pocket.rpg.rendering.Shader;
-import com.pocket.rpg.rendering.Sprite;
-import com.pocket.rpg.rendering.SpriteSheet;
-import com.pocket.rpg.rendering.Texture;
+import com.pocket.rpg.rendering.resources.Shader;
+import com.pocket.rpg.rendering.resources.Sprite;
+import com.pocket.rpg.rendering.resources.SpriteSheet;
+import com.pocket.rpg.rendering.resources.Texture;
 import com.pocket.rpg.resources.loaders.*;
 import com.pocket.rpg.serialization.SceneData;
 import com.pocket.rpg.ui.text.Font;

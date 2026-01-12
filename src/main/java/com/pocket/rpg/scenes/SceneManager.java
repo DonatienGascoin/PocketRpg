@@ -1,8 +1,8 @@
 package com.pocket.rpg.scenes;
 
 import com.pocket.rpg.config.RenderingConfig;
-import com.pocket.rpg.core.GameCamera;
-import com.pocket.rpg.core.ViewportConfig;
+import com.pocket.rpg.core.camera.GameCamera;
+import com.pocket.rpg.core.window.ViewportConfig;
 import lombok.Getter;
 import lombok.NonNull;
 

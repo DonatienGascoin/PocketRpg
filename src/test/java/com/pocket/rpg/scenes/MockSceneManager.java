@@ -2,7 +2,7 @@ package com.pocket.rpg.scenes;
 
 import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.config.RenderingConfig;
-import com.pocket.rpg.core.ViewportConfig;
+import com.pocket.rpg.core.window.ViewportConfig;
 
 import java.util.ArrayList;
 import java.util.HashMap;

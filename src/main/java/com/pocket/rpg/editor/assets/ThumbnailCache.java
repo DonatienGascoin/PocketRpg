@@ -1,7 +1,7 @@
 package com.pocket.rpg.editor.assets;
 
-import com.pocket.rpg.rendering.Sprite;
-import com.pocket.rpg.rendering.Texture;
+import com.pocket.rpg.rendering.resources.Sprite;
+import com.pocket.rpg.rendering.resources.Texture;
 
 import java.util.HashMap;
 import java.util.Map;

@@ -6,7 +6,7 @@ import com.pocket.rpg.components.TilemapRenderer;
 import com.pocket.rpg.components.Transform;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.core.GameObject;
-import com.pocket.rpg.core.ViewportConfig;
+import com.pocket.rpg.core.window.ViewportConfig;
 import com.pocket.rpg.prefab.Prefab;
 import com.pocket.rpg.prefab.PrefabRegistry;
 import com.pocket.rpg.resources.Assets;

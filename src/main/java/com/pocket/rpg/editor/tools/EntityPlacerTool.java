@@ -7,7 +7,7 @@ import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.AddEntityCommand;
 import com.pocket.rpg.prefab.PrefabRegistry;
-import com.pocket.rpg.rendering.Sprite;
+import com.pocket.rpg.rendering.resources.Sprite;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import lombok.Getter;

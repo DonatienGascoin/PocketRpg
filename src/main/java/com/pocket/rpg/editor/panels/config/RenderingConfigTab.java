@@ -4,7 +4,7 @@ import com.pocket.rpg.config.ConfigLoader;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.editor.EditorContext;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
-import com.pocket.rpg.rendering.SpriteBatch;
+import com.pocket.rpg.rendering.batch.SpriteBatch;
 import imgui.ImGui;
 import imgui.type.ImInt;
 import lombok.RequiredArgsConstructor;

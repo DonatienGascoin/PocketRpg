@@ -9,7 +9,7 @@ import com.pocket.rpg.components.TilemapRenderer;
 import com.pocket.rpg.components.TilemapRenderer.LedgeDirection;
 import com.pocket.rpg.components.TilemapRenderer.Tile;
 import com.pocket.rpg.components.TilemapRenderer.TileChunk;
-import com.pocket.rpg.rendering.Sprite;
+import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.resources.AssetContext;
 import com.pocket.rpg.resources.SpriteReference;
 import com.pocket.rpg.serialization.ComponentMeta;

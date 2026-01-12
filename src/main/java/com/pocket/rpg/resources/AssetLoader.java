@@ -2,7 +2,7 @@ package com.pocket.rpg.resources;
 
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
-import com.pocket.rpg.rendering.Sprite;
+import com.pocket.rpg.rendering.resources.Sprite;
 import org.joml.Vector3f;
 
 import java.io.IOException;

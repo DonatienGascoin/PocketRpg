@@ -91,6 +91,9 @@ game_atlas.png (1024×1024)
 ```java
 package com.pocket.rpg.rendering;
 
+import com.pocket.rpg.rendering.resources.Sprite;
+import com.pocket.rpg.rendering.resources.Texture;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -99,12 +102,12 @@ import java.util.Map;
  * Maps sprite names to regions (UV coordinates) within the atlas.
  */
 public class TextureAtlas {
-    
+
     private final Texture atlasTexture;
     private final Map<String, AtlasRegion> regions = new HashMap<>();
     private final int width;
     private final int height;
-    
+
     /**
      * Represents a rectangular region within the atlas.
      */
@@ -112,32 +115,32 @@ public class TextureAtlas {
         public final String name;
         public final int x, y, width, height;
         public final float u0, v0, u1, v1; // UV coordinates (0-1 range)
-        
+
         public AtlasRegion(String name, int x, int y, int width, int height,
-                          int atlasWidth, int atlasHeight) {
+                           int atlasWidth, int atlasHeight) {
             this.name = name;
             this.x = x;
             this.y = y;
             this.width = width;
             this.height = height;
-            
+
             // Calculate normalized UV coordinates
             this.u0 = x / (float) atlasWidth;
             this.v0 = y / (float) atlasHeight;
             this.u1 = (x + width) / (float) atlasWidth;
             this.v1 = (y + height) / (float) atlasHeight;
         }
-        
+
         @Override
         public String toString() {
             return String.format("AtlasRegion[%s: (%d,%d) %dx%d, UV=(%.3f,%.3f)-(%.3f,%.3f)]",
-                name, x, y, width, height, u0, v0, u1, v1);
+                    name, x, y, width, height, u0, v0, u1, v1);
         }
     }
-    
+
     /**
      * Creates a texture atlas from an existing image file.
-     * 
+     *
      * @param atlasImagePath Path to the atlas texture image
      */
     public TextureAtlas(String atlasImagePath) throws Exception {
@@ -145,7 +148,7 @@ public class TextureAtlas {
         this.width = atlasTexture.getWidth();
         this.height = atlasTexture.getHeight();
     }
-    
+
     /**
      * Creates a texture atlas from an existing texture.
      */
@@ -154,10 +157,10 @@ public class TextureAtlas {
         this.width = atlasTexture.getWidth();
         this.height = atlasTexture.getHeight();
     }
-    
+
     /**
      * Adds a named region to the atlas.
-     * 
+     *
      * @param name Unique identifier for this region
      * @param x X position in pixels (top-left)
      * @param y Y position in pixels (top-left)
@@ -168,11 +171,11 @@ public class TextureAtlas {
         if (regions.containsKey(name)) {
             System.err.println("Warning: Region '" + name + "' already exists, overwriting");
         }
-        
+
         AtlasRegion region = new AtlasRegion(name, x, y, width, height, this.width, this.height);
         regions.put(name, region);
     }
-    
+
     /**
      * Gets a region by name.
      */
@@ -183,33 +186,33 @@ public class TextureAtlas {
         }
         return region;
     }
-    
+
     /**
      * Checks if a region exists.
      */
     public boolean hasRegion(String name) {
         return regions.containsKey(name);
     }
-    
+
     /**
      * Creates a sprite from a region, using the region's original size.
-     * 
+     *
      * @param name Region name
      * @return Sprite using atlas texture and region UVs
      */
     public Sprite getSprite(String name) {
         AtlasRegion region = getRegion(name);
         return new Sprite(
-            atlasTexture,
-            region.u0, region.v0,
-            region.u1, region.v1,
-            region.width, region.height
+                atlasTexture,
+                region.u0, region.v0,
+                region.u1, region.v1,
+                region.width, region.height
         );
     }
-    
+
     /**
      * Creates a sprite from a region with custom display size.
-     * 
+     *
      * @param name Region name
      * @param width Display width (can differ from region pixel size)
      * @param height Display height
@@ -218,17 +221,17 @@ public class TextureAtlas {
     public Sprite getSprite(String name, float width, float height) {
         AtlasRegion region = getRegion(name);
         return new Sprite(
-            atlasTexture,
-            region.u0, region.v0,
-            region.u1, region.v1,
-            width, height
+                atlasTexture,
+                region.u0, region.v0,
+                region.u1, region.v1,
+                width, height
         );
     }
-    
+
     /**
      * Creates multiple sprites for animation frames.
      * Assumes frame names follow pattern: baseName_0, baseName_1, etc.
-     * 
+     *
      * @param baseName Base name (e.g., "run")
      * @param frameCount Number of frames
      * @return List of sprites for animation
@@ -241,28 +244,28 @@ public class TextureAtlas {
         }
         return frames;
     }
-    
+
     /**
      * Gets the underlying atlas texture.
      */
     public Texture getAtlasTexture() {
         return atlasTexture;
     }
-    
+
     /**
      * Gets all region names in the atlas.
      */
     public Set<String> getRegionNames() {
         return regions.keySet();
     }
-    
+
     /**
      * Gets the number of regions in the atlas.
      */
     public int getRegionCount() {
         return regions.size();
     }
-    
+
     /**
      * Prints all regions in the atlas (for debugging).
      */
@@ -479,7 +482,6 @@ Instead of manually creating atlases in image editors, generate them programmati
 ```java
 package com.pocket.rpg.tools;
 
-import com.pocket.rpg.rendering.Texture;
 import com.pocket.rpg.rendering.TextureAtlas;
 import com.pocket.rpg.rendering.AtlasLoader;
 
@@ -495,10 +497,10 @@ import java.util.List;
  * Uses a simple shelf-packing algorithm.
  */
 public class AtlasGenerator {
-    
+
     /**
      * Generates an atlas from a list of texture files.
-     * 
+     *
      * @param texturePaths List of paths to individual textures
      * @param maxWidth Maximum atlas width (power of 2 recommended)
      * @param maxHeight Maximum atlas height (power of 2 recommended)
@@ -507,14 +509,14 @@ public class AtlasGenerator {
      * @return Generated TextureAtlas
      */
     public static TextureAtlas generate(List<String> texturePaths,
-                                       int maxWidth, int maxHeight,
-                                       int padding, String outputPath) throws Exception {
-        
+                                        int maxWidth, int maxHeight,
+                                        int padding, String outputPath) throws Exception {
+
         System.out.println("=== Atlas Generator ===");
         System.out.println("Textures: " + texturePaths.size());
         System.out.println("Max size: " + maxWidth + "×" + maxHeight);
         System.out.println("Padding: " + padding + "px");
-        
+
         // Load all textures
         List<PackedTexture> textures = new ArrayList<>();
         for (String path : texturePaths) {
@@ -522,86 +524,86 @@ public class AtlasGenerator {
             String name = extractName(path); // e.g., "assets/player.png" → "player"
             textures.add(new PackedTexture(name, image));
         }
-        
+
         // Sort by height (tallest first) for better packing
         textures.sort((a, b) -> Integer.compare(b.image.getHeight(), a.image.getHeight()));
-        
+
         // Pack textures using shelf algorithm
         List<PackedTexture> packed = packTextures(textures, maxWidth, maxHeight, padding);
-        
+
         if (packed.size() < textures.size()) {
             System.err.println("Warning: Not all textures fit in atlas!");
             System.err.println("  Requested: " + textures.size());
             System.err.println("  Packed: " + packed.size());
             System.err.println("  Consider increasing atlas size");
         }
-        
+
         // Calculate actual atlas size (tighten bounds)
         int atlasWidth = calculateRequiredWidth(packed, padding);
         int atlasHeight = calculateRequiredHeight(packed, padding);
-        
+
         // Round up to power of 2 (GPU-friendly)
         atlasWidth = nextPowerOfTwo(atlasWidth);
         atlasHeight = nextPowerOfTwo(atlasHeight);
-        
+
         System.out.println("Actual atlas size: " + atlasWidth + "×" + atlasHeight);
-        
+
         // Create atlas image
         BufferedImage atlasImage = new BufferedImage(atlasWidth, atlasHeight, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = atlasImage.createGraphics();
-        
+
         // Fill with transparent background
         g.setComposite(AlphaComposite.Clear);
         g.fillRect(0, 0, atlasWidth, atlasHeight);
         g.setComposite(AlphaComposite.Src);
-        
+
         // Draw all packed textures
         for (PackedTexture pt : packed) {
             g.drawImage(pt.image, pt.x, pt.y, null);
         }
         g.dispose();
-        
+
         // Save atlas image
         File outputFile = new File(outputPath);
         outputFile.getParentFile().mkdirs(); // Create directories if needed
         ImageIO.write(atlasImage, "PNG", outputFile);
         System.out.println("✓ Atlas image saved: " + outputPath);
-        
+
         // Create TextureAtlas object
         TextureAtlas atlas = new TextureAtlas(outputPath);
-        
+
         // Add all regions
         for (PackedTexture pt : packed) {
             atlas.addRegion(pt.name, pt.x, pt.y, pt.width, pt.height);
         }
-        
+
         // Save JSON definition
         String jsonPath = outputPath.replace(".png", ".json");
         AtlasLoader.save(atlas, jsonPath);
-        
+
         System.out.println("✓ Atlas generated successfully!");
         System.out.println("  Packed: " + packed.size() + "/" + textures.size() + " textures");
         System.out.println("  Size: " + atlasWidth + "×" + atlasHeight);
         System.out.println("  Utilization: " + calculateUtilization(packed, atlasWidth, atlasHeight) + "%");
-        
+
         return atlas;
     }
-    
+
     /**
      * Packs textures using simple shelf algorithm.
      */
     private static List<PackedTexture> packTextures(List<PackedTexture> textures,
                                                     int maxWidth, int maxHeight, int padding) {
         List<PackedTexture> packed = new ArrayList<>();
-        
+
         int currentX = padding;
         int currentY = padding;
         int currentShelfHeight = 0;
-        
+
         for (PackedTexture tex : textures) {
             int width = tex.image.getWidth();
             int height = tex.image.getHeight();
-            
+
             // Check if we need a new shelf
             if (currentX + width + padding > maxWidth) {
                 // Move to next shelf
@@ -609,29 +611,29 @@ public class AtlasGenerator {
                 currentY += currentShelfHeight + padding;
                 currentShelfHeight = 0;
             }
-            
+
             // Check if we've run out of vertical space
             if (currentY + height + padding > maxHeight) {
                 System.err.println("Warning: Texture '" + tex.name + "' doesn't fit in atlas");
                 continue;
             }
-            
+
             // Place texture
             tex.x = currentX;
             tex.y = currentY;
             tex.width = width;
             tex.height = height;
-            
+
             packed.add(tex);
-            
+
             // Update position for next texture
             currentX += width + padding;
             currentShelfHeight = Math.max(currentShelfHeight, height);
         }
-        
+
         return packed;
     }
-    
+
     /**
      * Helper class for packing.
      */
@@ -639,32 +641,32 @@ public class AtlasGenerator {
         String name;
         BufferedImage image;
         int x, y, width, height;
-        
+
         PackedTexture(String name, BufferedImage image) {
             this.name = name;
             this.image = image;
         }
     }
-    
+
     private static String extractName(String path) {
         String filename = new File(path).getName();
         return filename.substring(0, filename.lastIndexOf('.'));
     }
-    
+
     private static int calculateRequiredWidth(List<PackedTexture> packed, int padding) {
         return packed.stream()
-            .mapToInt(pt -> pt.x + pt.width + padding)
-            .max()
-            .orElse(0);
+                .mapToInt(pt -> pt.x + pt.width + padding)
+                .max()
+                .orElse(0);
     }
-    
+
     private static int calculateRequiredHeight(List<PackedTexture> packed, int padding) {
         return packed.stream()
-            .mapToInt(pt -> pt.y + pt.height + padding)
-            .max()
-            .orElse(0);
+                .mapToInt(pt -> pt.y + pt.height + padding)
+                .max()
+                .orElse(0);
     }
-    
+
     private static int nextPowerOfTwo(int n) {
         int power = 1;
         while (power < n) {
@@ -672,15 +674,15 @@ public class AtlasGenerator {
         }
         return power;
     }
-    
+
     private static float calculateUtilization(List<PackedTexture> packed, int atlasWidth, int atlasHeight) {
         int usedPixels = packed.stream()
-            .mapToInt(pt -> pt.width * pt.height)
-            .sum();
+                .mapToInt(pt -> pt.width * pt.height)
+                .sum();
         int totalPixels = atlasWidth * atlasHeight;
         return (usedPixels / (float) totalPixels) * 100;
     }
-    
+
     /**
      * CLI tool for generating atlases.
      */
@@ -691,15 +693,15 @@ public class AtlasGenerator {
                 System.out.println("Example: AtlasGenerator game_atlas.png assets/*.png");
                 return;
             }
-            
+
             String outputPath = args[0];
             List<String> texturePaths = new ArrayList<>();
             for (int i = 1; i < args.length; i++) {
                 texturePaths.add(args[i]);
             }
-            
+
             generate(texturePaths, 2048, 2048, 2, outputPath);
-            
+
         } catch (Exception e) {
             System.err.println("Error generating atlas: " + e.getMessage());
             e.printStackTrace();

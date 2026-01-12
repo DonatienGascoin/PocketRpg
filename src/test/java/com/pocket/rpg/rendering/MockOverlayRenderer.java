@@ -1,5 +1,6 @@
 package com.pocket.rpg.rendering;
 
+import com.pocket.rpg.rendering.core.OverlayRenderer;
 import org.joml.Vector4f;
 
 /**

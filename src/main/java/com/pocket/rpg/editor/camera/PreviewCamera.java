@@ -1,8 +1,8 @@
 package com.pocket.rpg.editor.camera;
 
-import com.pocket.rpg.core.GameCamera;
-import com.pocket.rpg.core.ViewportConfig;
-import com.pocket.rpg.rendering.RenderCamera;
+import com.pocket.rpg.core.camera.GameCamera;
+import com.pocket.rpg.core.window.ViewportConfig;
+import com.pocket.rpg.rendering.core.RenderCamera;
 import lombok.Getter;
 import org.joml.Matrix4f;
 import org.joml.Vector2f;

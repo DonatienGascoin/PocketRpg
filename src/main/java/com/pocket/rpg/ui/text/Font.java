@@ -1,6 +1,6 @@
 package com.pocket.rpg.ui.text;
 
-import com.pocket.rpg.rendering.Texture;
+import com.pocket.rpg.rendering.resources.Texture;
 import lombok.Getter;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.stb.STBTTFontinfo;

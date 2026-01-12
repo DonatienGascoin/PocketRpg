@@ -1,6 +1,8 @@
 package com.pocket.rpg.config;
 
-import com.pocket.rpg.rendering.SpriteBatch;
+import com.pocket.rpg.core.camera.GameCamera;
+import com.pocket.rpg.rendering.batch.SpriteBatch;
+import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.rendering.stats.ConsoleStatisticsReporter;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -83,9 +85,9 @@ import org.joml.Vector4f;
  * // - Each tile renders at exactly 16×16 framebuffer pixels
  * </pre>
  *
- * @see com.pocket.rpg.rendering.Sprite#getWorldWidth()
- * @see com.pocket.rpg.rendering.Sprite#getWorldHeight()
- * @see com.pocket.rpg.core.GameCamera#setOrthographicSize(float)
+ * @see Sprite#getWorldWidth()
+ * @see Sprite#getWorldHeight()
+ * @see GameCamera#setOrthographicSize(float)
  */
 @Data
 @Builder
@@ -175,12 +177,12 @@ public class RenderingConfig {
      *
      * <h3>Per-Sprite Override</h3>
      * Individual sprites can override this value using
-     * {@link com.pocket.rpg.rendering.Sprite#setPixelsPerUnitOverride(Float)}.
+     * {@link Sprite#setPixelsPerUnitOverride(Float)}.
      * This is useful when mixing sprites of different pixel densities.
      * <p>
      * Default: 16.0
      *
-     * @see com.pocket.rpg.rendering.Sprite#getWorldWidth()
+     * @see Sprite#getWorldWidth()
      */
     @Builder.Default
     private float pixelsPerUnit = 16f;
@@ -215,7 +217,7 @@ public class RenderingConfig {
      * Default: null (auto-calculate for pixel-perfect rendering)
      *
      * @see #getDefaultOrthographicSize(int)
-     * @see com.pocket.rpg.core.GameCamera#setOrthographicSize(float)
+     * @see GameCamera#setOrthographicSize(float)
      */
     @Builder.Default
     private Float defaultOrthographicSize = null;

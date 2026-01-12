@@ -1,6 +1,6 @@
 package com.pocket.rpg.resources;
 
-import com.pocket.rpg.rendering.Sprite;
+import com.pocket.rpg.rendering.resources.Sprite;
 
 /**
  * Utility class for sprite path serialization and deserialization.

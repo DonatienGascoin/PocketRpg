@@ -7,10 +7,10 @@ import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.components.ui.UICanvas;
 import com.pocket.rpg.config.RenderingConfig;
-import com.pocket.rpg.core.GameCamera;
+import com.pocket.rpg.core.camera.GameCamera;
 import com.pocket.rpg.core.GameObject;
-import com.pocket.rpg.core.ViewportConfig;
-import com.pocket.rpg.rendering.Renderable;
+import com.pocket.rpg.core.window.ViewportConfig;
+import com.pocket.rpg.rendering.core.Renderable;
 import com.pocket.rpg.serialization.ComponentRefResolver;
 import lombok.Getter;
 

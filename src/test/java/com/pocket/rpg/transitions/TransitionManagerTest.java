@@ -3,6 +3,7 @@ package com.pocket.rpg.transitions;
 import com.pocket.rpg.config.TransitionConfig;
 import com.pocket.rpg.rendering.MockOverlayRenderer;
 import com.pocket.rpg.scenes.MockSceneManager;
+import com.pocket.rpg.scenes.transitions.TransitionManager;
 import org.joml.Vector4f;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

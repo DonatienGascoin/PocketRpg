@@ -2,8 +2,8 @@ package com.pocket.rpg.prefab.prefabs;
 
 import com.pocket.rpg.components.*;
 import com.pocket.rpg.prefab.Prefab;
-import com.pocket.rpg.rendering.Sprite;
-import com.pocket.rpg.rendering.SpriteSheet;
+import com.pocket.rpg.rendering.resources.Sprite;
+import com.pocket.rpg.rendering.resources.SpriteSheet;
 import com.pocket.rpg.resources.Assets;
 
 import java.util.ArrayList;

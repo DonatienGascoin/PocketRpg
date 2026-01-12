@@ -1,10 +1,10 @@
 package com.pocket.rpg.editor.rendering;
 
 import com.pocket.rpg.config.RenderingConfig;
-import com.pocket.rpg.rendering.Shader;
-import com.pocket.rpg.rendering.Sprite;
-import com.pocket.rpg.rendering.SpriteBatch;
-import com.pocket.rpg.rendering.Texture;
+import com.pocket.rpg.rendering.resources.Shader;
+import com.pocket.rpg.rendering.resources.Sprite;
+import com.pocket.rpg.rendering.batch.SpriteBatch;
+import com.pocket.rpg.rendering.resources.Texture;
 import lombok.Getter;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;

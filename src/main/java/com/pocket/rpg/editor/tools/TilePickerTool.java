@@ -6,15 +6,12 @@ import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.TilemapLayer;
 import com.pocket.rpg.editor.tileset.TileSelection;
 import com.pocket.rpg.editor.tileset.TilesetRegistry;
-import com.pocket.rpg.rendering.Sprite;
+import com.pocket.rpg.rendering.resources.Sprite;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.flag.ImGuiKey;
 import lombok.Setter;
 import org.joml.Vector2f;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Picker tool (eyedropper) for selecting tiles from the canvas.

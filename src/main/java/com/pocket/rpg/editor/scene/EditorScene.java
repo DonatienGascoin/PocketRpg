@@ -2,14 +2,15 @@ package com.pocket.rpg.editor.scene;
 
 import com.pocket.rpg.collision.CollisionMap;
 import com.pocket.rpg.core.GameObject;
-import com.pocket.rpg.rendering.Renderable;
-import com.pocket.rpg.rendering.Sprite;
-import com.pocket.rpg.rendering.SpriteSheet;
+import com.pocket.rpg.rendering.core.Renderable;
+import com.pocket.rpg.rendering.resources.Sprite;
+import com.pocket.rpg.rendering.resources.SpriteSheet;
 import com.pocket.rpg.resources.Assets;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
+import org.joml.Vector4f;
 
 import java.util.*;
 import java.util.function.Function;
@@ -131,7 +132,7 @@ public class EditorScene {
     // ========================================================================
 
     public TilemapLayer addLayer(String layerName) {
-        int zIndex = layers.isEmpty() ? 0 : layers.get(layers.size() - 1).getZIndex() + 1;
+        int zIndex = layers.isEmpty() ? 0 : layers.getLast().getZIndex() + 1;
 
         TilemapLayer layer = new TilemapLayer(layerName, zIndex);
         layers.add(layer);
@@ -589,26 +590,70 @@ public class EditorScene {
     // RENDERING SUPPORT
     // ========================================================================
 
+    /**
+     * Returns all renderables for the scene, sorted by z-index.
+     * Includes visible tilemap layers and entities.
+     *
+     * @return Sorted list of renderables (tilemaps + entities)
+     */
     public List<Renderable> getRenderables() {
         List<Renderable> renderables = new ArrayList<>();
 
+        // Add visible tilemap layers
         for (int i = 0; i < layers.size(); i++) {
             if (isLayerVisible(i)) {
                 TilemapLayer layer = layers.get(i);
-                renderables.add(layer.getTilemap());
+                if (layer.getTilemap() != null) {
+                    renderables.add(layer.getTilemap());
+                }
             }
         }
 
+        // Add visible entities (EditorGameObject implements Renderable)
+        for (EditorGameObject entity : entities) {
+            if (entity.isRenderVisible()) {
+                renderables.add(entity);
+            }
+        }
+
+        // Sort by z-index (lower values render first/behind)
         renderables.sort(Comparator.comparingInt(Renderable::getZIndex));
         return renderables;
     }
 
-    public List<GameObject> getGameObjects() {
-        List<GameObject> objects = new ArrayList<>();
-        for (TilemapLayer layer : layers) {
-            objects.add(layer.getGameObject());
+    /**
+     * Returns renderables with tint information for editor rendering.
+     * Used by EditorSceneRenderer for layer dimming effects.
+     *
+     * @return List of RenderableWithTint containing renderable and opacity
+     */
+    public List<RenderableWithTint> getRenderablesWithTint() {
+        List<RenderableWithTint> result = new ArrayList<>();
+
+        // Add tilemap layers with opacity from visibility mode
+        for (int i = 0; i < layers.size(); i++) {
+            if (isLayerVisible(i)) {
+                TilemapLayer layer = layers.get(i);
+                if (layer.getTilemap() != null) {
+                    float opacity = getLayerOpacity(i);
+                    Vector4f tint = (opacity >= 1f)
+                            ? new Vector4f(1f, 1f, 1f, 1f)
+                            : new Vector4f(0.8f, 0.8f, 0.8f, opacity);
+                    result.add(new RenderableWithTint(layer.getTilemap(), tint));
+                }
+            }
         }
-        return objects;
+
+        // Add entities with full opacity
+        for (EditorGameObject entity : entities) {
+            if (entity.isRenderVisible()) {
+                result.add(new RenderableWithTint(entity, new Vector4f(1f, 1f, 1f, 1f)));
+            }
+        }
+
+        // Sort by z-index
+        result.sort(Comparator.comparingInt(r -> r.renderable().getZIndex()));
+        return result;
     }
 
     // ========================================================================
@@ -663,4 +708,7 @@ public class EditorScene {
         return String.format("EditorScene[name=%s, layers=%d, entities=%d, collision=%d, dirty=%b]",
                 name, layers.size(), entities.size(), collisionMap.getTileCount(), dirty);
     }
+
+    public record RenderableWithTint(Renderable renderable, Vector4f tint) {}
+
 }

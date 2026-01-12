@@ -4,7 +4,7 @@ import com.pocket.rpg.config.ConfigLoader;
 import com.pocket.rpg.config.TransitionConfig;
 import com.pocket.rpg.editor.EditorContext;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
-import com.pocket.rpg.transitions.WipeTransition;
+import com.pocket.rpg.scenes.transitions.WipeTransition;
 import imgui.ImGui;
 import imgui.type.ImString;
 import lombok.RequiredArgsConstructor;

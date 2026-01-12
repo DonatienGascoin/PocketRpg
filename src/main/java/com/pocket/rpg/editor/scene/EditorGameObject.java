@@ -5,7 +5,8 @@ import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.components.Transform;
 import com.pocket.rpg.prefab.Prefab;
 import com.pocket.rpg.prefab.PrefabRegistry;
-import com.pocket.rpg.rendering.Sprite;
+import com.pocket.rpg.rendering.core.Renderable;
+import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.serialization.*;
 import lombok.Getter;
@@ -27,7 +28,7 @@ import java.util.*;
  * Position, rotation, and scale are stored in the Transform component,
  * not as separate fields.
  */
-public class EditorGameObject {
+public class EditorGameObject implements Renderable {
 
     @Getter
     @Setter
@@ -65,7 +66,7 @@ public class EditorGameObject {
 
     private transient List<EditorGameObject> children;
 
-    private static final float DEFAULT_ENTITY_Z_INDEX = 100f;
+    private static final int DEFAULT_ENTITY_Z_INDEX = 100; // TODO: Shouldn't it be 0 ?
     private static final String TRANSFORM_TYPE = Transform.class.getName();
 
     // ========================================================================
@@ -850,15 +851,25 @@ public class EditorGameObject {
         return new Vector2f(1f, 1f);
     }
 
-    public float getZIndex() {
+    // ========================================================================
+    // RENDERABLE IMPLEMENTATION
+    // ========================================================================
+
+    @Override
+    public int getZIndex() {
         Vector3f pos = getPosition();
-        if (pos.z != 0) return pos.z;
+        if (pos.z != 0) return (int) pos.z;
 
         SpriteRenderer spriteRenderer = getComponent(SpriteRenderer.class);
         if (spriteRenderer != null) {
             return spriteRenderer.getZIndex();
         }
         return DEFAULT_ENTITY_Z_INDEX;
+    }
+
+    @Override
+    public boolean isRenderVisible() {
+        return getCurrentSprite() != null;
     }
 
     // ========================================================================

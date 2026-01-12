@@ -2,7 +2,7 @@ package com.pocket.rpg.prefab;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.SpriteRenderer;
-import com.pocket.rpg.rendering.Sprite;
+import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import lombok.Getter;
@@ -28,7 +28,7 @@ import java.util.List;
  *     {
  *       "type": "com.pocket.rpg.components.SpriteRenderer",
  *       "properties": {
- *         "sprite": "com.pocket.rpg.rendering.Sprite:sprites/chest.png",
+ *         "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/chest.png",
  *         "zIndex": 10
  *       }
  *     }

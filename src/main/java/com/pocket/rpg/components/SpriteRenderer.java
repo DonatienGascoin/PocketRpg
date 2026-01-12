@@ -1,8 +1,8 @@
 package com.pocket.rpg.components;
 
-import com.pocket.rpg.rendering.Renderable;
-import com.pocket.rpg.rendering.Sprite;
-import com.pocket.rpg.rendering.Texture;
+import com.pocket.rpg.rendering.core.Renderable;
+import com.pocket.rpg.rendering.resources.Sprite;
+import com.pocket.rpg.rendering.resources.Texture;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector4f;

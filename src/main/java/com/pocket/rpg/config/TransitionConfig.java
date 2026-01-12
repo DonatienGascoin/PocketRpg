@@ -1,6 +1,6 @@
 package com.pocket.rpg.config;
 
-import com.pocket.rpg.transitions.WipeTransition;
+import com.pocket.rpg.scenes.transitions.WipeTransition;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

@@ -1,7 +1,7 @@
 package com.pocket.rpg.editor.tileset;
 
-import com.pocket.rpg.rendering.SpriteSheet;
-import com.pocket.rpg.rendering.Texture;
+import com.pocket.rpg.rendering.resources.SpriteSheet;
+import com.pocket.rpg.rendering.resources.Texture;
 import com.pocket.rpg.resources.Assets;
 import imgui.ImGui;
 import imgui.ImVec2;

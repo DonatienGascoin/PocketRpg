@@ -1,8 +1,8 @@
 package com.pocket.rpg.components;
 
-import com.pocket.rpg.postProcessing.PostEffect;
-import com.pocket.rpg.rendering.Shader;
-import com.pocket.rpg.rendering.renderers.Renderer;
+import com.pocket.rpg.rendering.postfx.PostEffect;
+import com.pocket.rpg.rendering.resources.Shader;
+import com.pocket.rpg.rendering.batch.Renderer;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Matrix4f;

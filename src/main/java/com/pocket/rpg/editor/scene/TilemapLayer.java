@@ -2,8 +2,8 @@ package com.pocket.rpg.editor.scene;
 
 import com.pocket.rpg.components.TilemapRenderer;
 import com.pocket.rpg.core.GameObject;
-import com.pocket.rpg.rendering.Sprite;
-import com.pocket.rpg.rendering.SpriteSheet;
+import com.pocket.rpg.rendering.resources.Sprite;
+import com.pocket.rpg.rendering.resources.SpriteSheet;
 import lombok.Getter;
 import lombok.Setter;
 

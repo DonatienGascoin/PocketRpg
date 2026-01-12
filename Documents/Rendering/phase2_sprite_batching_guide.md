@@ -318,7 +318,8 @@ package com.pocket.rpg.rendering;
 
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.components.Transform;
-import com.pocket.rpg.rendering.renderers.VertexLayout;
+import com.pocket.rpg.rendering.batch.VertexLayout;
+import com.pocket.rpg.rendering.resources.Sprite;
 import org.joml.Vector3f;
 import org.lwjgl.system.MemoryUtil;
 
@@ -984,8 +985,7 @@ else {
 ```java
 package com.pocket.rpg.components;
 
-import com.pocket.rpg.rendering.Sprite;
-import com.pocket.rpg.rendering.Texture;
+import com.pocket.rpg.rendering.resources.Sprite;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -993,32 +993,32 @@ public class SpriteRenderer extends Component {
     @Getter
     @Setter
     private Sprite sprite;
-    
+
     @Getter
     private float originX = 0.5f;
     @Getter
     private float originY = 0.5f;
-    
+
     /**
      * If true, this sprite is assumed to never move/rotate/scale.
      * The renderer will cache its vertices for better performance.
-     * 
+     *
      * IMPORTANT: If you modify a static sprite's transform, call
      * scene.markStaticBatchDirty() to rebuild the cache!
      */
     @Getter
     @Setter
     private boolean isStatic = false;
-    
+
     public SpriteRenderer(Sprite sprite) {
         this.sprite = sprite;
     }
-    
+
     public SpriteRenderer(Sprite sprite, boolean isStatic) {
         this.sprite = sprite;
         this.isStatic = isStatic;
     }
-    
+
     // ... rest of existing code ...
 }
 ```
@@ -1168,7 +1168,7 @@ package com.pocket.rpg.scenes;
 
 import com.pocket.rpg.components.*;
 import com.pocket.rpg.core.GameObject;
-import com.pocket.rpg.rendering.renderers.BatchRenderer;
+import com.pocket.rpg.rendering.batch.BatchRenderer;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -1400,7 +1400,9 @@ package com.pocket.rpg.rendering;
 
 import com.pocket.rpg.components.Camera;
 import com.pocket.rpg.components.SpriteRenderer;
-import com.pocket.rpg.rendering.renderers.Renderer;
+import com.pocket.rpg.rendering.batch.Renderer;
+import com.pocket.rpg.rendering.batch.SpriteBatch;
+import com.pocket.rpg.rendering.resources.Shader;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
 

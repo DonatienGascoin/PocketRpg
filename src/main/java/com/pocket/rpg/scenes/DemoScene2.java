@@ -1,11 +1,9 @@
 package com.pocket.rpg.scenes;
 
-import com.pocket.rpg.components.PlayerMovement;
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.core.GameObject;
-import com.pocket.rpg.rendering.Sprite;
-import com.pocket.rpg.rendering.SpriteSheet;
-import com.pocket.rpg.resources.AssetManager;
+import com.pocket.rpg.rendering.resources.Sprite;
+import com.pocket.rpg.rendering.resources.SpriteSheet;
 import com.pocket.rpg.resources.Assets;
 import org.joml.Vector3f;
 

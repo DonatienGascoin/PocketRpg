@@ -1,7 +1,7 @@
 package com.pocket.rpg.editor;
 
 import com.pocket.rpg.config.InputConfig;
-import com.pocket.rpg.glfw.GLFWInputBackend;
+import com.pocket.rpg.platform.glfw.GLFWInputBackend;
 import com.pocket.rpg.input.DefaultInputContext;
 import com.pocket.rpg.input.Input;
 import com.pocket.rpg.input.InputBackend;

@@ -3,10 +3,10 @@ package com.pocket.rpg.scenes;
 import com.pocket.rpg.components.*;
 import com.pocket.rpg.components.ui.*;
 import com.pocket.rpg.core.GameObject;
-import com.pocket.rpg.postProcessing.BloomEffect;
-import com.pocket.rpg.rendering.Sprite;
-import com.pocket.rpg.rendering.SpriteSheet;
-import com.pocket.rpg.rendering.Texture;
+import com.pocket.rpg.rendering.postfx.BloomEffect;
+import com.pocket.rpg.rendering.resources.Sprite;
+import com.pocket.rpg.rendering.resources.SpriteSheet;
+import com.pocket.rpg.rendering.resources.Texture;
 import com.pocket.rpg.ui.*;
 import org.joml.Vector3f;
 

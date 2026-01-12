@@ -1,8 +1,8 @@
 package com.pocket.rpg.editor.panels;
 
-import com.pocket.rpg.postProcessing.PostEffect;
-import com.pocket.rpg.postProcessing.PostEffectMeta;
-import com.pocket.rpg.postProcessing.PostEffectRegistry;
+import com.pocket.rpg.rendering.postfx.PostEffect;
+import com.pocket.rpg.rendering.postfx.PostEffectMeta;
+import com.pocket.rpg.rendering.postfx.PostEffectRegistry;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImString;

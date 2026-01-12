@@ -1,7 +1,7 @@
 package com.pocket.rpg.config;
 
-import com.pocket.rpg.postProcessing.PostEffect;
-import com.pocket.rpg.postProcessing.PostProcessor;
+import com.pocket.rpg.rendering.postfx.PostEffect;
+import com.pocket.rpg.rendering.postfx.PostProcessor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

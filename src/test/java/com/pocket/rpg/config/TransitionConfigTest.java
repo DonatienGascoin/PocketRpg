@@ -1,6 +1,6 @@
 package com.pocket.rpg.config;
 
-import com.pocket.rpg.transitions.WipeTransition;
+import com.pocket.rpg.scenes.transitions.WipeTransition;
 import org.joml.Vector4f;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;

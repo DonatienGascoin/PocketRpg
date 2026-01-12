@@ -8,7 +8,7 @@ import com.pocket.rpg.editor.tileset.TileSelection;
 import com.pocket.rpg.editor.tileset.TilesetRegistry;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.BatchTileCommand;
-import com.pocket.rpg.rendering.Sprite;
+import com.pocket.rpg.rendering.resources.Sprite;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import lombok.Getter;

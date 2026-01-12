@@ -1,7 +1,7 @@
 package com.pocket.rpg.serialization.custom;
 
 import com.google.gson.*;
-import com.pocket.rpg.postProcessing.PostEffect;
+import com.pocket.rpg.rendering.postfx.PostEffect;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;

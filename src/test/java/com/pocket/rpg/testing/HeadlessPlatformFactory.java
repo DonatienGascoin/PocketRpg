@@ -1,20 +1,14 @@
 package com.pocket.rpg.testing;
 
 import com.pocket.rpg.config.GameConfig;
-import com.pocket.rpg.config.RenderingConfig;
-import com.pocket.rpg.core.AbstractWindow;
-import com.pocket.rpg.core.PlatformFactory;
-import com.pocket.rpg.core.ViewportConfig;
+import com.pocket.rpg.core.window.AbstractWindow;
+import com.pocket.rpg.platform.PlatformFactory;
 import com.pocket.rpg.input.InputBackend;
 import com.pocket.rpg.input.KeyCode;
 import com.pocket.rpg.input.events.InputEventBus;
 import com.pocket.rpg.input.events.KeyEvent;
 import com.pocket.rpg.input.events.MouseButtonEvent;
-import com.pocket.rpg.postProcessing.PostProcessor;
-import com.pocket.rpg.rendering.OverlayRenderer;
-import com.pocket.rpg.rendering.renderers.RenderInterface;
-import com.pocket.rpg.scenes.Scene;
-import com.pocket.rpg.ui.UIRenderer;
+import com.pocket.rpg.rendering.postfx.PostProcessor;
 
 /**
  * Headless platform factory for testing without a real window.
@@ -28,16 +22,6 @@ public class HeadlessPlatformFactory implements PlatformFactory {
             InputEventBus inputEventBus) {
 
         return new MockWindow(config);
-    }
-
-    @Override
-    public UIRenderer createUIRenderer() {
-        return null;
-    }
-
-    @Override
-    public RenderInterface createRenderer(ViewportConfig viewportConfig, RenderingConfig config) {
-        return new MockRenderer();
     }
 
     @Override
@@ -116,28 +100,6 @@ class MockWindow extends AbstractWindow {
     @Override
     public boolean isFocused() {
         return true;
-    }
-}
-
-class MockRenderer implements RenderInterface {
-    @Override
-    public void init(int width, int height) {
-        System.out.println("MockRenderer initialized: " + width + "x" + height);
-    }
-
-    @Override
-    public void render(Scene scene) {
-        // No-op rendering
-    }
-
-    @Override
-    public OverlayRenderer getOverlayRenderer() {
-        return null;
-    }
-
-    @Override
-    public void destroy() {
-        System.out.println("MockRenderer destroyed");
     }
 }
 

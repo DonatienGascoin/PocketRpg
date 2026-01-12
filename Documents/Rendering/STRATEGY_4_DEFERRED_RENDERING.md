@@ -290,7 +290,8 @@ package com.pocket.rpg.rendering;
 
 import com.pocket.rpg.components.Camera;
 import com.pocket.rpg.components.SpriteRenderer;
-import com.pocket.rpg.rendering.renderers.Renderer;
+import com.pocket.rpg.rendering.batch.Renderer;
+import com.pocket.rpg.rendering.resources.Shader;
 
 public class DeferredRenderer extends Renderer {
 

@@ -1,6 +1,6 @@
 package com.pocket.rpg.components;
 
-import com.pocket.rpg.rendering.Sprite;
+import com.pocket.rpg.rendering.resources.Sprite;
 
 import java.util.ArrayList;
 import java.util.List;

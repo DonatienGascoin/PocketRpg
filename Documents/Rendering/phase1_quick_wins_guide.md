@@ -492,6 +492,9 @@ package com.pocket.rpg.rendering;
 import com.pocket.rpg.components.Camera;
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.rendering.resources.Shader;
+import com.pocket.rpg.rendering.resources.Sprite;
+import com.pocket.rpg.rendering.resources.Texture;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
@@ -779,15 +782,23 @@ public class Renderer {
 
     public void printStats() {
         if (!enableStats) return;
-        
+
         float cullPercent = totalSprites > 0 ? (culledSprites / (float) totalSprites) * 100 : 0;
         System.out.printf("Sprites: %d total, %d rendered, %d culled (%.1f%%)%n",
-            totalSprites, renderedSprites, culledSprites, cullPercent);
+                totalSprites, renderedSprites, culledSprites, cullPercent);
     }
 
-    public int getTotalSprites() { return totalSprites; }
-    public int getCulledSprites() { return culledSprites; }
-    public int getRenderedSprites() { return renderedSprites; }
+    public int getTotalSprites() {
+        return totalSprites;
+    }
+
+    public int getCulledSprites() {
+        return culledSprites;
+    }
+
+    public int getRenderedSprites() {
+        return renderedSprites;
+    }
 
     public void destroy() {
         if (shader != null) {

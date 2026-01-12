@@ -1,7 +1,7 @@
 package com.pocket.rpg;
 
 
-import com.pocket.rpg.core.GameApplication;
+import com.pocket.rpg.core.application.GameApplication;
 
 public class Main {
     public static void main(String[] args) {

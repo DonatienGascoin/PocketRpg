@@ -2,8 +2,8 @@ package com.pocket.rpg.editor.panels.tilesets;
 
 import com.pocket.rpg.editor.tileset.TileSelection;
 import com.pocket.rpg.editor.tileset.TilesetRegistry;
-import com.pocket.rpg.rendering.Sprite;
-import com.pocket.rpg.rendering.SpriteSheet;
+import com.pocket.rpg.rendering.resources.Sprite;
+import com.pocket.rpg.rendering.resources.SpriteSheet;
 import lombok.Setter;
 
 import java.util.List;

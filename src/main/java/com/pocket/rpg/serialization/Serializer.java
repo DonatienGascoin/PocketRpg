@@ -2,7 +2,8 @@ package com.pocket.rpg.serialization;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.pocket.rpg.rendering.Sprite;
+import com.pocket.rpg.rendering.resources.Sprite;
+import com.pocket.rpg.rendering.postfx.PostEffect;
 import com.pocket.rpg.resources.AssetContext;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.serialization.custom.AssetReferenceTypeAdapterFactory;
@@ -26,7 +27,7 @@ public class Serializer {
                 // Sprite with object fallback (for programmatic sprites)
                 .registerTypeAdapter(Sprite.class, new SpriteTypeAdapter(Assets.getContext()))
                 // Others
-                .registerTypeAdapter(com.pocket.rpg.postProcessing.PostEffect.class, new PostEffectTypeAdapter());
+                .registerTypeAdapter(PostEffect.class, new PostEffectTypeAdapter());
 
 
         defaultConfig = builder.create();

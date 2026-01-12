@@ -1,8 +1,8 @@
 package com.pocket.rpg.editor.panels;
 
 import com.pocket.rpg.editor.assets.AssetPreviewRegistry;
-import com.pocket.rpg.rendering.Sprite;
-import com.pocket.rpg.rendering.SpriteSheet;
+import com.pocket.rpg.rendering.resources.Sprite;
+import com.pocket.rpg.rendering.resources.SpriteSheet;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.resources.SpriteReference;
 import imgui.ImGui;

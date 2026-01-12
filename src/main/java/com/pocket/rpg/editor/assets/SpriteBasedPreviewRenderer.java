@@ -1,7 +1,8 @@
 package com.pocket.rpg.editor.assets;
 
-import com.pocket.rpg.rendering.Sprite;
-import com.pocket.rpg.rendering.Texture;
+import com.pocket.rpg.rendering.resources.Sprite;
+import com.pocket.rpg.rendering.resources.SpriteSheet;
+import com.pocket.rpg.rendering.resources.Texture;
 import imgui.ImGui;
 
 /**
@@ -39,7 +40,7 @@ public class SpriteBasedPreviewRenderer implements AssetPreviewRenderer<Object> 
             texture = tex;
             width = tex.getWidth();
             height = tex.getHeight();
-        } else if (asset instanceof com.pocket.rpg.rendering.SpriteSheet sheet) {
+        } else if (asset instanceof SpriteSheet sheet) {
             texture = sheet.getTexture();
             if (texture != null) {
                 width = texture.getWidth();

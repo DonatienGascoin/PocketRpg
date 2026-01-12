@@ -1,7 +1,7 @@
 package com.pocket.rpg.editor.scene;
 
 import com.pocket.rpg.config.RenderingConfig;
-import com.pocket.rpg.core.ViewportConfig;
+import com.pocket.rpg.core.window.ViewportConfig;
 import com.pocket.rpg.scenes.RuntimeScene;
 import com.pocket.rpg.scenes.Scene;
 import com.pocket.rpg.scenes.SceneManager;

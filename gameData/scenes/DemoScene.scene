@@ -3,7 +3,7 @@
   "name": "Test",
   "gameObjects": [
     {
-      "id": "1f5d1089",
+      "id": "d151ff09",
       "name": "AbovePlayer",
       "active": true,
       "order": 0,
@@ -35,7 +35,7 @@
       ]
     },
     {
-      "id": "3c4f2bb4",
+      "id": "3d589a40",
       "name": "Ground",
       "active": true,
       "order": 0,
@@ -67,7 +67,7 @@
       ]
     },
     {
-      "id": "40ea9b92",
+      "id": "d68d83ef",
       "name": "Ground decoration",
       "active": true,
       "order": 0,
@@ -99,7 +99,7 @@
       ]
     },
     {
-      "id": "f2924771",
+      "id": "1c6d7799",
       "name": "Layer 3",
       "active": true,
       "order": 0,
@@ -457,7 +457,7 @@
           "properties": {
             "localPosition": {
               "x": -15.9,
-              "y": 0.0,
+              "y": -0.4,
               "z": 0.0
             },
             "localRotation": {
@@ -475,6 +475,7 @@
         {
           "type": "com.pocket.rpg.components.SpriteRenderer",
           "properties": {
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/hudBg.png",
             "tintColor": {
               "x": 1.0,
               "y": 1.0,

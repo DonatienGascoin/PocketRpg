@@ -1,7 +1,7 @@
 package com.pocket.rpg.rendering.culling;
 
 import com.pocket.rpg.components.SpriteRenderer;
-import com.pocket.rpg.rendering.RenderCamera;
+import com.pocket.rpg.rendering.core.RenderCamera;
 
 /**
  * Frustum culler for orthographic (2D) cameras.

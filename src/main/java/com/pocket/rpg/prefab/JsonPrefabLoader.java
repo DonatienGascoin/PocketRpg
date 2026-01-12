@@ -2,7 +2,7 @@ package com.pocket.rpg.prefab;
 
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
-import com.pocket.rpg.rendering.Sprite;
+import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.resources.AssetLoader;
 import com.pocket.rpg.serialization.Serializer;
 import org.joml.Vector3f;

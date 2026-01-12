@@ -5,7 +5,7 @@ import com.pocket.rpg.components.ui.*;
 import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
-import com.pocket.rpg.rendering.Sprite;
+import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import imgui.ImDrawList;

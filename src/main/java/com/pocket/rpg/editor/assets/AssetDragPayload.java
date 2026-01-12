@@ -1,5 +1,7 @@
 package com.pocket.rpg.editor.assets;
 
+import com.pocket.rpg.rendering.resources.Sprite;
+
 /**
  * Payload data for asset drag-drop operations.
  * <p>
@@ -67,7 +69,7 @@ public record AssetDragPayload(
      */
     public static AssetDragPayload ofSpriteSheetSprite(String sheetPath, int spriteIndex) {
         String fullPath = sheetPath + "#" + spriteIndex;
-        return new AssetDragPayload(fullPath, com.pocket.rpg.rendering.Sprite.class);
+        return new AssetDragPayload(fullPath, Sprite.class);
     }
 
     /**

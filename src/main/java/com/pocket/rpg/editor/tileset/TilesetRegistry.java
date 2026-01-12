@@ -1,7 +1,8 @@
 package com.pocket.rpg.editor.tileset;
 
-import com.pocket.rpg.rendering.SpriteSheet;
-import com.pocket.rpg.rendering.Sprite;
+import com.pocket.rpg.rendering.resources.SpriteSheet;
+import com.pocket.rpg.rendering.resources.Sprite;
+import com.pocket.rpg.rendering.resources.Texture;
 import com.pocket.rpg.resources.Assets;
 import lombok.Getter;
 
@@ -230,7 +231,7 @@ public class TilesetRegistry {
         /**
          * Gets the texture from the spritesheet.
          */
-        public com.pocket.rpg.rendering.Texture getTexture() {
+        public Texture getTexture() {
             return spriteSheet.getTexture();
         }
 

@@ -1,7 +1,7 @@
 package com.pocket.rpg.components.ui;
 
-import com.pocket.rpg.rendering.Texture;
-import com.pocket.rpg.ui.UIRendererBackend;
+import com.pocket.rpg.rendering.resources.Texture;
+import com.pocket.rpg.rendering.ui.UIRendererBackend;
 import com.pocket.rpg.ui.text.Font;
 import com.pocket.rpg.ui.text.Glyph;
 import com.pocket.rpg.ui.text.HorizontalAlignment;
@@ -213,7 +213,7 @@ public class UIText extends UIComponent {
     // ========================================================================
 
     @Override
-    public void render(UIRendererBackend backend) {
+    public void render(com.pocket.rpg.rendering.ui.UIRendererBackend backend) {
         if (font == null || text.isEmpty()) return;
 
         UITransform transform = getUITransform();

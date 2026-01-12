@@ -5,7 +5,7 @@ import com.pocket.rpg.editor.tools.EditorTool;
 import com.pocket.rpg.editor.tools.ToolManager;
 import com.pocket.rpg.prefab.Prefab;
 import com.pocket.rpg.prefab.PrefabRegistry;
-import com.pocket.rpg.rendering.Sprite;
+import com.pocket.rpg.rendering.resources.Sprite;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.type.ImString;

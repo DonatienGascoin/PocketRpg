@@ -1,5 +1,6 @@
 package com.pocket.rpg.editor.core;
 
+import com.pocket.rpg.core.window.AbstractWindow;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.glfw.GLFWVidMode;
 import org.lwjgl.opengl.GL;
@@ -15,13 +16,14 @@ import static org.lwjgl.system.MemoryUtil.NULL;
 
 /**
  * GLFW window for the Scene Editor.
+ * Extends AbstractWindow to allow sharing with runtime systems like PostProcessor.
  * Handles window creation, OpenGL context, and basic input callbacks.
  * Designed to work with ImGuiLayer for UI rendering.
  */
-public class EditorWindow {
+public class EditorWindow extends AbstractWindow {
 
     private long windowHandle;
-    private final EditorConfig config;
+    private final EditorConfig editorConfig;
 
     private int screenWidth;
     private int screenHeight;
@@ -38,13 +40,20 @@ public class EditorWindow {
     // Callbacks for editor systems
     private Runnable onResize;
 
-    public EditorWindow(EditorConfig config) {
-        this.config = config;
+    /**
+     * Creates an EditorWindow with editor configuration.
+     *
+     * @param editorConfig Editor-specific configuration (window size, title, etc.)
+     */
+    public EditorWindow(EditorConfig editorConfig) {
+        super();  // No GameConfig needed for editor window
+        this.editorConfig = editorConfig;
     }
 
     /**
      * Initializes the GLFW window and OpenGL context.
      */
+    @Override
     public void init() {
         System.out.println("Initializing Editor Window...");
 
@@ -57,20 +66,21 @@ public class EditorWindow {
 
         // Determine window size
         determineWindowSize();
+
         // Configure GLFW hints
         glfwDefaultWindowHints();
         glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
         glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-        glfwWindowHint(GLFW_DECORATED, GLFW_TRUE); // Always show window decorations (title bar, close button)
+        glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
         glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-        glfwWindowHint(GLFW_MAXIMIZED, config.isFullscreen() ? GLFW_TRUE : GLFW_FALSE); // Maximized if "fullscreen" requested
+        glfwWindowHint(GLFW_MAXIMIZED, editorConfig.isFullscreen() ? GLFW_TRUE : GLFW_FALSE);
         glfwWindowHint(GLFW_SAMPLES, 4);
 
-        // Create windowed window (not true fullscreen - always has decorations)
-        windowHandle = glfwCreateWindow(screenWidth, screenHeight, config.getTitle(), NULL, NULL);
+        // Create windowed window
+        windowHandle = glfwCreateWindow(screenWidth, screenHeight, editorConfig.getTitle(), NULL, NULL);
 
         if (windowHandle == NULL) {
             throw new RuntimeException("Failed to create GLFW window");
@@ -84,10 +94,10 @@ public class EditorWindow {
         setupCallbacks();
 
         // VSync
-        glfwSwapInterval(config.isVsync() ? 1 : 0);
+        glfwSwapInterval(editorConfig.isVsync() ? 1 : 0);
 
         // Center window if not fullscreen
-        if (!config.isFullscreen()) {
+        if (!editorConfig.isFullscreen()) {
             centerWindow();
         }
 
@@ -110,13 +120,13 @@ public class EditorWindow {
     }
 
     private void determineWindowSize() {
-        if (config.isFullscreen()) {
+        if (editorConfig.isFullscreen()) {
             // Don't set screenWidth or screenHeight
             screenWidth = 800;  // placeholder
             screenHeight = 600; // GLFW will override this
         } else {
-            screenWidth = config.getWindowWidth();
-            screenHeight = config.getWindowHeight();
+            screenWidth = editorConfig.getWindowWidth();
+            screenHeight = editorConfig.getWindowHeight();
         }
     }
 
@@ -177,12 +187,9 @@ public class EditorWindow {
             scrollDeltaY += yoffset;
         });
 
-        // Key callback (for basic editor shortcuts, ImGui handles most input)
+        // Key callback
         glfwSetKeyCallback(windowHandle, (window, key, scancode, action, mods) -> {
-            // Escape to close (optional)
-            if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
-                // Could show "unsaved changes" dialog instead
-            }
+            // Editor shortcuts handled by ImGui
         });
     }
 
@@ -200,9 +207,11 @@ public class EditorWindow {
         }
     }
 
-    /**
-     * Polls GLFW events.
-     */
+    // ========================================================================
+    // AbstractWindow Implementation
+    // ========================================================================
+
+    @Override
     public void pollEvents() {
         // Clear per-frame state
         scrollDeltaX = 0;
@@ -215,30 +224,17 @@ public class EditorWindow {
         glfwPollEvents();
     }
 
-    /**
-     * Swaps buffers.
-     */
+    @Override
     public void swapBuffers() {
         glfwSwapBuffers(windowHandle);
     }
 
-    /**
-     * Checks if window should close.
-     */
+    @Override
     public boolean shouldClose() {
         return glfwWindowShouldClose(windowHandle);
     }
 
-    /**
-     * Requests window close.
-     */
-    public void requestClose() {
-        glfwSetWindowShouldClose(windowHandle, true);
-    }
-
-    /**
-     * Destroys window and terminates GLFW.
-     */
+    @Override
     public void destroy() {
         glfwFreeCallbacks(windowHandle);
         glfwDestroyWindow(windowHandle);
@@ -252,18 +248,47 @@ public class EditorWindow {
         System.out.println("Editor Window destroyed");
     }
 
-    // ========================================================================
-    // GETTERS
-    // ========================================================================
-
+    @Override
     public long getWindowHandle() {
         return windowHandle;
     }
 
+    @Override
+    public int getScreenWidth() {
+        return screenWidth;
+    }
+
+    @Override
+    public int getScreenHeight() {
+        return screenHeight;
+    }
+
+    @Override
+    public boolean isVisible() {
+        return !isMinimized;
+    }
+
+    @Override
+    public boolean isFocused() {
+        return isFocused;
+    }
+
+    // ========================================================================
+    // Legacy Getters (for existing editor code)
+    // ========================================================================
+
+    /**
+     * @deprecated Use {@link #getScreenWidth()} instead
+     */
+    @Deprecated
     public int getWidth() {
         return screenWidth;
     }
 
+    /**
+     * @deprecated Use {@link #getScreenHeight()} instead
+     */
+    @Deprecated
     public int getHeight() {
         return screenHeight;
     }
@@ -272,8 +297,12 @@ public class EditorWindow {
         return isMinimized;
     }
 
-    public boolean isFocused() {
-        return isFocused;
+    // ========================================================================
+    // Editor-specific Methods
+    // ========================================================================
+
+    public void requestClose() {
+        glfwSetWindowShouldClose(windowHandle, true);
     }
 
     public double getMouseX() {
@@ -316,10 +345,6 @@ public class EditorWindow {
     public boolean isKeyDown(int key) {
         return glfwGetKey(windowHandle, key) == GLFW_PRESS;
     }
-
-    // ========================================================================
-    // CALLBACKS
-    // ========================================================================
 
     public void setOnResize(Runnable callback) {
         this.onResize = callback;

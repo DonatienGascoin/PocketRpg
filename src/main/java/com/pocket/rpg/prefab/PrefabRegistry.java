@@ -1,7 +1,7 @@
 package com.pocket.rpg.prefab;
 
 import com.pocket.rpg.prefab.prefabs.PlayerPrefab;
-import com.pocket.rpg.rendering.Sprite;
+import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.resources.Assets;
 import lombok.Getter;
 import lombok.Setter;

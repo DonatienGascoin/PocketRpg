@@ -1,6 +1,6 @@
 package com.pocket.rpg.rendering.stats;
 
-import com.pocket.rpg.rendering.SpriteBatch.SortingStrategy;
+import com.pocket.rpg.rendering.batch.SpriteBatch.SortingStrategy;
 
 /**
  * Statistics data for batch rendering.

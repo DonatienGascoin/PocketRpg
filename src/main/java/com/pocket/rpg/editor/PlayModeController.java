@@ -3,40 +3,56 @@ package com.pocket.rpg.editor;
 import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.config.InputConfig;
 import com.pocket.rpg.config.RenderingConfig;
-import com.pocket.rpg.core.ViewportConfig;
-import com.pocket.rpg.editor.rendering.PlayModeRenderer;
+import com.pocket.rpg.core.window.ViewportConfig;
+import com.pocket.rpg.editor.rendering.EditorFramebuffer;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.RuntimeSceneLoader;
 import com.pocket.rpg.editor.scene.RuntimeSceneManager;
 import com.pocket.rpg.editor.serialization.EditorSceneSerializer;
-import com.pocket.rpg.input.Input;
-import com.pocket.rpg.rendering.OverlayRenderer;
+import com.pocket.rpg.rendering.postfx.PostProcessor;
+import com.pocket.rpg.rendering.targets.FramebufferTarget;
+import com.pocket.rpg.rendering.core.RenderCamera;
+import com.pocket.rpg.rendering.pipeline.RenderParams;
+import com.pocket.rpg.rendering.pipeline.RenderPipeline;
+import com.pocket.rpg.rendering.core.Renderable;
 import com.pocket.rpg.scenes.RuntimeScene;
+import com.pocket.rpg.scenes.Scene;
 import com.pocket.rpg.serialization.SceneData;
-import com.pocket.rpg.transitions.SceneTransition;
-import com.pocket.rpg.transitions.TransitionManager;
+import com.pocket.rpg.scenes.transitions.SceneTransition;
+import com.pocket.rpg.scenes.transitions.TransitionManager;
 import lombok.Getter;
+import org.joml.Vector4f;
 
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
  * Controls Play Mode lifecycle in the Scene Editor.
  * <p>
- * Manages:
- * - Play/Pause/Stop state transitions
- * - Runtime scene creation from editor scene
- * - Scene snapshot and restoration
- * - Runtime systems (SceneManager, TransitionManager, Input, etc.)
+ * <b>RENDERING ARCHITECTURE NOTE:</b>
+ * This class uses {@link RenderPipeline} (UnifiedRenderer) because Play Mode
+ * simulates the actual game runtime, which requires:
+ * <ul>
+ *   <li>Post-processing effects (blur, vignette, etc.)</li>
+ *   <li>UI canvas rendering</li>
+ *   <li>Transition overlays</li>
+ *   <li>Game camera (not editor camera)</li>
+ * </ul>
+ * <p>
+ * This is different from {@code EditorSceneRenderer} which handles editor-specific
+ * features like layer dimming and selection highlighting.
+ * <p>
+ * Replaces: {@code PlayModeRenderer} (to be deleted in Phase 6)
+ *
+ * @see RenderPipeline
+ * @see com.pocket.rpg.editor.rendering.EditorSceneRenderer
  */
 public class PlayModeController {
 
-    /**
-     * Play mode states.
-     */
     public enum PlayState {
-        STOPPED,    // Editor mode, editing enabled
-        PLAYING,    // Game running
-        PAUSED      // Game frozen, still rendering
+        STOPPED,
+        PLAYING,
+        PAUSED
     }
 
     private final EditorContext context;
@@ -44,7 +60,6 @@ public class PlayModeController {
     private final RenderingConfig renderingConfig;
     private final InputConfig inputConfig;
 
-    // Play mode state
     @Getter
     private PlayState state = PlayState.STOPPED;
 
@@ -52,16 +67,21 @@ public class PlayModeController {
     private SceneData snapshot;
     private String snapshotFilePath;
 
-    // Runtime systems (created on play, destroyed on stop)
+    // Runtime systems
     private ViewportConfig viewportConfig;
     private RuntimeSceneLoader sceneLoader;
     private RuntimeSceneManager sceneManager;
     private TransitionManager transitionManager;
-    private PlayModeRenderer renderer;
     private PlayModeInputManager inputManager;
 
-    // Message callback
+    // Rendering
+    private RenderPipeline pipeline;
+    private EditorFramebuffer outputFramebuffer;
+    private PostProcessor postProcessor;
+
     private Consumer<String> messageCallback;
+
+    private static final Vector4f CLEAR_COLOR = new Vector4f(0.1f, 0.1f, 0.15f, 1.0f);
 
     public PlayModeController(EditorContext context, GameConfig gameConfig, InputConfig inputConfig) {
         this.context = context;
@@ -70,9 +90,6 @@ public class PlayModeController {
         this.inputConfig = inputConfig;
     }
 
-    /**
-     * Sets a callback for status messages.
-     */
     public void setMessageCallback(Consumer<String> callback) {
         this.messageCallback = callback;
     }
@@ -81,9 +98,6 @@ public class PlayModeController {
     // STATE TRANSITIONS
     // ========================================================================
 
-    /**
-     * Starts play mode.
-     */
     public void play() {
         if (state != PlayState.STOPPED) {
             showMessage("Already playing");
@@ -101,66 +115,55 @@ public class PlayModeController {
             snapshot = EditorSceneSerializer.toSceneData(editorScene);
             snapshotFilePath = editorScene.getFilePath();
 
-            // 2. Create viewport config from game settings
+            // 2. Create viewport config
             viewportConfig = new ViewportConfig(gameConfig);
 
-            // 3. Create scene loader
+            // 3. Create scene loader and manager
             sceneLoader = new RuntimeSceneLoader(viewportConfig, renderingConfig);
-
-            // 4. Create RuntimeSceneManager (supports dynamic scene loading)
             sceneManager = new RuntimeSceneManager(
                     viewportConfig,
                     renderingConfig,
                     sceneLoader,
-                    "scenes/"  // Base path for scene files
+                    "scenes/"
             );
 
-            // 5. Initialize Input system
+            // 4. Initialize input
             long windowHandle = context.getWindow().getWindowHandle();
             inputManager = new PlayModeInputManager(windowHandle, inputConfig);
             inputManager.init();
 
-            // 6. Initialize renderer (we need its OverlayRenderer)
-            renderer = new PlayModeRenderer(gameConfig, renderingConfig);
-            renderer.init();
+            // 5. Create output framebuffer
+            int width = gameConfig.getGameWidth();
+            int height = gameConfig.getGameHeight();
+            outputFramebuffer = new EditorFramebuffer(width, height);
+            outputFramebuffer.init();
 
-            // 7. Get overlay renderer from PlayModeRenderer
-            OverlayRenderer overlayRenderer = renderer.getOverlayRenderer();
-            if (overlayRenderer != null) {
-                overlayRenderer.setScreenSize(gameConfig.getGameWidth(), gameConfig.getGameHeight());
+            // 6. Create post-processor if effects are configured
+            if (gameConfig.getPostProcessingEffects() != null &&
+                    !gameConfig.getPostProcessingEffects().isEmpty()) {
+                postProcessor = new PostProcessor(gameConfig);
+                postProcessor.init(context.getWindow());
             }
 
-            // 8. Create transition manager with the overlay renderer
+            // 7. Create render pipeline
+            pipeline = new RenderPipeline(viewportConfig, renderingConfig);
+            if (postProcessor != null) {
+                pipeline.setPostProcessor(postProcessor);
+            }
+            pipeline.init();
+
+            // 8. Create transition manager and set on pipeline
             transitionManager = new TransitionManager(
                     sceneManager,
-                    overlayRenderer,
+                    pipeline.getOverlayRenderer(),
                     gameConfig.getDefaultTransitionConfig()
             );
+            pipeline.setTransitionManager(transitionManager);
 
-            // 9. Initialize global SceneTransition API (or reset if already set)
-            try {
-                SceneTransition.initialize(transitionManager);
-            } catch (IllegalStateException e) {
-                // Already initialized from previous play - need to reset it
-                System.out.println("SceneTransition already initialized, attempting reset...");
-                try {
-                    java.lang.reflect.Method resetMethod = SceneTransition.class.getDeclaredMethod("reset");
-                    resetMethod.setAccessible(true);
-                    resetMethod.invoke(null);
-                    SceneTransition.initialize(transitionManager);
-                } catch (Exception ex) {
-                    try {
-                        java.lang.reflect.Field managerField = SceneTransition.class.getDeclaredField("manager");
-                        managerField.setAccessible(true);
-                        managerField.set(null, transitionManager);
-                        System.out.println("SceneTransition manager updated via reflection");
-                    } catch (Exception ex2) {
-                        System.err.println("Could not reset SceneTransition: " + ex2.getMessage());
-                    }
-                }
-            }
+            // 9. Initialize SceneTransition API
+            initializeSceneTransition();
 
-            // 10. Load initial scene from snapshot
+            // 10. Load initial scene
             RuntimeScene runtimeScene = sceneLoader.load(snapshot);
             sceneManager.loadScene(runtimeScene);
 
@@ -178,44 +181,50 @@ public class PlayModeController {
         }
     }
 
-    /**
-     * Pauses the game.
-     */
-    public void pause() {
-        if (state != PlayState.PLAYING) {
-            return;
+    private void initializeSceneTransition() {
+        try {
+            SceneTransition.initialize(transitionManager);
+        } catch (IllegalStateException e) {
+            // Already initialized - reset via reflection
+            System.out.println("SceneTransition already initialized, attempting reset...");
+            try {
+                java.lang.reflect.Method resetMethod = SceneTransition.class.getDeclaredMethod("reset");
+                resetMethod.setAccessible(true);
+                resetMethod.invoke(null);
+                SceneTransition.initialize(transitionManager);
+            } catch (Exception ex) {
+                try {
+                    java.lang.reflect.Field managerField = SceneTransition.class.getDeclaredField("manager");
+                    managerField.setAccessible(true);
+                    managerField.set(null, transitionManager);
+                    System.out.println("SceneTransition manager updated via reflection");
+                } catch (Exception ex2) {
+                    System.err.println("Could not reset SceneTransition: " + ex2.getMessage());
+                }
+            }
         }
+    }
 
+    public void pause() {
+        if (state != PlayState.PLAYING) return;
         state = PlayState.PAUSED;
         showMessage("Paused");
     }
 
-    /**
-     * Resumes from pause.
-     */
     public void resume() {
-        if (state != PlayState.PAUSED) {
-            return;
-        }
-
+        if (state != PlayState.PAUSED) return;
         state = PlayState.PLAYING;
         showMessage("Resumed");
     }
 
-    /**
-     * Stops play mode and restores editor state.
-     */
     public void stop() {
-        if (state == PlayState.STOPPED) {
-            return;
-        }
+        if (state == PlayState.STOPPED) return;
 
         System.out.println("Stopping play mode...");
 
-        // 1. Cleanup runtime systems
         cleanup();
 
-        // 2. Restore editor scene from snapshot
+        // Restore editor scene
         if (snapshot != null) {
             try {
                 EditorScene restored = EditorSceneSerializer.fromSceneData(snapshot, snapshotFilePath);
@@ -226,11 +235,8 @@ public class PlayModeController {
             }
         }
 
-        // 3. Clear snapshot
         snapshot = null;
         snapshotFilePath = null;
-
-        // 4. Switch state
         state = PlayState.STOPPED;
 
         showMessage("Play mode stopped");
@@ -241,70 +247,67 @@ public class PlayModeController {
     // UPDATE / RENDER
     // ========================================================================
 
-    /**
-     * Updates play mode (called every frame).
-     *
-     * @param deltaTime Time since last frame
-     */
     public void update(float deltaTime) {
-        if (state != PlayState.PLAYING) {
-            return;
-        }
+        if (state != PlayState.PLAYING) return;
 
-        // Update input system
         if (inputManager != null) {
             inputManager.update(deltaTime);
         }
 
-        // Update transitions first (they may trigger scene changes)
         if (transitionManager != null) {
             transitionManager.update(deltaTime);
         }
 
-        // Update current scene
         if (sceneManager != null) {
             sceneManager.update(deltaTime);
         }
 
-        // End input frame
         if (inputManager != null) {
             inputManager.endFrame();
         }
     }
 
-    /**
-     * Renders the game scene (called every frame when not stopped).
-     */
     public void render() {
-        if (state == PlayState.STOPPED) {
-            return;
-        }
+        if (state == PlayState.STOPPED) return;
+        if (pipeline == null || outputFramebuffer == null) return;
 
-        if (renderer != null && sceneManager != null) {
-            renderer.render(sceneManager.getCurrentScene(), transitionManager);
-        }
+        Scene scene = sceneManager != null ? sceneManager.getCurrentScene() : null;
+        if (scene == null) return;
+
+        // Get renderables and camera from scene
+        // Note: Scene.getRenderers() returns List<Renderable>
+        List<Renderable> renderables = scene.getRenderers();
+
+        // Scene.getCamera() returns GameCamera which should implement RenderCamera
+        RenderCamera camera = scene.getCamera();
+
+        // Create target
+        FramebufferTarget target = new FramebufferTarget(outputFramebuffer);
+
+        // Build params with full pipeline (transitionManager is on pipeline)
+        RenderParams params = RenderParams.builder()
+                .renderables(renderables)
+                .camera(camera)
+                .uiCanvases(scene.getUICanvases())
+                .clearColor(CLEAR_COLOR)
+                .renderScene(true)
+                .renderUI(true)
+                .renderPostFx(postProcessor != null)
+                .renderOverlay(true)
+                .build();
+
+        // Execute pipeline
+        pipeline.execute(target, params);
     }
 
-    /**
-     * Gets the output texture for ImGui display.
-     */
     public int getOutputTexture() {
-        if (renderer != null) {
-            return renderer.getOutputTexture();
-        }
-        return 0;
+        return outputFramebuffer != null ? outputFramebuffer.getTextureId() : 0;
     }
 
-    /**
-     * Gets the game width for aspect ratio calculations.
-     */
     public int getGameWidth() {
         return gameConfig.getGameWidth();
     }
 
-    /**
-     * Gets the game height for aspect ratio calculations.
-     */
     public int getGameHeight() {
         return gameConfig.getGameHeight();
     }
@@ -313,19 +316,25 @@ public class PlayModeController {
     // HELPERS
     // ========================================================================
 
-    /**
-     * Cleans up all runtime systems.
-     */
     private void cleanup() {
-        // Destroy input first
         if (inputManager != null) {
             inputManager.destroy();
             inputManager = null;
         }
 
-        if (renderer != null) {
-            renderer.destroy();
-            renderer = null;
+        if (pipeline != null) {
+            pipeline.destroy();
+            pipeline = null;
+        }
+
+        if (postProcessor != null) {
+            postProcessor.destroy();
+            postProcessor = null;
+        }
+
+        if (outputFramebuffer != null) {
+            outputFramebuffer.destroy();
+            outputFramebuffer = null;
         }
 
         if (sceneManager != null) {
@@ -338,39 +347,24 @@ public class PlayModeController {
         viewportConfig = null;
     }
 
-    /**
-     * Shows a status message.
-     */
     private void showMessage(String message) {
         if (messageCallback != null) {
             messageCallback.accept(message);
         }
     }
 
-    /**
-     * Checks if play mode is active (playing or paused).
-     */
     public boolean isActive() {
         return state != PlayState.STOPPED;
     }
 
-    /**
-     * Checks if currently playing (not paused).
-     */
     public boolean isPlaying() {
         return state == PlayState.PLAYING;
     }
 
-    /**
-     * Checks if paused.
-     */
     public boolean isPaused() {
         return state == PlayState.PAUSED;
     }
 
-    /**
-     * Checks if stopped (editor mode).
-     */
     public boolean isStopped() {
         return state == PlayState.STOPPED;
     }

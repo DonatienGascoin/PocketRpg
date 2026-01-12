@@ -2,27 +2,52 @@ package com.pocket.rpg.editor.ui;
 
 import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.config.RenderingConfig;
+import com.pocket.rpg.core.window.ViewportConfig;
 import com.pocket.rpg.editor.EditorContext;
 import com.pocket.rpg.editor.PlayModeController;
 import com.pocket.rpg.editor.PlayModeController.PlayState;
+import com.pocket.rpg.editor.camera.PreviewCamera;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.panels.UIPreviewRenderer;
-import com.pocket.rpg.editor.rendering.GamePreviewRenderer;
+import com.pocket.rpg.editor.rendering.EditorFramebuffer;
+import com.pocket.rpg.editor.rendering.PreviewCameraAdapter;
 import com.pocket.rpg.editor.scene.EditorScene;
+import com.pocket.rpg.editor.scene.SceneCameraSettings;
+import com.pocket.rpg.rendering.targets.FramebufferTarget;
+import com.pocket.rpg.rendering.pipeline.RenderParams;
+import com.pocket.rpg.rendering.pipeline.RenderPipeline;
+import com.pocket.rpg.rendering.core.Renderable;
 import imgui.ImGui;
 import imgui.ImVec2;
 import imgui.flag.ImGuiWindowFlags;
+import org.joml.Vector4f;
+
+import java.util.List;
 
 /**
  * ImGui panel that displays the game during Play Mode,
  * and a static preview when stopped.
  * <p>
- * Features:
- * - Play/Pause/Stop toolbar
- * - Pillarboxed game display maintaining aspect ratio
- * - Static preview when stopped (using game camera settings)
- * - UI overlay rendering
- * - FPS display during play
+ * <b>RENDERING ARCHITECTURE NOTE:</b>
+ * This class uses {@link RenderPipeline} (UnifiedRenderer) for the static preview
+ * because it shows what the game will look like at runtime:
+ * <ul>
+ *   <li>Uses game camera settings (position, orthographic size)</li>
+ *   <li>Renders scene as the game would see it</li>
+ *   <li>No editor-specific features (no layer dimming, no selection)</li>
+ * </ul>
+ * <p>
+ * During Play Mode, delegates to {@link PlayModeController#getOutputTexture()}
+ * which also uses RenderPipeline with full post-processing.
+ * <p>
+ * This is different from the Scene Viewport which uses {@code EditorSceneRenderer}
+ * for editor-specific layer dimming and selection highlighting.
+ * <p>
+ * Replaces: {@code GamePreviewRenderer} (to be deleted in Phase 6)
+ *
+ * @see RenderPipeline
+ * @see PlayModeController
+ * @see com.pocket.rpg.editor.rendering.EditorSceneRenderer
  */
 public class GameViewPanel {
 
@@ -31,8 +56,12 @@ public class GameViewPanel {
     private final GameConfig gameConfig;
     private final RenderingConfig renderingConfig;
 
-    // Preview renderer for stopped state
-    private GamePreviewRenderer previewRenderer;
+    // Unified rendering pipeline for preview
+    private RenderPipeline previewPipeline;
+    private EditorFramebuffer previewFramebuffer;
+    private ViewportConfig viewportConfig;
+    private PreviewCamera previewCamera;
+    private PreviewCameraAdapter cameraAdapter;
 
     // UI renderer for overlay
     private UIPreviewRenderer uiRenderer;
@@ -42,16 +71,18 @@ public class GameViewPanel {
 
     // Track scene for dirty detection
     private EditorScene lastScene;
-    private boolean lastSceneDirty;
+    private boolean previewDirty = true;
 
     // Last rendered viewport info (for UI overlay)
     private float lastViewportX;
     private float lastViewportY;
     private float lastDisplayWidth;
     private float lastDisplayHeight;
-    private float lastScale;
-    private float lastOffsetX;
-    private float lastOffsetY;
+
+    private boolean initialized = false;
+
+    // Clear color for preview
+    private static final Vector4f CLEAR_COLOR = new Vector4f(0.1f, 0.1f, 0.15f, 1.0f);
 
     public GameViewPanel(EditorContext context, PlayModeController playController,
                          GameConfig gameConfig, RenderingConfig renderingConfig) {
@@ -73,17 +104,35 @@ public class GameViewPanel {
      * Initializes the preview renderer. Call after OpenGL context is ready.
      */
     public void init() {
-        previewRenderer = new GamePreviewRenderer(gameConfig, renderingConfig);
-        previewRenderer.init();
+        if (initialized) return;
 
+        int width = gameConfig.getGameWidth();
+        int height = gameConfig.getGameHeight();
+
+        // Create framebuffer for preview
+        previewFramebuffer = new EditorFramebuffer(width, height);
+        previewFramebuffer.init();
+
+        // Create viewport and camera
+        viewportConfig = new ViewportConfig(width, height, width, height);
+        previewCamera = new PreviewCamera(viewportConfig);
+        cameraAdapter = new PreviewCameraAdapter(previewCamera);
+
+        // Create pipeline (no post-processing for preview)
+        previewPipeline = new RenderPipeline(viewportConfig, renderingConfig);
+        previewPipeline.init();
+
+        // UI renderer for overlay
         uiRenderer = new UIPreviewRenderer(gameConfig);
+
+        initialized = true;
+        System.out.println("GameViewPanel initialized (" + width + "x" + height + ")");
     }
 
     /**
      * Renders the Game View panel.
      */
     public void render() {
-        // Don't render if controller is not set
         if (playController == null) {
             return;
         }
@@ -118,7 +167,6 @@ public class GameViewPanel {
         PlayState state = playController.getState();
 
         if (state == PlayState.STOPPED) {
-            // Play button
             if (ImGui.button(FontAwesomeIcons.Play + " Play")) {
                 playController.play();
             }
@@ -126,7 +174,6 @@ public class GameViewPanel {
             ImGui.sameLine();
             ImGui.textDisabled("Scene: " + getSceneName());
         } else {
-            // Pause/Resume button
             if (state == PlayState.PLAYING) {
                 if (ImGui.button(FontAwesomeIcons.Pause + " Pause")) {
                     playController.pause();
@@ -139,19 +186,14 @@ public class GameViewPanel {
 
             ImGui.sameLine();
 
-            // Stop button
             if (ImGui.button(FontAwesomeIcons.Stop + " Stop")) {
                 playController.stop();
             }
 
             ImGui.sameLine();
 
-            // State indicator
             String stateText = state == PlayState.PLAYING ? "Playing" : "Paused";
             ImGui.textColored(0.4f, 0.8f, 0.4f, 1.0f, stateText);
-
-//            ImGui.sameLine();
-//            ImGui.text("| FPS: " + (int) ImGui.getIO().getFramerate());
         }
     }
 
@@ -167,41 +209,71 @@ public class GameViewPanel {
      * Renders the static preview when stopped.
      */
     private void renderPreview() {
-        // Initialize preview renderer if needed
-        if (previewRenderer == null || !previewRenderer.isInitialized()) {
+        if (!initialized) {
             init();
         }
 
         EditorScene scene = context.getCurrentScene();
 
         // Check if we need to re-render
-        boolean needsRender = previewRenderer.isDirty();
+        boolean needsRender = previewDirty;
 
-        // Scene changed?
         if (scene != lastScene) {
             needsRender = true;
             lastScene = scene;
-            lastSceneDirty = scene != null && scene.isDirty();
         }
 
-        // Scene became dirty?
         if (scene != null && scene.isDirty()) {
             needsRender = true;
         }
 
         // Render preview if needed
         if (needsRender) {
-            previewRenderer.render(scene);
+            renderPreviewToFramebuffer(scene);
+            previewDirty = false;
         }
 
         // Display the preview texture
-        int textureId = previewRenderer.getOutputTexture();
+        int textureId = previewFramebuffer != null ? previewFramebuffer.getTextureId() : 0;
         renderTextureWithAspectRatio(textureId);
 
         // Show camera info overlay
         if (scene != null) {
             renderCameraInfoOverlay(scene);
         }
+    }
+
+    /**
+     * Renders scene preview to framebuffer using RenderPipeline.
+     */
+    private void renderPreviewToFramebuffer(EditorScene scene) {
+        if (previewPipeline == null || previewFramebuffer == null) return;
+
+        // Apply scene camera settings
+        if (scene != null) {
+            SceneCameraSettings settings = scene.getCameraSettings();
+            previewCamera.applySceneSettings(settings.getPosition(), settings.getOrthographicSize());
+        }
+
+        // Get renderables (tilemaps + entities)
+        List<Renderable> renderables = scene != null ? scene.getRenderables() : List.of();
+
+        // Create render target
+        FramebufferTarget target = new FramebufferTarget(previewFramebuffer);
+
+        // Build params - scene only
+        RenderParams params = RenderParams.builder()
+                .renderables(renderables)
+                .camera(cameraAdapter)
+                .clearColor(CLEAR_COLOR)
+                .renderScene(true)
+                .renderUI(false)
+                .renderPostFx(false)
+                .renderOverlay(false)
+                .build();
+
+        // Execute pipeline
+        previewPipeline.execute(target, params);
     }
 
     /**
@@ -213,26 +285,20 @@ public class GameViewPanel {
         EditorScene scene = context.getCurrentScene();
         if (scene == null) return;
 
-        // Skip if no valid viewport info
         if (lastDisplayWidth <= 0 || lastDisplayHeight <= 0) return;
 
         var drawList = ImGui.getWindowDrawList();
 
-        // Calculate scale to fit game resolution in displayed area
         float gameWidth = gameConfig.getGameWidth();
-        float gameHeight = gameConfig.getGameHeight();
         float scale = lastDisplayWidth / gameWidth;
 
-        // Render UI elements
-        uiRenderer.render(drawList, scene, lastViewportX, lastViewportY, scale, lastOffsetX, lastOffsetY);
+        uiRenderer.render(drawList, scene, lastViewportX, lastViewportY, scale, 0, 0);
     }
 
     /**
      * Renders a texture maintaining aspect ratio with pillarboxing/letterboxing.
-     * Also stores viewport info for UI overlay rendering.
      */
     private void renderTextureWithAspectRatio(int textureId) {
-        // Get available content region
         ImVec2 available = new ImVec2();
         ImGui.getContentRegionAvail(available);
 
@@ -240,21 +306,17 @@ public class GameViewPanel {
             return;
         }
 
-        // Calculate display size maintaining aspect ratio
         float panelRatio = available.x / available.y;
         float displayWidth, displayHeight;
 
         if (panelRatio > aspectRatio) {
-            // Panel is wider - pillarbox (black bars on sides)
             displayHeight = available.y;
             displayWidth = displayHeight * aspectRatio;
         } else {
-            // Panel is taller - letterbox (black bars top/bottom)
             displayWidth = available.x;
             displayHeight = displayWidth / aspectRatio;
         }
 
-        // Center the image
         float offsetX = (available.x - displayWidth) / 2f;
         float offsetY = (available.y - displayHeight) / 2f;
 
@@ -268,17 +330,9 @@ public class GameViewPanel {
         lastViewportY = windowPos.y + cursorPos.y + offsetY;
         lastDisplayWidth = displayWidth;
         lastDisplayHeight = displayHeight;
-        lastScale = displayWidth / gameConfig.getGameWidth();
-        lastOffsetX = 0; // UI starts at game origin
-        lastOffsetY = 0;
 
         // Render texture (flip UV vertically for OpenGL)
         ImGui.image(textureId, displayWidth, displayHeight, 0, 1, 1, 0);
-
-        // Handle mouse input on game view
-        if (ImGui.isItemHovered()) {
-            // Future: route mouse to game or show coordinates
-        }
     }
 
     /**
@@ -291,11 +345,10 @@ public class GameViewPanel {
         ImVec2 contentMin = ImGui.getWindowContentRegionMin();
 
         float overlayX = windowPos.x + contentMin.x + 5;
-        float overlayY = windowPos.y + contentMin.y + 25; // Below separator
+        float overlayY = windowPos.y + contentMin.y + 25;
 
         var drawList = ImGui.getWindowDrawList();
 
-        // Background
         String info = String.format("Camera: (%.1f, %.1f) | Size: %.1f",
                 settings.getPosition().x, settings.getPosition().y,
                 settings.getOrthographicSize());
@@ -314,9 +367,6 @@ public class GameViewPanel {
                 info);
     }
 
-    /**
-     * Gets the current scene name for display.
-     */
     private String getSceneName() {
         if (context.getCurrentScene() != null) {
             return context.getCurrentScene().getName();
@@ -324,31 +374,29 @@ public class GameViewPanel {
         return "No Scene";
     }
 
-    /**
-     * Updates aspect ratio if GameConfig changes.
-     */
     public void updateAspectRatio() {
         aspectRatio = (float) gameConfig.getGameWidth() / gameConfig.getGameHeight();
     }
 
-    /**
-     * Marks the preview as needing re-render.
-     * Call when the scene changes externally.
-     */
     public void markPreviewDirty() {
-        if (previewRenderer != null) {
-            previewRenderer.markDirty();
-        }
+        previewDirty = true;
     }
 
-    /**
-     * Destroys rendering resources.
-     */
     public void destroy() {
-        if (previewRenderer != null) {
-            previewRenderer.destroy();
-            previewRenderer = null;
+        if (previewPipeline != null) {
+            previewPipeline.destroy();
+            previewPipeline = null;
         }
+
+        if (previewFramebuffer != null) {
+            previewFramebuffer.destroy();
+            previewFramebuffer = null;
+        }
+
+        viewportConfig = null;
+        previewCamera = null;
+        cameraAdapter = null;
         uiRenderer = null;
+        initialized = false;
     }
 }

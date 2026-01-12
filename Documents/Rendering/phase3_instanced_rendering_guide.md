@@ -157,6 +157,8 @@ package com.pocket.rpg.rendering;
 import com.pocket.rpg.components.Camera;
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.rendering.resources.Shader;
+import com.pocket.rpg.rendering.resources.Sprite;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
@@ -172,43 +174,43 @@ import static org.lwjgl.opengl.GL33.*;
  * Renders thousands of sprites with a single draw call per texture.
  */
 public class InstancedRenderer {
-    
+
     // Maximum instances per draw call
     private static final int MAX_INSTANCES = 10000;
-    
+
     // Floats per instance: mat4(16) + vec4 color(4) + vec4 uv(4) = 24
     private static final int FLOATS_PER_INSTANCE = 24;
-    
+
     // OpenGL resources
     private int quadVAO;
     private int quadVBO;
     private int instanceVBO;
-    
+
     private Shader shader;
     private Matrix4f projectionMatrix;
     private Matrix4f viewMatrix;
-    
+
     // Instance data buffer
     private FloatBuffer instanceBuffer;
-    
+
     // Batched instances grouped by texture
     private final Map<Integer, List<InstanceData>> instanceGroups = new HashMap<>();
-    
+
     // Viewport and camera
     private int viewportWidth = 800;
     private int viewportHeight = 600;
     private float cameraLeft, cameraRight, cameraTop, cameraBottom;
-    
+
     // Statistics
     private int totalInstances = 0;
     private int drawCalls = 0;
     private int culledInstances = 0;
-    
+
     // State
     private boolean isRendering = false;
-    
+
     private static final Vector4f DEFAULT_CLEAR_COLOR = new Vector4f(0.1f, 0.1f, 0.15f, 1.0f);
-    
+
     /**
      * Instance data structure.
      */
@@ -216,38 +218,38 @@ public class InstancedRenderer {
         Matrix4f transform;
         Vector4f color;
         Vector4f uv; // (u0, v0, u1, v1)
-        
+
         InstanceData(Matrix4f transform, Vector4f color, Vector4f uv) {
             this.transform = new Matrix4f(transform);
             this.color = new Vector4f(color);
             this.uv = new Vector4f(uv);
         }
     }
-    
+
     public void init(int viewportWidth, int viewportHeight) {
         this.viewportWidth = viewportWidth;
         this.viewportHeight = viewportHeight;
-        
+
         // Allocate instance buffer
         instanceBuffer = MemoryUtil.memAllocFloat(MAX_INSTANCES * FLOATS_PER_INSTANCE);
-        
+
         // Create shader
         shader = new Shader("assets/shaders/instanced_sprite.glsl");
         shader.compileAndLink();
-        
+
         // Initialize matrices
         projectionMatrix = new Matrix4f();
         viewMatrix = new Matrix4f();
         setProjection(viewportWidth, viewportHeight);
-        
+
         // Create quad and instance buffers
         initBuffers();
-        
+
         // Enable blending
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     }
-    
+
     /**
      * Initializes OpenGL buffers.
      */
@@ -255,69 +257,69 @@ public class InstancedRenderer {
         // Create VAO
         quadVAO = glGenVertexArrays();
         glBindVertexArray(quadVAO);
-        
+
         // Create quad VBO (static geometry)
         quadVBO = glGenBuffers();
         glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
-        
+
         // Quad vertices (position + texcoord)
         float[] quadVertices = {
-            // Positions   // TexCoords
-            0.0f, 0.0f,    0.0f, 1.0f, // Top-left
-            0.0f, 1.0f,    0.0f, 0.0f, // Bottom-left
-            1.0f, 1.0f,    1.0f, 0.0f, // Bottom-right
-            
-            0.0f, 0.0f,    0.0f, 1.0f, // Top-left
-            1.0f, 1.0f,    1.0f, 0.0f, // Bottom-right
-            1.0f, 0.0f,    1.0f, 1.0f  // Top-right
+                // Positions   // TexCoords
+                0.0f, 0.0f, 0.0f, 1.0f, // Top-left
+                0.0f, 1.0f, 0.0f, 0.0f, // Bottom-left
+                1.0f, 1.0f, 1.0f, 0.0f, // Bottom-right
+
+                0.0f, 0.0f, 0.0f, 1.0f, // Top-left
+                1.0f, 1.0f, 1.0f, 0.0f, // Bottom-right
+                1.0f, 0.0f, 1.0f, 1.0f  // Top-right
         };
-        
+
         glBufferData(GL_ARRAY_BUFFER, quadVertices, GL_STATIC_DRAW);
-        
+
         // Position attribute (location 0)
         glEnableVertexAttribArray(0);
         glVertexAttribPointer(0, 2, GL_FLOAT, false, 4 * Float.BYTES, 0);
-        
+
         // TexCoord attribute (location 1)
         glEnableVertexAttribArray(1);
         glVertexAttribPointer(1, 2, GL_FLOAT, false, 4 * Float.BYTES, 2 * Float.BYTES);
-        
+
         // Create instance VBO (dynamic data)
         instanceVBO = glGenBuffers();
         glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
-        glBufferData(GL_ARRAY_BUFFER, 
-            MAX_INSTANCES * FLOATS_PER_INSTANCE * Float.BYTES, GL_DYNAMIC_DRAW);
-        
+        glBufferData(GL_ARRAY_BUFFER,
+                MAX_INSTANCES * FLOATS_PER_INSTANCE * Float.BYTES, GL_DYNAMIC_DRAW);
+
         // Instance transform matrix (locations 2-5, mat4 takes 4 locations)
         int stride = FLOATS_PER_INSTANCE * Float.BYTES;
-        
+
         for (int i = 0; i < 4; i++) {
             int location = 2 + i;
             glEnableVertexAttribArray(location);
             glVertexAttribPointer(location, 4, GL_FLOAT, false, stride, i * 4 * Float.BYTES);
             glVertexAttribDivisor(location, 1); // Advance once per instance
         }
-        
+
         // Instance color (location 6)
         glEnableVertexAttribArray(6);
         glVertexAttribPointer(6, 4, GL_FLOAT, false, stride, 16 * Float.BYTES);
         glVertexAttribDivisor(6, 1);
-        
+
         // Instance UV (location 7)
         glEnableVertexAttribArray(7);
         glVertexAttribPointer(7, 4, GL_FLOAT, false, stride, 20 * Float.BYTES);
         glVertexAttribDivisor(7, 1);
-        
+
         glBindVertexArray(0);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
-    
+
     public void setProjection(int width, int height) {
         this.viewportWidth = width;
         this.viewportHeight = height;
         projectionMatrix.identity().ortho(0, width, height, 0, -1, 1);
     }
-    
+
     /**
      * Updates camera bounds for frustum culling.
      */
@@ -330,14 +332,14 @@ public class InstancedRenderer {
         } else {
             Transform camTransform = camera.getGameObject().getTransform();
             Vector3f camPos = camTransform.getPosition();
-            
+
             cameraLeft = camPos.x;
             cameraRight = camPos.x + viewportWidth;
             cameraTop = camPos.y;
             cameraBottom = camPos.y + viewportHeight;
         }
     }
-    
+
     /**
      * Frustum culling check.
      */
@@ -345,70 +347,70 @@ public class InstancedRenderer {
         if (spriteRenderer == null || spriteRenderer.getSprite() == null) {
             return false;
         }
-        
+
         Sprite sprite = spriteRenderer.getSprite();
         Transform transform = spriteRenderer.getGameObject().getTransform();
         Vector3f pos = transform.getPosition();
         Vector3f scale = transform.getScale();
-        
+
         float spriteWidth = sprite.getWidth() * scale.x;
         float spriteHeight = sprite.getHeight() * scale.y;
-        
+
         float originOffsetX = spriteWidth * spriteRenderer.getOriginX();
         float originOffsetY = spriteHeight * spriteRenderer.getOriginY();
-        
+
         // Conservative AABB
         float diagonal = (float) Math.sqrt(spriteWidth * spriteWidth + spriteHeight * spriteHeight);
         float padding = (diagonal - Math.max(spriteWidth, spriteHeight)) / 2;
-        
+
         float spriteLeft = pos.x - originOffsetX - padding;
         float spriteRight = pos.x + (spriteWidth - originOffsetX) + padding;
         float spriteTop = pos.y - originOffsetY - padding;
         float spriteBottom = pos.y + (spriteHeight - originOffsetY) + padding;
-        
+
         return !(spriteRight < cameraLeft ||
                 spriteLeft > cameraRight ||
                 spriteBottom < cameraTop ||
                 spriteTop > cameraBottom);
     }
-    
+
     public void beginWithCamera(Camera camera) {
         Vector4f clearColor = camera != null ? camera.getClearColor() : DEFAULT_CLEAR_COLOR;
         glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        
+
         updateCameraBounds(camera);
-        
+
         if (camera != null) {
             viewMatrix.set(camera.getViewMatrix());
         } else {
             viewMatrix.identity();
         }
-        
+
         begin();
     }
-    
+
     public void begin() {
         if (isRendering) {
             throw new IllegalStateException("Already rendering! Call end() first.");
         }
-        
+
         shader.use();
-        
+
         // Upload view/projection matrices
         shader.uploadMat4f("projection", projectionMatrix);
         shader.uploadMat4f("view", viewMatrix);
         shader.uploadInt("textureSampler", 0);
-        
+
         // Clear instance data
         instanceGroups.clear();
         totalInstances = 0;
         drawCalls = 0;
         culledInstances = 0;
-        
+
         isRendering = true;
     }
-    
+
     /**
      * Submits a sprite for instanced rendering.
      */
@@ -416,90 +418,90 @@ public class InstancedRenderer {
         if (!isRendering) {
             throw new IllegalStateException("Not rendering! Call begin() first.");
         }
-        
+
         // Frustum culling
         if (!isVisible(spriteRenderer)) {
             culledInstances++;
             return;
         }
-        
+
         Sprite sprite = spriteRenderer.getSprite();
         if (sprite == null || sprite.getTexture() == null) {
             return;
         }
-        
+
         // Build transform matrix
         Matrix4f transform = buildTransformMatrix(spriteRenderer);
-        
+
         // Get color (white for now, could be component property)
         Vector4f color = new Vector4f(1, 1, 1, 1);
-        
+
         // Get UV coordinates
         Vector4f uv = new Vector4f(
-            sprite.getU0(),
-            sprite.getV0(),
-            sprite.getU1(),
-            sprite.getV1()
+                sprite.getU0(),
+                sprite.getV0(),
+                sprite.getU1(),
+                sprite.getV1()
         );
-        
+
         // Create instance data
         InstanceData instance = new InstanceData(transform, color, uv);
-        
+
         // Group by texture
         int textureId = sprite.getTexture().getId();
         instanceGroups.computeIfAbsent(textureId, k -> new ArrayList<>()).add(instance);
-        
+
         totalInstances++;
     }
-    
+
     /**
      * Builds the transform matrix for a sprite.
      */
     private Matrix4f buildTransformMatrix(SpriteRenderer spriteRenderer) {
         Sprite sprite = spriteRenderer.getSprite();
         Transform transform = spriteRenderer.getGameObject().getTransform();
-        
+
         Vector3f pos = transform.getPosition();
         Vector3f rot = transform.getRotation();
         Vector3f scale = transform.getScale();
-        
+
         float finalWidth = sprite.getWidth() * scale.x;
         float finalHeight = sprite.getHeight() * scale.y;
-        
+
         float originX = finalWidth * spriteRenderer.getOriginX();
         float originY = finalHeight * spriteRenderer.getOriginY();
-        
+
         Matrix4f matrix = new Matrix4f();
         matrix.identity();
-        
+
         // Translate to position
         matrix.translate(pos.x, pos.y, pos.z);
-        
+
         // Rotate around origin
         if (rot.z != 0) {
             matrix.translate(originX, originY, 0);
             matrix.rotateZ((float) Math.toRadians(rot.z));
             matrix.translate(-originX, -originY, 0);
         }
-        
+
         // Scale
         matrix.scale(finalWidth, finalHeight, 1);
-        
+
         return matrix;
     }
-    
+
     public void end() {
         if (!isRendering) {
             throw new IllegalStateException("Not rendering! Call begin() first.");
         }
-        
+
         // Render all instance groups
         for (Map.Entry<Integer, List<InstanceData>> entry : instanceGroups.entrySet()) {
             int textureId = entry.getKey();
             List<InstanceData> instances = entry.getValue();
-            
+
             if (instances.isEmpty()) continue;
-            
+
             // Render in batches if needed
             int offset = 0;
             while (offset < instances.size()) {
@@ -508,57 +510,57 @@ public class InstancedRenderer {
                 offset += count;
             }
         }
-        
+
         shader.detach();
         isRendering = false;
     }
-    
+
     /**
      * Renders a batch of instances with the same texture.
      */
     private void renderInstances(int textureId, List<InstanceData> instances, int offset, int count) {
         // Fill instance buffer
         instanceBuffer.clear();
-        
+
         for (int i = offset; i < offset + count; i++) {
             InstanceData instance = instances.get(i);
-            
+
             // Transform matrix (16 floats)
             float[] matrixData = new float[16];
             instance.transform.get(matrixData);
             instanceBuffer.put(matrixData);
-            
+
             // Color (4 floats)
             instanceBuffer.put(instance.color.x);
             instanceBuffer.put(instance.color.y);
             instanceBuffer.put(instance.color.z);
             instanceBuffer.put(instance.color.w);
-            
+
             // UV (4 floats)
             instanceBuffer.put(instance.uv.x);
             instanceBuffer.put(instance.uv.y);
             instanceBuffer.put(instance.uv.z);
             instanceBuffer.put(instance.uv.w);
         }
-        
+
         instanceBuffer.flip();
-        
+
         // Upload instance data
         glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
         glBufferSubData(GL_ARRAY_BUFFER, 0, instanceBuffer);
-        
+
         // Bind texture
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, textureId);
-        
+
         // Draw instanced
         glBindVertexArray(quadVAO);
         glDrawArraysInstanced(GL_TRIANGLES, 0, 6, count);
         glBindVertexArray(0);
-        
+
         drawCalls++;
     }
-    
+
     public void destroy() {
         if (quadVAO != 0) glDeleteVertexArrays(quadVAO);
         if (quadVBO != 0) glDeleteBuffers(quadVBO);
@@ -566,22 +568,30 @@ public class InstancedRenderer {
         if (instanceBuffer != null) MemoryUtil.memFree(instanceBuffer);
         if (shader != null) shader.delete();
     }
-    
+
     // Statistics
     public void printStats() {
         System.out.printf("Instanced Rendering Stats:%n");
         System.out.printf("  Total sprites: %d%n", totalInstances + culledInstances);
         System.out.printf("  Rendered: %d%n", totalInstances);
         System.out.printf("  Culled: %d (%.1f%%)%n", culledInstances,
-            (culledInstances / (float) (totalInstances + culledInstances)) * 100);
+                (culledInstances / (float) (totalInstances + culledInstances)) * 100);
         System.out.printf("  Draw calls: %d%n", drawCalls);
         System.out.printf("  Sprites per draw call: %.1f%n",
-            totalInstances / (float) Math.max(1, drawCalls));
+                totalInstances / (float) Math.max(1, drawCalls));
     }
-    
-    public int getTotalInstances() { return totalInstances; }
-    public int getDrawCalls() { return drawCalls; }
-    public int getCulledInstances() { return culledInstances; }
+
+    public int getTotalInstances() {
+        return totalInstances;
+    }
+
+    public int getDrawCalls() {
+        return drawCalls;
+    }
+
+    public int getCulledInstances() {
+        return culledInstances;
+    }
 }
 ```
 
@@ -653,7 +663,6 @@ void main()
 package com.pocket.rpg.effects;
 
 import com.pocket.rpg.rendering.InstancedRenderer;
-import com.pocket.rpg.rendering.Sprite;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
 
@@ -665,11 +674,11 @@ import java.util.List;
  * Can handle 10,000+ particles at 60 FPS.
  */
 public class ParticleSystem {
-    
+
     private final List<Particle> particles = new ArrayList<>();
-    private final Sprite particleSprite;
+    private final com.pocket.rpg.rendering.resources.Sprite particleSprite;
     private final int maxParticles;
-    
+
     private static class Particle {
         Vector2f position;
         Vector2f velocity;
@@ -678,17 +687,17 @@ public class ParticleSystem {
         float size;
         float rotation;
         float rotationSpeed;
-        
+
         boolean isAlive() {
             return life > 0;
         }
     }
-    
-    public ParticleSystem(Sprite particleSprite, int maxParticles) {
+
+    public ParticleSystem(com.pocket.rpg.rendering.resources.Sprite particleSprite, int maxParticles) {
         this.particleSprite = particleSprite;
         this.maxParticles = maxParticles;
     }
-    
+
     /**
      * Emits a burst of particles.
      */
@@ -696,69 +705,69 @@ public class ParticleSystem {
         for (int i = 0; i < count && particles.size() < maxParticles; i++) {
             Particle p = new Particle();
             p.position = new Vector2f(position);
-            
+
             // Random velocity
             float angle = (float) (Math.random() * Math.PI * 2);
             float speed = 50 + (float) Math.random() * 100;
             p.velocity = new Vector2f(
-                (float) Math.cos(angle) * speed,
-                (float) Math.sin(angle) * speed
+                    (float) Math.cos(angle) * speed,
+                    (float) Math.sin(angle) * speed
             );
-            
+
             p.life = 1.0f + (float) Math.random();
             p.maxLife = p.life;
             p.size = 4 + (float) Math.random() * 8;
             p.rotation = 0;
             p.rotationSpeed = (float) (Math.random() - 0.5) * 360;
-            
+
             particles.add(p);
         }
     }
-    
+
     /**
      * Updates all particles.
      */
     public void update(float deltaTime) {
         particles.removeIf(p -> !p.isAlive());
-        
+
         for (Particle p : particles) {
             // Update physics
             p.position.x += p.velocity.x * deltaTime;
             p.position.y += p.velocity.y * deltaTime;
-            
+
             // Gravity
             p.velocity.y += 200 * deltaTime;
-            
+
             // Rotation
             p.rotation += p.rotationSpeed * deltaTime;
-            
+
             // Life
             p.life -= deltaTime;
         }
     }
-    
+
     /**
      * Renders all particles using instanced rendering.
      */
     public void render(InstancedRenderer renderer) {
         for (Particle p : particles) {
             if (!p.isAlive()) continue;
-            
+
             // Create temporary sprite renderer for instancing
             // In production, you'd optimize this further
             GameObject particleObj = new GameObject("Particle",
-                new Vector3f(p.position.x, p.position.y, 0));
-            
+                    new Vector3f(p.position.x, p.position.y, 0));
+
             particleObj.getTransform().setRotation(0, 0, p.rotation);
             particleObj.getTransform().setScale(p.size, p.size, 1);
-            
+
             SpriteRenderer sr = new SpriteRenderer(particleSprite);
             sr.setGameObject(particleObj);
-            
+
             renderer.drawSpriteRenderer(sr);
         }
     }
-    
+
     public int getParticleCount() {
         return particles.size();
     }

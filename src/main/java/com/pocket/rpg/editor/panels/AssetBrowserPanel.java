@@ -3,8 +3,10 @@ package com.pocket.rpg.editor.panels;
 import com.pocket.rpg.editor.assets.AssetDragPayload;
 import com.pocket.rpg.editor.assets.ThumbnailCache;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
-import com.pocket.rpg.rendering.Sprite;
-import com.pocket.rpg.rendering.SpriteSheet;
+import com.pocket.rpg.rendering.resources.Sprite;
+import com.pocket.rpg.rendering.resources.SpriteSheet;
+import com.pocket.rpg.rendering.resources.Shader;
+import com.pocket.rpg.rendering.resources.Texture;
 import com.pocket.rpg.resources.Assets;
 import imgui.ImGui;
 import imgui.flag.*;
@@ -606,7 +608,7 @@ public class AssetBrowserPanel {
     }
 
     private String getIconForType(Class<?> type) {
-        if (type == Sprite.class || type == com.pocket.rpg.rendering.Texture.class) {
+        if (type == Sprite.class || type == Texture.class) {
             return FontAwesomeIcons.Image;
         }
         if (type == SpriteSheet.class) {
@@ -615,7 +617,7 @@ public class AssetBrowserPanel {
         if (type == com.pocket.rpg.prefab.JsonPrefab.class) {
             return FontAwesomeIcons.Cubes;
         }
-        if (type == com.pocket.rpg.rendering.Shader.class) {
+        if (type == Shader.class) {
             return FontAwesomeIcons.Code;
         }
         if (type == com.pocket.rpg.serialization.SceneData.class) {
@@ -628,7 +630,7 @@ public class AssetBrowserPanel {
         return entry.type == Sprite.class ||
                 entry.type == SpriteSheet.class ||
                 entry.type == com.pocket.rpg.prefab.JsonPrefab.class ||
-                entry.type == com.pocket.rpg.rendering.Texture.class;
+                entry.type == Texture.class;
     }
 
     private String truncateFilename(String filename, int maxLength) {

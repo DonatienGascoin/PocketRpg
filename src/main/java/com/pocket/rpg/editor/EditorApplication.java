@@ -6,7 +6,7 @@ import com.pocket.rpg.config.InputConfig;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.editor.camera.EditorCamera;
 import com.pocket.rpg.editor.ui.inspectors.CustomComponentEditorRegistry;
-import com.pocket.rpg.postProcessing.PostEffectRegistry;
+import com.pocket.rpg.rendering.postfx.PostEffectRegistry;
 import com.pocket.rpg.serialization.ComponentRegistry;
 import com.pocket.rpg.editor.core.EditorConfig;
 import com.pocket.rpg.editor.core.EditorWindow;

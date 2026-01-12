@@ -9,7 +9,6 @@ import lombok.Getter;
  */
 public abstract class Component {
 
-    /** NOT AVAILABLE IN EDITOR */
     @Getter
     protected GameObject gameObject;
 

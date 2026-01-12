@@ -1,6 +1,6 @@
 package com.pocket.rpg.serialization;
 
-import com.pocket.rpg.rendering.Sprite;
+import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.resources.SpriteReference;
 import org.joml.Vector2f;

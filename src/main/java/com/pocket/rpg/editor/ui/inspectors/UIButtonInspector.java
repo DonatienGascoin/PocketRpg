@@ -5,7 +5,7 @@ import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
-import com.pocket.rpg.rendering.Sprite;
+import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;

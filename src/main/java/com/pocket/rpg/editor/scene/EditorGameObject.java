@@ -878,6 +878,8 @@ public class EditorGameObject implements Renderable {
 
     /**
      * Converts to GameObjectData for serialization.
+     * Components are DEEP COPIED to prevent runtime modifications
+     * from corrupting editor state.
      */
     public GameObjectData toData() {
         GameObjectData data;
@@ -886,7 +888,17 @@ public class EditorGameObject implements Renderable {
             // Prefab instance: store prefabId + all overrides (including Transform)
             data = new GameObjectData(id, name, prefabId, copyOverrides(componentOverrides));
         } else {
-            // Scratch entity: deep copy all components
+//            // Scratch entity: DEEP COPY all components (including Transform)
+//            List<Component> clonedComponents = new ArrayList<>();
+//            if (components != null) {
+//                for (Component comp : components) {
+//                    Component clone = cloneComponent(comp);
+//                    if (clone != null) {
+//                        clonedComponents.add(clone);
+//                    }
+//                }
+//            }
+//            data = new GameObjectData(id, name, clonedComponents);
             List<Component> clonedComponents = new ArrayList<>();
             if (components != null) {
                 for (Component comp : components) {

@@ -1,27 +1,30 @@
 package com.pocket.rpg.editor;
 
+import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.config.InputConfig;
 import com.pocket.rpg.config.RenderingConfig;
-import com.pocket.rpg.core.camera.GameCamera;
 import com.pocket.rpg.core.window.ViewportConfig;
 import com.pocket.rpg.editor.rendering.EditorFramebuffer;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.RuntimeSceneLoader;
-import com.pocket.rpg.editor.scene.RuntimeSceneManager;
 import com.pocket.rpg.editor.serialization.EditorSceneSerializer;
-import com.pocket.rpg.rendering.postfx.PostProcessor;
-import com.pocket.rpg.rendering.targets.FramebufferTarget;
 import com.pocket.rpg.rendering.core.RenderCamera;
+import com.pocket.rpg.rendering.core.Renderable;
 import com.pocket.rpg.rendering.pipeline.RenderParams;
 import com.pocket.rpg.rendering.pipeline.RenderPipeline;
-import com.pocket.rpg.rendering.core.Renderable;
-import com.pocket.rpg.resources.Assets;
+import com.pocket.rpg.rendering.postfx.PostProcessor;
+import com.pocket.rpg.rendering.targets.FramebufferTarget;
+import com.pocket.rpg.core.application.GameLoop;
 import com.pocket.rpg.scenes.RuntimeScene;
 import com.pocket.rpg.scenes.Scene;
-import com.pocket.rpg.serialization.SceneData;
+import com.pocket.rpg.scenes.SceneManager;
 import com.pocket.rpg.scenes.transitions.SceneTransition;
 import com.pocket.rpg.scenes.transitions.TransitionManager;
+import com.pocket.rpg.serialization.GameObjectData;
+import com.pocket.rpg.serialization.SceneData;
+import com.pocket.rpg.serialization.Serializer;
 import lombok.Getter;
 import org.joml.Vector4f;
 
@@ -31,23 +34,20 @@ import java.util.function.Consumer;
 /**
  * Controls Play Mode lifecycle in the Scene Editor.
  * <p>
- * <b>RENDERING ARCHITECTURE NOTE:</b>
- * This class uses {@link RenderPipeline} (UnifiedRenderer) because Play Mode
- * simulates the actual game runtime, which requires:
+ * Uses {@link GameLoop} for update coordination, ensuring scene
+ * is frozen during transitions.
+ * <p>
+ * Uses {@link RenderPipeline} because Play Mode simulates the actual
+ * game runtime, which requires:
  * <ul>
  *   <li>Post-processing effects (blur, vignette, etc.)</li>
  *   <li>UI canvas rendering</li>
  *   <li>Transition overlays</li>
  *   <li>Game camera (not editor camera)</li>
  * </ul>
- * <p>
- * This is different from {@code EditorSceneRenderer} which handles editor-specific
- * features like layer dimming and selection highlighting.
- * <p>
- * Replaces: {@code PlayModeRenderer} (to be deleted in Phase 6)
  *
+ * @see GameLoop
  * @see RenderPipeline
- * @see com.pocket.rpg.editor.rendering.EditorSceneRenderer
  */
 public class PlayModeController {
 
@@ -72,7 +72,7 @@ public class PlayModeController {
     // Runtime systems
     private ViewportConfig viewportConfig;
     private RuntimeSceneLoader sceneLoader;
-    private RuntimeSceneManager sceneManager;
+    private GameLoop gameLoop;
     private TransitionManager transitionManager;
     private PlayModeInputManager inputManager;
 
@@ -113,21 +113,17 @@ public class PlayModeController {
         }
 
         try {
-            // 1. Snapshot editor scene
-            snapshot = EditorSceneSerializer.toSceneData(editorScene);
+            // 1. Snapshot editor scene (deep copy via JSON serialization)
+            // This ensures runtime cannot corrupt the snapshot
+            SceneData tempData = EditorSceneSerializer.toSceneData(editorScene);
+            snapshot = Serializer.deepCopy(tempData, SceneData.class);
             snapshotFilePath = editorScene.getFilePath();
 
             // 2. Create viewport config
             viewportConfig = new ViewportConfig(gameConfig);
 
-            // 3. Create scene loader and manager
-            sceneLoader = new RuntimeSceneLoader(viewportConfig, renderingConfig);
-            sceneManager = new RuntimeSceneManager(
-                    viewportConfig,
-                    renderingConfig,
-                    sceneLoader,
-                    "gameData/scenes/" // TODO: Extract to GameConfig
-            );
+            // 3. Create scene loader
+            sceneLoader = new RuntimeSceneLoader();
 
             // 4. Initialize input
             long windowHandle = context.getWindow().getWindowHandle();
@@ -154,7 +150,11 @@ public class PlayModeController {
             }
             pipeline.init();
 
-            // 8. Create transition manager and set on pipeline
+            // 8. Create SceneManager with loader
+            SceneManager sceneManager = new SceneManager(viewportConfig, renderingConfig);
+            sceneManager.setSceneLoader(sceneLoader, "gameData/scenes/");
+
+            // 9. Create TransitionManager
             transitionManager = new TransitionManager(
                     sceneManager,
                     pipeline.getOverlayRenderer(),
@@ -162,14 +162,18 @@ public class PlayModeController {
             );
             pipeline.setTransitionManager(transitionManager);
 
-            // 9. Initialize SceneTransition API
+            // 10. Initialize SceneTransition static API
             SceneTransition.forceInitialize(transitionManager);
 
-            // 10. Load initial scene
-            RuntimeScene runtimeScene = sceneLoader.load(snapshot);
+            // 11. Create GameLoop
+            gameLoop = new GameLoop(sceneManager, transitionManager);
+
+            // 12. Load initial scene from a copy (keeps snapshot pristine for restore)
+            SceneData runtimeCopy = Serializer.deepCopy(snapshot, SceneData.class);
+            RuntimeScene runtimeScene = sceneLoader.load(runtimeCopy);
             sceneManager.loadScene(runtimeScene);
 
-            // 11. Switch state
+            // 13. Switch state
             state = PlayState.PLAYING;
 
             showMessage("Play mode started");
@@ -202,7 +206,7 @@ public class PlayModeController {
 
         cleanup();
 
-        // Restore editor scene
+        // Restore editor scene from snapshot
         if (snapshot != null) {
             try {
                 EditorScene restored = EditorSceneSerializer.fromSceneData(snapshot, snapshotFilePath);
@@ -228,18 +232,17 @@ public class PlayModeController {
     public void update(float deltaTime) {
         if (state != PlayState.PLAYING) return;
 
+        // Input always captured
         if (inputManager != null) {
             inputManager.update(deltaTime);
         }
 
-        if (transitionManager != null) {
-            transitionManager.update(deltaTime);
+        // GameLoop handles transition freeze
+        if (gameLoop != null) {
+            gameLoop.update(deltaTime);
         }
 
-        if (sceneManager != null) {
-            sceneManager.update(deltaTime);
-        }
-
+        // End frame for input
         if (inputManager != null) {
             inputManager.endFrame();
         }
@@ -247,22 +250,19 @@ public class PlayModeController {
 
     public void render() {
         if (state == PlayState.STOPPED) return;
-        if (pipeline == null || outputFramebuffer == null) return;
+        if (pipeline == null || outputFramebuffer == null || gameLoop == null) return;
 
-        Scene scene = sceneManager != null ? sceneManager.getCurrentScene() : null;
+        Scene scene = gameLoop.getSceneManager().getCurrentScene();
         if (scene == null) return;
 
         // Get renderables and camera from scene
-        // Note: Scene.getRenderers() returns List<Renderable>
         List<Renderable> renderables = scene.getRenderers();
-
-        // Scene.getCamera() returns GameCamera which should implement RenderCamera
         RenderCamera camera = scene.getCamera();
 
         // Create target
         FramebufferTarget target = new FramebufferTarget(outputFramebuffer);
 
-        // Build params with full pipeline (transitionManager is on pipeline)
+        // Build params with full pipeline
         RenderParams params = RenderParams.builder()
                 .renderables(renderables)
                 .camera(camera)
@@ -276,9 +276,6 @@ public class PlayModeController {
 
         // Execute pipeline
         pipeline.execute(target, params);
-
-//        System.out.println("[PlayMode] orthoSize=" + ((GameCamera)camera).getOrthographicSize() +
-//                ", zoom=" + ((GameCamera)camera).getZoom());
     }
 
     public int getOutputTexture() {
@@ -303,6 +300,11 @@ public class PlayModeController {
             inputManager = null;
         }
 
+        if (gameLoop != null) {
+            gameLoop.destroy();
+            gameLoop = null;
+        }
+
         if (pipeline != null) {
             pipeline.destroy();
             pipeline = null;
@@ -316,11 +318,6 @@ public class PlayModeController {
         if (outputFramebuffer != null) {
             outputFramebuffer.destroy();
             outputFramebuffer = null;
-        }
-
-        if (sceneManager != null) {
-            sceneManager.destroy();
-            sceneManager = null;
         }
 
         transitionManager = null;

@@ -3,6 +3,8 @@ package com.pocket.rpg.scenes;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.core.camera.GameCamera;
 import com.pocket.rpg.core.window.ViewportConfig;
+import com.pocket.rpg.editor.scene.RuntimeSceneLoader;
+import com.pocket.rpg.serialization.SceneData;
 import lombok.Getter;
 import lombok.NonNull;
 
@@ -14,15 +16,26 @@ import java.util.Map;
 /**
  * SceneManager handles loading, unloading, and managing scenes.
  * Supports lifecycle listeners for scene events.
+ * <p>
+ * Can load scenes from:
+ * <ul>
+ *   <li>Registered Scene instances (for programmatic scenes)</li>
+ *   <li>Scene files via RuntimeSceneLoader (for data-driven scenes)</li>
+ * </ul>
  */
 public class SceneManager {
     private final Map<String, Scene> scenes;
     private final List<SceneLifecycleListener> lifecycleListeners;
+
     @Getter
     private Scene currentScene;
 
     private final ViewportConfig viewportConfig;
     private final RenderingConfig renderingConfig;
+
+    // File-based scene loading
+    private RuntimeSceneLoader sceneLoader;
+    private String scenesBasePath;
 
     public SceneManager(@NonNull ViewportConfig viewportConfig, @NonNull RenderingConfig renderingConfig) {
         this.scenes = new HashMap<>();
@@ -30,6 +43,25 @@ public class SceneManager {
         this.viewportConfig = viewportConfig;
         this.renderingConfig = renderingConfig;
     }
+
+    // ========================================================================
+    // SCENE LOADER CONFIGURATION
+    // ========================================================================
+
+    /**
+     * Configures file-based scene loading.
+     *
+     * @param loader   RuntimeSceneLoader for loading .scene files
+     * @param basePath Base path for scene files (e.g., "gameData/scenes/")
+     */
+    public void setSceneLoader(RuntimeSceneLoader loader, String basePath) {
+        this.sceneLoader = loader;
+        this.scenesBasePath = basePath != null ? basePath : "";
+    }
+
+    // ========================================================================
+    // SCENE REGISTRATION
+    // ========================================================================
 
     /**
      * Registers a scene with the manager.
@@ -40,6 +72,10 @@ public class SceneManager {
     public void registerScene(Scene scene) {
         scenes.put(scene.getName(), scene);
     }
+
+    // ========================================================================
+    // LIFECYCLE LISTENERS
+    // ========================================================================
 
     /**
      * Adds a lifecycle listener.
@@ -61,14 +97,30 @@ public class SceneManager {
         lifecycleListeners.remove(listener);
     }
 
+    // ========================================================================
+    // SCENE LOADING
+    // ========================================================================
+
     /**
      * Loads a scene by name.
-     * Unloads the current scene if one is active.
+     * <p>
+     * Lookup order:
+     * <ol>
+     *   <li>Registered scenes (via registerScene())</li>
+     *   <li>Scene files (via sceneLoader if configured)</li>
+     * </ol>
      *
      * @param sceneName name of the scene to load
      */
     public void loadScene(String sceneName) {
+        // First check registered scenes
         Scene scene = scenes.get(sceneName);
+
+        // Try file-based loading if not found and loader configured
+        if (scene == null && sceneLoader != null) {
+            scene = loadSceneFromFile(sceneName);
+        }
+
         if (scene == null) {
             System.err.println("Scene not found: " + sceneName);
             return;
@@ -78,7 +130,7 @@ public class SceneManager {
     }
 
     /**
-     * Loads a scene.
+     * Loads a scene directly.
      * Unloads the current scene if one is active.
      *
      * @param scene the scene to load
@@ -90,11 +142,76 @@ public class SceneManager {
         }
 
         currentScene = scene;
+
+        // Initialize the scene (creates camera with defaults)
         currentScene.initialize(viewportConfig, renderingConfig);
+
+        // Apply camera data if this is a RuntimeScene with stored camera config
+        if (scene instanceof RuntimeScene runtimeScene) {
+            applyCameraData(runtimeScene);
+        }
+
         fireSceneLoaded(currentScene);
 
         System.out.println("Loaded scene: " + scene.getName());
     }
+
+    /**
+     * Attempts to load a scene from file.
+     *
+     * @param sceneName Name of the scene (without path/extension)
+     * @return Loaded scene or null if not found
+     */
+    private Scene loadSceneFromFile(String sceneName) {
+        String[] pathsToTry = {
+                scenesBasePath + sceneName + ".scene",
+                scenesBasePath + sceneName,
+                sceneName + ".scene",
+                sceneName
+        };
+
+        for (String path : pathsToTry) {
+            try {
+                RuntimeScene scene = sceneLoader.loadFromPath(path);
+                if (scene != null) {
+                    System.out.println("Loaded scene from file: " + path);
+                    return scene;
+                }
+            } catch (Exception e) {
+                // Try next path
+            }
+        }
+
+        System.err.println("Could not find scene file for: " + sceneName);
+        System.err.println("  Tried paths: " + String.join(", ", pathsToTry));
+        return null;
+    }
+
+    /**
+     * Applies stored camera data to the scene's camera.
+     * Called after initialize() which creates the camera with defaults.
+     */
+    private void applyCameraData(RuntimeScene scene) {
+        SceneData.CameraData cameraData = scene.getCameraData();
+        if (cameraData == null || scene.getCamera() == null) {
+            return;
+        }
+
+        // Apply position
+        float[] pos = cameraData.getPosition();
+        if (pos != null && pos.length >= 2) {
+            scene.getCamera().setPosition(pos[0], pos[1]);
+        }
+
+        // Apply orthographic size
+        scene.getCamera().setOrthographicSize(cameraData.getOrthographicSize());
+
+        System.out.println("Applied camera data: orthoSize=" + cameraData.getOrthographicSize());
+    }
+
+    // ========================================================================
+    // UPDATE
+    // ========================================================================
 
     /**
      * Updates the current scene.
@@ -108,6 +225,10 @@ public class SceneManager {
         }
     }
 
+    // ========================================================================
+    // CLEANUP
+    // ========================================================================
+
     /**
      * Destroys the scene manager and cleans up resources.
      */
@@ -120,6 +241,10 @@ public class SceneManager {
         scenes.clear();
         lifecycleListeners.clear();
     }
+
+    // ========================================================================
+    // EVENTS
+    // ========================================================================
 
     /**
      * Fires the scene loaded event to all listeners.

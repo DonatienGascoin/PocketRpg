@@ -1,22 +1,18 @@
 package com.pocket.rpg.editor.scene;
 
 import com.pocket.rpg.components.Component;
-import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.components.TilemapRenderer;
 import com.pocket.rpg.components.Transform;
-import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.core.GameObject;
-import com.pocket.rpg.core.window.ViewportConfig;
 import com.pocket.rpg.prefab.Prefab;
 import com.pocket.rpg.prefab.PrefabRegistry;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.resources.LoadOptions;
 import com.pocket.rpg.scenes.RuntimeScene;
-import com.pocket.rpg.serialization.ComponentRefResolver;
-import com.pocket.rpg.serialization.GameObjectData;
-import com.pocket.rpg.serialization.SceneData;
+import com.pocket.rpg.serialization.*;
 import org.joml.Vector3f;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -26,26 +22,27 @@ import java.util.Map;
  * Loads SceneData into a playable RuntimeScene.
  * <p>
  * Handles:
- * - All GameObjects (tilemaps, prefab instances, scratch entities)
- * - Collision map loading
- * - Parent-child relationships
- * - Camera configuration
- * - Component reference resolution
+ * <ul>
+ *   <li>All GameObjects (tilemaps, prefab instances, scratch entities)</li>
+ *   <li>Collision map loading</li>
+ *   <li>Parent-child relationships</li>
+ *   <li>Camera data storage (applied by SceneManager after initialize)</li>
+ *   <li>Component reference resolution</li>
+ * </ul>
  * <p>
- * Uses unified GameObjectData for all entity types.
+ * <b>Important:</b> This loader does NOT call scene.initialize().
+ * SceneManager is responsible for initialization and camera configuration.
  */
 public class RuntimeSceneLoader {
 
-    private final ViewportConfig viewportConfig;
-    private final RenderingConfig renderingConfig;
-
-    public RuntimeSceneLoader(ViewportConfig viewportConfig, RenderingConfig renderingConfig) {
-        this.viewportConfig = viewportConfig;
-        this.renderingConfig = renderingConfig;
-    }
-
     /**
      * Loads a RuntimeScene from SceneData.
+     * <p>
+     * The scene is NOT initialized - SceneManager will call initialize()
+     * and then apply camera settings from cameraData.
+     *
+     * @param data Scene data to load
+     * @return Uninitialized RuntimeScene ready for SceneManager
      */
     public RuntimeScene load(SceneData data) {
         if (data == null) {
@@ -53,30 +50,33 @@ public class RuntimeSceneLoader {
         }
 
         RuntimeScene scene = new RuntimeScene(data.getName());
-        scene.initialize(viewportConfig, renderingConfig);
 
-        // Load collision map
+        // Store camera data for SceneManager to apply after initialize()
+        if (data.getCamera() != null) {
+            scene.setCameraData(data.getCamera());
+        }
+
+        // Load collision map (can be done before initialize)
         if (data.getCollisionData() != null) {
             scene.getCollisionMap().fromBase64(data.getCollisionData());
         }
 
         // Load all GameObjects with hierarchy support
+        // Note: GameObjects are added but not started (no scene.initialize() yet)
         loadGameObjectsWithHierarchy(scene, data.getGameObjects());
-
-        // Configure camera
-        if (data.getCamera() != null) {
-            configureCamera(scene, data.getCamera());
-        }
-
 
         return scene;
     }
 
     /**
      * Loads a RuntimeScene from a file path.
+     * Uses LoadOptions.raw() to bypass asset root prepending.
+     *
+     * @param scenePath Path to .scene file (e.g., "gameData/scenes/Test.scene")
+     * @return Uninitialized RuntimeScene
      */
-    public RuntimeScene loadFromPath(String scenePath, LoadOptions options) {
-        SceneData data = Assets.load(scenePath, options);
+    public RuntimeScene loadFromPath(String scenePath) {
+        SceneData data = Assets.load(scenePath, LoadOptions.raw());
         if (data == null) {
             throw new RuntimeException("Failed to load scene from path: " + scenePath);
         }
@@ -160,7 +160,7 @@ public class RuntimeSceneLoader {
             }
         }
 
-        System.out.println("DEBUG: Scene object count: " + scene.getGameObjects().size());
+        System.out.println("Loaded " + scene.getGameObjects().size() + " root GameObjects");
     }
 
     // ========================================================================
@@ -205,6 +205,7 @@ public class RuntimeSceneLoader {
 
     /**
      * Creates a scratch GameObject (no prefab).
+     * Components are CLONED to prevent runtime from corrupting the source SceneData.
      */
     private GameObject createScratchGameObject(GameObjectData goData) {
         String name = goData.getName();
@@ -215,7 +216,7 @@ public class RuntimeSceneLoader {
         GameObject gameObject = new GameObject(name);
         gameObject.setEnabled(goData.isActive());
 
-        // Add all components
+        // Add all components (cloned to protect snapshot)
         List<Component> components = goData.getComponents();
         if (components != null) {
             for (Component comp : components) {
@@ -223,9 +224,9 @@ public class RuntimeSceneLoader {
 
                 // Transform is handled specially - copy values to existing Transform
                 if (comp instanceof Transform t) {
-                    gameObject.getTransform().setPosition(t.getPosition());
-                    gameObject.getTransform().setRotation(t.getRotation());
-                    gameObject.getTransform().setScale(t.getScale());
+                    gameObject.getTransform().setPosition(new Vector3f(t.getPosition()));
+                    gameObject.getTransform().setRotation(new Vector3f(t.getRotation()));
+                    gameObject.getTransform().setScale(new Vector3f(t.getScale()));
                 } else {
                     gameObject.addComponent(comp);
                 }
@@ -258,8 +259,6 @@ public class RuntimeSceneLoader {
                 pos != null && pos.length > 2 ? pos[2] : 0
         );
 
-        System.out.println("DEBUG: Instantiating prefab '" + prefabId + "' at " + position);
-
         // Instantiate with overrides
         GameObject gameObject = prefab.instantiate(position, goData.getComponentOverrides());
 
@@ -269,19 +268,8 @@ public class RuntimeSceneLoader {
                 gameObject.setName(instanceName);
             }
             gameObject.setEnabled(goData.isActive());
-
-            System.out.println("DEBUG: Created prefab instance: " + gameObject.getName() +
-                    " components=" + gameObject.getAllComponents().size());
-
-            // Debug sprite renderer
-            var sr = gameObject.getComponent(SpriteRenderer.class);
-            if (sr != null) {
-                System.out.println("DEBUG: SpriteRenderer - sprite=" + sr.getSprite() +
-                        " zIndex=" + sr.getZIndex() +
-                        " visible=" + sr.isRenderVisible());
-            }
         } else {
-            System.err.println("DEBUG: prefab.instantiate() returned null for " + prefabId);
+            System.err.println("prefab.instantiate() returned null for " + prefabId);
         }
 
         return gameObject;
@@ -311,31 +299,5 @@ public class RuntimeSceneLoader {
                 }
             }
         }
-    }
-
-    /**
-     * Configures the scene camera from serialized data.
-     */
-    private void configureCamera(RuntimeScene scene, SceneData.CameraData cameraData) {
-        if (scene.getCamera() == null) {
-            System.out.println("[DEBUG configureCamera] Camera is NULL!");
-            return;
-        }
-
-        // DEBUG
-        System.out.println("[DEBUG configureCamera] Input orthoSize: " + cameraData.getOrthographicSize());
-        System.out.println("[DEBUG configureCamera] Before set, camera orthoSize: " +
-                scene.getCamera().getOrthographicSize());
-
-        float[] pos = cameraData.getPosition();
-        if (pos != null && pos.length >= 2) {
-            scene.getCamera().setPosition(pos[0], pos[1]);
-        }
-
-        scene.getCamera().setOrthographicSize(cameraData.getOrthographicSize());
-
-        // DEBUG
-        System.out.println("[DEBUG configureCamera] After set, camera orthoSize: " +
-                scene.getCamera().getOrthographicSize());
     }
 }

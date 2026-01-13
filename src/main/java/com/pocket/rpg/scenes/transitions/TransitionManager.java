@@ -83,10 +83,11 @@ public class TransitionManager {
      */
     public void startTransition(String sceneName, TransitionConfig config) {
         if (state != State.IDLE) {
-            throw new IllegalStateException(
+            System.out.println(
                     "Cannot start transition while another is in progress. " +
                             "Current state: " + state
             );
+            return;
         }
 
         if (sceneName == null || sceneName.isEmpty()) {
@@ -238,8 +239,13 @@ public class TransitionManager {
      * Called at the midpoint of the transition.
      */
     private void performSceneSwitch() {
-        System.out.println("Switching to scene: " + targetSceneName);
-        sceneManager.loadScene(targetSceneName);
+        try {
+            System.out.println("Switching to scene: " + targetSceneName);
+            sceneManager.loadScene(targetSceneName);
+        } catch (Exception e) {
+            System.err.println("Scene switch failed: " + e.getMessage());
+            completeTransition();  // Reset state on failure
+        }
     }
 
     /**

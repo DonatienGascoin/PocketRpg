@@ -56,6 +56,22 @@ public class SceneTransition {
     }
 
     /**
+     * Initializes the scene transition system.
+     * Used by the editor in order to re-initialize at each startup.
+     *
+     * @param manager the transition manager instance
+     * @throws IllegalArgumentException if manager is null
+     * @throws IllegalStateException    if already initialized
+     */
+    public static void forceInitialize(TransitionManager manager) {
+        if (instance != null) {
+            instance.cancelTransition();
+        }
+        instance = manager;
+        System.out.println("SceneTransition static API initialized");
+    }
+
+    /**
      * Loads a scene with the default transition.
      * Default transition is configured in GameConfig and passed to TransitionManager.
      *

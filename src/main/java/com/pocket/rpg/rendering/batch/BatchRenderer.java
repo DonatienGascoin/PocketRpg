@@ -132,7 +132,7 @@ public class BatchRenderer extends Renderer {
         for (long[] chunkCoord : visibleChunks) {
             int cx = (int) chunkCoord[0];
             int cy = (int) chunkCoord[1];
-            batch.submitChunk(tilemapRenderer, cx, cy, globalTintColor);
+            batch.submit(tilemapRenderer, cx, cy, globalTintColor);
         }
     }
 

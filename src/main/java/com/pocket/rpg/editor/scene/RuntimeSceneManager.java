@@ -2,6 +2,7 @@ package com.pocket.rpg.editor.scene;
 
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.core.window.ViewportConfig;
+import com.pocket.rpg.resources.LoadOptions;
 import com.pocket.rpg.scenes.RuntimeScene;
 import com.pocket.rpg.scenes.Scene;
 import com.pocket.rpg.scenes.SceneManager;
@@ -117,7 +118,7 @@ public class RuntimeSceneManager extends SceneManager {
 
         for (String path : pathsToTry) {
             try {
-                RuntimeScene scene = sceneLoader.loadFromPath(path);
+                RuntimeScene scene = sceneLoader.loadFromPath(path, LoadOptions.raw());
                 if (scene != null) {
                     return scene;
                 }

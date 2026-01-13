@@ -99,7 +99,6 @@ public class AssetManager implements AssetContext {
         registerLoader(SceneData.class, new SceneDataLoader());
         registerLoader(JsonPrefab.class, new JsonPrefabLoader());
         registerLoader(Font.class, new FontLoader());
-
     }
 
     /**
@@ -122,61 +121,76 @@ public class AssetManager implements AssetContext {
                 " (" + String.join(", ", loader.getSupportedExtensions()) + ")");
     }
 
+    // ========================================================================
+    // PUBLIC LOAD METHODS - all delegate to loadInternal
+    // ========================================================================
+
     @Override
     @SuppressWarnings("unchecked")
     public <T> T load(String path) {
-        // Normalize path
         String normalizedPath = normalizePath(path);
+        Class<?> type = getTypeFromPath(normalizedPath);
+        return (T) loadInternal(normalizedPath, type, LoadOptions.defaults());
+    }
 
-        // Check cache first (including sub-assets)
-        T cached = cache.get(normalizedPath);
-        if (cached != null) {
-            return cached;
-        }
-
-        if (statisticsEnabled) {
-            cache.getStats().recordLoad();
-        }
-
-        // Check for sub-asset reference
-        int hashIndex = normalizedPath.indexOf(SUB_ASSET_SEPARATOR);
-        if (hashIndex != -1) {
-            // Use Object.class as wildcard - loader returns appropriate type
-            return (T) loadSubAsset(normalizedPath, hashIndex, Object.class);
-        }
-
-        // Determine type from extension
-        Class<?> type = getTypeFromExtension(normalizedPath);
-        if (type == null) {
-            throw new IllegalArgumentException("Unknown file extension for: " + path);
-        }
-
-        return (T) loadWithType(normalizedPath, type);
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> T load(String path, LoadOptions options) {
+        String normalizedPath = normalizePath(path);
+        Class<?> type = getTypeFromPath(normalizedPath);
+        return (T) loadInternal(normalizedPath, type, options);
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public <T> T load(String path, Class<T> type) {
-        // Normalize path
         String normalizedPath = normalizePath(path);
+        return (T) loadInternal(normalizedPath, type, LoadOptions.defaults());
+    }
 
-        // Check cache first (including sub-assets)
-        T cached = cache.get(normalizedPath);
-        if (cached != null) {
-            return cached;
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> T load(String path, LoadOptions options, Class<T> type) {
+        String normalizedPath = normalizePath(path);
+        return (T) loadInternal(normalizedPath, type, options);
+    }
+
+    // ========================================================================
+    // INTERNAL LOAD IMPLEMENTATION
+    // ========================================================================
+
+    /**
+     * Core load implementation - all public methods delegate here.
+     */
+    @SuppressWarnings("unchecked")
+    private <T> T loadInternal(String normalizedPath, Class<?> type, LoadOptions options) {
+        // Cache check
+        if (options.isUseCache()) {
+            T cached = cache.get(normalizedPath);
+            if (cached != null) {
+                return cached;
+            }
         }
 
         if (statisticsEnabled) {
             cache.getStats().recordLoad();
         }
 
-        // Check for sub-asset reference
+        // Sub-asset handling
         int hashIndex = normalizedPath.indexOf(SUB_ASSET_SEPARATOR);
         if (hashIndex != -1) {
-            return loadSubAsset(normalizedPath, hashIndex, type);
+            return loadSubAsset(normalizedPath, hashIndex, type, options);
         }
 
-        return (T) loadWithType(normalizedPath, type);
+        // Type inference if needed
+        if (type == null || type == Object.class) {
+            type = getTypeFromExtension(normalizedPath);
+            if (type == null) {
+                throw new IllegalArgumentException("Unknown file extension for: " + normalizedPath);
+            }
+        }
+
+        return loadWithType(normalizedPath, type, options);
     }
 
     /**
@@ -186,11 +200,12 @@ public class AssetManager implements AssetContext {
      * @param fullPath  Full path including sub-asset identifier
      * @param hashIndex Index of the '#' separator
      * @param subType   Expected sub-asset type class
+     * @param options   Load options
      * @param <T>       Expected sub-asset type
      * @return The loaded sub-asset
      */
     @SuppressWarnings("unchecked")
-    private <T> T loadSubAsset(String fullPath, int hashIndex, Class<T> subType) {
+    private <T> T loadSubAsset(String fullPath, int hashIndex, Class<?> subType, LoadOptions options) {
         String basePath = fullPath.substring(0, hashIndex);
         String subId = fullPath.substring(hashIndex + 1);
 
@@ -200,8 +215,8 @@ public class AssetManager implements AssetContext {
             throw new IllegalArgumentException("Unknown parent asset type for: " + basePath);
         }
 
-        // Load parent asset (will be cached)
-        Object parent = load(basePath, parentType);
+        // Load parent asset (inherits options)
+        Object parent = loadInternal(basePath, parentType, options);
 
         // Get loader and extract sub-asset
         AssetLoader<?> loader = loaders.get(parentType);
@@ -209,51 +224,46 @@ public class AssetManager implements AssetContext {
             throw new IllegalArgumentException("No loader for parent type: " + parentType.getSimpleName());
         }
 
-        T subAsset = ((AssetLoader<Object>) loader).getSubAsset(parent, subId, subType);
+        Object subAsset = ((AssetLoader<Object>) loader).getSubAsset(parent, subId, Object.class);
 
-        // Cache and register with full reference path
-        cache.put(fullPath, subAsset);
+        if (options.isUseCache()) {
+            cache.put(fullPath, subAsset);
+        }
         resourcePaths.put(subAsset, fullPath);
 
-        return subAsset;
+        return (T) subAsset;
     }
 
     /**
-     * Internal load method with type specified.
+     * Internal load method with type and options.
      */
     @SuppressWarnings("unchecked")
-    private <T> T loadWithType(String normalizedPath, Class<T> type) {
-        // Get loader for type
+    private <T> T loadWithType(String normalizedPath, Class<?> type, LoadOptions options) {
         AssetLoader<T> loader = (AssetLoader<T>) loaders.get(type);
         if (loader == null) {
             throw new IllegalArgumentException("No loader registered for type: " + type.getSimpleName());
         }
 
-        // Resolve full path for actual file system access
-        String fullPath = resolvePath(normalizedPath);
+        String fullPath = resolvePath(normalizedPath, options);
 
         try {
-            // Load resource - pass FULL PATH to loader
             T resource = loader.load(fullPath);
 
-            // Cache it with NORMALIZED PATH as key
-            cache.put(normalizedPath, resource);
-
-            // Track normalized path for persistence
+            if (options.isUseCache()) {
+                cache.put(normalizedPath, resource);
+            }
             resourcePaths.put(resource, normalizedPath);
 
             return resource;
 
         } catch (IOException e) {
-            // Handle error based on mode
             if (errorMode == ErrorMode.THROW_EXCEPTION) {
                 throw new RuntimeException("Failed to load: " + normalizedPath, e);
             } else {
-                // Use placeholder
                 System.err.println("WARNING: Failed to load '" + normalizedPath + "', using placeholder. Error: " + e.getMessage());
                 T placeholder = loader.getPlaceholder();
 
-                if (placeholder != null) {
+                if (placeholder != null && options.isUseCache()) {
                     cache.put(normalizedPath, placeholder);
                     resourcePaths.put(placeholder, normalizedPath);
                 }
@@ -263,150 +273,33 @@ public class AssetManager implements AssetContext {
         }
     }
 
-    @Override
-    @SuppressWarnings("unchecked")
-    public <T> T get(String path) {
-        String normalizedPath = normalizePath(path);
-        return cache.get(normalizedPath);
-    }
+    // ========================================================================
+    // PATH RESOLUTION
+    // ========================================================================
 
-    @Override
-    public <T> List<T> getAll(Class<T> type) {
-        return cache.getAllOfType(type);
-    }
-
-    @Override
-    public boolean isLoaded(String path) {
-        String normalizedPath = normalizePath(path);
-        return cache.contains(normalizedPath);
-    }
-
-    @Override
-    public Set<String> getLoadedPaths() {
-        return cache.getPaths();
-    }
-
-    @Override
-    public void persist(Object resource) {
-        String path = resourcePaths.get(resource);
-        if (path == null) {
-            throw new IllegalArgumentException("Resource has no associated path. Use persist(resource, path) instead.");
-        }
-        persist(resource, path);
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public void persist(Object resource, String path) {
-        if (resource == null) {
-            throw new IllegalArgumentException("Cannot persist null resource");
+    /**
+     * Resolves path with options controlling asset root usage.
+     */
+    private String resolvePath(String path, LoadOptions options) {
+        // Skip asset root if disabled or path is absolute
+        if (!options.isUseAssetRoot() || path.startsWith("/") || path.contains(":")) {
+            return path;
         }
 
-        Class<?> type = resource.getClass();
-        AssetLoader loader = loaders.get(type);
-
-        if (loader == null) {
-            throw new IllegalArgumentException("No loader registered for type: " + type.getSimpleName());
+        String root = assetRoot;
+        if (!root.endsWith("/")) {
+            root += "/";
         }
-
-        String normalizedPath = normalizePath(path);
-        String fullPath = resolvePath(normalizedPath);
-
-        try {
-            loader.save(resource, fullPath);
-            System.out.println("Saved: " + normalizedPath);
-
-            // Update cache and path tracking
-            cache.put(normalizedPath, resource);
-            resourcePaths.put(resource, normalizedPath);
-
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to save: " + normalizedPath, e);
-        }
-    }
-
-    @Override
-    public AssetsConfiguration configure() {
-        return new AssetsConfiguration(this);
-    }
-
-    @Override
-    public CacheStats getStats() {
-        return cache.getStats();
-    }
-
-    @Override
-    public List<String> scanByType(Class<?> type) {
-        // Get loader for type
-        AssetLoader<?> loader = loaders.get(type);
-        if (loader == null) {
-            return new ArrayList<>();  // No loader, return empty
-        }
-
-        // Get extensions from loader
-        String[] extensions = loader.getSupportedExtensions();
-
-        // Scan for files with those extensions
-        return scanDirectory(assetRoot, extensions);
-    }
-
-    @Override
-    public List<String> scanAll() {
-        // Collect all extensions from all loaders
-        Set<String> allExtensions = new HashSet<>();
-        for (AssetLoader<?> loader : loaders.values()) {
-            for (String ext : loader.getSupportedExtensions()) {
-                allExtensions.add(ext.toLowerCase());
-            }
-        }
-
-        // Scan for all extensions
-        return scanDirectory(assetRoot, allExtensions.toArray(new String[0]));
+        return root + path;
     }
 
     /**
-     * Recursively scans a directory for files with specified extensions.
-     * Returns paths relative to asset root.
+     * Helper to extract type from path (handles sub-assets).
      */
-    private List<String> scanDirectory(String directory, String[] extensions) {
-        List<String> results = new ArrayList<>();
-
-        try {
-            Path dirPath = Paths.get(directory);
-            if (!Files.exists(dirPath) || !Files.isDirectory(dirPath)) {
-                return results;  // Directory doesn't exist
-            }
-
-            // Convert extensions to lowercase set for fast lookup
-            Set<String> extSet = new HashSet<>();
-            for (String ext : extensions) {
-                extSet.add(ext.toLowerCase());
-            }
-
-            // Walk directory tree
-            Files.walk(dirPath)
-                    .filter(Files::isRegularFile)
-                    .forEach(path -> {
-                        String fileName = path.getFileName().toString();
-
-                        // Check if file has matching extension
-                        for (String ext : extSet) {
-                            if (fileName.toLowerCase().endsWith(ext)) {
-                                // Convert to relative path from asset root
-                                String relativePath = dirPath.relativize(path).toString();
-                                // Normalize path separators to forward slashes
-                                relativePath = relativePath.replace('\\', '/');
-                                results.add(relativePath);
-                                break;
-                            }
-                        }
-                    });
-
-        } catch (IOException e) {
-            System.err.println("Error scanning directory: " + directory + " - " + e.getMessage());
-        }
-
-        return results;
+    private Class<?> getTypeFromPath(String normalizedPath) {
+        int hashIndex = normalizedPath.indexOf(SUB_ASSET_SEPARATOR);
+        String pathForType = (hashIndex != -1) ? normalizedPath.substring(0, hashIndex) : normalizedPath;
+        return getTypeFromExtension(pathForType);
     }
 
     /**
@@ -429,26 +322,6 @@ public class AssetManager implements AssetContext {
     }
 
     /**
-     * Resolves a path relative to asset root.
-     * If path is absolute or starts with /, uses it directly.
-     * Otherwise, prepends asset root.
-     */
-    private String resolvePath(String path) {
-        // Check if absolute path (starts with / or contains :)
-        if (path.startsWith("/") || path.contains(":")) {
-            return path;
-        }
-
-        // Relative path - prepend asset root
-        String root = assetRoot;
-        if (!root.endsWith("/")) {
-            root += "/";
-        }
-
-        return root + path;
-    }
-
-    /**
      * Determines type from file extension.
      */
     private Class<?> getTypeFromExtension(String path) {
@@ -461,31 +334,31 @@ public class AssetManager implements AssetContext {
         return extensionMap.get(extension);
     }
 
-    // Getters and setters for configuration
+    // ========================================================================
+    // GET / QUERY METHODS
+    // ========================================================================
 
-    public void setAssetRoot(String assetRoot) {
-        if (assetRoot == null || assetRoot.isEmpty()) {
-            throw new IllegalArgumentException("Asset root cannot be null or empty");
-        }
-        this.assetRoot = assetRoot;
-        System.out.println("Asset root set to: " + assetRoot);
-    }
-
-    public void setErrorMode(ErrorMode errorMode) {
-        if (errorMode == null) {
-            throw new IllegalArgumentException("Error mode cannot be null");
-        }
-        this.errorMode = errorMode;
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> T get(String path) {
+        String normalizedPath = normalizePath(path);
+        return cache.get(normalizedPath);
     }
 
     @Override
-    public String getRelativePath(String fullPath) {
-        try {
-            return fullPath.substring(assetRoot.length());
-        } catch (Exception e) {
-            System.err.println(e.getMessage());
-            throw e;
-        }
+    public <T> List<T> getAll(Class<T> type) {
+        return cache.getAllOfType(type);
+    }
+
+    @Override
+    public boolean isLoaded(String path) {
+        String normalizedPath = normalizePath(path);
+        return cache.contains(normalizedPath);
+    }
+
+    @Override
+    public Set<String> getLoadedPaths() {
+        return cache.getPaths();
     }
 
     @Override
@@ -517,6 +390,155 @@ public class AssetManager implements AssetContext {
     @Override
     public boolean isAssetType(Class<?> type) {
         return loaders.containsKey(type);
+    }
+
+    @Override
+    public String getRelativePath(String fullPath) {
+        try {
+            return fullPath.substring(assetRoot.length());
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            throw e;
+        }
+    }
+
+    // ========================================================================
+    // PERSISTENCE
+    // ========================================================================
+
+    @Override
+    public void persist(Object resource) {
+        String path = resourcePaths.get(resource);
+        if (path == null) {
+            throw new IllegalArgumentException("Resource has no associated path. Use persist(resource, path) instead.");
+        }
+        persist(resource, path);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public void persist(Object resource, String path) {
+        if (resource == null) {
+            throw new IllegalArgumentException("Cannot persist null resource");
+        }
+
+        Class<?> type = resource.getClass();
+        AssetLoader loader = loaders.get(type);
+
+        if (loader == null) {
+            throw new IllegalArgumentException("No loader registered for type: " + type.getSimpleName());
+        }
+
+        String normalizedPath = normalizePath(path);
+        String fullPath = resolvePath(normalizedPath, LoadOptions.defaults());
+
+        try {
+            loader.save(resource, fullPath);
+            System.out.println("Saved: " + normalizedPath);
+
+            // Update cache and path tracking
+            cache.put(normalizedPath, resource);
+            resourcePaths.put(resource, normalizedPath);
+
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to save: " + normalizedPath, e);
+        }
+    }
+
+    // ========================================================================
+    // SCANNING
+    // ========================================================================
+
+    @Override
+    public List<String> scanByType(Class<?> type) {
+        AssetLoader<?> loader = loaders.get(type);
+        if (loader == null) {
+            return new ArrayList<>();
+        }
+
+        String[] extensions = loader.getSupportedExtensions();
+        return scanDirectory(assetRoot, extensions);
+    }
+
+    @Override
+    public List<String> scanAll() {
+        Set<String> allExtensions = new HashSet<>();
+        for (AssetLoader<?> loader : loaders.values()) {
+            for (String ext : loader.getSupportedExtensions()) {
+                allExtensions.add(ext.toLowerCase());
+            }
+        }
+
+        return scanDirectory(assetRoot, allExtensions.toArray(new String[0]));
+    }
+
+    /**
+     * Recursively scans a directory for files with specified extensions.
+     * Returns paths relative to asset root.
+     */
+    private List<String> scanDirectory(String directory, String[] extensions) {
+        List<String> results = new ArrayList<>();
+
+        try {
+            Path dirPath = Paths.get(directory);
+            if (!Files.exists(dirPath) || !Files.isDirectory(dirPath)) {
+                return results;
+            }
+
+            Set<String> extSet = new HashSet<>();
+            for (String ext : extensions) {
+                extSet.add(ext.toLowerCase());
+            }
+
+            Files.walk(dirPath)
+                    .filter(Files::isRegularFile)
+                    .forEach(path -> {
+                        String fileName = path.getFileName().toString();
+
+                        for (String ext : extSet) {
+                            if (fileName.toLowerCase().endsWith(ext)) {
+                                String relativePath = dirPath.relativize(path).toString();
+                                relativePath = relativePath.replace('\\', '/');
+                                results.add(relativePath);
+                                break;
+                            }
+                        }
+                    });
+
+        } catch (IOException e) {
+            System.err.println("Error scanning directory: " + directory + " - " + e.getMessage());
+        }
+
+        return results;
+    }
+
+    // ========================================================================
+    // CONFIGURATION
+    // ========================================================================
+
+    @Override
+    public AssetsConfiguration configure() {
+        return new AssetsConfiguration(this);
+    }
+
+    @Override
+    public CacheStats getStats() {
+        return cache.getStats();
+    }
+
+    public void setAssetRoot(String assetRoot) {
+        if (assetRoot == null || assetRoot.isEmpty()) {
+            throw new IllegalArgumentException("Asset root cannot be null or empty");
+        }
+        this.assetRoot = assetRoot;
+        System.out.println("Asset root set to: " + assetRoot);
+    }
+
+    public void setErrorMode(ErrorMode errorMode) {
+        if (errorMode == null) {
+            throw new IllegalArgumentException("Error mode cannot be null");
+        }
+        this.errorMode = errorMode;
     }
 
     /**

@@ -90,6 +90,19 @@ public final class Assets {
     }
 
     /**
+     * Loads a resource from the given path.
+     * Type is inferred from the return value.
+     *
+     * @param path Resource path (relative to asset root)
+     * @param loadOptions loading options (no cache, raw path)
+     * @param <T>  Resource type
+     * @return Loaded resource (from cache if already loaded)
+     */
+    public static <T> T load(String path, LoadOptions loadOptions) {
+        return getContext().load(path, loadOptions);
+    }
+
+    /**
      * Loads a resource with explicit type.
      * Useful when type inference fails or when loading composite types.
      *
@@ -100,6 +113,20 @@ public final class Assets {
      */
     public static <T> T load(String path, Class<T> type) {
         return getContext().load(path, type);
+    }
+
+    /**
+     * Loads a resource with explicit type.
+     * Useful when type inference fails or when loading composite types.
+     *
+     * @param path Resource path (relative to asset root)
+     * @param loadOptions loading options (no cache, raw path)
+     * @param type Resource type class
+     * @param <T>  Resource type
+     * @return Loaded resource (from cache if already loaded)
+     */
+    public static <T> T load(String path, LoadOptions loadOptions, Class<T> type) {
+        return getContext().load(path, loadOptions, type);
     }
 
     /**
@@ -296,4 +323,7 @@ public final class Assets {
         return getContext().isAssetType(type);
     }
 
+    public static String getAssetRoot() {
+        return context.getAssetRoot();
+    }
 }

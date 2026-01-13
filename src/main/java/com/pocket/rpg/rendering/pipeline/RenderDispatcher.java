@@ -134,8 +134,26 @@ public class RenderDispatcher {
 
         Vector3f pos = entity.getPosition();
         Vector2f size = entity.getCurrentSize();
+        Vector3f rotation = entity.getRotation();
 
-        batch.draw(sprite, pos.x, pos.y, size.x, size.y, entity.getZIndex(), tint);
+        // Get origin from SpriteRenderer if available, else default to bottom-left (0,0)
+        float originX = 0f;
+        float originY = 0f;
+        SpriteRenderer sr = entity.getComponent(SpriteRenderer.class);
+        if (sr != null) {
+            originX = sr.getOriginX();
+            originY = sr.getOriginY();
+        }
+
+        batch.submit(
+                sprite,
+                pos.x, pos.y,
+                size.x, size.y,
+                rotation.z,
+                originX, originY,
+                entity.getZIndex(),
+                tint
+        );
     }
 
     // ========================================================================
@@ -163,7 +181,7 @@ public class RenderDispatcher {
         for (long[] chunkCoord : visibleChunks) {
             int cx = (int) chunkCoord[0];
             int cy = (int) chunkCoord[1];
-            batch.submitChunk(tilemap, cx, cy, tint);
+            batch.submit(tilemap, cx, cy, tint);
         }
     }
 

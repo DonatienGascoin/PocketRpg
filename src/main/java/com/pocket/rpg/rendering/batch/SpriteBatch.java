@@ -24,6 +24,9 @@ import static org.lwjgl.opengl.GL33.*;
  * Uses deferred submission with global sorting and auto-flush for unlimited sprite counts.
  * Sprites are buffered during begin/end, then globally sorted and rendered in batches.
  * <p>
+ * All submission types are normalized to {@link RenderableQuad} before rendering,
+ * ensuring a single code path for vertex generation.
+ * <p>
  * Uses world units for all position and size calculations.
  * Sprite dimensions come from {@link Sprite#getWorldWidth()} and {@link Sprite#getWorldHeight()}.
  */
@@ -32,12 +35,13 @@ public class SpriteBatch {
     // Maximum sprites per GPU batch (vertex buffer size)
     private final int maxBatchSize;
 
-    // Submission buffers (unbounded)
-    private final List<SpriteSubmission> spriteSubmissions = new ArrayList<>();
+    // Submission buffers (unbounded) - different input types
+    private final List<SpriteRendererSubmission> spriteRendererSubmissions = new ArrayList<>();
     private final List<TileSubmission> tileSubmissions = new ArrayList<>();
+    private final List<SpriteSubmission> spriteSubmissions = new ArrayList<>();
 
-    // Processed items for rendering
-    private final List<BatchItem> batchItems = new ArrayList<>();
+    // Normalized quads for rendering (populated during processBatches)
+    private final List<RenderableQuad> renderableQuads = new ArrayList<>();
 
     // Vertex buffer (fixed size, reused each flush)
     private final FloatBuffer vertexBuffer;
@@ -89,15 +93,15 @@ public class SpriteBatch {
     // ========================================================================
 
     /**
-     * Buffered sprite submission from SpriteRenderer.
+     * Buffered submission from SpriteRenderer component.
      */
-    private record SpriteSubmission(
+    private record SpriteRendererSubmission(
             SpriteRenderer spriteRenderer,
             Vector4f tintColor
     ) {}
 
     /**
-     * Buffered tile submission.
+     * Buffered tile submission (no rotation support).
      */
     private record TileSubmission(
             Sprite sprite,
@@ -109,56 +113,48 @@ public class SpriteBatch {
             Vector4f tintColor
     ) {}
 
+    /**
+     * Buffered sprite submission with full transform support.
+     * Used for entities that need rotation but aren't SpriteRenderers.
+     */
+    private record SpriteSubmission(
+            Sprite sprite,
+            float x,
+            float y,
+            float width,
+            float height,
+            float rotation,    // Z rotation in degrees
+            float originX,     // 0-1 normalized origin
+            float originY,
+            float zIndex,
+            Vector4f tintColor
+    ) {}
+
     // ========================================================================
-    // BATCH ITEM (created during processing)
+    // NORMALIZED QUAD (single format for rendering)
     // ========================================================================
 
     /**
-     * Processed item ready for sorting and rendering.
+     * Normalized quad ready for sorting and rendering.
+     * All submission types are converted to this format during processBatches().
+     * <p>
+     * This ensures a single code path for vertex generation regardless of input type.
      */
-    private static class BatchItem {
-        // For SpriteRenderer-based items
-        SpriteRenderer spriteRenderer;
+    private record RenderableQuad(
+            int textureId,
+            float x, float y,                          // World position
+            float width, float height,                 // Size in world units
+            float rotation,                            // Z rotation in degrees
+            float originX, float originY,              // 0-1 normalized origin
+            float u0, float v0, float u1, float v1,    // UVs
+            float zIndex,
+            float yPosition,                           // For depth sorting
+            float r, float g, float b, float a         // Final tint (pre-multiplied)
+    ) {}
 
-        // For tile-based items (when spriteRenderer is null)
-        Sprite tileSprite;
-        float tileX;
-        float tileY;
-        float tileWidth;
-        float tileHeight;
-
-        // Common fields
-        int textureId;
-        float zIndex;
-        float yPosition;
-        boolean isTile;
-        Vector4f tintColor;
-
-        // Constructor for SpriteRenderer
-        BatchItem(SpriteRenderer spriteRenderer, int textureId, float zIndex, float yPosition, Vector4f tintColor) {
-            this.spriteRenderer = spriteRenderer;
-            this.textureId = textureId;
-            this.zIndex = zIndex;
-            this.yPosition = yPosition;
-            this.tintColor = tintColor;
-            this.isTile = false;
-        }
-
-        // Constructor for Tile
-        BatchItem(Sprite sprite, float x, float y, float width, float height,
-                  int textureId, float zIndex, Vector4f tintColor) {
-            this.tileSprite = sprite;
-            this.tileX = x;
-            this.tileY = y;
-            this.tileWidth = width;
-            this.tileHeight = height;
-            this.textureId = textureId;
-            this.zIndex = zIndex;
-            this.yPosition = y;
-            this.tintColor = tintColor;
-            this.isTile = true;
-        }
-    }
+    // ========================================================================
+    // CONSTRUCTOR & INITIALIZATION
+    // ========================================================================
 
     public SpriteBatch(RenderingConfig config) {
         this.maxBatchSize = config.getMaxBatchSize();
@@ -186,10 +182,11 @@ public class SpriteBatch {
 
         glBindVertexArray(0);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-//        System.out.println("SpriteBatch initialized:");
-//        System.out.println(VertexLayout.describe());
     }
+
+    // ========================================================================
+    // BATCHING LIFECYCLE
+    // ========================================================================
 
     /**
      * Begins a new batch frame.
@@ -199,16 +196,36 @@ public class SpriteBatch {
             throw new IllegalStateException("Already batching! Call end() first.");
         }
 
-        spriteSubmissions.clear();
+        spriteRendererSubmissions.clear();
         tileSubmissions.clear();
-        batchItems.clear();
+        spriteSubmissions.clear();
+        renderableQuads.clear();
         drawCalls = 0;
         totalSprites = 0;
         isBatching = true;
     }
 
     /**
-     * Submits a sprite to the batch.
+     * Ends batching and renders everything.
+     */
+    public void end() {
+        if (!isBatching) {
+            throw new IllegalStateException("Not batching! Call begin() first.");
+        }
+
+        processBatches();
+        isBatching = false;
+    }
+
+    // ========================================================================
+    // SUBMISSION METHODS
+    // ========================================================================
+
+    /**
+     * Submits a SpriteRenderer to the batch.
+     *
+     * @param spriteRenderer The sprite renderer component
+     * @param tintColor      Additional tint to apply
      */
     public void submit(SpriteRenderer spriteRenderer, Vector4f tintColor) {
         if (!isBatching) {
@@ -220,18 +237,19 @@ public class SpriteBatch {
             return;
         }
 
-        spriteSubmissions.add(new SpriteSubmission(spriteRenderer, tintColor));
+        spriteRendererSubmissions.add(new SpriteRendererSubmission(spriteRenderer, tintColor));
         totalSprites++;
     }
 
-    // ========================================================================
-    // TILEMAP SUPPORT
-    // ========================================================================
-
     /**
-     * Submits all tiles from a chunk to the batch.
+     * Submits all tiles from a tilemap chunk to the batch.
+     *
+     * @param tilemapRenderer The tilemap renderer
+     * @param cx              Chunk X coordinate
+     * @param cy              Chunk Y coordinate
+     * @param tintColor       Tint to apply to all tiles
      */
-    public void submitChunk(TilemapRenderer tilemapRenderer, int cx, int cy, Vector4f tintColor) {
+    public void submit(TilemapRenderer tilemapRenderer, int cx, int cy, Vector4f tintColor) {
         if (!isBatching) {
             throw new IllegalStateException("Not batching! Call begin() first.");
         }
@@ -273,10 +291,18 @@ public class SpriteBatch {
     }
 
     /**
-     * Draws a sprite directly without requiring a SpriteRenderer.
-     * Useful for editor previews, UI elements, etc.
+     * Draws a sprite directly without rotation support.
+     * Useful for tiles, UI elements, etc.
+     *
+     * @param sprite Sprite to draw
+     * @param x      World X position
+     * @param y      World Y position
+     * @param width  Width in world units
+     * @param height Height in world units
+     * @param zIndex Depth sorting index
+     * @param tint   Tint color
      */
-    public void draw(Sprite sprite, float x, float y, float width, float height, float zIndex, Vector4f tint) {
+    public void submit(Sprite sprite, float x, float y, float width, float height, float zIndex, Vector4f tint) {
         if (!isBatching) {
             throw new IllegalStateException("Not batching! Call begin() first.");
         }
@@ -292,145 +318,235 @@ public class SpriteBatch {
     /**
      * Draws a sprite with default white tint.
      */
-    public void draw(Sprite sprite, float x, float y, float width, float height, float zIndex) {
-        draw(sprite, x, y, width, height, zIndex, new Vector4f(1f, 1f, 1f, 1f));
+    public void submit(Sprite sprite, float x, float y, float width, float height, float zIndex) {
+        submit(sprite, x, y, width, height, zIndex, new Vector4f(1f, 1f, 1f, 1f));
     }
 
-
-
     /**
-     * Ends batching and renders everything.
+     * Draws a sprite with full transform support (position, rotation, origin).
+     * Use this for entities that need rotation but aren't SpriteRenderers.
+     *
+     * @param sprite   Sprite to draw
+     * @param x        World X position
+     * @param y        World Y position
+     * @param width    Width in world units
+     * @param height   Height in world units
+     * @param rotation Z rotation in degrees
+     * @param originX  Origin X (0-1, where 0=left, 0.5=center, 1=right)
+     * @param originY  Origin Y (0-1, where 0=bottom, 0.5=center, 1=top)
+     * @param zIndex   Depth sorting index
+     * @param tint     Tint color
      */
-    public void end() {
+    public void submit(Sprite sprite, float x, float y, float width, float height,
+                       float rotation, float originX, float originY, float zIndex, Vector4f tint) {
         if (!isBatching) {
             throw new IllegalStateException("Not batching! Call begin() first.");
         }
 
-        processBatches();
-        isBatching = false;
+        if (sprite == null || sprite.getTexture() == null) {
+            return;
+        }
+
+        spriteSubmissions.add(new SpriteSubmission(
+                sprite, x, y, width, height, rotation, originX, originY, zIndex, tint
+        ));
+        totalSprites++;
     }
 
+    // ========================================================================
+    // BATCH PROCESSING
+    // ========================================================================
+
     /**
-     * Converts submissions to BatchItems, sorts globally, and renders in batches.
+     * Converts all submissions to RenderableQuads, sorts globally, and renders in batches.
      */
     private void processBatches() {
-        // Convert sprite submissions to batch items
-        for (SpriteSubmission sub : spriteSubmissions) {
-            SpriteRenderer sr = sub.spriteRenderer();
-            Sprite sprite = sr.getSprite();
-            int textureId = sprite.getTexture().getTextureId();
-            Transform transform = sr.getGameObject().getTransform();
-            float zIndex = sr.getZIndex();
-            float yPosition = transform.getPosition().y;
-
-            batchItems.add(new BatchItem(sr, textureId, zIndex, yPosition, sub.tintColor()));
+        // Normalize all submissions to RenderableQuad format
+        for (SpriteRendererSubmission sub : spriteRendererSubmissions) {
+            renderableQuads.add(normalizeFromSpriteRenderer(sub));
         }
 
-        // Convert tile submissions to batch items
         for (TileSubmission sub : tileSubmissions) {
-            int textureId = sub.sprite().getTexture().getTextureId();
-            batchItems.add(new BatchItem(
-                    sub.sprite(), sub.x(), sub.y(), sub.width(), sub.height(),
-                    textureId, sub.zIndex(), sub.tintColor()
-            ));
+            renderableQuads.add(normalizeFromTile(sub));
         }
 
-        if (batchItems.isEmpty()) {
+        for (SpriteSubmission sub : spriteSubmissions) {
+            renderableQuads.add(normalizeFromSprite(sub));
+        }
+
+        if (renderableQuads.isEmpty()) {
             return;
         }
 
         // Global sort
-        sortItems(batchItems);
+        sortQuads(renderableQuads);
 
         // Render with auto-flush
-        renderWithAutoFlush();
+        renderQuads(renderableQuads);
+    }
+
+    // ========================================================================
+    // NORMALIZATION (convert submissions to RenderableQuad)
+    // ========================================================================
+
+    /**
+     * Normalizes a SpriteRenderer submission to RenderableQuad.
+     */
+    private RenderableQuad normalizeFromSpriteRenderer(SpriteRendererSubmission sub) {
+        SpriteRenderer sr = sub.spriteRenderer();
+        Sprite sprite = sr.getSprite();
+        Transform transform = sr.getGameObject().getTransform();
+
+        Vector3f pos = transform.getPosition();
+        Vector3f scale = transform.getScale();
+
+        float width = sprite.getWorldWidth() * scale.x;
+        float height = sprite.getWorldHeight() * scale.y;
+
+        // Pre-multiply tints
+        Vector4f tint = sub.tintColor();
+        Vector4f spriteTint = sr.getTintColor();
+
+        return new RenderableQuad(
+                sprite.getTexture().getTextureId(),
+                pos.x, pos.y,
+                width, height,
+                transform.getRotation().z,
+                sr.getOriginX(), sr.getOriginY(),
+                sprite.getU0(), sprite.getV0(), sprite.getU1(), sprite.getV1(),
+                sr.getZIndex(),
+                pos.y,
+                spriteTint.x * tint.x,
+                spriteTint.y * tint.y,
+                spriteTint.z * tint.z,
+                spriteTint.w * tint.w
+        );
     }
 
     /**
-     * Sorts batch items according to the current sorting strategy.
+     * Normalizes a tile submission to RenderableQuad.
      */
-    private void sortItems(List<BatchItem> items) {
+    private RenderableQuad normalizeFromTile(TileSubmission sub) {
+        Sprite sprite = sub.sprite();
+        Vector4f tint = sub.tintColor();
+
+        return new RenderableQuad(
+                sprite.getTexture().getTextureId(),
+                sub.x(), sub.y(),
+                sub.width(), sub.height(),
+                0f,    // No rotation for tiles
+                0f, 0f, // Origin at bottom-left
+                sprite.getU0(), sprite.getV0(), sprite.getU1(), sprite.getV1(),
+                sub.zIndex(),
+                sub.y(),
+                tint.x, tint.y, tint.z, tint.w
+        );
+    }
+
+    /**
+     * Normalizes a sprite submission to RenderableQuad.
+     */
+    private RenderableQuad normalizeFromSprite(SpriteSubmission sub) {
+        Sprite sprite = sub.sprite();
+        Vector4f tint = sub.tintColor();
+
+        return new RenderableQuad(
+                sprite.getTexture().getTextureId(),
+                sub.x(), sub.y(),
+                sub.width(), sub.height(),
+                sub.rotation(),
+                sub.originX(), sub.originY(),
+                sprite.getU0(), sprite.getV0(), sprite.getU1(), sprite.getV1(),
+                sub.zIndex(),
+                sub.y(),
+                tint.x, tint.y, tint.z, tint.w
+        );
+    }
+
+    // ========================================================================
+    // SORTING
+    // ========================================================================
+
+    /**
+     * Sorts quads according to the current sorting strategy.
+     */
+    private void sortQuads(List<RenderableQuad> quads) {
         switch (sortingStrategy) {
             case TEXTURE_PRIORITY:
                 // Z-index → Texture → Y-position
-                items.sort((a, b) -> {
-                    int zCompare = Float.compare(a.zIndex, b.zIndex);
+                quads.sort((a, b) -> {
+                    int zCompare = Float.compare(a.zIndex(), b.zIndex());
                     if (zCompare != 0) return zCompare;
 
-                    int texCompare = Integer.compare(a.textureId, b.textureId);
+                    int texCompare = Integer.compare(a.textureId(), b.textureId());
                     if (texCompare != 0) return texCompare;
 
-                    return Float.compare(a.yPosition, b.yPosition);
+                    return Float.compare(a.yPosition(), b.yPosition());
                 });
                 break;
 
             case DEPTH_PRIORITY:
                 // Z-index → Y-position → Texture
-                items.sort((a, b) -> {
-                    int zCompare = Float.compare(a.zIndex, b.zIndex);
+                quads.sort((a, b) -> {
+                    int zCompare = Float.compare(a.zIndex(), b.zIndex());
                     if (zCompare != 0) return zCompare;
 
-                    int yCompare = Float.compare(a.yPosition, b.yPosition);
+                    int yCompare = Float.compare(a.yPosition(), b.yPosition());
                     if (yCompare != 0) return yCompare;
 
-                    return Integer.compare(a.textureId, b.textureId);
+                    return Integer.compare(a.textureId(), b.textureId());
                 });
                 break;
 
             case BALANCED:
                 // Z-index → Texture (group nearby Y) → Y-position
-                items.sort((a, b) -> {
-                    int zCompare = Float.compare(a.zIndex, b.zIndex);
+                quads.sort((a, b) -> {
+                    int zCompare = Float.compare(a.zIndex(), b.zIndex());
                     if (zCompare != 0) return zCompare;
 
                     // Group sprites within 4 world units Y-distance by texture
-                    float yDiff = Math.abs(a.yPosition - b.yPosition);
+                    float yDiff = Math.abs(a.yPosition() - b.yPosition());
                     if (yDiff > 4f) {
-                        return Float.compare(a.yPosition, b.yPosition);
+                        return Float.compare(a.yPosition(), b.yPosition());
                     }
 
-                    int texCompare = Integer.compare(a.textureId, b.textureId);
+                    int texCompare = Integer.compare(a.textureId(), b.textureId());
                     if (texCompare != 0) return texCompare;
-                    return Float.compare(a.yPosition, b.yPosition);
+                    return Float.compare(a.yPosition(), b.yPosition());
                 });
                 break;
         }
     }
 
+    // ========================================================================
+    // RENDERING
+    // ========================================================================
+
     /**
-     * Renders all batch items, automatically flushing when buffer is full.
-     * Groups consecutive same-texture items for efficient batching.
+     * Renders all quads, automatically flushing when buffer is full or texture changes.
      */
-    private void renderWithAutoFlush() {
+    private void renderQuads(List<RenderableQuad> quads) {
         int currentTextureId = -1;
-        int batchStartIndex = 0;
         int spriteCountInBuffer = 0;
 
-        for (int i = 0; i < batchItems.size(); i++) {
-            BatchItem item = batchItems.get(i);
-
+        for (RenderableQuad quad : quads) {
             // Check if we need to flush due to texture change
-            boolean textureChanged = (item.textureId != currentTextureId && currentTextureId != -1);
+            boolean textureChanged = (quad.textureId() != currentTextureId && currentTextureId != -1);
 
             // Check if we need to flush due to buffer full
             boolean bufferFull = (spriteCountInBuffer >= maxBatchSize);
 
             if (textureChanged || bufferFull) {
-                // Flush current batch
                 if (spriteCountInBuffer > 0) {
                     flushBuffer(currentTextureId, spriteCountInBuffer);
                     spriteCountInBuffer = 0;
                 }
             }
 
-            // Add item to buffer
-            if (item.isTile) {
-                addTileVertices(item);
-            } else {
-                addSpriteVertices(item);
-            }
+            // Add quad vertices to buffer
+            addQuadVertices(quad);
 
-            currentTextureId = item.textureId;
+            currentTextureId = quad.textureId();
             spriteCountInBuffer++;
         }
 
@@ -467,139 +583,82 @@ public class SpriteBatch {
         vertexBuffer.clear();
     }
 
-    /**
-     * Adds vertex data for a tile to the vertex buffer.
-     */
-    private void addTileVertices(BatchItem item) {
-        Sprite sprite = item.tileSprite;
-
-        float x0 = item.tileX;
-        float y0 = item.tileY;
-        float x1 = item.tileX + item.tileWidth;
-        float y1 = item.tileY + item.tileHeight;
-
-        float u0 = sprite.getU0();
-        float v0 = sprite.getV0();
-        float u1 = sprite.getU1();
-        float v1 = sprite.getV1();
-
-        float r = item.tintColor.x;
-        float g = item.tintColor.y;
-        float b = item.tintColor.z;
-        float a = item.tintColor.w;
-
-        // Triangle 1
-        putVertex(x0, y0, u0, v0, r, g, b, a);
-        putVertex(x0, y1, u0, v1, r, g, b, a);
-        putVertex(x1, y1, u1, v1, r, g, b, a);
-
-        // Triangle 2
-        putVertex(x0, y0, u0, v0, r, g, b, a);
-        putVertex(x1, y1, u1, v1, r, g, b, a);
-        putVertex(x1, y0, u1, v0, r, g, b, a);
-    }
-
-    private void putVertex(float x, float y, float u, float v, float r, float g, float b, float a) {
-        vertexBuffer
-                .put(x).put(y)
-                .put(u).put(v)
-                .put(r).put(g)
-                .put(b).put(a);
-    }
+    // ========================================================================
+    // VERTEX GENERATION (single unified method)
+    // ========================================================================
 
     /**
-     * Adds vertex data for a sprite to the vertex buffer.
+     * Adds vertex data for a quad to the vertex buffer.
+     * Handles rotation if non-zero, otherwise uses fast path.
      */
-    private void addSpriteVertices(BatchItem item) {
-        SpriteRenderer spriteRenderer = item.spriteRenderer;
-        Sprite sprite = spriteRenderer.getSprite();
-        Transform transform = spriteRenderer.getGameObject().getTransform();
+    private void addQuadVertices(RenderableQuad quad) {
+        // Origin offset in world units
+        float originOffsetX = quad.width() * quad.originX();
+        float originOffsetY = quad.height() * quad.originY();
 
-        Vector3f pos = transform.getPosition();
-        Vector3f scale = transform.getScale();
-        Vector3f rotation = transform.getRotation();
+        // Quad corners (Y-up coordinate system)
+        float x0 = quad.x() - originOffsetX;
+        float y0 = quad.y() - originOffsetY;
+        float x1 = quad.x() + (quad.width() - originOffsetX);
+        float y1 = quad.y() + (quad.height() - originOffsetY);
 
-        // Final dimensions in world units
-        float width = sprite.getWorldWidth() * scale.x;
-        float height = sprite.getWorldHeight() * scale.y;
-
-        // Origin offset (world units)
-        float originX = width * spriteRenderer.getOriginX();
-        float originY = height * spriteRenderer.getOriginY();
-
-        // UVs
-        float u0 = sprite.getU0();
-        float v0 = sprite.getV0();
-        float u1 = sprite.getU1();
-        float v1 = sprite.getV1();
-
-        // Quad corners before rotation (Y-up)
-        float x0 = pos.x - originX;
-        float y0 = pos.y - originY;
-        float x1 = pos.x + (width - originX);
-        float y1 = pos.y + (height - originY);
-
-        float r = spriteRenderer.getTintColor().x * item.tintColor.x;
-        float g = spriteRenderer.getTintColor().y * item.tintColor.y;
-        float b = spriteRenderer.getTintColor().z * item.tintColor.z;
-        float a = spriteRenderer.getTintColor().w * item.tintColor.w;
-
-        // Rotation (Z axis)
-        float angle = (float) Math.toRadians(rotation.z);
+        // Rotation
+        float angle = (float) Math.toRadians(quad.rotation());
 
         if (angle != 0.0f) {
-            float centerX = pos.x;
-            float centerY = pos.y;
+            // Rotated path
+            float centerX = quad.x();
+            float centerY = quad.y();
 
-            float[] corners = rotateQuad(x0, y0, x1, y1, centerX, centerY, angle);
+            float cos = (float) Math.cos(angle);
+            float sin = (float) Math.sin(angle);
 
-            // Triangle 1
-            putVertex(corners[0], corners[1], u0, v0, r, g, b, a);
-            putVertex(corners[2], corners[3], u0, v1, r, g, b, a);
-            putVertex(corners[4], corners[5], u1, v1, r, g, b, a);
+            // Rotate all 4 corners
+            float blX = rotateX(x0, y0, centerX, centerY, cos, sin);
+            float blY = rotateY(x0, y0, centerX, centerY, cos, sin);
+            float tlX = rotateX(x0, y1, centerX, centerY, cos, sin);
+            float tlY = rotateY(x0, y1, centerX, centerY, cos, sin);
+            float trX = rotateX(x1, y1, centerX, centerY, cos, sin);
+            float trY = rotateY(x1, y1, centerX, centerY, cos, sin);
+            float brX = rotateX(x1, y0, centerX, centerY, cos, sin);
+            float brY = rotateY(x1, y0, centerX, centerY, cos, sin);
 
-            // Triangle 2
-            putVertex(corners[0], corners[1], u0, v0, r, g, b, a);
-            putVertex(corners[4], corners[5], u1, v1, r, g, b, a);
-            putVertex(corners[6], corners[7], u1, v0, r, g, b, a);
+            // Triangle 1: BL, TL, TR
+            putVertex(blX, blY, quad.u0(), quad.v0(), quad.r(), quad.g(), quad.b(), quad.a());
+            putVertex(tlX, tlY, quad.u0(), quad.v1(), quad.r(), quad.g(), quad.b(), quad.a());
+            putVertex(trX, trY, quad.u1(), quad.v1(), quad.r(), quad.g(), quad.b(), quad.a());
 
+            // Triangle 2: BL, TR, BR
+            putVertex(blX, blY, quad.u0(), quad.v0(), quad.r(), quad.g(), quad.b(), quad.a());
+            putVertex(trX, trY, quad.u1(), quad.v1(), quad.r(), quad.g(), quad.b(), quad.a());
+            putVertex(brX, brY, quad.u1(), quad.v0(), quad.r(), quad.g(), quad.b(), quad.a());
         } else {
-            // No rotation — fast path
+            // Fast path - no rotation
+            // Triangle 1: BL, TL, TR
+            putVertex(x0, y0, quad.u0(), quad.v0(), quad.r(), quad.g(), quad.b(), quad.a());
+            putVertex(x0, y1, quad.u0(), quad.v1(), quad.r(), quad.g(), quad.b(), quad.a());
+            putVertex(x1, y1, quad.u1(), quad.v1(), quad.r(), quad.g(), quad.b(), quad.a());
 
-            // Triangle 1
-            putVertex(x0, y0, u0, v0, r, g, b, a);
-            putVertex(x0, y1, u0, v1, r, g, b, a);
-            putVertex(x1, y1, u1, v1, r, g, b, a);
-
-            // Triangle 2
-            putVertex(x0, y0, u0, v0, r, g, b, a);
-            putVertex(x1, y1, u1, v1, r, g, b, a);
-            putVertex(x1, y0, u1, v0, r, g, b, a);
+            // Triangle 2: BL, TR, BR
+            putVertex(x0, y0, quad.u0(), quad.v0(), quad.r(), quad.g(), quad.b(), quad.a());
+            putVertex(x1, y1, quad.u1(), quad.v1(), quad.r(), quad.g(), quad.b(), quad.a());
+            putVertex(x1, y0, quad.u1(), quad.v0(), quad.r(), quad.g(), quad.b(), quad.a());
         }
     }
 
     /**
-     * Rotates quad corners around a center point.
-     * Returns corners in order: [bottom-left, top-left, top-right, bottom-right]
+     * Writes a single vertex to the buffer.
      */
-    private float[] rotateQuad(float x0, float y0, float x1, float y1,
-                               float centerX, float centerY, float angle) {
-        float cos = (float) Math.cos(angle);
-        float sin = (float) Math.sin(angle);
-
-        float[] corners = new float[8];
-
-        corners[0] = rotateX(x0, y0, centerX, centerY, cos, sin);
-        corners[1] = rotateY(x0, y0, centerX, centerY, cos, sin);
-        corners[2] = rotateX(x0, y1, centerX, centerY, cos, sin);
-        corners[3] = rotateY(x0, y1, centerX, centerY, cos, sin);
-        corners[4] = rotateX(x1, y1, centerX, centerY, cos, sin);
-        corners[5] = rotateY(x1, y1, centerX, centerY, cos, sin);
-        corners[6] = rotateX(x1, y0, centerX, centerY, cos, sin);
-        corners[7] = rotateY(x1, y0, centerX, centerY, cos, sin);
-
-        return corners;
+    private void putVertex(float x, float y, float u, float v, float r, float g, float b, float a) {
+        vertexBuffer
+                .put(x).put(y)
+                .put(u).put(v)
+                .put(r).put(g).put(b).put(a);
     }
+
+    // ========================================================================
+    // ROTATION HELPERS
+    // ========================================================================
 
     private float rotateX(float x, float y, float cx, float cy, float cos, float sin) {
         return cos * (x - cx) - sin * (y - cy) + cx;
@@ -609,19 +668,24 @@ public class SpriteBatch {
         return sin * (x - cx) + cos * (y - cy) + cy;
     }
 
+    // ========================================================================
+    // CLEANUP
+    // ========================================================================
+
     /**
      * Destroys OpenGL resources.
      */
     public void destroy() {
         if (vao != 0) {
             glDeleteVertexArrays(vao);
+            vao = 0;
         }
         if (vbo != 0) {
             glDeleteBuffers(vbo);
+            vbo = 0;
         }
         if (vertexBuffer != null) {
             MemoryUtil.memFree(vertexBuffer);
         }
     }
-
 }

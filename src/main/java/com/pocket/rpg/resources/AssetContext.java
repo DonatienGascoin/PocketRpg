@@ -27,6 +27,19 @@ public interface AssetContext {
     <T> T load(String path);
 
     /**
+     * Loads a resource from the given path with loading option.
+     * Type is inferred from the return value.
+     * <p>
+     * Supports sub-asset references: "path/to/asset.ext#subId"
+     *
+     * @param path Resource path
+     * @param loadOptions Loading options (no cache, raw path)
+     * @param <T>  Resource type
+     * @return Loaded resource
+     */
+    <T> T load(String path, LoadOptions loadOptions);
+
+    /**
      * Loads a resource with explicit type.
      * <p>
      * Supports sub-asset references: "path/to/asset.ext#subId"
@@ -37,6 +50,19 @@ public interface AssetContext {
      * @return Loaded resource
      */
     <T> T load(String path, Class<T> type);
+
+    /**
+     * Loads a resource with explicit type and loading option.
+     * <p>
+     * Supports sub-asset references: "path/to/asset.ext#subId"
+     *
+     * @param path Resource path
+     * @param loadOptions Loading options (no cache, raw path)
+     * @param type Resource type class
+     * @param <T>  Resource type
+     * @return Loaded resource
+     */
+    <T> T load(String path, LoadOptions loadOptions, Class<T> type);
 
     /**
      * Gets a cached resource without loading.

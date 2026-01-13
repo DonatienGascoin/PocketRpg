@@ -886,9 +886,17 @@ public class EditorGameObject implements Renderable {
             // Prefab instance: store prefabId + all overrides (including Transform)
             data = new GameObjectData(id, name, prefabId, copyOverrides(componentOverrides));
         } else {
-            // Scratch entity: store all components (including Transform)
-            List<Component> allComponents = components != null ? new ArrayList<>(components) : new ArrayList<>();
-            data = new GameObjectData(id, name, allComponents);
+            // Scratch entity: deep copy all components
+            List<Component> clonedComponents = new ArrayList<>();
+            if (components != null) {
+                for (Component comp : components) {
+                    Component clone = cloneComponent(comp);
+                    if (clone != null) {
+                        clonedComponents.add(clone);
+                    }
+                }
+            }
+            data = new GameObjectData(id, name, clonedComponents);
         }
 
         data.setParentId(parentId);

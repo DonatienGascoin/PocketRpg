@@ -124,7 +124,7 @@ public class PlayModeInputManager {
             KeyEvent.Action keyAction = inputBackend.getKeyAction(action);
 
             // Debug: uncomment to see key events
-            System.out.println("[PlayMode Input] Key event: " + keyCode + " action=" + keyAction);
+//            System.out.println("[PlayMode Input] Key event: " + keyCode + " action=" + keyAction);
 
             // Dispatch to play mode input
             eventBus.dispatchKeyEvent(keyCode, keyAction);

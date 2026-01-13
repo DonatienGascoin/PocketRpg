@@ -34,6 +34,12 @@ public class EditorSceneSerializer {
         // Camera settings
         data.setCamera(editorScene.getCameraSettings().toData());
 
+        // DEBUG
+        System.out.println("[DEBUG toSceneData] EditorScene orthoSize: " +
+                editorScene.getCameraSettings().getOrthographicSize());
+        System.out.println("[DEBUG toSceneData] CameraData orthoSize: " +
+                data.getCamera().getOrthographicSize());
+
         // Convert tilemap layers to GameObjectData
         for (TilemapLayer layer : editorScene.getLayers()) {
             GameObjectData goData = convertTilemapLayer(layer);

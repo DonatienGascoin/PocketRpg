@@ -211,7 +211,7 @@ public class UIRenderingBackend {
 
         if (sprite == null) return;
 
-        spriteBatch.draw(sprite, x, y, width, height, zIndex, tint);
+        spriteBatch.submit(sprite, x, y, width, height, zIndex, tint);
     }
 
     /**
@@ -237,7 +237,7 @@ public class UIRenderingBackend {
         }
 
         if (whitePixel != null) {
-            spriteBatch.draw(whitePixel, x, y, width, height, zIndex, color);
+            spriteBatch.submit(whitePixel, x, y, width, height, zIndex, color);
         }
     }
 
@@ -261,13 +261,13 @@ public class UIRenderingBackend {
         if (whitePixel == null) return;
 
         // Top
-        spriteBatch.draw(whitePixel, x, y, width, thickness, zIndex, color);
+        spriteBatch.submit(whitePixel, x, y, width, thickness, zIndex, color);
         // Bottom
-        spriteBatch.draw(whitePixel, x, y + height - thickness, width, thickness, zIndex, color);
+        spriteBatch.submit(whitePixel, x, y + height - thickness, width, thickness, zIndex, color);
         // Left
-        spriteBatch.draw(whitePixel, x, y, thickness, height, zIndex, color);
+        spriteBatch.submit(whitePixel, x, y, thickness, height, zIndex, color);
         // Right
-        spriteBatch.draw(whitePixel, x + width - thickness, y, thickness, height, zIndex, color);
+        spriteBatch.submit(whitePixel, x + width - thickness, y, thickness, height, zIndex, color);
     }
 
     /**

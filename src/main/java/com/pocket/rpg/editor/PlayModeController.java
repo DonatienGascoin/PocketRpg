@@ -3,6 +3,7 @@ package com.pocket.rpg.editor;
 import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.config.InputConfig;
 import com.pocket.rpg.config.RenderingConfig;
+import com.pocket.rpg.core.camera.GameCamera;
 import com.pocket.rpg.core.window.ViewportConfig;
 import com.pocket.rpg.editor.rendering.EditorFramebuffer;
 import com.pocket.rpg.editor.scene.EditorScene;
@@ -15,6 +16,7 @@ import com.pocket.rpg.rendering.core.RenderCamera;
 import com.pocket.rpg.rendering.pipeline.RenderParams;
 import com.pocket.rpg.rendering.pipeline.RenderPipeline;
 import com.pocket.rpg.rendering.core.Renderable;
+import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.scenes.RuntimeScene;
 import com.pocket.rpg.scenes.Scene;
 import com.pocket.rpg.serialization.SceneData;
@@ -124,7 +126,7 @@ public class PlayModeController {
                     viewportConfig,
                     renderingConfig,
                     sceneLoader,
-                    "scenes/"
+                    "gameData/scenes/" // TODO: Extract to GameConfig
             );
 
             // 4. Initialize input
@@ -161,7 +163,7 @@ public class PlayModeController {
             pipeline.setTransitionManager(transitionManager);
 
             // 9. Initialize SceneTransition API
-            initializeSceneTransition();
+            SceneTransition.forceInitialize(transitionManager);
 
             // 10. Load initial scene
             RuntimeScene runtimeScene = sceneLoader.load(snapshot);
@@ -178,30 +180,6 @@ public class PlayModeController {
             e.printStackTrace();
             cleanup();
             showMessage("Error: " + e.getMessage());
-        }
-    }
-
-    private void initializeSceneTransition() {
-        try {
-            SceneTransition.initialize(transitionManager);
-        } catch (IllegalStateException e) {
-            // Already initialized - reset via reflection
-            System.out.println("SceneTransition already initialized, attempting reset...");
-            try {
-                java.lang.reflect.Method resetMethod = SceneTransition.class.getDeclaredMethod("reset");
-                resetMethod.setAccessible(true);
-                resetMethod.invoke(null);
-                SceneTransition.initialize(transitionManager);
-            } catch (Exception ex) {
-                try {
-                    java.lang.reflect.Field managerField = SceneTransition.class.getDeclaredField("manager");
-                    managerField.setAccessible(true);
-                    managerField.set(null, transitionManager);
-                    System.out.println("SceneTransition manager updated via reflection");
-                } catch (Exception ex2) {
-                    System.err.println("Could not reset SceneTransition: " + ex2.getMessage());
-                }
-            }
         }
     }
 
@@ -298,6 +276,9 @@ public class PlayModeController {
 
         // Execute pipeline
         pipeline.execute(target, params);
+
+//        System.out.println("[PlayMode] orthoSize=" + ((GameCamera)camera).getOrthographicSize() +
+//                ", zoom=" + ((GameCamera)camera).getZoom());
     }
 
     public int getOutputTexture() {

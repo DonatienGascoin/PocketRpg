@@ -252,7 +252,14 @@ public class GameViewPanel {
         // Apply scene camera settings
         if (scene != null) {
             SceneCameraSettings settings = scene.getCameraSettings();
+
+            // DEBUG
+            System.out.println("[DEBUG Preview] SceneCameraSettings orthoSize: " +
+                    settings.getOrthographicSize());
             previewCamera.applySceneSettings(settings.getPosition(), settings.getOrthographicSize());
+            // DEBUG
+            System.out.println("[DEBUG Preview] After apply, previewCamera orthoSize: " +
+                    previewCamera.getOrthographicSize());
         }
 
         // Get renderables (tilemaps + entities)
@@ -274,6 +281,8 @@ public class GameViewPanel {
 
         // Execute pipeline
         previewPipeline.execute(target, params);
+        System.out.println("[Preview] orthoSize=" + previewCamera.getOrthographicSize() +
+                ", zoom=" + previewCamera.getZoom());
     }
 
     /**

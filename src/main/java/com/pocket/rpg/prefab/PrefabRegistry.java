@@ -3,6 +3,7 @@ package com.pocket.rpg.prefab;
 import com.pocket.rpg.prefab.prefabs.PlayerPrefab;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.resources.Assets;
+import com.pocket.rpg.resources.LoadOptions;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -71,7 +72,7 @@ public class PrefabRegistry {
 
         // Try to load default preview sprite
         try {
-            registry.defaultPreviewSprite = Assets.load("editor/prefabDefault.png"); // TODO: Can't work: always appending gameData/assets/
+            registry.defaultPreviewSprite = Assets.load("editor/prefabDefault.png", LoadOptions.raw()); // TODO: Can't work: always appending gameData/assets/
         } catch (Exception e) {
             System.out.println("Default prefab preview sprite not found, using null");
             registry.defaultPreviewSprite = null;

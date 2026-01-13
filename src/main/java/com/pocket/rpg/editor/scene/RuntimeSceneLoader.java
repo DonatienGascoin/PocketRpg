@@ -10,6 +10,7 @@ import com.pocket.rpg.core.window.ViewportConfig;
 import com.pocket.rpg.prefab.Prefab;
 import com.pocket.rpg.prefab.PrefabRegistry;
 import com.pocket.rpg.resources.Assets;
+import com.pocket.rpg.resources.LoadOptions;
 import com.pocket.rpg.scenes.RuntimeScene;
 import com.pocket.rpg.serialization.ComponentRefResolver;
 import com.pocket.rpg.serialization.GameObjectData;
@@ -67,8 +68,6 @@ public class RuntimeSceneLoader {
             configureCamera(scene, data.getCamera());
         }
 
-        System.out.println("Loaded runtime scene: " + data.getName() +
-                " (objects=" + scene.getGameObjects().size() + ")");
 
         return scene;
     }
@@ -76,8 +75,8 @@ public class RuntimeSceneLoader {
     /**
      * Loads a RuntimeScene from a file path.
      */
-    public RuntimeScene loadFromPath(String scenePath) {
-        SceneData data = Assets.load(scenePath);
+    public RuntimeScene loadFromPath(String scenePath, LoadOptions options) {
+        SceneData data = Assets.load(scenePath, options);
         if (data == null) {
             throw new RuntimeException("Failed to load scene from path: " + scenePath);
         }
@@ -319,8 +318,14 @@ public class RuntimeSceneLoader {
      */
     private void configureCamera(RuntimeScene scene, SceneData.CameraData cameraData) {
         if (scene.getCamera() == null) {
+            System.out.println("[DEBUG configureCamera] Camera is NULL!");
             return;
         }
+
+        // DEBUG
+        System.out.println("[DEBUG configureCamera] Input orthoSize: " + cameraData.getOrthographicSize());
+        System.out.println("[DEBUG configureCamera] Before set, camera orthoSize: " +
+                scene.getCamera().getOrthographicSize());
 
         float[] pos = cameraData.getPosition();
         if (pos != null && pos.length >= 2) {
@@ -328,5 +333,9 @@ public class RuntimeSceneLoader {
         }
 
         scene.getCamera().setOrthographicSize(cameraData.getOrthographicSize());
+
+        // DEBUG
+        System.out.println("[DEBUG configureCamera] After set, camera orthoSize: " +
+                scene.getCamera().getOrthographicSize());
     }
 }

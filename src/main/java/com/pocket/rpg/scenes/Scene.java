@@ -82,6 +82,9 @@ public abstract class Scene {
      * @param renderingConfig Rendering configuration
      */
     public void initialize(ViewportConfig viewportConfig, RenderingConfig renderingConfig) {
+        if (this.initialized) {
+            return;
+        }
         this.initialized = true;
         this.viewportConfig = viewportConfig;
         // Create camera with viewport config
@@ -98,6 +101,13 @@ public abstract class Scene {
         for (GameObject go : gameObjects) {
             go.start();
         }
+
+        // DEBUG - at end of method
+        System.out.println("[DEBUG Scene.initialize] Created camera with orthoSize: " +
+                (camera != null ? camera.getOrthographicSize() : "NULL"));
+        System.out.println("[DEBUG Scene.initialize] renderingConfig.getDefaultOrthographicSize(" +
+                viewportConfig.getGameHeight() + ") = " +
+                renderingConfig.getDefaultOrthographicSize(viewportConfig.getGameHeight()));
     }
 
     public void update(float deltaTime) {

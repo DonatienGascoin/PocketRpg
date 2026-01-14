@@ -177,6 +177,13 @@ public class UITransformInspector implements CustomComponentInspector {
         // Section: Size (with cascading resize)
         changed |= drawSizeSection(component, entity);
 
+        ImGui.spacing();
+        ImGui.separator();
+        ImGui.spacing();
+
+        // Section: Rotation and Scale (inherited from Transform)
+        changed |= drawRotationScaleSection(component, entity);
+
         return changed;
     }
 
@@ -325,6 +332,81 @@ public class UITransformInspector implements CustomComponentInspector {
                             (int) FieldEditors.getFloat(parentTransform, "height", 100) + ")");
                 }
             }
+        }
+
+        return changed;
+    }
+
+    /**
+     * Draws the rotation and scale section for UITransform.
+     * UITransform now extends Transform, so rotation and scale are available.
+     */
+    private boolean drawRotationScaleSection(Component component, EditorGameObject entity) {
+        boolean changed = false;
+
+        // Cast to UITransform for direct access
+        if (!(component instanceof UITransform uiTransform)) {
+            return false;
+        }
+
+        // Rotation (Z only for 2D)
+        ImGui.text(FontAwesomeIcons.Sync + " Rotation");
+        ImGui.sameLine();
+        if (ImGui.smallButton("Reset##rotation")) {
+            if (uiTransform.getRotation2D() != 0) {
+                uiTransform.setRotation2D(0);
+                changed = true;
+            }
+        }
+
+        float[] rotBuf = {uiTransform.getRotation2D()};
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() - 20);
+        if (ImGui.dragFloat("##rotation", rotBuf, 0.5f, -360f, 360f, "%.1f°")) {
+            uiTransform.setRotation2D(rotBuf[0]);
+            changed = true;
+        }
+
+        ImGui.spacing();
+
+        // Scale (X, Y)
+        ImGui.text(FontAwesomeIcons.Expand + " Scale");
+        ImGui.sameLine();
+        if (ImGui.smallButton("Reset##scale")) {
+            Vector2f scale = uiTransform.getScale2D();
+            if (scale.x != 1 || scale.y != 1) {
+                uiTransform.setScale2D(1, 1);
+                changed = true;
+            }
+        }
+
+        Vector2f scale = uiTransform.getScale2D();
+        float[] scaleXBuf = {scale.x};
+        float[] scaleYBuf = {scale.y};
+
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() * 0.5f - 30);
+        if (ImGui.dragFloat("X##scale", scaleXBuf, 0.01f, 0.01f, 10f, "%.2f")) {
+            uiTransform.setScale2D(scaleXBuf[0], scale.y);
+            changed = true;
+        }
+
+        ImGui.sameLine();
+
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() - 20);
+        if (ImGui.dragFloat("Y##scale", scaleYBuf, 0.01f, 0.01f, 10f, "%.2f")) {
+            uiTransform.setScale2D(scale.x, scaleYBuf[0]);
+            changed = true;
+        }
+
+        // Uniform scale button
+        ImGui.sameLine();
+        if (ImGui.smallButton(FontAwesomeIcons.Link + "##uniformScale")) {
+            // Set uniform scale to average
+            float uniform = (scale.x + scale.y) / 2f;
+            uiTransform.setScale2D(uniform, uniform);
+            changed = true;
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("Make scale uniform");
         }
 
         return changed;

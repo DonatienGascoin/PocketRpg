@@ -1,6 +1,6 @@
 package com.pocket.rpg.components.ui;
 
-import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.Transform;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.ui.AnchorPreset;
 import lombok.Getter;
@@ -9,7 +9,7 @@ import org.joml.Vector2f;
 
 /**
  * Transform component for UI elements.
- * Uses anchor-based positioning relative to parent bounds.
+ * Extends Transform to inherit rotation and scale, while adding anchor-based positioning.
  *
  * <h2>Coordinate System</h2>
  * <ul>
@@ -17,6 +17,18 @@ import org.joml.Vector2f;
  *   <li>Anchor (1,1) = BOTTOM-RIGHT of parent</li>
  *   <li>Positive X offset = move RIGHT</li>
  *   <li>Positive Y offset = move DOWN</li>
+ * </ul>
+ *
+ * <h2>Offset vs LocalPosition</h2>
+ * UITransform uses localPosition.x/y as the offset from the anchor point.
+ * The {@link #getOffset()} and {@link #setOffset(float, float)} methods are
+ * convenience wrappers around localPosition for backward compatibility.
+ *
+ * <h2>Rotation and Scale</h2>
+ * UITransform inherits rotation and scale from Transform:
+ * <ul>
+ *   <li>localRotation.z - 2D rotation around pivot point</li>
+ *   <li>localScale.x/y - Visual scaling of the element</li>
  * </ul>
  *
  * <h2>Hierarchy Support</h2>
@@ -29,17 +41,12 @@ import org.joml.Vector2f;
  * <h2>Usage</h2>
  * MANDATORY for all UI components (UIImage, UIPanel, UIText, UIButton, etc.)
  */
-public class UITransform extends Component {
+public class UITransform extends Transform {
 
     // Anchor point relative to parent (0-1)
     // (0,0) = top-left, (1,1) = bottom-right
     @Getter
     private final Vector2f anchor = new Vector2f(0, 0);
-
-    // Offset from anchor point in pixels
-    // Positive X = right, Positive Y = down
-    @Getter
-    private final Vector2f offset = new Vector2f(0, 0);
 
     // Pivot point for this element (0-1 relative to own size)
     // (0,0) = top-left, (0.5,0.5) = center, (1,1) = bottom-right
@@ -68,9 +75,11 @@ public class UITransform extends Component {
     // ========================================================================
 
     public UITransform() {
+        super();
     }
 
     public UITransform(float width, float height) {
+        super();
         this.width = width;
         this.height = height;
     }
@@ -95,21 +104,44 @@ public class UITransform extends Component {
     }
 
     // ========================================================================
-    // OFFSET
+    // OFFSET (uses localPosition.x/y from Transform)
     // ========================================================================
+
+    /**
+     * Gets offset from anchor point.
+     * This is a convenience wrapper around localPosition.x/y.
+     *
+     * @return Offset as Vector2f (new instance)
+     */
+    public Vector2f getOffset() {
+        return new Vector2f(localPosition.x, localPosition.y);
+    }
 
     /**
      * Sets offset from anchor point.
      * Positive X = right, Positive Y = down.
+     * This sets localPosition.x/y.
+     *
+     * @param x X offset in pixels
+     * @param y Y offset in pixels
      */
     public void setOffset(float x, float y) {
-        offset.set(x, y);
+        if (localPosition.x == x && localPosition.y == y) {
+            return;
+        }
+        localPosition.set(x, y, localPosition.z);
         positionDirty = true;
+        markDirtyAndNotify();
     }
 
+    /**
+     * Sets offset from anchor point.
+     * This sets localPosition.x/y.
+     *
+     * @param offset Offset vector
+     */
     public void setOffset(Vector2f offset) {
-        this.offset.set(offset);
-        positionDirty = true;
+        setOffset(offset.x, offset.y);
     }
 
     // ========================================================================
@@ -150,6 +182,64 @@ public class UITransform extends Component {
 
     public void setSize(Vector2f size) {
         setSize(size.x, size.y);
+    }
+
+    // ========================================================================
+    // ROTATION (convenience methods for Z rotation)
+    // ========================================================================
+
+    /**
+     * Gets the 2D rotation angle in degrees.
+     * This is the Z rotation from Transform.
+     *
+     * @return Rotation angle in degrees
+     */
+    public float getRotation2D() {
+        return localRotation.z;
+    }
+
+    /**
+     * Sets the 2D rotation angle in degrees.
+     * This sets the Z rotation in Transform.
+     *
+     * @param degrees Rotation angle in degrees
+     */
+    public void setRotation2D(float degrees) {
+        setLocalRotation(0, 0, degrees);
+        positionDirty = true;
+    }
+
+    // ========================================================================
+    // SCALE (convenience methods for 2D scale)
+    // ========================================================================
+
+    /**
+     * Gets the 2D scale as Vector2f.
+     *
+     * @return Scale (x, y)
+     */
+    public Vector2f getScale2D() {
+        return new Vector2f(localScale.x, localScale.y);
+    }
+
+    /**
+     * Sets the 2D scale.
+     *
+     * @param x X scale
+     * @param y Y scale
+     */
+    public void setScale2D(float x, float y) {
+        setLocalScale(x, y, 1);
+        positionDirty = true;
+    }
+
+    /**
+     * Sets uniform 2D scale.
+     *
+     * @param scale Uniform scale value
+     */
+    public void setScale2D(float scale) {
+        setScale2D(scale, scale);
     }
 
     // ========================================================================
@@ -265,9 +355,9 @@ public class UITransform extends Component {
         float anchorX = anchor.x * parentWidth;
         float anchorY = anchor.y * parentHeight;
 
-        // Apply offset (positive Y = down)
-        float localX = anchorX + offset.x;
-        float localY = anchorY + offset.y;
+        // Apply offset from localPosition (positive Y = down)
+        float localX = anchorX + localPosition.x;
+        float localY = anchorY + localPosition.y;
 
         // Apply pivot (shift so pivot point is at anchor+offset)
         localX -= pivot.x * width;
@@ -373,7 +463,8 @@ public class UITransform extends Component {
 
     @Override
     public String toString() {
-        return String.format("UITransform[anchor=(%.2f,%.2f), offset=(%.0f,%.0f), size=%.0fx%.0f, pivot=(%.2f,%.2f)]",
-                anchor.x, anchor.y, offset.x, offset.y, width, height, pivot.x, pivot.y);
+        return String.format("UITransform[anchor=(%.2f,%.2f), offset=(%.0f,%.0f), size=%.0fx%.0f, pivot=(%.2f,%.2f), rot=%.1f, scale=(%.2f,%.2f)]",
+                anchor.x, anchor.y, localPosition.x, localPosition.y, width, height, pivot.x, pivot.y,
+                localRotation.z, localScale.x, localScale.y);
     }
 }

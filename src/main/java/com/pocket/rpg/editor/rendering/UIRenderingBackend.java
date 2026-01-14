@@ -222,6 +222,31 @@ public class UIRenderingBackend {
     }
 
     /**
+     * Draws a sprite with rotation around a specified origin point.
+     *
+     * @param sprite   Sprite to draw
+     * @param x        X position (screen-space, from left)
+     * @param y        Y position (screen-space, from top)
+     * @param width    Width in pixels
+     * @param height   Height in pixels
+     * @param rotation Rotation angle in degrees
+     * @param originX  Rotation origin X offset from sprite position
+     * @param originY  Rotation origin Y offset from sprite position
+     * @param zIndex   Z-order (higher = on top)
+     * @param tint     Tint color
+     */
+    public void drawSprite(Sprite sprite, float x, float y, float width, float height,
+                           float rotation, float originX, float originY, float zIndex, Vector4f tint) {
+        if (!rendering) {
+            throw new IllegalStateException("Not rendering! Call begin() first.");
+        }
+
+        if (sprite == null) return;
+
+        spriteBatch.submit(sprite, x, y, width, height, rotation, originX, originY, zIndex, tint);
+    }
+
+    /**
      * Draws a solid colored rectangle.
      *
      * @param x      X position
@@ -238,6 +263,30 @@ public class UIRenderingBackend {
 
         if (whitePixel != null) {
             spriteBatch.submit(whitePixel, x, y, width, height, zIndex, color);
+        }
+    }
+
+    /**
+     * Draws a solid colored rectangle with rotation.
+     *
+     * @param x        X position
+     * @param y        Y position
+     * @param width    Width
+     * @param height   Height
+     * @param rotation Rotation angle in degrees
+     * @param originX  Rotation origin X offset from rect position
+     * @param originY  Rotation origin Y offset from rect position
+     * @param color    Fill color (RGBA)
+     * @param zIndex   Z-order
+     */
+    public void drawRect(float x, float y, float width, float height,
+                         float rotation, float originX, float originY, Vector4f color, float zIndex) {
+        if (!rendering) {
+            throw new IllegalStateException("Not rendering! Call begin() first.");
+        }
+
+        if (whitePixel != null) {
+            spriteBatch.submit(whitePixel, x, y, width, height, rotation, originX, originY, zIndex, color);
         }
     }
 

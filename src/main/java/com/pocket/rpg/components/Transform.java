@@ -27,9 +27,10 @@ import org.joml.Vector3f;
 public class Transform extends Component {
 
     // Local transform (relative to parent)
-    private final Vector3f localPosition;
-    private final Vector3f localRotation;
-    private final Vector3f localScale;
+    // Protected for subclass access (e.g., UITransform)
+    protected final Vector3f localPosition;
+    protected final Vector3f localRotation;
+    protected final Vector3f localScale;
 
     // Cached world transform - recomputed at runtime
     private transient final Vector3f worldPosition;
@@ -495,8 +496,9 @@ public class Transform extends Component {
 
     /**
      * Marks dirty, notifies components, and propagates to children.
+     * Protected for subclass access (e.g., UITransform).
      */
-    private void markDirtyAndNotify() {
+    protected void markDirtyAndNotify() {
         worldDirty = true;
         markChildrenDirty();
         notifyTransformChanged();

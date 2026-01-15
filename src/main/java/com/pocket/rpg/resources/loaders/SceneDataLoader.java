@@ -1,12 +1,17 @@
 package com.pocket.rpg.resources.loaders;
 
+import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.resources.AssetLoader;
+import com.pocket.rpg.serialization.GameObjectData;
 import com.pocket.rpg.serialization.SceneData;
 import com.pocket.rpg.serialization.Serializer;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.List;
 
 /**
  * Loader for scene files.
@@ -29,7 +34,37 @@ public class SceneDataLoader implements AssetLoader<SceneData> {
             data.migrateToV4();
         }
 
+        // Clean up Transform/UITransform coexistence (legacy bug fix)
+        cleanupTransformDuplicates(data);
+
         return data;
+    }
+
+    /**
+     * Removes duplicate Transform components when UITransform exists.
+     * This handles scenes created before the fix where both could coexist.
+     */
+    private void cleanupTransformDuplicates(SceneData data) {
+        if (data.getGameObjects() == null) return;
+
+        for (GameObjectData gameObject : data.getGameObjects()) {
+            List<Component> components = gameObject.getComponents();
+            if (components == null) continue;
+
+            boolean hasUITransform = false;
+            boolean hasTransform = false;
+
+            for (Component comp : components) {
+                if (comp.getClass() == UITransform.class) hasUITransform = true;
+                else if (comp.getClass() == Transform.class) hasTransform = true;
+            }
+
+            // If both exist, remove plain Transform (UITransform takes precedence)
+            if (hasUITransform && hasTransform) {
+                components.removeIf(c -> c.getClass() == Transform.class);
+                System.out.println("Cleaned up duplicate Transform on: " + gameObject.getName());
+            }
+        }
     }
 
     @Override

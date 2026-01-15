@@ -51,13 +51,6 @@ public class Serializer {
 
     public static <T> T deepCopy(T object, Class<T> clazz) {
         String json = getGson().toJson(object);
-        System.out.println("[DEBUG deepCopy] JSON length=" + json.length());
-        // Find sprite in JSON
-        if (json.contains("SpriteRenderer")) {
-            int idx = json.indexOf("SpriteRenderer");
-            System.out.println("[DEBUG deepCopy] SpriteRenderer context: " +
-                    json.substring(Math.max(0, idx-20), Math.min(json.length(), idx+200)));
-        }
         return getGson().fromJson(json, clazz);
     }
 

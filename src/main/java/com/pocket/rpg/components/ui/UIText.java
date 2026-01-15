@@ -2,7 +2,9 @@ package com.pocket.rpg.components.ui;
 
 import com.pocket.rpg.rendering.resources.Texture;
 import com.pocket.rpg.rendering.ui.UIRendererBackend;
+import com.pocket.rpg.serialization.Required;
 import com.pocket.rpg.ui.text.Font;
+import com.pocket.rpg.ui.text.FontCache;
 import com.pocket.rpg.ui.text.Glyph;
 import com.pocket.rpg.ui.text.HorizontalAlignment;
 import com.pocket.rpg.ui.text.VerticalAlignment;
@@ -34,7 +36,7 @@ import static org.lwjgl.opengl.GL11.*;
  * UITransform transform = new UITransform(200, 50);  // Width x Height
  * textObj.addComponent(transform);
  *
- * UIText text = new UIText(font, "Hello World");
+ * UIText text = new UIText("fonts/zelda.ttf", 24, "Hello World");
  * text.setHorizontalAlignment(HorizontalAlignment.CENTER);
  * text.setVerticalAlignment(VerticalAlignment.MIDDLE);
  * text.setAutoFit(true);  // Scale to fit UITransform bounds
@@ -43,9 +45,26 @@ import static org.lwjgl.opengl.GL11.*;
  */
 public class UIText extends UIComponent {
 
+    /**
+     * Path to the font file (e.g., "fonts/zelda.ttf").
+     */
+    @Required
     @Getter
     @Setter
-    private Font font;
+    private String fontPath;
+
+    /**
+     * Font size in pixels.
+     */
+    @Getter
+    @Setter
+    private int fontSize = 20;
+
+    /**
+     * Cached Font instance (not serialized).
+     */
+    private transient Font cachedFont;
+    private transient String cachedFontKey;
 
     @Getter
     private String text = "";
@@ -69,32 +88,31 @@ public class UIText extends UIComponent {
     // ==================== Auto-fit ====================
 
     /**
-     * When true, text scales to fit within UITransform bounds.
+     * When true, automatically finds the largest font size that fits within UITransform bounds.
+     * This is Unity-style Best Fit - it changes the font size, not scaling.
      */
     @Getter
     @Setter
     private boolean autoFit = false;
 
     /**
-     * Minimum scale factor (default 0.5 = don't shrink below 50%)
+     * Minimum font size when auto-fit is enabled (default 8).
      */
     @Getter
     @Setter
-    private float minScale = 0.5f;
+    private int minFontSize = 8;
 
     /**
-     * Maximum scale factor (default 1.0 = don't grow beyond 100%)
+     * Maximum font size when auto-fit is enabled (default 72).
      */
     @Getter
     @Setter
-    private float maxScale = 1.0f;
+    private int maxFontSize = 72;
 
     /**
-     * When true, scales uniformly. When false, can stretch to fill.
+     * The computed best-fit font size. Used internally when autoFit is enabled.
      */
-    @Getter
-    @Setter
-    private boolean maintainAspectRatio = true;
+    private transient int computedFontSize = -1;
 
     // ==================== Shadow ====================
 
@@ -121,10 +139,8 @@ public class UIText extends UIComponent {
 
     private String[] lines;
     private float[] lineWidths;
-    private float naturalWidth;     // Width at scale 1.0
-    private float naturalHeight;    // Height at scale 1.0
-    private float computedScaleX = 1.0f;
-    private float computedScaleY = 1.0f;
+    private float naturalWidth;     // Width at current font size
+    private float naturalHeight;    // Height at current font size
     private boolean layoutDirty = true;
 
     // ========================================================================
@@ -134,13 +150,51 @@ public class UIText extends UIComponent {
     public UIText() {
     }
 
-    public UIText(Font font) {
-        this.font = font;
+    public UIText(String fontPath, int fontSize) {
+        this.fontPath = fontPath;
+        this.fontSize = fontSize;
     }
 
-    public UIText(Font font, String text) {
-        this.font = font;
+    public UIText(String fontPath, int fontSize, String text) {
+        this.fontPath = fontPath;
+        this.fontSize = fontSize;
         setText(text);
+    }
+
+    // ========================================================================
+    // FONT
+    // ========================================================================
+
+    /**
+     * Gets the Font instance for rendering.
+     * Uses FontCache to reuse Font instances across components.
+     *
+     * @return Font instance, or null if fontPath is not set
+     */
+    public Font getFont() {
+        if (fontPath == null || fontPath.isEmpty()) {
+            return null;
+        }
+        String key = fontPath + "@" + fontSize;
+        if (cachedFont == null || !key.equals(cachedFontKey)) {
+            cachedFont = FontCache.get(fontPath, fontSize);
+            cachedFontKey = key;
+        }
+        return cachedFont;
+    }
+
+    /**
+     * Sets the font by path and size.
+     *
+     * @param fontPath Path to font file
+     * @param fontSize Size in pixels
+     */
+    public void setFont(String fontPath, int fontSize) {
+        this.fontPath = fontPath;
+        this.fontSize = fontSize;
+        this.cachedFont = null;
+        this.cachedFontKey = null;
+        this.layoutDirty = true;
     }
 
     // ========================================================================
@@ -214,139 +268,221 @@ public class UIText extends UIComponent {
 
     @Override
     public void render(com.pocket.rpg.rendering.ui.UIRendererBackend backend) {
-        if (font == null || text.isEmpty()) return;
+        if (getFont() == null || text.isEmpty()) return;
 
         UITransform transform = getUITransform();
         if (transform == null) return;
 
-        // Get bounds from UITransform
-        Vector2f pos = transform.getScreenPosition();
-        float boxX = pos.x;
-        float boxY = pos.y;
-        float boxWidth = transform.getWidth();
-        float boxHeight = transform.getHeight();
+        // Use matrix-based methods for correct hierarchy handling
+        Vector2f pivotWorld = transform.getWorldPivotPosition2D();
+        Vector2f worldScale = transform.getComputedWorldScale2D();
+        float boxWidth = transform.getEffectiveWidth() * worldScale.x;
+        float boxHeight = transform.getEffectiveHeight() * worldScale.y;
+        float rotation = transform.getComputedWorldRotation2D();
+        Vector2f pivot = transform.getEffectivePivot();  // Use effective pivot for MATCH_PARENT
+
+        // Calculate top-left position from pivot
+        float boxX = pivotWorld.x - pivot.x * boxWidth;
+        float boxY = pivotWorld.y - pivot.y * boxHeight;
+        float pivotX = pivotWorld.x;
+        float pivotY = pivotWorld.y;
+
+        renderInternal(backend, boxX, boxY, boxWidth, boxHeight, rotation, pivotX, pivotY);
+    }
+
+    /**
+     * Renders text with explicit position, size, and rotation parameters.
+     * Use this in editor context where transform hierarchy may not be set up.
+     *
+     * @param backend  Rendering backend
+     * @param x        X position (screen-space)
+     * @param y        Y position (screen-space)
+     * @param width    Box width
+     * @param height   Box height
+     * @param rotation Rotation in degrees
+     * @param pivotX   Pivot X in screen coordinates
+     * @param pivotY   Pivot Y in screen coordinates
+     */
+    public void render(com.pocket.rpg.rendering.ui.UIRendererBackend backend,
+                       float x, float y, float width, float height,
+                       float rotation, float pivotX, float pivotY) {
+        if (getFont() == null || text.isEmpty()) return;
+
+        renderInternal(backend, x, y, width, height, rotation, pivotX, pivotY);
+    }
+
+    /**
+     * Internal rendering implementation shared by both render methods.
+     */
+    private void renderInternal(com.pocket.rpg.rendering.ui.UIRendererBackend backend,
+                                float boxX, float boxY, float boxWidth, float boxHeight,
+                                float rotation, float pivotX, float pivotY) {
+        // Get the font to render with (may recalculate if auto-fit)
+        Font renderFont = getRenderFont(boxWidth, boxHeight);
+        if (renderFont == null) return;
 
         // Recalculate layout if needed
         if (layoutDirty) {
-            calculateLayout(boxWidth);
+            calculateLayout(boxWidth, renderFont);
         }
 
-        // Calculate auto-fit scale
-        if (autoFit) {
-            calculateAutoFitScale(boxWidth, boxHeight);
-        } else {
-            computedScaleX = 1.0f;
-            computedScaleY = 1.0f;
-        }
+        // Calculate text position for alignment
+        float textStartX = calculateHorizontalStart(boxX, boxWidth, naturalWidth);
+        float textStartY = calculateVerticalStart(boxY, boxHeight, naturalHeight);
+
+        // Use the transform's pivot point for rotation (passed in from render())
+        // This ensures MATCH_PARENT children rotate around the same pivot as their parent
+        float effectivePivotX = pivotX;
+        float effectivePivotY = pivotY;
 
         // Setup OpenGL state for font atlas (single channel)
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
         // Bind font atlas and begin batch
-        Texture atlasTexture = font.getAtlasTexture();
+        Texture atlasTexture = renderFont.getAtlasTexture();
         if (atlasTexture == null) return;
         backend.beginBatch(atlasTexture);
 
         // Render shadow first (if enabled)
         if (shadow) {
-            renderTextPass(backend, boxX + shadowOffset.x, boxY + shadowOffset.y,
-                    boxWidth, boxHeight, shadowColor);
+            renderTextPass(backend, renderFont, boxX + shadowOffset.x, boxY + shadowOffset.y,
+                    boxWidth, boxHeight, shadowColor, rotation, effectivePivotX, effectivePivotY);
         }
 
         // Render main text
-        renderTextPass(backend, boxX, boxY, boxWidth, boxHeight, color);
+        renderTextPass(backend, renderFont, boxX, boxY, boxWidth, boxHeight, color, rotation, effectivePivotX, effectivePivotY);
 
         backend.endBatch();
     }
 
     /**
-     * Renders a single pass of text (used for both shadow and main text).
+     * Gets the font to use for rendering.
+     * When autoFit is enabled, finds the largest font size that fits.
      */
-    private void renderTextPass(UIRendererBackend backend, float baseX, float baseY,
-                                float boxWidth, float boxHeight, Vector4f textColor) {
+    private Font getRenderFont(float boxWidth, float boxHeight) {
+        if (!autoFit) {
+            return getFont();
+        }
 
-        float scaledHeight = naturalHeight * computedScaleY;
-        float startY = calculateVerticalStart(baseY, boxHeight, scaledHeight);
+        // Calculate best fit font size
+        computedFontSize = calculateBestFitFontSize(boxWidth, boxHeight);
+        return FontCache.get(fontPath, computedFontSize);
+    }
+
+    /**
+     * Binary search to find the largest font size that fits within bounds.
+     */
+    private int calculateBestFitFontSize(float boxWidth, float boxHeight) {
+        if (fontPath == null || fontPath.isEmpty() || text.isEmpty()) {
+            return fontSize;
+        }
+
+        int low = minFontSize;
+        int high = Math.min(maxFontSize, fontSize);  // Don't exceed specified fontSize
+        int bestSize = low;
+
+        while (low <= high) {
+            int mid = (low + high) / 2;
+            Font testFont = FontCache.get(fontPath, mid);
+            if (testFont == null) break;
+
+            // Calculate text dimensions at this font size
+            float testWidth = calculateTextWidth(testFont);
+            float testHeight = calculateTextHeight(testFont);
+
+            if (testWidth <= boxWidth && testHeight <= boxHeight) {
+                bestSize = mid;
+                low = mid + 1;  // Try larger
+            } else {
+                high = mid - 1;  // Try smaller
+            }
+        }
+
+        return bestSize;
+    }
+
+    /**
+     * Calculates text width for a given font.
+     */
+    private float calculateTextWidth(Font testFont) {
+        float maxWidth = 0;
+        String[] testLines = text.split("\n", -1);
+        for (String line : testLines) {
+            maxWidth = Math.max(maxWidth, testFont.getStringWidth(line));
+        }
+        return maxWidth;
+    }
+
+    /**
+     * Calculates text height for a given font.
+     */
+    private float calculateTextHeight(Font testFont) {
+        String[] testLines = text.split("\n", -1);
+        int singleLineVisualHeight = testFont.getAscent() - testFont.getDescent();
+        if (testLines.length == 1) {
+            return singleLineVisualHeight;
+        }
+        return (testLines.length - 1) * testFont.getLineHeight() + singleLineVisualHeight;
+    }
+
+    /**
+     * Renders a single pass of text (used for both shadow and main text).
+     * Supports rotation around the pivot point.
+     */
+    private void renderTextPass(UIRendererBackend backend, Font renderFont, float baseX, float baseY,
+                                float boxWidth, float boxHeight, Vector4f textColor,
+                                float rotation, float pivotX, float pivotY) {
+
+        float startY = calculateVerticalStart(baseY, boxHeight, naturalHeight);
 
         float lineY = startY;
-        float scaledLineHeight = font.getLineHeight() * computedScaleY;
-        float scaledAscent = font.getAscent() * computedScaleY;
+        float lineHeight = renderFont.getLineHeight();
+        float ascent = renderFont.getAscent();
 
         for (int lineIndex = 0; lineIndex < lines.length; lineIndex++) {
             String line = lines[lineIndex];
-            float scaledLineWidth = lineWidths[lineIndex] * computedScaleX;
+            float lineWidth = lineWidths[lineIndex];
 
             // Calculate horizontal starting position for this line
-            float lineX = calculateHorizontalStart(baseX, boxWidth, scaledLineWidth);
+            float lineX = calculateHorizontalStart(baseX, boxWidth, lineWidth);
 
             // Render glyphs
             float cursorX = lineX;
-            float baseline = lineY + scaledAscent;
+            float baseline = lineY + ascent;
 
             for (int i = 0; i < line.length(); i++) {
                 char c = line.charAt(i);
-                Glyph glyph = font.getGlyph(c);
+                Glyph glyph = renderFont.getGlyph(c);
 
                 if (glyph != null && !glyph.isWhitespace()) {
-                    float glyphX = cursorX + glyph.bearingX * computedScaleX;
-                    float glyphY = baseline - glyph.bearingY * computedScaleY;
-                    float glyphW = glyph.width * computedScaleX;
-                    float glyphH = glyph.height * computedScaleY;
+                    float glyphX = cursorX + glyph.bearingX;
+                    float glyphY = baseline - glyph.bearingY;
+                    float glyphW = glyph.width;
+                    float glyphH = glyph.height;
 
+                    // Use rotation-aware batchSprite to rotate both position AND glyph quad
                     backend.batchSprite(
                             glyphX, glyphY,
                             glyphW, glyphH,
                             glyph.u0, glyph.v0, glyph.u1, glyph.v1,
+                            rotation, pivotX, pivotY,
                             textColor
                     );
                 }
 
                 if (glyph != null) {
-                    cursorX += glyph.advance * computedScaleX;
+                    cursorX += glyph.advance;
                 }
             }
 
             // Move to next line
-            lineY += scaledLineHeight;
+            lineY += lineHeight;
         }
     }
 
-    /**
-     * Calculates the scale factors for auto-fit mode.
-     */
-    private void calculateAutoFitScale(float boxWidth, float boxHeight) {
-        if (naturalWidth <= 0 || naturalHeight <= 0) {
-            computedScaleX = 1.0f;
-            computedScaleY = 1.0f;
-            return;
-        }
-
-        float scaleX = boxWidth / naturalWidth;
-        float scaleY = boxHeight / naturalHeight;
-
-        if (maintainAspectRatio) {
-            // Use uniform scale (smallest to fit both dimensions)
-            float uniformScale = Math.min(scaleX, scaleY);
-            uniformScale = clampScale(uniformScale);
-            computedScaleX = uniformScale;
-            computedScaleY = uniformScale;
-        } else {
-            // Independent scaling (stretch to fill)
-            computedScaleX = clampScale(scaleX);
-            computedScaleY = clampScale(scaleY);
-        }
-    }
-
-    /**
-     * Clamps scale to min/max range.
-     */
-    private float clampScale(float scale) {
-        return Math.max(minScale, Math.min(maxScale, scale));
-    }
-
-    private void calculateLayout(float maxWidth) {
-        if (text.isEmpty()) {
+    private void calculateLayout(float maxWidth, Font renderFont) {
+        if (text.isEmpty() || renderFont == null) {
             lines = new String[0];
             lineWidths = new float[0];
             naturalWidth = 0;
@@ -356,15 +492,15 @@ public class UIText extends UIComponent {
         }
 
         if (wordWrap && maxWidth > 0) {
-            calculateWrappedLayout(maxWidth);
+            calculateWrappedLayout(maxWidth, renderFont);
         } else {
-            calculateSimpleLayout();
+            calculateSimpleLayout(renderFont);
         }
 
         layoutDirty = false;
     }
 
-    private void calculateSimpleLayout() {
+    private void calculateSimpleLayout(Font renderFont) {
         // Split by newlines only
         String[] rawLines = text.split("\n", -1);
         lines = rawLines;
@@ -372,14 +508,14 @@ public class UIText extends UIComponent {
 
         naturalWidth = 0;
         for (int i = 0; i < lines.length; i++) {
-            lineWidths[i] = font.getStringWidth(lines[i]);
+            lineWidths[i] = renderFont.getStringWidth(lines[i]);
             naturalWidth = Math.max(naturalWidth, lineWidths[i]);
         }
 
-        calculateNaturalHeight();
+        calculateNaturalHeight(renderFont);
     }
 
-    private void calculateWrappedLayout(float maxWidth) {
+    private void calculateWrappedLayout(float maxWidth, Font renderFont) {
         java.util.List<String> wrappedLines = new java.util.ArrayList<>();
         java.util.List<Float> widths = new java.util.ArrayList<>();
 
@@ -395,10 +531,10 @@ public class UIText extends UIComponent {
             String[] words = paragraph.split(" ");
             StringBuilder currentLine = new StringBuilder();
             float currentWidth = 0;
-            float spaceWidth = font.getGlyph(' ') != null ? font.getGlyph(' ').advance : 0;
+            float spaceWidth = renderFont.getGlyph(' ') != null ? renderFont.getGlyph(' ').advance : 0;
 
             for (String word : words) {
-                float wordWidth = font.getStringWidth(word);
+                float wordWidth = renderFont.getStringWidth(word);
 
                 if (currentLine.length() == 0) {
                     // First word on line
@@ -433,31 +569,35 @@ public class UIText extends UIComponent {
             naturalWidth = Math.max(naturalWidth, lineWidths[i]);
         }
 
-        calculateNaturalHeight();
+        calculateNaturalHeight(renderFont);
     }
 
     /**
-     * Calculate natural height at scale 1.0.
+     * Calculate natural height at current font size.
      * Visual height = ascent + |descent| for single line
      * Multi-line includes lineHeight spacing between lines.
      */
-    private void calculateNaturalHeight() {
+    private void calculateNaturalHeight(Font renderFont) {
         if (lines.length == 0) {
             naturalHeight = 0;
             return;
         }
 
         // Single line visual height = ascent + |descent|
-        int singleLineVisualHeight = font.getAscent() - font.getDescent();
+        int singleLineVisualHeight = renderFont.getAscent() - renderFont.getDescent();
 
         if (lines.length == 1) {
             naturalHeight = singleLineVisualHeight;
         } else {
             // Multiple lines: (n-1) * lineHeight + last line visual height
-            naturalHeight = (lines.length - 1) * font.getLineHeight() + singleLineVisualHeight;
+            naturalHeight = (lines.length - 1) * renderFont.getLineHeight() + singleLineVisualHeight;
         }
     }
 
+    /**
+     * Calculates horizontal start position based on alignment.
+     * Text is aligned within the bounding box (Unity-style).
+     */
     private float calculateHorizontalStart(float boxX, float boxWidth, float lineWidth) {
         return switch (horizontalAlignment) {
             case LEFT -> boxX;
@@ -466,6 +606,10 @@ public class UIText extends UIComponent {
         };
     }
 
+    /**
+     * Calculates vertical start position based on alignment.
+     * Text is aligned within the bounding box (Unity-style).
+     */
     private float calculateVerticalStart(float boxY, float boxHeight, float textHeight) {
         return switch (verticalAlignment) {
             case TOP -> boxY;
@@ -487,39 +631,42 @@ public class UIText extends UIComponent {
     }
 
     /**
-     * Gets the natural width of the text (at scale 1.0).
+     * Gets the natural width of the text at the current font size.
      */
     public float getNaturalWidth() {
+        Font font = getFont();
         if (layoutDirty && font != null) {
-            calculateLayout(getUITransform() != null ? getUITransform().getWidth() : 0);
+            calculateLayout(getUITransform() != null ? getUITransform().getWidth() : 0, font);
         }
         return naturalWidth;
     }
 
     /**
-     * Gets the natural height of the text (at scale 1.0).
+     * Gets the natural height of the text at the current font size.
      */
     public float getNaturalHeight() {
+        Font font = getFont();
         if (layoutDirty && font != null) {
-            calculateLayout(getUITransform() != null ? getUITransform().getWidth() : 0);
+            calculateLayout(getUITransform() != null ? getUITransform().getWidth() : 0, font);
         }
         return naturalHeight;
     }
 
     /**
-     * Gets the current computed scale (after auto-fit).
-     * Returns 1.0 if auto-fit is disabled.
+     * Gets the current computed font size (after auto-fit).
+     * Returns the specified fontSize if auto-fit is disabled.
      */
-    public float getComputedScale() {
-        return Math.min(computedScaleX, computedScaleY);
+    public int getComputedFontSize() {
+        return computedFontSize > 0 ? computedFontSize : fontSize;
     }
 
     /**
      * Gets the number of lines after layout.
      */
     public int getLineCount() {
+        Font font = getFont();
         if (layoutDirty && font != null) {
-            calculateLayout(getUITransform() != null ? getUITransform().getWidth() : 0);
+            calculateLayout(getUITransform() != null ? getUITransform().getWidth() : 0, font);
         }
         return lines != null ? lines.length : 0;
     }

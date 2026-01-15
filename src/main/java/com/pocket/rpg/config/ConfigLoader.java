@@ -1,5 +1,6 @@
 package com.pocket.rpg.config;
 
+import com.pocket.rpg.editor.core.EditorConfig;
 import com.pocket.rpg.utils.FileUtils;
 
 import java.io.File;
@@ -7,6 +8,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 
 public class ConfigLoader {
@@ -25,14 +27,16 @@ public class ConfigLoader {
     public enum ConfigType {
         GAME,
         INPUT,
-        RENDERING
+        RENDERING,
+        EDITOR
     }
 
-    private static final List<ConfigFile> configFiles = List.of(
+    private static final List<ConfigFile> configFiles = new ArrayList<>(List.of(
             new ConfigFile(ConfigType.GAME, CONFIG_DIR + "/game.json", GameConfig.class, new GameConfig()),
             new ConfigFile(ConfigType.INPUT, CONFIG_DIR + "/input.json", InputConfig.class, new InputConfig()),
-            new ConfigFile(ConfigType.RENDERING, CONFIG_DIR + "/rendering.json", RenderingConfig.class, new RenderingConfig())
-    );
+            new ConfigFile(ConfigType.RENDERING, CONFIG_DIR + "/rendering.json", RenderingConfig.class, new RenderingConfig()),
+            new ConfigFile(ConfigType.EDITOR, CONFIG_DIR + "/editor.json", EditorConfig.class, EditorConfig.createDefault())
+    ));
 
     /**
      * Load configuration of specified type.

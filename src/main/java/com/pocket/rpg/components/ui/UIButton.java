@@ -179,9 +179,17 @@ public class UIButton extends UIComponent {
         UITransform transform = getUITransform();
         if (transform == null) return;
 
-        Vector2f pos = transform.getScreenPosition();
-        float w = transform.getWidth();
-        float h = transform.getHeight();
+        // Use matrix-based methods for correct hierarchy handling
+        Vector2f pivotWorld = transform.getWorldPivotPosition2D();
+        Vector2f scale = transform.getComputedWorldScale2D();
+        float w = transform.getEffectiveWidth() * scale.x;
+        float h = transform.getEffectiveHeight() * scale.y;
+        float rotation = transform.getComputedWorldRotation2D();
+        Vector2f pivot = transform.getEffectivePivot();  // Use effective pivot for MATCH_PARENT
+
+        // Calculate top-left position from pivot
+        float x = pivotWorld.x - pivot.x * w;
+        float y = pivotWorld.y - pivot.y * h;
 
         // Calculate render color with hover tint
         Vector4f renderColor = new Vector4f(color);
@@ -194,9 +202,17 @@ public class UIButton extends UIComponent {
         }
 
         if (sprite != null) {
-            backend.drawSprite(pos.x, pos.y, w, h, sprite, renderColor);
+            if (rotation != 0) {
+                backend.drawSprite(x, y, w, h, rotation, pivot.x, pivot.y, sprite, renderColor);
+            } else {
+                backend.drawSprite(x, y, w, h, sprite, renderColor);
+            }
         } else {
-            backend.drawQuad(pos.x, pos.y, w, h, renderColor);
+            if (rotation != 0) {
+                backend.drawQuad(x, y, w, h, rotation, pivot.x, pivot.y, renderColor);
+            } else {
+                backend.drawQuad(x, y, w, h, renderColor);
+            }
         }
     }
 
@@ -207,17 +223,49 @@ public class UIButton extends UIComponent {
     /**
      * Tests if a point (in game coordinates) is inside this button.
      * Used by UIInputHandler for hover/click detection.
+     * Handles rotation by transforming the point into local space.
      */
-    public boolean containsPoint(float x, float y) {
+    public boolean containsPoint(float testX, float testY) {
         UITransform transform = getUITransform();
         if (transform == null) return false;
 
-        Vector2f pos = transform.getScreenPosition();
-        float w = transform.getWidth();
-        float h = transform.getHeight();
+        // Use matrix-based methods for correct hierarchy handling
+        Vector2f pivotWorld = transform.getWorldPivotPosition2D();
+        Vector2f scale = transform.getComputedWorldScale2D();
+        float w = transform.getEffectiveWidth() * scale.x;
+        float h = transform.getEffectiveHeight() * scale.y;
+        float rotation = transform.getComputedWorldRotation2D();
+        Vector2f pivot = transform.getEffectivePivot();  // Use effective pivot for MATCH_PARENT
 
-        return x >= pos.x && x <= pos.x + w &&
-                y >= pos.y && y <= pos.y + h;
+        // Calculate top-left position from pivot
+        float posX = pivotWorld.x - pivot.x * w;
+        float posY = pivotWorld.y - pivot.y * h;
+
+        // If no rotation, use simple AABB check
+        if (Math.abs(rotation) < 0.001f) {
+            return testX >= posX && testX <= posX + w &&
+                    testY >= posY && testY <= posY + h;
+        }
+
+        // Transform point into button's local coordinate space
+        float pivotX = pivotWorld.x;
+        float pivotY = pivotWorld.y;
+
+        // Translate point relative to pivot
+        float relX = testX - pivotX;
+        float relY = testY - pivotY;
+
+        // Apply inverse rotation (negate the angle)
+        float radians = (float) Math.toRadians(-rotation);
+        float cos = (float) Math.cos(radians);
+        float sin = (float) Math.sin(radians);
+
+        float localX = relX * cos - relY * sin + pivotX;
+        float localY = relX * sin + relY * cos + pivotY;
+
+        // Now do AABB check in local space
+        return localX >= posX && localX <= posX + w &&
+                localY >= posY && localY <= posY + h;
     }
 
     @Override

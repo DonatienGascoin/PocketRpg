@@ -239,11 +239,21 @@ public class UITransformDragCommand implements EditorCommand {
     private void applyValues(Vector2f offset, float width, float height, Vector2f anchor, Vector2f pivot) {
         if (transform == null) return;
 
-        ComponentReflectionUtils.setFieldValue(transform, "offset", new Vector2f(offset));
-        ComponentReflectionUtils.setFieldValue(transform, "width", width);
-        ComponentReflectionUtils.setFieldValue(transform, "height", height);
-        ComponentReflectionUtils.setFieldValue(transform, "anchor", new Vector2f(anchor));
-        ComponentReflectionUtils.setFieldValue(transform, "pivot", new Vector2f(pivot));
+        // Use direct setters for UITransform - reflection doesn't work for final Vector2f fields
+        if (transform instanceof com.pocket.rpg.components.ui.UITransform uiTransform) {
+            uiTransform.setOffset(offset.x, offset.y);
+            uiTransform.setWidth(width);
+            uiTransform.setHeight(height);
+            uiTransform.setAnchor(anchor.x, anchor.y);
+            uiTransform.setPivot(pivot.x, pivot.y);
+        } else {
+            // Fallback for other transform types
+            ComponentReflectionUtils.setFieldValue(transform, "offset", new Vector2f(offset));
+            ComponentReflectionUtils.setFieldValue(transform, "width", width);
+            ComponentReflectionUtils.setFieldValue(transform, "height", height);
+            ComponentReflectionUtils.setFieldValue(transform, "anchor", new Vector2f(anchor));
+            ComponentReflectionUtils.setFieldValue(transform, "pivot", new Vector2f(pivot));
+        }
     }
 
     @Override

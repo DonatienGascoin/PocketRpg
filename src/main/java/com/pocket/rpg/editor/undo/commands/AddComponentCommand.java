@@ -1,6 +1,9 @@
 package com.pocket.rpg.editor.undo.commands;
 
 import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.ui.UIText;
+import com.pocket.rpg.config.ConfigLoader;
+import com.pocket.rpg.editor.core.EditorConfig;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.undo.EditorCommand;
 
@@ -20,6 +23,14 @@ public class AddComponentCommand implements EditorCommand {
     @Override
     public void execute() {
         entity.addComponent(component);
+
+        // Apply editor defaults for specific component types
+        if (component instanceof UIText uiText && uiText.getFontPath() == null) {
+            try {
+                EditorConfig config = ConfigLoader.getConfig(ConfigLoader.ConfigType.EDITOR);
+                uiText.setFontPath(config.getDefaultUiFont());
+            } catch (Exception ignored) {}
+        }
     }
 
     @Override

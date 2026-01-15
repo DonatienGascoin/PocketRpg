@@ -96,6 +96,25 @@ Tests use JUnit 5 + Mockito. Mock utilities in `src/test/java/com/pocket/rpg/tes
 - `gameData/config/input.json` - Input action/axis bindings
 - `gameData/config/rendering.json` - Render settings
 
-## Analysis documentation
+## Analysis and Planning Documentation
 
-Any analysis or design documents related to the codebase can be found and added in the `Documents/` directory.
+- `Documents/` - Analysis and design documents
+- `Documents/Plans/` - Implementation plans for features and fixes
+
+## Planning Mode Instructions
+
+When exiting plan mode, always provide a bullet-point summary in the console before calling ExitPlanMode:
+
+```
+Plan updated in "<plan file path>"
+
+**Things to change:**
+
+1. **FileName.java**
+   Short explanation of what changes
+
+2. **AnotherFile.java**
+   Short explanation of what changes
+```
+
+This gives the user a quick overview of what will be implemented without needing to read the full plan file.

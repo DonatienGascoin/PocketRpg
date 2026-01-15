@@ -62,6 +62,17 @@ public abstract class UIComponent extends Component {
         transformCacheDirty = true;
     }
 
+    /**
+     * Override to invalidate caches when gameObject changes.
+     * This is critical for GameViewPanel's wrapper GameObjects.
+     */
+    @Override
+    public void setGameObject(com.pocket.rpg.core.GameObject gameObject) {
+        super.setGameObject(gameObject);
+        transformCacheDirty = true;
+        canvasCacheDirty = true;
+    }
+
     private UICanvas findCanvasInAncestors() {
         if (gameObject == null) return null;
 

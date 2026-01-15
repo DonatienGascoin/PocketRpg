@@ -5,7 +5,10 @@ import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
+import com.pocket.rpg.editor.ui.layout.EditorFields;
+import com.pocket.rpg.editor.ui.layout.EditorLayout;
 import com.pocket.rpg.editor.undo.UndoManager;
+import com.pocket.rpg.editor.undo.commands.SetterUndoCommand;
 import com.pocket.rpg.editor.undo.commands.UITransformDragCommand;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
@@ -29,7 +32,7 @@ import java.util.List;
  * - Cascading resize (children scale with parent)
  * - Undo/redo support
  */
-public class UITransformInspector implements CustomComponentInspector {
+public class UITransformInspector extends CustomComponentInspector<UITransform> {
 
     // Anchor/Pivot preset positions
     private static final float[][] PRESETS = {
@@ -63,6 +66,7 @@ public class UITransformInspector implements CustomComponentInspector {
             "Bottom-Center (0.5, 1)",
             "Bottom-Right (1, 1)"
     };
+    private static final float FIELD_POSITION = 150f;
 
     private boolean lockAspectRatio = false;
     private float lastWidth = 0;
@@ -82,6 +86,11 @@ public class UITransformInspector implements CustomComponentInspector {
     private float editStartHeight;
     private Vector2f editStartOffset;
     private List<ChildState> editStartChildStates;
+
+    // Accent color for "Match Parent" buttons when ON (red)
+    private static final float[] ACCENT_COLOR = {0.9f, 0.2f, 0.2f, 1.0f};
+    private static final float[] ACCENT_HOVER = {1.0f, 0.3f, 0.3f, 1.0f};
+    private static final float[] ACCENT_ACTIVE = {0.8f, 0.1f, 0.1f, 1.0f};
 
     /**
      * Stores a child's transform state for undo.
@@ -103,86 +112,186 @@ public class UITransformInspector implements CustomComponentInspector {
     }
 
     @Override
-    public boolean draw(Component component, EditorGameObject entity) {
+    public boolean draw() {
         boolean changed = false;
 
         Vector2f anchor = FieldEditors.getVector2f(component, "anchor");
         Vector2f pivot = FieldEditors.getVector2f(component, "pivot");
+        boolean isMatchingParentSize = component.isMatchingParent();
 
-        if (compactLayout) {
-            // Compact layout: Anchor and Pivot side by side
-            float halfWidth = ImGui.getContentRegionAvailX() / 2 - 10;
+        // Always use side-by-side layout for anchor/pivot
+        float halfWidth = ImGui.getContentRegionAvailX() / 2 - 10;
 
-            // Anchor (left side)
-            ImGui.beginGroup();
-            ImGui.text(FontAwesomeIcons.Anchor + " Anchor");
-            ImGui.sameLine();
-            ImGui.textDisabled(String.format("(%.1f,%.1f)", anchor.x, anchor.y));
-            changed |= drawPresetGrid("anchor", component, anchor, entity);
-            ImGui.endGroup();
-
-            ImGui.sameLine(halfWidth + 20);
-
-            // Pivot (right side)
-            ImGui.beginGroup();
-            ImGui.text(FontAwesomeIcons.Crosshairs + " Pivot");
-            ImGui.sameLine();
-            ImGui.textDisabled(String.format("(%.1f,%.1f)", pivot.x, pivot.y));
-            changed |= drawPresetGrid("pivot", component, pivot, entity);
-            ImGui.endGroup();
+        // Anchor (left side)
+        ImGui.beginGroup();
+        ImGui.text(FontAwesomeIcons.Anchor + " Anchor (" + anchor.x + " / " + anchor.y + ")");
+        if (isMatchingParentSize) {
+            ImGui.textDisabled("Ignored (Match Parent)");
         } else {
-            // Normal layout: Anchor and Pivot stacked
-            ImGui.text(FontAwesomeIcons.Anchor + " Anchor");
-            ImGui.sameLine(100);
-            ImGui.textDisabled(String.format("(%.2f, %.2f)", anchor.x, anchor.y));
             changed |= drawPresetGrid("anchor", component, anchor, entity);
+        }
+        ImGui.endGroup();
 
-            ImGui.spacing();
+        ImGui.sameLine(halfWidth + 20);
 
-            ImGui.text(FontAwesomeIcons.Crosshairs + " Pivot");
-            ImGui.sameLine(100);
-            ImGui.textDisabled(String.format("(%.2f, %.2f)", pivot.x, pivot.y));
+        // Pivot (right side)
+        ImGui.beginGroup();
+        ImGui.text(FontAwesomeIcons.Crosshairs + " Pivot (" + pivot.x + " / " + pivot.y + ")");
+        if (isMatchingParentSize) {
+            ImGui.textDisabled("Ignored (Match Parent)");
+        } else {
             changed |= drawPresetGrid("pivot", component, pivot, entity);
         }
+        ImGui.endGroup();
 
         ImGui.spacing();
         ImGui.separator();
         ImGui.spacing();
 
         // Section: Offset
+        // component is already typed as UITransform (via bind)
+
+        // Check if we have a parent with UITransform
+        EditorGameObject parentEntity = entity.getParent();
+        boolean hasParentUITransform = parentEntity != null &&
+                parentEntity.getComponent(UITransform.class) != null;
+
         ImGui.text(FontAwesomeIcons.ArrowsAlt + " Offset");
 
-        ImGui.sameLine();
-        if (ImGui.smallButton("Reset##offset")) {
-            Vector2f currentOffset = FieldEditors.getVector2f(component, "offset");
-            if (currentOffset.x != 0 || currentOffset.y != 0) {
-                createMoveCommand(entity, component, currentOffset, new Vector2f(0, 0));
-                ComponentReflectionUtils.setFieldValue(component, "offset", new Vector2f(0, 0));
-                changed = true;
+        if (isMatchingParentSize) {
+            ImGui.sameLine();
+            ImGui.textDisabled("Ignored (Match Parent)");
+        } else {
+            ImGui.sameLine();
+            if (ImGui.smallButton("R##offset")) {
+                Vector2f currentOffset = component.getOffset();
+                if (currentOffset.x != 0 || currentOffset.y != 0) {
+                    // Push undo for reset
+                    final UITransform t = this.component;
+                    Vector2f oldOffset = new Vector2f(currentOffset);
+                    t.setOffset(0, 0);
+                    UndoManager.getInstance().push(
+                            new SetterUndoCommand<>(
+                                    v -> t.setOffset(v.x, v.y),
+                                    oldOffset, new Vector2f(0, 0), "Reset Offset"
+                            )
+                    );
+                    changed = true;
+                }
             }
+
+            // Capture component reference for undo lambdas
+            final UITransform t = this.component;
+
+            // X and Y on same line with automatic undo support
+            ImGui.sameLine();
+            ImGui.setCursorPosX(FIELD_POSITION); // Fixed position for size fields
+            EditorLayout.beginHorizontal(2);
+            changed |= EditorFields.floatField("X", "uiTransform.offset.x",
+                    () -> t.getOffset().x,
+                    v -> t.setOffset((float) v, t.getOffset().y),
+                    1.0f);
+            changed |= EditorFields.floatField("Y", "uiTransform.offset.y",
+                    () -> t.getOffset().y,
+                    v -> t.setOffset(t.getOffset().x, (float) v),
+                    1.0f);
+            EditorLayout.endHorizontal();
         }
 
-        // Track offset changes for undo
-        Vector2f oldOffset = new Vector2f(FieldEditors.getVector2f(component, "offset"));
-        boolean offsetChanged = FieldEditors.drawVector2f("offset", component, "offset", 1.0f);
 
-        if (offsetChanged) {
-            Vector2f newOffset = FieldEditors.getVector2f(component, "offset");
-            createMoveCommand(entity, component, oldOffset, newOffset);
+        // Section: Size (with cascading resize)
+        changed |= drawSizeSection(hasParentUITransform);
+
+//        ImGui.spacing();
+//        ImGui.separator();
+//        ImGui.spacing();
+
+        // Section: Rotation and Scale (inherited from Transform)
+        changed |= drawRotationScaleSection(hasParentUITransform);
+
+        ImGui.spacing();
+
+        // Master "MATCH PARENT" toggle button (only if parent has UITransform)
+        if (hasParentUITransform) {
+            boolean anyMatchParent = component.isMatchingParent() ||
+                    component.isMatchParentRotation() ||
+                    component.isMatchParentScale();
+            boolean allMatchParent = component.isMatchingParent() &&
+                    component.isMatchParentRotation() &&
+                    component.isMatchParentScale();
+
+            float buttonWidth = ImGui.getContentRegionAvailX();
+            changed |= drawMasterMatchParentButton(component, anyMatchParent, allMatchParent, buttonWidth);
+            ImGui.spacing();
+        }
+
+        return changed;
+    }
+
+    /**
+     * Draws the master "MATCH PARENT" toggle button.
+     * When clicked, toggles all match parent options together.
+     *
+     * @param anyMatchParent true if any match parent option is enabled (used for toggle logic)
+     * @param allMatchParent true if ALL match parent options are enabled (used for red styling)
+     */
+    private boolean drawMasterMatchParentButton(UITransform component, boolean anyMatchParent, boolean allMatchParent, float buttonWidth) {
+        boolean changed = false;
+
+        // Apply red accent color only if ALL match parent options are active
+        if (allMatchParent) {
+            ImGui.pushStyleColor(ImGuiCol.Button, ACCENT_COLOR[0], ACCENT_COLOR[1], ACCENT_COLOR[2], ACCENT_COLOR[3]);
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, ACCENT_HOVER[0], ACCENT_HOVER[1], ACCENT_HOVER[2], ACCENT_HOVER[3]);
+            ImGui.pushStyleColor(ImGuiCol.ButtonActive, ACCENT_ACTIVE[0], ACCENT_ACTIVE[1], ACCENT_ACTIVE[2], ACCENT_ACTIVE[3]);
+        }
+
+        if (ImGui.button(FontAwesomeIcons.Link + (allMatchParent ? " MATCHING PARENT" : " MATCH PARENT"), buttonWidth, 0)) {
+            // Toggle all match parent options
+            boolean newState = !anyMatchParent;
+            component.setStretchMode(newState ? UITransform.StretchMode.MATCH_PARENT : UITransform.StretchMode.NONE);
+            component.setMatchParentRotation(newState);
+            component.setMatchParentScale(newState);
             changed = true;
         }
 
-        ImGui.spacing();
+        if (allMatchParent) {
+            ImGui.popStyleColor(3);
+        }
 
-        // Section: Size (with cascading resize)
-        changed |= drawSizeSection(component, entity);
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(anyMatchParent ?
+                    "Click to disable all match parent options" :
+                    "Click to enable all match parent options (size, rotation, scale)");
+        }
 
-        ImGui.spacing();
-        ImGui.separator();
-        ImGui.spacing();
+        return changed;
+    }
 
-        // Section: Rotation and Scale (inherited from Transform)
-        changed |= drawRotationScaleSection(component, entity);
+    /**
+     * Draws a small [M] match parent toggle button with accent color when active.
+     * @return true if the value changed
+     */
+    private boolean drawMatchParentToggle(String id, boolean isActive, Runnable onToggle) {
+        boolean changed = false;
+
+        if (isActive) {
+            ImGui.pushStyleColor(ImGuiCol.Button, ACCENT_COLOR[0], ACCENT_COLOR[1], ACCENT_COLOR[2], ACCENT_COLOR[3]);
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, ACCENT_HOVER[0], ACCENT_HOVER[1], ACCENT_HOVER[2], ACCENT_HOVER[3]);
+            ImGui.pushStyleColor(ImGuiCol.ButtonActive, ACCENT_ACTIVE[0], ACCENT_ACTIVE[1], ACCENT_ACTIVE[2], ACCENT_ACTIVE[3]);
+        }
+
+        if (ImGui.smallButton("M##" + id)) {
+            onToggle.run();
+            changed = true;
+        }
+
+        if (isActive) {
+            ImGui.popStyleColor(3);
+        }
+
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(isActive ? "Match Parent: ON" : "Match Parent: OFF");
+        }
 
         return changed;
     }
@@ -190,39 +299,120 @@ public class UITransformInspector implements CustomComponentInspector {
     /**
      * Draws the size section with cascading resize support.
      */
-    private boolean drawSizeSection(Component component, EditorGameObject entity) {
+    private boolean drawSizeSection(boolean hasParentUITransform) {
         boolean changed = false;
 
         ImGui.text(FontAwesomeIcons.ExpandAlt + " Size");
+        // Match Parent toggle button [M] (only if parent has UITransform)
+        if (hasParentUITransform) {
+            ImGui.sameLine();
+            changed |= drawMatchParentToggle("size", component.isMatchingParent(), () -> {
+                component.setStretchMode(component.isMatchingParent() ?
+                        UITransform.StretchMode.NONE : UITransform.StretchMode.MATCH_PARENT);
+            });
+        }
 
-        // Lock aspect ratio toggle
-        ImGui.sameLine(ImGui.getContentRegionAvailX() - 25);
-        if (ImGui.smallButton(lockAspectRatio ? FontAwesomeIcons.Lock : FontAwesomeIcons.LockOpen)) {
-            lockAspectRatio = !lockAspectRatio;
-            if (lockAspectRatio) {
-                lastWidth = FieldEditors.getFloat(component, "width", 100);
-                lastHeight = FieldEditors.getFloat(component, "height", 100);
+        boolean isMatchingParent = component.isMatchingParent();
+
+        // Lock aspect ratio toggle (only when not matching parent)
+        if (!isMatchingParent) {
+            ImGui.sameLine();
+//            ImGui.sameLine(ImGui.getContentRegionAvailX() - 25);
+            if (ImGui.smallButton(lockAspectRatio ? FontAwesomeIcons.Lock : FontAwesomeIcons.LockOpen)) {
+                lockAspectRatio = !lockAspectRatio;
+                if (lockAspectRatio) {
+                    lastWidth = FieldEditors.getFloat(component, "width", 100);
+                    lastHeight = FieldEditors.getFloat(component, "height", 100);
+                }
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip(lockAspectRatio ? "Aspect ratio locked" : "Lock aspect ratio");
             }
         }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(lockAspectRatio ? "Aspect ratio locked" : "Lock aspect ratio");
-        }
 
-        // Width
+        // If matching parent, show info text instead of editable fields
+        if (isMatchingParent) {
+            ImGui.sameLine();
+            ImGui.textDisabled("Matching parent (" +
+                    (int) component.getEffectiveWidth() + "x" +
+                    (int) component.getEffectiveHeight() + ")");
+            return changed;
+        }
+        // Width and Height fields with equal widths using EditorLayout
         float width = FieldEditors.getFloat(component, "width", 100);
         float height = FieldEditors.getFloat(component, "height", 100);
 
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() * 0.5f - 30);
-        float[] widthBuf = {width};
+        ImGui.sameLine();
+        EditorLayout.beginHorizontal(2);
 
-        // Start editing on activation
-        if (ImGui.isItemActivated() || (!isEditingSize && ImGui.isItemActive())) {
-            startSizeEdit(component, entity);
+
+        ImGui.sameLine();
+        // Texture size button (only if entity has a sprite)
+        float[] textureDims = getSpriteTextureDimensions();
+        if (textureDims != null) {
+            ImGui.sameLine();
+            if (ImGui.smallButton(FontAwesomeIcons.Image + "##textureSize")) {
+                float oldWidth = FieldEditors.getFloat(component, "width", 100);
+                float oldHeight = FieldEditors.getFloat(component, "height", 100);
+
+                if (oldWidth != textureDims[0] || oldHeight != textureDims[1]) {
+                    startSizeEdit();
+                    applySizeChange(oldWidth, oldHeight, textureDims[0], textureDims[1]);
+                    commitSizeEdit();
+                    changed = true;
+                }
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("Match texture size (" + (int) textureDims[0] + "x" + (int) textureDims[1] + ")");
+            }
         }
 
-        if (ImGui.dragFloat("W", widthBuf, 1.0f, 1.0f, 10000f)) {
+        ImGui.setCursorPosX(FIELD_POSITION); // Fixed position for size fields
+
+        // Match parent size button
+        if (hasParentUITransform) {
+            EditorGameObject parentEntity = entity.getParent();
+            Component parentTransform = parentEntity.getComponent(UITransform.class);
+            if (parentTransform != null) {
+                ImGui.sameLine();
+                if (ImGui.smallButton(FontAwesomeIcons.Expand + "##matchParent")) {
+                    float parentWidth = FieldEditors.getFloat(parentTransform, "width", 100);
+                    float parentHeight = FieldEditors.getFloat(parentTransform, "height", 100);
+                    float oldWidth = FieldEditors.getFloat(component, "width", 100);
+                    float oldHeight = FieldEditors.getFloat(component, "height", 100);
+
+                    // Size change with undo support
+                    startSizeEdit();
+                    applySizeChange(oldWidth, oldHeight, parentWidth, parentHeight);
+                    component.setOffset(0, 0);
+                    commitSizeEdit();
+
+                    // Set anchor and pivot to top-left directly (no undo for these)
+                    component.setAnchor(0, 0);
+                    component.setPivot(0, 0);
+                    changed = true;
+                }
+                if (ImGui.isItemHovered()) {
+                    ImGui.setTooltip("Match parent size (" +
+                            (int) FieldEditors.getFloat(parentTransform, "width", 100) + "x" +
+                            (int) FieldEditors.getFloat(parentTransform, "height", 100) + ")");
+                }
+            }
+        }
+
+        ImGui.sameLine();
+
+        // Width field
+        EditorLayout.beforeWidget();
+        ImGui.text("W");
+        ImGui.sameLine();
+        float labelWidth = ImGui.calcTextSize("W").x;
+        ImGui.setNextItemWidth(EditorLayout.calculateWidgetWidth(labelWidth));
+        float[] widthBuf = {width};
+
+        if (ImGui.dragFloat("##sizeW", widthBuf, 1.0f, 1.0f, 10000f)) {
             if (!isEditingSize) {
-                startSizeEdit(component, entity);
+                startSizeEdit();
             }
 
             float newWidth = Math.max(1, widthBuf[0]);
@@ -235,28 +425,28 @@ public class UITransformInspector implements CustomComponentInspector {
                 lastHeight = newHeight;
             }
 
-            applySizeChange(component, entity, editStartWidth, editStartHeight, newWidth, newHeight);
+            applySizeChange(editStartWidth, editStartHeight, newWidth, newHeight);
             changed = true;
         }
 
-        // End editing on deactivation
+        if (ImGui.isItemActivated()) {
+            startSizeEdit();
+        }
         if (ImGui.isItemDeactivatedAfterEdit()) {
-            commitSizeEdit(component, entity);
+            commitSizeEdit();
         }
 
-        ImGui.sameLine();
 
-        // Height
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() - 20);
+        // Height field
+        EditorLayout.beforeWidget();
+        ImGui.text("H");
+        ImGui.sameLine();
+        ImGui.setNextItemWidth(EditorLayout.calculateWidgetWidth(labelWidth));
         float[] heightBuf = {FieldEditors.getFloat(component, "height", 100)};
 
-        if (ImGui.isItemActivated() || (!isEditingSize && ImGui.isItemActive())) {
-            startSizeEdit(component, entity);
-        }
-
-        if (ImGui.dragFloat("H", heightBuf, 1.0f, 1.0f, 10000f)) {
+        if (ImGui.dragFloat("##sizeH", heightBuf, 1.0f, 1.0f, 10000f)) {
             if (!isEditingSize) {
-                startSizeEdit(component, entity);
+                startSizeEdit();
             }
 
             float newHeight = Math.max(1, heightBuf[0]);
@@ -270,158 +460,178 @@ public class UITransformInspector implements CustomComponentInspector {
                 lastHeight = newHeight;
             }
 
-            applySizeChange(component, entity, editStartWidth, editStartHeight, newWidth, newHeight);
+            applySizeChange(editStartWidth, editStartHeight, newWidth, newHeight);
             changed = true;
         }
 
-        if (ImGui.isItemDeactivatedAfterEdit()) {
-            commitSizeEdit(component, entity);
+        if (ImGui.isItemActivated()) {
+            startSizeEdit();
         }
+        if (ImGui.isItemDeactivatedAfterEdit()) {
+            commitSizeEdit();
+        }
+
+        EditorLayout.endHorizontal();
 
         // Quick size presets
-        ImGui.spacing();
-        changed |= drawSizePreset(component, entity, "32x32", 32, 32);
-        ImGui.sameLine();
-        changed |= drawSizePreset(component, entity, "64x64", 64, 64);
-        ImGui.sameLine();
-        changed |= drawSizePreset(component, entity, "128x128", 128, 128);
-
-        // Texture size button (only if entity has a sprite)
-        float[] textureDims = getSpriteTextureDimensions(entity);
-        if (textureDims != null) {
-            ImGui.sameLine();
-            if (ImGui.smallButton(FontAwesomeIcons.Image + "##textureSize")) {
-                float oldWidth = FieldEditors.getFloat(component, "width", 100);
-                float oldHeight = FieldEditors.getFloat(component, "height", 100);
-
-                if (oldWidth != textureDims[0] || oldHeight != textureDims[1]) {
-                    startSizeEdit(component, entity);
-                    applySizeChange(component, entity, oldWidth, oldHeight, textureDims[0], textureDims[1]);
-                    commitSizeEdit(component, entity);
-                    changed = true;
-                }
-            }
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("Match texture size (" + (int) textureDims[0] + "x" + (int) textureDims[1] + ")");
-            }
-        }
-
-        // Match parent size button
-        EditorGameObject parentEntity = entity.getParent();
-        if (parentEntity != null) {
-            Component parentTransform = parentEntity.getComponent(UITransform.class);
-            if (parentTransform != null) {
-                ImGui.sameLine();
-                if (ImGui.smallButton(FontAwesomeIcons.Expand + "##matchParent")) {
-                    float parentWidth = FieldEditors.getFloat(parentTransform, "width", 100);
-                    float parentHeight = FieldEditors.getFloat(parentTransform, "height", 100);
-                    float oldWidth = FieldEditors.getFloat(component, "width", 100);
-                    float oldHeight = FieldEditors.getFloat(component, "height", 100);
-
-                    if (oldWidth != parentWidth || oldHeight != parentHeight) {
-                        startSizeEdit(component, entity);
-                        applySizeChange(component, entity, oldWidth, oldHeight, parentWidth, parentHeight);
-                        ComponentReflectionUtils.setFieldValue(component, "offset", new Vector2f(0, 0));
-                        commitSizeEdit(component, entity);
-                        changed = true;
-                    }
-                }
-                if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("Match parent size (" +
-                            (int) FieldEditors.getFloat(parentTransform, "width", 100) + "x" +
-                            (int) FieldEditors.getFloat(parentTransform, "height", 100) + ")");
-                }
-            }
-        }
+//        ImGui.sameLine();
+//        ImGui.spacing();
+//        changed |= drawSizePreset("32x32", 32, 32);
+//        ImGui.sameLine();
+//        changed |= drawSizePreset("64x64", 64, 64);
+//        ImGui.sameLine();
+//        changed |= drawSizePreset("128x128", 128, 128);
 
         return changed;
     }
 
     /**
      * Draws the rotation and scale section for UITransform.
-     * UITransform now extends Transform, so rotation and scale are available.
+     * Uses FieldEditors for automatic undo support.
      */
-    private boolean drawRotationScaleSection(Component component, EditorGameObject entity) {
+    private boolean drawRotationScaleSection(boolean hasParentUITransform) {
         boolean changed = false;
 
-        // Cast to UITransform for direct access
-        if (!(component instanceof UITransform uiTransform)) {
-            return false;
-        }
+        // Capture component reference for undo lambdas
+        // This ensures undo works even if inspector is later unbound
+        final UITransform t = this.component;
 
         // Rotation (Z only for 2D)
         ImGui.text(FontAwesomeIcons.Sync + " Rotation");
-        ImGui.sameLine();
-        if (ImGui.smallButton("Reset##rotation")) {
-            if (uiTransform.getRotation2D() != 0) {
-                uiTransform.setRotation2D(0);
-                changed = true;
-            }
+
+        // Match Parent toggle [M] (only if parent has UITransform)
+        if (hasParentUITransform) {
+            ImGui.sameLine();
+            changed |= drawMatchParentToggle("##rotation", t.isMatchParentRotation(), () -> {
+                t.setMatchParentRotation(!t.isMatchParentRotation());
+            });
         }
 
-        float[] rotBuf = {uiTransform.getRotation2D()};
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() - 20);
-        if (ImGui.dragFloat("##rotation", rotBuf, 0.5f, -360f, 360f, "%.1f°")) {
-            uiTransform.setRotation2D(rotBuf[0]);
-            changed = true;
+        boolean matchingRotation = t.isMatchParentRotation();
+
+        if (matchingRotation) {
+            // Show parent value as disabled text
+            ImGui.sameLine();
+            UITransform parentTransform = getParentUITransform();
+            float parentRotation = parentTransform != null ? parentTransform.getLocalRotation2D() : 0f;
+            ImGui.textDisabled("Matching parent (" + String.format("%.1f", parentRotation) + "°)");
+        } else {
+            // Show reset button and editable field
+            ImGui.sameLine();
+            if (ImGui.smallButton("R##rotation")) {
+                float oldRotation = t.getLocalRotation2D();
+                if (oldRotation != 0) {
+                    t.setRotation2D(0);
+                    UndoManager.getInstance().push(
+                            new SetterUndoCommand<>(
+                                    t::setRotation2D, oldRotation, 0f, "Reset Rotation"
+                            )
+                    );
+                    changed = true;
+                }
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("Reset rotation to 0");
+            }
+            ImGui.setCursorPosX(FIELD_POSITION); // Fixed position for size fields
+            ImGui.sameLine();
+            changed |= FieldEditors.drawFloat("##Rotation", "uiTransform.rotation",
+                    t::getLocalRotation2D,
+                    v -> t.setRotation2D((float) v),
+                    0.5f, -360f, 360f, "%.1f°");
         }
 
         ImGui.spacing();
 
         // Scale (X, Y)
         ImGui.text(FontAwesomeIcons.Expand + " Scale");
-        ImGui.sameLine();
-        if (ImGui.smallButton("Reset##scale")) {
-            Vector2f scale = uiTransform.getScale2D();
-            if (scale.x != 1 || scale.y != 1) {
-                uiTransform.setScale2D(1, 1);
-                changed = true;
+
+        // Match Parent toggle [M] (only if parent has UITransform)
+        if (hasParentUITransform) {
+            ImGui.sameLine();
+            changed |= drawMatchParentToggle("scale", t.isMatchParentScale(), () -> {
+                t.setMatchParentScale(!t.isMatchParentScale());
+            });
+        }
+
+        boolean matchingScale = t.isMatchParentScale();
+
+        if (matchingScale) {
+            // Show parent value as disabled text
+            ImGui.sameLine();
+            UITransform parentTransform = getParentUITransform();
+            Vector2f parentScale = parentTransform != null ? parentTransform.getLocalScale2D() : new Vector2f(1, 1);
+            ImGui.textDisabled("Matching parent (" +
+                    String.format("%.2f", parentScale.x) + ", " +
+                    String.format("%.2f", parentScale.y) + ")");
+        } else {
+            // Show reset button and editable fields
+            ImGui.sameLine();
+            if (ImGui.smallButton("R##scale")) {
+                Vector2f oldScale = t.getLocalScale2D();
+                if (oldScale.x != 1 || oldScale.y != 1) {
+                    t.setScale2D(1, 1);
+                    UndoManager.getInstance().push(
+                            new SetterUndoCommand<>(
+                                    v -> t.setScale2D(v.x, v.y),
+                                    new Vector2f(oldScale), new Vector2f(1, 1), "Reset Scale"
+                            )
+                    );
+                    changed = true;
+                }
             }
-        }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("Reset scale to 1");
+            }
 
-        Vector2f scale = uiTransform.getScale2D();
-        float[] scaleXBuf = {scale.x};
-        float[] scaleYBuf = {scale.y};
+            // Uniform scale button
+            ImGui.sameLine();
+            if (ImGui.smallButton(FontAwesomeIcons.Link + "##uniformScale")) {
+                Vector2f scale = t.getLocalScale2D();
+                Vector2f oldScale = new Vector2f(scale);
+                float uniform = (scale.x + scale.y) / 2f;
+                if (oldScale.x != uniform || oldScale.y != uniform) {
+                    t.setScale2D(uniform, uniform);
+                    UndoManager.getInstance().push(
+                            new SetterUndoCommand<>(
+                                    v -> t.setScale2D(v.x, v.y),
+                                    oldScale, new Vector2f(uniform, uniform), "Uniform Scale"
+                            )
+                    );
+                    changed = true;
+                }
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("Make scale uniform");
+            }
+            // X and Y on same line with automatic undo support
+            ImGui.sameLine();
+            ImGui.setCursorPosX(FIELD_POSITION); // Fixed position for size fields
+            EditorLayout.beginHorizontal(2);
+            changed |= EditorFields.floatField("X", "uiTransform.scale.x",
+                    () -> t.getLocalScale2D().x,
+                    v -> t.setScale2D((float) v, t.getLocalScale2D().y),
+                    0.01f, 0.01f, 10f, "%.2f");
+            changed |= EditorFields.floatField("Y", "uiTransform.scale.y",
+                    () -> t.getLocalScale2D().y,
+                    v -> t.setScale2D(t.getLocalScale2D().x, (float) v),
+                    0.01f, 0.01f, 10f, "%.2f");
+            EditorLayout.endHorizontal();
 
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() * 0.5f - 30);
-        if (ImGui.dragFloat("X##scale", scaleXBuf, 0.01f, 0.01f, 10f, "%.2f")) {
-            uiTransform.setScale2D(scaleXBuf[0], scale.y);
-            changed = true;
-        }
-
-        ImGui.sameLine();
-
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() - 20);
-        if (ImGui.dragFloat("Y##scale", scaleYBuf, 0.01f, 0.01f, 10f, "%.2f")) {
-            uiTransform.setScale2D(scale.x, scaleYBuf[0]);
-            changed = true;
-        }
-
-        // Uniform scale button
-        ImGui.sameLine();
-        if (ImGui.smallButton(FontAwesomeIcons.Link + "##uniformScale")) {
-            // Set uniform scale to average
-            float uniform = (scale.x + scale.y) / 2f;
-            uiTransform.setScale2D(uniform, uniform);
-            changed = true;
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("Make scale uniform");
         }
 
         return changed;
     }
 
-    private boolean drawSizePreset(Component component, EditorGameObject entity,
-                                   String label, float targetWidth, float targetHeight) {
+    private boolean drawSizePreset(String label, float targetWidth, float targetHeight) {
         if (ImGui.smallButton(label)) {
             float oldWidth = FieldEditors.getFloat(component, "width", 100);
             float oldHeight = FieldEditors.getFloat(component, "height", 100);
 
             if (oldWidth != targetWidth || oldHeight != targetHeight) {
-                startSizeEdit(component, entity);
-                applySizeChange(component, entity, oldWidth, oldHeight, targetWidth, targetHeight);
-                commitSizeEdit(component, entity);
+                startSizeEdit();
+                applySizeChange(oldWidth, oldHeight, targetWidth, targetHeight);
+                commitSizeEdit();
                 return true;
             }
         }
@@ -431,7 +641,7 @@ public class UITransformInspector implements CustomComponentInspector {
     /**
      * Starts tracking a size edit for undo.
      */
-    private void startSizeEdit(Component component, EditorGameObject entity) {
+    private void startSizeEdit() {
         if (isEditingSize) return;
 
         isEditingSize = true;
@@ -460,8 +670,7 @@ public class UITransformInspector implements CustomComponentInspector {
     /**
      * Applies a size change with cascading to children.
      */
-    private void applySizeChange(Component component, EditorGameObject entity,
-                                 float oldWidth, float oldHeight, float newWidth, float newHeight) {
+    private void applySizeChange(float oldWidth, float oldHeight, float newWidth, float newHeight) {
         // Apply to parent
         ComponentReflectionUtils.setFieldValue(component, "width", newWidth);
         ComponentReflectionUtils.setFieldValue(component, "height", newHeight);
@@ -489,7 +698,7 @@ public class UITransformInspector implements CustomComponentInspector {
     /**
      * Commits the size edit and creates undo command.
      */
-    private void commitSizeEdit(Component component, EditorGameObject entity) {
+    private void commitSizeEdit() {
         if (!isEditingSize) return;
 
         float newWidth = FieldEditors.getFloat(component, "width", 100);
@@ -538,27 +747,6 @@ public class UITransformInspector implements CustomComponentInspector {
     }
 
     /**
-     * Creates a move command for offset changes.
-     */
-    private void createMoveCommand(EditorGameObject entity, Component component,
-                                   Vector2f oldOffset, Vector2f newOffset) {
-        float width = FieldEditors.getFloat(component, "width", 100);
-        float height = FieldEditors.getFloat(component, "height", 100);
-        Vector2f anchor = FieldEditors.getVector2f(component, "anchor");
-        Vector2f pivot = FieldEditors.getVector2f(component, "pivot");
-
-        UITransformDragCommand command = UITransformDragCommand.move(
-                entity, component,
-                oldOffset, newOffset,
-                width, height, anchor, pivot
-        );
-
-        // Revert and execute through UndoManager
-        ComponentReflectionUtils.setFieldValue(component, "offset", new Vector2f(oldOffset));
-        UndoManager.getInstance().execute(command);
-    }
-
-    /**
      * Draws a 3x3 preset grid for anchor or pivot.
      */
     private boolean drawPresetGrid(String fieldKey, Component component, Vector2f current,
@@ -593,7 +781,7 @@ public class UITransformInspector implements CustomComponentInspector {
                     Vector2f newValue = new Vector2f(presetX, presetY);
 
                     if (!oldValue.equals(newValue)) {
-                        createAnchorPivotCommand(entity, component, fieldKey, oldValue, newValue);
+                        createAnchorPivotCommand( fieldKey, oldValue, newValue);
                         ComponentReflectionUtils.setFieldValue(component, fieldKey, newValue);
                         changed = true;
                     }
@@ -632,7 +820,7 @@ public class UITransformInspector implements CustomComponentInspector {
             ImGui.setNextItemWidth(80);
             if (ImGui.sliderFloat("X", xBuf, 0f, 1f)) {
                 Vector2f newValue = new Vector2f(xBuf[0], current.y);
-                createAnchorPivotCommand(entity, component, fieldKey, oldValue, newValue);
+                createAnchorPivotCommand( fieldKey, oldValue, newValue);
                 current.x = xBuf[0];
                 ComponentReflectionUtils.setFieldValue(component, fieldKey, new Vector2f(current));
                 changed = true;
@@ -641,7 +829,7 @@ public class UITransformInspector implements CustomComponentInspector {
             ImGui.setNextItemWidth(80);
             if (ImGui.sliderFloat("Y", yBuf, 0f, 1f)) {
                 Vector2f newValue = new Vector2f(current.x, yBuf[0]);
-                createAnchorPivotCommand(entity, component, fieldKey, oldValue, newValue);
+                createAnchorPivotCommand( fieldKey, oldValue, newValue);
                 current.y = yBuf[0];
                 ComponentReflectionUtils.setFieldValue(component, fieldKey, new Vector2f(current));
                 changed = true;
@@ -658,8 +846,7 @@ public class UITransformInspector implements CustomComponentInspector {
     /**
      * Creates an undo command for anchor or pivot changes.
      */
-    private void createAnchorPivotCommand(EditorGameObject entity, Component component,
-                                          String fieldKey, Vector2f oldValue, Vector2f newValue) {
+    private void createAnchorPivotCommand(String fieldKey, Vector2f oldValue, Vector2f newValue) {
         Vector2f offset = FieldEditors.getVector2f(component, "offset");
         float width = FieldEditors.getFloat(component, "width", 100);
         float height = FieldEditors.getFloat(component, "height", 100);
@@ -692,7 +879,7 @@ public class UITransformInspector implements CustomComponentInspector {
      *
      * @return float[2] with {width, height}, or null if no sprite found
      */
-    private float[] getSpriteTextureDimensions(EditorGameObject entity) {
+    private float[] getSpriteTextureDimensions() {
         Object spriteObj = null;
 
         // Check UIImage
@@ -719,5 +906,19 @@ public class UITransformInspector implements CustomComponentInspector {
         }
 
         return null;
+    }
+
+    /**
+     * Gets the parent's UITransform component if it exists.
+     *
+     * @return The parent's UITransform, or null if no parent or parent has no UITransform
+     */
+    private UITransform getParentUITransform() {
+        EditorGameObject parentEntity = entity.getParent();
+        if (parentEntity == null) {
+            return null;
+        }
+        Component parentComp = parentEntity.getComponent(UITransform.class);
+        return parentComp instanceof UITransform ? (UITransform) parentComp : null;
     }
 }

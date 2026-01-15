@@ -1,18 +1,28 @@
 package com.pocket.rpg.editor.panels;
 
+import com.pocket.rpg.components.ui.UICanvas;
 import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.config.RenderingConfig;
+import com.pocket.rpg.core.window.ViewportConfig;
 import com.pocket.rpg.editor.EditorContext;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.panels.uidesigner.*;
+import com.pocket.rpg.editor.rendering.EditorFramebuffer;
+import com.pocket.rpg.editor.rendering.EditorUIBridge;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.tools.ToolManager;
+import com.pocket.rpg.rendering.pipeline.RenderParams;
+import com.pocket.rpg.rendering.pipeline.RenderPipeline;
+import com.pocket.rpg.rendering.targets.FramebufferTarget;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiWindowFlags;
 import lombok.Setter;
+import org.joml.Vector4f;
+
+import java.util.List;
 
 /**
  * UI Designer panel - visual editor for UI elements.
@@ -29,6 +39,8 @@ import lombok.Setter;
 public class UIDesignerPanel {
 
     private final EditorContext context;
+    private final GameConfig gameConfig;
+    private final RenderingConfig renderingConfig;
 
     // Sub-components
     private final UIDesignerState state;
@@ -36,6 +48,16 @@ public class UIDesignerPanel {
     private final UIDesignerGizmoDrawer gizmoDrawer;
     private final UIDesignerInputHandler inputHandler;
     private final UIDesignerRenderer renderer;
+
+    // Unified rendering via RenderPipeline
+    private RenderPipeline pipeline;
+    private EditorFramebuffer framebuffer;
+    private ViewportConfig viewportConfig;
+    private final EditorUIBridge uiBridge = new EditorUIBridge();
+    private boolean pipelineInitialized = false;
+
+    // Clear color for UI rendering (transparent)
+    private static final Vector4f CLEAR_COLOR = new Vector4f(0f, 0f, 0f, 0f);
 
     @Setter
     private ToolManager toolManager;
@@ -46,9 +68,8 @@ public class UIDesignerPanel {
 
     public UIDesignerPanel(EditorContext context) {
         this.context = context;
-
-        GameConfig gameConfig = context.getGameConfig();
-        RenderingConfig renderingConfig = context.getRenderingConfig();
+        this.gameConfig = context.getGameConfig();
+        this.renderingConfig = context.getRenderingConfig();
 
         // Create sub-components
         this.state = new UIDesignerState(gameConfig);
@@ -56,6 +77,31 @@ public class UIDesignerPanel {
         this.gizmoDrawer = new UIDesignerGizmoDrawer(state, coords);
         this.inputHandler = new UIDesignerInputHandler(state, coords, context);
         this.renderer = new UIDesignerRenderer(state, coords, renderingConfig);
+    }
+
+    /**
+     * Initializes the RenderPipeline for UI rendering.
+     * Called lazily on first render.
+     */
+    private void initPipeline() {
+        if (pipelineInitialized) return;
+
+        int width = state.getCanvasWidth();
+        int height = state.getCanvasHeight();
+
+        // Create framebuffer for UI rendering
+        framebuffer = new EditorFramebuffer(width, height);
+        framebuffer.init();
+
+        // Create viewport config matching canvas dimensions
+        viewportConfig = new ViewportConfig(width, height, width, height);
+
+        // Create pipeline (no post-processing for UI)
+        pipeline = new RenderPipeline(viewportConfig, renderingConfig);
+        pipeline.init();
+
+        pipelineInitialized = true;
+        System.out.println("[UIDesignerPanel] Pipeline initialized (" + width + "x" + height + ")");
     }
 
     // ========================================================================
@@ -152,6 +198,11 @@ public class UIDesignerPanel {
     // ========================================================================
 
     private void renderViewport() {
+        // Initialize pipeline on first render
+        if (!pipelineInitialized) {
+            initPipeline();
+        }
+
         // Get viewport bounds - start from current cursor position (after toolbar)
         ImVec2 cursorPos = ImGui.getCursorScreenPos();
         ImVec2 contentMax = ImGui.getWindowContentRegionMax();
@@ -178,8 +229,8 @@ public class UIDesignerPanel {
         // Get current scene
         EditorScene scene = context.getCurrentScene();
 
-        // Render UI elements to texture
-        renderer.renderToTexture(scene);
+        // Render UI elements to texture using unified RenderPipeline
+        renderUIToTexture(scene);
 
         // Get draw list
         ImDrawList drawList = ImGui.getWindowDrawList();
@@ -200,10 +251,7 @@ public class UIDesignerPanel {
         renderer.drawWorldBackground(drawList);
 
         // Display rendered UI texture
-        renderer.displayUITexture(drawList);
-
-        // Draw text elements (uses ImGui font)
-        renderer.drawTextElements(drawList, scene);
+        displayUITexture(drawList);
 
         // Draw selection borders
         gizmoDrawer.drawSelectionBorders(drawList, scene);
@@ -221,6 +269,55 @@ public class UIDesignerPanel {
         if (isHovered || state.isAnyDragActive()) {
             inputHandler.handleInput();
         }
+    }
+
+    /**
+     * Renders UI elements to texture using unified RenderPipeline.
+     * This uses the same rendering path as GameViewPanel and runtime.
+     */
+    private void renderUIToTexture(EditorScene scene) {
+        if (pipeline == null || framebuffer == null) return;
+
+        // Get UICanvases via cached bridge (O(1) when hierarchy unchanged)
+        List<UICanvas> uiCanvases = uiBridge.getUICanvases(scene);
+
+        // Create render target
+        FramebufferTarget target = new FramebufferTarget(framebuffer);
+
+        // Build params - UI only (no scene, no post-fx)
+        RenderParams params = RenderParams.builder()
+                .renderables(List.of())
+                .camera(null)  // UI doesn't need camera
+                .clearColor(CLEAR_COLOR)
+                .renderScene(false)
+                .renderUI(!uiCanvases.isEmpty())
+                .uiCanvases(uiCanvases)
+                .renderPostFx(false)
+                .renderOverlay(false)
+                .build();
+
+        // Execute pipeline
+        pipeline.execute(target, params);
+    }
+
+    /**
+     * Displays the rendered UI texture in the viewport.
+     */
+    private void displayUITexture(ImDrawList drawList) {
+        if (framebuffer == null || framebuffer.getTextureId() == 0) return;
+
+        float[] canvasBounds = coords.getCanvasScreenBounds();
+        float left = state.getViewportX() + canvasBounds[0];
+        float top = state.getViewportY() + canvasBounds[1];
+        float right = state.getViewportX() + canvasBounds[2];
+        float bottom = state.getViewportY() + canvasBounds[3];
+
+        // Draw with flipped V coordinates (OpenGL texture origin is bottom-left)
+        drawList.addImage(
+                framebuffer.getTextureId(),
+                left, top, right, bottom,
+                0, 1, 1, 0  // Flipped V
+        );
     }
 
     // ========================================================================
@@ -265,5 +362,18 @@ public class UIDesignerPanel {
 
     public void destroy() {
         renderer.destroy();
+
+        if (pipeline != null) {
+            pipeline.destroy();
+            pipeline = null;
+        }
+
+        if (framebuffer != null) {
+            framebuffer.destroy();
+            framebuffer = null;
+        }
+
+        uiBridge.clear();
+        pipelineInitialized = false;
     }
 }

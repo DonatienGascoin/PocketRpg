@@ -1,0 +1,39 @@
+{
+  "title": "PocketRPG Scene Editor",
+  "fullscreen": true,
+  "windowWidth": 1600,
+  "windowHeight": 900,
+  "vsync": true,
+  "pixelsPerUnit": 16.0,
+  "clearColor": {
+    "x": 0.15,
+    "y": 0.15,
+    "z": 0.15,
+    "w": 1.0
+  },
+  "gridColor": {
+    "x": 1.0,
+    "y": 1.0,
+    "z": 1.0,
+    "w": 0.1
+  },
+  "gridMajorColor": {
+    "x": 1.0,
+    "y": 1.0,
+    "z": 1.0,
+    "w": 0.25
+  },
+  "gridMajorLineInterval": 8,
+  "defaultZoom": 1.0,
+  "minZoom": 0.1,
+  "maxZoom": 10.0,
+  "cameraPanSpeed": 10.0,
+  "zoomSpeed": 0.1,
+  "scenesDirectory": "gameData/scenes",
+  "editorAssetsDirectory": "editor/assets",
+  "gameAssetsDirectory": "gameData/assets",
+  "fontSize": 16.0,
+  "showGrid": true,
+  "showTileCoordinates": true,
+  "defaultUiFont": "gameData/assets/fonts/zelda.ttf"
+}

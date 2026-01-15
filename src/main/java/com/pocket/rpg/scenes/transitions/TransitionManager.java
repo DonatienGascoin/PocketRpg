@@ -32,6 +32,14 @@ public class TransitionManager {
     private State state = State.IDLE;
     private ISceneTransition currentTransition;
     private String targetSceneName;
+    /**
+     * -- GETTER --
+     *  Gets the scene manager.
+     *  Package-private for SceneTransition static API.
+     *
+     * @return the scene manager
+     */
+    @Getter
     private final SceneManager sceneManager;
     private final OverlayRenderer overlayRenderer;
     private final TransitionConfig defaultConfig;
@@ -222,16 +230,6 @@ public class TransitionManager {
      */
     public TransitionConfig getDefaultConfig() {
         return new TransitionConfig(defaultConfig);
-    }
-
-    /**
-     * Gets the scene manager.
-     * Package-private for SceneTransition static API.
-     *
-     * @return the scene manager
-     */
-    SceneManager getSceneManager() {
-        return sceneManager;
     }
 
     /**

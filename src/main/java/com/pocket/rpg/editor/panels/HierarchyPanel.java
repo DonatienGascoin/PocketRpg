@@ -94,6 +94,7 @@ public class HierarchyPanel {
         selectionHandler.selectCollisionMap();
     }
 
+
     public void render() {
         if (ImGui.begin("Hierarchy")) {
             if (scene == null) {
@@ -127,6 +128,13 @@ public class HierarchyPanel {
 
             renderEntitiesSection();
             renderEntityCreationMenu();
+
+            // Detect click on empty space to deselect all
+            if (ImGui.isMouseClicked(ImGuiMouseButton.Left)
+                    && ImGui.isWindowHovered()
+                    && !ImGui.isAnyItemHovered()) {
+                selectionHandler.clearSelection();
+            }
         }
         ImGui.end();
 
@@ -197,6 +205,11 @@ public class HierarchyPanel {
 
         renderMultiSelectionContextMenu();
         HierarchyDropTarget.handleEmptyAreaDrop(scene);
+
+        // If the user clicks on the invisible drop target (the "empty space"), clear selection
+        if (ImGui.isItemClicked(ImGuiMouseButton.Left)) {
+            selectionHandler.clearSelection();
+        }
     }
 
     private void renderEntityCreationMenu() {

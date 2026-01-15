@@ -19,6 +19,8 @@ public final class FieldEditorContext {
     private static String componentType = null;
 
     private static final float[] OVERRIDE_COLOR = {1.0f, 0.8f, 0.2f, 1.0f};
+    private static final float[] REQUIRED_ERROR_COLOR = {0.9f, 0.2f, 0.2f, 1.0f};
+    private static final float[] REQUIRED_ERROR_BG_COLOR = {0.8f, 0.1f, 0.1f, 0.5f};
 
     private FieldEditorContext() {}
 
@@ -135,6 +137,45 @@ public final class FieldEditorContext {
     public static void popOverrideStyle(String fieldName) {
         if (isFieldOverridden(fieldName)) {
             ImGui.popStyleColor();
+        }
+    }
+
+    // ========================================================================
+    // REQUIRED FIELD STYLING
+    // ========================================================================
+
+    /**
+     * Checks if a field is @Required and has no value.
+     */
+    public static boolean isFieldRequiredAndMissing(String fieldName) {
+        return component != null && ComponentReflectionUtils.isRequiredAndMissing(component, fieldName);
+    }
+
+    /**
+     * Pushes error styling if field is required and missing.
+     * Applies red text color and red frame background for high visibility.
+     * Returns the number of style colors pushed (caller must pop this many).
+     */
+    public static int pushRequiredStyle(String fieldName) {
+        if (isFieldRequiredAndMissing(fieldName)) {
+            // Text label in red
+            ImGui.pushStyleColor(ImGuiCol.Text, REQUIRED_ERROR_COLOR[0], REQUIRED_ERROR_COLOR[1], REQUIRED_ERROR_COLOR[2], REQUIRED_ERROR_COLOR[3]);
+            // Input frame background in red
+            ImGui.pushStyleColor(ImGuiCol.FrameBg, REQUIRED_ERROR_BG_COLOR[0], REQUIRED_ERROR_BG_COLOR[1], REQUIRED_ERROR_BG_COLOR[2], REQUIRED_ERROR_BG_COLOR[3]);
+            // Hovered frame also red
+            ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, REQUIRED_ERROR_BG_COLOR[0], REQUIRED_ERROR_BG_COLOR[1], REQUIRED_ERROR_BG_COLOR[2], REQUIRED_ERROR_BG_COLOR[3] + 0.1f);
+            return 3;
+        }
+        return 0;
+    }
+
+    /**
+     * Pops error styling colors.
+     * @param count The return value from pushRequiredStyle
+     */
+    public static void popRequiredStyle(int count) {
+        if (count > 0) {
+            ImGui.popStyleColor(count);
         }
     }
 }

@@ -20,6 +20,13 @@ public final class FieldEditorUtils {
     public static final float LABEL_WIDTH = 120f;
     public static final float RESET_BUTTON_WIDTH = 25f;
 
+    // ========================================================================
+    // NEXT-FIELD OVERRIDES (consumed after one inspectorRow call)
+    // ========================================================================
+
+    private static float nextFieldWidth = -1;           // -1 means "use default"
+    private static Runnable nextMiddleContent = null;   // null means "no middle content"
+
     private FieldEditorUtils() {}
 
     // ========================================================================
@@ -27,24 +34,84 @@ public final class FieldEditorUtils {
     // ========================================================================
 
     /**
+     * Sets the width for the next field only.
+     * Consumed after the next inspectorRow() call.
+     */
+    public static void setNextFieldWidth(float width) {
+        nextFieldWidth = width;
+    }
+
+    /**
+     * Sets content to draw between label and field for the next inspectorRow() call.
+     * Use for buttons/icons that appear after the label but before the field.
+     * Consumed after the next inspectorRow() call.
+     */
+    public static void setNextMiddleContent(Runnable content) {
+        nextMiddleContent = content;
+    }
+
+    private static float consumeNextFieldWidth() {
+        float width = nextFieldWidth;
+        nextFieldWidth = -1;
+        return width;
+    }
+
+    private static Runnable consumeNextMiddleContent() {
+        Runnable content = nextMiddleContent;
+        nextMiddleContent = null;
+        return content;
+    }
+
+    /**
+     * Draws a compact inline field with label immediately followed by field.
+     * Uses RELATIVE positioning (sameLine without offset) - suitable for side-by-side layouts.
+     * Does NOT respect setNextFieldWidth - width must be set before calling this.
+     *
+     * @param label Short label (e.g., "X", "Y")
+     * @param field The field widget to draw
+     */
+    public static void inlineField(String label, Runnable field) {
+        ImGui.text(label);
+        ImGui.sameLine();  // Relative positioning - stays after label
+        field.run();
+    }
+
+    /**
      * Draws a standard inspector row with label and field.
+     * Checks for width and middle content overrides set via setNextFieldWidth/setNextMiddleContent.
      * Reserves space for reset button when override context is active.
      */
     public static void inspectorRow(String label, Runnable field) {
-        float textWidth = ImGui.calcTextSize(label).x;
+        if (!label.startsWith("##")) {
+            var currentPos = ImGui.getCursorPosX();
+            float textWidth = ImGui.calcTextSize(label).x;
 
-        ImGui.text(label);
+            ImGui.text(label);
 
-        if (textWidth > LABEL_WIDTH) {
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(label);
+            if (textWidth > LABEL_WIDTH) {
+                if (ImGui.isItemHovered()) {
+                    ImGui.setTooltip(label);
+                }
             }
+
+            ImGui.sameLine(currentPos + LABEL_WIDTH);
         }
 
-        ImGui.sameLine(LABEL_WIDTH);
+        // Draw middle content if set (buttons between label and field)
+        Runnable middleContent = consumeNextMiddleContent();
+        if (middleContent != null) {
+            middleContent.run();
+            ImGui.sameLine();
+        }
 
-        float width = FieldEditorContext.isActive() ? -RESET_BUTTON_WIDTH : -1;
-        ImGui.setNextItemWidth(width);
+        // Check for width override
+        float overrideWidth = consumeNextFieldWidth();
+        if (overrideWidth > 0) {
+            ImGui.setNextItemWidth(overrideWidth);
+        } else {
+            float width = FieldEditorContext.isActive() ? -RESET_BUTTON_WIDTH : -1;
+            ImGui.setNextItemWidth(width);
+        }
 
         field.run();
     }

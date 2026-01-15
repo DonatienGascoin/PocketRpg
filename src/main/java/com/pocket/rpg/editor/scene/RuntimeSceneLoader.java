@@ -3,6 +3,7 @@ package com.pocket.rpg.editor.scene;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.TilemapRenderer;
 import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.prefab.Prefab;
 import com.pocket.rpg.prefab.PrefabRegistry;
@@ -222,8 +223,12 @@ public class RuntimeSceneLoader {
             for (Component comp : components) {
                 if (comp == null) continue;
 
-                // Transform is handled specially - copy values to existing Transform
-                if (comp instanceof Transform t) {
+                // UITransform replaces Transform - add it as component (preserves all UI fields)
+                if (comp instanceof UITransform) {
+                    gameObject.addComponent(comp);  // Will replace auto-created Transform
+                }
+                // Plain Transform - copy values to existing Transform
+                else if (comp instanceof Transform t) {
                     gameObject.getTransform().setPosition(new Vector3f(t.getPosition()));
                     gameObject.getTransform().setRotation(new Vector3f(t.getRotation()));
                     gameObject.getTransform().setScale(new Vector3f(t.getScale()));

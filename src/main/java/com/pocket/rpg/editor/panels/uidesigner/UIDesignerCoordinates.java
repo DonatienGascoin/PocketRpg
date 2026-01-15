@@ -61,48 +61,46 @@ public class UIDesignerCoordinates {
     }
 
     // ========================================================================
-    // BOUNDS CALCULATION (using direct typed access)
+    // BOUNDS CALCULATION (delegates to UITransform matrix-based calculation)
     // ========================================================================
 
     /**
      * Calculates the bounds of a UI element in canvas coordinates.
+     * Uses UITransform's matrix-based calculation for consistency with runtime rendering.
+     * <p>
+     * The matrix-based approach handles hierarchy correctly:
+     * - Children automatically inherit parent transforms
+     * - Rotation is applied via matrix composition, not manual calculation
+     * - Arbitrary nesting depth is supported uniformly
      *
      * @param entity The entity to calculate bounds for
-     * @return float[4]: {x, y, width, height} or null if no UITransform
+     * @return float[4]: {x, y, scaledWidth, scaledHeight} or null if no UITransform
      */
     public float[] calculateElementBounds(EditorGameObject entity) {
         UITransform transform = entity.getComponent(UITransform.class);
         if (transform == null) return null;
 
-        float width = transform.getWidth();
-        float height = transform.getHeight();
-        Vector2f offset = transform.getOffset();
-        Vector2f anchor = transform.getAnchor();
-        Vector2f pivot = transform.getPivot();
+        // Set canvas bounds on transform (needed for MATCH_PARENT and anchor calculations)
+        transform.setScreenBounds(state.getCanvasWidth(), state.getCanvasHeight());
 
-        float parentWidth = state.getCanvasWidth();
-        float parentHeight = state.getCanvasHeight();
-        float parentX = 0;
-        float parentY = 0;
+        // Use effective width/height (handles MATCH_PARENT mode)
+        float width = transform.getEffectiveWidth();
+        float height = transform.getEffectiveHeight();
 
-        EditorGameObject parent = findParentWithUITransform(entity);
-        if (parent != null) {
-            float[] parentBounds = calculateElementBounds(parent);
-            if (parentBounds != null) {
-                parentX = parentBounds[0];
-                parentY = parentBounds[1];
-                parentWidth = parentBounds[2];
-                parentHeight = parentBounds[3];
-            }
-        }
+        // Get world scale from matrix (properly accumulates parent scale)
+        Vector2f worldScale = transform.getComputedWorldScale2D();
+        float scaledWidth = width * worldScale.x;
+        float scaledHeight = height * worldScale.y;
 
-        float anchorX = anchor.x * parentWidth;
-        float anchorY = anchor.y * parentHeight;
+        // Get world pivot position from matrix (properly transforms through hierarchy)
+        Vector2f pivotWorld = transform.getWorldPivotPosition2D();
+        Vector2f pivot = transform.getEffectivePivot();  // Use effective pivot for MATCH_PARENT
 
-        float x = parentX + anchorX + offset.x - pivot.x * width;
-        float y = parentY + anchorY + offset.y - pivot.y * height;
+        // Calculate top-left from pivot position
+        float x = pivotWorld.x - pivot.x * scaledWidth;
+        float y = pivotWorld.y - pivot.y * scaledHeight;
 
-        return new float[]{x, y, width, height};
+        return new float[]{x, y, scaledWidth, scaledHeight};
     }
 
     /**
@@ -173,6 +171,7 @@ public class UIDesignerCoordinates {
 
     /**
      * Gets the resize handle at the given screen position, if any.
+     * Supports rotated elements by using rotated corner positions.
      *
      * @param entity  The entity to check handles for
      * @param screenX Screen X position
@@ -180,34 +179,86 @@ public class UIDesignerCoordinates {
      * @return The ResizeHandle at position, or null if none
      */
     public UIDesignerState.ResizeHandle getHandleAtPosition(EditorGameObject entity, float screenX, float screenY) {
-        float[] bounds = calculateElementBounds(entity);
-        if (bounds == null) return null;
-
-        Vector2f topLeft = canvasToScreen(bounds[0], bounds[1]);
-        Vector2f bottomRight = canvasToScreen(bounds[0] + bounds[2], bounds[1] + bounds[3]);
-
-        float left = topLeft.x;
-        float top = topLeft.y;
-        float right = bottomRight.x;
-        float bottom = bottomRight.y;
-        float midX = (left + right) / 2;
-        float midY = (top + bottom) / 2;
+        float[] corners = calculateRotatedScreenCorners(entity);
+        if (corners == null) return null;
 
         float hitSize = UIDesignerState.HANDLE_HIT_SIZE;
 
-        // Check corners first (priority)
-        if (isInHandle(screenX, screenY, left, top, hitSize)) return UIDesignerState.ResizeHandle.TOP_LEFT;
-        if (isInHandle(screenX, screenY, right, top, hitSize)) return UIDesignerState.ResizeHandle.TOP_RIGHT;
-        if (isInHandle(screenX, screenY, left, bottom, hitSize)) return UIDesignerState.ResizeHandle.BOTTOM_LEFT;
-        if (isInHandle(screenX, screenY, right, bottom, hitSize)) return UIDesignerState.ResizeHandle.BOTTOM_RIGHT;
+        // Corner handles (TL, TR, BR, BL)
+        if (isInHandle(screenX, screenY, corners[0], corners[1], hitSize)) return UIDesignerState.ResizeHandle.TOP_LEFT;
+        if (isInHandle(screenX, screenY, corners[2], corners[3], hitSize)) return UIDesignerState.ResizeHandle.TOP_RIGHT;
+        if (isInHandle(screenX, screenY, corners[4], corners[5], hitSize)) return UIDesignerState.ResizeHandle.BOTTOM_RIGHT;
+        if (isInHandle(screenX, screenY, corners[6], corners[7], hitSize)) return UIDesignerState.ResizeHandle.BOTTOM_LEFT;
 
-        // Check edges
-        if (isInHandle(screenX, screenY, midX, top, hitSize)) return UIDesignerState.ResizeHandle.TOP;
-        if (isInHandle(screenX, screenY, midX, bottom, hitSize)) return UIDesignerState.ResizeHandle.BOTTOM;
-        if (isInHandle(screenX, screenY, left, midY, hitSize)) return UIDesignerState.ResizeHandle.LEFT;
-        if (isInHandle(screenX, screenY, right, midY, hitSize)) return UIDesignerState.ResizeHandle.RIGHT;
+        // Edge midpoint handles
+        float topMidX = (corners[0] + corners[2]) / 2, topMidY = (corners[1] + corners[3]) / 2;
+        float rightMidX = (corners[2] + corners[4]) / 2, rightMidY = (corners[3] + corners[5]) / 2;
+        float bottomMidX = (corners[4] + corners[6]) / 2, bottomMidY = (corners[5] + corners[7]) / 2;
+        float leftMidX = (corners[6] + corners[0]) / 2, leftMidY = (corners[7] + corners[1]) / 2;
+
+        if (isInHandle(screenX, screenY, topMidX, topMidY, hitSize)) return UIDesignerState.ResizeHandle.TOP;
+        if (isInHandle(screenX, screenY, rightMidX, rightMidY, hitSize)) return UIDesignerState.ResizeHandle.RIGHT;
+        if (isInHandle(screenX, screenY, bottomMidX, bottomMidY, hitSize)) return UIDesignerState.ResizeHandle.BOTTOM;
+        if (isInHandle(screenX, screenY, leftMidX, leftMidY, hitSize)) return UIDesignerState.ResizeHandle.LEFT;
 
         return null;
+    }
+
+    /**
+     * Calculates the rotated corners of an element in screen coordinates.
+     * Returns [TL_x, TL_y, TR_x, TR_y, BR_x, BR_y, BL_x, BL_y] or null if invalid.
+     */
+    private float[] calculateRotatedScreenCorners(EditorGameObject entity) {
+        UITransform transform = entity.getComponent(UITransform.class);
+        float[] bounds = calculateElementBounds(entity);
+        if (bounds == null) return null;
+
+        // Negate rotation to convert to screen space (Y-down)
+        // Use computed world rotation from matrix for correct hierarchy handling
+        float rotation = transform != null ? -transform.getComputedWorldRotation2D() : 0;
+
+        float x = bounds[0], y = bounds[1], w = bounds[2], h = bounds[3];
+
+        // Convert bounds to screen space
+        Vector2f screenTL = canvasToScreen(x, y);
+        Vector2f screenBR = canvasToScreen(x + w, y + h);
+
+        float left = screenTL.x;
+        float top = screenTL.y;
+        float right = screenBR.x;
+        float bottom = screenBR.y;
+
+        // If no rotation, return axis-aligned corners
+        if (Math.abs(rotation) < 0.001f) {
+            return new float[]{left, top, right, top, right, bottom, left, bottom};
+        }
+
+        // Calculate pivot in screen space (use effective pivot for MATCH_PARENT)
+        Vector2f pivot = transform != null ? transform.getEffectivePivot() : new Vector2f(0, 0);
+        float screenWidth = right - left;
+        float screenHeight = bottom - top;
+        float pivotScreenX = left + pivot.x * screenWidth;
+        float pivotScreenY = top + pivot.y * screenHeight;
+
+        // Calculate rotation
+        float cos = (float) Math.cos(Math.toRadians(rotation));
+        float sin = (float) Math.sin(Math.toRadians(rotation));
+
+        float[] corners = new float[8];
+        rotatePoint(left - pivotScreenX, top - pivotScreenY, cos, sin, pivotScreenX, pivotScreenY, corners, 0);    // TL
+        rotatePoint(right - pivotScreenX, top - pivotScreenY, cos, sin, pivotScreenX, pivotScreenY, corners, 2);   // TR
+        rotatePoint(right - pivotScreenX, bottom - pivotScreenY, cos, sin, pivotScreenX, pivotScreenY, corners, 4); // BR
+        rotatePoint(left - pivotScreenX, bottom - pivotScreenY, cos, sin, pivotScreenX, pivotScreenY, corners, 6);  // BL
+
+        return corners;
+    }
+
+    /**
+     * Rotates a point around a center and stores result in output array.
+     */
+    private void rotatePoint(float dx, float dy, float cos, float sin, float cx, float cy, float[] out, int idx) {
+        out[idx] = cx + dx * cos - dy * sin;
+        out[idx + 1] = cy + dx * sin + dy * cos;
     }
 
     private boolean isInHandle(float x, float y, float handleX, float handleY, float size) {
@@ -262,19 +313,15 @@ public class UIDesignerCoordinates {
      * Checks if a screen point is near the pivot point.
      */
     public boolean isNearPivot(EditorGameObject entity, float screenX, float screenY) {
-        float[] bounds = calculateElementBounds(entity);
-        if (bounds == null) return false;
-
         UITransform transform = entity.getComponent(UITransform.class);
         if (transform == null) return false;
 
-        Vector2f pivot = transform.getPivot();
+        // Set canvas bounds (needed for matrix calculation)
+        transform.setScreenBounds(state.getCanvasWidth(), state.getCanvasHeight());
 
-        // Calculate pivot position in element space
-        float pivotCanvasX = bounds[0] + pivot.x * bounds[2];
-        float pivotCanvasY = bounds[1] + pivot.y * bounds[3];
-
-        Vector2f pivotScreen = canvasToScreen(pivotCanvasX, pivotCanvasY);
+        // Get world pivot position directly from matrix
+        Vector2f pivotCanvas = transform.getWorldPivotPosition2D();
+        Vector2f pivotScreen = canvasToScreen(pivotCanvas.x, pivotCanvas.y);
 
         float distance = (float) Math.sqrt(
                 Math.pow(screenX - pivotScreen.x, 2) +

@@ -124,6 +124,17 @@ public class HierarchySelectionHandler {
         switchToEntityMode();
     }
 
+    public void clearSelection() {
+        cameraSelected = false;
+        tilemapLayersSelected = false;
+        collisionMapSelected = false;
+        lastClickedEntity = null; // Reset the anchor for Shift+Click range selection
+
+        if (scene != null) {
+            scene.clearSelection();
+        }
+    }
+
     private void switchToEntityMode() {
         if (modeManager != null) {
             modeManager.switchToEntity();

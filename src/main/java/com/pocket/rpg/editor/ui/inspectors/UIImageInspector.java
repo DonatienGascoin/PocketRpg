@@ -1,9 +1,9 @@
 package com.pocket.rpg.editor.ui.inspectors;
 
 import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.ui.UIImage;
 import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
-import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
@@ -13,22 +13,22 @@ import org.joml.Vector4f;
 /**
  * Custom editor for UIImage component.
  */
-public class UIImageInspector implements CustomComponentInspector {
+public class UIImageInspector extends CustomComponentInspector<UIImage> {
 
     @Override
-    public boolean draw(Component component, EditorGameObject entity) {
+    public boolean draw() {
         boolean changed = false;
 
         // Sprite
         ImGui.text(FontAwesomeIcons.Image + " Sprite");
-        changed |= FieldEditors.drawAsset("##sprite", component, "sprite", Sprite.class, entity);
+        changed |= FieldEditors.drawAsset("sprite", component, "sprite", Sprite.class, entity);
 
         // Reset size to sprite size button
         Object spriteObj = ComponentReflectionUtils.getFieldValue(component, "sprite");
         if (spriteObj instanceof Sprite sprite && sprite.getTexture() != null) {
             ImGui.sameLine();
             if (ImGui.smallButton(FontAwesomeIcons.Expand + "##resetSize")) {
-                changed |= resetSizeToSprite(entity, sprite);
+                changed |= resetSizeToSprite(sprite);
             }
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip(String.format("Reset size to sprite dimensions (%dx%d)",
@@ -40,13 +40,14 @@ public class UIImageInspector implements CustomComponentInspector {
 
         // Color (tint)
         ImGui.text(FontAwesomeIcons.Palette + " Tint Color");
-        changed |= FieldEditors.drawColor("##color", component, "color");
+        changed |= FieldEditors.drawColor("color", component, "color");
 
         // Quick alpha slider
         ImGui.spacing();
         Vector4f color = FieldEditors.getVector4f(component, "color");
         float[] alphaBuf = {color.w};
         ImGui.setNextItemWidth(-1);
+        // TODO: Refactor to use FieldEditors for @Required support and undo
         if (ImGui.sliderFloat("Alpha", alphaBuf, 0f, 1f)) {
             color.w = alphaBuf[0];
             ComponentReflectionUtils.setFieldValue(component, "color", color);
@@ -56,7 +57,7 @@ public class UIImageInspector implements CustomComponentInspector {
         return changed;
     }
 
-    private boolean resetSizeToSprite(EditorGameObject entity, Sprite sprite) {
+    private boolean resetSizeToSprite(Sprite sprite) {
         if (entity == null) return false;
 
         Component transform = entity.getComponent(UITransform.class);

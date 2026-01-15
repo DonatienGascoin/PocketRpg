@@ -286,6 +286,14 @@ public class UIPreviewRenderer {
     }
 
     private com.pocket.rpg.ui.text.Font loadFontFromComponent(Component comp) {
+        // Try new fontPath + fontSize fields first
+        String fontPath = ComponentReflectionUtils.getString(comp, "fontPath", null);
+        if (fontPath != null && !fontPath.isEmpty()) {
+            int fontSize = ComponentReflectionUtils.getInt(comp, "fontSize", 20);
+            return com.pocket.rpg.ui.text.FontCache.get(fontPath, fontSize);
+        }
+
+        // Fallback: try legacy font field for backwards compatibility
         Object fontObj = ComponentReflectionUtils.getFieldValue(comp, "font");
         if (fontObj == null) return null;
 
@@ -293,9 +301,9 @@ public class UIPreviewRenderer {
             return f;
         }
 
-        if (fontObj instanceof String fontPath && !fontPath.isEmpty()) {
+        if (fontObj instanceof String legacyPath && !legacyPath.isEmpty()) {
             try {
-                return Assets.load(fontPath, com.pocket.rpg.ui.text.Font.class);
+                return Assets.load(legacyPath, com.pocket.rpg.ui.text.Font.class);
             } catch (Exception e) {
                 return null;
             }

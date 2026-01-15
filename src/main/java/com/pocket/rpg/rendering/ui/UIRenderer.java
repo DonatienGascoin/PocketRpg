@@ -230,10 +230,18 @@ public class UIRenderer implements UIRendererBackend {
                                      float parentWidth, float parentHeight) {
         if (!root.isEnabled()) return;
 
-        // Update UITransform with parent bounds and position
+        // Update UITransform with screen bounds
         UITransform transform = root.getComponent(UITransform.class);
         if (transform != null) {
-            transform.setParentBounds(parentX, parentY, parentWidth, parentHeight);
+            // Only set screen bounds for root elements (those without UITransform parent)
+            // Child elements derive parent bounds from hierarchy automatically
+            GameObject parent = root.getParent();
+            boolean isRoot = (parent == null || parent.getComponent(UITransform.class) == null);
+            if (isRoot) {
+                transform.setScreenBounds(parentWidth, parentHeight);
+            }
+            // Force position recalculation
+            transform.markDirty();
         }
 
         // Render this object's UI components
@@ -249,8 +257,8 @@ public class UIRenderer implements UIRendererBackend {
             Vector2f screenPos = transform.getScreenPosition();
             childParentX = screenPos.x;
             childParentY = screenPos.y;
-            childParentWidth = transform.getWidth();
-            childParentHeight = transform.getHeight();
+            childParentWidth = transform.getEffectiveWidth();  // Use effective for match parent
+            childParentHeight = transform.getEffectiveHeight();
         }
 
         // Render children
@@ -276,12 +284,28 @@ public class UIRenderer implements UIRendererBackend {
 
     @Override
     public void drawQuad(float x, float y, float width, float height, Vector4f color) {
+        drawQuad(x, y, width, height, 0, 0, 0, color);
+    }
+
+    @Override
+    public void drawQuad(float x, float y, float width, float height,
+                         float rotation, float originX, float originY, Vector4f color) {
         glUseProgram(shaderProgram);
         glBindVertexArray(vao);
 
         glUniformMatrix4fv(uProjection, false, projectionMatrix.get(new float[16]));
 
-        modelMatrix.identity().translate(x, y, 0);
+        // Apply rotation around origin
+        if (rotation != 0) {
+            float pivotX = x + originX * width;
+            float pivotY = y + originY * height;
+            modelMatrix.identity()
+                    .translate(pivotX, pivotY, 0)
+                    .rotateZ((float) Math.toRadians(-rotation))  // Negative for clockwise
+                    .translate(-pivotX + x, -pivotY + y, 0);
+        } else {
+            modelMatrix.identity().translate(x, y, 0);
+        }
         glUniformMatrix4fv(uModel, false, modelMatrix.get(new float[16]));
 
         glUniform4f(uColor, color.x, color.y, color.z, color.w);
@@ -301,12 +325,29 @@ public class UIRenderer implements UIRendererBackend {
 
     @Override
     public void drawSprite(float x, float y, float width, float height, Sprite sprite, Vector4f tint) {
+        drawSprite(x, y, width, height, 0, 0, 0, sprite, tint);
+    }
+
+    @Override
+    public void drawSprite(float x, float y, float width, float height,
+                           float rotation, float originX, float originY,
+                           Sprite sprite, Vector4f tint) {
         glUseProgram(shaderProgram);
         glBindVertexArray(vao);
 
         glUniformMatrix4fv(uProjection, false, projectionMatrix.get(new float[16]));
 
-        modelMatrix.identity().translate(x, y, 0);
+        // Apply rotation around origin
+        if (rotation != 0) {
+            float pivotX = x + originX * width;
+            float pivotY = y + originY * height;
+            modelMatrix.identity()
+                    .translate(pivotX, pivotY, 0)
+                    .rotateZ((float) Math.toRadians(-rotation))  // Negative for clockwise
+                    .translate(-pivotX + x, -pivotY + y, 0);
+        } else {
+            modelMatrix.identity().translate(x, y, 0);
+        }
         glUniformMatrix4fv(uModel, false, modelMatrix.get(new float[16]));
 
         glUniform4f(uColor, tint.x, tint.y, tint.z, tint.w);
@@ -342,7 +383,7 @@ public class UIRenderer implements UIRendererBackend {
         }
 
         currentBatchTexture = texture;
-        batchIsText = (texture == null);  // Null texture = text mode (font atlas)
+        batchIsText = (texture != null);  // Text mode uses font atlas texture
         batchSpriteCount = 0;
         batching = true;
     }
@@ -402,6 +443,108 @@ public class UIRenderer implements UIRendererBackend {
         batchVertices[offset + 31] = tint.w;
 
         batchSpriteCount++;
+    }
+
+    @Override
+    public void batchSprite(float x, float y, float width, float height,
+                            float u0, float v0, float u1, float v1,
+                            float rotation, float pivotX, float pivotY, Vector4f tint) {
+        // If no rotation, use the simpler method
+        if (rotation == 0) {
+            batchSprite(x, y, width, height, u0, v0, u1, v1, tint);
+            return;
+        }
+
+        if (!batching) {
+            System.err.println("[UIRenderer] WARNING: batchSprite called without beginBatch");
+            return;
+        }
+
+        if (batchSpriteCount >= MAX_BATCH_SPRITES) {
+            flushBatch();
+        }
+
+        // Calculate the 4 corners before rotation
+        float x0 = x, y0 = y;                    // Top-left
+        float x1 = x + width, y1 = y;            // Top-right
+        float x2 = x + width, y2 = y + height;   // Bottom-right
+        float x3 = x, y3 = y + height;           // Bottom-left
+
+        // Precompute rotation values
+        float cos = (float) Math.cos(Math.toRadians(-rotation));
+        float sin = (float) Math.sin(Math.toRadians(-rotation));
+
+        // Rotate each corner around pivot
+        float rx0 = rotateX(x0, y0, pivotX, pivotY, cos, sin);
+        float ry0 = rotateY(x0, y0, pivotX, pivotY, cos, sin);
+        float rx1 = rotateX(x1, y1, pivotX, pivotY, cos, sin);
+        float ry1 = rotateY(x1, y1, pivotX, pivotY, cos, sin);
+        float rx2 = rotateX(x2, y2, pivotX, pivotY, cos, sin);
+        float ry2 = rotateY(x2, y2, pivotX, pivotY, cos, sin);
+        float rx3 = rotateX(x3, y3, pivotX, pivotY, cos, sin);
+        float ry3 = rotateY(x3, y3, pivotX, pivotY, cos, sin);
+
+        int offset = batchSpriteCount * VERTICES_PER_SPRITE * FLOATS_PER_VERTEX;
+
+        // Top-left vertex (rotated)
+        batchVertices[offset + 0] = rx0;
+        batchVertices[offset + 1] = ry0;
+        batchVertices[offset + 2] = u0;
+        batchVertices[offset + 3] = v0;
+        batchVertices[offset + 4] = tint.x;
+        batchVertices[offset + 5] = tint.y;
+        batchVertices[offset + 6] = tint.z;
+        batchVertices[offset + 7] = tint.w;
+
+        // Top-right vertex (rotated)
+        batchVertices[offset + 8] = rx1;
+        batchVertices[offset + 9] = ry1;
+        batchVertices[offset + 10] = u1;
+        batchVertices[offset + 11] = v0;
+        batchVertices[offset + 12] = tint.x;
+        batchVertices[offset + 13] = tint.y;
+        batchVertices[offset + 14] = tint.z;
+        batchVertices[offset + 15] = tint.w;
+
+        // Bottom-right vertex (rotated)
+        batchVertices[offset + 16] = rx2;
+        batchVertices[offset + 17] = ry2;
+        batchVertices[offset + 18] = u1;
+        batchVertices[offset + 19] = v1;
+        batchVertices[offset + 20] = tint.x;
+        batchVertices[offset + 21] = tint.y;
+        batchVertices[offset + 22] = tint.z;
+        batchVertices[offset + 23] = tint.w;
+
+        // Bottom-left vertex (rotated)
+        batchVertices[offset + 24] = rx3;
+        batchVertices[offset + 25] = ry3;
+        batchVertices[offset + 26] = u0;
+        batchVertices[offset + 27] = v1;
+        batchVertices[offset + 28] = tint.x;
+        batchVertices[offset + 29] = tint.y;
+        batchVertices[offset + 30] = tint.z;
+        batchVertices[offset + 31] = tint.w;
+
+        batchSpriteCount++;
+    }
+
+    /**
+     * Rotates X coordinate around a pivot point.
+     */
+    private float rotateX(float x, float y, float px, float py, float cos, float sin) {
+        float dx = x - px;
+        float dy = y - py;
+        return px + dx * cos - dy * sin;
+    }
+
+    /**
+     * Rotates Y coordinate around a pivot point.
+     */
+    private float rotateY(float x, float y, float px, float py, float cos, float sin) {
+        float dx = x - px;
+        float dy = y - py;
+        return py + dx * sin + dy * cos;
     }
 
     @Override

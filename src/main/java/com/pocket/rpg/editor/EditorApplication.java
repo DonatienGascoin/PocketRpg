@@ -96,8 +96,8 @@ public class EditorApplication {
         initAssets();
 
         // Load configuration
-        EditorConfig config = EditorConfig.createDefault();
         ConfigLoader.loadAllConfigs();
+        EditorConfig config = ConfigLoader.getConfig(ConfigLoader.ConfigType.EDITOR);
         RenderingConfig renderingConfig = ConfigLoader.getConfig(ConfigLoader.ConfigType.RENDERING);
         GameConfig gameConfig = ConfigLoader.getConfig(ConfigLoader.ConfigType.GAME);
         InputConfig inputConfig = ConfigLoader.getConfig(ConfigLoader.ConfigType.INPUT);
@@ -435,9 +435,11 @@ public class EditorApplication {
             uiController.destroy();
         }
 
-        EditorScene scene = context.getCurrentScene();
-        if (scene != null) {
-            scene.destroy();
+        if (context != null) {
+            EditorScene scene = context.getCurrentScene();
+            if (scene != null) {
+                scene.destroy();
+            }
         }
 
         TilesetRegistry.destroy();
@@ -447,9 +449,11 @@ public class EditorApplication {
             imGuiLayer.destroy();
         }
 
-        EditorWindow window = context.getWindow();
-        if (window != null) {
-            window.destroy();
+        if (context != null) {
+            EditorWindow window = context.getWindow();
+            if (window != null) {
+                window.destroy();
+            }
         }
 
         System.out.println("Scene Editor shut down");

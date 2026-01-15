@@ -1,7 +1,9 @@
 package com.pocket.rpg.editor.core;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.joml.Vector4f;
 
 /**
@@ -10,6 +12,8 @@ import org.joml.Vector4f;
  */
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class EditorConfig {
 
     // ===== WINDOW SETTINGS =====
@@ -149,6 +153,12 @@ public class EditorConfig {
      */
     @Builder.Default
     private boolean showTileCoordinates = true;
+
+    /**
+     * Default font path for new UIText components.
+     */
+    @Builder.Default
+    private String defaultUiFont = "gameData/assets/fonts/zelda.ttf";
 
     // ===== FACTORY METHODS =====
 

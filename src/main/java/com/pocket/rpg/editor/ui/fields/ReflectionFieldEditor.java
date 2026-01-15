@@ -85,6 +85,9 @@ public class ReflectionFieldEditor {
         boolean wasActive = ImGui.isAnyItemActive();
         boolean fieldChanged = false;
 
+        // Push required style if applicable (red highlight for missing required fields)
+        int requiredStyleCount = FieldEditorContext.pushRequiredStyle(fieldName);
+
         // PRIMITIVES
         if (type == int.class || type == Integer.class) {
             fieldChanged = FieldEditors.drawInt(label, component, fieldName);
@@ -126,6 +129,9 @@ public class ReflectionFieldEditor {
         else {
             FieldEditors.drawReadOnly(label, component, fieldName, type.getSimpleName());
         }
+
+        // Pop required style
+        FieldEditorContext.popRequiredStyle(requiredStyleCount);
 
         // UNDO LOGIC
         if (entity != null) {

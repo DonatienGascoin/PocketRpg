@@ -55,6 +55,7 @@ public class UIDesignerGizmoDrawer {
 
     /**
      * Draws borders around all UI elements, highlighting selected ones.
+     * Supports rotated elements by drawing 4 lines forming a rotated rectangle.
      */
     public void drawSelectionBorders(ImDrawList drawList, EditorScene scene) {
         if (scene == null) return;
@@ -63,23 +64,94 @@ public class UIDesignerGizmoDrawer {
             if (!coords.isUIEntity(entity)) continue;
             if (entity.hasComponent(UICanvas.class)) continue;
 
-            float[] bounds = coords.calculateElementBounds(entity);
-            if (bounds == null) continue;
+            UITransform transform = entity.getComponent(UITransform.class);
+            // Negate rotation to convert to screen space (Y-down)
+            // Use matrix-based method for correct hierarchy handling
+            float rotation = transform != null ? -transform.getComputedWorldRotation2D() : 0;
 
-            Vector2f screenPos = coords.canvasToScreen(bounds[0], bounds[1]);
-            Vector2f screenEnd = coords.canvasToScreen(bounds[0] + bounds[2], bounds[1] + bounds[3]);
-
-            float left = state.getViewportX() + screenPos.x;
-            float top = state.getViewportY() + screenPos.y;
-            float right = state.getViewportX() + screenEnd.x;
-            float bottom = state.getViewportY() + screenEnd.y;
+            float[] corners = calculateRotatedScreenCorners(entity, transform, rotation);
+            if (corners == null) continue;
 
             boolean selected = scene.isSelected(entity);
-
             int borderColor = selected ? UIDesignerState.COLOR_SELECTION
                     : ImGui.colorConvertFloat4ToU32(0.5f, 0.5f, 0.5f, 0.8f);
-            drawList.addRect(left, top, right, bottom, borderColor, 0, 0, selected ? 2.0f : 1.0f);
+            float thickness = selected ? 2.0f : 1.0f;
+
+            // Draw 4 lines forming rotated rectangle
+            drawList.addLine(corners[0], corners[1], corners[2], corners[3], borderColor, thickness); // TL->TR
+            drawList.addLine(corners[2], corners[3], corners[4], corners[5], borderColor, thickness); // TR->BR
+            drawList.addLine(corners[4], corners[5], corners[6], corners[7], borderColor, thickness); // BR->BL
+            drawList.addLine(corners[6], corners[7], corners[0], corners[1], borderColor, thickness); // BL->TL
         }
+    }
+
+    /**
+     * Calculates the rotated corners of an element in screen coordinates.
+     * Returns [TL_x, TL_y, TR_x, TR_y, BR_x, BR_y, BL_x, BL_y] or null if invalid.
+     */
+    private float[] calculateRotatedScreenCorners(EditorGameObject entity, UITransform transform, float rotation) {
+        float[] bounds = coords.calculateElementBounds(entity);
+        if (bounds == null) return null;
+
+        float x = bounds[0], y = bounds[1], w = bounds[2], h = bounds[3];
+
+        // If no rotation, use simple axis-aligned calculation
+        if (Math.abs(rotation) < 0.001f) {
+            Vector2f screenTL = coords.canvasToScreen(x, y);
+            Vector2f screenBR = coords.canvasToScreen(x + w, y + h);
+            float left = state.getViewportX() + screenTL.x;
+            float top = state.getViewportY() + screenTL.y;
+            float right = state.getViewportX() + screenBR.x;
+            float bottom = state.getViewportY() + screenBR.y;
+            return new float[]{left, top, right, top, right, bottom, left, bottom};
+        }
+
+        // Get pivot position in canvas space (use effective pivot for MATCH_PARENT)
+        Vector2f pivot = transform != null ? transform.getEffectivePivot() : new Vector2f(0.5f, 0.5f);
+        float pivotCanvasX = x + pivot.x * w;
+        float pivotCanvasY = y + pivot.y * h;
+
+        // Convert pivot to screen coords
+        Vector2f screenPivot = coords.canvasToScreen(pivotCanvasX, pivotCanvasY);
+        float spx = state.getViewportX() + screenPivot.x;
+        float spy = state.getViewportY() + screenPivot.y;
+
+        // Half dimensions in screen space
+        float hw = (w * state.getZoom()) / 2;
+        float hh = (h * state.getZoom()) / 2;
+
+        // Offset from pivot to center (in screen space)
+        float cx = (0.5f - pivot.x) * w * state.getZoom();
+        float cy = (0.5f - pivot.y) * h * state.getZoom();
+
+        // Rotation math
+        float cos = (float) Math.cos(Math.toRadians(rotation));
+        float sin = (float) Math.sin(Math.toRadians(rotation));
+
+        // Rotate center offset around pivot
+        float rcx = cx * cos - cy * sin;
+        float rcy = cx * sin + cy * cos;
+
+        // Center position in screen coords
+        float centerX = spx + rcx;
+        float centerY = spy + rcy;
+
+        // Calculate rotated corners around center
+        float[] corners = new float[8];
+        rotatePoint(-hw, -hh, cos, sin, centerX, centerY, corners, 0);  // TL
+        rotatePoint(hw, -hh, cos, sin, centerX, centerY, corners, 2);   // TR
+        rotatePoint(hw, hh, cos, sin, centerX, centerY, corners, 4);    // BR
+        rotatePoint(-hw, hh, cos, sin, centerX, centerY, corners, 6);   // BL
+        return corners;
+    }
+
+    /**
+     * Rotates a point around a center and stores result in output array.
+     */
+    private void rotatePoint(float dx, float dy, float cos, float sin,
+                             float centerX, float centerY, float[] out, int index) {
+        out[index] = centerX + dx * cos - dy * sin;
+        out[index + 1] = centerY + dx * sin + dy * cos;
     }
 
     // ========================================================================
@@ -127,15 +199,16 @@ public class UIDesignerGizmoDrawer {
         float width = bounds[2];
         float height = bounds[3];
 
-        Vector2f screenPos = coords.canvasToScreen(x, y);
-        Vector2f screenEnd = coords.canvasToScreen(x + width, y + height);
+        UITransform transform = entity.getComponent(UITransform.class);
+        // Negate rotation to convert to screen space (Y-down)
+        // Use matrix-based method for correct hierarchy handling
+        float rotation = transform != null ? -transform.getComputedWorldRotation2D() : 0;
+        float[] corners = calculateRotatedScreenCorners(entity, transform, rotation);
 
-        float left = state.getViewportX() + screenPos.x;
-        float top = state.getViewportY() + screenPos.y;
-        float right = state.getViewportX() + screenEnd.x;
-        float bottom = state.getViewportY() + screenEnd.y;
+        if (corners != null) {
+            drawResizeHandles(drawList, entity, corners);
+        }
 
-        drawResizeHandles(drawList, entity, left, top, right, bottom);
         drawAnchorPoint(drawList, entity, x, y, width, height);
         drawPivotPoint(drawList, entity, x, y, width, height);
     }
@@ -144,24 +217,36 @@ public class UIDesignerGizmoDrawer {
     // RESIZE HANDLES
     // ========================================================================
 
-    private void drawResizeHandles(ImDrawList drawList, EditorGameObject entity,
-                                   float left, float top, float right, float bottom) {
-        float midX = (left + right) / 2;
-        float midY = (top + bottom) / 2;
+    /**
+     * Draws resize handles at rotated corner and edge positions.
+     * corners array: [TL_x, TL_y, TR_x, TR_y, BR_x, BR_y, BL_x, BL_y]
+     */
+    private void drawResizeHandles(ImDrawList drawList, EditorGameObject entity, float[] corners) {
+        // Extract corner positions
+        float tlX = corners[0], tlY = corners[1];
+        float trX = corners[2], trY = corners[3];
+        float brX = corners[4], brY = corners[5];
+        float blX = corners[6], blY = corners[7];
+
+        // Calculate edge midpoints
+        float topMidX = (tlX + trX) / 2, topMidY = (tlY + trY) / 2;
+        float bottomMidX = (blX + brX) / 2, bottomMidY = (blY + brY) / 2;
+        float leftMidX = (tlX + blX) / 2, leftMidY = (tlY + blY) / 2;
+        float rightMidX = (trX + brX) / 2, rightMidY = (trY + brY) / 2;
 
         boolean isThisEntity = entity == state.getHoveredHandleEntity();
 
         // Corners
-        drawHandle(drawList, left, top, isThisEntity && state.getHoveredHandle() == UIDesignerState.ResizeHandle.TOP_LEFT);
-        drawHandle(drawList, right, top, isThisEntity && state.getHoveredHandle() == UIDesignerState.ResizeHandle.TOP_RIGHT);
-        drawHandle(drawList, left, bottom, isThisEntity && state.getHoveredHandle() == UIDesignerState.ResizeHandle.BOTTOM_LEFT);
-        drawHandle(drawList, right, bottom, isThisEntity && state.getHoveredHandle() == UIDesignerState.ResizeHandle.BOTTOM_RIGHT);
+        drawHandle(drawList, tlX, tlY, isThisEntity && state.getHoveredHandle() == UIDesignerState.ResizeHandle.TOP_LEFT);
+        drawHandle(drawList, trX, trY, isThisEntity && state.getHoveredHandle() == UIDesignerState.ResizeHandle.TOP_RIGHT);
+        drawHandle(drawList, blX, blY, isThisEntity && state.getHoveredHandle() == UIDesignerState.ResizeHandle.BOTTOM_LEFT);
+        drawHandle(drawList, brX, brY, isThisEntity && state.getHoveredHandle() == UIDesignerState.ResizeHandle.BOTTOM_RIGHT);
 
         // Edges
-        drawHandle(drawList, midX, top, isThisEntity && state.getHoveredHandle() == UIDesignerState.ResizeHandle.TOP);
-        drawHandle(drawList, midX, bottom, isThisEntity && state.getHoveredHandle() == UIDesignerState.ResizeHandle.BOTTOM);
-        drawHandle(drawList, left, midY, isThisEntity && state.getHoveredHandle() == UIDesignerState.ResizeHandle.LEFT);
-        drawHandle(drawList, right, midY, isThisEntity && state.getHoveredHandle() == UIDesignerState.ResizeHandle.RIGHT);
+        drawHandle(drawList, topMidX, topMidY, isThisEntity && state.getHoveredHandle() == UIDesignerState.ResizeHandle.TOP);
+        drawHandle(drawList, bottomMidX, bottomMidY, isThisEntity && state.getHoveredHandle() == UIDesignerState.ResizeHandle.BOTTOM);
+        drawHandle(drawList, leftMidX, leftMidY, isThisEntity && state.getHoveredHandle() == UIDesignerState.ResizeHandle.LEFT);
+        drawHandle(drawList, rightMidX, rightMidY, isThisEntity && state.getHoveredHandle() == UIDesignerState.ResizeHandle.RIGHT);
     }
 
     private void drawHandle(ImDrawList drawList, float x, float y, boolean hovered) {
@@ -259,7 +344,7 @@ public class UIDesignerGizmoDrawer {
         UITransform transform = entity.getComponent(UITransform.class);
         if (transform == null) return;
 
-        Vector2f pivot = transform.getPivot();
+        Vector2f pivot = transform.getEffectivePivot();  // Use effective pivot for MATCH_PARENT
 
         // Calculate pivot screen position
         float pivotX = elemX + pivot.x * elemWidth;

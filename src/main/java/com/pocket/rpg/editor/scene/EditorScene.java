@@ -39,6 +39,13 @@ public class EditorScene {
     @Getter
     private boolean dirty = false;
 
+    /**
+     * Incremented when hierarchy changes (entity add/remove/reparent).
+     * Used by EditorUIBridge for cache invalidation.
+     */
+    @Getter
+    private int hierarchyVersion = 0;
+
     // ========================================================================
     // LAYER MANAGEMENT
     // ========================================================================
@@ -305,6 +312,7 @@ public class EditorScene {
         }
 
         entities.add(entity);
+        hierarchyVersion++;
         markDirty();
     }
 
@@ -329,6 +337,7 @@ public class EditorScene {
         // Remove from selection
         selectedEntities.remove(entity);
 
+        hierarchyVersion++;
         markDirty();
     }
 
@@ -584,6 +593,9 @@ public class EditorScene {
             entity.setParentDirect(newParent);
             newParent.getChildrenMutable().add(entity);
         }
+
+        hierarchyVersion++;
+        markDirty();
     }
 
     // ========================================================================

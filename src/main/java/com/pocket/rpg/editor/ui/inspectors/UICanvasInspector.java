@@ -1,9 +1,7 @@
 package com.pocket.rpg.editor.ui.inspectors;
 
-import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ui.UICanvas;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
-import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import imgui.ImGui;
@@ -13,7 +11,7 @@ import imgui.type.ImInt;
  * Custom editor for UICanvas component.
  * Shows planeDistance only when renderMode is SCREEN_SPACE_CAMERA.
  */
-public class UICanvasInspector implements CustomComponentInspector {
+public class UICanvasInspector extends CustomComponentInspector<UICanvas> {
 
     private static final String[] RENDER_MODES = {
             "SCREEN_SPACE_OVERLAY",
@@ -28,19 +26,20 @@ public class UICanvasInspector implements CustomComponentInspector {
     };
 
     @Override
-    public boolean draw(Component component, EditorGameObject entity) {
+    public boolean draw() {
         boolean changed = false;
 
         // Render Mode
         ImGui.text(FontAwesomeIcons.Desktop + " Render Mode");
 
-        String currentMode = getEnumValue(component, "renderMode", "SCREEN_SPACE_OVERLAY");
+        String currentMode = getEnumValue("renderMode", "SCREEN_SPACE_OVERLAY");
         int currentIndex = indexOf(RENDER_MODES, currentMode);
 
         ImGui.setNextItemWidth(-1);
         ImInt selected = new ImInt(currentIndex);
+        // TODO: Refactor to use FieldEditors for @Required support and undo
         if (ImGui.combo("##renderMode", selected, RENDER_MODES)) {
-            ComponentReflectionUtils.setFieldValue(component, "renderMode", 
+            ComponentReflectionUtils.setFieldValue(component, "renderMode",
                     UICanvas.RenderMode.valueOf(RENDER_MODES[selected.get()]));
             changed = true;
         }
@@ -60,7 +59,7 @@ public class UICanvasInspector implements CustomComponentInspector {
         changed |= FieldEditors.drawInt("##sortOrder", component, "sortOrder");
 
         // Plane Distance - only for SCREEN_SPACE_CAMERA
-        String mode = getEnumValue(component, "renderMode", "SCREEN_SPACE_OVERLAY");
+        String mode = getEnumValue("renderMode", "SCREEN_SPACE_OVERLAY");
         if ("SCREEN_SPACE_CAMERA".equals(mode)) {
             ImGui.spacing();
             ImGui.separator();
@@ -73,7 +72,7 @@ public class UICanvasInspector implements CustomComponentInspector {
         return changed;
     }
 
-    private String getEnumValue(Component component, String fieldName, String defaultValue) {
+    private String getEnumValue(String fieldName, String defaultValue) {
         Object value = ComponentReflectionUtils.getFieldValue(component, fieldName);
         if (value == null) return defaultValue;
         if (value instanceof Enum<?> e) return e.name();

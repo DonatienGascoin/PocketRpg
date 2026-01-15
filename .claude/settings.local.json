@@ -2,7 +2,23 @@
   "permissions": {
     "allow": [
       "Bash(find:*)",
-      "Bash(git ls-tree:*)"
+      "Bash(git ls-tree:*)",
+      "Bash(./mvnw compile:*)",
+      "Bash(mvn compile:*)",
+      "Bash(./mvnw.cmd compile:*)",
+      "Bash(java:*)",
+      "Bash(cmd.exe /c:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(cmd //c:*)",
+      "Bash(where:*)",
+      "Bash(powershell.exe -Command \"cd E:/Projects/PocketRpg; mvn compile 2>&1\")",
+      "Bash(/c/Windows/System32/cmd.exe /c \"mvn compile -q 2>&1 && echo BUILD_SUCCESS || echo BUILD_FAILED\")",
+      "Bash(/c/Windows/System32/cmd.exe /c \"mvn compile > build_output.txt 2>&1 && echo SUCCESS >> build_output.txt || echo FAILED >> build_output.txt\")",
+      "Bash(/c/Program Files/apache-maven-3.9.6/bin/mvn compile:*)",
+      "Bash(/c/apache-maven-3.9.6/bin/mvn compile:*)",
+      "Bash(powershell.exe -Command \"& ''E:\\\\Projects\\\\PocketRpg\\\\mvnw.cmd'' -f E:\\\\Projects\\\\PocketRpg\\\\pom.xml compile 2>&1\")",
+      "Bash(ls:*)",
+      "Bash(powershell.exe -Command \"cd E:/Projects/PocketRpg; mvn compile 2>&1 | Select-Object -First 150\")"
     ]
   }
 }

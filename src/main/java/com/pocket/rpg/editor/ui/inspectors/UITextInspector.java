@@ -1,9 +1,15 @@
 package com.pocket.rpg.editor.ui.inspectors;
 
-import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.ui.UIText;
+import com.pocket.rpg.config.ConfigLoader;
+import com.pocket.rpg.editor.core.EditorConfig;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
+import com.pocket.rpg.editor.ui.fields.FieldEditorContext;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
+import com.pocket.rpg.editor.undo.UndoManager;
+import com.pocket.rpg.editor.undo.commands.SetComponentFieldCommand;
+import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import com.pocket.rpg.ui.text.Font;
 import imgui.ImGui;
@@ -13,28 +19,38 @@ import imgui.type.ImString;
 import org.joml.Vector2f;
 import org.joml.Vector4f;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Custom editor for UIText component.
  * Organizes fields into logical sections.
  */
-public class UITextInspector implements CustomComponentInspector {
+public class UITextInspector extends CustomComponentInspector<UIText> {
 
     private static final String[] H_ALIGNMENTS = {"LEFT", "CENTER", "RIGHT"};
     private static final String[] V_ALIGNMENTS = {"TOP", "MIDDLE", "BOTTOM"};
 
+    private static List<String> cachedFontPaths = null;
+    private static String[] cachedFontNames = null;
+
     private final ImString textBuffer = new ImString(1024);
 
     @Override
-    public boolean draw(Component component, EditorGameObject entity) {
+    public boolean draw() {
         boolean changed = false;
 
         // === CONTENT SECTION ===
         ImGui.text(FontAwesomeIcons.Font + " Content");
         ImGui.separator();
 
-        // Font
+        // Font path dropdown
         ImGui.spacing();
-        changed |= FieldEditors.drawAsset("Font", component, "font", Font.class, entity);
+        changed |= drawFontSelector();
+
+        // Font size slider
+        ImGui.spacing();
+        changed |= drawFontSizeSlider();
 
         // Text (multiline)
         ImGui.spacing();
@@ -45,6 +61,7 @@ public class UITextInspector implements CustomComponentInspector {
         ImGui.setNextItemWidth(-1);
         if (ImGui.inputTextMultiline("##text", textBuffer, -1, 60, ImGuiInputTextFlags.AllowTabInput)) {
             ComponentReflectionUtils.setFieldValue(component, "text", textBuffer.get());
+            component.markLayoutDirty();  // Force layout recalculation for UIDesigner
             changed = true;
         }
 
@@ -69,30 +86,30 @@ public class UITextInspector implements CustomComponentInspector {
         ImGui.text("Horizontal");
         ImGui.sameLine(100);
 
-        String hAlign = getEnumValue(component, "horizontalAlignment", "LEFT");
+        String hAlign = getEnumValue("horizontalAlignment", "LEFT");
         int hIndex = indexOf(H_ALIGNMENTS, hAlign);
 
         ImGui.setNextItemWidth(120);
         ImInt hSelected = new ImInt(hIndex);
         if (ImGui.combo("##hAlign", hSelected, H_ALIGNMENTS)) {
-            setEnumValue(component, "horizontalAlignment", H_ALIGNMENTS[hSelected.get()]);
+            setEnumValue("horizontalAlignment", H_ALIGNMENTS[hSelected.get()]);
             changed = true;
         }
 
         // Quick alignment buttons
         ImGui.sameLine();
         if (ImGui.smallButton(FontAwesomeIcons.AlignLeft)) {
-            setEnumValue(component, "horizontalAlignment", "LEFT");
+            setEnumValue("horizontalAlignment", "LEFT");
             changed = true;
         }
         ImGui.sameLine();
         if (ImGui.smallButton(FontAwesomeIcons.AlignCenter)) {
-            setEnumValue(component, "horizontalAlignment", "CENTER");
+            setEnumValue("horizontalAlignment", "CENTER");
             changed = true;
         }
         ImGui.sameLine();
         if (ImGui.smallButton(FontAwesomeIcons.AlignRight)) {
-            setEnumValue(component, "horizontalAlignment", "RIGHT");
+            setEnumValue("horizontalAlignment", "RIGHT");
             changed = true;
         }
 
@@ -100,13 +117,13 @@ public class UITextInspector implements CustomComponentInspector {
         ImGui.text("Vertical");
         ImGui.sameLine(100);
 
-        String vAlign = getEnumValue(component, "verticalAlignment", "TOP");
+        String vAlign = getEnumValue("verticalAlignment", "TOP");
         int vIndex = indexOf(V_ALIGNMENTS, vAlign);
 
         ImGui.setNextItemWidth(120);
         ImInt vSelected = new ImInt(vIndex);
         if (ImGui.combo("##vAlign", vSelected, V_ALIGNMENTS)) {
-            setEnumValue(component, "verticalAlignment", V_ALIGNMENTS[vSelected.get()]);
+            setEnumValue("verticalAlignment", V_ALIGNMENTS[vSelected.get()]);
             changed = true;
         }
 
@@ -126,38 +143,39 @@ public class UITextInspector implements CustomComponentInspector {
 
         ImGui.spacing();
         boolean autoFit = FieldEditors.getBoolean(component, "autoFit", false);
-        if (ImGui.checkbox("Enable Auto-Fit", autoFit)) {
+        if (ImGui.checkbox("Enable Best Fit", autoFit)) {
             ComponentReflectionUtils.setFieldValue(component, "autoFit", !autoFit);
+            component.markLayoutDirty();  // Invalidate layout when toggling autoFit
             changed = true;
             autoFit = !autoFit;
         }
 
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("Scale text to fit within UITransform bounds");
+            ImGui.setTooltip("Automatically finds the largest font size that fits within bounds (Unity Best Fit)");
         }
 
         if (autoFit) {
             ImGui.indent();
 
-            // Min/Max scale
-            ImGui.text("Scale Range");
+            // Min font size
+            ImGui.text("Min Size");
             ImGui.sameLine(100);
-
-            float minScale = FieldEditors.getFloat(component, "minScale", 0.5f);
-            float maxScale = FieldEditors.getFloat(component, "maxScale", 1.0f);
-            float[] range = {minScale, maxScale};
-
+            int[] minSizeArr = { component.getMinFontSize() };
             ImGui.setNextItemWidth(-1);
-            if (ImGui.dragFloat2("##scaleRange", range, 0.01f, 0.1f, 5.0f, "%.2f")) {
-                ComponentReflectionUtils.setFieldValue(component, "minScale", Math.max(0.1f, range[0]));
-                ComponentReflectionUtils.setFieldValue(component, "maxScale", Math.max(range[0], range[1]));
+            if (ImGui.sliderInt("##minFontSize", minSizeArr, 4, 72)) {
+                component.setMinFontSize(minSizeArr[0]);
+                component.markLayoutDirty();
                 changed = true;
             }
 
-            // Maintain aspect ratio
-            boolean maintainAspect = FieldEditors.getBoolean(component, "maintainAspectRatio", true);
-            if (ImGui.checkbox("Maintain Aspect Ratio", maintainAspect)) {
-                ComponentReflectionUtils.setFieldValue(component, "maintainAspectRatio", !maintainAspect);
+            // Max font size
+            ImGui.text("Max Size");
+            ImGui.sameLine(100);
+            int[] maxSizeArr = { component.getMaxFontSize() };
+            ImGui.setNextItemWidth(-1);
+            if (ImGui.sliderInt("##maxFontSize", maxSizeArr, 4, 72)) {
+                component.setMaxFontSize(Math.max(component.getMinFontSize(), maxSizeArr[0]));
+                component.markLayoutDirty();
                 changed = true;
             }
 
@@ -220,14 +238,14 @@ public class UITextInspector implements CustomComponentInspector {
         return changed;
     }
 
-    private String getEnumValue(Component component, String fieldName, String defaultValue) {
+    private String getEnumValue(String fieldName, String defaultValue) {
         Object value = ComponentReflectionUtils.getFieldValue(component, fieldName);
         if (value == null) return defaultValue;
         if (value instanceof Enum<?> e) return e.name();
         return value.toString();
     }
 
-    private void setEnumValue(Component component, String fieldName, String enumName) {
+    private void setEnumValue(String fieldName, String enumName) {
         // Get the field's enum type and set the value
         var meta = ComponentReflectionUtils.getFieldMeta(component, fieldName);
         if (meta != null && meta.type().isEnum()) {
@@ -245,5 +263,138 @@ public class UITextInspector implements CustomComponentInspector {
             if (array[i].equals(value)) return i;
         }
         return 0;
+    }
+
+    private static final String FONT_NONE = "(None)";
+
+    /**
+     * Refreshes the cached list of available font paths.
+     */
+    private static void refreshFontList() {
+        List<String> fonts = Assets.scanByType(Font.class);
+
+        // Build paths list: null for (None), then actual fonts
+        List<String> paths = new ArrayList<>();
+        paths.add(null);  // Index 0: None
+        paths.addAll(fonts);
+        cachedFontPaths = paths;
+
+        // Get default font from EditorConfig for labeling
+        String defaultFont = null;
+        try {
+            EditorConfig config = ConfigLoader.getConfig(ConfigLoader.ConfigType.EDITOR);
+            defaultFont = config.getDefaultUiFont();
+        } catch (Exception ignored) {}
+
+        // Build display names with "(default)" suffix where applicable
+        List<String> names = new ArrayList<>();
+        names.add(FONT_NONE);
+        String finalDefaultFont = defaultFont;
+        fonts.forEach(p -> {
+            int lastSlash = Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\'));
+            String displayName = lastSlash >= 0 ? p.substring(lastSlash + 1) : p;
+            if (p.equals(finalDefaultFont)) {
+                displayName += " (default)";
+            }
+            names.add(displayName);
+        });
+        cachedFontNames = names.toArray(new String[0]);
+    }
+
+    /**
+     * Draws font path selector dropdown with refresh button.
+     */
+    private boolean drawFontSelector() {
+        boolean changed = false;
+
+        // Initialize cache if needed
+        if (cachedFontPaths == null) {
+            refreshFontList();
+        }
+
+        // Red highlight if @Required field is missing (before label so label is also red)
+        int requiredStyleCount = FieldEditorContext.pushRequiredStyle("fontPath");
+
+        ImGui.text("Font");
+        ImGui.sameLine(100);
+
+        // Refresh button (pop style temporarily so button isn't red)
+        FieldEditorContext.popRequiredStyle(requiredStyleCount);
+        if (ImGui.smallButton(FontAwesomeIcons.Sync + "##refreshFonts")) {
+            refreshFontList();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("Refresh font list");
+        }
+        ImGui.sameLine();
+
+        // Re-push style for the combo
+        requiredStyleCount = FieldEditorContext.pushRequiredStyle("fontPath");
+
+        // Find current index
+        String currentPath = component.getFontPath();
+        int currentIndex = currentPath != null ? cachedFontPaths.indexOf(currentPath) : 0;
+        if (currentIndex < 0) currentIndex = 0;  // Not found = show (None)
+
+        ImGui.setNextItemWidth(-1);
+        ImInt selected = new ImInt(currentIndex);
+        if (ImGui.combo("##fontPath", selected, cachedFontNames)) {
+            int newIndex = selected.get();
+            String oldPath = component.getFontPath();
+            String newPath = (newIndex == 0) ? null : cachedFontPaths.get(newIndex);
+
+            // Apply change with undo support
+            component.setFontPath(newPath);
+            component.markLayoutDirty();
+
+            // Register undo command
+            EditorGameObject entity = FieldEditorContext.getEntity();
+            if (entity != null) {
+                UndoManager.getInstance().execute(
+                    new SetComponentFieldCommand(component, "fontPath", oldPath, newPath, entity)
+                );
+            }
+            changed = true;
+        }
+
+        FieldEditorContext.popRequiredStyle(requiredStyleCount);
+
+        // Tooltip
+        if (ImGui.isItemHovered()) {
+            if (FieldEditorContext.isFieldRequiredAndMissing("fontPath")) {
+                ImGui.setTooltip("Required: No font selected - text will not render");
+            } else if (currentPath != null) {
+                ImGui.setTooltip(currentPath);
+            }
+        }
+
+        return changed;
+    }
+
+    /**
+     * Draws font size slider or computed size when autoFit is enabled.
+     */
+    private boolean drawFontSizeSlider() {
+        boolean changed = false;
+        boolean autoFit = FieldEditors.getBoolean(component, "autoFit", false);
+
+        ImGui.text("Size");
+        ImGui.sameLine(100);
+
+        if (autoFit) {
+            // Show computed size as read-only when autoFit is enabled
+            int computedSize = component.getComputedFontSize();
+            ImGui.text(computedSize + " (auto)");
+        } else {
+            int[] sizeArr = { component.getFontSize() };
+            ImGui.setNextItemWidth(-1);
+            if (ImGui.sliderInt("##fontSize", sizeArr, 8, 72)) {
+                component.setFontSize(sizeArr[0]);
+                component.markLayoutDirty();
+                changed = true;
+            }
+        }
+
+        return changed;
     }
 }

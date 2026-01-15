@@ -2,6 +2,7 @@ package com.pocket.rpg.core;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.scenes.Scene;
 import lombok.Getter;
 import lombok.Setter;
@@ -170,6 +171,25 @@ public class GameObject {
     // =======================================================================
 
     public <T extends Component> T addComponent(T component) {
+        // Allow UITransform to replace the auto-created Transform
+        if (component instanceof UITransform) {
+            // Remove the auto-created Transform
+            components.remove(transform);
+            // UITransform becomes the new transform (it IS-A Transform)
+            transform = (Transform) component;
+            addComponentInternal(component);
+
+            if (scene != null) {
+                scene.registerCachedComponent(component);
+            }
+
+            if (scene != null && enabled) {
+                component.start();
+            }
+
+            return component;
+        }
+
         if (component instanceof Transform) {
             System.err.println("Cannot add Transform component - it's automatically created!");
             return component;

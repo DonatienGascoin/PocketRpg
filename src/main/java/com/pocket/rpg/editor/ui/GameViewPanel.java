@@ -1,5 +1,6 @@
 package com.pocket.rpg.editor.ui;
 
+import com.pocket.rpg.components.ui.UICanvas;
 import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.core.window.ViewportConfig;
@@ -8,8 +9,8 @@ import com.pocket.rpg.editor.PlayModeController;
 import com.pocket.rpg.editor.PlayModeController.PlayState;
 import com.pocket.rpg.editor.camera.PreviewCamera;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
-import com.pocket.rpg.editor.panels.UIPreviewRenderer;
 import com.pocket.rpg.editor.rendering.EditorFramebuffer;
+import com.pocket.rpg.editor.rendering.EditorUIBridge;
 import com.pocket.rpg.editor.rendering.PreviewCameraAdapter;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.SceneCameraSettings;
@@ -63,11 +64,11 @@ public class GameViewPanel {
     private PreviewCamera previewCamera;
     private PreviewCameraAdapter cameraAdapter;
 
-    // UI renderer for overlay
-    private UIPreviewRenderer uiRenderer;
-
     // Cached aspect ratio
     private float aspectRatio;
+
+    // UI canvas bridge (cached wrappers)
+    private final EditorUIBridge uiBridge = new EditorUIBridge();
 
     // Track scene for dirty detection
     private EditorScene lastScene;
@@ -122,9 +123,6 @@ public class GameViewPanel {
         previewPipeline = new RenderPipeline(viewportConfig, renderingConfig);
         previewPipeline.init();
 
-        // UI renderer for overlay
-        uiRenderer = new UIPreviewRenderer(gameConfig);
-
         initialized = true;
         System.out.println("GameViewPanel initialized (" + width + "x" + height + ")");
     }
@@ -150,12 +148,9 @@ public class GameViewPanel {
             // Playing or paused - show live game
             renderGameView();
         } else {
-            // Stopped - show static preview
+            // Stopped - show static preview (UI is rendered by RenderPipeline)
             renderPreview();
         }
-
-        // Render UI overlay on top (both when playing and stopped)
-        renderUIOverlay();
 
         ImGui.end();
     }
@@ -245,6 +240,7 @@ public class GameViewPanel {
 
     /**
      * Renders scene preview to framebuffer using RenderPipeline.
+     * Includes UI rendering using the actual game fonts.
      */
     private void renderPreviewToFramebuffer(EditorScene scene) {
         if (previewPipeline == null || previewFramebuffer == null) return;
@@ -252,56 +248,32 @@ public class GameViewPanel {
         // Apply scene camera settings
         if (scene != null) {
             SceneCameraSettings settings = scene.getCameraSettings();
-
-            // DEBUG
-            System.out.println("[DEBUG Preview] SceneCameraSettings orthoSize: " +
-                    settings.getOrthographicSize());
             previewCamera.applySceneSettings(settings.getPosition(), settings.getOrthographicSize());
-            // DEBUG
-            System.out.println("[DEBUG Preview] After apply, previewCamera orthoSize: " +
-                    previewCamera.getOrthographicSize());
         }
 
         // Get renderables (tilemaps + entities)
         List<Renderable> renderables = scene != null ? scene.getRenderables() : List.of();
 
+        // Get UI canvases via cached bridge (O(1) when hierarchy unchanged)
+        List<UICanvas> uiCanvases = uiBridge.getUICanvases(scene);
+
         // Create render target
         FramebufferTarget target = new FramebufferTarget(previewFramebuffer);
 
-        // Build params - scene only
+        // Build params - scene + UI
         RenderParams params = RenderParams.builder()
                 .renderables(renderables)
                 .camera(cameraAdapter)
                 .clearColor(CLEAR_COLOR)
                 .renderScene(true)
-                .renderUI(false)
+                .renderUI(!uiCanvases.isEmpty())
+                .uiCanvases(uiCanvases)
                 .renderPostFx(false)
                 .renderOverlay(false)
                 .build();
 
         // Execute pipeline
         previewPipeline.execute(target, params);
-        System.out.println("[Preview] orthoSize=" + previewCamera.getOrthographicSize() +
-                ", zoom=" + previewCamera.getZoom());
-    }
-
-    /**
-     * Renders UI elements on top of the game view.
-     */
-    private void renderUIOverlay() {
-        if (uiRenderer == null) return;
-
-        EditorScene scene = context.getCurrentScene();
-        if (scene == null) return;
-
-        if (lastDisplayWidth <= 0 || lastDisplayHeight <= 0) return;
-
-        var drawList = ImGui.getWindowDrawList();
-
-        float gameWidth = gameConfig.getGameWidth();
-        float scale = lastDisplayWidth / gameWidth;
-
-        uiRenderer.render(drawList, scene, lastViewportX, lastViewportY, scale, 0, 0);
     }
 
     /**
@@ -402,10 +374,10 @@ public class GameViewPanel {
             previewFramebuffer = null;
         }
 
+        uiBridge.clear();
         viewportConfig = null;
         previewCamera = null;
         cameraAdapter = null;
-        uiRenderer = null;
         initialized = false;
     }
 }

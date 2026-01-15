@@ -3,6 +3,7 @@ package com.pocket.rpg.editor.scene;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.prefab.Prefab;
 import com.pocket.rpg.prefab.PrefabRegistry;
 import com.pocket.rpg.rendering.core.Renderable;
@@ -535,6 +536,15 @@ public class EditorGameObject implements Renderable {
             throw new IllegalStateException(
                     "Cannot add components to prefab instance. Convert to scratch entity first.");
         }
+
+        // Allow UITransform to replace Transform
+        if (component instanceof UITransform) {
+            // Remove existing plain Transform if present (UITransform takes precedence)
+            components.removeIf(c -> c.getClass() == Transform.class);
+            getComponents().add(component);
+            return;
+        }
+
         if (component instanceof Transform) {
             System.err.println("Cannot add Transform - already exists");
             return;
@@ -888,20 +898,18 @@ public class EditorGameObject implements Renderable {
             // Prefab instance: store prefabId + all overrides (including Transform)
             data = new GameObjectData(id, name, prefabId, copyOverrides(componentOverrides));
         } else {
-//            // Scratch entity: DEEP COPY all components (including Transform)
-//            List<Component> clonedComponents = new ArrayList<>();
-//            if (components != null) {
-//                for (Component comp : components) {
-//                    Component clone = cloneComponent(comp);
-//                    if (clone != null) {
-//                        clonedComponents.add(clone);
-//                    }
-//                }
-//            }
-//            data = new GameObjectData(id, name, clonedComponents);
+            // Scratch entity: DEEP COPY all components
+            // Filter out base Transform if UITransform exists (they should not co-exist)
             List<Component> clonedComponents = new ArrayList<>();
             if (components != null) {
+                boolean hasUITransform = components.stream()
+                        .anyMatch(c -> c instanceof UITransform);
+
                 for (Component comp : components) {
+                    // Skip plain Transform if UITransform exists (UITransform extends Transform)
+                    if (hasUITransform && comp.getClass() == Transform.class) {
+                        continue;
+                    }
                     Component clone = cloneComponent(comp);
                     if (clone != null) {
                         clonedComponents.add(clone);

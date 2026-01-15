@@ -1,8 +1,7 @@
 package com.pocket.rpg.editor.ui.inspectors;
 
-import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.ui.UIPanel;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
-import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import imgui.ImGui;
@@ -11,7 +10,7 @@ import org.joml.Vector4f;
 /**
  * Custom editor for UIPanel component.
  */
-public class UIPanelInspector implements CustomComponentInspector {
+public class UIPanelInspector extends CustomComponentInspector<UIPanel> {
 
     // Common color presets
     private static final float[][] COLOR_PRESETS = {
@@ -28,7 +27,7 @@ public class UIPanelInspector implements CustomComponentInspector {
     };
 
     @Override
-    public boolean draw(Component component, EditorGameObject entity) {
+    public boolean draw() {
         boolean changed = false;
 
         // Background Color
@@ -43,6 +42,7 @@ public class UIPanelInspector implements CustomComponentInspector {
 
         final boolean[] alphaChanged = {false};
         FieldEditors.inspectorRow("Alpha", () -> {
+            // TODO: Refactor to use FieldEditors for @Required support and undo
             alphaChanged[0] = ImGui.sliderFloat("##alpha", alphaBuf, 0f, 1f);
         });
         if (alphaChanged[0]) {
@@ -64,7 +64,7 @@ public class UIPanelInspector implements CustomComponentInspector {
 
             // Color button
             if (ImGui.colorButton("##preset", preset)) {
-                ComponentReflectionUtils.setFieldValue(component, "color", 
+                ComponentReflectionUtils.setFieldValue(component, "color",
                         new Vector4f(preset[0], preset[1], preset[2], preset[3]));
                 changed = true;
             }

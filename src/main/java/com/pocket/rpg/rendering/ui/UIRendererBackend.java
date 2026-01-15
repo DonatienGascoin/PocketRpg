@@ -45,6 +45,38 @@ public interface UIRendererBackend {
      */
     void drawSprite(float x, float y, float width, float height, Sprite sprite, Vector4f tint);
 
+    /**
+     * Draws a textured sprite with rotation.
+     *
+     * @param x        X position (screen-space, origin top-left)
+     * @param y        Y position (screen-space, origin top-left)
+     * @param width    Width in pixels
+     * @param height   Height in pixels
+     * @param rotation Rotation in degrees (clockwise)
+     * @param originX  Rotation origin X (0-1, where 0=left, 0.5=center, 1=right)
+     * @param originY  Rotation origin Y (0-1, where 0=top, 0.5=center, 1=bottom)
+     * @param sprite   Sprite to draw (may be null for solid color)
+     * @param tint     RGBA tint color (multiplied with texture)
+     */
+    void drawSprite(float x, float y, float width, float height,
+                    float rotation, float originX, float originY,
+                    Sprite sprite, Vector4f tint);
+
+    /**
+     * Draws a solid color quad with rotation.
+     *
+     * @param x        X position (screen-space, origin top-left)
+     * @param y        Y position (screen-space, origin top-left)
+     * @param width    Width in pixels
+     * @param height   Height in pixels
+     * @param rotation Rotation in degrees (clockwise)
+     * @param originX  Rotation origin X (0-1)
+     * @param originY  Rotation origin Y (0-1)
+     * @param color    RGBA color
+     */
+    void drawQuad(float x, float y, float width, float height,
+                  float rotation, float originX, float originY, Vector4f color);
+
     // ========================================================================
     // BATCHED MODE (for text rendering)
     // ========================================================================
@@ -76,6 +108,28 @@ public interface UIRendererBackend {
      */
     void batchSprite(float x, float y, float width, float height,
                      float u0, float v0, float u1, float v1, Vector4f tint);
+
+    /**
+     * Adds a sprite to the current batch with rotation.
+     * Must be called between beginBatch and endBatch.
+     * Vertices are rotated around the specified pivot point.
+     *
+     * @param x        X position (screen-space)
+     * @param y        Y position (screen-space)
+     * @param width    Width in pixels
+     * @param height   Height in pixels
+     * @param u0       Texture U coordinate (left)
+     * @param v0       Texture V coordinate (top)
+     * @param u1       Texture U coordinate (right)
+     * @param v1       Texture V coordinate (bottom)
+     * @param rotation Rotation in degrees (clockwise)
+     * @param pivotX   Pivot X position (screen-space, absolute)
+     * @param pivotY   Pivot Y position (screen-space, absolute)
+     * @param tint     RGBA tint color
+     */
+    void batchSprite(float x, float y, float width, float height,
+                     float u0, float v0, float u1, float v1,
+                     float rotation, float pivotX, float pivotY, Vector4f tint);
 
     /**
      * Ends the current batch and flushes all sprites to the GPU.

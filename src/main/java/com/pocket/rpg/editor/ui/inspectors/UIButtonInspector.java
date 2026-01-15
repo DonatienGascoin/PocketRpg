@@ -1,9 +1,9 @@
 package com.pocket.rpg.editor.ui.inspectors;
 
 import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.ui.UIButton;
 import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
-import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
@@ -17,10 +17,10 @@ import org.joml.Vector4f;
  * Note: Runtime-only fields (onClick, onHover, onExit, hovered, pressed)
  * are not shown as they are set via code.
  */
-public class UIButtonInspector implements CustomComponentInspector {
+public class UIButtonInspector extends CustomComponentInspector<UIButton> {
 
     @Override
-    public boolean draw(Component component, EditorGameObject entity) {
+    public boolean draw() {
         boolean changed = false;
 
         // === APPEARANCE SECTION ===
@@ -36,7 +36,7 @@ public class UIButtonInspector implements CustomComponentInspector {
         if (spriteObj instanceof Sprite sprite && sprite.getTexture() != null) {
             ImGui.sameLine();
             if (ImGui.smallButton(FontAwesomeIcons.Expand + "##resetSize")) {
-                changed |= resetSizeToSprite(entity, sprite);
+                changed |= resetSizeToSprite(sprite);
             }
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip(String.format("Reset size to sprite dimensions (%dx%d)",
@@ -56,6 +56,7 @@ public class UIButtonInspector implements CustomComponentInspector {
         ImGui.text("Alpha");
         ImGui.sameLine(130);
         ImGui.setNextItemWidth(-1);
+        // TODO: Refactor to use FieldEditors for @Required support and undo
         if (ImGui.sliderFloat("##alpha", alphaBuf, 0f, 1f)) {
             color.w = alphaBuf[0];
             ComponentReflectionUtils.setFieldValue(component, "color", color);
@@ -74,6 +75,7 @@ public class UIButtonInspector implements CustomComponentInspector {
         boolean hasCustomTint = hoverTintObj != null;
 
         // Checkbox to enable custom tint
+        // TODO: Refactor to use FieldEditors for @Required support and undo
         if (ImGui.checkbox("Custom Hover Tint", hasCustomTint)) {
             if (hasCustomTint) {
                 ComponentReflectionUtils.setFieldValue(component, "hoverTint", null);
@@ -95,6 +97,7 @@ public class UIButtonInspector implements CustomComponentInspector {
             ImGui.text("Darken Amount");
             ImGui.sameLine(130);
             ImGui.setNextItemWidth(-1);
+            // TODO: Refactor to use FieldEditors for @Required support and undo
             if (ImGui.sliderFloat("##hoverTint", tintBuf, 0f, 0.5f, "%.2f")) {
                 ComponentReflectionUtils.setFieldValue(component, "hoverTint", tintBuf[0]);
                 changed = true;
@@ -119,7 +122,7 @@ public class UIButtonInspector implements CustomComponentInspector {
         return changed;
     }
 
-    private boolean resetSizeToSprite(EditorGameObject entity, Sprite sprite) {
+    private boolean resetSizeToSprite(Sprite sprite) {
         if (entity == null) return false;
 
         Component transform = entity.getComponent(UITransform.class);

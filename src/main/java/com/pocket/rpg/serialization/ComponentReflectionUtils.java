@@ -276,4 +276,50 @@ public final class ComponentReflectionUtils {
         }
         return defaultValue;
     }
+
+    /**
+     * Checks if a field has @Required annotation and is null/empty.
+     *
+     * @param component The component instance
+     * @param fieldName The field name
+     * @return true if the field is required and has no value
+     */
+    public static boolean isRequiredAndMissing(Component component, String fieldName) {
+        if (component == null || fieldName == null) {
+            return false;
+        }
+
+        try {
+            Field field = getFieldRecursive(component.getClass(), fieldName);
+            if (field == null) return false;
+
+            if (!field.isAnnotationPresent(Required.class)) {
+                return false;
+            }
+
+            field.setAccessible(true);
+            Object value = field.get(component);
+
+            if (value == null) return true;
+            if (value instanceof String s && s.isEmpty()) return true;
+
+            return false;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Gets a field from a class or its superclasses.
+     */
+    private static Field getFieldRecursive(Class<?> clazz, String fieldName) {
+        while (clazz != null) {
+            try {
+                return clazz.getDeclaredField(fieldName);
+            } catch (NoSuchFieldException e) {
+                clazz = clazz.getSuperclass();
+            }
+        }
+        return null;
+    }
 }

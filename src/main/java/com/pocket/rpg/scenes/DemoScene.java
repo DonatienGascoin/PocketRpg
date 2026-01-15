@@ -352,7 +352,7 @@ public class DemoScene extends Scene {
         GameObject textObj = new GameObject("Button Text");
         textObj.addComponent(new UITransform(150, 40));  // Size doesn't matter!
 
-        UIText btnText = new UIText(font, "START");
+        UIText btnText = new UIText("fonts/zelda.ttf", 18, "START");
         btnText.setAutoFit(true);  // Automatically fills parent button
         btnText.setHorizontalAlignment(HorizontalAlignment.CENTER);
         btnText.setVerticalAlignment(VerticalAlignment.MIDDLE);

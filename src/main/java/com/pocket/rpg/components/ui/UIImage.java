@@ -58,11 +58,19 @@ public class UIImage extends UIComponent {
         UITransform transform = getUITransform();
         if (transform == null) return;
 
-        Vector2f pos = transform.getScreenPosition();
-        float w = transform.getWidth();
-        float h = transform.getHeight();
+        // Use matrix-based methods for correct hierarchy handling
+        Vector2f pivotWorld = transform.getWorldPivotPosition2D();
+        Vector2f scale = transform.getComputedWorldScale2D();
+        float w = transform.getEffectiveWidth() * scale.x;
+        float h = transform.getEffectiveHeight() * scale.y;
+        float rotation = transform.getComputedWorldRotation2D();
+        Vector2f pivot = transform.getEffectivePivot();  // Use effective pivot for MATCH_PARENT
 
-        backend.drawSprite(pos.x, pos.y, w, h, sprite, color);
+        // Calculate top-left position from pivot
+        float x = pivotWorld.x - pivot.x * w;
+        float y = pivotWorld.y - pivot.y * h;
+
+        backend.drawSprite(x, y, w, h, rotation, pivot.x, pivot.y, sprite, color);
     }
 
     @Override

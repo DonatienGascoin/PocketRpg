@@ -3,7 +3,9 @@ package com.pocket.rpg.editor.ui.fields;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
+import imgui.ImDrawList;
 import imgui.ImGui;
+import imgui.ImVec2;
 import imgui.flag.ImGuiCol;
 
 /**
@@ -19,8 +21,11 @@ public final class FieldEditorContext {
     private static String componentType = null;
 
     private static final float[] OVERRIDE_COLOR = {1.0f, 0.8f, 0.2f, 1.0f};
-    private static final float[] REQUIRED_ERROR_COLOR = {0.9f, 0.2f, 0.2f, 1.0f};
-    private static final float[] REQUIRED_ERROR_BG_COLOR = {0.8f, 0.1f, 0.1f, 0.5f};
+    private static final int REQUIRED_ROW_BG_COLOR = ImGui.colorConvertFloat4ToU32(1f, 0.1f, 0.1f, 0.7f);
+
+    // State for row highlighting
+    private static boolean requiredRowHighlightActive = false;
+    private static float requiredRowStartY = 0;
 
     private FieldEditorContext() {}
 
@@ -152,30 +157,54 @@ public final class FieldEditorContext {
     }
 
     /**
-     * Pushes error styling if field is required and missing.
-     * Applies red text color and red frame background for high visibility.
-     * Returns the number of style colors pushed (caller must pop this many).
+     * Begins row highlight for a required field if it's missing.
+     * Must be paired with endRequiredRowHighlight().
+     * Uses draw list channels to render background behind content.
+     *
+     * @return true if highlighting is active (caller should call endRequiredRowHighlight)
      */
-    public static int pushRequiredStyle(String fieldName) {
+    public static boolean beginRequiredRowHighlight(String fieldName) {
         if (isFieldRequiredAndMissing(fieldName)) {
-            // Text label in red
-            ImGui.pushStyleColor(ImGuiCol.Text, REQUIRED_ERROR_COLOR[0], REQUIRED_ERROR_COLOR[1], REQUIRED_ERROR_COLOR[2], REQUIRED_ERROR_COLOR[3]);
-            // Input frame background in red
-            ImGui.pushStyleColor(ImGuiCol.FrameBg, REQUIRED_ERROR_BG_COLOR[0], REQUIRED_ERROR_BG_COLOR[1], REQUIRED_ERROR_BG_COLOR[2], REQUIRED_ERROR_BG_COLOR[3]);
-            // Hovered frame also red
-            ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, REQUIRED_ERROR_BG_COLOR[0], REQUIRED_ERROR_BG_COLOR[1], REQUIRED_ERROR_BG_COLOR[2], REQUIRED_ERROR_BG_COLOR[3] + 0.1f);
-            return 3;
+            requiredRowHighlightActive = true;
+
+            // Save the starting Y position
+            ImVec2 cursorPos = ImGui.getCursorScreenPos();
+            requiredRowStartY = cursorPos.y;
+
+            // Split draw list: channel 0 = background, channel 1 = foreground
+            ImGui.getWindowDrawList().channelsSplit(2);
+            ImGui.getWindowDrawList().channelsSetCurrent(1); // Draw content on foreground
+
+            return true;
         }
-        return 0;
+        return false;
     }
 
     /**
-     * Pops error styling colors.
-     * @param count The return value from pushRequiredStyle
+     * Ends row highlight and draws the background rectangle.
+     * Only call if beginRequiredRowHighlight returned true.
      */
-    public static void popRequiredStyle(int count) {
-        if (count > 0) {
-            ImGui.popStyleColor(count);
+    public static void endRequiredRowHighlight(boolean wasActive) {
+        if (wasActive && requiredRowHighlightActive) {
+            ImDrawList drawList = ImGui.getWindowDrawList();
+
+            // Switch to background channel
+            drawList.channelsSetCurrent(0);
+
+            // Calculate row bounds
+            float padding = 2f;
+            float startX = ImGui.getWindowPos().x + ImGui.getWindowContentRegionMin().x - padding;
+            float endX = ImGui.getWindowPos().x + ImGui.getWindowContentRegionMax().x + padding;
+            float startY = requiredRowStartY - padding;
+            float endY = ImGui.getCursorScreenPos().y /*+ padding*/;
+
+            // Draw background rectangle
+            drawList.addRectFilled(startX, startY, endX, endY, REQUIRED_ROW_BG_COLOR);
+
+            // Merge channels back together
+            drawList.channelsMerge();
+
+            requiredRowHighlightActive = false;
         }
     }
 }

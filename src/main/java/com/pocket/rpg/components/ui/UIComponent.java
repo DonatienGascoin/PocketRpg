@@ -4,6 +4,7 @@ import com.pocket.rpg.components.Component;
 import com.pocket.rpg.rendering.ui.UIRendererBackend;
 import lombok.Getter;
 import lombok.Setter;
+import org.joml.Vector2f;
 
 /**
  * Base class for all UI components.
@@ -17,12 +18,12 @@ public abstract class UIComponent extends Component {
     @Setter
     protected boolean raycastTarget = true;
 
-    // Cached references
-    private UICanvas cachedCanvas;
-    private boolean canvasCacheDirty = true;
+    // Cached references (transient - not serialized)
+    private transient UICanvas cachedCanvas;
+    private transient boolean canvasCacheDirty = true;
 
-    private UITransform cachedTransform;
-    private boolean transformCacheDirty = true;
+    private transient UITransform cachedTransform;
+    private transient boolean transformCacheDirty = true;
 
     /**
      * Finds the UICanvas ancestor. Returns null if none found.
@@ -135,5 +136,40 @@ public abstract class UIComponent extends Component {
     public float getHeight() {
         UITransform t = getUITransform();
         return t != null ? t.getHeight() : 0;
+    }
+
+    // ========================================================================
+    // RENDER BOUNDS HELPER
+    // ========================================================================
+
+    /**
+     * Computed render bounds for a UI element.
+     */
+    public record RenderBounds(
+        float x, float y,           // Top-left position
+        float width, float height,  // Scaled dimensions
+        float rotation,             // World rotation in degrees
+        float pivotX, float pivotY  // Pivot ratio (0-1)
+    ) {}
+
+    /**
+     * Computes the render bounds from UITransform.
+     * Returns null if UITransform is missing.
+     */
+    protected RenderBounds computeRenderBounds() {
+        UITransform transform = getUITransform();
+        if (transform == null) return null;
+
+        Vector2f pivotWorld = transform.getWorldPivotPosition2D();
+        Vector2f scale = transform.getComputedWorldScale2D();
+        float w = transform.getEffectiveWidth() * scale.x;
+        float h = transform.getEffectiveHeight() * scale.y;
+        float rotation = transform.getComputedWorldRotation2D();
+        Vector2f pivot = transform.getEffectivePivot();
+
+        float x = pivotWorld.x - pivot.x * w;
+        float y = pivotWorld.y - pivot.y * h;
+
+        return new RenderBounds(x, y, w, h, rotation, pivot.x, pivot.y);
     }
 }

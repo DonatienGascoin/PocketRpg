@@ -65,12 +65,14 @@ public class UITransform extends Transform {
     private float height = 100;
 
     // Cached calculated position (top-left corner of element in SCREEN coordinates)
-    private final Vector2f calculatedPosition = new Vector2f();
-    private boolean positionDirty = true;
+    // Transient - not serialized, recalculated at runtime
+    private transient final Vector2f calculatedPosition = new Vector2f();
+    private transient boolean positionDirty = true;
 
     // Screen bounds (set by renderer for root elements)
-    private float screenWidth;
-    private float screenHeight;
+    // Transient - not serialized, set by UIRenderer at runtime
+    private transient float screenWidth;
+    private transient float screenHeight;
 
     // ========================================================================
     // MATRIX-BASED TRANSFORM (unified world position calculation)

@@ -135,13 +135,13 @@ public class UIText extends UIComponent {
     @Getter
     private Vector2f shadowOffset = new Vector2f(2, 2);
 
-    // ==================== Layout Cache ====================
+    // ==================== Layout Cache (transient - not serialized) ====================
 
-    private String[] lines;
-    private float[] lineWidths;
-    private float naturalWidth;     // Width at current font size
-    private float naturalHeight;    // Height at current font size
-    private boolean layoutDirty = true;
+    private transient String[] lines;
+    private transient float[] lineWidths;
+    private transient float naturalWidth;     // Width at current font size
+    private transient float naturalHeight;    // Height at current font size
+    private transient boolean layoutDirty = true;
 
     // ========================================================================
     // CONSTRUCTORS

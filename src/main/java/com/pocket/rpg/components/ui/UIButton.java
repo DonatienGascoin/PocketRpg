@@ -176,24 +176,11 @@ public class UIButton extends UIComponent {
 
     @Override
     public void render(UIRendererBackend backend) {
-        UITransform transform = getUITransform();
-        if (transform == null) return;
-
-        // Use matrix-based methods for correct hierarchy handling
-        Vector2f pivotWorld = transform.getWorldPivotPosition2D();
-        Vector2f scale = transform.getComputedWorldScale2D();
-        float w = transform.getEffectiveWidth() * scale.x;
-        float h = transform.getEffectiveHeight() * scale.y;
-        float rotation = transform.getComputedWorldRotation2D();
-        Vector2f pivot = transform.getEffectivePivot();  // Use effective pivot for MATCH_PARENT
-
-        // Calculate top-left position from pivot
-        float x = pivotWorld.x - pivot.x * w;
-        float y = pivotWorld.y - pivot.y * h;
+        RenderBounds bounds = computeRenderBounds();
+        if (bounds == null) return;
 
         // Calculate render color with hover tint
         Vector4f renderColor = new Vector4f(color);
-
         if (hovered && useAutoHoverTint()) {
             float tint = getEffectiveHoverTint();
             renderColor.x *= (1f - tint);
@@ -202,16 +189,18 @@ public class UIButton extends UIComponent {
         }
 
         if (sprite != null) {
-            if (rotation != 0) {
-                backend.drawSprite(x, y, w, h, rotation, pivot.x, pivot.y, sprite, renderColor);
+            if (bounds.rotation() != 0) {
+                backend.drawSprite(bounds.x(), bounds.y(), bounds.width(), bounds.height(),
+                                   bounds.rotation(), bounds.pivotX(), bounds.pivotY(), sprite, renderColor);
             } else {
-                backend.drawSprite(x, y, w, h, sprite, renderColor);
+                backend.drawSprite(bounds.x(), bounds.y(), bounds.width(), bounds.height(), sprite, renderColor);
             }
         } else {
-            if (rotation != 0) {
-                backend.drawQuad(x, y, w, h, rotation, pivot.x, pivot.y, renderColor);
+            if (bounds.rotation() != 0) {
+                backend.drawQuad(bounds.x(), bounds.y(), bounds.width(), bounds.height(),
+                                 bounds.rotation(), bounds.pivotX(), bounds.pivotY(), renderColor);
             } else {
-                backend.drawQuad(x, y, w, h, renderColor);
+                backend.drawQuad(bounds.x(), bounds.y(), bounds.width(), bounds.height(), renderColor);
             }
         }
     }

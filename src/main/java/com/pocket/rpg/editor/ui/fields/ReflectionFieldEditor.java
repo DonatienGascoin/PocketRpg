@@ -42,16 +42,22 @@ public class ReflectionFieldEditor {
             return CustomComponentEditorRegistry.drawCustomEditor(component, entity);
         }
 
-        boolean changed = false;
-        for (FieldMeta fieldMeta : meta.fields()) {
-            try {
-                changed |= drawField(component, fieldMeta, entity);
-            } catch (Exception e) {
-                ImGui.textColored(1f, 0.3f, 0.3f, 1f, fieldMeta.name() + ": Error");
+        // Set up context for @Required and override styling
+        FieldEditorContext.begin(entity, component);
+        try {
+            boolean changed = false;
+            for (FieldMeta fieldMeta : meta.fields()) {
+                try {
+                    changed |= drawField(component, fieldMeta, entity);
+                } catch (Exception e) {
+                    ImGui.textColored(1f, 0.3f, 0.3f, 1f, fieldMeta.name() + ": Error");
+                }
             }
+            drawComponentReferences(meta.references(), entity);
+            return changed;
+        } finally {
+            FieldEditorContext.end();
         }
-        drawComponentReferences(meta.references(), entity);
-        return changed;
     }
 
     /**
@@ -85,8 +91,8 @@ public class ReflectionFieldEditor {
         boolean wasActive = ImGui.isAnyItemActive();
         boolean fieldChanged = false;
 
-        // Push required style if applicable (red highlight for missing required fields)
-        int requiredStyleCount = FieldEditorContext.pushRequiredStyle(fieldName);
+        // Begin row highlight for missing required fields
+        boolean requiredHighlight = FieldEditorContext.beginRequiredRowHighlight(fieldName);
 
         // PRIMITIVES
         if (type == int.class || type == Integer.class) {
@@ -130,8 +136,8 @@ public class ReflectionFieldEditor {
             FieldEditors.drawReadOnly(label, component, fieldName, type.getSimpleName());
         }
 
-        // Pop required style
-        FieldEditorContext.popRequiredStyle(requiredStyleCount);
+        // End row highlight
+        FieldEditorContext.endRequiredRowHighlight(requiredHighlight);
 
         // UNDO LOGIC
         if (entity != null) {

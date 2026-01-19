@@ -312,14 +312,13 @@ public class UITextInspector extends CustomComponentInspector<UIText> {
             refreshFontList();
         }
 
-        // Red highlight if @Required field is missing (before label so label is also red)
-        int requiredStyleCount = FieldEditorContext.pushRequiredStyle("fontPath");
+        // Begin row highlight for missing required field
+        boolean requiredHighlight = FieldEditorContext.beginRequiredRowHighlight("fontPath");
 
         ImGui.text("Font");
         ImGui.sameLine(100);
 
-        // Refresh button (pop style temporarily so button isn't red)
-        FieldEditorContext.popRequiredStyle(requiredStyleCount);
+        // Refresh button
         if (ImGui.smallButton(FontAwesomeIcons.Sync + "##refreshFonts")) {
             refreshFontList();
         }
@@ -327,9 +326,6 @@ public class UITextInspector extends CustomComponentInspector<UIText> {
             ImGui.setTooltip("Refresh font list");
         }
         ImGui.sameLine();
-
-        // Re-push style for the combo
-        requiredStyleCount = FieldEditorContext.pushRequiredStyle("fontPath");
 
         // Find current index
         String currentPath = component.getFontPath();
@@ -357,7 +353,8 @@ public class UITextInspector extends CustomComponentInspector<UIText> {
             changed = true;
         }
 
-        FieldEditorContext.popRequiredStyle(requiredStyleCount);
+        // End row highlight
+        FieldEditorContext.endRequiredRowHighlight(requiredHighlight);
 
         // Tooltip
         if (ImGui.isItemHovered()) {

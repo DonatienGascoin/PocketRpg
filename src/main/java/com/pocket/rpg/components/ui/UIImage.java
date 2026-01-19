@@ -5,7 +5,6 @@ import com.pocket.rpg.rendering.resources.Texture;
 import com.pocket.rpg.rendering.ui.UIRendererBackend;
 import lombok.Getter;
 import lombok.Setter;
-import org.joml.Vector2f;
 import org.joml.Vector4f;
 
 /**
@@ -55,22 +54,11 @@ public class UIImage extends UIComponent {
 
     @Override
     public void render(UIRendererBackend backend) {
-        UITransform transform = getUITransform();
-        if (transform == null) return;
+        RenderBounds bounds = computeRenderBounds();
+        if (bounds == null) return;
 
-        // Use matrix-based methods for correct hierarchy handling
-        Vector2f pivotWorld = transform.getWorldPivotPosition2D();
-        Vector2f scale = transform.getComputedWorldScale2D();
-        float w = transform.getEffectiveWidth() * scale.x;
-        float h = transform.getEffectiveHeight() * scale.y;
-        float rotation = transform.getComputedWorldRotation2D();
-        Vector2f pivot = transform.getEffectivePivot();  // Use effective pivot for MATCH_PARENT
-
-        // Calculate top-left position from pivot
-        float x = pivotWorld.x - pivot.x * w;
-        float y = pivotWorld.y - pivot.y * h;
-
-        backend.drawSprite(x, y, w, h, rotation, pivot.x, pivot.y, sprite, color);
+        backend.drawSprite(bounds.x(), bounds.y(), bounds.width(), bounds.height(),
+                           bounds.rotation(), bounds.pivotX(), bounds.pivotY(), sprite, color);
     }
 
     @Override

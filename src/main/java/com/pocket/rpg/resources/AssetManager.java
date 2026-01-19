@@ -325,13 +325,17 @@ public class AssetManager implements AssetContext {
      * Determines type from file extension.
      */
     private Class<?> getTypeFromExtension(String path) {
-        int lastDot = path.lastIndexOf('.');
-        if (lastDot == -1) {
-            return null;
+        String lowerPath = path.toLowerCase();
+
+        // Check for compound extensions (e.g., ".prefab.json", ".scene.json")
+        // by testing all registered extensions against the path ending
+        for (Map.Entry<String, Class<?>> entry : extensionMap.entrySet()) {
+            if (lowerPath.endsWith(entry.getKey())) {
+                return entry.getValue();
+            }
         }
 
-        String extension = path.substring(lastDot).toLowerCase();
-        return extensionMap.get(extension);
+        return null;
     }
 
     // ========================================================================

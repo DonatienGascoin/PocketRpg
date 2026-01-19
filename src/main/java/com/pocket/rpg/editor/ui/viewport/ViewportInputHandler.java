@@ -79,7 +79,7 @@ public class ViewportInputHandler {
             if (delta.x != 0 || delta.y != 0) {
                 float worldDeltaX = -delta.x / (camera.getZoom() * config.getPixelsPerUnit());
                 float worldDeltaY = delta.y / (camera.getZoom() * config.getPixelsPerUnit());
-                camera.updatePan(worldDeltaX, worldDeltaY);
+                camera.translate(worldDeltaX, worldDeltaY);
                 ImGui.resetMouseDragDelta(ImGuiMouseButton.Middle);
             }
         }

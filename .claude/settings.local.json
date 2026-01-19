@@ -18,7 +18,10 @@
       "Bash(/c/apache-maven-3.9.6/bin/mvn compile:*)",
       "Bash(powershell.exe -Command \"& ''E:\\\\Projects\\\\PocketRpg\\\\mvnw.cmd'' -f E:\\\\Projects\\\\PocketRpg\\\\pom.xml compile 2>&1\")",
       "Bash(ls:*)",
-      "Bash(powershell.exe -Command \"cd E:/Projects/PocketRpg; mvn compile 2>&1 | Select-Object -First 150\")"
+      "Bash(powershell.exe -Command \"cd E:/Projects/PocketRpg; mvn compile 2>&1 | Select-Object -First 150\")",
+      "Bash(/c/Users/donat/.sdkman/candidates/maven/current/bin/mvn compile:*)",
+      "Bash(mvn.cmd compile:*)",
+      "WebFetch(domain:claude.ai)"
     ]
   }
 }

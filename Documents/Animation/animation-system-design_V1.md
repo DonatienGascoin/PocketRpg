@@ -55,6 +55,12 @@ gameData/assets/animations/
 
 Immutable record representing a single frame.
 
+**Supported sprite sources:**
+- **Spritesheet sprites:** `spritesheets/player.spritesheet#0` (index into spritesheet)
+- **Direct image files:** `sprites/player.png`, `sprites/icon.jpg` (any image format supported by SpriteLoader: `.png`, `.jpg`, `.jpeg`, `.bmp`, `.tga`)
+
+Both formats work interchangeably in animations.
+
 ```java
 package com.pocket.rpg.animation;
 
@@ -62,7 +68,7 @@ package com.pocket.rpg.animation;
  * Single frame in an animation sequence.
  * Uses sprite path format compatible with SpriteReference.
  *
- * @param spritePath Path to sprite (e.g., "spritesheets/player.spritesheet#0")
+ * @param spritePath Path to sprite (e.g., "spritesheets/player.spritesheet#0" or "sprites/icon.png")
  * @param duration Time in seconds to display this frame
  */
 public record AnimationFrame(String spritePath, float duration) {
@@ -871,10 +877,62 @@ The `Animation` field appears as an asset picker:
 3. Keyboard shortcuts
 4. Preview zoom/fit controls
 
-### Phase 5: Polish (Future)
-1. Animation events (onComplete, onFrameChanged)
-2. Blend/crossfade transitions
-3. Animation state machine
+### Phase 4.5: Editor Enhancements
+See `Documents/Animation/phase-4.5-enhancements.md` for full details.
+
+**Layout Changes:**
+1. Remove File/Edit menu bar (keep toolbar only)
+2. Move Properties panel to left (under animation list)
+3. Preview takes right side (larger area)
+
+**Visual Improvements:**
+1. Play/Stop buttons colored (green/red) with state indication
+2. Unsaved animations in yellow with asterisk
+3. Timeline: frame numbers, playhead marker, clearer selection
+4. Drop zones visible between frames during drag
+
+**Features:**
+1. Insert frames between existing frames (not just swap)
+2. Right-click frame → "Change Sprite..." option
+3. Drag sprite from Asset Browser to timeline to add frame
+4. Duration field uses PrimitiveEditors (label on left)
+
+### Phase 5: Editor Integration ✓
+**Status:** Complete
+
+1. **Double-click to open animation** ✓
+   - Added `EditorPanel` enum to define editor panels for asset types
+   - Added `getEditorPanel()` method to `AssetLoader` interface
+   - `AnimationLoader` returns `EditorPanel.ANIMATION_EDITOR`
+   - `AssetBrowserPanel` queries `Assets.getEditorPanel(type)` on double-click
+   - Panel handlers registered via `registerPanelHandler(EditorPanel, Consumer<String>)`
+   - `AnimationEditorPanel.selectAnimationByPath()` focuses window and loads animation
+
+2. **Auto-open sprite picker on new frame** ✓
+   - Adding frame auto-opens sprite picker immediately
+   - Frame created with 1.0s default duration
+   - If cancelled, frame remains with empty sprite (can delete manually)
+
+3. **Enhanced New Animation dialog** ✓
+   - Name input field
+   - Inline sprite picker with preview thumbnail
+   - Browse button closes modal, opens picker, re-opens modal with selection
+   - Create button disabled until sprite is selected
+   - Animation only created after valid sprite selection
+
+**Files changed:**
+- `EditorPanel.java` (new) - Enum for editor panels
+- `AssetLoader.java` - Added `getEditorPanel()` default method
+- `AssetContext.java` - Added `getEditorPanel(Class<?>)` interface method
+- `AssetManager.java` - Implemented `getEditorPanel()`
+- `Assets.java` - Added static `getEditorPanel()` facade
+- `AnimationLoader.java` - Returns `EditorPanel.ANIMATION_EDITOR`
+- `AssetBrowserPanel.java` - Panel handler registry, double-click handling
+- `AnimationEditorPanel.java` - `selectAnimationByPath()`, sprite picker integration
+- `EditorUIController.java` - Registers animation editor handler
+
+### Phase 6: Animation Events & State Machine (Future)
+See `Documents/Animation/phase-6-events-and-state-machine.md` for detailed design.
 
 ---
 

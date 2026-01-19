@@ -2,13 +2,9 @@ package com.pocket.rpg.editor.assets;
 
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.editor.scene.EditorGameObject;
-import com.pocket.rpg.prefab.JsonPrefab;
 import com.pocket.rpg.rendering.resources.Sprite;
-import com.pocket.rpg.rendering.resources.SpriteSheet;
-import com.pocket.rpg.rendering.resources.Texture;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.resources.SpriteReference;
-import com.pocket.rpg.resources.loaders.SpriteSheetLoader;
 import org.joml.Vector3f;
 
 /**
@@ -37,15 +33,8 @@ public class AssetDropHandler {
                 return createSpriteEntity(payload.path(), position);
             }
 
-            // Load the asset
-            Object asset = Assets.load(payload.path(), payload.type());
-            if (asset == null) {
-                System.err.println("Failed to load asset for drop: " + payload.path());
-                return null;
-            }
-
-            // Use loader's instantiate method
-            return instantiateFromLoader(asset, payload.path(), position, payload.type());
+            // Delegate to the loader's instantiate method via Assets facade
+            return Assets.instantiate(payload.path(), payload.type(), position);
 
         } catch (Exception e) {
             System.err.println("Error handling asset drop: " + e.getMessage());
@@ -85,71 +74,6 @@ public class AssetDropHandler {
     }
 
     /**
-     * Instantiates an entity using the appropriate loader.
-     */
-    @SuppressWarnings("unchecked")
-    private static EditorGameObject instantiateFromLoader(Object asset, String path,
-                                                          Vector3f position, Class<?> type) {
-        // Handle known types with their loaders
-        if (asset instanceof Sprite sprite) {
-            return createSpriteEntityFromSprite(sprite, path, position);
-        }
-        if (asset instanceof Texture texture) {
-            return createTextureEntity(texture, path, position);
-        }
-        if (asset instanceof SpriteSheet sheet) {
-            // Default to first sprite
-            SpriteSheetLoader loader = new SpriteSheetLoader();
-            return loader.instantiateWithIndex(sheet, path, position, 0);
-        }
-        if (asset instanceof JsonPrefab prefab) {
-            return createPrefabEntity(prefab, path, position);
-        }
-
-        System.err.println("No instantiation handler for type: " + type.getSimpleName());
-        return null;
-    }
-
-    private static EditorGameObject createSpriteEntityFromSprite(Sprite sprite, String path, Vector3f position) {
-        String entityName = extractEntityName(path);
-        EditorGameObject entity = new EditorGameObject(entityName, position, false);
-
-        SpriteRenderer spriteRenderer = new SpriteRenderer();
-        spriteRenderer.setSprite(sprite);
-        spriteRenderer.setZIndex(0);
-        entity.addComponent(spriteRenderer);
-
-        return entity;
-    }
-
-    private static EditorGameObject createTextureEntity(Texture texture, String path, Vector3f position) {
-        String entityName = extractEntityName(path);
-        EditorGameObject entity = new EditorGameObject(entityName, position, false);
-
-        // Create Sprite from Texture
-        Sprite sprite = new Sprite(texture, path);
-
-        SpriteRenderer spriteRenderer = new SpriteRenderer();
-        spriteRenderer.setSprite(sprite);
-        spriteRenderer.setZIndex(0);
-        entity.addComponent(spriteRenderer);
-
-        return entity;
-    }
-
-    private static EditorGameObject createPrefabEntity(JsonPrefab prefab, String path, Vector3f position) {
-        // Create prefab instance
-        EditorGameObject entity = new EditorGameObject(prefab.getId(), position);
-
-        String displayName = prefab.getDisplayName();
-        if (displayName != null && !displayName.isEmpty()) {
-            entity.setName(displayName + "_" + entity.getId().substring(0, 4));
-        }
-
-        return entity;
-    }
-
-    /**
      * Extracts entity name from asset path.
      * Handles both direct paths and #index format.
      */
@@ -167,6 +91,7 @@ public class AssetDropHandler {
 
     /**
      * Checks if a payload can be instantiated.
+     * Delegates to the loader's canInstantiate() method via Assets facade.
      */
     public static boolean canInstantiate(AssetDragPayload payload) {
         if (payload == null) return false;
@@ -174,10 +99,6 @@ public class AssetDropHandler {
         // Sub-assets (spritesheet#index) can always be instantiated as sprites
         if (payload.isSubAsset()) return true;
 
-        Class<?> type = payload.type();
-        return type == Sprite.class ||
-                type == Texture.class ||
-                type == SpriteSheet.class ||
-                type == JsonPrefab.class;
+        return Assets.canInstantiate(payload.type());
     }
 }

@@ -1,5 +1,6 @@
 package com.pocket.rpg.editor.panels;
 
+import com.pocket.rpg.editor.EditorPanel;
 import com.pocket.rpg.editor.assets.AssetDragPayload;
 import com.pocket.rpg.editor.assets.ThumbnailCache;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
@@ -14,6 +15,7 @@ import imgui.type.ImString;
 import lombok.Getter;
 
 import java.util.*;
+import java.util.function.Consumer;
 
 /**
  * Asset browser panel with folder tree and asset grid.
@@ -73,6 +75,9 @@ public class AssetBrowserPanel {
     private boolean needsRefresh = true;
     private long lastRefreshTime = 0;
     private static final long REFRESH_COOLDOWN_MS = 1000;
+
+    // Panel handlers for double-click (keyed by EditorPanel)
+    private final Map<EditorPanel, Consumer<String>> panelHandlers = new EnumMap<>(EditorPanel.class);
 
     // ========================================================================
     // INITIALIZATION
@@ -461,6 +466,17 @@ public class AssetBrowserPanel {
             selectedAsset = entry;
         }
 
+        // Double-click to open asset-specific editor
+        if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(0)) {
+            EditorPanel panel = Assets.getEditorPanel(entry.type);
+            if (panel != null) {
+                Consumer<String> handler = panelHandlers.get(panel);
+                if (handler != null) {
+                    handler.accept(entry.path);
+                }
+            }
+        }
+
         // Drag source - use unified path format
         if (canInstantiate(entry) && ImGui.beginDragDropSource(ImGuiDragDropFlags.SourceAllowNullID)) {
             AssetDragPayload payload = AssetDragPayload.of(entry.path, entry.type);
@@ -585,6 +601,22 @@ public class AssetBrowserPanel {
     }
 
     // ========================================================================
+    // PUBLIC API
+    // ========================================================================
+
+    /**
+     * Registers a handler for opening a specific editor panel.
+     * When an asset is double-clicked and its loader returns the given panel,
+     * the handler is called with the asset path.
+     *
+     * @param panel   the editor panel this handler opens
+     * @param handler receives the asset path when triggered
+     */
+    public void registerPanelHandler(EditorPanel panel, Consumer<String> handler) {
+        panelHandlers.put(panel, handler);
+    }
+
+    // ========================================================================
     // HELPERS
     // ========================================================================
 
@@ -627,10 +659,7 @@ public class AssetBrowserPanel {
     }
 
     private boolean canInstantiate(AssetEntry entry) {
-        return entry.type == Sprite.class ||
-                entry.type == SpriteSheet.class ||
-                entry.type == com.pocket.rpg.prefab.JsonPrefab.class ||
-                entry.type == Texture.class;
+        return Assets.canInstantiate(entry.type);
     }
 
     private String truncateFilename(String filename, int maxLength) {

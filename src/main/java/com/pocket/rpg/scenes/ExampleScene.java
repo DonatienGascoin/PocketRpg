@@ -1,5 +1,6 @@
 package com.pocket.rpg.scenes;
 
+import com.pocket.rpg.animation.Animation;
 import com.pocket.rpg.components.*;
 import com.pocket.rpg.components.ui.*;
 import com.pocket.rpg.core.GameObject;
@@ -352,7 +353,7 @@ public class ExampleScene extends Scene {
         SpriteRenderer renderer = new SpriteRenderer(); renderer.setSprite(frames.get(0));
         renderer.setOriginCenter();
         entity.addComponent(renderer);
-        entity.addComponent(new FrameAnimationComponent(frames, 0.1f));
+        entity.addComponent(new AnimationComponent(Animation.fromSprites("TightPacked", frames, 0.1f, true)));
 
         addGameObject(entity);
         System.out.println("✓ Tightly packed animation");
@@ -368,7 +369,7 @@ public class ExampleScene extends Scene {
         SpriteRenderer renderer = new SpriteRenderer(); renderer.setSprite(frames.get(0));
         renderer.setOriginCenter();
         entity.addComponent(renderer);
-        entity.addComponent(new FrameAnimationComponent(frames, 0.12f));
+        entity.addComponent(new AnimationComponent(Animation.fromSprites("UniformSpacing", frames, 0.12f, true)));
 
         addGameObject(entity);
         System.out.println("✓ Uniform spacing animation");
@@ -384,7 +385,7 @@ public class ExampleScene extends Scene {
         SpriteRenderer renderer = new SpriteRenderer(); renderer.setSprite(frames.get(0));
         renderer.setOriginCenter();
         entity.addComponent(renderer);
-        entity.addComponent(new FrameAnimationComponent(frames, 0.08f));
+        entity.addComponent(new AnimationComponent(Animation.fromSprites("XYSpacing", frames, 0.08f, true)));
 
         addGameObject(entity);
         System.out.println("✓ X/Y spacing animation");
@@ -400,7 +401,7 @@ public class ExampleScene extends Scene {
         SpriteRenderer renderer = new SpriteRenderer(); renderer.setSprite(frames.get(0));
         renderer.setOriginCenter();
         entity.addComponent(renderer);
-        entity.addComponent(new FrameAnimationComponent(frames, 0.15f));
+        entity.addComponent(new AnimationComponent(Animation.fromSprites("Margin", frames, 0.15f, true)));
 
         addGameObject(entity);
         System.out.println("✓ Margin animation");
@@ -416,7 +417,7 @@ public class ExampleScene extends Scene {
         SpriteRenderer renderer = new SpriteRenderer(); renderer.setSprite(frames.get(0));
         renderer.setOriginCenter();
         entity.addComponent(renderer);
-        entity.addComponent(new FrameAnimationComponent(frames, 0.1f));
+        entity.addComponent(new AnimationComponent(Animation.fromSprites("Complex", frames, 0.1f, true)));
 
         addGameObject(entity);
         System.out.println("✓ Complex animation");
@@ -498,7 +499,7 @@ public class ExampleScene extends Scene {
             renderer.setOriginCenter();
             entity.addComponent(renderer);
 
-            entity.addComponent(new FrameAnimationComponent(sharedFrames, 0.05f + i * 0.02f));
+            entity.addComponent(new AnimationComponent(Animation.fromSprites("Shared_" + i, sharedFrames, 0.05f + i * 0.02f, true)));
 
             entity.addComponent(new TranslationComponent(
                     new Vector3f(100 + i * 50, 300, 0),

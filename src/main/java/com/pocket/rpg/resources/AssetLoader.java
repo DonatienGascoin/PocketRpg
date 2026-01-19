@@ -1,5 +1,6 @@
 package com.pocket.rpg.resources;
 
+import com.pocket.rpg.editor.EditorPanel;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.rendering.resources.Sprite;
@@ -119,6 +120,20 @@ public interface AssetLoader<T> {
      */
     default String getIconCodepoint() {
         return FontAwesomeIcons.File;
+    }
+
+    // ========================================================================
+    // EDITOR PANEL SUPPORT
+    // ========================================================================
+
+    /**
+     * Returns the editor panel to open when this asset is double-clicked.
+     * Return null if no dedicated editor exists for this asset type.
+     *
+     * @return EditorPanel to open, or null for no action
+     */
+    default EditorPanel getEditorPanel() {
+        return null;
     }
 
     // ========================================================================

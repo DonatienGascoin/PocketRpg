@@ -173,11 +173,8 @@ public class AssetPickerPopup {
         ImGui.setNextWindowSize(520, 480);
 
         if (ImGui.beginPopupModal(POPUP_ID, ImGuiWindowFlags.NoResize)) {
-            try {
-                renderPopupContent();
-            } finally {
-                ImGui.endPopup();
-            }
+            renderPopupContent();
+            ImGui.endPopup();
         }
     }
 

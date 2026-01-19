@@ -1,5 +1,8 @@
 package com.pocket.rpg.resources;
 
+import com.pocket.rpg.animation.Animation;
+import com.pocket.rpg.editor.EditorPanel;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.prefab.JsonPrefab;
 import com.pocket.rpg.prefab.JsonPrefabLoader;
 import com.pocket.rpg.rendering.resources.Shader;
@@ -11,6 +14,7 @@ import com.pocket.rpg.serialization.SceneData;
 import com.pocket.rpg.ui.text.Font;
 import lombok.Getter;
 import lombok.Setter;
+import org.joml.Vector3f;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -99,6 +103,7 @@ public class AssetManager implements AssetContext {
         registerLoader(SceneData.class, new SceneDataLoader());
         registerLoader(JsonPrefab.class, new JsonPrefabLoader());
         registerLoader(Font.class, new FontLoader());
+        registerLoader(Animation.class, new AnimationLoader());
     }
 
     /**
@@ -394,6 +399,38 @@ public class AssetManager implements AssetContext {
     @Override
     public boolean isAssetType(Class<?> type) {
         return loaders.containsKey(type);
+    }
+
+    @Override
+    public boolean canInstantiate(Class<?> type) {
+        AssetLoader<?> loader = loaders.get(type);
+        return loader != null && loader.canInstantiate();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public EditorGameObject instantiate(String path, Class<?> type, Vector3f position) {
+        AssetLoader<?> loader = loaders.get(type);
+        if (loader == null || !loader.canInstantiate()) {
+            return null;
+        }
+
+        try {
+            Object asset = load(path, type);
+            if (asset == null) {
+                return null;
+            }
+            return ((AssetLoader<Object>) loader).instantiate(asset, path, position);
+        } catch (Exception e) {
+            System.err.println("Failed to instantiate asset: " + path + " - " + e.getMessage());
+            return null;
+        }
+    }
+
+    @Override
+    public EditorPanel getEditorPanel(Class<?> type) {
+        AssetLoader<?> loader = loaders.get(type);
+        return loader != null ? loader.getEditorPanel() : null;
     }
 
     @Override

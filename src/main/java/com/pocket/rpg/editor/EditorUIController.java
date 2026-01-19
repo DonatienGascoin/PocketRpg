@@ -55,6 +55,9 @@ public class EditorUIController {
     private AssetBrowserPanel assetBrowserPanel;
 
     @Getter
+    private AnimationEditorPanel animationEditorPanel;
+
+    @Getter
     private EditorMenuBar menuBar;
 
     @Getter
@@ -86,6 +89,13 @@ public class EditorUIController {
         createMenuAndStatus();
 
         sceneToolbar.setMessageCallback(statusBar::showMessage);
+        animationEditorPanel.setStatusCallback(statusBar::showMessage);
+
+        // Register panel handlers for asset double-click
+        assetBrowserPanel.registerPanelHandler(
+                EditorPanel.ANIMATION_EDITOR,
+                animationEditorPanel::selectAnimationByPath
+        );
     }
 
     private void createPanels() {
@@ -136,6 +146,9 @@ public class EditorUIController {
         configPanel = new ConfigPanel(context);
 
         uiDesignerPanel = new UIDesignerPanel(context);
+
+        animationEditorPanel = new AnimationEditorPanel();
+        animationEditorPanel.initialize();
     }
 
     private void createMenuAndStatus() {
@@ -370,6 +383,7 @@ public class EditorUIController {
         inspectorPanel.render();
         configPanel.render();
         uiDesignerPanel.render();
+        animationEditorPanel.render();
         if (gameViewPanel != null) {
             gameViewPanel.render();
         }
@@ -386,6 +400,9 @@ public class EditorUIController {
     public void destroy() {
         if (sceneViewport != null) {
             sceneViewport.destroy();
+        }
+        if (animationEditorPanel != null) {
+            animationEditorPanel.destroy();
         }
     }
 

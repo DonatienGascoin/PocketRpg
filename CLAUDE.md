@@ -100,6 +100,22 @@ Tests use JUnit 5 + Mockito. Mock utilities in `src/test/java/com/pocket/rpg/tes
 
 - `Documents/` - Analysis and design documents
 - `Documents/Plans/` - Implementation plans for features and fixes
+- `Documents/Encyclopedia/` - User-facing guides for editor features
+
+## Encyclopedia Documentation
+
+The `Documents/Encyclopedia/` folder contains user guides explaining how to use editor features.
+
+**After completing work on a feature:**
+1. Check if a guide already exists for the feature in `Documents/Encyclopedia/`
+2. If it exists, determine if it needs updates based on your changes
+3. If it doesn't exist, consider if the feature warrants a guide
+4. **ALWAYS ask the user before creating or updating any encyclopedia file**
+
+Example prompt:
+> "The Animation Editor guide exists at `Documents/Encyclopedia/animation-editor-guide.md`. Should I update it to reflect the new sprite picker changes?"
+
+See `Documents/Encyclopedia/_TEMPLATE.md` for the guide structure.
 
 ## Planning Mode Instructions
 

@@ -1,8 +1,11 @@
 package com.pocket.rpg.resources;
 
+import com.pocket.rpg.editor.EditorPanel;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.rendering.resources.Sprite;
 import lombok.Getter;
 import lombok.Setter;
+import org.joml.Vector3f;
 
 import java.util.List;
 import java.util.Set;
@@ -321,6 +324,41 @@ public final class Assets {
      */
     public static boolean isAssetType(Class<?> type) {
         return getContext().isAssetType(type);
+    }
+
+    /**
+     * Checks if assets of a given type can be instantiated as entities in the editor.
+     * Delegates to the loader's canInstantiate() method.
+     *
+     * @param type Asset type class
+     * @return true if this asset type can create entities
+     */
+    public static boolean canInstantiate(Class<?> type) {
+        return getContext().canInstantiate(type);
+    }
+
+    /**
+     * Creates an EditorGameObject from an asset at the given path.
+     * Loads the asset and delegates to the loader's instantiate() method.
+     *
+     * @param path     Asset path
+     * @param type     Asset type class
+     * @param position World position for the entity
+     * @return New EditorGameObject, or null if instantiation is not supported
+     */
+    public static EditorGameObject instantiate(String path, Class<?> type, Vector3f position) {
+        return getContext().instantiate(path, type, position);
+    }
+
+    /**
+     * Gets the editor panel that should open when an asset of this type is double-clicked.
+     * Delegates to the loader's getEditorPanel() method.
+     *
+     * @param type Asset type class
+     * @return EditorPanel to open, or null if no dedicated editor exists
+     */
+    public static EditorPanel getEditorPanel(Class<?> type) {
+        return getContext().getEditorPanel(type);
     }
 
     public static String getAssetRoot() {

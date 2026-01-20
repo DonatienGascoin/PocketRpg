@@ -946,7 +946,7 @@ public class PivotEditorPanel {
 
         // Buttons on the right
         float buttonWidth = 80;
-        float totalWidth = buttonWidth * 3 + 20;
+        float totalWidth = buttonWidth * 2 + 10;
         ImGui.sameLine(ImGui.getContentRegionAvailX() - totalWidth);
 
         // Cancel button
@@ -960,28 +960,16 @@ public class PivotEditorPanel {
 
         ImGui.sameLine();
 
-        // Apply button (applies in-memory without saving)
-        if (ImGui.button("Apply", buttonWidth, 0)) {
-            applyPivot(false);
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("Apply pivot change to loaded sprite (not saved to disk)");
-        }
-
-        ImGui.sameLine();
-
         // Save button
         ImGui.pushStyleColor(ImGuiCol.Button, 0.2f, 0.5f, 0.2f, 1f);
         ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.3f, 0.6f, 0.3f, 1f);
         ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.4f, 0.7f, 0.4f, 1f);
         if (ImGui.button(FontAwesomeIcons.Save + " Save", buttonWidth, 0)) {
             applyPivot(true);
-            ImGui.closeCurrentPopup();
-            isOpen = false;
         }
         ImGui.popStyleColor(3);
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("Save pivot to metadata file and close");
+            ImGui.setTooltip("Save pivot to metadata file");
         }
     }
 

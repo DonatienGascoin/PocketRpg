@@ -6,9 +6,14 @@ import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.rendering.resources.Texture;
 import com.pocket.rpg.resources.AssetLoader;
+import com.pocket.rpg.resources.AssetMetadata;
+import com.pocket.rpg.resources.Assets;
+import com.pocket.rpg.resources.EditorCapability;
+import com.pocket.rpg.resources.SpriteMetadata;
 import org.joml.Vector3f;
 
 import java.io.IOException;
+import java.util.Set;
 
 /**
  * Loader for sprite assets.
@@ -27,7 +32,23 @@ public class SpriteLoader implements AssetLoader<Sprite> {
 
             // Create sprite from texture
             // Path tracking is handled by AssetManager.resourcePaths
-            return new Sprite(texture, path);
+            Sprite sprite = new Sprite(texture, path);
+
+            // Apply metadata if it exists (pivot, ppu override)
+            String relativePath = Assets.getRelativePath(path);
+            if (relativePath != null) {
+                SpriteMetadata meta = AssetMetadata.load(relativePath, SpriteMetadata.class);
+                if (meta != null) {
+                    if (meta.hasPivot()) {
+                        sprite.setPivot(meta.pivotX, meta.pivotY);
+                    }
+                    if (meta.pixelsPerUnitOverride != null) {
+                        sprite.setPixelsPerUnitOverride(meta.pixelsPerUnitOverride);
+                    }
+                }
+            }
+
+            return sprite;
         } catch (RuntimeException e) {
             throw new IOException("Failed to load texture for sprite: " + path, e);
         }
@@ -96,6 +117,11 @@ public class SpriteLoader implements AssetLoader<Sprite> {
     @Override
     public String getIconCodepoint() {
         return FontAwesomeIcons.Image;
+    }
+
+    @Override
+    public Set<EditorCapability> getEditorCapabilities() {
+        return Set.of(EditorCapability.PIVOT_EDITING);
     }
 
     /**

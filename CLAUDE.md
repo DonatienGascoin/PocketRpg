@@ -117,6 +117,29 @@ Example prompt:
 
 See `Documents/Encyclopedia/_TEMPLATE.md` for the guide structure.
 
+## Feature Planning Guidelines
+
+When planning or implementing new features, **integrate with existing systems** rather than reinventing functionality.
+
+**Existing systems to leverage:**
+
+| System | Location | Use For |
+|--------|----------|---------|
+| **Undo/Redo** | `editor/undo/` | Any editor action that modifies state |
+| **Assets** | `resources/Assets.java` | Loading, caching, path resolution for any asset type |
+| **AssetLoader** | `resources/AssetLoader.java` | New asset types (implement interface, register in AssetManager) |
+| **EditorPanel** | `editor/EditorPanel.java` | Opening panels on asset double-click |
+| **Shortcuts** | `editor/shortcut/` | Keyboard shortcuts for editor actions |
+| **ComponentRef** | `serialization/ComponentRef.java` | Auto-resolving component dependencies |
+| **Inspector** | `editor/panels/InspectorPanel.java` | Property editing uses reflection-based rendering |
+| **ThumbnailCache** | `editor/assets/ThumbnailCache.java` | Asset preview images |
+| **StatusBar** | `editor/ui/StatusBar.java` | User feedback messages |
+
+**Before creating new infrastructure, ask:**
+1. Does a similar system already exist?
+2. Can an existing system be extended?
+3. Does this follow the patterns used elsewhere in the codebase?
+
 ## Planning Mode Instructions
 
 When exiting plan mode, always provide a bullet-point summary in the console before calling ExitPlanMode:
@@ -134,3 +157,28 @@ Plan updated in "<plan file path>"
 ```
 
 This gives the user a quick overview of what will be implemented without needing to read the full plan file.
+
+**Every plan must include a code review step at the end.** After implementing a feature, perform a code review of all changed/added files and write the review to `Documents/Reviews/`.
+
+## Inspector Field Editors
+
+When implementing new inspector UI or field types, **prioritize using and extending existing field editors**:
+
+| File | Purpose |
+|------|---------|
+| `editor/ui/fields/FieldEditors.java` | **Facade** - Entry point for all field editors |
+| `editor/ui/fields/PrimitiveEditors.java` | int, float, boolean, String with undo support |
+| `editor/ui/fields/VectorEditors.java` | Vector2f, Vector3f, Vector4f, color pickers |
+| `editor/ui/fields/EnumEditor.java` | Enum dropdown fields |
+| `editor/ui/fields/AssetEditor.java` | Asset reference fields with picker integration |
+| `editor/ui/fields/TransformEditors.java` | Position/Rotation/Scale with axis coloring |
+| `editor/ui/fields/ReflectionFieldEditor.java` | Auto-discovers and renders component fields |
+| `editor/ui/fields/FieldEditorContext.java` | Override detection, required field highlighting |
+| `editor/ui/fields/FieldEditorUtils.java` | Layout helpers, shared utilities |
+
+**Before creating custom ImGui field rendering:**
+1. Check if `FieldEditors` facade already supports the type
+2. If not, add support to the appropriate specialized editor class
+3. Use `FieldEditorUtils.inspectorRow()` for consistent layout
+4. Follow the undo pattern: capture on activation, push on deactivation
+5. Support both reflection-based and getter/setter variants

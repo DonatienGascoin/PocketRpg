@@ -21,7 +21,8 @@
       "Bash(powershell.exe -Command \"cd E:/Projects/PocketRpg; mvn compile 2>&1 | Select-Object -First 150\")",
       "Bash(/c/Users/donat/.sdkman/candidates/maven/current/bin/mvn compile:*)",
       "Bash(mvn.cmd compile:*)",
-      "WebFetch(domain:claude.ai)"
+      "WebFetch(domain:claude.ai)",
+      "Bash(grep:*)"
     ]
   }
 }

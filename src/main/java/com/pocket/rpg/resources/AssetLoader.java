@@ -7,6 +7,7 @@ import com.pocket.rpg.rendering.resources.Sprite;
 import org.joml.Vector3f;
 
 import java.io.IOException;
+import java.util.Set;
 
 /**
  * Interface for loading and saving assets.
@@ -134,6 +135,25 @@ public interface AssetLoader<T> {
      */
     default EditorPanel getEditorPanel() {
         return null;
+    }
+
+    /**
+     * Returns the editor capabilities this asset type supports.
+     * Used to dynamically show context menu items and editor panels.
+     * <p>
+     * Example:
+     * <pre>
+     * {@literal @}Override
+     * public Set&lt;EditorCapability&gt; getEditorCapabilities() {
+     *     return Set.of(EditorCapability.PIVOT_EDITING);
+     * }
+     * </pre>
+     *
+     * @return Set of supported capabilities (empty by default)
+     * @see EditorCapability
+     */
+    default Set<EditorCapability> getEditorCapabilities() {
+        return Set.of();
     }
 
     // ========================================================================

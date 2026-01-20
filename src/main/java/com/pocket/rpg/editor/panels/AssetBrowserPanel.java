@@ -9,10 +9,12 @@ import com.pocket.rpg.rendering.resources.SpriteSheet;
 import com.pocket.rpg.rendering.resources.Shader;
 import com.pocket.rpg.rendering.resources.Texture;
 import com.pocket.rpg.resources.Assets;
+import com.pocket.rpg.resources.EditorCapability;
 import imgui.ImGui;
 import imgui.flag.*;
 import imgui.type.ImString;
 import lombok.Getter;
+import lombok.Setter;
 
 import java.util.*;
 import java.util.function.Consumer;
@@ -78,6 +80,10 @@ public class AssetBrowserPanel {
 
     // Panel handlers for double-click (keyed by EditorPanel)
     private final Map<EditorPanel, Consumer<String>> panelHandlers = new EnumMap<>(EditorPanel.class);
+
+    // Pivot editor panel reference for context menu
+    @Setter
+    private PivotEditorPanel pivotEditorPanel;
 
     // ========================================================================
     // INITIALIZATION
@@ -513,6 +519,34 @@ public class AssetBrowserPanel {
             }
 
             ImGui.endTooltip();
+        }
+
+        // Context menu
+        if (ImGui.beginPopupContextItem("asset_ctx_" + entry.path)) {
+            Set<EditorCapability> caps = Assets.getEditorCapabilities(entry.type);
+
+            // Pivot editing
+            if (caps.contains(EditorCapability.PIVOT_EDITING)) {
+                if (ImGui.menuItem(FontAwesomeIcons.Crosshairs + " Edit Pivot...")) {
+                    if (pivotEditorPanel != null) {
+                        pivotEditorPanel.open(entry.path);
+                    }
+                }
+            }
+
+            // Future: Other capabilities
+            // if (caps.contains(EditorCapability.NINE_SLICE)) { ... }
+
+            // Common actions
+            if (!caps.isEmpty()) {
+                ImGui.separator();
+            }
+
+            if (ImGui.menuItem(FontAwesomeIcons.Copy + " Copy Path")) {
+                ImGui.setClipboardText(entry.path);
+            }
+
+            ImGui.endPopup();
         }
 
         ImGui.popID();

@@ -24,6 +24,7 @@ public class EditorMenuBar {
     private Runnable onSaveScene;
     private Consumer<String> onSaveSceneAs;
     private Runnable onExit;
+    private Runnable onOpenPivotEditor;
 
     private EditorScene currentScene;
 
@@ -162,6 +163,14 @@ public class EditorMenuBar {
 
             if (ImGui.menuItem("Select All", "Ctrl+A", false, false)) {
                 // TODO
+            }
+
+            ImGui.separator();
+
+            if (ImGui.menuItem("Pivot Editor...", "")) {
+                if (onOpenPivotEditor != null) {
+                    onOpenPivotEditor.run();
+                }
             }
 
             ImGui.endMenu();
@@ -454,5 +463,9 @@ public class EditorMenuBar {
 
     public void setRecentFiles(String[] files) {
         this.recentFiles = files != null ? files : new String[0];
+    }
+
+    public void setOnOpenPivotEditor(Runnable callback) {
+        this.onOpenPivotEditor = callback;
     }
 }

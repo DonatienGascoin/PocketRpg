@@ -1,5 +1,11 @@
 {
   "texture": "sprites/Outdoors_misc.png",
   "spriteWidth": 16,
-  "spriteHeight": 16
+  "spriteHeight": 16,
+  "spritePivots": {
+    "0": {
+      "pivotX": 0.53515625,
+      "pivotY": 0.09765625
+    }
+  }
 }

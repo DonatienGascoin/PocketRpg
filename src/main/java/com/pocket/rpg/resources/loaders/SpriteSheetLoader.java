@@ -12,9 +12,11 @@ import com.pocket.rpg.rendering.resources.SpriteSheet;
 import com.pocket.rpg.rendering.resources.Texture;
 import com.pocket.rpg.resources.AssetLoader;
 import com.pocket.rpg.resources.Assets;
+import com.pocket.rpg.resources.EditorCapability;
 import org.joml.Vector3f;
 
 import java.io.IOException;
+import java.util.Set;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -69,12 +71,35 @@ public class SpriteSheetLoader implements AssetLoader<SpriteSheet> {
         int offsetY = json.has("offsetY") ? json.get("offsetY").getAsInt() : 0;
 
         // Create sprite sheet (calculates columns/rows/totalFrames internally)
-        return new SpriteSheet(
+        SpriteSheet sheet = new SpriteSheet(
                 texture,
                 spriteWidth, spriteHeight,
                 spacingX, spacingY,
                 offsetX, offsetY
         );
+
+        // Load pivot settings
+        float defaultPivotX = json.has("pivotX") ? json.get("pivotX").getAsFloat() : 0.5f;
+        float defaultPivotY = json.has("pivotY") ? json.get("pivotY").getAsFloat() : 0.5f;
+        sheet.setDefaultPivot(defaultPivotX, defaultPivotY);
+
+        // Load per-sprite pivot overrides
+        if (json.has("spritePivots") && json.get("spritePivots").isJsonObject()) {
+            JsonObject pivots = json.getAsJsonObject("spritePivots");
+            for (String key : pivots.keySet()) {
+                try {
+                    int frameIndex = Integer.parseInt(key);
+                    JsonObject pivotObj = pivots.getAsJsonObject(key);
+                    float px = pivotObj.has("pivotX") ? pivotObj.get("pivotX").getAsFloat() : defaultPivotX;
+                    float py = pivotObj.has("pivotY") ? pivotObj.get("pivotY").getAsFloat() : defaultPivotY;
+                    sheet.setSpritePivot(frameIndex, px, py);
+                } catch (NumberFormatException e) {
+                    // Skip invalid keys
+                }
+            }
+        }
+
+        return sheet;
     }
 
     @Override
@@ -102,6 +127,25 @@ public class SpriteSheetLoader implements AssetLoader<SpriteSheet> {
         }
         if (spriteSheet.getOffsetY() != 0) {
             json.addProperty("offsetY", spriteSheet.getOffsetY());
+        }
+
+        // Add default pivot (only if not default center)
+        if (spriteSheet.getDefaultPivotX() != 0.5f || spriteSheet.getDefaultPivotY() != 0.5f) {
+            json.addProperty("pivotX", spriteSheet.getDefaultPivotX());
+            json.addProperty("pivotY", spriteSheet.getDefaultPivotY());
+        }
+
+        // Add per-sprite pivot overrides
+        var spritePivots = spriteSheet.getSpritePivots();
+        if (!spritePivots.isEmpty()) {
+            JsonObject pivotsJson = new JsonObject();
+            for (var entry : spritePivots.entrySet()) {
+                JsonObject pivotObj = new JsonObject();
+                pivotObj.addProperty("pivotX", entry.getValue()[0]);
+                pivotObj.addProperty("pivotY", entry.getValue()[1]);
+                pivotsJson.add(String.valueOf(entry.getKey()), pivotObj);
+            }
+            json.add("spritePivots", pivotsJson);
         }
 
         // Write to file
@@ -264,6 +308,11 @@ public class SpriteSheetLoader implements AssetLoader<SpriteSheet> {
     @Override
     public String getIconCodepoint() {
         return FontAwesomeIcons.ThLarge;
+    }
+
+    @Override
+    public Set<EditorCapability> getEditorCapabilities() {
+        return Set.of(EditorCapability.PIVOT_EDITING);
     }
 
     /**

@@ -1,0 +1,10 @@
+{
+  "name": "new_animation_1",
+  "looping": true,
+  "frames": [
+    {
+      "sprite": "sprites/Building6_64x96.png",
+      "duration": 1.0
+    }
+  ]
+}

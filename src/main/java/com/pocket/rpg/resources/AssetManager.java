@@ -434,6 +434,12 @@ public class AssetManager implements AssetContext {
     }
 
     @Override
+    public Set<EditorCapability> getEditorCapabilities(Class<?> type) {
+        AssetLoader<?> loader = loaders.get(type);
+        return loader != null ? loader.getEditorCapabilities() : Set.of();
+    }
+
+    @Override
     public String getRelativePath(String fullPath) {
         try {
             return fullPath.substring(assetRoot.length());

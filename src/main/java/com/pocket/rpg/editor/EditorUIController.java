@@ -58,6 +58,9 @@ public class EditorUIController {
     private AnimationEditorPanel animationEditorPanel;
 
     @Getter
+    private PivotEditorPanel pivotEditorPanel;
+
+    @Getter
     private EditorMenuBar menuBar;
 
     @Getter
@@ -90,6 +93,7 @@ public class EditorUIController {
 
         sceneToolbar.setMessageCallback(statusBar::showMessage);
         animationEditorPanel.setStatusCallback(statusBar::showMessage);
+        pivotEditorPanel.setStatusCallback(statusBar::showMessage);
 
         // Register panel handlers for asset double-click
         assetBrowserPanel.registerPanelHandler(
@@ -124,8 +128,12 @@ public class EditorUIController {
         prefabBrowserPanel.setToolManager(context.getToolManager());
         prefabBrowserPanel.setEntityPlacerTool(toolController.getEntityPlacerTool());
 
+        // Create pivot editor before asset browser (needed for context menu)
+        pivotEditorPanel = new PivotEditorPanel();
+
         assetBrowserPanel = new AssetBrowserPanel();
         assetBrowserPanel.initialize();
+        assetBrowserPanel.setPivotEditorPanel(pivotEditorPanel);
 
         toolController.getEntityPlacerTool().setPrefabPanel(prefabBrowserPanel);
         toolController.setPrefabBrowserPanel(prefabBrowserPanel);
@@ -155,6 +163,7 @@ public class EditorUIController {
         menuBar = new EditorMenuBar();
         menuBar.setCurrentScene(context.getCurrentScene());
         menuBar.setConfigPanel(configPanel);
+        menuBar.setOnOpenPivotEditor(() -> pivotEditorPanel.open());
 
         statusBar = new StatusBar();
         statusBar.setCamera(context.getCamera());
@@ -384,6 +393,7 @@ public class EditorUIController {
         configPanel.render();
         uiDesignerPanel.render();
         animationEditorPanel.render();
+        pivotEditorPanel.render();
         if (gameViewPanel != null) {
             gameViewPanel.render();
         }

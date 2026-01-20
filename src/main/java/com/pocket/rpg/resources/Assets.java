@@ -364,4 +364,15 @@ public final class Assets {
     public static String getAssetRoot() {
         return context.getAssetRoot();
     }
+
+    /**
+     * Gets the editor capabilities for an asset type.
+     * Delegates to the loader's getEditorCapabilities() method.
+     *
+     * @param type Asset type class
+     * @return Set of capabilities, or empty set if no loader or none declared
+     */
+    public static Set<EditorCapability> getEditorCapabilities(Class<?> type) {
+        return getContext().getEditorCapabilities(type);
+    }
 }

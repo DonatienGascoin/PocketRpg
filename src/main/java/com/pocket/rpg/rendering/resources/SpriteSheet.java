@@ -35,6 +35,13 @@ public class SpriteSheet {
     private final Map<Integer, Sprite> spriteCache = new HashMap<>();
     private final List<Sprite> allSprites = new ArrayList<>();
 
+    // Pivot settings
+    @Getter
+    private float defaultPivotX = 0.5f;
+    @Getter
+    private float defaultPivotY = 0.5f;
+    private final Map<Integer, float[]> spritePivots = new HashMap<>(); // Per-sprite pivot overrides
+
     // -------------------------------------------------------------------------------------
     // Constructors
     // -------------------------------------------------------------------------------------
@@ -136,6 +143,10 @@ public class SpriteSheet {
                 px, py, spriteWidth, spriteHeight,
                 "Frame_" + frameIndex);
 
+        // Apply pivot (per-sprite override or default)
+        float[] pivot = getEffectivePivot(frameIndex);
+        sprite.setPivot(pivot[0], pivot[1]);
+
         // Register sprite in resourcePaths if sheet is tracked
         ensureSpriteRegistered(sprite, frameIndex);
 
@@ -235,5 +246,100 @@ public class SpriteSheet {
 
     public int getCachedSpriteCount() {
         return spriteCache.size();
+    }
+
+    // -------------------------------------------------------------------------------------
+    // Pivot Management
+    // -------------------------------------------------------------------------------------
+
+    /**
+     * Sets the default pivot for all sprites in this sheet.
+     * Sprites without per-sprite overrides will use this pivot.
+     */
+    public void setDefaultPivot(float pivotX, float pivotY) {
+        this.defaultPivotX = pivotX;
+        this.defaultPivotY = pivotY;
+    }
+
+    /**
+     * Sets a per-sprite pivot override.
+     * @param frameIndex The sprite index
+     * @param pivotX Pivot X (0-1)
+     * @param pivotY Pivot Y (0-1)
+     */
+    public void setSpritePivot(int frameIndex, float pivotX, float pivotY) {
+        if (frameIndex < 0 || frameIndex >= totalFrames) {
+            return;
+        }
+        spritePivots.put(frameIndex, new float[]{pivotX, pivotY});
+
+        // Apply to cached sprite if exists
+        Sprite cached = spriteCache.get(frameIndex);
+        if (cached != null) {
+            cached.setPivot(pivotX, pivotY);
+        }
+    }
+
+    /**
+     * Removes a per-sprite pivot override, reverting to the default.
+     */
+    public void removeSpritePivot(int frameIndex) {
+        spritePivots.remove(frameIndex);
+
+        // Revert cached sprite to default if exists
+        Sprite cached = spriteCache.get(frameIndex);
+        if (cached != null) {
+            cached.setPivot(defaultPivotX, defaultPivotY);
+        }
+    }
+
+    /**
+     * Gets the effective pivot for a sprite (per-sprite override or default).
+     * @return float array [pivotX, pivotY]
+     */
+    public float[] getEffectivePivot(int frameIndex) {
+        float[] override = spritePivots.get(frameIndex);
+        if (override != null) {
+            return override;
+        }
+        return new float[]{defaultPivotX, defaultPivotY};
+    }
+
+    /**
+     * Checks if a sprite has a per-sprite pivot override.
+     */
+    public boolean hasSpritePivotOverride(int frameIndex) {
+        return spritePivots.containsKey(frameIndex);
+    }
+
+    /**
+     * Gets all per-sprite pivot overrides.
+     * @return Unmodifiable map of frameIndex -> [pivotX, pivotY]
+     */
+    public Map<Integer, float[]> getSpritePivots() {
+        return Collections.unmodifiableMap(spritePivots);
+    }
+
+    /**
+     * Applies the default pivot to all sprites in the sheet.
+     * Does not affect per-sprite overrides.
+     */
+    public void applyDefaultPivotToAllSprites() {
+        for (int i = 0; i < totalFrames; i++) {
+            if (!spritePivots.containsKey(i)) {
+                Sprite cached = spriteCache.get(i);
+                if (cached != null) {
+                    cached.setPivot(defaultPivotX, defaultPivotY);
+                }
+            }
+        }
+    }
+
+    /**
+     * Clears all per-sprite pivot overrides.
+     */
+    public void clearSpritePivots() {
+        spritePivots.clear();
+        applyDefaultPivotToAllSprites();
     }
 }

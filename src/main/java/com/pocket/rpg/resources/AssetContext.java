@@ -232,4 +232,13 @@ public interface AssetContext {
      * @return EditorPanel to open, or null if no dedicated editor exists
      */
     EditorPanel getEditorPanel(Class<?> type);
+
+    /**
+     * Gets the editor capabilities for an asset type.
+     * Delegates to the loader's getEditorCapabilities() method.
+     *
+     * @param type Asset type class
+     * @return Set of capabilities, or empty set if no loader or none declared
+     */
+    Set<EditorCapability> getEditorCapabilities(Class<?> type);
 }

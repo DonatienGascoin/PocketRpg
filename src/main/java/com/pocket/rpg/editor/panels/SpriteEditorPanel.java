@@ -520,8 +520,15 @@ public class SpriteEditorPanel {
                 pivotTab.setPivot(pivot[0], pivot[1]);
                 pivotTab.setOriginalPivot(pivot[0], pivot[1]);
 
-                nineSliceTab.setSlices(0, 0, 0, 0);
-                nineSliceTab.setOriginalSlices(0, 0, 0, 0);
+                // Load 9-slice data from sprite sheet
+                NineSliceData nineSlice = spriteSheet.getEffectiveNineSlice(selectedSpriteIndex);
+                if (nineSlice != null) {
+                    nineSliceTab.setSlices(nineSlice.left, nineSlice.right, nineSlice.top, nineSlice.bottom);
+                } else {
+                    nineSliceTab.setSlices(0, 0, 0, 0);
+                }
+                nineSliceTab.setOriginalSlices(nineSliceTab.getSliceLeft(), nineSliceTab.getSliceRight(),
+                        nineSliceTab.getSliceTop(), nineSliceTab.getSliceBottom());
 
             } else if (type == Sprite.class || isImageExtension(path)) {
                 sprite = Assets.load(path, Sprite.class);
@@ -553,9 +560,20 @@ public class SpriteEditorPanel {
     private void loadPivotForSelectedSprite() {
         if (spriteSheet == null) return;
 
+        // Load pivot
         float[] pivot = spriteSheet.getEffectivePivot(selectedSpriteIndex);
         pivotTab.setPivot(pivot[0], pivot[1]);
         pivotTab.setOriginalPivot(pivot[0], pivot[1]);
+
+        // Load 9-slice
+        NineSliceData nineSlice = spriteSheet.getEffectiveNineSlice(selectedSpriteIndex);
+        if (nineSlice != null) {
+            nineSliceTab.setSlices(nineSlice.left, nineSlice.right, nineSlice.top, nineSlice.bottom);
+        } else {
+            nineSliceTab.setSlices(0, 0, 0, 0);
+        }
+        nineSliceTab.setOriginalSlices(nineSliceTab.getSliceLeft(), nineSliceTab.getSliceRight(),
+                nineSliceTab.getSliceTop(), nineSliceTab.getSliceBottom());
     }
 
     private Sprite getCurrentSprite() {
@@ -635,43 +653,48 @@ public class SpriteEditorPanel {
         if (assetPath == null) return;
 
         try {
+            boolean hasSlicing = nineSliceTab.hasSlicing();
+            NineSliceData data = hasSlicing ? new NineSliceData(
+                    nineSliceTab.getSliceLeft(), nineSliceTab.getSliceRight(),
+                    nineSliceTab.getSliceTop(), nineSliceTab.getSliceBottom()) : null;
+
             if (isSpriteSheet && spriteSheet != null) {
-                showStatus("9-slice not yet supported for sprite sheets");
-                return;
-            }
-
-            if (sprite != null) {
-                boolean hasSlicing = nineSliceTab.hasSlicing();
-
-                if (hasSlicing) {
-                    NineSliceData data = new NineSliceData(
-                            nineSliceTab.getSliceLeft(), nineSliceTab.getSliceRight(),
-                            nineSliceTab.getSliceTop(), nineSliceTab.getSliceBottom());
-                    sprite.setNineSliceData(data);
+                if (applyToAllSprites) {
+                    spriteSheet.setDefaultNineSlice(data);
+                    spriteSheet.clearSpriteNineSlices();
+                    for (int i = 0; i < spriteSheet.getTotalFrames(); i++) {
+                        Sprite s = spriteSheet.getSprite(i);
+                        s.setNineSliceData(data != null ? data.copy() : null);
+                    }
+                    showStatus("Applied 9-slice to all " + spriteSheet.getTotalFrames() + " sprites");
                 } else {
-                    sprite.setNineSliceData(null);
+                    spriteSheet.setSpriteNineSlice(selectedSpriteIndex, data);
+                    Sprite s = spriteSheet.getSprite(selectedSpriteIndex);
+                    s.setNineSliceData(data != null ? data.copy() : null);
+                    showStatus("Applied 9-slice to sprite #" + selectedSpriteIndex);
                 }
+
+                if (saveToFile) {
+                    String filePath = java.nio.file.Paths.get(Assets.getAssetRoot(), assetPath).toString();
+                    new SpriteSheetLoader().save(spriteSheet, filePath);
+                    showStatus("Saved 9-slice to " + assetPath);
+                }
+
+            } else if (sprite != null) {
+                sprite.setNineSliceData(data);
 
                 if (saveToFile) {
                     SpriteMetadata meta = AssetMetadata.loadOrDefault(
                             assetPath, SpriteMetadata.class, SpriteMetadata::new);
-
-                    if (hasSlicing) {
-                        meta.nineSlice = new NineSliceData(
-                                nineSliceTab.getSliceLeft(), nineSliceTab.getSliceRight(),
-                                nineSliceTab.getSliceTop(), nineSliceTab.getSliceBottom());
-                    } else {
-                        meta.nineSlice = null;
-                    }
-
+                    meta.nineSlice = data;
                     AssetMetadata.saveOrDelete(assetPath, meta);
                     showStatus("Saved 9-slice for " + assetPath);
                 } else {
                     showStatus("Applied 9-slice (not saved)");
                 }
-
-                nineSliceTab.updateOriginal();
             }
+
+            nineSliceTab.updateOriginal();
 
         } catch (IOException e) {
             System.err.println("[SpriteEditorPanel] Failed to save 9-slice: " + e.getMessage());

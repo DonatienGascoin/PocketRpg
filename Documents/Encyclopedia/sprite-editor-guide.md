@@ -1,6 +1,6 @@
 # Sprite Editor Guide
 
-> **Summary:** The Sprite Editor lets you configure pivot points and 9-slice borders for sprites and sprite sheets. Use the Pivot tab to set the origin point for positioning/rotation, and the 9-Slice tab to define scalable borders for UI elements.
+> **Summary:** The Sprite Editor lets you configure pivot points and 9-slice borders for sprites and sprite sheets. Use the Pivot tab to set the origin point for positioning/rotation, and the 9-Slice tab to define scalable borders for UI elements. For rendering options (stretch vs tile, fill modes), see UIImage component settings.
 
 ---
 
@@ -29,7 +29,7 @@
 | Set pivot preset | Pivot tab > Click one of the 9-grid buttons |
 | Enable pixel snap | Pivot tab > Click "Pixel Snap" button |
 | Set 9-slice borders | 9-Slice tab > Drag border lines or enter values |
-| Preview 9-slice | 9-Slice tab > Adjust "Scaled Preview" size |
+| Use border presets | 9-Slice tab > Click "4px", "8px", "16px", or "Clear" |
 | Save changes | Click green "Save" button |
 
 ---
@@ -159,37 +159,29 @@ Opens without a pre-selected asset. Use Browse to select one.
 ### Interface
 
 ```
-+--------------------------------+-------------------------------------+
-|                                |                                     |
-|     +--------------------+     |  Borders (pixels)                   |
-|     |    |         |     |     |  Left:   [   4   ]                  |
-|     |----+---------+----|     |  Right:  [   4   ]                  |
-|     |    |         |    |     |  Top:    [   4   ]                  |
-|     |    |         |    |     |  Bottom: [   4   ]                  |
-|     |----+---------+----|     |                                     |
-|     |    |         |     |     |  [Uniform 4px] [Uniform 8px] [Clear]|
-|     +--------------------+     |                                     |
-|        ^  border lines         |  Center Mode                        |
-|                                |  (o) Stretch  ( ) Tile              |
-|                                |                                     |
-|                                |  Scaled Preview                     |
-|                                |  Size: [128] x [128]  [1x][2x][3x] |
-|                                |  +------------------+               |
-|                                |  |     Preview      |               |
-|                                |  +------------------+               |
-+--------------------------------+-------------------------------------+
++--------------------------------+------------------------------+
+|                                |                              |
+|     +--------------------+     |  Borders (pixels)            |
+|     |    |         |     |     |  Left:   [   4   ]  [4px ]   |
+|     |----+---------+----|     |  Right:  [   4   ]  [8px ]   |
+|     |    |         |    |     |  Top:    [   4   ]  [16px]   |
+|     |    |         |    |     |  Bottom: [   4   ]  [Clear]  |
+|     |----+---------+----|     |                              |
+|     |    |         |     |     |                              |
+|     +--------------------+     |                              |
+|        ^  border lines         |                              |
+|                                |                              |
++--------------------------------+------------------------------+
 ```
 
 ### Controls
 
 | Control | Description |
 |---------|-------------|
-| **Preview Canvas** | Shows sprite with draggable border lines. Blue=vertical, Red=horizontal. |
+| **Preview Canvas** | Shows sprite with draggable border lines. Blue=vertical, Red=horizontal. Supports zoom (scroll) and pan (middle-click). |
 | **Border Fields** | Left, Right, Top, Bottom border sizes in pixels. |
-| **Uniform 4px/8px** | Quick presets for uniform borders. |
-| **Clear All** | Reset all borders to zero. |
-| **Center Mode** | Stretch (smooth scale) or Tile (repeat pattern). |
-| **Scaled Preview** | Shows how the 9-slice looks at different sizes. |
+| **4px / 8px / 16px** | Quick presets for uniform borders. |
+| **Clear** | Reset all borders to zero. |
 
 ### Border Colors
 
@@ -219,18 +211,19 @@ Opens without a pre-selected asset. Use Browse to select one.
 
 1. Double-click your button sprite in Asset Browser
 2. Switch to the **9-Slice** tab
-3. Click **Uniform 8px** (or drag borders to match your design)
-4. Adjust **Scaled Preview** size to test different dimensions
-5. Click **Save**
+3. Click **8px** preset (or drag borders to match your design)
+4. Click **Save**
+5. In your UIImage component, set **Image Type** to "Sliced"
 
 ### Setting Up a Dialog Panel
 
 1. Open your panel sprite in the Sprite Editor
 2. Go to **9-Slice** tab
 3. Set borders to match the decorative frame (e.g., Left=12, Right=12, Top=16, Bottom=12)
-4. Set **Center Mode** to "Stretch" for solid backgrounds or "Tile" for patterns
-5. Use the **Scaled Preview** to verify corners don't distort
-6. Click **Save**
+4. Click **Save**
+5. In your UIImage component:
+   - Set **Image Type** to "Sliced" for stretched center
+   - Or set **Image Type** to "Tiled" for repeating patterns
 
 ### Editing Sprite Sheet Pivots
 
@@ -250,9 +243,9 @@ Opens without a pre-selected asset. Use Browse to select one.
 
 ### 9-Slice Tips
 - **Match borders to artwork** - Borders should align with where your sprite's "stretchable" region begins
-- **Test at multiple sizes** - Use the Scaled Preview with different dimensions
-- **Use Tile for patterns** - If your center region has a repeating pattern, Tile mode looks better
+- **Test in-game** - Create a UIImage with Image Type "Sliced" at different sizes to verify
 - **Keep corners small** - Smaller corners = more flexible scaling range
+- **Use UIImage for rendering** - 9-slice borders are defined in Sprite Editor, but rendering mode (Sliced/Tiled) is set on UIImage component
 
 ---
 
@@ -262,9 +255,10 @@ Opens without a pre-selected asset. Use Browse to select one.
 |---------|----------|
 | Context menu missing "Sprite Editor..." | Ensure you're clicking a .png or .spritesheet file |
 | Changes not saving | Click the green **Save** button before closing |
-| 9-slice preview looks wrong | Check that border values match your sprite's actual border width |
-| Can't drag border lines | Ensure borders aren't at 0 - set a value first via input fields |
+| 9-slice not rendering in game | Set UIImage component's **Image Type** to "Sliced" |
+| Can't drag border lines | Hover near the line until cursor changes, then drag |
 | Sprite sheet shows wrong sprite | Click the correct sprite in the bottom grid |
+| Warning "Sprite has no 9-slice data" | Configure borders in Sprite Editor's 9-Slice tab first |
 
 ---
 
@@ -309,8 +303,26 @@ int left = data.left;
 int right = data.right;
 int top = data.top;
 int bottom = data.bottom;
-NineSliceData.CenterMode mode = data.centerMode;
 ```
+
+### Using 9-Slice with UIImage
+
+```java
+// In code, set up a UIImage for 9-slice rendering
+UIImage image = gameObject.addComponent(UIImage.class);
+image.setSprite(sprite);
+image.setImageType(UIImage.ImageType.SLICED);
+image.setFillCenter(true);  // false to render only the border (frame)
+```
+
+### UIImage Image Types
+
+| Type | Description |
+|------|-------------|
+| `SIMPLE` | Regular sprite rendering (default) |
+| `SLICED` | 9-slice rendering - corners fixed, edges/center stretch |
+| `TILED` | Repeats sprite to fill area |
+| `FILLED` | Partial rendering for progress bars (horizontal, vertical, radial) |
 
 ---
 
@@ -332,8 +344,7 @@ NineSliceData.CenterMode mode = data.centerMode;
     "left": 8,
     "right": 8,
     "top": 8,
-    "bottom": 8,
-    "centerMode": "STRETCH"
+    "bottom": 8
   }
 }
 ```
@@ -346,3 +357,5 @@ NineSliceData.CenterMode mode = data.centerMode;
 - `Sprite.java` - Core sprite class
 - `NineSliceData.java` - 9-slice border data
 - `NineSlice.java` - Runtime 9-slice with UV computation
+- `UIImage.java` - UI component with Image Type settings (Simple, Sliced, Tiled, Filled)
+- `UIImageInspector.java` - Inspector for UIImage with fill mode controls

@@ -1,5 +1,6 @@
 package com.pocket.rpg.rendering.ui;
 
+import com.pocket.rpg.components.ui.UIImage;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.rendering.resources.Texture;
 import org.joml.Vector4f;
@@ -10,9 +11,12 @@ import org.joml.Vector4f;
  * UI components call these methods to render themselves.
  * This decouples UI components from the specific rendering implementation.
  * <p>
- * Supports two rendering modes:
+ * Supports multiple rendering modes:
  * <ul>
  *   <li>Immediate mode: drawQuad, drawSprite - for panels, images, buttons</li>
+ *   <li>Nine-slice mode: drawNineSlice - for scalable UI elements</li>
+ *   <li>Tiled mode: drawTiled - for repeating patterns</li>
+ *   <li>Filled mode: drawFilled - for progress bars and cooldowns</li>
  *   <li>Batched mode: beginBatch, batchSprite, endBatch - for text rendering</li>
  * </ul>
  */
@@ -76,6 +80,79 @@ public interface UIRendererBackend {
      */
     void drawQuad(float x, float y, float width, float height,
                   float rotation, float originX, float originY, Vector4f color);
+
+    // ========================================================================
+    // NINE-SLICE MODE
+    // ========================================================================
+
+    /**
+     * Draws a sprite using 9-slice rendering.
+     * Corners remain fixed size, edges stretch along one axis, center stretches both ways.
+     * Requires the sprite to have NineSliceData configured.
+     *
+     * @param x          X position (screen-space, origin top-left)
+     * @param y          Y position (screen-space, origin top-left)
+     * @param width      Width in pixels
+     * @param height     Height in pixels
+     * @param rotation   Rotation in degrees (clockwise)
+     * @param originX    Rotation origin X (0-1)
+     * @param originY    Rotation origin Y (0-1)
+     * @param sprite     Sprite with NineSliceData
+     * @param tint       RGBA tint color
+     * @param fillCenter Whether to render the center region
+     */
+    void drawNineSlice(float x, float y, float width, float height,
+                       float rotation, float originX, float originY,
+                       Sprite sprite, Vector4f tint, boolean fillCenter);
+
+    // ========================================================================
+    // TILED MODE
+    // ========================================================================
+
+    /**
+     * Draws a sprite by tiling it to fill the specified area.
+     *
+     * @param x             X position (screen-space, origin top-left)
+     * @param y             Y position (screen-space, origin top-left)
+     * @param width         Width in pixels
+     * @param height        Height in pixels
+     * @param rotation      Rotation in degrees (clockwise)
+     * @param originX       Rotation origin X (0-1)
+     * @param originY       Rotation origin Y (0-1)
+     * @param sprite        Sprite to tile
+     * @param tint          RGBA tint color
+     * @param pixelsPerUnit Pixels per unit for tile size calculation
+     */
+    void drawTiled(float x, float y, float width, float height,
+                   float rotation, float originX, float originY,
+                   Sprite sprite, Vector4f tint, float pixelsPerUnit);
+
+    // ========================================================================
+    // FILLED MODE (progress bars, cooldowns)
+    // ========================================================================
+
+    /**
+     * Draws a partially filled sprite for progress bars and cooldowns.
+     *
+     * @param x           X position (screen-space, origin top-left)
+     * @param y           Y position (screen-space, origin top-left)
+     * @param width       Width in pixels
+     * @param height      Height in pixels
+     * @param rotation    Rotation in degrees (clockwise)
+     * @param originX     Rotation origin X (0-1)
+     * @param originY     Rotation origin Y (0-1)
+     * @param sprite      Sprite to draw
+     * @param tint        RGBA tint color
+     * @param fillMethod  How to fill (horizontal, vertical, radial)
+     * @param fillOrigin  Where the fill starts from
+     * @param fillAmount  Fill amount (0 = empty, 1 = full)
+     * @param clockwise   For radial fills, whether to fill clockwise
+     */
+    void drawFilled(float x, float y, float width, float height,
+                    float rotation, float originX, float originY,
+                    Sprite sprite, Vector4f tint,
+                    UIImage.FillMethod fillMethod, UIImage.FillOrigin fillOrigin,
+                    float fillAmount, boolean clockwise);
 
     // ========================================================================
     // BATCHED MODE (for text rendering)

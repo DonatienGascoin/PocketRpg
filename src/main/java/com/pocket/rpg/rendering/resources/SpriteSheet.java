@@ -42,6 +42,11 @@ public class SpriteSheet {
     private float defaultPivotY = 0.5f;
     private final Map<Integer, float[]> spritePivots = new HashMap<>(); // Per-sprite pivot overrides
 
+    // 9-slice settings
+    @Getter
+    private NineSliceData defaultNineSlice = null;
+    private final Map<Integer, NineSliceData> spriteNineSlices = new HashMap<>(); // Per-sprite 9-slice overrides
+
     // -------------------------------------------------------------------------------------
     // Constructors
     // -------------------------------------------------------------------------------------
@@ -146,6 +151,12 @@ public class SpriteSheet {
         // Apply pivot (per-sprite override or default)
         float[] pivot = getEffectivePivot(frameIndex);
         sprite.setPivot(pivot[0], pivot[1]);
+
+        // Apply 9-slice data (per-sprite override or default)
+        NineSliceData nineSlice = getEffectiveNineSlice(frameIndex);
+        if (nineSlice != null) {
+            sprite.setNineSliceData(nineSlice.copy());
+        }
 
         // Register sprite in resourcePaths if sheet is tracked
         ensureSpriteRegistered(sprite, frameIndex);
@@ -341,5 +352,104 @@ public class SpriteSheet {
     public void clearSpritePivots() {
         spritePivots.clear();
         applyDefaultPivotToAllSprites();
+    }
+
+    // -------------------------------------------------------------------------------------
+    // 9-Slice Management
+    // -------------------------------------------------------------------------------------
+
+    /**
+     * Sets the default 9-slice data for all sprites in this sheet.
+     * Sprites without per-sprite overrides will use this data.
+     */
+    public void setDefaultNineSlice(NineSliceData nineSlice) {
+        this.defaultNineSlice = nineSlice != null ? nineSlice.copy() : null;
+    }
+
+    /**
+     * Sets a per-sprite 9-slice override.
+     * @param frameIndex The sprite index
+     * @param nineSlice The 9-slice data (null to remove override)
+     */
+    public void setSpriteNineSlice(int frameIndex, NineSliceData nineSlice) {
+        if (frameIndex < 0 || frameIndex >= totalFrames) {
+            return;
+        }
+
+        if (nineSlice == null || !nineSlice.hasSlicing()) {
+            spriteNineSlices.remove(frameIndex);
+        } else {
+            spriteNineSlices.put(frameIndex, nineSlice.copy());
+        }
+
+        // Apply to cached sprite if exists
+        Sprite cached = spriteCache.get(frameIndex);
+        if (cached != null) {
+            NineSliceData effective = getEffectiveNineSlice(frameIndex);
+            cached.setNineSliceData(effective != null ? effective.copy() : null);
+        }
+    }
+
+    /**
+     * Removes a per-sprite 9-slice override, reverting to the default.
+     */
+    public void removeSpriteNineSlice(int frameIndex) {
+        spriteNineSlices.remove(frameIndex);
+
+        // Revert cached sprite to default if exists
+        Sprite cached = spriteCache.get(frameIndex);
+        if (cached != null) {
+            cached.setNineSliceData(defaultNineSlice != null ? defaultNineSlice.copy() : null);
+        }
+    }
+
+    /**
+     * Gets the effective 9-slice data for a sprite (per-sprite override or default).
+     * @return NineSliceData or null if no 9-slice is configured
+     */
+    public NineSliceData getEffectiveNineSlice(int frameIndex) {
+        NineSliceData override = spriteNineSlices.get(frameIndex);
+        if (override != null) {
+            return override;
+        }
+        return defaultNineSlice;
+    }
+
+    /**
+     * Checks if a sprite has a per-sprite 9-slice override.
+     */
+    public boolean hasSpriteNineSliceOverride(int frameIndex) {
+        return spriteNineSlices.containsKey(frameIndex);
+    }
+
+    /**
+     * Gets all per-sprite 9-slice overrides.
+     * @return Unmodifiable map of frameIndex -> NineSliceData
+     */
+    public Map<Integer, NineSliceData> getSpriteNineSlices() {
+        return Collections.unmodifiableMap(spriteNineSlices);
+    }
+
+    /**
+     * Applies the default 9-slice to all sprites in the sheet.
+     * Does not affect per-sprite overrides.
+     */
+    public void applyDefaultNineSliceToAllSprites() {
+        for (int i = 0; i < totalFrames; i++) {
+            if (!spriteNineSlices.containsKey(i)) {
+                Sprite cached = spriteCache.get(i);
+                if (cached != null) {
+                    cached.setNineSliceData(defaultNineSlice != null ? defaultNineSlice.copy() : null);
+                }
+            }
+        }
+    }
+
+    /**
+     * Clears all per-sprite 9-slice overrides.
+     */
+    public void clearSpriteNineSlices() {
+        spriteNineSlices.clear();
+        applyDefaultNineSliceToAllSprites();
     }
 }

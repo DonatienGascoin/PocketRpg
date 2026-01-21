@@ -1,5 +1,19 @@
 {
   "texture": "sprites/Building6_64x96.png",
   "spriteWidth": 64,
-  "spriteHeight": 96
+  "spriteHeight": 96,
+  "nineSlice": {
+    "left": 8,
+    "right": 16,
+    "top": 19,
+    "bottom": 9
+  },
+  "spriteNineSlices": {
+    "1": {
+      "left": 8,
+      "right": 33,
+      "top": 19,
+      "bottom": 9
+    }
+  }
 }

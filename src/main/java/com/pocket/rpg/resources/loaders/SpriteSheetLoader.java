@@ -8,6 +8,7 @@ import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.editor.EditorPanel;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
+import com.pocket.rpg.rendering.resources.NineSliceData;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.rendering.resources.SpriteSheet;
 import com.pocket.rpg.rendering.resources.Texture;
@@ -100,6 +101,32 @@ public class SpriteSheetLoader implements AssetLoader<SpriteSheet> {
             }
         }
 
+        // Load default 9-slice settings
+        if (json.has("nineSlice") && json.get("nineSlice").isJsonObject()) {
+            JsonObject nineSliceJson = json.getAsJsonObject("nineSlice");
+            NineSliceData defaultNineSlice = parseNineSliceData(nineSliceJson);
+            if (defaultNineSlice.hasSlicing()) {
+                sheet.setDefaultNineSlice(defaultNineSlice);
+            }
+        }
+
+        // Load per-sprite 9-slice overrides
+        if (json.has("spriteNineSlices") && json.get("spriteNineSlices").isJsonObject()) {
+            JsonObject nineSlices = json.getAsJsonObject("spriteNineSlices");
+            for (String key : nineSlices.keySet()) {
+                try {
+                    int frameIndex = Integer.parseInt(key);
+                    JsonObject sliceObj = nineSlices.getAsJsonObject(key);
+                    NineSliceData data = parseNineSliceData(sliceObj);
+                    if (data.hasSlicing()) {
+                        sheet.setSpriteNineSlice(frameIndex, data);
+                    }
+                } catch (NumberFormatException e) {
+                    // Skip invalid keys
+                }
+            }
+        }
+
         return sheet;
     }
 
@@ -147,6 +174,22 @@ public class SpriteSheetLoader implements AssetLoader<SpriteSheet> {
                 pivotsJson.add(String.valueOf(entry.getKey()), pivotObj);
             }
             json.add("spritePivots", pivotsJson);
+        }
+
+        // Add default 9-slice (only if set)
+        NineSliceData defaultNineSlice = spriteSheet.getDefaultNineSlice();
+        if (defaultNineSlice != null && defaultNineSlice.hasSlicing()) {
+            json.add("nineSlice", nineSliceToJson(defaultNineSlice));
+        }
+
+        // Add per-sprite 9-slice overrides
+        var spriteNineSlices = spriteSheet.getSpriteNineSlices();
+        if (!spriteNineSlices.isEmpty()) {
+            JsonObject nineSlicesJson = new JsonObject();
+            for (var entry : spriteNineSlices.entrySet()) {
+                nineSlicesJson.add(String.valueOf(entry.getKey()), nineSliceToJson(entry.getValue()));
+            }
+            json.add("spriteNineSlices", nineSlicesJson);
         }
 
         // Write to file
@@ -333,5 +376,33 @@ public class SpriteSheetLoader implements AssetLoader<SpriteSheet> {
         // Remove all extensions (handle .spritesheet.json)
         int firstDot = filename.indexOf('.');
         return firstDot >= 0 ? filename.substring(0, firstDot) : filename;
+    }
+
+    // ========================================================================
+    // 9-SLICE HELPERS
+    // ========================================================================
+
+    /**
+     * Parses NineSliceData from a JSON object.
+     */
+    private NineSliceData parseNineSliceData(JsonObject json) {
+        NineSliceData data = new NineSliceData();
+        data.left = json.has("left") ? json.get("left").getAsInt() : 0;
+        data.right = json.has("right") ? json.get("right").getAsInt() : 0;
+        data.top = json.has("top") ? json.get("top").getAsInt() : 0;
+        data.bottom = json.has("bottom") ? json.get("bottom").getAsInt() : 0;
+        return data;
+    }
+
+    /**
+     * Converts NineSliceData to a JSON object.
+     */
+    private JsonObject nineSliceToJson(NineSliceData data) {
+        JsonObject json = new JsonObject();
+        json.addProperty("left", data.left);
+        json.addProperty("right", data.right);
+        json.addProperty("top", data.top);
+        json.addProperty("bottom", data.bottom);
+        return json;
     }
 }

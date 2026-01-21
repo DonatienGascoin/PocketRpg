@@ -158,7 +158,8 @@ Plan updated in "<plan file path>"
 
 This gives the user a quick overview of what will be implemented without needing to read the full plan file.
 
-**Every plan must include a code review step at the end.** After implementing a feature, perform a code review of all changed/added files and write the review to `Documents/Reviews/`.
+**Every plan must include a code review step at the end.
+** After implementing a feature, ask another agent to perform a code review of all changed/added files and write the review to `Documents/Reviews/`. The new agent should only know about the implementation plan and must dig the code.**
 
 ## Inspector Field Editors
 

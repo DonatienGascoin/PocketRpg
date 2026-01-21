@@ -3,6 +3,7 @@ package com.pocket.rpg.editor.shortcut;
 import com.pocket.rpg.editor.EditorContext;
 import com.pocket.rpg.editor.EditorModeManager;
 import com.pocket.rpg.editor.EditorToolController;
+import com.pocket.rpg.editor.PlayModeController;
 import com.pocket.rpg.editor.panels.ConfigPanel;
 import com.pocket.rpg.editor.panels.PrefabBrowserPanel;
 import com.pocket.rpg.editor.scene.EditorGameObject;
@@ -32,6 +33,9 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
     private PrefabBrowserPanel prefabBrowserPanel;
 
     @Setter
+    private PlayModeController playModeController;
+
+    @Setter
     private Consumer<String> messageCallback;
 
     public EditorShortcutHandlersImpl(EditorContext context,
@@ -48,24 +52,22 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onNewScene() {
-        // Delegate to menu bar which handles unsaved changes dialog
-        menuBar.renderFileMenu(); // This triggers the menu item logic
-        // Note: In Phase 4, we'll wire this properly via menu bar methods
+        menuBar.triggerNewScene();
     }
 
     @Override
     public void onOpenScene() {
-        menuBar.renderFileMenu();
+        menuBar.triggerOpenScene();
     }
 
     @Override
     public void onSaveScene() {
-        menuBar.renderFileMenu();
+        menuBar.triggerSaveScene();
     }
 
     @Override
     public void onSaveSceneAs() {
-        menuBar.renderFileMenu();
+        menuBar.triggerSaveSceneAs();
     }
 
     @Override
@@ -447,14 +449,28 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onPlayToggle() {
-        // TODO: Wire to play mode controller
-        showMessage("Play/Pause (not implemented)");
+        if (playModeController == null) {
+            showMessage("Play mode not available");
+            return;
+        }
+
+        switch (playModeController.getState()) {
+            case STOPPED -> playModeController.play();
+            case PLAYING -> playModeController.pause();
+            case PAUSED -> playModeController.resume();
+        }
     }
 
     @Override
     public void onPlayStop() {
-        // TODO: Wire to play mode controller
-        showMessage("Stop (not implemented)");
+        if (playModeController == null) {
+            showMessage("Play mode not available");
+            return;
+        }
+
+        if (playModeController.isActive()) {
+            playModeController.stop();
+        }
     }
 
     // ========================================================================

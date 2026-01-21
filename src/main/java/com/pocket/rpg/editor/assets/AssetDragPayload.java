@@ -50,6 +50,37 @@ public record AssetDragPayload(
     public static final String DRAG_TYPE = "ASSET_DRAG";
 
     /**
+     * Flag to indicate the current drag operation has been cancelled.
+     * Set by pressing Escape during a drag. Drop targets should check this
+     * before accepting a drop.
+     */
+    private static boolean dragCancelled = false;
+
+    /**
+     * Marks the current drag operation as cancelled.
+     * Call this when the user presses Escape during a drag.
+     */
+    public static void cancelDrag() {
+        dragCancelled = true;
+    }
+
+    /**
+     * Checks if the current drag has been cancelled.
+     * Drop targets should check this before processing drops.
+     */
+    public static boolean isDragCancelled() {
+        return dragCancelled;
+    }
+
+    /**
+     * Clears the cancellation flag.
+     * Call this at the start of each frame or when a drag ends.
+     */
+    public static void clearCancellation() {
+        dragCancelled = false;
+    }
+
+    /**
      * Creates a payload for an asset.
      *
      * @param path Full path to the asset

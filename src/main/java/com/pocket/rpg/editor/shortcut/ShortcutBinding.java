@@ -73,7 +73,8 @@ public class ShortcutBinding {
      * Verifies exact modifier state (no extra modifiers pressed).
      */
     public boolean isPressed() {
-        if (!ImGui.isKeyPressed(key)) {
+        // Use false for repeat to only trigger on first press, not hold
+        if (!ImGui.isKeyPressed(key, false)) {
             return false;
         }
 

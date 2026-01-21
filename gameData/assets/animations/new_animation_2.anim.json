@@ -1,0 +1,10 @@
+{
+  "name": "new_animation_2",
+  "looping": true,
+  "frames": [
+    {
+      "sprite": "sheet_xy_spacing.png",
+      "duration": 1.0
+    }
+  ]
+}

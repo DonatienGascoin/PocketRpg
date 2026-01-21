@@ -208,14 +208,9 @@ public class EditorUIController {
 
     /**
      * Renders all UI components.
-     * IMPORTANT: processShortcuts() is called FIRST to handle global shortcuts
-     * regardless of which window is focused.
+     * Note: Shortcuts are processed by ShortcutRegistry in EditorApplication.update()
      */
     public void renderUI() {
-        // CRITICAL: Process global keyboard shortcuts FIRST, before any ImGui windows
-        // This ensures Ctrl+Z/Y work regardless of which panel is focused
-        menuBar.processShortcuts();
-
         // Menu bar
         renderMenuBar();
 

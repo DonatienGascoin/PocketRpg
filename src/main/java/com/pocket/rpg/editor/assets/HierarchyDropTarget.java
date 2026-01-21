@@ -45,10 +45,16 @@ public class HierarchyDropTarget {
             return false;
         }
 
+        // Don't show drop target when drag is cancelled
+        if (AssetDragPayload.isDragCancelled()) {
+            return false;
+        }
+
         if (ImGui.beginDragDropTarget()) {
             byte[] payloadData = ImGui.acceptDragDropPayload(AssetDragPayload.DRAG_TYPE);
 
             if (payloadData != null && payloadData.length > 0) {
+
                 AssetDragPayload payload = AssetDragPayload.deserialize(payloadData);
 
                 if (payload != null && AssetDropHandler.canInstantiate(payload)) {
@@ -84,10 +90,16 @@ public class HierarchyDropTarget {
             return false;
         }
 
+        // Don't show drop target when drag is cancelled
+        if (AssetDragPayload.isDragCancelled()) {
+            return false;
+        }
+
         if (ImGui.beginDragDropTarget()) {
             byte[] payloadData = ImGui.acceptDragDropPayload(AssetDragPayload.DRAG_TYPE);
 
             if (payloadData != null && payloadData.length > 0) {
+
                 AssetDragPayload payload = AssetDragPayload.deserialize(payloadData);
 
                 if (payload != null && AssetDropHandler.canInstantiate(payload)) {
@@ -129,6 +141,11 @@ public class HierarchyDropTarget {
             return false;
         }
 
+        // Don't show drop target when drag is cancelled
+        if (AssetDragPayload.isDragCancelled()) {
+            return false;
+        }
+
         // Create an invisible button to catch drops on empty area
         float availableHeight = ImGui.getContentRegionAvailY();
         if (availableHeight > 20) {
@@ -138,6 +155,7 @@ public class HierarchyDropTarget {
                 byte[] payloadData = ImGui.acceptDragDropPayload(AssetDragPayload.DRAG_TYPE);
 
                 if (payloadData != null && payloadData.length > 0) {
+
                     AssetDragPayload payload = AssetDragPayload.deserialize(payloadData);
 
                     if (payload != null && AssetDropHandler.canInstantiate(payload)) {

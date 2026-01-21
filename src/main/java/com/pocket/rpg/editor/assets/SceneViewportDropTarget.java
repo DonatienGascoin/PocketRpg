@@ -40,10 +40,16 @@ public class SceneViewportDropTarget {
             return false;
         }
 
+        // Don't show drop target when drag is cancelled
+        if (AssetDragPayload.isDragCancelled()) {
+            return false;
+        }
+
         if (ImGui.beginDragDropTarget()) {
             byte[] payloadData = ImGui.acceptDragDropPayload(AssetDragPayload.DRAG_TYPE);
 
             if (payloadData != null && payloadData.length > 0) {
+
                 AssetDragPayload payload = AssetDragPayload.deserialize(payloadData);
 
                 if (payload != null && AssetDropHandler.canInstantiate(payload)) {
@@ -81,8 +87,8 @@ public class SceneViewportDropTarget {
      */
     public static void renderDragOverlay(EditorCamera camera, float viewportX, float viewportY,
                                          float viewportWidth, float viewportHeight) {
-        // Check if we're dragging an asset payload
-        if (ImGui.getDragDropPayload() == null) {
+        // Check if we're dragging an asset payload (and not cancelled)
+        if (ImGui.getDragDropPayload() == null || AssetDragPayload.isDragCancelled()) {
             return;
         }
 

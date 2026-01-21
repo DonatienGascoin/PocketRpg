@@ -217,7 +217,7 @@ public class TrackTimelineRenderer {
             }
 
             byte[] spritePayload = ImGui.acceptDragDropPayload(AssetDragPayload.DRAG_TYPE);
-            if (spritePayload != null) {
+            if (spritePayload != null && !AssetDragPayload.isDragCancelled()) {
                 AssetDragPayload payload = AssetDragPayload.deserialize(spritePayload);
                 if (payload != null && payload.type() == Sprite.class) {
                     ctx.captureUndoState();
@@ -339,7 +339,7 @@ public class TrackTimelineRenderer {
             }
 
             byte[] spritePayload = ImGui.acceptDragDropPayload(AssetDragPayload.DRAG_TYPE);
-            if (spritePayload != null) {
+            if (spritePayload != null && !AssetDragPayload.isDragCancelled()) {
                 AssetDragPayload payload = AssetDragPayload.deserialize(spritePayload);
                 if (payload != null && payload.type() == Sprite.class) {
                     ctx.captureUndoState();
@@ -445,7 +445,7 @@ public class TrackTimelineRenderer {
 
         if (ImGui.beginDragDropTarget()) {
             byte[] spritePayload = ImGui.acceptDragDropPayload(AssetDragPayload.DRAG_TYPE);
-            if (spritePayload != null) {
+            if (spritePayload != null && !AssetDragPayload.isDragCancelled()) {
                 AssetDragPayload payload = AssetDragPayload.deserialize(spritePayload);
                 if (payload != null && payload.type() == Sprite.class) {
                     ctx.captureUndoState();

@@ -2,6 +2,9 @@ package com.pocket.rpg.editor.shortcut;
 
 import imgui.flag.ImGuiKey;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 /**
  * Defines all editor shortcuts with their default bindings.
  * This class serves as the central definition point for all shortcuts.
@@ -27,6 +30,7 @@ public final class EditorShortcuts {
     // Edit actions
     public static final String EDIT_UNDO = "editor.edit.undo";
     public static final String EDIT_REDO = "editor.edit.redo";
+    public static final String EDIT_REDO_ALT = "editor.edit.redoAlt"; // Ctrl+Y alternative
     public static final String EDIT_CUT = "editor.edit.cut";
     public static final String EDIT_COPY = "editor.edit.copy";
     public static final String EDIT_PASTE = "editor.edit.paste";
@@ -106,10 +110,13 @@ public final class EditorShortcuts {
     /**
      * Registers all shortcuts with their default bindings.
      * Call this during editor initialization.
+     *
+     * @param registry The shortcut registry
+     * @param layout   The keyboard layout (affects Undo/Redo bindings)
      */
-    public static void registerDefaults(ShortcutRegistry registry) {
+    public static void registerDefaults(ShortcutRegistry registry, KeyboardLayout layout) {
         registerFileShortcuts(registry);
-        registerEditShortcuts(registry);
+        registerEditShortcuts(registry, layout);
         registerViewShortcuts(registry);
         registerModeShortcuts(registry);
         registerTilemapToolShortcuts(registry);
@@ -164,23 +171,45 @@ public final class EditorShortcuts {
         );
     }
 
-    private static void registerEditShortcuts(ShortcutRegistry registry) {
+    private static void registerEditShortcuts(ShortcutRegistry registry, KeyboardLayout layout) {
+        // Undo/Redo bindings depend on keyboard layout
+        ShortcutBinding undoBinding = layout == KeyboardLayout.AZERTY
+                ? ShortcutBinding.ctrl(ImGuiKey.W)
+                : ShortcutBinding.ctrl(ImGuiKey.Z);
+
+        ShortcutBinding redoBinding = layout == KeyboardLayout.AZERTY
+                ? ShortcutBinding.ctrlShift(ImGuiKey.W)
+                : ShortcutBinding.ctrlShift(ImGuiKey.Z);
+
         registry.registerAll(
                 ShortcutAction.builder()
                         .id(EDIT_UNDO)
                         .displayName("Undo")
-                        .defaultBinding(ShortcutBinding.ctrl(ImGuiKey.Z))
+                        .defaultBinding(undoBinding)
                         .global()
                         .allowInTextInput(false)
+                        .allowInPopup(true)
                         .handler(() -> {})
                         .build(),
 
                 ShortcutAction.builder()
                         .id(EDIT_REDO)
                         .displayName("Redo")
-                        .defaultBinding(ShortcutBinding.ctrlShift(ImGuiKey.Z))
+                        .defaultBinding(redoBinding)
                         .global()
                         .allowInTextInput(false)
+                        .allowInPopup(true)
+                        .handler(() -> {})
+                        .build(),
+
+                // Alternative redo binding (Ctrl+Y) - same for all layouts
+                ShortcutAction.builder()
+                        .id(EDIT_REDO_ALT)
+                        .displayName("Redo (Alt)")
+                        .defaultBinding(ShortcutBinding.ctrl(ImGuiKey.Y))
+                        .global()
+                        .allowInTextInput(false)
+                        .allowInPopup(true)
                         .handler(() -> {})
                         .build(),
 
@@ -273,9 +302,17 @@ public final class EditorShortcuts {
     private static void registerModeShortcuts(ShortcutRegistry registry) {
         registry.registerAll(
                 ShortcutAction.builder()
+                        .id(MODE_ENTITY)
+                        .displayName("Entity Mode")
+                        .defaultBinding(ShortcutBinding.key(ImGuiKey.F1))
+                        .global()
+                        .handler(() -> {})
+                        .build(),
+
+                ShortcutAction.builder()
                         .id(MODE_TILEMAP)
                         .displayName("Tilemap Mode")
-                        .defaultBinding(ShortcutBinding.key(ImGuiKey.M))
+                        .defaultBinding(ShortcutBinding.key(ImGuiKey.F2))
                         .global()
                         .handler(() -> {})
                         .build(),
@@ -283,15 +320,7 @@ public final class EditorShortcuts {
                 ShortcutAction.builder()
                         .id(MODE_COLLISION)
                         .displayName("Collision Mode")
-                        .defaultBinding(ShortcutBinding.key(ImGuiKey.N))
-                        .global()
-                        .handler(() -> {})
-                        .build(),
-
-                ShortcutAction.builder()
-                        .id(MODE_ENTITY)
-                        .displayName("Entity Mode")
-                        .defaultBinding(ShortcutBinding.key(ImGuiKey.E))
+                        .defaultBinding(ShortcutBinding.key(ImGuiKey.F3))
                         .global()
                         .handler(() -> {})
                         .build()
@@ -483,6 +512,90 @@ public final class EditorShortcuts {
     }
 
     // ========================================================================
+    // DEFAULT BINDINGS BY LAYOUT
+    // ========================================================================
+
+    /**
+     * Gets the default bindings for a specific keyboard layout.
+     * Used for generating config files with both QWERTY and AZERTY defaults.
+     *
+     * @param layout The keyboard layout
+     * @return Map of action ID to default binding
+     */
+    public static Map<String, ShortcutBinding> getDefaultBindings(KeyboardLayout layout) {
+        Map<String, ShortcutBinding> bindings = new LinkedHashMap<>();
+
+        // File shortcuts (same for all layouts)
+        bindings.put(FILE_NEW, ShortcutBinding.ctrl(ImGuiKey.N));
+        bindings.put(FILE_OPEN, ShortcutBinding.ctrl(ImGuiKey.O));
+        bindings.put(FILE_SAVE, ShortcutBinding.ctrl(ImGuiKey.S));
+        bindings.put(FILE_SAVE_AS, ShortcutBinding.ctrlShift(ImGuiKey.S));
+        bindings.put(FILE_CONFIGURATION, null);
+
+        // Edit shortcuts (Undo/Redo differ by layout)
+        if (layout == KeyboardLayout.AZERTY) {
+            bindings.put(EDIT_UNDO, ShortcutBinding.ctrl(ImGuiKey.W));
+            bindings.put(EDIT_REDO, ShortcutBinding.ctrlShift(ImGuiKey.W));
+        } else {
+            bindings.put(EDIT_UNDO, ShortcutBinding.ctrl(ImGuiKey.Z));
+            bindings.put(EDIT_REDO, ShortcutBinding.ctrlShift(ImGuiKey.Z));
+        }
+        // Alternative redo (Ctrl+Y) - same for all layouts
+        bindings.put(EDIT_REDO_ALT, ShortcutBinding.ctrl(ImGuiKey.Y));
+        bindings.put(EDIT_CUT, ShortcutBinding.ctrl(ImGuiKey.X));
+        bindings.put(EDIT_COPY, ShortcutBinding.ctrl(ImGuiKey.C));
+        bindings.put(EDIT_PASTE, ShortcutBinding.ctrl(ImGuiKey.V));
+        bindings.put(EDIT_DELETE, ShortcutBinding.key(ImGuiKey.Delete));
+        bindings.put(EDIT_SELECT_ALL, ShortcutBinding.ctrl(ImGuiKey.A));
+        bindings.put(EDIT_DUPLICATE, ShortcutBinding.ctrl(ImGuiKey.D));
+
+        // View shortcuts (same for all layouts)
+        bindings.put(VIEW_ZOOM_IN, ShortcutBinding.ctrl(ImGuiKey.Equal));
+        bindings.put(VIEW_ZOOM_OUT, ShortcutBinding.ctrl(ImGuiKey.Minus));
+        bindings.put(VIEW_ZOOM_RESET, ShortcutBinding.ctrl(ImGuiKey._0));
+        bindings.put(VIEW_TOGGLE_GRID, ShortcutBinding.ctrl(ImGuiKey.G));
+
+        // Mode shortcuts (same for all layouts)
+        bindings.put(MODE_ENTITY, ShortcutBinding.key(ImGuiKey.F1));
+        bindings.put(MODE_TILEMAP, ShortcutBinding.key(ImGuiKey.F2));
+        bindings.put(MODE_COLLISION, ShortcutBinding.key(ImGuiKey.F3));
+
+        // Tilemap tool shortcuts
+        bindings.put(TOOL_TILE_BRUSH, ShortcutBinding.key(ImGuiKey.B));
+        bindings.put(TOOL_TILE_ERASER, ShortcutBinding.key(ImGuiKey.E));
+        bindings.put(TOOL_TILE_FILL, ShortcutBinding.key(ImGuiKey.F));
+        bindings.put(TOOL_TILE_RECTANGLE, ShortcutBinding.key(ImGuiKey.R));
+        bindings.put(TOOL_TILE_PICKER, ShortcutBinding.key(ImGuiKey.I));
+
+        // Collision tool shortcuts
+        bindings.put(TOOL_COLLISION_BRUSH, ShortcutBinding.key(ImGuiKey.C));
+        bindings.put(TOOL_COLLISION_ERASER, ShortcutBinding.key(ImGuiKey.X));
+        bindings.put(TOOL_COLLISION_FILL, ShortcutBinding.key(ImGuiKey.G));
+        bindings.put(TOOL_COLLISION_RECTANGLE, ShortcutBinding.key(ImGuiKey.H));
+        bindings.put(TOOL_COLLISION_PICKER, ShortcutBinding.key(ImGuiKey.V));
+
+        // Entity tool shortcuts
+        bindings.put(TOOL_SELECTION, ShortcutBinding.key(ImGuiKey.V));
+        bindings.put(TOOL_ENTITY_PLACER, ShortcutBinding.key(ImGuiKey.P));
+        bindings.put(ENTITY_DELETE, ShortcutBinding.key(ImGuiKey.Delete));
+        bindings.put(ENTITY_CANCEL, ShortcutBinding.key(ImGuiKey.Escape));
+
+        // Brush shortcuts
+        bindings.put(BRUSH_SIZE_INCREASE, ShortcutBinding.key(ImGuiKey.Equal));
+        bindings.put(BRUSH_SIZE_DECREASE, ShortcutBinding.key(ImGuiKey.Minus));
+
+        // Z-level shortcuts
+        bindings.put(Z_LEVEL_INCREASE, ShortcutBinding.key(ImGuiKey.RightBracket));
+        bindings.put(Z_LEVEL_DECREASE, ShortcutBinding.key(ImGuiKey.LeftBracket));
+
+        // Play shortcuts
+        bindings.put(PLAY_TOGGLE, ShortcutBinding.ctrl(ImGuiKey.P));
+        bindings.put(PLAY_STOP, ShortcutBinding.ctrlShift(ImGuiKey.P));
+
+        return bindings;
+    }
+
+    // ========================================================================
     // HANDLER BINDING
     // ========================================================================
 
@@ -501,6 +614,7 @@ public final class EditorShortcuts {
         // Edit
         registry.bindHandler(EDIT_UNDO, handlers::onUndo);
         registry.bindHandler(EDIT_REDO, handlers::onRedo);
+        registry.bindHandler(EDIT_REDO_ALT, handlers::onRedo); // Same handler as primary redo
         registry.bindHandler(EDIT_CUT, handlers::onCut);
         registry.bindHandler(EDIT_COPY, handlers::onCopy);
         registry.bindHandler(EDIT_PASTE, handlers::onPaste);

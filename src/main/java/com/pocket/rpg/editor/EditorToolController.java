@@ -3,24 +3,24 @@ package com.pocket.rpg.editor;
 import com.pocket.rpg.collision.CollisionType;
 import com.pocket.rpg.editor.panels.CollisionPanel;
 import com.pocket.rpg.editor.panels.PrefabBrowserPanel;
-import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
+import com.pocket.rpg.editor.shortcut.EditorShortcuts;
+import com.pocket.rpg.editor.shortcut.ShortcutRegistry;
 import com.pocket.rpg.editor.tools.*;
-import com.pocket.rpg.editor.undo.UndoManager;
-import com.pocket.rpg.editor.undo.commands.RemoveEntityCommand;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
-import imgui.flag.ImGuiKey;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.util.function.Consumer;
 
 /**
- * Manages editor tools: creation, shortcuts, and tool panel UI.
+ * Manages editor tools: creation and tool panel UI.
  * <p>
- * Handles tool registration, keyboard shortcuts based on current mode,
- * and renders the tool panel with buttons and settings.
+ * Handles tool registration and renders the tool panel with buttons and settings.
+ * Keyboard shortcuts are now handled by the centralized shortcut system.
+ *
+ * @see com.pocket.rpg.editor.shortcut.ShortcutRegistry
  */
 public class EditorToolController {
 
@@ -131,196 +131,6 @@ public class EditorToolController {
 
         // Sync z-levels
         syncCollisionZLevels();
-    }
-
-    /**
-     * Processes keyboard shortcuts for tools.
-     */
-    public void processShortcuts() {
-        if (ImGui.getIO().getWantTextInput()) return;
-
-        EditorModeManager modeManager = context.getModeManager();
-        ToolManager toolManager = context.getToolManager();
-
-        // Mode switching
-        if (ImGui.isKeyPressed(ImGuiKey.M)) {
-            modeManager.switchToTilemap();
-            toolManager.setActiveTool(brushTool);
-            showMessage("Switched to Tilemap Mode");
-        }
-        if (ImGui.isKeyPressed(ImGuiKey.N)) {
-            modeManager.switchToCollision();
-            toolManager.setActiveTool(collisionBrushTool);
-            syncCollisionZLevels();
-            showMessage("Switched to Collision Mode");
-        }
-
-        if (ImGui.isKeyPressed(ImGuiKey.E)) {
-            modeManager.switchToEntity();
-            toolManager.setActiveTool(selectionTool);
-            showMessage("Switched to Entity Mode");
-        }
-
-        // Tool shortcuts based on mode
-        if (modeManager.isTilemapMode()) {
-            processTilemapShortcuts();
-        } else if (modeManager.isCollisionMode()) {
-            processCollisionShortcuts();
-        } else if (modeManager.isEntityMode()) {
-            processEntityShortcuts();
-        }
-    }
-
-    private void processEntityShortcuts() {
-        ToolManager toolManager = context.getToolManager();
-
-        // V - Selection tool
-        if (ImGui.isKeyPressed(ImGuiKey.V)) {
-            toolManager.setActiveTool(selectionTool);
-            showMessage("Selection Tool");
-        }
-
-        // P - Entity placer tool
-        if (ImGui.isKeyPressed(ImGuiKey.P)) {
-            toolManager.setActiveTool(entityPlacerTool);
-            showMessage("Entity Placer");
-        }
-
-        // Escape - Cancel placement / Deselect
-        if (ImGui.isKeyPressed(ImGuiKey.Escape)) {
-            EditorTool activeTool = toolManager.getActiveTool();
-
-            // If using placer tool, switch to selection and clear prefab selection
-            if (activeTool == entityPlacerTool) {
-                toolManager.setActiveTool(selectionTool);
-                if (prefabBrowserPanel != null) {
-                    prefabBrowserPanel.clearSelection();
-                }
-                showMessage("Cancelled placement");
-            } else {
-                // Otherwise just deselect entity
-                EditorScene scene = context.getCurrentScene();
-                if (scene != null && scene.getSelectedEntity() != null) {
-                    scene.setSelectedEntity(null);
-                    showMessage("Deselected");
-                }
-            }
-        }
-
-        // Delete - Remove selected entity
-        if (ImGui.isKeyPressed(ImGuiKey.Delete) || ImGui.isKeyPressed(ImGuiKey.Backspace)) { // TODO: Move to Inspector binding so delete popup can be shown
-            EditorScene scene = context.getCurrentScene();
-            if (scene != null) {
-                EditorGameObject selected = scene.getSelectedEntity();
-                if (selected != null) {
-                    String name = selected.getName();
-                    UndoManager.getInstance().execute(new RemoveEntityCommand(scene, selected));
-                    showMessage("Deleted: " + name);
-                }
-            }
-        }
-    }
-
-    private void processTilemapShortcuts() {
-        ToolManager toolManager = context.getToolManager();
-
-        if (ImGui.isKeyPressed(ImGuiKey.B)) {
-            toolManager.setActiveTool(brushTool);
-            showMessage("Tile Brush");
-        }
-        if (ImGui.isKeyPressed(ImGuiKey.E)) {
-            toolManager.setActiveTool(eraserTool);
-            showMessage("Tile Eraser");
-        }
-        if (ImGui.isKeyPressed(ImGuiKey.F)) {
-            toolManager.setActiveTool(fillTool);
-            showMessage("Tile Fill");
-        }
-        if (ImGui.isKeyPressed(ImGuiKey.R)) {
-            toolManager.setActiveTool(rectangleTool);
-            showMessage("Tile Rectangle");
-        }
-        if (ImGui.isKeyPressed(ImGuiKey.I)) {
-            toolManager.setActiveTool(pickerTool);
-            showMessage("Tile Picker");
-        }
-
-        // Brush size
-        processBrushSizeShortcuts(brushTool.getBrushSize(), size -> {
-            brushTool.setBrushSize(size);
-            eraserTool.setEraserSize(size);
-        });
-    }
-
-    private void processCollisionShortcuts() {
-        ToolManager toolManager = context.getToolManager();
-
-        if (ImGui.isKeyPressed(ImGuiKey.C)) {
-            toolManager.setActiveTool(collisionBrushTool);
-            showMessage("Collision Brush");
-        }
-        if (ImGui.isKeyPressed(ImGuiKey.X)) {
-            toolManager.setActiveTool(collisionEraserTool);
-            showMessage("Collision Eraser");
-        }
-        if (ImGui.isKeyPressed(ImGuiKey.G)) {
-            toolManager.setActiveTool(collisionFillTool);
-            showMessage("Collision Fill");
-        }
-        if (ImGui.isKeyPressed(ImGuiKey.H)) {
-            toolManager.setActiveTool(collisionRectangleTool);
-            showMessage("Collision Rectangle");
-        }
-        if (ImGui.isKeyPressed(ImGuiKey.V)) {
-            toolManager.setActiveTool(collisionPickerTool);
-            showMessage("Collision Picker");
-        }
-
-        // Brush size
-        processBrushSizeShortcuts(collisionBrushTool.getBrushSize(), size -> {
-            collisionBrushTool.setBrushSize(size);
-            collisionEraserTool.setEraserSize(size);
-        });
-
-        // Z-level shortcuts
-        processZLevelShortcuts();
-    }
-
-    private void processBrushSizeShortcuts(int currentSize, Consumer<Integer> setter) {
-        if (ImGui.isKeyPressed(ImGuiKey.Minus) || ImGui.isKeyPressed(ImGuiKey.KeypadSubtract)) {
-            if (currentSize > 1) {
-                setter.accept(currentSize - 1);
-                showMessage("Brush Size: " + (currentSize - 1));
-            }
-        }
-        if (ImGui.isKeyPressed(ImGuiKey.Equal) || ImGui.isKeyPressed(ImGuiKey.KeypadAdd)) {
-            if (currentSize < 10) {
-                setter.accept(currentSize + 1);
-                showMessage("Brush Size: " + (currentSize + 1));
-            }
-        }
-    }
-
-    private void processZLevelShortcuts() {
-        EditorScene scene = context.getCurrentScene();
-        if (scene == null) return;
-
-        if (ImGui.isKeyPressed(ImGuiKey.LeftBracket)) {
-            int z = scene.getCollisionZLevel();
-            if (z > 0) {
-                scene.setCollisionZLevel(z - 1);
-                syncCollisionZLevels();
-                showMessage("Z-Level: " + (z - 1));
-            }
-        }
-        if (ImGui.isKeyPressed(ImGuiKey.RightBracket)) {
-            int z = scene.getCollisionZLevel();
-            if (z < 3) {
-                scene.setCollisionZLevel(z + 1);
-                syncCollisionZLevels();
-                showMessage("Z-Level: " + (z + 1));
-            }
-        }
     }
 
     /**
@@ -443,10 +253,12 @@ public class EditorToolController {
 
         ImGui.separator();
         ImGui.textDisabled("Shortcuts:");
-        ImGui.textDisabled("M - Switch to Tilemap");
-        ImGui.textDisabled("B - Brush, E - Eraser");
-        ImGui.textDisabled("F - Fill, R - Rectangle");
-        ImGui.textDisabled("I - Picker");
+        ImGui.textDisabled(shortcut(EditorShortcuts.MODE_TILEMAP) + " - Switch to Tilemap");
+        ImGui.textDisabled(shortcut(EditorShortcuts.TOOL_TILE_BRUSH) + " - Brush, " +
+                shortcut(EditorShortcuts.TOOL_TILE_ERASER) + " - Eraser");
+        ImGui.textDisabled(shortcut(EditorShortcuts.TOOL_TILE_FILL) + " - Fill, " +
+                shortcut(EditorShortcuts.TOOL_TILE_RECTANGLE) + " - Rectangle");
+        ImGui.textDisabled(shortcut(EditorShortcuts.TOOL_TILE_PICKER) + " - Picker");
     }
 
     private void renderCollisionToolSettings(EditorTool activeTool) {
@@ -486,10 +298,12 @@ public class EditorToolController {
 
         ImGui.separator();
         ImGui.textDisabled("Shortcuts:");
-        ImGui.textDisabled("N - Switch to Collision");
-        ImGui.textDisabled("C - Brush, X - Eraser");
-        ImGui.textDisabled("G - Fill, H - Rectangle");
-        ImGui.textDisabled("V - Picker");
+        ImGui.textDisabled(shortcut(EditorShortcuts.MODE_COLLISION) + " - Switch to Collision");
+        ImGui.textDisabled(shortcut(EditorShortcuts.TOOL_COLLISION_BRUSH) + " - Brush, " +
+                shortcut(EditorShortcuts.TOOL_COLLISION_ERASER) + " - Eraser");
+        ImGui.textDisabled(shortcut(EditorShortcuts.TOOL_COLLISION_FILL) + " - Fill, " +
+                shortcut(EditorShortcuts.TOOL_COLLISION_RECTANGLE) + " - Rectangle");
+        ImGui.textDisabled(shortcut(EditorShortcuts.TOOL_COLLISION_PICKER) + " - Picker");
     }
 
     private void setupCallbacks() {
@@ -518,5 +332,12 @@ public class EditorToolController {
         if (messageCallback != null) {
             messageCallback.accept(message);
         }
+    }
+
+    /**
+     * Gets the display string for a shortcut action from the registry.
+     */
+    private String shortcut(String actionId) {
+        return ShortcutRegistry.getInstance().getBindingDisplay(actionId);
     }
 }

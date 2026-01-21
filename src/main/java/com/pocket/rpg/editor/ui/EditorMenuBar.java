@@ -3,9 +3,10 @@ package com.pocket.rpg.editor.ui;
 import com.pocket.rpg.editor.core.FileDialogs;
 import com.pocket.rpg.editor.panels.ConfigPanel;
 import com.pocket.rpg.editor.scene.EditorScene;
+import com.pocket.rpg.editor.shortcut.EditorShortcuts;
+import com.pocket.rpg.editor.shortcut.ShortcutRegistry;
 import com.pocket.rpg.editor.undo.UndoManager;
 import imgui.ImGui;
-import imgui.flag.ImGuiKey;
 import lombok.Setter;
 
 import java.util.Optional;
@@ -57,11 +58,11 @@ public class EditorMenuBar {
     public void renderFileMenu() {
         renderUnsavedChangesDialog();
         if (ImGui.beginMenu("File")) {
-            if (ImGui.menuItem("New Scene", "Ctrl+N")) {
+            if (ImGui.menuItem("New Scene", getShortcutLabel(EditorShortcuts.FILE_NEW))) {
                 handleNewScene();
             }
 
-            if (ImGui.menuItem("Open Scene...", "Ctrl+O")) {
+            if (ImGui.menuItem("Open Scene...", getShortcutLabel(EditorShortcuts.FILE_OPEN))) {
                 handleOpenScene();
             }
 
@@ -93,11 +94,11 @@ public class EditorMenuBar {
             ImGui.separator();
 
             boolean canSave = currentScene != null && currentScene.isDirty();
-            if (ImGui.menuItem("Save", "Ctrl+S", false, canSave)) {
+            if (ImGui.menuItem("Save", getShortcutLabel(EditorShortcuts.FILE_SAVE), false, canSave)) {
                 handleSave();
             }
 
-            if (ImGui.menuItem("Save As...", "Ctrl+Shift+S")) {
+            if (ImGui.menuItem("Save As...", getShortcutLabel(EditorShortcuts.FILE_SAVE_AS))) {
                 handleSaveAs();
             }
 
@@ -123,7 +124,7 @@ public class EditorMenuBar {
 
             // Undo
             String undoLabel = "Undo" + (undoDesc != null ? " " + undoDesc : "");
-            if (ImGui.menuItem(undoLabel, "Ctrl+Z", false, canUndo)) {
+            if (ImGui.menuItem(undoLabel, getShortcutLabel(EditorShortcuts.EDIT_UNDO), false, canUndo)) {
                 undo.undo();
                 if (currentScene != null) {
                     currentScene.markDirty();
@@ -132,7 +133,7 @@ public class EditorMenuBar {
 
             // Redo
             String redoLabel = "Redo" + (redoDesc != null ? " " + redoDesc : "");
-            if (ImGui.menuItem(redoLabel, "Ctrl+Shift+Z", false, canRedo)) {
+            if (ImGui.menuItem(redoLabel, getShortcutLabel(EditorShortcuts.EDIT_REDO), false, canRedo)) {
                 undo.redo();
                 if (currentScene != null) {
                     currentScene.markDirty();
@@ -146,22 +147,22 @@ public class EditorMenuBar {
 
             ImGui.separator();
 
-            if (ImGui.menuItem("Cut", "Ctrl+X", false, false)) {
+            if (ImGui.menuItem("Cut", getShortcutLabel(EditorShortcuts.EDIT_CUT), false, false)) {
                 // TODO
             }
-            if (ImGui.menuItem("Copy", "Ctrl+C", false, false)) {
+            if (ImGui.menuItem("Copy", getShortcutLabel(EditorShortcuts.EDIT_COPY), false, false)) {
                 // TODO
             }
-            if (ImGui.menuItem("Paste", "Ctrl+V", false, false)) {
+            if (ImGui.menuItem("Paste", getShortcutLabel(EditorShortcuts.EDIT_PASTE), false, false)) {
                 // TODO
             }
-            if (ImGui.menuItem("Delete", "Delete", false, false)) {
+            if (ImGui.menuItem("Delete", getShortcutLabel(EditorShortcuts.EDIT_DELETE), false, false)) {
                 // TODO
             }
 
             ImGui.separator();
 
-            if (ImGui.menuItem("Select All", "Ctrl+A", false, false)) {
+            if (ImGui.menuItem("Select All", getShortcutLabel(EditorShortcuts.EDIT_SELECT_ALL), false, false)) {
                 // TODO
             }
 
@@ -204,11 +205,11 @@ public class EditorMenuBar {
             }
 
             if (ImGui.beginMenu("Zoom")) {
-                if (ImGui.menuItem("Zoom In", "+")) {
+                if (ImGui.menuItem("Zoom In", getShortcutLabel(EditorShortcuts.VIEW_ZOOM_IN))) {
                 }
-                if (ImGui.menuItem("Zoom Out", "-")) {
+                if (ImGui.menuItem("Zoom Out", getShortcutLabel(EditorShortcuts.VIEW_ZOOM_OUT))) {
                 }
-                if (ImGui.menuItem("Reset Zoom", "0")) {
+                if (ImGui.menuItem("Reset Zoom", getShortcutLabel(EditorShortcuts.VIEW_ZOOM_RESET))) {
                 }
                 if (ImGui.menuItem("Fit Scene")) {
                 }
@@ -245,6 +246,18 @@ public class EditorMenuBar {
 
         ImGui.setCursorPosX(availableWidth - textWidth - padding);
         ImGui.text(sceneInfo);
+    }
+
+    // ========================================================================
+    // SHORTCUT LABEL HELPER
+    // ========================================================================
+
+    /**
+     * Gets the display string for a shortcut action from the registry.
+     * Returns empty string if the action has no binding.
+     */
+    private String getShortcutLabel(String actionId) {
+        return ShortcutRegistry.getInstance().getBindingDisplay(actionId);
     }
 
     // ========================================================================
@@ -364,73 +377,35 @@ public class EditorMenuBar {
     }
 
     // ========================================================================
-    // KEYBOARD SHORTCUTS - Call at START of frame, before any ImGui windows
+    // PUBLIC TRIGGER METHODS (for shortcut system)
     // ========================================================================
 
     /**
-     * Processes global keyboard shortcuts.
-     * MUST be called at the start of the frame, before ImGui windows capture input.
+     * Triggers New Scene action from shortcut system.
      */
-    public void processShortcuts() {
-        // Skip if typing in a text field
-        if (ImGui.getIO().getWantTextInput()) {
-            return;
-        }
+    public void triggerNewScene() {
+        handleNewScene();
+    }
 
-        // Skip if a popup/modal is open (except for undo/redo which should still work)
-        boolean popupOpen = ImGui.isPopupOpen("", imgui.flag.ImGuiPopupFlags.AnyPopup);
+    /**
+     * Triggers Open Scene action from shortcut system.
+     */
+    public void triggerOpenScene() {
+        handleOpenScene();
+    }
 
-        boolean ctrl = ImGui.isKeyDown(ImGuiKey.LeftCtrl) || ImGui.isKeyDown(ImGuiKey.RightCtrl);
-        boolean shift = ImGui.isKeyDown(ImGuiKey.LeftShift) || ImGui.isKeyDown(ImGuiKey.RightShift);
+    /**
+     * Triggers Save Scene action from shortcut system.
+     */
+    public void triggerSaveScene() {
+        handleSave();
+    }
 
-        // Undo/Redo work even with popups (unless typing)
-        // Support both QWERTY (Z) and AZERTY (W)
-        if (ctrl && (ImGui.isKeyPressed(ImGuiKey.Z, false) || ImGui.isKeyPressed(ImGuiKey.W, false))) {
-            if (shift) {
-                // Ctrl+Shift+Z/W = Redo
-                if (UndoManager.getInstance().redo()) {
-                    if (currentScene != null) {
-                        currentScene.markDirty();
-                    }
-                }
-            } else {
-                // Ctrl+Z/W = Undo
-                if (UndoManager.getInstance().undo()) {
-                    if (currentScene != null) {
-                        currentScene.markDirty();
-                    }
-                }
-            }
-            return; // Consume the input
-        }
-
-        // Ctrl+Y for Redo (alternative)
-        if (ctrl && !shift && ImGui.isKeyPressed(ImGuiKey.Y, false)) {
-            if (UndoManager.getInstance().redo()) {
-                if (currentScene != null) {
-                    currentScene.markDirty();
-                }
-            }
-            return;
-        }
-
-        // File shortcuts - skip if popup is open
-        if (popupOpen) {
-            return;
-        }
-
-        if (ctrl && !shift && ImGui.isKeyPressed(ImGuiKey.N)) {
-            handleNewScene();
-        }
-        if (ctrl && !shift && ImGui.isKeyPressed(ImGuiKey.O)) {
-            handleOpenScene();
-        }
-        if (ctrl && !shift && ImGui.isKeyPressed(ImGuiKey.S)) {
-            handleSave();
-        }
-        if (ctrl && shift && ImGui.isKeyPressed(ImGuiKey.S)) {
-            handleSaveAs();
-        }
+    /**
+     * Triggers Save Scene As action from shortcut system.
+     */
+    public void triggerSaveSceneAs() {
+        handleSaveAs();
     }
 
     // ========================================================================

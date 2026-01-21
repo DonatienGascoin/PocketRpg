@@ -5,6 +5,11 @@ import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.config.InputConfig;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.editor.camera.EditorCamera;
+import com.pocket.rpg.editor.shortcut.EditorShortcutHandlersImpl;
+import com.pocket.rpg.editor.shortcut.EditorShortcuts;
+import com.pocket.rpg.editor.shortcut.KeyboardLayout;
+import com.pocket.rpg.editor.shortcut.ShortcutContext;
+import com.pocket.rpg.editor.shortcut.ShortcutRegistry;
 import com.pocket.rpg.editor.ui.inspectors.CustomComponentEditorRegistry;
 import com.pocket.rpg.rendering.postfx.PostEffectRegistry;
 import com.pocket.rpg.serialization.ComponentRegistry;
@@ -197,6 +202,36 @@ public class EditorApplication {
 
         // Pass viewport to tool manager
         uiController.getSceneViewport().setToolManager(context.getToolManager());
+
+        // Initialize shortcut system
+        ShortcutRegistry shortcutRegistry = ShortcutRegistry.getInstance();
+        String shortcutConfigPath = "editor/config/editorShortcuts.json";
+
+        // Load config first to get keyboard layout
+        KeyboardLayout layout = shortcutRegistry.loadConfigAndGetLayout(shortcutConfigPath);
+
+        // Register defaults with the keyboard layout
+        EditorShortcuts.registerDefaults(shortcutRegistry, layout);
+
+        // Apply any custom bindings from config
+        shortcutRegistry.applyConfigBindings();
+
+        // Generate complete config file with both QWERTY and AZERTY layouts
+        shortcutRegistry.generateCompleteConfig(EditorShortcuts::getDefaultBindings);
+
+        // Create shortcut handlers implementation
+        EditorShortcutHandlersImpl handlers = new EditorShortcutHandlersImpl(
+                context,
+                toolController,
+                uiController.getMenuBar()
+        );
+        handlers.setPlayModeController(playModeController);
+        handlers.setMessageCallback(uiController.getStatusBar()::showMessage);
+        handlers.setConfigPanel(uiController.getConfigPanel());
+        handlers.setPrefabBrowserPanel(uiController.getPrefabBrowserPanel());
+
+        // Bind handlers to shortcuts
+        EditorShortcuts.bindHandlers(shortcutRegistry, handlers);
     }
 
     /**
@@ -280,10 +315,6 @@ public class EditorApplication {
 
         // Update tools
         context.getToolManager().update(deltaTime);
-
-        // Process shortcuts
-        // uiController.getMenuBar().processShortcuts();
-        toolController.processShortcuts();
     }
 
     private boolean isEscapePressed() {
@@ -315,6 +346,9 @@ public class EditorApplication {
 
         // Begin ImGui frame
         imGuiLayer.newFrame();
+
+        // Process shortcuts (after newFrame, before ImGui windows)
+        ShortcutRegistry.getInstance().processShortcuts(ShortcutContext.current());
 
         // Setup docking and render UI
         uiController.setupDocking();

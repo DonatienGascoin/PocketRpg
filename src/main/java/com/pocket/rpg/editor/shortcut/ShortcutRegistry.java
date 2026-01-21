@@ -24,6 +24,7 @@ public class ShortcutRegistry {
     // Config persistence
     private ShortcutConfig config;
     private String configPath;
+    private KeyboardLayout keyboardLayout = KeyboardLayout.QWERTY;
 
     // Prevent duplicate firing in same frame
     private long lastProcessedFrame = -1;
@@ -264,24 +265,51 @@ public class ShortcutRegistry {
     // ========================================================================
 
     /**
-     * Loads custom bindings from config file.
+     * Loads keyboard layout from config file (call before registerDefaults).
+     * Returns the keyboard layout to use for default bindings.
      */
-    public void loadConfig(String path) {
+    public KeyboardLayout loadConfigAndGetLayout(String path) {
         this.configPath = path;
         this.config = ShortcutConfig.load(path);
 
         if (config != null) {
-            customBindings.clear();
-            customBindings.putAll(config.getBindings());
-            rebuildBindingIndex();
-            if (!customBindings.isEmpty()) {
-                System.out.println("[ShortcutRegistry] Loaded " + customBindings.size() + " custom shortcut bindings from " + path);
+            this.keyboardLayout = config.getKeyboardLayout();
+            System.out.println("[ShortcutRegistry] Keyboard layout: " + keyboardLayout);
+        }
+
+        return keyboardLayout;
+    }
+
+    /**
+     * Applies bindings from config after actions are registered.
+     * Call this after registerDefaults.
+     */
+    public void applyConfigBindings() {
+        if (config == null) {
+            return;
+        }
+
+        // Get bindings for the active layout
+        Map<String, ShortcutBinding> layoutBindings = config.getActiveBindings();
+        if (layoutBindings != null && !layoutBindings.isEmpty()) {
+            for (Map.Entry<String, ShortcutBinding> entry : layoutBindings.entrySet()) {
+                if (actions.containsKey(entry.getKey()) && entry.getValue() != null) {
+                    customBindings.put(entry.getKey(), entry.getValue());
+                }
             }
+            rebuildBindingIndex();
         }
     }
 
     /**
-     * Saves current custom bindings to config file.
+     * Gets the current keyboard layout.
+     */
+    public KeyboardLayout getKeyboardLayout() {
+        return keyboardLayout;
+    }
+
+    /**
+     * Saves ALL shortcuts to config file for both layouts.
      */
     public void saveConfig() {
         if (configPath == null) {
@@ -293,8 +321,70 @@ public class ShortcutRegistry {
             config = new ShortcutConfig();
         }
 
-        config.setBindings(customBindings);
+        config.setKeyboardLayout(keyboardLayout);
+
+        // Save current bindings to the active layout
+        Map<String, ShortcutBinding> currentBindings = new LinkedHashMap<>();
+        for (ShortcutAction action : actions.values()) {
+            ShortcutBinding binding = getBinding(action.getId());
+            currentBindings.put(action.getId(), binding);
+        }
+        config.setBindingsForLayout(keyboardLayout, currentBindings);
+
         config.save(configPath);
+    }
+
+    /**
+     * Generates and saves a complete config file with shortcuts for BOTH layouts.
+     * Call this after all shortcuts are registered.
+     *
+     * @param defaultsGenerator Function that returns default bindings for a given layout
+     */
+    public void generateCompleteConfig(java.util.function.Function<KeyboardLayout, Map<String, ShortcutBinding>> defaultsGenerator) {
+        if (configPath == null) {
+            System.err.println("[ShortcutRegistry] No config path set, cannot generate config");
+            return;
+        }
+
+        if (config == null) {
+            config = new ShortcutConfig();
+        }
+
+        config.setKeyboardLayout(keyboardLayout);
+
+        // Generate/update bindings for both layouts
+        for (KeyboardLayout layout : KeyboardLayout.values()) {
+            Map<String, ShortcutBinding> existingBindings = config.getBindingsForLayout(layout);
+
+            if (existingBindings == null || existingBindings.isEmpty()) {
+                // No existing bindings - generate defaults
+                Map<String, ShortcutBinding> defaults = defaultsGenerator.apply(layout);
+                config.setBindingsForLayout(layout, defaults);
+                System.out.println("[ShortcutRegistry] Generated " + layout + " defaults with " + defaults.size() + " shortcuts");
+            } else {
+                // Merge: add any new shortcuts that aren't in existing config
+                Map<String, ShortcutBinding> defaults = defaultsGenerator.apply(layout);
+                Map<String, ShortcutBinding> merged = new LinkedHashMap<>(existingBindings);
+                for (Map.Entry<String, ShortcutBinding> entry : defaults.entrySet()) {
+                    if (!merged.containsKey(entry.getKey())) {
+                        merged.put(entry.getKey(), entry.getValue());
+                    }
+                }
+                config.setBindingsForLayout(layout, merged);
+            }
+        }
+
+        config.save(configPath);
+        System.out.println("[ShortcutRegistry] Generated complete config for both layouts at " + configPath);
+    }
+
+    /**
+     * @deprecated Use {@link #generateCompleteConfig(java.util.function.Function)} instead
+     */
+    @Deprecated
+    public void generateCompleteConfig() {
+        saveConfig();
+        System.out.println("[ShortcutRegistry] Generated config with " + actions.size() + " shortcuts at " + configPath);
     }
 
     // ========================================================================

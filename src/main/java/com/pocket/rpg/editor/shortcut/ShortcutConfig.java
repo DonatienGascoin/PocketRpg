@@ -12,8 +12,12 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Configuration file for custom shortcut bindings.
- * Stored as JSON in editor/editorShortcuts.json
+ * Configuration file for shortcut bindings.
+ * Stored as JSON in editor/config/editorShortcuts.json
+ * <p>
+ * Stores bindings for BOTH keyboard layouts. The active layout is selected
+ * via the keyboardLayout field. Switching layouts automatically uses the
+ * appropriate set of bindings.
  */
 @Getter
 @Setter
@@ -24,10 +28,61 @@ public class ShortcutConfig {
             .registerTypeAdapter(ShortcutBinding.class, new ShortcutBindingAdapter())
             .create();
 
-    private Map<String, ShortcutBinding> bindings = new HashMap<>();
+    /**
+     * Currently active keyboard layout.
+     */
+    private KeyboardLayout keyboardLayout = KeyboardLayout.QWERTY;
+
+    /**
+     * QWERTY keyboard layout bindings.
+     */
+    private Map<String, ShortcutBinding> qwertyBindings = new HashMap<>();
+
+    /**
+     * AZERTY keyboard layout bindings.
+     */
+    private Map<String, ShortcutBinding> azertyBindings = new HashMap<>();
+
+    /**
+     * Gets the bindings for the currently active keyboard layout.
+     */
+    public Map<String, ShortcutBinding> getActiveBindings() {
+        return keyboardLayout == KeyboardLayout.AZERTY ? azertyBindings : qwertyBindings;
+    }
+
+    /**
+     * Gets the bindings for a specific keyboard layout.
+     */
+    public Map<String, ShortcutBinding> getBindingsForLayout(KeyboardLayout layout) {
+        return layout == KeyboardLayout.AZERTY ? azertyBindings : qwertyBindings;
+    }
+
+    /**
+     * Sets bindings for a specific keyboard layout.
+     */
+    public void setBindingsForLayout(KeyboardLayout layout, Map<String, ShortcutBinding> bindings) {
+        if (layout == KeyboardLayout.AZERTY) {
+            this.azertyBindings = bindings;
+        } else {
+            this.qwertyBindings = bindings;
+        }
+    }
+
+    // Legacy compatibility - redirect to active bindings
+    @Deprecated
+    public Map<String, ShortcutBinding> getBindings() {
+        return getActiveBindings();
+    }
+
+    @Deprecated
+    public void setBindings(Map<String, ShortcutBinding> bindings) {
+        setBindingsForLayout(keyboardLayout, bindings);
+    }
 
     /**
      * Loads config from file, returns empty config if file doesn't exist or is invalid.
+     * Handles migration from legacy format (single "bindings" field) to new format
+     * (separate "qwertyBindings" and "azertyBindings" fields).
      */
     public static ShortcutConfig load(String path) {
         Path filePath = Path.of(path);
@@ -38,12 +93,60 @@ public class ShortcutConfig {
         }
 
         try (Reader reader = Files.newBufferedReader(filePath)) {
-            ShortcutConfig config = GSON.fromJson(reader, ShortcutConfig.class);
-            return config != null ? config : new ShortcutConfig();
+            // Parse as JsonObject first to detect format
+            JsonObject json = JsonParser.parseReader(reader).getAsJsonObject();
+
+            ShortcutConfig config = new ShortcutConfig();
+
+            // Read keyboard layout
+            if (json.has("keyboardLayout")) {
+                String layoutStr = json.get("keyboardLayout").getAsString();
+                config.setKeyboardLayout(KeyboardLayout.valueOf(layoutStr));
+            }
+
+            // Check for new format
+            if (json.has("qwertyBindings") || json.has("azertyBindings")) {
+                // New format - read both layouts
+                if (json.has("qwertyBindings")) {
+                    config.qwertyBindings = parseBindingsMap(json.getAsJsonObject("qwertyBindings"));
+                }
+                if (json.has("azertyBindings")) {
+                    config.azertyBindings = parseBindingsMap(json.getAsJsonObject("azertyBindings"));
+                }
+            } else if (json.has("bindings")) {
+                // Legacy format - migrate single "bindings" field to active layout
+                Map<String, ShortcutBinding> legacyBindings = parseBindingsMap(json.getAsJsonObject("bindings"));
+                config.setBindingsForLayout(config.getKeyboardLayout(), legacyBindings);
+                System.out.println("[ShortcutConfig] Migrated legacy config format to dual-layout format");
+            }
+
+            return config;
         } catch (Exception e) {
             System.err.println("[ShortcutConfig] Failed to load shortcut config from " + path + ": " + e.getMessage());
             return new ShortcutConfig();
         }
+    }
+
+    /**
+     * Parses a JSON object as a bindings map.
+     */
+    private static Map<String, ShortcutBinding> parseBindingsMap(JsonObject json) {
+        Map<String, ShortcutBinding> bindings = new HashMap<>();
+        if (json == null) {
+            return bindings;
+        }
+
+        for (String key : json.keySet()) {
+            JsonElement value = json.get(key);
+            if (value.isJsonNull()) {
+                bindings.put(key, null);
+            } else {
+                ShortcutBinding binding = ShortcutBinding.fromConfigString(value.getAsString());
+                bindings.put(key, binding);
+            }
+        }
+
+        return bindings;
     }
 
     /**

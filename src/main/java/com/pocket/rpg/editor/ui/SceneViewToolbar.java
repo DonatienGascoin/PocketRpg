@@ -5,6 +5,8 @@ import com.pocket.rpg.editor.EditorModeManager;
 import com.pocket.rpg.editor.EditorToolController;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.scene.EditorScene;
+import com.pocket.rpg.editor.shortcut.EditorShortcuts;
+import com.pocket.rpg.editor.shortcut.ShortcutRegistry;
 import com.pocket.rpg.editor.tools.EditorTool;
 import com.pocket.rpg.editor.tools.ToolManager;
 import imgui.ImGui;
@@ -141,7 +143,10 @@ public class SceneViewToolbar {
         ImGui.popItemWidth();
 
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("Editor Mode (M/N/E)");
+            String entityKey = ShortcutRegistry.getInstance().getBindingDisplay(EditorShortcuts.MODE_ENTITY);
+            String tilemapKey = ShortcutRegistry.getInstance().getBindingDisplay(EditorShortcuts.MODE_TILEMAP);
+            String collisionKey = ShortcutRegistry.getInstance().getBindingDisplay(EditorShortcuts.MODE_COLLISION);
+            ImGui.setTooltip("Editor Mode (" + entityKey + "/" + tilemapKey + "/" + collisionKey + ")");
         }
     }
 

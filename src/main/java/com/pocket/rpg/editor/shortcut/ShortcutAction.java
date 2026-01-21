@@ -17,6 +17,7 @@ public class ShortcutAction {
     private final ShortcutScope scope;
     private final String panelId;               // Required for PANEL_FOCUSED and PANEL_VISIBLE scopes
     private final boolean allowInTextInput;     // If true, fires even when typing in text field
+    private final boolean allowInPopup;         // If true, fires even when popup is open (for undo/redo)
 
     private Runnable handler;
 
@@ -29,6 +30,7 @@ public class ShortcutAction {
         this.panelId = builder.panelId;
         this.handler = Objects.requireNonNull(builder.handler, "Handler required");
         this.allowInTextInput = builder.allowInTextInput;
+        this.allowInPopup = builder.allowInPopup;
 
         // Validate panel scope has panel ID
         if ((scope == ShortcutScope.PANEL_FOCUSED || scope == ShortcutScope.PANEL_VISIBLE)
@@ -74,7 +76,7 @@ public class ShortcutAction {
             case POPUP -> context.isPopupOpen();
             case PANEL_FOCUSED -> context.isPanelFocused(panelId);
             case PANEL_VISIBLE -> context.isPanelVisible(panelId);
-            case GLOBAL -> !context.isPopupOpen(); // Global shortcuts disabled when popup is open
+            case GLOBAL -> allowInPopup || !context.isPopupOpen(); // allowInPopup overrides popup restriction
         };
     }
 
@@ -99,6 +101,7 @@ public class ShortcutAction {
         private String panelId;
         private Runnable handler;
         private boolean allowInTextInput = false;
+        private boolean allowInPopup = false;
 
         public Builder id(String id) {
             this.id = id;
@@ -154,6 +157,11 @@ public class ShortcutAction {
 
         public Builder allowInTextInput(boolean allow) {
             this.allowInTextInput = allow;
+            return this;
+        }
+
+        public Builder allowInPopup(boolean allow) {
+            this.allowInPopup = allow;
             return this;
         }
 

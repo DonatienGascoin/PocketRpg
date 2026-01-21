@@ -16,6 +16,8 @@ import imgui.type.ImString;
 import lombok.Getter;
 import lombok.Setter;
 
+import static imgui.flag.ImGuiKey.Escape;
+
 import java.util.*;
 import java.util.function.Consumer;
 
@@ -203,6 +205,17 @@ public class AssetBrowserPanel {
     public void render() {
         if (needsRefresh) {
             refresh();
+        }
+
+        // Check for Escape to cancel drag operation
+        // Note: imgui-java doesn't expose clearDragDrop(), so we use a flag-based approach
+        // TODO: Once imgui-java exposes clearDragDrop(), replace with:
+        //   imgui.internal.ImGui.clearActiveID();
+        //   imgui.internal.ImGui.clearDragDrop();
+        if (ImGui.getDragDropPayload() == null) {
+            AssetDragPayload.clearCancellation();
+        } else if (ImGui.isKeyPressed(Escape, false)) {
+            AssetDragPayload.cancelDrag();
         }
 
         if (ImGui.begin("Assets")) {
@@ -485,17 +498,20 @@ public class AssetBrowserPanel {
 
         // Drag source - use unified path format
         if (canInstantiate(entry) && ImGui.beginDragDropSource(ImGuiDragDropFlags.SourceAllowNullID)) {
-            AssetDragPayload payload = AssetDragPayload.of(entry.path, entry.type);
-            ImGui.setDragDropPayload(AssetDragPayload.DRAG_TYPE, payload.serialize());
+            if (!AssetDragPayload.isDragCancelled()) {
+                AssetDragPayload payload = AssetDragPayload.of(entry.path, entry.type);
+                ImGui.setDragDropPayload(AssetDragPayload.DRAG_TYPE, payload.serialize());
 
-            // Drag preview with sprite thumbnail
-            if (preview != null && preview.getTexture() != null) {
-                int texId = thumbnailCache.getTextureId(entry.path, preview);
-                float[] uv = thumbnailCache.getUVCoords(entry.path);
-                ImGui.image(texId, 32, 32, uv[0], uv[3], uv[2], uv[1]);
-                ImGui.sameLine();
+                // Drag preview with sprite thumbnail
+                if (preview != null && preview.getTexture() != null) {
+                    int texId = thumbnailCache.getTextureId(entry.path, preview);
+                    float[] uv = thumbnailCache.getUVCoords(entry.path);
+                    ImGui.image(texId, 32, 32, uv[0], uv[3], uv[2], uv[1]);
+                    ImGui.sameLine();
+                }
+                ImGui.text(entry.filename);
             }
-            ImGui.text(entry.filename);
+            // When cancelled, empty tooltip (small box remains due to imgui-java limitation)
 
             ImGui.endDragDropSource();
         }
@@ -611,13 +627,16 @@ public class AssetBrowserPanel {
 
         // Drag source - use unified path format with #index
         if (ImGui.beginDragDropSource(ImGuiDragDropFlags.SourceAllowNullID)) {
-            AssetDragPayload payload = AssetDragPayload.ofSpriteSheetSprite(sheetEntry.path, index);
-            ImGui.setDragDropPayload(AssetDragPayload.DRAG_TYPE, payload.serialize());
+            if (!AssetDragPayload.isDragCancelled()) {
+                AssetDragPayload payload = AssetDragPayload.ofSpriteSheetSprite(sheetEntry.path, index);
+                ImGui.setDragDropPayload(AssetDragPayload.DRAG_TYPE, payload.serialize());
 
-            // Drag preview with sprite thumbnail
-            ImGui.image(texId, 32, 32, uv[0], uv[3], uv[2], uv[1]);
-            ImGui.sameLine();
-            ImGui.text(sheetEntry.filename + "#" + index);
+                // Drag preview with sprite thumbnail
+                ImGui.image(texId, 32, 32, uv[0], uv[3], uv[2], uv[1]);
+                ImGui.sameLine();
+                ImGui.text(sheetEntry.filename + "#" + index);
+            }
+            // When cancelled, empty tooltip (small box remains due to imgui-java limitation)
 
             ImGui.endDragDropSource();
         }

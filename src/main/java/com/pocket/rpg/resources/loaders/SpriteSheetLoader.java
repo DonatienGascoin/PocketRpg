@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.pocket.rpg.components.SpriteRenderer;
+import com.pocket.rpg.editor.EditorPanel;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.rendering.resources.Sprite;
@@ -313,6 +314,11 @@ public class SpriteSheetLoader implements AssetLoader<SpriteSheet> {
     @Override
     public Set<EditorCapability> getEditorCapabilities() {
         return Set.of(EditorCapability.PIVOT_EDITING);
+    }
+
+    @Override
+    public EditorPanel getEditorPanel() {
+        return EditorPanel.SPRITE_EDITOR;
     }
 
     /**

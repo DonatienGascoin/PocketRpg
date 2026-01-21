@@ -25,7 +25,7 @@ public class EditorMenuBar {
     private Runnable onSaveScene;
     private Consumer<String> onSaveSceneAs;
     private Runnable onExit;
-    private Runnable onOpenPivotEditor;
+    private Runnable onOpenSpriteEditor;
 
     private EditorScene currentScene;
 
@@ -168,9 +168,9 @@ public class EditorMenuBar {
 
             ImGui.separator();
 
-            if (ImGui.menuItem("Pivot Editor...", "")) {
-                if (onOpenPivotEditor != null) {
-                    onOpenPivotEditor.run();
+            if (ImGui.menuItem("Sprite Editor...", "")) {
+                if (onOpenSpriteEditor != null) {
+                    onOpenSpriteEditor.run();
                 }
             }
 
@@ -440,7 +440,7 @@ public class EditorMenuBar {
         this.recentFiles = files != null ? files : new String[0];
     }
 
-    public void setOnOpenPivotEditor(Runnable callback) {
-        this.onOpenPivotEditor = callback;
+    public void setOnOpenSpriteEditor(Runnable callback) {
+        this.onOpenSpriteEditor = callback;
     }
 }

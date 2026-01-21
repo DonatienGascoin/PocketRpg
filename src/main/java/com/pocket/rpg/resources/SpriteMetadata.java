@@ -1,5 +1,7 @@
 package com.pocket.rpg.resources;
 
+import com.pocket.rpg.rendering.resources.NineSliceData;
+
 /**
  * Metadata for standalone sprite assets.
  * <p>
@@ -48,9 +50,11 @@ public class SpriteMetadata {
      */
     public Float pixelsPerUnitOverride;
 
-    // Future fields can be added here:
-    // public NineSliceData nineSlice;
-    // public PhysicsShapeData physicsShape;
+    /**
+     * 9-slice border data for scalable UI sprites.
+     * Null means no 9-slice (render as normal sprite).
+     */
+    public NineSliceData nineSlice;
 
     /**
      * Creates empty metadata with all defaults.
@@ -73,10 +77,20 @@ public class SpriteMetadata {
      * Checks if this metadata has any non-default values.
      * Used to determine if the metadata file should be created/kept.
      *
-     * @return true if all values are null (defaults)
+     * @return true if all values are null/empty (defaults)
      */
     public boolean isEmpty() {
-        return pivotX == null && pivotY == null && pixelsPerUnitOverride == null;
+        return pivotX == null && pivotY == null && pixelsPerUnitOverride == null
+                && (nineSlice == null || nineSlice.isEmpty());
+    }
+
+    /**
+     * Checks if 9-slice data is set and has actual borders.
+     *
+     * @return true if nineSlice is non-null and has at least one border > 0
+     */
+    public boolean hasNineSlice() {
+        return nineSlice != null && nineSlice.hasSlicing();
     }
 
     /**

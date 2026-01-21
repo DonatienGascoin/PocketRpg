@@ -182,3 +182,38 @@ When implementing new inspector UI or field types, **prioritize using and extend
 3. Use `FieldEditorUtils.inspectorRow()` for consistent layout
 4. Follow the undo pattern: capture on activation, push on deactivation
 5. Support both reflection-based and getter/setter variants
+
+## ImGui Push/Pop Style Rules
+
+**CRITICAL: Always use the same condition for push and pop.**
+
+When using `pushStyleColor`/`popStyleColor` or `pushStyleVar`/`popStyleVar`, the push and pop **must** use the exact same condition value. If state changes between push and pop (e.g., a button click toggles a boolean), you get assertion errors.
+
+**WRONG - state changes between push and pop:**
+```java
+if (isEnabled) {
+    ImGui.pushStyleColor(ImGuiCol.Button, ...);
+}
+if (ImGui.button("Toggle")) {
+    isEnabled = !isEnabled;  // State changes here!
+}
+if (isEnabled) {  // Different value than push!
+    ImGui.popStyleColor();
+}
+```
+
+**CORRECT - store state before the widget:**
+```java
+boolean wasEnabled = isEnabled;  // Store state
+if (wasEnabled) {
+    ImGui.pushStyleColor(ImGuiCol.Button, ...);
+}
+if (ImGui.button("Toggle")) {
+    isEnabled = !isEnabled;  // State can change safely
+}
+if (wasEnabled) {  // Same value as push
+    ImGui.popStyleColor();
+}
+```
+
+This applies to any conditional push/pop pattern where the condition might change.

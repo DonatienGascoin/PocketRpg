@@ -83,9 +83,9 @@ public class AssetBrowserPanel {
     // Panel handlers for double-click (keyed by EditorPanel)
     private final Map<EditorPanel, Consumer<String>> panelHandlers = new EnumMap<>(EditorPanel.class);
 
-    // Pivot editor panel reference for context menu
+    // Sprite editor panel reference for context menu and double-click
     @Setter
-    private PivotEditorPanel pivotEditorPanel;
+    private SpriteEditorPanel spriteEditorPanel;
 
     // ========================================================================
     // INITIALIZATION
@@ -541,17 +541,14 @@ public class AssetBrowserPanel {
         if (ImGui.beginPopupContextItem("asset_ctx_" + entry.path)) {
             Set<EditorCapability> caps = Assets.getEditorCapabilities(entry.type);
 
-            // Pivot editing
+            // Sprite Editor (pivot and 9-slice editing)
             if (caps.contains(EditorCapability.PIVOT_EDITING)) {
-                if (ImGui.menuItem(MaterialIcons.CenterFocusWeak + " Edit Pivot...")) {
-                    if (pivotEditorPanel != null) {
-                        pivotEditorPanel.open(entry.path);
+                if (ImGui.menuItem(MaterialIcons.Edit + " Sprite Editor...")) {
+                    if (spriteEditorPanel != null) {
+                        spriteEditorPanel.open(entry.path);
                     }
                 }
             }
-
-            // Future: Other capabilities
-            // if (caps.contains(EditorCapability.NINE_SLICE)) { ... }
 
             // Common actions
             if (!caps.isEmpty()) {

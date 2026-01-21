@@ -2,5 +2,7 @@
   "texture": "sprites/characters/Char1_32x32.png",
   "spriteWidth": 32,
   "spriteHeight": 32,
-  "offsetY": 16
+  "offsetY": 16,
+  "pivotX": 0.5,
+  "pivotY": 0.0
 }

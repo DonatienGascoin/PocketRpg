@@ -58,7 +58,7 @@ public class EditorUIController {
     private AnimationEditorPanel animationEditorPanel;
 
     @Getter
-    private PivotEditorPanel pivotEditorPanel;
+    private SpriteEditorPanel spriteEditorPanel;
 
     @Getter
     private EditorMenuBar menuBar;
@@ -93,12 +93,16 @@ public class EditorUIController {
 
         sceneToolbar.setMessageCallback(statusBar::showMessage);
         animationEditorPanel.setStatusCallback(statusBar::showMessage);
-        pivotEditorPanel.setStatusCallback(statusBar::showMessage);
+        spriteEditorPanel.setStatusCallback(statusBar::showMessage);
 
         // Register panel handlers for asset double-click
         assetBrowserPanel.registerPanelHandler(
                 EditorPanel.ANIMATION_EDITOR,
                 animationEditorPanel::selectAnimationByPath
+        );
+        assetBrowserPanel.registerPanelHandler(
+                EditorPanel.SPRITE_EDITOR,
+                spriteEditorPanel::open
         );
     }
 
@@ -128,12 +132,12 @@ public class EditorUIController {
         prefabBrowserPanel.setToolManager(context.getToolManager());
         prefabBrowserPanel.setEntityPlacerTool(toolController.getEntityPlacerTool());
 
-        // Create pivot editor before asset browser (needed for context menu)
-        pivotEditorPanel = new PivotEditorPanel();
+        // Create sprite editor before asset browser (needed for context menu)
+        spriteEditorPanel = new SpriteEditorPanel();
 
         assetBrowserPanel = new AssetBrowserPanel();
         assetBrowserPanel.initialize();
-        assetBrowserPanel.setPivotEditorPanel(pivotEditorPanel);
+        assetBrowserPanel.setSpriteEditorPanel(spriteEditorPanel);
 
         toolController.getEntityPlacerTool().setPrefabPanel(prefabBrowserPanel);
         toolController.setPrefabBrowserPanel(prefabBrowserPanel);
@@ -163,7 +167,7 @@ public class EditorUIController {
         menuBar = new EditorMenuBar();
         menuBar.setCurrentScene(context.getCurrentScene());
         menuBar.setConfigPanel(configPanel);
-        menuBar.setOnOpenPivotEditor(() -> pivotEditorPanel.open());
+        menuBar.setOnOpenSpriteEditor(() -> spriteEditorPanel.open());
 
         statusBar = new StatusBar();
         statusBar.setCamera(context.getCamera());
@@ -388,7 +392,7 @@ public class EditorUIController {
         configPanel.render();
         uiDesignerPanel.render();
         animationEditorPanel.render();
-        pivotEditorPanel.render();
+        spriteEditorPanel.render();
         if (gameViewPanel != null) {
             gameViewPanel.render();
         }

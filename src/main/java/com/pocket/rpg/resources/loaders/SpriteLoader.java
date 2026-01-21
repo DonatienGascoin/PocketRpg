@@ -1,6 +1,7 @@
 package com.pocket.rpg.resources.loaders;
 
 import com.pocket.rpg.components.SpriteRenderer;
+import com.pocket.rpg.editor.EditorPanel;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.rendering.resources.Sprite;
@@ -34,7 +35,7 @@ public class SpriteLoader implements AssetLoader<Sprite> {
             // Path tracking is handled by AssetManager.resourcePaths
             Sprite sprite = new Sprite(texture, path);
 
-            // Apply metadata if it exists (pivot, ppu override)
+            // Apply metadata if it exists (pivot, ppu override, 9-slice)
             String relativePath = Assets.getRelativePath(path);
             if (relativePath != null) {
                 SpriteMetadata meta = AssetMetadata.load(relativePath, SpriteMetadata.class);
@@ -44,6 +45,9 @@ public class SpriteLoader implements AssetLoader<Sprite> {
                     }
                     if (meta.pixelsPerUnitOverride != null) {
                         sprite.setPixelsPerUnitOverride(meta.pixelsPerUnitOverride);
+                    }
+                    if (meta.hasNineSlice()) {
+                        sprite.setNineSliceData(meta.nineSlice.copy());
                     }
                 }
             }
@@ -122,6 +126,11 @@ public class SpriteLoader implements AssetLoader<Sprite> {
     @Override
     public Set<EditorCapability> getEditorCapabilities() {
         return Set.of(EditorCapability.PIVOT_EDITING);
+    }
+
+    @Override
+    public EditorPanel getEditorPanel() {
+        return EditorPanel.SPRITE_EDITOR;
     }
 
     /**

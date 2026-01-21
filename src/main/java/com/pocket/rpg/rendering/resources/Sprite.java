@@ -88,6 +88,14 @@ public class Sprite {
     @Setter
     private Float pixelsPerUnitOverride = null;
 
+    /**
+     * Optional 9-slice data for scalable UI rendering.
+     * When null or empty, sprite renders normally.
+     * When set, sprite can be rendered with 9-slice scaling.
+     */
+    @Setter
+    private NineSliceData nineSliceData = null;
+
     // ========================================================================
     // CONSTRUCTORS
     // ========================================================================
@@ -110,6 +118,9 @@ public class Sprite {
         copy.setPivot(sprite.getPivotX(), sprite.getPivotY());
         copy.setUVs(sprite.getU0(), sprite.getV0(), sprite.getU1(), sprite.getV1());
         copy.setPixelsPerUnitOverride(sprite.getPixelsPerUnitOverride());
+        if (sprite.nineSliceData != null) {
+            copy.setNineSliceData(sprite.nineSliceData.copy());
+        }
 
         return copy;
     }
@@ -233,6 +244,33 @@ public class Sprite {
      */
     public void setPivotTopLeft() {
         setPivot(0f, 1f);
+    }
+
+    // ========================================================================
+    // NINE-SLICE METHODS
+    // ========================================================================
+
+    /**
+     * Checks if this sprite has valid 9-slice data.
+     *
+     * @return true if nineSliceData is set and has at least one border > 0
+     */
+    public boolean hasNineSlice() {
+        return nineSliceData != null && nineSliceData.hasSlicing();
+    }
+
+    /**
+     * Creates a NineSlice wrapper for this sprite.
+     * <p>
+     * Use this to get pre-computed UV coordinates for 9-slice rendering.
+     *
+     * @return A new NineSlice instance, or null if no 9-slice data is set
+     */
+    public NineSlice createNineSlice() {
+        if (!hasNineSlice()) {
+            return null;
+        }
+        return new NineSlice(this, nineSliceData);
     }
 
     // ========================================================================

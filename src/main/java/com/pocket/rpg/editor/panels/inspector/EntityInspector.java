@@ -1,7 +1,7 @@
 package com.pocket.rpg.editor.panels.inspector;
 
 import com.pocket.rpg.components.Component;
-import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.ComponentBrowserPopup;
 import com.pocket.rpg.editor.panels.SavePrefabPopup;
 import com.pocket.rpg.editor.scene.EditorGameObject;
@@ -52,7 +52,7 @@ public class EntityInspector {
 
         ImGui.sameLine();
         if (entity.isScratchEntity() && !entity.getComponents().isEmpty()) {
-            if (ImGui.button(FontAwesomeIcons.Save + "##save")) {
+            if (ImGui.button(MaterialIcons.Save + "##save")) {
                 savePrefabPopup.open(entity, p -> System.out.println("Saved prefab: " + p.getId()));
             }
             if (ImGui.isItemHovered()) ImGui.setTooltip("Save as Prefab");
@@ -61,7 +61,7 @@ public class EntityInspector {
 
         ImGui.pushStyleColor(ImGuiCol.Button, 0.5f, 0.2f, 0.2f, 1f);
         ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.6f, 0.3f, 0.3f, 1f);
-        if (ImGui.button(FontAwesomeIcons.Trash + "##delete")) {
+        if (ImGui.button(MaterialIcons.Delete + "##delete")) {
             pendingDeleteEntity = entity;
             ImGui.openPopup("Delete Entity");
         }
@@ -87,7 +87,7 @@ public class EntityInspector {
 
                 if (pendingDeleteEntity.hasChildren()) {
                     ImGui.textColored(1f, 0.7f, 0.2f, 1f,
-                            FontAwesomeIcons.ExclamationTriangle + " This will also delete " +
+                            MaterialIcons.Warning + " This will also delete " +
                                     pendingDeleteEntity.getChildren().size() + " children!");
                 }
 
@@ -135,7 +135,7 @@ public class EntityInspector {
         ImGui.labelText("Prefab", prefab != null ? prefab.getDisplayName() : entity.getPrefabId() + " (missing)");
 
         if (prefab == null) {
-            ImGui.textColored(1f, 0.5f, 0.2f, 1f, FontAwesomeIcons.ExclamationTriangle + " Prefab not found");
+            ImGui.textColored(1f, 0.5f, 0.2f, 1f, MaterialIcons.Warning + " Prefab not found");
         } else {
             int overrideCount = entity.getOverrideCount();
             if (overrideCount > 0) {
@@ -175,7 +175,7 @@ public class EntityInspector {
                 if (!isPrefab) {
                     ImGui.sameLine(ImGui.getContentRegionAvailX() - 20);
                     ImGui.pushStyleColor(ImGuiCol.Button, 0.5f, 0.2f, 0.2f, 1f);
-                    if (ImGui.smallButton(FontAwesomeIcons.Times + "##remove")) toRemove = comp;
+                    if (ImGui.smallButton(MaterialIcons.Close + "##remove")) toRemove = comp;
                     ImGui.popStyleColor();
                     if (ImGui.isItemHovered()) ImGui.setTooltip("Remove component");
                 }
@@ -197,7 +197,7 @@ public class EntityInspector {
 
         if (!isPrefab) {
             ImGui.separator();
-            if (ImGui.button(FontAwesomeIcons.Plus + " Add Component", -1, 0)) {
+            if (ImGui.button(MaterialIcons.Add + " Add Component", -1, 0)) {
                 componentBrowserPopup.open(meta -> {
                     Component component = ComponentRegistry.instantiateByClassName(meta.className());
                     if (component != null) {

@@ -1,6 +1,7 @@
 package com.pocket.rpg.editor.panels;
 
 import com.pocket.rpg.editor.assets.AssetPreviewRegistry;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.rendering.resources.SpriteSheet;
 import com.pocket.rpg.resources.Assets;
@@ -120,7 +121,7 @@ public class AssetPickerPopup {
                     Class<?> pathType = Assets.getTypeForPath(path);
                     if (pathType == SpriteSheet.class) {
                         // Add the spritesheet header
-                        availableAssets.add(new AssetEntry(path, fileName, false, false));
+                        availableAssets.add(new AssetEntry(path, MaterialIcons.PhotoLibrary + " " + fileName, false, false));
                         
                         // Expand individual sprites
                         try {
@@ -129,7 +130,7 @@ public class AssetPickerPopup {
                                 int totalFrames = sheet.getTotalFrames();
                                 for (int i = 0; i < totalFrames; i++) {
                                     String spritePath = SpriteReference.buildPath(path, i);
-                                    String spriteName = "  └─ " + fileName + "#" + i;
+                                    String spriteName = "  " + MaterialIcons.Image + " " + fileName + "#" + i;
                                     availableAssets.add(new AssetEntry(spritePath, spriteName, true, true));
                                 }
                             }
@@ -138,7 +139,7 @@ public class AssetPickerPopup {
                         }
                     } else {
                         // Regular image file
-                        availableAssets.add(new AssetEntry(path, fileName, false, true));
+                        availableAssets.add(new AssetEntry(path, MaterialIcons.Image + " " + fileName, false, true));
                     }
                 }
             } else {

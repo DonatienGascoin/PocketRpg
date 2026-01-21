@@ -1,6 +1,6 @@
 package com.pocket.rpg.collision;
 
-import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import lombok.Getter;
 
 /**
@@ -30,22 +30,22 @@ public enum CollisionType {
     /**
      * Ledge - can jump down (from top to bottom)
      */
-    LEDGE_DOWN(2, "Ledge " + FontAwesomeIcons.ArrowDown, new float[]{1.0f, 0.5f, 0.0f, 0.6f}, Direction.DOWN),
+    LEDGE_DOWN(2, "Ledge " + MaterialIcons.ArrowDownward, new float[]{1.0f, 0.5f, 0.0f, 0.6f}, Direction.DOWN),
 
     /**
      * Ledge - can jump up (from bottom to top)
      */
-    LEDGE_UP(3, "Ledge " + FontAwesomeIcons.ArrowUp, new float[]{1.0f, 0.7f, 0.0f, 0.6f}, Direction.UP),
+    LEDGE_UP(3, "Ledge " + MaterialIcons.ArrowUpward, new float[]{1.0f, 0.7f, 0.0f, 0.6f}, Direction.UP),
 
     /**
      * Ledge - can jump left (from right to left)
      */
-    LEDGE_LEFT(4, "Ledge " + FontAwesomeIcons.ArrowLeft, new float[]{1.0f, 0.6f, 0.0f, 0.6f}, Direction.LEFT),
+    LEDGE_LEFT(4, "Ledge " + MaterialIcons.ArrowBack, new float[]{1.0f, 0.6f, 0.0f, 0.6f}, Direction.LEFT),
 
     /**
      * Ledge - can jump right (from left to right)
      */
-    LEDGE_RIGHT(5, "Ledge " + FontAwesomeIcons.ArrowRight, new float[]{1.0f, 0.65f, 0.0f, 0.6f}, Direction.RIGHT),
+    LEDGE_RIGHT(5, "Ledge " + MaterialIcons.ArrowForward, new float[]{1.0f, 0.65f, 0.0f, 0.6f}, Direction.RIGHT),
 
     /**
      * Water - triggers swimming state

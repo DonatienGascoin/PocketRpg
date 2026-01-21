@@ -5,7 +5,7 @@ import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.core.window.ViewportConfig;
 import com.pocket.rpg.editor.EditorContext;
-import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.uidesigner.*;
 import com.pocket.rpg.editor.rendering.EditorFramebuffer;
 import com.pocket.rpg.editor.rendering.EditorUIBridge;
@@ -150,7 +150,7 @@ public class UIDesignerPanel {
             ImGui.pushStyleColor(ImGuiCol.Button, 0.2f, 0.6f, 0.2f, 1.0f);
             ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.3f, 0.7f, 0.3f, 1.0f);
         }
-        if (ImGui.button(FontAwesomeIcons.Magnet + " Snap")) {
+        if (ImGui.button(MaterialIcons.Anchor + " Snap")) {
             state.setSnapEnabled(!snapEnabled);
         }
         if (snapEnabled) {
@@ -168,7 +168,7 @@ public class UIDesignerPanel {
             ImGui.pushStyleColor(ImGuiCol.Button, 0.2f, 0.6f, 0.2f, 1.0f);
             ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.3f, 0.7f, 0.3f, 1.0f);
         }
-        if (ImGui.button(FontAwesomeIcons.ProjectDiagram + " Anchors")) {
+        if (ImGui.button(MaterialIcons.AccountTree + " Anchors")) {
             state.setShowAnchorLines(!showAnchorLines);
         }
         if (showAnchorLines) {
@@ -182,7 +182,7 @@ public class UIDesignerPanel {
         ImGui.text(" | ");
         ImGui.sameLine();
 
-        if (ImGui.button(FontAwesomeIcons.Crosshairs + " Reset")) {
+        if (ImGui.button(MaterialIcons.CenterFocusWeak + " Reset")) {
             state.resetCamera();
         }
         if (ImGui.isItemHovered()) {

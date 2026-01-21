@@ -2,7 +2,7 @@ package com.pocket.rpg.editor.panels;
 
 import com.pocket.rpg.editor.EditorModeManager;
 import com.pocket.rpg.editor.assets.HierarchyDropTarget;
-import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.hierarchy.EntityCreationService;
 import com.pocket.rpg.editor.panels.hierarchy.HierarchyDragDropHandler;
 import com.pocket.rpg.editor.panels.hierarchy.HierarchySelectionHandler;
@@ -111,7 +111,7 @@ public class HierarchyPanel {
 
             ImGui.text(IconUtils.getSceneIcon() + " " + scene.getName());
             ImGui.sameLine(ImGui.getContentRegionMaxX() - 15);
-            if (ImGui.smallButton(FontAwesomeIcons.Plus)) {
+            if (ImGui.smallButton(MaterialIcons.Add)) {
                 ImGui.openPopup("CreateEntity_Popup");
             }
             if (ImGui.isItemHovered()) {
@@ -218,7 +218,7 @@ public class HierarchyPanel {
                 creationService.createEmptyEntity();
             }
 
-            if (ImGui.beginMenu(FontAwesomeIcons.WindowMaximize + " Create UI")) {
+            if (ImGui.beginMenu(MaterialIcons.Widgets + " Create UI")) {
                 if (ImGui.menuItem(IconUtils.getUICanvasIcon() + " Canvas")) {
                     creationService.createUIElement("Canvas");
                 }
@@ -250,11 +250,11 @@ public class HierarchyPanel {
                 ImGui.text(selected.size() + " selected");
                 ImGui.separator();
 
-                if (ImGui.menuItem(FontAwesomeIcons.Trash + " Delete Selected")) {
+                if (ImGui.menuItem(MaterialIcons.Delete + " Delete Selected")) {
                     UndoManager.getInstance().execute(new BulkDeleteCommand(scene, selected));
                 }
 
-                if (ImGui.menuItem(FontAwesomeIcons.TimesCircle + " Clear Selection")) {
+                if (ImGui.menuItem(MaterialIcons.Cancel + " Clear Selection")) {
                     scene.clearSelection();
                 }
             } else {
@@ -262,7 +262,7 @@ public class HierarchyPanel {
                     creationService.createEmptyEntity();
                 }
 
-                if (ImGui.beginMenu(FontAwesomeIcons.WindowMaximize + " Create UI")) {
+                if (ImGui.beginMenu(MaterialIcons.Widgets + " Create UI")) {
                     if (ImGui.menuItem(IconUtils.getUICanvasIcon() + " Canvas")) {
                         creationService.createUIElement("Canvas");
                     }

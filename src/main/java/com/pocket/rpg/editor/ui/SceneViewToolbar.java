@@ -3,7 +3,7 @@ package com.pocket.rpg.editor.ui;
 import com.pocket.rpg.editor.EditorContext;
 import com.pocket.rpg.editor.EditorModeManager;
 import com.pocket.rpg.editor.EditorToolController;
-import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.shortcut.EditorShortcuts;
 import com.pocket.rpg.editor.shortcut.ShortcutRegistry;
@@ -30,24 +30,24 @@ public class SceneViewToolbar {
     private Consumer<String> messageCallback;
 
     private static final ToolDef[] TILEMAP_TOOLS = {
-            new ToolDef("Brush", FontAwesomeIcons.PaintBrush, "B"),
-            new ToolDef("Eraser", FontAwesomeIcons.Eraser, "E"),
-            new ToolDef("Fill", FontAwesomeIcons.FillDrip, "F"),
-            new ToolDef("Rectangle", FontAwesomeIcons.VectorSquare, "R"),
-            new ToolDef("Picker", FontAwesomeIcons.EyeDropper, "I"),
+            new ToolDef("Brush", MaterialIcons.Brush, "B"),
+            new ToolDef("Eraser", MaterialIcons.Delete, "E"),
+            new ToolDef("Fill", MaterialIcons.FormatColorFill, "F"),
+            new ToolDef("Rectangle", MaterialIcons.CropSquare, "R"),
+            new ToolDef("Picker", MaterialIcons.Colorize, "I"),
     };
 
     private static final ToolDef[] COLLISION_TOOLS = {
-            new ToolDef("Collision Brush", FontAwesomeIcons.PaintBrush, "C"),
-            new ToolDef("Collision Eraser", FontAwesomeIcons.Eraser, "X"),
-            new ToolDef("Collision Fill", FontAwesomeIcons.FillDrip, "G"),
-            new ToolDef("Collision Rectangle", FontAwesomeIcons.VectorSquare, "H"),
-            new ToolDef("Collision Picker", FontAwesomeIcons.EyeDropper, "V"),
+            new ToolDef("Collision Brush", MaterialIcons.Brush, "C"),
+            new ToolDef("Collision Eraser", MaterialIcons.Delete, "X"),
+            new ToolDef("Collision Fill", MaterialIcons.FormatColorFill, "G"),
+            new ToolDef("Collision Rectangle", MaterialIcons.CropSquare, "H"),
+            new ToolDef("Collision Picker", MaterialIcons.Colorize, "V"),
     };
 
     private static final ToolDef[] ENTITY_TOOLS = {
-            new ToolDef("Select", FontAwesomeIcons.MousePointer, "V"),
-            new ToolDef("Place Entity", FontAwesomeIcons.PlusSquare, "P"),
+            new ToolDef("Select", MaterialIcons.NearMe, "V"),
+            new ToolDef("Place Entity", MaterialIcons.AddBox, "P"),
     };
 
     @Getter
@@ -157,7 +157,7 @@ public class SceneViewToolbar {
         if (gridActive) {
             ImGui.pushStyleColor(ImGuiCol.Button, 0.2f, 0.5f, 0.2f, 1.0f);
         }
-        if (ImGui.button(FontAwesomeIcons.Th + "##Grid")) {
+        if (ImGui.button(MaterialIcons.GridOn + "##Grid")) {
             showGrid = !showGrid;
         }
         if (gridActive) {
@@ -173,7 +173,7 @@ public class SceneViewToolbar {
         if (collisionVisible) {
             ImGui.pushStyleColor(ImGuiCol.Button, 0.5f, 0.2f, 0.2f, 1.0f);
         }
-        if (ImGui.button(FontAwesomeIcons.BorderAll + "##Collision")) {
+        if (ImGui.button(MaterialIcons.BorderAll + "##Collision")) {
             if (scene != null) {
                 scene.setCollisionVisible(!collisionVisible);
             }

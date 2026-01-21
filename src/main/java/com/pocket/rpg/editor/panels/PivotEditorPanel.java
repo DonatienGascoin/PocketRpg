@@ -1,7 +1,7 @@
 package com.pocket.rpg.editor.panels;
 
 import com.pocket.rpg.editor.assets.AssetPreviewRegistry;
-import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.SetterUndoCommand;
 import com.pocket.rpg.rendering.resources.Sprite;
@@ -67,9 +67,9 @@ public class PivotEditorPanel {
     };
 
     private static final String[] PRESET_LABELS = {
-            "TL", "TC", "TR",
-            "ML", "C", "MR",
-            "BL", "BC", "BR"
+            MaterialIcons.NorthWest, MaterialIcons.North, MaterialIcons.NorthEast,
+            MaterialIcons.West, MaterialIcons.Adjust, MaterialIcons.East,
+            MaterialIcons.SouthWest, MaterialIcons.South, MaterialIcons.SouthEast
     };
 
     private static final String[] PRESET_TOOLTIPS = {
@@ -287,7 +287,7 @@ public class PivotEditorPanel {
         ImGui.sameLine();
 
         // Browse button
-        if (ImGui.button(FontAwesomeIcons.FolderOpen + " Browse")) {
+        if (ImGui.button(MaterialIcons.FolderOpen + " Browse")) {
             showAssetPicker = true;
             assetSearchBuffer.set("");
         }
@@ -331,14 +331,14 @@ public class PivotEditorPanel {
                 // Tabs
                 if (ImGui.beginTabBar("AssetTypeTabs")) {
                     // Sprites tab
-                    if (ImGui.beginTabItem(FontAwesomeIcons.Image + " Sprites (" + spriteAssets.size() + ")")) {
+                    if (ImGui.beginTabItem(MaterialIcons.Image + " Sprites (" + spriteAssets.size() + ")")) {
                         assetPickerTab = 0;
                         renderAssetList(spriteAssets, filter, Sprite.class);
                         ImGui.endTabItem();
                     }
 
                     // Spritesheets tab
-                    if (ImGui.beginTabItem(FontAwesomeIcons.ThLarge + " Sheets (" + sheetAssets.size() + ")")) {
+                    if (ImGui.beginTabItem(MaterialIcons.GridView + " Sheets (" + sheetAssets.size() + ")")) {
                         assetPickerTab = 1;
                         renderAssetList(sheetAssets, filter, SpriteSheet.class);
                         ImGui.endTabItem();
@@ -743,7 +743,7 @@ public class PivotEditorPanel {
             ImGui.pushStyleColor(ImGuiCol.Button, 0.2f, 0.5f, 0.2f, 1f);
             ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.3f, 0.6f, 0.3f, 1f);
         }
-        if (ImGui.button(FontAwesomeIcons.ThLarge + " Pixel Snap", btnWidth, btnHeight)) {
+        if (ImGui.button(MaterialIcons.Grid4x4 + " Pixel Snap", btnWidth, btnHeight)) {
             pixelSnap = !pixelSnap;
             if (pixelSnap) {
                 pivotX = applyPixelSnap(pivotX, true);
@@ -770,7 +770,7 @@ public class PivotEditorPanel {
             ImGui.pushStyleColor(ImGuiCol.Button, 0.2f, 0.5f, 0.2f, 1f);
             ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.3f, 0.6f, 0.3f, 1f);
         }
-        if (ImGui.button(FontAwesomeIcons.ThLarge + " Grid", btnWidth, btnHeight)) {
+        if (ImGui.button(MaterialIcons.GridOn + " Grid", btnWidth, btnHeight)) {
             showGrid = !showGrid;
         }
         if (wasShowGrid) {
@@ -784,7 +784,7 @@ public class PivotEditorPanel {
             ImGui.pushStyleColor(ImGuiCol.Button, 0.2f, 0.5f, 0.2f, 1f);
             ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.3f, 0.6f, 0.3f, 1f);
         }
-        if (ImGui.button(FontAwesomeIcons.Crosshairs + " Crosshair", btnWidth, btnHeight)) {
+        if (ImGui.button(MaterialIcons.CenterFocusWeak + " Crosshair", btnWidth, btnHeight)) {
             showCrosshair = !showCrosshair;
         }
         if (wasShowCrosshair) {
@@ -964,7 +964,7 @@ public class PivotEditorPanel {
         ImGui.pushStyleColor(ImGuiCol.Button, 0.2f, 0.5f, 0.2f, 1f);
         ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.3f, 0.6f, 0.3f, 1f);
         ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.4f, 0.7f, 0.4f, 1f);
-        if (ImGui.button(FontAwesomeIcons.Save + " Save", buttonWidth, 0)) {
+        if (ImGui.button(MaterialIcons.Save + " Save", buttonWidth, 0)) {
             applyPivot(true);
         }
         ImGui.popStyleColor(3);

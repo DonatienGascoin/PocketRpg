@@ -1,7 +1,7 @@
 package com.pocket.rpg.editor.ui;
 
 import com.pocket.rpg.editor.camera.EditorCamera;
-import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorScene;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
@@ -99,17 +99,17 @@ public class StatusBar {
         }
 
         // Message with icon based on content
-        String icon = FontAwesomeIcons.InfoCircle;
+        String icon = MaterialIcons.Info;
         float r = 0.7f, g = 0.9f, b = 0.7f;
 
         if (message.contains("Error") || message.contains("error")) {
-            icon = FontAwesomeIcons.ExclamationTriangle;
+            icon = MaterialIcons.Warning;
             r = 1.0f; g = 0.4f; b = 0.4f;
         } else if (message.contains("Saved")) {
-            icon = FontAwesomeIcons.Check;
+            icon = MaterialIcons.Check;
             r = 0.4f; g = 1.0f; b = 0.4f;
         } else if (message.contains("Opened") || message.contains("created")) {
-            icon = FontAwesomeIcons.FolderOpen;
+            icon = MaterialIcons.FolderOpen;
             r = 0.4f; g = 0.8f; b = 1.0f;
         }
 
@@ -125,12 +125,12 @@ public class StatusBar {
         // Zoom level
         if (camera != null) {
             int zoomPercent = (int) (camera.getZoom() * 100);
-            rightText.append(FontAwesomeIcons.SearchPlus).append(" ").append(zoomPercent).append("%");
+            rightText.append(MaterialIcons.ZoomIn).append(" ").append(zoomPercent).append("%");
         }
 
         // Scene dirty indicator
         if (currentScene != null && currentScene.isDirty()) {
-            rightText.append("  ").append(FontAwesomeIcons.Circle).append(" Modified");
+            rightText.append("  ").append(MaterialIcons.Circle).append(" Modified");
         }
 
         if (rightText.length() > 0) {

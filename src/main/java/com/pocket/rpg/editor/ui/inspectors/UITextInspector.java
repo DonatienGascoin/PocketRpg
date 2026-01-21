@@ -3,7 +3,7 @@ package com.pocket.rpg.editor.ui.inspectors;
 import com.pocket.rpg.components.ui.UIText;
 import com.pocket.rpg.config.ConfigLoader;
 import com.pocket.rpg.editor.core.EditorConfig;
-import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.ui.fields.FieldEditorContext;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
@@ -41,7 +41,7 @@ public class UITextInspector extends CustomComponentInspector<UIText> {
         boolean changed = false;
 
         // === CONTENT SECTION ===
-        ImGui.text(FontAwesomeIcons.Font + " Content");
+        ImGui.text(MaterialIcons.TextFields + " Content");
         ImGui.separator();
 
         // Font path dropdown
@@ -68,7 +68,7 @@ public class UITextInspector extends CustomComponentInspector<UIText> {
         // === APPEARANCE SECTION ===
         ImGui.spacing();
         ImGui.spacing();
-        ImGui.text(FontAwesomeIcons.Palette + " Appearance");
+        ImGui.text(MaterialIcons.Palette + " Appearance");
         ImGui.separator();
 
         // Color
@@ -78,7 +78,7 @@ public class UITextInspector extends CustomComponentInspector<UIText> {
         // === ALIGNMENT SECTION ===
         ImGui.spacing();
         ImGui.spacing();
-        ImGui.text(FontAwesomeIcons.AlignCenter + " Alignment");
+        ImGui.text(MaterialIcons.FormatAlignCenter + " Alignment");
         ImGui.separator();
 
         // Horizontal alignment
@@ -98,17 +98,17 @@ public class UITextInspector extends CustomComponentInspector<UIText> {
 
         // Quick alignment buttons
         ImGui.sameLine();
-        if (ImGui.smallButton(FontAwesomeIcons.AlignLeft)) {
+        if (ImGui.smallButton(MaterialIcons.FormatAlignLeft)) {
             setEnumValue("horizontalAlignment", "LEFT");
             changed = true;
         }
         ImGui.sameLine();
-        if (ImGui.smallButton(FontAwesomeIcons.AlignCenter)) {
+        if (ImGui.smallButton(MaterialIcons.FormatAlignCenter)) {
             setEnumValue("horizontalAlignment", "CENTER");
             changed = true;
         }
         ImGui.sameLine();
-        if (ImGui.smallButton(FontAwesomeIcons.AlignRight)) {
+        if (ImGui.smallButton(MaterialIcons.FormatAlignRight)) {
             setEnumValue("horizontalAlignment", "RIGHT");
             changed = true;
         }
@@ -127,6 +127,23 @@ public class UITextInspector extends CustomComponentInspector<UIText> {
             changed = true;
         }
 
+        // Quick vertical alignment buttons
+        ImGui.sameLine();
+        if (ImGui.smallButton(MaterialIcons.VerticalAlignTop)) {
+            setEnumValue("verticalAlignment", "TOP");
+            changed = true;
+        }
+        ImGui.sameLine();
+        if (ImGui.smallButton(MaterialIcons.VerticalAlignCenter)) {
+            setEnumValue("verticalAlignment", "MIDDLE");
+            changed = true;
+        }
+        ImGui.sameLine();
+        if (ImGui.smallButton(MaterialIcons.VerticalAlignBottom)) {
+            setEnumValue("verticalAlignment", "BOTTOM");
+            changed = true;
+        }
+
         // Word wrap
         ImGui.spacing();
         boolean wordWrap = FieldEditors.getBoolean(component, "wordWrap", false);
@@ -138,7 +155,7 @@ public class UITextInspector extends CustomComponentInspector<UIText> {
         // === AUTO-FIT SECTION ===
         ImGui.spacing();
         ImGui.spacing();
-        ImGui.text(FontAwesomeIcons.ExpandAlt + " Auto-Fit");
+        ImGui.text(MaterialIcons.FitScreen + " Auto-Fit");
         ImGui.separator();
 
         ImGui.spacing();
@@ -185,7 +202,7 @@ public class UITextInspector extends CustomComponentInspector<UIText> {
         // === SHADOW SECTION ===
         ImGui.spacing();
         ImGui.spacing();
-        ImGui.text(FontAwesomeIcons.Clone + " Shadow");
+        ImGui.text(MaterialIcons.Layers + " Shadow");
         ImGui.separator();
 
         ImGui.spacing();
@@ -319,7 +336,7 @@ public class UITextInspector extends CustomComponentInspector<UIText> {
         ImGui.sameLine(100);
 
         // Refresh button
-        if (ImGui.smallButton(FontAwesomeIcons.Sync + "##refreshFonts")) {
+        if (ImGui.smallButton(MaterialIcons.Refresh + "##refreshFonts")) {
             refreshFontList();
         }
         if (ImGui.isItemHovered()) {

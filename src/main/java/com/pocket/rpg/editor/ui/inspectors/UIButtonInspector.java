@@ -3,7 +3,7 @@ package com.pocket.rpg.editor.ui.inspectors;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ui.UIButton;
 import com.pocket.rpg.components.ui.UITransform;
-import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
@@ -24,7 +24,7 @@ public class UIButtonInspector extends CustomComponentInspector<UIButton> {
         boolean changed = false;
 
         // === APPEARANCE SECTION ===
-        ImGui.text(FontAwesomeIcons.Palette + " Appearance");
+        ImGui.text(MaterialIcons.Palette + " Appearance");
         ImGui.separator();
 
         // Sprite
@@ -35,7 +35,7 @@ public class UIButtonInspector extends CustomComponentInspector<UIButton> {
         Object spriteObj = ComponentReflectionUtils.getFieldValue(component, "sprite");
         if (spriteObj instanceof Sprite sprite && sprite.getTexture() != null) {
             ImGui.sameLine();
-            if (ImGui.smallButton(FontAwesomeIcons.Expand + "##resetSize")) {
+            if (ImGui.smallButton(MaterialIcons.OpenInFull + "##resetSize")) {
                 changed |= resetSizeToSprite(sprite);
             }
             if (ImGui.isItemHovered()) {
@@ -66,7 +66,7 @@ public class UIButtonInspector extends CustomComponentInspector<UIButton> {
         // === HOVER SECTION ===
         ImGui.spacing();
         ImGui.spacing();
-        ImGui.text(FontAwesomeIcons.HandPointer + " Hover Effect");
+        ImGui.text(MaterialIcons.TouchApp + " Hover Effect");
         ImGui.separator();
 
         // Hover tint
@@ -114,7 +114,7 @@ public class UIButtonInspector extends CustomComponentInspector<UIButton> {
         ImGui.spacing();
         ImGui.spacing();
         ImGui.pushStyleColor(ImGuiCol.Text, 0.6f, 0.6f, 0.6f, 1f);
-        ImGui.text(FontAwesomeIcons.InfoCircle + " Callbacks");
+        ImGui.text(MaterialIcons.Info + " Callbacks");
         ImGui.separator();
         ImGui.textWrapped("onClick, onHover, onExit callbacks are set via code at runtime.");
         ImGui.popStyleColor();

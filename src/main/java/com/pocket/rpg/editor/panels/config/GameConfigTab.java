@@ -3,7 +3,7 @@ package com.pocket.rpg.editor.panels.config;
 import com.pocket.rpg.config.ConfigLoader;
 import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.editor.EditorContext;
-import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.PostEffectBrowserPopup;
 import com.pocket.rpg.rendering.postfx.PostEffect;
 import com.pocket.rpg.rendering.postfx.PostProcessor;
@@ -68,7 +68,7 @@ public class GameConfigTab implements ConfigTab {
         // Scope ALL IDs to this tab
         ImGui.pushID("GameTab");
 
-        if (ImGui.button(FontAwesomeIcons.Undo + " Reset to Defaults")) {
+        if (ImGui.button(MaterialIcons.Undo + " Reset to Defaults")) {
             resetToDefaults();
         }
 
@@ -241,19 +241,19 @@ public class GameConfigTab implements ConfigTab {
                     
                     // Buttons on the same line
                     ImGui.sameLine(ImGui.getContentRegionAvailX() - 80);
-                    if (i > 0 && ImGui.smallButton(FontAwesomeIcons.ArrowUp)) {
+                    if (i > 0 && ImGui.smallButton(MaterialIcons.ArrowUpward)) {
                         swapEffects(effects, i, i - 1);
                         updateDirtyFlag();
                     }
 
                     ImGui.sameLine();
-                    if (i < effects.size() - 1 && ImGui.smallButton(FontAwesomeIcons.ArrowDown)) {
+                    if (i < effects.size() - 1 && ImGui.smallButton(MaterialIcons.ArrowDownward)) {
                         swapEffects(effects, i, i + 1);
                         updateDirtyFlag();
                     }
 
                     ImGui.sameLine();
-                    if (ImGui.smallButton(FontAwesomeIcons.Trash)) {
+                    if (ImGui.smallButton(MaterialIcons.Delete)) {
                         effects.remove(i);
                         updateDirtyFlag();
                         ImGui.popID();
@@ -276,7 +276,7 @@ public class GameConfigTab implements ConfigTab {
             }
 
             ImGui.spacing();
-            if (ImGui.button(FontAwesomeIcons.Plus + " Add Effect")) {
+            if (ImGui.button(MaterialIcons.Add + " Add Effect")) {
                 effectBrowserPopup.open(effect -> {
                     if (effects != null) {
                         effects.add(effect);

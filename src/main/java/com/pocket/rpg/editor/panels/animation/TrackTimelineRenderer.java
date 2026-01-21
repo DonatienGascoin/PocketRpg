@@ -3,7 +3,7 @@ package com.pocket.rpg.editor.panels.animation;
 import com.pocket.rpg.animation.Animation;
 import com.pocket.rpg.animation.AnimationFrame;
 import com.pocket.rpg.editor.assets.AssetDragPayload;
-import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.resources.Assets;
 import imgui.ImDrawList;
@@ -296,7 +296,7 @@ public class TrackTimelineRenderer {
 
         // Context menu
         if (ImGui.beginPopupContextItem("track_frame_ctx_" + index)) {
-            if (ImGui.menuItem(FontAwesomeIcons.Image + " Change Sprite...")) {
+            if (ImGui.menuItem(MaterialIcons.Image + " Change Sprite...")) {
                 final int frameIdx = index;
                 ctx.openSpritePicker(frame.spritePath(), selectedSprite -> {
                     Animation anim = ctx.getAnimation();
@@ -317,7 +317,7 @@ public class TrackTimelineRenderer {
                 });
             }
             ImGui.separator();
-            if (ImGui.menuItem(FontAwesomeIcons.Trash + " Delete Frame")) {
+            if (ImGui.menuItem(MaterialIcons.Delete + " Delete Frame")) {
                 ctx.setPendingFrameDelete(index);
             }
             ImGui.endPopup();
@@ -436,7 +436,7 @@ public class TrackTimelineRenderer {
 
     private void renderAddButton(float currentX, float trackY) {
         ImGui.setCursorScreenPos(currentX + INSERTION_ZONE_WIDTH, trackY);
-        if (ImGui.button(FontAwesomeIcons.Plus + "##AddTrackFrame", 40, TRACK_HEIGHT)) {
+        if (ImGui.button(MaterialIcons.Add + "##AddTrackFrame", 40, TRACK_HEIGHT)) {
             addFrameCallback.run();
         }
         if (ImGui.isItemHovered()) {

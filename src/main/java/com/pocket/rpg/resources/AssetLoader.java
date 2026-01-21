@@ -1,7 +1,7 @@
 package com.pocket.rpg.resources;
 
 import com.pocket.rpg.editor.EditorPanel;
-import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.rendering.resources.Sprite;
 import org.joml.Vector3f;
@@ -114,13 +114,13 @@ public interface AssetLoader<T> {
     }
 
     /**
-     * Gets the FontAwesome icon codepoint for this asset type.
+     * Gets the Material icon codepoint for this asset type.
      * Used when no preview sprite is available.
      *
-     * @return FontAwesome icon string (e.g., FontAwesomeIcons.File)
+     * @return Material icon string (e.g., MaterialIcons.InsertDriveFile)
      */
     default String getIconCodepoint() {
-        return FontAwesomeIcons.File;
+        return MaterialIcons.InsertDriveFile;
     }
 
     // ========================================================================

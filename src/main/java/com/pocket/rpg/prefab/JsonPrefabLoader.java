@@ -1,6 +1,6 @@
 package com.pocket.rpg.prefab;
 
-import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.resources.AssetLoader;
@@ -110,6 +110,6 @@ public class JsonPrefabLoader implements AssetLoader<JsonPrefab> {
 
     @Override
     public String getIconCodepoint() {
-        return FontAwesomeIcons.Cubes;
+        return MaterialIcons.Inventory2;
     }
 }

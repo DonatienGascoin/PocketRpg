@@ -77,30 +77,30 @@ public class ImGuiLayer {
         // This enables FreeType font renderer, which is disabled by default.
         io.getFonts().setFreeTypeRenderer(true);
 
-
         // Font config for additional fonts
         // This is a natively allocated struct so don't forget to call destroy after atlas is built
         final ImFontConfig fontConfig = new ImFontConfig();
         fontConfig.setSizePixels(16.0f * dpiScale);
 
-        // You can use the ImFontGlyphRangesBuilder helper to create glyph ranges based on text input.
-        // For example: for a game where your script is known, if you can feed your entire script to it (using addText) and only build the characters the game needs.
-        // Here we are using it just to combine all required glyphs in one place
-        final ImFontGlyphRangesBuilder rangesBuilder = new ImFontGlyphRangesBuilder(); // Glyphs ranges provide
-        rangesBuilder.addRanges(FontAwesomeIcons._IconRange);
-
+        // Build glyph ranges for icon fonts
+        final ImFontGlyphRangesBuilder rangesBuilder = new ImFontGlyphRangesBuilder();
+        rangesBuilder.addRanges(MaterialIcons._IconRange);
 
         // Add default font for latin glyphs
-        // io.getFonts().addFontDefault();
-        io.getFonts().addFontFromMemoryTTF(loadFromResources("editor/fonts/Roboto-Regular.ttf"), 18 * dpiScale, fontConfig); // font awesome
+        io.getFonts().addFontFromMemoryTTF(loadFromResources("editor/fonts/Roboto-Regular.ttf"), 18 * dpiScale, fontConfig);
         fontConfig.setMergeMode(true);  // Enable merge mode to merge icons with default font
 
         final short[] glyphRanges = rangesBuilder.buildRanges();
-        io.getFonts().addFontFromMemoryTTF(loadFromResources("editor/fonts/fa-regular-400.ttf"), 14 * dpiScale, fontConfig, glyphRanges); // font awesome
-        io.getFonts().addFontFromMemoryTTF(loadFromResources("editor/fonts/fa-solid-900.ttf"), 14 * dpiScale, fontConfig, glyphRanges); // font awesome
+
+        // Material Icons need vertical offset adjustment to align with text baseline
+        final ImFontConfig materialIconConfig = new ImFontConfig();
+        materialIconConfig.setMergeMode(true);
+        materialIconConfig.setGlyphOffset(0, 1 * dpiScale);  // Lower icons
+        io.getFonts().addFontFromMemoryTTF(loadFromResources("editor/fonts/MaterialSymbolsSharp-Regular.ttf"), 18 * dpiScale, materialIconConfig, glyphRanges);
         io.getFonts().build();
 
         fontConfig.destroy();
+        materialIconConfig.destroy();
     }
 
     private byte[] loadFromResources(String fontPath) {

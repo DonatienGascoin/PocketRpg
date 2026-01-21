@@ -2,7 +2,7 @@ package com.pocket.rpg.editor.panels;
 
 import com.pocket.rpg.animation.Animation;
 import com.pocket.rpg.animation.AnimationFrame;
-import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.resources.loaders.AnimationLoader;
 import com.pocket.rpg.editor.panels.animation.AnimationPreviewRenderer;
 import com.pocket.rpg.editor.panels.animation.AnimationTimelineContext;
@@ -368,7 +368,7 @@ public class AnimationEditorPanel {
 
     private void renderToolbar() {
         // New
-        if (ImGui.button(FontAwesomeIcons.Plus + " New")) {
+        if (ImGui.button(MaterialIcons.Add + " New")) {
             openNewDialog();
         }
         if (ImGui.isItemHovered()) {
@@ -380,7 +380,7 @@ public class AnimationEditorPanel {
         // Delete
         boolean canDelete = selectedEntry != null;
         if (!canDelete) ImGui.beginDisabled();
-        if (ImGui.button(FontAwesomeIcons.Trash + " Delete")) {
+        if (ImGui.button(MaterialIcons.Delete + " Delete")) {
             showDeleteConfirmDialog = true;
         }
         if (!canDelete) ImGui.endDisabled();
@@ -399,7 +399,7 @@ public class AnimationEditorPanel {
         } else {
             ImGui.beginDisabled();
         }
-        if (ImGui.button(FontAwesomeIcons.Save + " Save")) {
+        if (ImGui.button(MaterialIcons.Save + " Save")) {
             saveCurrentAnimation();
         }
         if (canSave) {
@@ -414,7 +414,7 @@ public class AnimationEditorPanel {
         ImGui.sameLine();
 
         // Refresh
-        if (ImGui.button(FontAwesomeIcons.SyncAlt)) {
+        if (ImGui.button(MaterialIcons.Sync)) {
             needsRefresh = true;
         }
         if (ImGui.isItemHovered()) {
@@ -428,7 +428,7 @@ public class AnimationEditorPanel {
         // Undo (animation-specific)
         boolean canUndo = !undoStack.isEmpty();
         if (!canUndo) ImGui.beginDisabled();
-        if (ImGui.button(FontAwesomeIcons.Undo)) {
+        if (ImGui.button(MaterialIcons.Undo)) {
             undo();
         }
         if (!canUndo) ImGui.endDisabled();
@@ -441,7 +441,7 @@ public class AnimationEditorPanel {
         // Redo (animation-specific)
         boolean canRedo = !redoStack.isEmpty();
         if (!canRedo) ImGui.beginDisabled();
-        if (ImGui.button(FontAwesomeIcons.Redo)) {
+        if (ImGui.button(MaterialIcons.Redo)) {
             redo();
         }
         if (!canRedo) ImGui.endDisabled();
@@ -473,7 +473,7 @@ public class AnimationEditorPanel {
             ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.2f, 0.6f, 0.2f, 1.0f);
             ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.3f, 0.7f, 0.3f, 1.0f);
         }
-        if (ImGui.button(FontAwesomeIcons.Play + " Play##PlayBtn")) {
+        if (ImGui.button(MaterialIcons.PlayArrow + " Play##PlayBtn")) {
             if (previewRenderer != null) previewRenderer.play();
         }
         if (!isPlaying) {
@@ -496,7 +496,7 @@ public class AnimationEditorPanel {
             ImGui.pushStyleColor(ImGuiCol.ButtonHovered, r + 0.1f, g + 0.1f, 0.2f, 1.0f);
             ImGui.pushStyleColor(ImGuiCol.ButtonActive, r + 0.2f, g + 0.2f, 0.3f, 1.0f);
         }
-        if (ImGui.button(FontAwesomeIcons.Stop + " Stop##StopBtn")) {
+        if (ImGui.button(MaterialIcons.Stop + " Stop##StopBtn")) {
             if (previewRenderer != null) previewRenderer.stop();
             currentPreviewFrame = 0;
         }
@@ -719,7 +719,7 @@ public class AnimationEditorPanel {
         }
 
         // Browse button
-        if (ImGui.button(FontAwesomeIcons.FolderOpen + " Browse...##BrowseSprite", -1, 0)) {
+        if (ImGui.button(MaterialIcons.FolderOpen + " Browse...##BrowseSprite", -1, 0)) {
             final int frameIdx = selectedFrameIndex;
             String initialPath = (spritePath == null || spritePath.isEmpty()) ? "" : spritePath;
             spritePicker.open(Sprite.class, initialPath, selectedSprite -> {
@@ -746,7 +746,7 @@ public class AnimationEditorPanel {
         ImGui.separator();
         ImGui.spacing();
 
-        if (ImGui.button(FontAwesomeIcons.Trash + " Delete Frame##DeleteFrame", -1, 0)) {
+        if (ImGui.button(MaterialIcons.Delete + " Delete Frame##DeleteFrame", -1, 0)) {
             deleteSelectedFrame();
         }
 
@@ -1151,7 +1151,7 @@ public class AnimationEditorPanel {
                     displayPath = "..." + displayPath.substring(displayPath.length() - 22);
                 }
                 ImGui.textDisabled(displayPath != null ? displayPath : "");
-                if (ImGui.button(FontAwesomeIcons.Times + " Clear##ClearSprite")) {
+                if (ImGui.button(MaterialIcons.Close + " Clear##ClearSprite")) {
                     newAnimationSpritePath = null;
                     newAnimationSpritePreview = null;
                 }
@@ -1160,7 +1160,7 @@ public class AnimationEditorPanel {
                 ImGui.textColored(0.7f, 0.5f, 0.2f, 1f, "(No sprite selected)");
             }
 
-            if (ImGui.button(FontAwesomeIcons.FolderOpen + " Browse...##BrowseNewSprite", 200, 0)) {
+            if (ImGui.button(MaterialIcons.FolderOpen + " Browse...##BrowseNewSprite", 200, 0)) {
                 // Close modal first, then open sprite picker after 2 frames delay
                 showNewDialog = false;
                 pendingSpritePickerForNewAnimDelay = 2;

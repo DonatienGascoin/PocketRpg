@@ -1,7 +1,7 @@
 package com.pocket.rpg.editor.panels.inspector;
 
 import com.pocket.rpg.components.Component;
-import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
@@ -58,7 +58,7 @@ public class ComponentFieldEditor {
 
             if (isOverridden) {
                 ImGui.sameLine();
-                if (ImGui.smallButton(FontAwesomeIcons.Undo + "##reset")) {
+                if (ImGui.smallButton(MaterialIcons.Undo + "##reset")) {
                     entity.resetFieldToDefault(componentType, fieldName);
                     Object defaultValue = entity.getFieldDefault(componentType, fieldName);
                     ComponentReflectionUtils.setFieldValue(component, fieldName, defaultValue);

@@ -3,7 +3,7 @@ package com.pocket.rpg.editor.panels.config;
 import com.pocket.rpg.config.ConfigLoader;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.editor.EditorContext;
-import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.rendering.batch.SpriteBatch;
 import imgui.ImGui;
 import imgui.type.ImInt;
@@ -60,7 +60,7 @@ public class RenderingConfigTab implements ConfigTab {
         // Scope ALL IDs to this tab
         ImGui.pushID("RenderingTab");
 
-        if (ImGui.button(FontAwesomeIcons.Undo + " Reset to Defaults")) {
+        if (ImGui.button(MaterialIcons.Undo + " Reset to Defaults")) {
             resetToDefaults();
         }
 

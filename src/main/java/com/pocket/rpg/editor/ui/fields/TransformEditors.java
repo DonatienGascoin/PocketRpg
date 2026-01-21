@@ -1,7 +1,7 @@
 package com.pocket.rpg.editor.ui.fields;
 
 import com.pocket.rpg.components.Transform;
-import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.MoveEntityCommand;
@@ -100,7 +100,7 @@ public final class TransformEditors {
             if (isOverridden) {
                 ImGui.popStyleColor();
                 ImGui.sameLine();
-                if (ImGui.smallButton(FontAwesomeIcons.Undo + "##pos")) {
+                if (ImGui.smallButton(MaterialIcons.Undo + "##pos")) {
                     Vector3f oldValue = new Vector3f(entity.getPosition());
                     Object defaultObj = entity.getFieldDefault(TRANSFORM_TYPE, "localPosition");
                     Vector3f defaultValue = defaultObj instanceof Vector3f v ? v : new Vector3f();
@@ -182,7 +182,7 @@ public final class TransformEditors {
             if (isOverridden) {
                 ImGui.popStyleColor();
                 ImGui.sameLine();
-                if (ImGui.smallButton(FontAwesomeIcons.Undo + "##rot")) {
+                if (ImGui.smallButton(MaterialIcons.Undo + "##rot")) {
                     Vector3f oldValue = new Vector3f(entity.getRotation());
                     Object defaultObj = entity.getFieldDefault(TRANSFORM_TYPE, "localRotation");
                     Vector3f defaultValue = defaultObj instanceof Vector3f v ? v : new Vector3f();
@@ -271,7 +271,7 @@ public final class TransformEditors {
             if (isOverridden) {
                 ImGui.popStyleColor();
                 ImGui.sameLine();
-                if (ImGui.smallButton(FontAwesomeIcons.Undo + "##scale")) {
+                if (ImGui.smallButton(MaterialIcons.Undo + "##scale")) {
                     Vector3f oldValue = new Vector3f(entity.getScale());
                     Object defaultObj = entity.getFieldDefault(TRANSFORM_TYPE, "localScale");
                     Vector3f defaultValue = defaultObj instanceof Vector3f v ? v : new Vector3f(1, 1, 1);

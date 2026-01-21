@@ -5,7 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.pocket.rpg.components.SpriteRenderer;
-import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.rendering.resources.SpriteSheet;
@@ -307,7 +307,7 @@ public class SpriteSheetLoader implements AssetLoader<SpriteSheet> {
 
     @Override
     public String getIconCodepoint() {
-        return FontAwesomeIcons.ThLarge;
+        return MaterialIcons.ViewModule;
     }
 
     @Override

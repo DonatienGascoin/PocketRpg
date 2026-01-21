@@ -1,7 +1,7 @@
 package com.pocket.rpg.editor.ui.inspectors;
 
 import com.pocket.rpg.components.ui.UIPanel;
-import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import imgui.ImGui;
@@ -31,7 +31,7 @@ public class UIPanelInspector extends CustomComponentInspector<UIPanel> {
         boolean changed = false;
 
         // Background Color
-        ImGui.text(FontAwesomeIcons.FillDrip + " Background Color");
+        ImGui.text(MaterialIcons.FormatColorFill + " Background Color");
         changed |= FieldEditors.drawColor("Color", component, "color");
 
         // Quick alpha slider

@@ -1,7 +1,7 @@
 package com.pocket.rpg.editor.panels.hierarchy;
 
 import com.pocket.rpg.editor.assets.HierarchyDropTarget;
-import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.SavePrefabPopup;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
@@ -140,11 +140,11 @@ public class HierarchyTreeRenderer {
                 ImGui.text(selected.size() + " entities selected");
                 ImGui.separator();
 
-                if (ImGui.menuItem(FontAwesomeIcons.Trash + " Delete All")) {
+                if (ImGui.menuItem(MaterialIcons.Delete + " Delete All")) {
                     UndoManager.getInstance().execute(new BulkDeleteCommand(scene, selected));
                 }
 
-                if (ImGui.menuItem(FontAwesomeIcons.LevelUpAlt + " Unparent All")) {
+                if (ImGui.menuItem(MaterialIcons.CallMade + " Unparent All")) {
                     for (EditorGameObject e : selected) {
                         if (e.getParent() != null) {
                             UndoManager.getInstance().execute(
@@ -154,17 +154,17 @@ public class HierarchyTreeRenderer {
                     }
                 }
             } else {
-                if (ImGui.menuItem(FontAwesomeIcons.Edit + " Rename")) {
+                if (ImGui.menuItem(MaterialIcons.Edit + " Rename")) {
                     renamingItem = entity;
                     renameBuffer.set(entity.getName());
                 }
 
-                if (ImGui.menuItem(FontAwesomeIcons.Copy + " Duplicate")) {
+                if (ImGui.menuItem(MaterialIcons.ContentCopy + " Duplicate")) {
                     creationService.duplicateEntity(entity);
                 }
 
                 if (entity.getParent() != null) {
-                    if (ImGui.menuItem(FontAwesomeIcons.LevelUpAlt + " Unparent")) {
+                    if (ImGui.menuItem(MaterialIcons.CallMade + " Unparent")) {
                         UndoManager.getInstance().execute(
                                 new ReparentEntityCommand(scene, entity, null, getNextChildOrder(null))
                         );
@@ -172,7 +172,7 @@ public class HierarchyTreeRenderer {
                 }
 
                 if (entity.isScratchEntity() && !entity.getComponents().isEmpty()) {
-                    if (ImGui.menuItem(FontAwesomeIcons.Save + " Save as Prefab...")) {
+                    if (ImGui.menuItem(MaterialIcons.Save + " Save as Prefab...")) {
                         savePrefabPopup.open(entity, savedPrefab -> {
                             System.out.println("Saved prefab: " + savedPrefab.getId());
                         });
@@ -181,7 +181,7 @@ public class HierarchyTreeRenderer {
 
                 ImGui.separator();
 
-                if (ImGui.menuItem(FontAwesomeIcons.Trash + " Delete")) {
+                if (ImGui.menuItem(MaterialIcons.Delete + " Delete")) {
                     UndoManager.getInstance().execute(new RemoveEntityCommand(scene, entity));
                 }
             }

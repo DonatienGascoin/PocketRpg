@@ -8,7 +8,7 @@ import com.pocket.rpg.editor.EditorContext;
 import com.pocket.rpg.editor.PlayModeController;
 import com.pocket.rpg.editor.PlayModeController.PlayState;
 import com.pocket.rpg.editor.camera.PreviewCamera;
-import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.rendering.EditorFramebuffer;
 import com.pocket.rpg.editor.rendering.EditorUIBridge;
 import com.pocket.rpg.editor.rendering.PreviewCameraAdapter;
@@ -162,7 +162,7 @@ public class GameViewPanel {
         PlayState state = playController.getState();
 
         if (state == PlayState.STOPPED) {
-            if (ImGui.button(FontAwesomeIcons.Play + " Play")) {
+            if (ImGui.button(MaterialIcons.PlayArrow + " Play")) {
                 playController.play();
             }
 
@@ -170,18 +170,18 @@ public class GameViewPanel {
             ImGui.textDisabled("Scene: " + getSceneName());
         } else {
             if (state == PlayState.PLAYING) {
-                if (ImGui.button(FontAwesomeIcons.Pause + " Pause")) {
+                if (ImGui.button(MaterialIcons.Pause + " Pause")) {
                     playController.pause();
                 }
             } else {
-                if (ImGui.button(FontAwesomeIcons.Play + " Resume")) {
+                if (ImGui.button(MaterialIcons.PlayArrow + " Resume")) {
                     playController.resume();
                 }
             }
 
             ImGui.sameLine();
 
-            if (ImGui.button(FontAwesomeIcons.Stop + " Stop")) {
+            if (ImGui.button(MaterialIcons.Stop + " Stop")) {
                 playController.stop();
             }
 

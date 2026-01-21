@@ -1,6 +1,6 @@
 package com.pocket.rpg.editor.panels.inspector;
 
-import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.undo.UndoManager;
@@ -66,12 +66,12 @@ public class MultiSelectionInspector {
         // Bulk actions
         ImGui.pushStyleColor(ImGuiCol.Button, 0.5f, 0.2f, 0.2f, 1f);
         ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.6f, 0.3f, 0.3f, 1f);
-        if (ImGui.button(FontAwesomeIcons.Trash + " Delete All", -1, 0)) {
+        if (ImGui.button(MaterialIcons.Delete + " Delete All", -1, 0)) {
             UndoManager.getInstance().execute(new BulkDeleteCommand(scene, selected));
         }
         ImGui.popStyleColor(2);
 
-        if (ImGui.button(FontAwesomeIcons.TimesCircle + " Clear Selection", -1, 0)) {
+        if (ImGui.button(MaterialIcons.Cancel + " Clear Selection", -1, 0)) {
             scene.clearSelection();
         }
 

@@ -2,7 +2,7 @@ package com.pocket.rpg.editor.ui.inspectors;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ui.UITransform;
-import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
 import com.pocket.rpg.editor.ui.layout.EditorFields;
@@ -47,11 +47,11 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
             {1f, 1f}      // Bottom-Right
     };
 
-    // Preset labels (short)
+    // Preset labels (icons)
     private static final String[] PRESET_LABELS = {
-            "TL", "T", "TR",
-            "L", "C", "R",
-            "BL", "B", "BR"
+            MaterialIcons.NorthWest, MaterialIcons.North, MaterialIcons.NorthEast,
+            MaterialIcons.West, MaterialIcons.Adjust, MaterialIcons.East,
+            MaterialIcons.SouthWest, MaterialIcons.South, MaterialIcons.SouthEast
     };
 
     // Preset tooltips
@@ -124,7 +124,7 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
 
         // Anchor (left side)
         ImGui.beginGroup();
-        ImGui.text(FontAwesomeIcons.Anchor + " Anchor (" + anchor.x + " / " + anchor.y + ")");
+        ImGui.text(MaterialIcons.Anchor + " Anchor (" + anchor.x + " / " + anchor.y + ")");
         if (isMatchingParentSize) {
             ImGui.textDisabled("Ignored (Match Parent)");
         } else {
@@ -136,7 +136,7 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
 
         // Pivot (right side)
         ImGui.beginGroup();
-        ImGui.text(FontAwesomeIcons.Crosshairs + " Pivot (" + pivot.x + " / " + pivot.y + ")");
+        ImGui.text(MaterialIcons.CenterFocusWeak + " Pivot (" + pivot.x + " / " + pivot.y + ")");
         if (isMatchingParentSize) {
             ImGui.textDisabled("Ignored (Match Parent)");
         } else {
@@ -156,7 +156,7 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
         boolean hasParentUITransform = parentEntity != null &&
                 parentEntity.getComponent(UITransform.class) != null;
 
-        ImGui.text(FontAwesomeIcons.ArrowsAlt + " Offset");
+        ImGui.text(MaterialIcons.OpenWith + " Offset");
 
         if (isMatchingParentSize) {
             ImGui.sameLine();
@@ -245,7 +245,7 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
             ImGui.pushStyleColor(ImGuiCol.ButtonActive, ACCENT_ACTIVE[0], ACCENT_ACTIVE[1], ACCENT_ACTIVE[2], ACCENT_ACTIVE[3]);
         }
 
-        if (ImGui.button(FontAwesomeIcons.Link + (allMatchParent ? " MATCHING PARENT" : " MATCH PARENT"), buttonWidth, 0)) {
+        if (ImGui.button(MaterialIcons.Link + (allMatchParent ? " MATCHING PARENT" : " MATCH PARENT"), buttonWidth, 0)) {
             // Toggle all match parent options
             boolean newState = !anyMatchParent;
             component.setStretchMode(newState ? UITransform.StretchMode.MATCH_PARENT : UITransform.StretchMode.NONE);
@@ -302,7 +302,7 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
     private boolean drawSizeSection(boolean hasParentUITransform) {
         boolean changed = false;
 
-        ImGui.text(FontAwesomeIcons.ExpandAlt + " Size");
+        ImGui.text(MaterialIcons.FitScreen + " Size");
         // Match Parent toggle button [M] (only if parent has UITransform)
         if (hasParentUITransform) {
             ImGui.sameLine();
@@ -318,7 +318,7 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
         if (!isMatchingParent) {
             ImGui.sameLine();
 //            ImGui.sameLine(ImGui.getContentRegionAvailX() - 25);
-            if (ImGui.smallButton(lockAspectRatio ? FontAwesomeIcons.Lock : FontAwesomeIcons.LockOpen)) {
+            if (ImGui.smallButton(lockAspectRatio ? MaterialIcons.Lock : MaterialIcons.LockOpen)) {
                 lockAspectRatio = !lockAspectRatio;
                 if (lockAspectRatio) {
                     lastWidth = FieldEditors.getFloat(component, "width", 100);
@@ -351,7 +351,7 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
         float[] textureDims = getSpriteTextureDimensions();
         if (textureDims != null) {
             ImGui.sameLine();
-            if (ImGui.smallButton(FontAwesomeIcons.Image + "##textureSize")) {
+            if (ImGui.smallButton(MaterialIcons.Image + "##textureSize")) {
                 float oldWidth = FieldEditors.getFloat(component, "width", 100);
                 float oldHeight = FieldEditors.getFloat(component, "height", 100);
 
@@ -375,7 +375,7 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
             Component parentTransform = parentEntity.getComponent(UITransform.class);
             if (parentTransform != null) {
                 ImGui.sameLine();
-                if (ImGui.smallButton(FontAwesomeIcons.Expand + "##matchParent")) {
+                if (ImGui.smallButton(MaterialIcons.OpenInFull + "##matchParent")) {
                     float parentWidth = FieldEditors.getFloat(parentTransform, "width", 100);
                     float parentHeight = FieldEditors.getFloat(parentTransform, "height", 100);
                     float oldWidth = FieldEditors.getFloat(component, "width", 100);
@@ -497,7 +497,7 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
         final UITransform t = this.component;
 
         // Rotation (Z only for 2D)
-        ImGui.text(FontAwesomeIcons.Sync + " Rotation");
+        ImGui.text(MaterialIcons.Sync + " Rotation");
 
         // Match Parent toggle [M] (only if parent has UITransform)
         if (hasParentUITransform) {
@@ -544,7 +544,7 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
         ImGui.spacing();
 
         // Scale (X, Y)
-        ImGui.text(FontAwesomeIcons.Expand + " Scale");
+        ImGui.text(MaterialIcons.OpenInFull + " Scale");
 
         // Match Parent toggle [M] (only if parent has UITransform)
         if (hasParentUITransform) {
@@ -586,7 +586,7 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
 
             // Uniform scale button
             ImGui.sameLine();
-            if (ImGui.smallButton(FontAwesomeIcons.Link + "##uniformScale")) {
+            if (ImGui.smallButton(MaterialIcons.Link + "##uniformScale")) {
                 Vector2f scale = t.getLocalScale2D();
                 Vector2f oldScale = new Vector2f(scale);
                 float uniform = (scale.x + scale.y) / 2f;

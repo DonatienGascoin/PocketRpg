@@ -1,7 +1,7 @@
 package com.pocket.rpg.editor.ui.fields;
 
 import com.pocket.rpg.components.Component;
-import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.SetComponentFieldCommand;
@@ -190,11 +190,11 @@ public class ReflectionFieldEditor {
 
             switch (status) {
                 case FOUND -> {
-                    statusIcon = FontAwesomeIcons.CheckCircle; // ✓
+                    statusIcon = MaterialIcons.CheckCircle; // ✓
                     r = 0.3f; g = 0.8f; b = 0.3f; // Green
                 }
                 case NOT_FOUND -> {
-                    statusIcon = FontAwesomeIcons.ExclamationCircle; // ✗
+                    statusIcon = MaterialIcons.Error; // ✗
                     if (ref.required()) {
                         r = 1.0f; g = 0.3f; b = 0.3f; // Red
                     } else {
@@ -202,11 +202,11 @@ public class ReflectionFieldEditor {
                     }
                 }
                 case UNKNOWN -> {
-                    statusIcon = FontAwesomeIcons.QuestionCircle;
+                    statusIcon = MaterialIcons.Help;
                     r = 0.6f; g = 0.6f; b = 0.6f; // Gray
                 }
                 default -> {
-                    statusIcon = FontAwesomeIcons.MinusCircle;
+                    statusIcon = MaterialIcons.RemoveCircle;
                     r = 0.5f; g = 0.5f; b = 0.5f;
                 }
             }

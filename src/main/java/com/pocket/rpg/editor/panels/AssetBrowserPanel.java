@@ -3,7 +3,7 @@ package com.pocket.rpg.editor.panels;
 import com.pocket.rpg.editor.EditorPanel;
 import com.pocket.rpg.editor.assets.AssetDragPayload;
 import com.pocket.rpg.editor.assets.ThumbnailCache;
-import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.rendering.resources.SpriteSheet;
 import com.pocket.rpg.rendering.resources.Shader;
@@ -269,14 +269,14 @@ public class AssetBrowserPanel {
     private void renderTopBar() {
         // Search input
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() - 80);
-        if (ImGui.inputTextWithHint("##search", FontAwesomeIcons.Search + " Search assets...", searchFilter)) {
+        if (ImGui.inputTextWithHint("##search", MaterialIcons.Search + " Search assets...", searchFilter)) {
             // Filter changed - refresh display
         }
 
         ImGui.sameLine();
 
         // Refresh button
-        if (ImGui.button(FontAwesomeIcons.Sync + " Refresh")) {
+        if (ImGui.button(MaterialIcons.Sync + " Refresh")) {
             needsRefresh = true;
             thumbnailCache.clear();
         }
@@ -284,7 +284,7 @@ public class AssetBrowserPanel {
 
     private void renderBreadcrumbWithInfo() {
         // Left side: breadcrumb navigation
-        if (ImGui.smallButton(FontAwesomeIcons.Home)) {
+        if (ImGui.smallButton(MaterialIcons.Home)) {
             navigateTo(rootFolder, "");
         }
 
@@ -366,7 +366,7 @@ public class AssetBrowserPanel {
             }
 
             // Folder icon
-            String icon = hasChildren ? FontAwesomeIcons.Folder : FontAwesomeIcons.FolderOpen;
+            String icon = hasChildren ? MaterialIcons.Folder : MaterialIcons.FolderOpen;
             boolean isOpen = ImGui.treeNodeEx(child.getName(), flags, icon + " " + child.getName());
 
             // Click to navigate
@@ -459,7 +459,7 @@ public class AssetBrowserPanel {
         // SpriteSheet expand/collapse button (Unity-style arrow)
         if (isSpriteSheet) {
             ImGui.sameLine(0, 2);
-            String expandIcon = isExpanded ? FontAwesomeIcons.ChevronUp : FontAwesomeIcons.ChevronDown;
+            String expandIcon = isExpanded ? MaterialIcons.ExpandLess : MaterialIcons.ExpandMore;
             if (ImGui.smallButton(expandIcon + "##expand_" + entry.path)) {
                 toggleSpritesheetExpansion(entry.path);
             }
@@ -525,13 +525,13 @@ public class AssetBrowserPanel {
 
             if (isSpriteSheet) {
                 ImGui.separator();
-                ImGui.text(FontAwesomeIcons.ChevronDown + " Click arrow to expand");
+                ImGui.text(MaterialIcons.ExpandMore + " Click arrow to expand");
             }
 
             // Show if instantiable
             if (canInstantiate(entry)) {
                 ImGui.separator();
-                ImGui.text(FontAwesomeIcons.MousePointer + " Drag to scene to place");
+                ImGui.text(MaterialIcons.Mouse + " Drag to scene to place");
             }
 
             ImGui.endTooltip();
@@ -543,7 +543,7 @@ public class AssetBrowserPanel {
 
             // Pivot editing
             if (caps.contains(EditorCapability.PIVOT_EDITING)) {
-                if (ImGui.menuItem(FontAwesomeIcons.Crosshairs + " Edit Pivot...")) {
+                if (ImGui.menuItem(MaterialIcons.CenterFocusWeak + " Edit Pivot...")) {
                     if (pivotEditorPanel != null) {
                         pivotEditorPanel.open(entry.path);
                     }
@@ -558,7 +558,7 @@ public class AssetBrowserPanel {
                 ImGui.separator();
             }
 
-            if (ImGui.menuItem(FontAwesomeIcons.Copy + " Copy Path")) {
+            if (ImGui.menuItem(MaterialIcons.ContentCopy + " Copy Path")) {
                 ImGui.setClipboardText(entry.path);
             }
 
@@ -694,21 +694,21 @@ public class AssetBrowserPanel {
 
     private String getIconForType(Class<?> type) {
         if (type == Sprite.class || type == Texture.class) {
-            return FontAwesomeIcons.Image;
+            return MaterialIcons.Image;
         }
         if (type == SpriteSheet.class) {
-            return FontAwesomeIcons.ThLarge;
+            return MaterialIcons.GridView;
         }
         if (type == com.pocket.rpg.prefab.JsonPrefab.class) {
-            return FontAwesomeIcons.Cubes;
+            return MaterialIcons.Inventory2;
         }
         if (type == Shader.class) {
-            return FontAwesomeIcons.Code;
+            return MaterialIcons.Code;
         }
         if (type == com.pocket.rpg.serialization.SceneData.class) {
-            return FontAwesomeIcons.Map;
+            return MaterialIcons.Map;
         }
-        return FontAwesomeIcons.File;
+        return MaterialIcons.InsertDriveFile;
     }
 
     private boolean canInstantiate(AssetEntry entry) {

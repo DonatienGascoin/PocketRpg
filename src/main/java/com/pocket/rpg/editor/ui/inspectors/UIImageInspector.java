@@ -3,7 +3,7 @@ package com.pocket.rpg.editor.ui.inspectors;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ui.UIImage;
 import com.pocket.rpg.components.ui.UITransform;
-import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
@@ -20,14 +20,14 @@ public class UIImageInspector extends CustomComponentInspector<UIImage> {
         boolean changed = false;
 
         // Sprite
-        ImGui.text(FontAwesomeIcons.Image + " Sprite");
+        ImGui.text(MaterialIcons.Image + " Sprite");
         changed |= FieldEditors.drawAsset("sprite", component, "sprite", Sprite.class, entity);
 
         // Reset size to sprite size button
         Object spriteObj = ComponentReflectionUtils.getFieldValue(component, "sprite");
         if (spriteObj instanceof Sprite sprite && sprite.getTexture() != null) {
             ImGui.sameLine();
-            if (ImGui.smallButton(FontAwesomeIcons.Expand + "##resetSize")) {
+            if (ImGui.smallButton(MaterialIcons.OpenInFull + "##resetSize")) {
                 changed |= resetSizeToSprite(sprite);
             }
             if (ImGui.isItemHovered()) {
@@ -39,7 +39,7 @@ public class UIImageInspector extends CustomComponentInspector<UIImage> {
         ImGui.spacing();
 
         // Color (tint)
-        ImGui.text(FontAwesomeIcons.Palette + " Tint Color");
+        ImGui.text(MaterialIcons.Palette + " Tint Color");
         changed |= FieldEditors.drawColor("color", component, "color");
 
         // Quick alpha slider

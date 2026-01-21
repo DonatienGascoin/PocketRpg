@@ -1,7 +1,7 @@
 package com.pocket.rpg.editor.utils;
 
 import com.pocket.rpg.components.ui.*;
-import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 
 public class IconUtils {
@@ -33,58 +33,58 @@ public class IconUtils {
     }
 
     public static String getSceneIcon() {
-        return FontAwesomeIcons.Map;
+        return MaterialIcons.Map;
     }
 
     public static String getCameraIcon() {
-        return FontAwesomeIcons.Camera;
+        return MaterialIcons.Videocam;
     }
 
     public static String getLayersIcon() {
-        return FontAwesomeIcons.LayerGroup;
+        return MaterialIcons.Layers;
     }
 
     public static String getCollisionsIcon() {
-        return FontAwesomeIcons.BorderAll;
+        return MaterialIcons.GridOn;
     }
 
     public static String getUICanvasIcon() {
-        return FontAwesomeIcons.Desktop;
+        return MaterialIcons.DesktopWindows;
     }
 
     public static String getUIButtonIcon() {
-        return FontAwesomeIcons.HandPointer;
+        return MaterialIcons.TouchApp;
     }
 
     public static String getUITextIcon() {
-        return FontAwesomeIcons.Font;
+        return MaterialIcons.TextFields;
     }
 
     public static String getUIImageIcon() {
-        return FontAwesomeIcons.Image;
+        return MaterialIcons.Image;
     }
 
     public static String getUIPanelIcon() {
-        return FontAwesomeIcons.Square;
+        return MaterialIcons.CheckBoxOutlineBlank;
     }
 
     public static String getUITransformIcon() {
-        return FontAwesomeIcons.WindowMaximize;
+        return MaterialIcons.OpenInFull;
     }
 
     public static String getMultipleEntitiesIcon() {
-        return FontAwesomeIcons.ObjectGroup;
+        return MaterialIcons.SelectAll;
     }
 
     public static String getScratchEntityIcon() {
-        return FontAwesomeIcons.Cube;
+        return MaterialIcons.ViewInAr;
     }
 
     public static String getPrefabEntityIcon() {
-        return FontAwesomeIcons.Cubes;
+        return MaterialIcons.Inventory2;
     }
 
     public static String getUnknownEntityIcon() {
-        return FontAwesomeIcons.ExclamationTriangle;
+        return MaterialIcons.Warning;
     }
 }

@@ -1,6 +1,6 @@
 package com.pocket.rpg.editor.panels.inspector;
 
-import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.SceneCameraSettings;
 import com.pocket.rpg.editor.utils.IconUtils;
@@ -24,7 +24,7 @@ public class CameraInspector {
         
         // FIX: Add reset button
         ImGui.sameLine(ImGui.getContentRegionMaxX() - 80);
-        if (ImGui.smallButton(FontAwesomeIcons.Undo + " Reset")) {
+        if (ImGui.smallButton(MaterialIcons.Undo + " Reset")) {
             resetToDefaults();
         }
         if (ImGui.isItemHovered()) {

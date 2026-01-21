@@ -3,7 +3,7 @@ package com.pocket.rpg.editor.panels.config;
 import com.pocket.rpg.config.ConfigLoader;
 import com.pocket.rpg.config.InputConfig;
 import com.pocket.rpg.editor.EditorContext;
-import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.input.AxisConfig;
 import com.pocket.rpg.input.AxisType;
 import com.pocket.rpg.input.InputAction;
@@ -67,7 +67,7 @@ public class InputConfigTab implements ConfigTab {
         // Scope ALL IDs to this tab
         ImGui.pushID("InputTab");
 
-        if (ImGui.button(FontAwesomeIcons.Undo + " Reset to Defaults")) {
+        if (ImGui.button(MaterialIcons.Undo + " Reset to Defaults")) {
             resetToDefaults();
         }
 
@@ -119,7 +119,7 @@ public class InputConfigTab implements ConfigTab {
             }
 
             ImGui.sameLine();
-            if (ImGui.smallButton(FontAwesomeIcons.Undo)) {
+            if (ImGui.smallButton(MaterialIcons.Undo)) {
                 working.resetActionToDefault(action);
                 updateDirtyFlag();
             }
@@ -162,7 +162,7 @@ public class InputConfigTab implements ConfigTab {
                     }
 
                     ImGui.sameLine();
-                    if (ImGui.smallButton(FontAwesomeIcons.Trash)) {
+                    if (ImGui.smallButton(MaterialIcons.Delete)) {
                         bindings.remove(i);
                         modified = true;
                         ImGui.popID();
@@ -178,7 +178,7 @@ public class InputConfigTab implements ConfigTab {
                 }
 
                 ImGui.spacing();
-                if (ImGui.button(FontAwesomeIcons.Plus + " Add Key")) {
+                if (ImGui.button(MaterialIcons.Add + " Add Key")) {
                     bindings.add(KeyCode.SPACE); // Default to space, not unknown
                     working.setBindingForAction(selectedAction, bindings);
                     updateDirtyFlag();

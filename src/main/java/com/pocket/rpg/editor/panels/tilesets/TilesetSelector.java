@@ -1,6 +1,7 @@
 // TilesetSelector.java
 package com.pocket.rpg.editor.panels.tilesets;
 
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.tileset.CreateSpritesheetDialog;
 import com.pocket.rpg.editor.tileset.TilesetRegistry;
 import imgui.ImGui;
@@ -67,7 +68,7 @@ public class TilesetSelector {
         }
 
         ImGui.sameLine();
-        if (ImGui.smallButton("↻")) {
+        if (ImGui.smallButton(MaterialIcons.Refresh)) {
             TilesetRegistry.getInstance().reload();
         }
         if (ImGui.isItemHovered()) {
@@ -75,7 +76,7 @@ public class TilesetSelector {
         }
 
         ImGui.sameLine();
-        if (ImGui.smallButton("+")) {
+        if (ImGui.smallButton(MaterialIcons.Add)) {
             createDialog.open();
         }
         if (ImGui.isItemHovered()) {

@@ -10,7 +10,7 @@ import com.pocket.rpg.animation.AnimationFrame;
 import com.pocket.rpg.components.AnimationComponent;
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.editor.EditorPanel;
-import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.resources.AssetLoader;
@@ -205,7 +205,7 @@ public class AnimationLoader implements AssetLoader<Animation> {
 
     @Override
     public String getIconCodepoint() {
-        return FontAwesomeIcons.Film;
+        return MaterialIcons.Movie;
     }
 
     @Override

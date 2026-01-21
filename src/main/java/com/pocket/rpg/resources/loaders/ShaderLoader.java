@@ -1,6 +1,6 @@
 package com.pocket.rpg.resources.loaders;
 
-import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.rendering.resources.Shader;
 import com.pocket.rpg.resources.AssetLoader;
 
@@ -84,6 +84,6 @@ public class ShaderLoader implements AssetLoader<Shader> {
 
     @Override
     public String getIconCodepoint() {
-        return FontAwesomeIcons.Code;
+        return MaterialIcons.Code;
     }
 }

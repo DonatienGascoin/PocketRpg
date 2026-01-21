@@ -1,7 +1,7 @@
 package com.pocket.rpg.editor.ui.inspectors;
 
 import com.pocket.rpg.components.ui.UICanvas;
-import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import imgui.ImGui;
@@ -30,7 +30,7 @@ public class UICanvasInspector extends CustomComponentInspector<UICanvas> {
         boolean changed = false;
 
         // Render Mode
-        ImGui.text(FontAwesomeIcons.Desktop + " Render Mode");
+        ImGui.text(MaterialIcons.DesktopWindows + " Render Mode");
 
         String currentMode = getEnumValue("renderMode", "SCREEN_SPACE_OVERLAY");
         int currentIndex = indexOf(RENDER_MODES, currentMode);
@@ -52,7 +52,7 @@ public class UICanvasInspector extends CustomComponentInspector<UICanvas> {
         ImGui.spacing();
 
         // Sort Order
-        ImGui.text(FontAwesomeIcons.LayerGroup + " Sort Order");
+        ImGui.text(MaterialIcons.Layers + " Sort Order");
         ImGui.sameLine(120);
         ImGui.textDisabled("Higher = on top");
 
@@ -65,7 +65,7 @@ public class UICanvasInspector extends CustomComponentInspector<UICanvas> {
             ImGui.separator();
             ImGui.spacing();
 
-            ImGui.text(FontAwesomeIcons.RulerHorizontal + " Plane Distance");
+            ImGui.text(MaterialIcons.Straighten + " Plane Distance");
             changed |= FieldEditors.drawFloat("##planeDistance", component, "planeDistance", 1.0f, 0.1f, 10000f);
         }
 

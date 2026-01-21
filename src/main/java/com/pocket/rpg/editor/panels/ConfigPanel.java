@@ -1,7 +1,7 @@
 package com.pocket.rpg.editor.panels;
 
 import com.pocket.rpg.editor.EditorContext;
-import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.config.*;
 import imgui.ImGui;
 import imgui.flag.ImGuiTabItemFlags;
@@ -90,7 +90,7 @@ public class ConfigPanel {
         if (!anyDirty) {
             ImGui.beginDisabled();
         }
-        if (ImGui.button(FontAwesomeIcons.Save + " Save All")) {
+        if (ImGui.button(MaterialIcons.Save + " Save All")) {
             saveAll();
         }
         if (!anyDirty) {
@@ -105,7 +105,7 @@ public class ConfigPanel {
 
         if (anyDirty) {
             ImGui.sameLine();
-            ImGui.textColored(1.0f, 0.8f, 0.2f, 1.0f, FontAwesomeIcons.Circle + " Unsaved changes");
+            ImGui.textColored(1.0f, 0.8f, 0.2f, 1.0f, MaterialIcons.FiberManualRecord + " Unsaved changes");
         }
     }
 

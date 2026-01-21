@@ -1,6 +1,6 @@
 package com.pocket.rpg.editor.panels.inspector;
 
-import com.pocket.rpg.editor.core.FontAwesomeIcons;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.LayerVisibilityMode;
 import com.pocket.rpg.editor.scene.TilemapLayer;
@@ -50,7 +50,7 @@ public class TilemapLayersInspector {
     }
 
     private void renderLayerControls() {
-        if (ImGui.button(FontAwesomeIcons.Plus + " Add Layer")) {
+        if (ImGui.button(MaterialIcons.Add + " Add Layer")) {
             scene.addLayer("Layer " + scene.getLayerCount());
         }
 
@@ -58,7 +58,7 @@ public class TilemapLayersInspector {
 
         boolean canRemove = scene.getActiveLayer() != null;
         if (!canRemove) ImGui.beginDisabled();
-        if (ImGui.button(FontAwesomeIcons.Trash + " Remove")) {
+        if (ImGui.button(MaterialIcons.Delete + " Remove")) {
             int activeIndex = scene.getActiveLayerIndex();
             if (activeIndex >= 0) scene.removeLayer(activeIndex);
         }
@@ -129,7 +129,7 @@ public class TilemapLayersInspector {
     private void renderEntitySeparator() {
         ImGui.spacing();
         ImGui.pushStyleColor(ImGuiCol.Text, 0.6f, 0.8f, 0.6f, 1.0f);
-        String text = FontAwesomeIcons.User + " -- Entities (z: 0) --";
+        String text = MaterialIcons.Person + " -- Entities (z: 0) --";
         float indent = (ImGui.getContentRegionAvailX() - ImGui.calcTextSize(text).x) / 2;
         if (indent > 0) ImGui.setCursorPosX(ImGui.getCursorPosX() + indent);
         ImGui.text(text);
@@ -147,7 +147,7 @@ public class TilemapLayersInspector {
         ImGui.pushID(index);
 
         boolean visible = layer.isVisible();
-        if (ImGui.smallButton((visible ? FontAwesomeIcons.Eye : FontAwesomeIcons.EyeSlash) + "##vis")) {
+        if (ImGui.smallButton((visible ? MaterialIcons.Visibility : MaterialIcons.VisibilityOff) + "##vis")) {
             layer.setVisible(!visible);
             scene.markDirty();
         }
@@ -156,7 +156,7 @@ public class TilemapLayersInspector {
         ImGui.sameLine();
 
         boolean locked = layer.isLocked();
-        if (ImGui.smallButton((locked ? FontAwesomeIcons.Lock : FontAwesomeIcons.LockOpen) + "##lock")) {
+        if (ImGui.smallButton((locked ? MaterialIcons.Lock : MaterialIcons.LockOpen) + "##lock")) {
             layer.setLocked(!locked);
             scene.markDirty();
         }
@@ -164,7 +164,7 @@ public class TilemapLayersInspector {
 
         ImGui.sameLine();
 
-        String zDisplay = atEntityLevel ? "(z: 0 " + FontAwesomeIcons.ExclamationCircle + ")" : "(z: " + zIndex + ")";
+        String zDisplay = atEntityLevel ? "(z: 0 " + MaterialIcons.Error + ")" : "(z: " + zIndex + ")";
 
         if (isRenaming) {
             ImGui.setNextItemWidth(100);
@@ -196,23 +196,23 @@ public class TilemapLayersInspector {
         }
 
         if (ImGui.beginPopupContextItem("layer_context_" + index)) {
-            if (ImGui.menuItem(FontAwesomeIcons.Edit + " Rename")) {
+            if (ImGui.menuItem(MaterialIcons.Edit + " Rename")) {
                 renamingLayerIndex = index;
                 layerRenameBuffer.set(layer.getName());
             }
             ImGui.separator();
-            if (ImGui.menuItem(FontAwesomeIcons.Trash + " Delete")) scene.removeLayer(index);
+            if (ImGui.menuItem(MaterialIcons.Delete + " Delete")) scene.removeLayer(index);
             ImGui.endPopup();
         }
 
         ImGui.sameLine(ImGui.getContentRegionAvailX() - 45);
 
-        if (ImGui.smallButton(FontAwesomeIcons.ChevronUp + "##up")) {
+        if (ImGui.smallButton(MaterialIcons.ExpandLess + "##up")) {
             layer.setZIndex(zIndex + 1);
             scene.markDirty();
         }
         ImGui.sameLine();
-        if (ImGui.smallButton(FontAwesomeIcons.ChevronDown + "##down")) {
+        if (ImGui.smallButton(MaterialIcons.ExpandMore + "##down")) {
             layer.setZIndex(zIndex - 1);
             scene.markDirty();
         }
@@ -221,7 +221,7 @@ public class TilemapLayersInspector {
     }
 
     private void renderActiveLayerDetails(TilemapLayer layer) {
-        ImGui.text(FontAwesomeIcons.Edit + " Active Layer");
+        ImGui.text(MaterialIcons.Edit + " Active Layer");
 
         stringBuffer.set(layer.getName());
         ImGui.setNextItemWidth(-1);

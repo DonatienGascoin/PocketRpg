@@ -39,7 +39,6 @@ public class ConsolePanel extends EditorPanel {
     private static final ImVec4 COLOR_ERROR = new ImVec4(1.0f, 0.4f, 0.4f, 1.0f);
 
     // Filter state
-    private LogLevel minLevel = LogLevel.DEBUG;
     private final ImString searchFilter = new ImString(256);
     private final ImBoolean showTrace = new ImBoolean(false);
     private final ImBoolean showDebug = new ImBoolean(true);
@@ -49,7 +48,9 @@ public class ConsolePanel extends EditorPanel {
 
     // Options
     private final ImBoolean autoScroll = new ImBoolean(true);
-    private final ImBoolean showTimestamps = new ImBoolean(true);
+    private final ImBoolean showTimestamps = new ImBoolean(false);
+    private final ImBoolean showLoggerName = new ImBoolean(false);
+    private final ImBoolean wordWrap = new ImBoolean(false);
     private final ImBoolean collapseEnabled = new ImBoolean(true);
 
     // Selection
@@ -88,64 +89,55 @@ public class ConsolePanel extends EditorPanel {
     }
 
     private void renderMenuBar() {
+        LogBuffer buffer = Log.getManager().getBuffer();
+
         if (ImGui.beginMenuBar()) {
             if (ImGui.beginMenu("Options")) {
-                if (ImGui.menuItem("Clear", "")) {
-                    Log.getManager().getBuffer().clear();
-                    selectedEntry = null;
-                }
-                ImGui.separator();
+                // Display options
                 ImGui.menuItem("Auto-scroll", "", autoScroll);
-                ImGui.menuItem("Show Timestamps", "", showTimestamps);
-                ImGui.menuItem("Collapse Repeated", "", collapseEnabled);
+                ImGui.menuItem("Word Wrap", "", wordWrap);
+                if (ImGui.menuItem("Collapse Repeated", "", collapseEnabled)) {
+                    buffer.setCollapseEnabled(collapseEnabled.get());
+                }
+
+                ImGui.separator();
+                ImGui.textDisabled("Show:");
+                ImGui.menuItem("Timestamps", "", showTimestamps);
+                ImGui.menuItem("Logger Name", "", showLoggerName);
+
+                ImGui.separator();
+
+                // Message type filters
+                ImGui.textDisabled("Message Types:");
+                renderLevelMenuItem("Trace", showTrace, COLOR_TRACE);
+                renderLevelMenuItem("Debug", showDebug, COLOR_DEBUG);
+                renderLevelMenuItem("Info", showInfo, COLOR_INFO);
+                renderLevelMenuItem("Warning", showWarn, COLOR_WARN);
+                renderLevelMenuItem("Error", showError, COLOR_ERROR);
+
                 ImGui.endMenu();
             }
             ImGui.endMenuBar();
         }
     }
 
+    private void renderLevelMenuItem(String label, ImBoolean enabled, ImVec4 color) {
+        // Store state before widget to ensure push/pop match
+        boolean wasEnabled = enabled.get();
+        if (wasEnabled) {
+            ImGui.pushStyleColor(ImGuiCol.Text, color.x, color.y, color.z, color.w);
+        }
+        ImGui.menuItem(label, "", enabled);
+        if (wasEnabled) {
+            ImGui.popStyleColor();
+        }
+    }
+
     private void renderToolbar() {
         LogBuffer buffer = Log.getManager().getBuffer();
 
-        // Clear button
-        if (ImGui.button(MaterialIcons.Delete + "##clear")) {
-            buffer.clear();
-            selectedEntry = null;
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("Clear all logs");
-        }
-
-        ImGui.sameLine();
-        ImGui.separator();
-        ImGui.sameLine();
-
-        // Level toggle buttons with counts
-        renderLevelToggle("T", showTrace, LogLevel.TRACE, COLOR_TRACE, countLevel(LogLevel.TRACE));
-        ImGui.sameLine();
-        renderLevelToggle("D", showDebug, LogLevel.DEBUG, COLOR_DEBUG, countLevel(LogLevel.DEBUG));
-        ImGui.sameLine();
-        renderLevelToggle("I", showInfo, LogLevel.INFO, COLOR_INFO, countLevel(LogLevel.INFO));
-        ImGui.sameLine();
-        renderLevelToggle("W", showWarn, LogLevel.WARN, COLOR_WARN, buffer.getWarnCount());
-        ImGui.sameLine();
-        renderLevelToggle("E", showError, LogLevel.ERROR, COLOR_ERROR, buffer.getErrorCount());
-
-        ImGui.sameLine();
-        ImGui.separator();
-        ImGui.sameLine();
-
-        // Collapse checkbox
-        if (ImGui.checkbox("Collapse", collapseEnabled)) {
-            buffer.setCollapseEnabled(collapseEnabled.get());
-        }
-
-        ImGui.sameLine();
-        ImGui.separator();
-        ImGui.sameLine();
-
-        // Search filter
-        ImGui.setNextItemWidth(150);
+        // Search filter (left side)
+        ImGui.setNextItemWidth(200);
         ImGui.inputTextWithHint("##search", MaterialIcons.Search + " Filter...", searchFilter);
 
         ImGui.sameLine();
@@ -153,37 +145,17 @@ public class ConsolePanel extends EditorPanel {
         // Entry count
         List<LogEntry> entries = getFilteredEntries();
         ImGui.textDisabled(String.format("(%d entries)", entries.size()));
-    }
 
-    private void renderLevelToggle(String label, ImBoolean enabled, LogLevel level, ImVec4 color, int count) {
-        boolean wasEnabled = enabled.get();
-
-        if (wasEnabled) {
-            ImGui.pushStyleColor(ImGuiCol.Button, color.x * 0.6f, color.y * 0.6f, color.z * 0.6f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, color.x * 0.8f, color.y * 0.8f, color.z * 0.8f, 1.0f);
+        // Clear button (right side)
+        float clearButtonWidth = 30;
+        ImGui.sameLine(ImGui.getContentRegionMaxX() - clearButtonWidth);
+        if (ImGui.button(MaterialIcons.Delete + "##clear")) {
+            buffer.clear();
+            selectedEntry = null;
         }
-
-        String buttonLabel = count > 0 ? label + "(" + count + ")" : label;
-        if (ImGui.button(buttonLabel + "##" + level.name())) {
-            enabled.set(!enabled.get());
-            updateMinLevel();
-        }
-
-        if (wasEnabled) {
-            ImGui.popStyleColor(2);
-        }
-
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(level.name() + " messages");
+            ImGui.setTooltip("Clear all logs");
         }
-    }
-
-    private void updateMinLevel() {
-        if (showTrace.get()) minLevel = LogLevel.TRACE;
-        else if (showDebug.get()) minLevel = LogLevel.DEBUG;
-        else if (showInfo.get()) minLevel = LogLevel.INFO;
-        else if (showWarn.get()) minLevel = LogLevel.WARN;
-        else minLevel = LogLevel.ERROR;
     }
 
     private int countLevel(LogLevel level) {
@@ -245,26 +217,67 @@ public class ConsolePanel extends EditorPanel {
             sb.append("[").append(entry.getFormattedTime()).append("] ");
         }
 
-        sb.append("[").append(entry.getLoggerName()).append("] ");
+        if (showLoggerName.get()) {
+            sb.append("[").append(entry.getLoggerName()).append("] ");
+        }
+
         sb.append(entry.getMessage());
 
         if (entry.getRepeatCount() > 1) {
             sb.append(" (x").append(entry.getRepeatCount()).append(")");
         }
 
-        // Render selectable
         boolean isSelected = entry == selectedEntry;
+        String displayText = sb.toString();
+        String itemId = "log_" + entry.hashCode();
+
         ImGui.pushStyleColor(ImGuiCol.Text, color.x, color.y, color.z, color.w);
 
-        if (ImGui.selectable(sb.toString() + "##" + entry.hashCode(),
-                isSelected, ImGuiSelectableFlags.SpanAllColumns)) {
-            selectedEntry = isSelected ? null : entry;
+        if (wordWrap.get()) {
+            // Word wrap mode: use textWrapped with selection background
+            boolean wasSelected = isSelected;
+            if (wasSelected) {
+                ImGui.pushStyleColor(ImGuiCol.Header, 0.3f, 0.3f, 0.5f, 1.0f);
+            }
+
+            // Calculate wrapped text height
+            float availWidth = ImGui.getContentRegionAvailX();
+            float textHeight = ImGui.calcTextSize(displayText, availWidth).y;
+            float itemHeight = Math.max(textHeight, ImGui.getTextLineHeight()) + 4;
+
+            // Invisible selectable for click handling and context menu
+            if (ImGui.selectable("##" + itemId, isSelected, ImGuiSelectableFlags.AllowItemOverlap, availWidth, itemHeight)) {
+                selectedEntry = isSelected ? null : entry;
+            }
+
+            // Context menu - must be right after the selectable
+            renderContextMenu(itemId, entry);
+
+            // Render text on top
+            ImGui.sameLine();
+            ImGui.setCursorPosX(ImGui.getCursorPosX() - availWidth);
+            ImGui.pushTextWrapPos(ImGui.getCursorPosX() + availWidth);
+            ImGui.textWrapped(displayText);
+            ImGui.popTextWrapPos();
+
+            if (wasSelected) {
+                ImGui.popStyleColor();
+            }
+        } else {
+            // Single line mode: standard selectable
+            if (ImGui.selectable(displayText + "##" + itemId, isSelected, ImGuiSelectableFlags.SpanAllColumns)) {
+                selectedEntry = isSelected ? null : entry;
+            }
+
+            // Context menu - right after selectable
+            renderContextMenu(itemId, entry);
         }
 
         ImGui.popStyleColor();
+    }
 
-        // Context menu
-        if (ImGui.beginPopupContextItem()) {
+    private void renderContextMenu(String itemId, LogEntry entry) {
+        if (ImGui.beginPopupContextItem(itemId)) {
             if (ImGui.menuItem(MaterialIcons.ContentCopy + " Copy Message")) {
                 ImGui.setClipboardText(entry.getMessage());
             }

@@ -4,6 +4,8 @@ import com.pocket.rpg.config.ConfigLoader;
 import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.config.InputConfig;
 import com.pocket.rpg.config.RenderingConfig;
+import com.pocket.rpg.logging.Log;
+import com.pocket.rpg.logging.Logger;
 import com.pocket.rpg.editor.camera.EditorCamera;
 import com.pocket.rpg.editor.shortcut.EditorShortcutHandlersImpl;
 import com.pocket.rpg.editor.shortcut.EditorShortcuts;
@@ -65,6 +67,9 @@ public class EditorApplication {
     // Escape key state for edge detection
     private boolean escapeWasPressed = false;
 
+    // Logging
+    private static final Logger LOG = Log.getLogger(EditorApplication.class);
+
     // Exit confirmation state
     private boolean showExitConfirmation = false;
     private boolean exitRequested = false;
@@ -99,6 +104,11 @@ public class EditorApplication {
 
         // Initialize asset system
         initAssets();
+
+        // Log startup info
+        LOG.info("PocketRPG Scene Editor starting up");
+        LOG.debug("Java version: " + System.getProperty("java.version"));
+        LOG.debug("OS: " + System.getProperty("os.name") + " " + System.getProperty("os.arch"));
 
         // Load configuration
         ConfigLoader.loadAllConfigs();
@@ -164,6 +174,7 @@ public class EditorApplication {
         // Auto-open last scene if available
         openLastScene();
 
+        LOG.info("Scene Editor initialized successfully");
         System.out.println("Scene Editor initialized successfully");
     }
 

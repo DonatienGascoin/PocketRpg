@@ -1,0 +1,10 @@
+{
+  "name": "player_idle_down",
+  "looping": true,
+  "frames": [
+    {
+      "sprite": "spritesheets/player.spritesheet#0",
+      "duration": 1.0
+    }
+  ]
+}

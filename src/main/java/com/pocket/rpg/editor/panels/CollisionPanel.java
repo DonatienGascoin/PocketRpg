@@ -138,19 +138,7 @@ public class CollisionPanel {
 
     private void renderToolSizeForActiveTool() {
         ImGui.text("Tool Size");
-
-        // Only show size control for active tool
-        if (brushTool != null && isToolActive(brushTool)) {
-            toolConfigView.renderBrushSizeOnly();
-        } else if (eraserTool != null && isToolActive(eraserTool)) {
-            toolConfigView.renderEraserSizeOnly();
-        }
-    }
-
-    private boolean isToolActive(Object tool) {
-        // This assumes you have access to check active tool
-        // Adjust based on your actual tool management
-        return true; // Simplified - implement actual check
+        toolConfigView.renderToolSizeSlider();
     }
 
     private void onTypeSelected(CollisionType type) {

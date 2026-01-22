@@ -26,6 +26,7 @@ import java.util.List;
  * Custom editor for UIText component.
  * Organizes fields into logical sections.
  */
+@InspectorFor(UIText.class)
 public class UITextInspector extends CustomComponentInspector<UIText> {
 
     private static final String[] H_ALIGNMENTS = {"LEFT", "CENTER", "RIGHT"};

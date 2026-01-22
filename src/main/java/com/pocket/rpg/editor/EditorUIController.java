@@ -111,6 +111,7 @@ public class EditorUIController {
 
         tilesetPalette = new TilesetPalettePanel(context.getToolManager());
         tilesetPalette.setBrushTool(toolController.getBrushTool());
+        tilesetPalette.setEraserTool(toolController.getEraserTool());
         tilesetPalette.setFillTool(toolController.getFillTool());
         tilesetPalette.setRectangleTool(toolController.getRectangleTool());
         tilesetPalette.setHorizontalLayout(true);

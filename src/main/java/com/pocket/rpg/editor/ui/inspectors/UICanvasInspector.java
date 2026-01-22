@@ -11,6 +11,7 @@ import imgui.type.ImInt;
  * Custom editor for UICanvas component.
  * Shows planeDistance only when renderMode is SCREEN_SPACE_CAMERA.
  */
+@InspectorFor(UICanvas.class)
 public class UICanvasInspector extends CustomComponentInspector<UICanvas> {
 
     private static final String[] RENDER_MODES = {

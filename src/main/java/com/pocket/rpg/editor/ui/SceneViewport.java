@@ -262,6 +262,14 @@ public class SceneViewport {
         return new float[]{viewportX, viewportY, viewportWidth, viewportHeight};
     }
 
+    /**
+     * Forces the viewport to recalculate.
+     * Call when the window moves between monitors.
+     */
+    public void invalidate() {
+        renderer.invalidate();
+    }
+
     public void destroy() {
         renderer.destroy();
     }

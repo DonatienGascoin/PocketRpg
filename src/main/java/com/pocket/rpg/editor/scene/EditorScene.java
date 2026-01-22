@@ -1,6 +1,7 @@
 package com.pocket.rpg.editor.scene;
 
 import com.pocket.rpg.collision.CollisionMap;
+import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.rendering.core.Renderable;
 import com.pocket.rpg.rendering.resources.Sprite;
@@ -351,29 +352,68 @@ public class EditorScene {
     /**
      * Finds an entity at the given world position.
      * Searches in reverse order (top entities first).
+     * Accounts for pivot, scale, and rotation.
      */
     public EditorGameObject findEntityAt(float worldX, float worldY) {
         for (int i = entities.size() - 1; i >= 0; i--) {
             EditorGameObject entity = entities.get(i);
-            Vector3f pos = entity.getPositionRef();
-            Vector2f size = entity.getCurrentSize();
-
-            if (size == null) {
-                size = new Vector2f(1f, 1f);
-            }
-
-            float halfW = size.x / 2f;
-            float minX = pos.x - halfW;
-            float maxX = pos.x + halfW;
-            float minY = pos.y;
-            float maxY = pos.y + size.y;
-
-            if (worldX >= minX && worldX <= maxX && worldY >= minY && worldY <= maxY) {
+            if (isPointInsideEntity(entity, worldX, worldY)) {
                 return entity;
             }
         }
-
         return null;
+    }
+
+    /**
+     * Checks if a world point is inside an entity's bounds,
+     * accounting for pivot, scale, and rotation.
+     */
+    private boolean isPointInsideEntity(EditorGameObject entity, float worldX, float worldY) {
+        Vector3f pos = entity.getPosition();
+        Vector3f scale = entity.getScale();
+        Vector3f rotation = entity.getRotation();
+        Vector2f size = entity.getCurrentSize();
+
+        if (size == null) {
+            size = new Vector2f(1f, 1f);
+        }
+
+        // Get pivot from sprite (default to center if no sprite)
+        float pivotX = 0.5f;
+        float pivotY = 0.5f;
+        SpriteRenderer sr = entity.getComponent(SpriteRenderer.class);
+        if (sr != null) {
+            Sprite sprite = sr.getSprite();
+            if (sprite != null) {
+                pivotX = sprite.getPivotX();
+                pivotY = sprite.getPivotY();
+            }
+        }
+
+        // Calculate scaled size
+        float width = size.x * scale.x;
+        float height = size.y * scale.y;
+
+        // Transform click point to entity's local space
+        // First, translate so entity position is at origin
+        float localX = worldX - pos.x;
+        float localY = worldY - pos.y;
+
+        // Then, apply inverse rotation
+        float rotZ = (float) Math.toRadians(-rotation.z); // Negative for inverse
+        float cos = (float) Math.cos(rotZ);
+        float sin = (float) Math.sin(rotZ);
+        float rotatedX = localX * cos - localY * sin;
+        float rotatedY = localX * sin + localY * cos;
+
+        // Calculate bounds in local space (based on pivot)
+        float left = -pivotX * width;
+        float right = (1f - pivotX) * width;
+        float bottom = -pivotY * height;
+        float top = (1f - pivotY) * height;
+
+        // Check if point is inside bounds
+        return rotatedX >= left && rotatedX <= right && rotatedY >= bottom && rotatedY <= top;
     }
 
     // ========================================================================

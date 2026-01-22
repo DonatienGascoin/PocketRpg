@@ -36,6 +36,9 @@ public class EntityInspector {
 
     private EditorGameObject pendingDeleteEntity = null;
 
+    // Undo support for rename
+    private String nameBeforeEdit = null;
+
     public void render(EditorGameObject entity) {
         fieldEditor.setScene(scene);
 
@@ -48,6 +51,20 @@ public class EntityInspector {
         if (ImGui.inputText("##EntityName", stringBuffer)) {
             entity.setName(stringBuffer.get());
             scene.markDirty();
+        }
+
+        // Capture old name when field is activated
+        if (ImGui.isItemActivated()) {
+            nameBeforeEdit = entity.getName();
+        }
+
+        // Push undo command when field is deactivated
+        if (ImGui.isItemDeactivatedAfterEdit() && nameBeforeEdit != null) {
+            String newName = entity.getName();
+            if (!nameBeforeEdit.equals(newName)) {
+                UndoManager.getInstance().push(new RenameEntityCommand(entity, nameBeforeEdit, newName));
+            }
+            nameBeforeEdit = null;
         }
 
         ImGui.sameLine();

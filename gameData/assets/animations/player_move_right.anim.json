@@ -1,0 +1,14 @@
+{
+  "name": "player_move_right",
+  "looping": true,
+  "frames": [
+    {
+      "sprite": "spritesheets/player.spritesheet#16",
+      "duration": 0.5
+    },
+    {
+      "sprite": "spritesheets/player.spritesheet#17",
+      "duration": 0.5
+    }
+  ]
+}

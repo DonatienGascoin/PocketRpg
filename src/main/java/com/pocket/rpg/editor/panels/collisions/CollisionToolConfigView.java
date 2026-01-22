@@ -34,7 +34,6 @@ public class CollisionToolConfigView {
     private final ImBoolean visibilityToggle = new ImBoolean(true);
     private final ImInt zLevelSlider = new ImInt(0);
     private final ImInt brushSizeSlider = new ImInt(1);
-    private final ImInt eraserSizeSlider = new ImInt(1);
     private final float[] opacitySlider = {1f};
 
     public void renderVisibilitySection() {
@@ -90,21 +89,18 @@ public class CollisionToolConfigView {
     public void renderBrushSection() {
         ImGui.text("Tool Size");
 
+        // Use brush tool's size as the shared size
         if (brushTool != null) {
             brushSizeSlider.set(brushTool.getBrushSize());
         }
-        if (ImGui.sliderInt("Brush Size", brushSizeSlider.getData(), 1, 10)) {
+        if (ImGui.sliderInt("Size", brushSizeSlider.getData(), 1, 10)) {
+            int size = brushSizeSlider.get();
+            // Sync to all size-aware tools
             if (brushTool != null) {
-                brushTool.setBrushSize(brushSizeSlider.get());
+                brushTool.setBrushSize(size);
             }
-        }
-
-        if (eraserTool != null) {
-            eraserSizeSlider.set(eraserTool.getEraserSize());
-        }
-        if (ImGui.sliderInt("Eraser Size", eraserSizeSlider.getData(), 1, 10)) {
             if (eraserTool != null) {
-                eraserTool.setEraserSize(eraserSizeSlider.get());
+                eraserTool.setEraserSize(size);
             }
         }
     }
@@ -128,24 +124,19 @@ public class CollisionToolConfigView {
         }
     }
 
-    public void renderBrushSizeOnly() {
+    public void renderToolSizeSlider() {
+        // Use brush tool's size as the shared size source
         if (brushTool != null) {
             brushSizeSlider.set(brushTool.getBrushSize());
         }
-        if (ImGui.sliderInt("Brush", brushSizeSlider.getData(), 1, 10)) {
+        if (ImGui.sliderInt("Size", brushSizeSlider.getData(), 1, 10)) {
+            int size = brushSizeSlider.get();
+            // Sync to all size-aware tools
             if (brushTool != null) {
-                brushTool.setBrushSize(brushSizeSlider.get());
+                brushTool.setBrushSize(size);
             }
-        }
-    }
-
-    public void renderEraserSizeOnly() {
-        if (eraserTool != null) {
-            eraserSizeSlider.set(eraserTool.getEraserSize());
-        }
-        if (ImGui.sliderInt("Eraser", eraserSizeSlider.getData(), 1, 10)) {
             if (eraserTool != null) {
-                eraserTool.setEraserSize(eraserSizeSlider.get());
+                eraserTool.setEraserSize(size);
             }
         }
     }

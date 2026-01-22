@@ -11,6 +11,7 @@ import imgui.ImGui;
 import imgui.ImVec2;
 import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiMouseButton;
+import imgui.flag.ImGuiPopupFlags;
 import org.joml.Vector2f;
 
 import java.util.ArrayList;
@@ -45,7 +46,9 @@ public class UIDesignerInputHandler {
     }
 
     private void handleCameraInput() {
-        if (ImGui.isMouseClicked(ImGuiMouseButton.Middle) && state.isHovered()) {
+        // Don't start camera drag if a popup is open
+        if (ImGui.isMouseClicked(ImGuiMouseButton.Middle) && state.isHovered()
+                && !ImGui.isPopupOpen("", ImGuiPopupFlags.AnyPopupId)) {
             state.setDraggingCamera(true);
         }
         if (ImGui.isMouseReleased(ImGuiMouseButton.Middle)) {
@@ -62,7 +65,8 @@ public class UIDesignerInputHandler {
     }
 
     private void handleZoomInput() {
-        if (state.isHovered()) {
+        // Don't handle zoom if a popup is open (e.g., AssetPicker)
+        if (state.isHovered() && !ImGui.isPopupOpen("", ImGuiPopupFlags.AnyPopupId)) {
             float scroll = ImGui.getIO().getMouseWheel();
             if (scroll != 0) {
                 float zoomFactor = scroll * 0.1f * state.getZoom();

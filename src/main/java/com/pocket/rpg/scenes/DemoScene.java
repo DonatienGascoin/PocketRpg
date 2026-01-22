@@ -287,7 +287,6 @@ public class DemoScene extends Scene {
         SpriteRenderer spriteRenderer = new SpriteRenderer();
         spriteRenderer.setSprite(sprites.get(0));
         spriteRenderer.setZIndex(1);  // Render above tiles (zIndex=0)
-        spriteRenderer.setOriginBottomCenter();
         // Player at world origin (Z not used for sorting anymore)
         GameObject player = new GameObject("Player", new Vector3f(5, 5, 0));
 

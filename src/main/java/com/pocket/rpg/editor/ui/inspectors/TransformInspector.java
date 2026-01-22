@@ -12,6 +12,7 @@ import com.pocket.rpg.editor.ui.fields.FieldEditors;
  * - Undo capture/push
  * - XYZ axis coloring
  */
+@InspectorFor(Transform.class)
 public class TransformInspector extends CustomComponentInspector<Transform> {
 
     @Override

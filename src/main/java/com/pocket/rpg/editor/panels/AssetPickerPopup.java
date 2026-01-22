@@ -7,6 +7,7 @@ import com.pocket.rpg.rendering.resources.SpriteSheet;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.resources.SpriteReference;
 import imgui.ImGui;
+import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImString;
 import lombok.Getter;
@@ -44,6 +45,9 @@ public class AssetPickerPopup {
     private static final float PREVIEW_MAX_SIZE = 180f;
 
     private boolean shouldOpen = false;
+    private boolean focusSearchNextFrame = false;
+    private boolean focusNoneNextFrame = false;
+    private boolean focusFirstItemNextFrame = false;
     private Class<?> assetType;
     private Consumer<Object> onSelected;
 
@@ -169,6 +173,7 @@ public class AssetPickerPopup {
         if (shouldOpen) {
             ImGui.openPopup(POPUP_ID);
             shouldOpen = false;
+            focusSearchNextFrame = true;
         }
 
         ImGui.setNextWindowSize(520, 480);
@@ -189,7 +194,15 @@ public class AssetPickerPopup {
             ImGui.text("Select " + typeName);
             ImGui.sameLine(ImGui.getContentRegionAvailX() - 220);
             ImGui.setNextItemWidth(220);
+            if (focusSearchNextFrame) {
+                ImGui.setKeyboardFocusHere();
+                focusSearchNextFrame = false;
+            }
             ImGui.inputTextWithHint("##search", "Search...", searchBuffer);
+            // Down arrow from search bar -> focus None option
+            if (ImGui.isItemFocused() && ImGui.isKeyPressed(ImGuiKey.DownArrow)) {
+                focusNoneNextFrame = true;
+            }
 
             ImGui.separator();
 
@@ -201,20 +214,45 @@ public class AssetPickerPopup {
             ImGui.columns(2, "assetColumns", true);
             ImGui.setColumnWidth(0, 280);
 
-            // Left column: asset list (scrollable)
-            ImGui.beginChild("AssetList", 0, contentHeight, true);
-
             String filter = searchBuffer.get().toLowerCase();
 
-            // "None" option
+            // Left column: container with fixed height (matches original layout)
+            ImGui.beginChild("AssetListContainer", 0, contentHeight, true);
+
+            // "None" option - always visible at top (sticky)
+            if (focusNoneNextFrame) {
+                ImGui.setKeyboardFocusHere();
+                focusNoneNextFrame = false;
+            }
             if (ImGui.selectable("(None)", selectedPath == null)) {
                 selectedPath = null;
                 previewAsset = null;
                 previewPath = null;
             }
-
+            // Keyboard navigation: update selection when focused
+            if (ImGui.isItemFocused() && selectedPath != null) {
+                selectedPath = null;
+                previewAsset = null;
+                previewPath = null;
+            }
+            // Enter to confirm when focused
+            if (ImGui.isItemFocused() && ImGui.isKeyPressed(ImGuiKey.Enter)) {
+                confirmSelection();
+            }
+            // Down arrow from None -> focus first item in list
+            if (ImGui.isItemFocused() && ImGui.isKeyPressed(ImGuiKey.DownArrow)) {
+                focusFirstItemNextFrame = true;
+            }
+            // Up arrow from None -> focus search bar
+            if (ImGui.isItemFocused() && ImGui.isKeyPressed(ImGuiKey.UpArrow)) {
+                focusSearchNextFrame = true;
+            }
             ImGui.separator();
 
+            // Scrollable asset list (fills remaining space)
+            ImGui.beginChild("AssetList", 0, 0, false);
+
+            boolean isFirstSelectableItem = true;
             for (AssetEntry entry : availableAssets) {
                 // Apply filter
                 if (!filter.isEmpty() &&
@@ -225,38 +263,54 @@ public class AssetPickerPopup {
 
                 boolean isSelected = entry.path.equals(selectedPath);
 
-                // Indented items have different styling
-                if (entry.isIndented) {
-                    ImGui.pushStyleColor(imgui.flag.ImGuiCol.Text, 0.7f, 0.7f, 0.7f, 1.0f);
-                }
-
                 // Only selectable if it's a valid selection for the requested type
                 if (entry.isSelectable) {
+                    // Focus first item when navigating from None
+                    if (isFirstSelectableItem && focusFirstItemNextFrame) {
+                        ImGui.setKeyboardFocusHere();
+                        focusFirstItemNextFrame = false;
+                    }
+
                     if (ImGui.selectable(entry.displayName, isSelected)) {
                         selectedPath = entry.path;
                         loadPreview(entry.path);
+                    }
+
+                    // Keyboard navigation: update preview when focused
+                    if (ImGui.isItemFocused() && !entry.path.equals(selectedPath)) {
+                        selectedPath = entry.path;
+                        loadPreview(entry.path);
+                    }
+
+                    // Enter to confirm when focused
+                    if (ImGui.isItemFocused() && ImGui.isKeyPressed(ImGuiKey.Enter)) {
+                        confirmSelection();
+                    }
+
+                    // Up arrow from first item -> focus None
+                    if (isFirstSelectableItem && ImGui.isItemFocused() && ImGui.isKeyPressed(ImGuiKey.UpArrow)) {
+                        focusNoneNextFrame = true;
                     }
 
                     // Double-click to confirm
                     if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(0)) {
                         confirmSelection();
                     }
+
+                    // Tooltip with full path
+                    if (ImGui.isItemHovered()) {
+                        ImGui.setTooltip(entry.path);
+                    }
+
+                    isFirstSelectableItem = false;
                 } else {
                     // Non-selectable header (spritesheet when selecting Sprite)
                     ImGui.textDisabled(entry.displayName);
                 }
-
-                if (entry.isIndented) {
-                    ImGui.popStyleColor();
-                }
-
-                // Tooltip with full path
-                if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip(entry.path);
-                }
             }
 
-            ImGui.endChild();
+            ImGui.endChild();  // AssetList
+            ImGui.endChild();  // AssetListContainer
 
             // Right column: preview
             ImGui.nextColumn();

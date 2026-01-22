@@ -17,6 +17,7 @@ import org.joml.Vector4f;
  * Note: Runtime-only fields (onClick, onHover, onExit, hovered, pressed)
  * are not shown as they are set via code.
  */
+@InspectorFor(UIButton.class)
 public class UIButtonInspector extends CustomComponentInspector<UIButton> {
 
     @Override

@@ -412,7 +412,7 @@ public class SpriteBatch {
                 pos.x, pos.y,
                 width, height,
                 transform.getRotation().z,
-                sr.getOriginX(), sr.getOriginY(),
+                sr.getEffectiveOriginX(), sr.getEffectiveOriginY(),
                 sprite.getU0(), sprite.getV0(), sprite.getU1(), sprite.getV1(),
                 sr.getZIndex(),
                 pos.y,

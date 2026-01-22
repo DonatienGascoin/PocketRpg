@@ -22,7 +22,8 @@
       "Bash(/c/Users/donat/.sdkman/candidates/maven/current/bin/mvn compile:*)",
       "Bash(mvn.cmd compile:*)",
       "WebFetch(domain:claude.ai)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(javac:*)"
     ]
   }
 }

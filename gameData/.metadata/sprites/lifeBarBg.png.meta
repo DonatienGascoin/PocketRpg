@@ -1,6 +1,6 @@
 {
-  "pivotX": null,
-  "pivotY": null,
+  "pivotX": 0.5,
+  "pivotY": 0.5,
   "pixelsPerUnitOverride": null,
   "nineSlice": {
     "left": 14,

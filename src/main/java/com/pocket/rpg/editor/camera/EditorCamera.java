@@ -78,6 +78,8 @@ public class EditorCamera implements RenderCamera {
             this.viewportWidth = width;
             this.viewportHeight = height;
             projectionDirty = true;
+            // Force immediate projection recalculation
+            updateProjectionMatrix();
         }
     }
 

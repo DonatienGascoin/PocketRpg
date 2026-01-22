@@ -331,7 +331,6 @@ public class VillageLevelGenerator {
         SpriteRenderer renderer = new SpriteRenderer();
         renderer.setSprite(houseSprites.get(0));
         renderer.setZIndex(2);
-        renderer.setOriginBottomLeft();
         house.addComponent(renderer);
 
         house.setParent(parent);
@@ -483,7 +482,6 @@ public class VillageLevelGenerator {
         SpriteRenderer renderer = new SpriteRenderer();
         renderer.setSprite(safeGet(treeSprites, treeIndex));
         renderer.setZIndex(2);
-        renderer.setOriginBottomLeft();
         tree.addComponent(renderer);
 
         tree.setParent(parent);

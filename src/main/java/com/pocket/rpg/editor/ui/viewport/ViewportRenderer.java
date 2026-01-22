@@ -36,12 +36,16 @@ public class ViewportRenderer {
      * @return viewport bounds [x, y, width, height]
      */
     public float[] render(float viewportX, float viewportY, float viewportWidth, float viewportHeight) {
-        // Resize framebuffer if needed
+        // Resize framebuffer and sync camera if needed
         if (framebuffer != null && viewportWidth > 0 && viewportHeight > 0) {
             int newWidth = (int) viewportWidth;
             int newHeight = (int) viewportHeight;
 
-            if (newWidth != framebuffer.getWidth() || newHeight != framebuffer.getHeight()) {
+            boolean framebufferChanged = newWidth != framebuffer.getWidth() || newHeight != framebuffer.getHeight();
+            boolean cameraChanged = camera.getViewportWidth() != newWidth || camera.getViewportHeight() != newHeight;
+
+            // Always update both together to keep them in sync
+            if (framebufferChanged || cameraChanged) {
                 framebuffer.resize(newWidth, newHeight);
                 camera.setViewportSize(newWidth, newHeight);
             }
@@ -59,6 +63,16 @@ public class ViewportRenderer {
         }
 
         return new float[]{viewportX, viewportY, viewportWidth, viewportHeight};
+    }
+
+    /**
+     * Forces the viewport to recalculate on the next frame.
+     * Used when the window moves between monitors.
+     */
+    public void invalidate() {
+        // Reset camera viewport to force recalculation
+        camera.setViewportSize(0, 0);
+        camera.setViewportSize(framebuffer.getWidth(), framebuffer.getHeight());
     }
 
     public void destroy() {

@@ -6,6 +6,7 @@ import com.pocket.rpg.editor.panels.tilesets.TilesetSelector;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.tileset.TileSelection;
 import com.pocket.rpg.editor.tools.TileBrushTool;
+import com.pocket.rpg.editor.tools.TileEraserTool;
 import com.pocket.rpg.editor.tools.TileFillTool;
 import com.pocket.rpg.editor.tools.TileRectangleTool;
 import com.pocket.rpg.editor.tools.ToolManager;
@@ -20,6 +21,9 @@ public class TilesetPalettePanel {
 
     @Setter
     private TileBrushTool brushTool;
+
+    @Setter
+    private TileEraserTool eraserTool;
 
     @Setter
     private TileFillTool fillTool;
@@ -66,9 +70,9 @@ public class TilesetPalettePanel {
         tilesetSelector.renderSelector();
         ImGui.separator();
 
-        float reservedHeight = ImGui.getTextLineHeightWithSpacing() * 2 +
-                ImGui.getStyle().getItemSpacingY() * 2 +
-                ImGui.getFrameHeightWithSpacing() + 20;
+        float reservedHeight = ImGui.getTextLineHeightWithSpacing() * 3 +
+                ImGui.getStyle().getItemSpacingY() * 3 +
+                ImGui.getFrameHeightWithSpacing() * 2 + 30;
 
         float availableHeight = ImGui.getContentRegionAvailY() - reservedHeight;
 
@@ -79,6 +83,7 @@ public class TilesetPalettePanel {
 
         ImGui.separator();
         renderSelectionInfo();
+        renderToolSizeSlider();
         ImGui.separator();
         gridRenderer.renderSizeSlider();
     }
@@ -99,6 +104,7 @@ public class TilesetPalettePanel {
             tilesetSelector.renderSelector();
             ImGui.separator();
             renderSelectionInfo();
+            renderToolSizeSlider();
             ImGui.separator();
             gridRenderer.renderSizeSlider();
 
@@ -142,6 +148,22 @@ public class TilesetPalettePanel {
         } else {
             ImGui.text("Selection: Pattern " + selection.getWidth() + "x" + selection.getHeight());
             ImGui.textDisabled("Click to stamp pattern");
+        }
+    }
+
+    private void renderToolSizeSlider() {
+        if (brushTool == null) return;
+
+        // Don't show size for pattern selections
+        TileSelection selection = brushTool.getSelection();
+        if (selection != null && selection.isPattern()) return;
+
+        int[] size = {brushTool.getBrushSize()};
+        if (ImGui.sliderInt("Tool Size", size, 1, 10)) {
+            brushTool.setBrushSize(size[0]);
+            if (eraserTool != null) {
+                eraserTool.setEraserSize(size[0]);
+            }
         }
     }
 

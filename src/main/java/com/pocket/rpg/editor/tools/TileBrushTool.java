@@ -203,17 +203,15 @@ public class TileBrushTool implements EditorTool {
     public void renderOverlay(EditorCamera camera, int hoveredTileX, int hoveredTileY) {
         if (hoveredTileX == Integer.MIN_VALUE || hoveredTileY == Integer.MIN_VALUE) return;
         if (viewportWidth <= 0 || viewportHeight <= 0) return;
+        if (selection == null) return;
 
         ImDrawList drawList = ImGui.getForegroundDrawList();
         drawList.pushClipRect(viewportX, viewportY, viewportX + viewportWidth, viewportY + viewportHeight, true);
 
-        if (selection != null && selection.isPattern()) {
+        if (selection.isPattern()) {
             renderPatternGhost(drawList, camera, hoveredTileX, hoveredTileY);
-        } else if (selection != null) {
-            renderSingleTileGhost(drawList, camera, hoveredTileX, hoveredTileY);
         } else {
-            int color = ImGui.colorConvertFloat4ToU32(0.5f, 0.5f, 0.5f, 0.3f);
-            drawTileHighlight(drawList, camera, hoveredTileX, hoveredTileY, color);
+            renderSingleTileGhost(drawList, camera, hoveredTileX, hoveredTileY);
         }
 
         drawList.popClipRect();

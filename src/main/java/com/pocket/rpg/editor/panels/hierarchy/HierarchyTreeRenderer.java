@@ -8,6 +8,7 @@ import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.BulkDeleteCommand;
 import com.pocket.rpg.editor.undo.commands.RemoveEntityCommand;
+import com.pocket.rpg.editor.undo.commands.RenameEntityCommand;
 import com.pocket.rpg.editor.undo.commands.ReparentEntityCommand;
 import com.pocket.rpg.editor.utils.IconUtils;
 import com.pocket.rpg.prefab.Prefab;
@@ -45,6 +46,7 @@ public class HierarchyTreeRenderer {
 
     private Object renamingItem = null;
     private final ImString renameBuffer = new ImString(64);
+    private String nameBeforeRename = null;  // For undo support
     private final SavePrefabPopup savePrefabPopup = new SavePrefabPopup();
 
     public void renderEntityTree(EditorGameObject entity) {
@@ -108,15 +110,18 @@ public class HierarchyTreeRenderer {
         int inputFlags = ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll;
         if (ImGui.inputText("##rename", renameBuffer, inputFlags)) {
             String newName = renameBuffer.get().trim();
-            if (!newName.isEmpty()) {
+            if (!newName.isEmpty() && !newName.equals(nameBeforeRename)) {
                 entity.setName(newName);
                 scene.markDirty();
+                UndoManager.getInstance().push(new RenameEntityCommand(entity, nameBeforeRename, newName));
             }
             renamingItem = null;
+            nameBeforeRename = null;
         }
 
         if (ImGui.isKeyPressed(ImGuiKey.Escape)) {
             renamingItem = null;
+            nameBeforeRename = null;
         }
     }
 
@@ -127,7 +132,8 @@ public class HierarchyTreeRenderer {
 
         if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(0)) {
             renamingItem = entity;
-            renameBuffer.set(entity.getName());
+            nameBeforeRename = entity.getName();
+            renameBuffer.set(nameBeforeRename);
         }
     }
 
@@ -156,7 +162,8 @@ public class HierarchyTreeRenderer {
             } else {
                 if (ImGui.menuItem(MaterialIcons.Edit + " Rename")) {
                     renamingItem = entity;
-                    renameBuffer.set(entity.getName());
+                    nameBeforeRename = entity.getName();
+                    renameBuffer.set(nameBeforeRename);
                 }
 
                 if (ImGui.menuItem(MaterialIcons.ContentCopy + " Duplicate")) {

@@ -32,6 +32,7 @@ import java.util.List;
  * - Cascading resize (children scale with parent)
  * - Undo/redo support
  */
+@InspectorFor(UITransform.class)
 public class UITransformInspector extends CustomComponentInspector<UITransform> {
 
     // Anchor/Pivot preset positions
@@ -74,8 +75,20 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
 
     @Getter
     @Setter
-    private boolean compactLayout = false;
+    private boolean compactLayout = true;
 
+    /**
+     * Creates a UITransformInspector with compact layout enabled (default).
+     */
+    public UITransformInspector() {
+        // Default compact layout
+    }
+
+    /**
+     * Creates a UITransformInspector with specified layout mode.
+     *
+     * @param compactLayout true for compact layout
+     */
     public UITransformInspector(boolean compactLayout) {
         this.compactLayout = compactLayout;
     }

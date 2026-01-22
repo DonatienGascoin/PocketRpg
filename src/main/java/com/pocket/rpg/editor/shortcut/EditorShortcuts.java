@@ -150,6 +150,7 @@ public final class EditorShortcuts {
                         .displayName("Save Scene")
                         .defaultBinding(ShortcutBinding.ctrl(ImGuiKey.S))
                         .global()
+                        .allowInInput(true)
                         .handler(() -> {})
                         .build(),
 
@@ -158,6 +159,7 @@ public final class EditorShortcuts {
                         .displayName("Save Scene As")
                         .defaultBinding(ShortcutBinding.ctrlShift(ImGuiKey.S))
                         .global()
+                        .allowInInput(true)
                         .handler(() -> {})
                         .build(),
 
@@ -187,7 +189,7 @@ public final class EditorShortcuts {
                         .displayName("Undo")
                         .defaultBinding(undoBinding)
                         .global()
-                        .allowInTextInput(false)
+                        .allowInInput(true)
                         .allowInPopup(true)
                         .handler(() -> {})
                         .build(),
@@ -197,7 +199,7 @@ public final class EditorShortcuts {
                         .displayName("Redo")
                         .defaultBinding(redoBinding)
                         .global()
-                        .allowInTextInput(false)
+                        .allowInInput(true)
                         .allowInPopup(true)
                         .handler(() -> {})
                         .build(),
@@ -208,7 +210,7 @@ public final class EditorShortcuts {
                         .displayName("Redo (Alt)")
                         .defaultBinding(ShortcutBinding.ctrl(ImGuiKey.Y))
                         .global()
-                        .allowInTextInput(false)
+                        .allowInInput(true)
                         .allowInPopup(true)
                         .handler(() -> {})
                         .build(),

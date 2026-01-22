@@ -1,12 +1,11 @@
 {
-  "pivotX": 0.5,
-  "pivotY": 0.5,
+  "pivotX": 1.0,
+  "pivotY": 0.0,
   "pixelsPerUnitOverride": null,
   "nineSlice": {
     "left": 10,
     "right": 10,
     "top": 10,
-    "bottom": 10,
-    "centerMode": "STRETCH"
+    "bottom": 10
   }
 }

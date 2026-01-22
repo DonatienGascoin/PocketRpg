@@ -259,17 +259,100 @@ int stage = SaveManager.getGlobal("quests", "main_quest_stage", 1);
 
 ---
 
+## Files to Create
+
+| File | Purpose |
+|------|---------|
+| `save/SaveData.java` | Root save structure with version + migration |
+| `save/SavedSceneState.java` | Per-scene delta state |
+| `save/SavedEntityState.java` | Single entity's saved state |
+| `save/SpawnedEntityData.java` | Runtime-created entities (if Option B/C) |
+| `save/SaveManager.java` | Static API, scene lifecycle hooks |
+| `save/PersistentId.java` | Component for saveable entities |
+| `save/ISaveable.java` | Interface for saveable components |
+| `save/SaveSlotInfo.java` | Record for UI display |
+
+## Files to Modify
+
+| File | Change |
+|------|--------|
+| `core/GameApplication.java` | Call `SaveManager.initialize()` at startup |
+
+---
+
+## Implementation Phases
+
+### Phase 1: Core Infrastructure
+- Create `com.pocket.rpg.save` package
+- Implement `SaveData`, `SavedSceneState`, `SavedEntityState`
+- Implement `ISaveable` interface
+- Implement `PersistentId` component
+- Basic `SaveManager` with file I/O
+
+### Phase 2: Scene Integration
+- Hook `SaveManager` into `SceneLifecycleListener`
+- Implement entity registration/unregistration
+- Implement `captureCurrentSceneState()`
+- Implement `applySavedStateToEntity()`
+
+### Phase 3: Global State & Utilities
+- Implement global state get/set
+- Implement `listSaves()`, `deleteSave()`, `saveExists()`
+- Implement `SaveSlotInfo` for UI
+- Play time tracking
+
+### Phase 4: Testing
+- Create test scene with saveable entities
+- Unit tests for save/load cycle
+- Integration tests
+
+### Phase 5: Code Review
+- Review all new/modified files
+- Write review to `Documents/Reviews/save-system-review.md`
+
+---
+
+## Verification
+
+1. **New Game Flow:**
+   - Call `SaveManager.newGame()`
+   - Load a scene, modify entity positions
+   - Save to slot1
+   - Verify `.save` file exists in AppData
+
+2. **Load Game Flow:**
+   - Load slot1
+   - Verify correct scene loads
+   - Verify entity positions match saved state
+   - Verify `ISaveable` component states restored
+
+3. **Global State:**
+   - Set global value with `setGlobal()`
+   - Change scene
+   - Verify `getGlobal()` returns saved value
+
+4. **Save Slot Management:**
+   - Create multiple saves
+   - Verify `listSaves()` returns correct metadata
+   - Delete save, verify removed
+
+---
+
+## Related Documents
+
+- `save-system-data-structures.md` - All data classes and JSON format
+- `save-system-api.md` - SaveManager API and ISaveable interface
+- `save-system-examples.md` - Example component implementations
+- `save-system-scenarios.md` - How different entity types are saved under each option
+
+---
+
 ## Next Steps
 
-After reviewing this document:
+After reviewing all documents:
 
 1. **Choose your options** for:
    - Scene transition handling (Option A or B)
    - Spawned entity handling (Option A, B, or C)
 
-2. **Review the detailed design** in:
-   - `save-system-data-structures.md` - All data classes
-   - `save-system-api.md` - SaveManager API and ISaveable interface
-   - `save-system-examples.md` - Example component implementations
-
-3. **Approve implementation** when ready
+2. **Approve implementation** when ready

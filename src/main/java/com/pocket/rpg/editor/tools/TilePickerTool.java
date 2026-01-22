@@ -294,9 +294,19 @@ public class TilePickerTool implements EditorTool {
             drawList.addRect(rectMinX, rectMinY, rectMaxX, rectMaxY, borderColor, 0, 0, 2.0f);
 
         } else if (hoveredTileX != Integer.MIN_VALUE && hoveredTileY != Integer.MIN_VALUE) {
-            // Draw picker cursor (crosshair style)
-            int color = ImGui.colorConvertFloat4ToU32(1.0f, 0.8f, 0.3f, 0.6f);
-            drawTileHighlight(drawList, camera, hoveredTileX, hoveredTileY, color, true);
+            // Check if shift is pressed for pattern-pick mode indicator
+            boolean shiftPressed = ImGui.isKeyDown(ImGuiKey.LeftShift) || ImGui.isKeyDown(ImGuiKey.RightShift);
+
+            if (shiftPressed) {
+                // Pattern-pick mode: magenta/purple color
+                int fillColor = ImGui.colorConvertFloat4ToU32(0.9f, 0.4f, 0.9f, 0.4f);
+                int borderColor = ImGui.colorConvertFloat4ToU32(1.0f, 0.5f, 1.0f, 0.9f);
+                drawTileHighlightWithBorder(drawList, camera, hoveredTileX, hoveredTileY, fillColor, borderColor, 2.0f);
+            } else {
+                // Normal picker cursor
+                int color = ImGui.colorConvertFloat4ToU32(1.0f, 0.8f, 0.3f, 0.6f);
+                drawTileHighlight(drawList, camera, hoveredTileX, hoveredTileY, color, true);
+            }
         }
 
         drawList.popClipRect();
@@ -326,6 +336,29 @@ public class TilePickerTool implements EditorTool {
             int borderColor = ImGui.colorConvertFloat4ToU32(1.0f, 0.9f, 0.4f, 0.8f);
             drawList.addRect(minX, minY, maxX, maxY, borderColor, 0, 0, 1.5f);
         }
+    }
+
+    /**
+     * Draws a highlight rectangle for a tile with custom border color and thickness.
+     */
+    private void drawTileHighlightWithBorder(ImDrawList drawList, EditorCamera camera,
+                                              int tileX, int tileY, int fillColor,
+                                              int borderColor, float borderThickness) {
+        Vector2f bottomLeft = camera.worldToScreen(tileX, tileY);
+        Vector2f topRight = camera.worldToScreen(tileX + 1, tileY + 1);
+
+        float x1 = viewportX + bottomLeft.x;
+        float y1 = viewportY + topRight.y;
+        float x2 = viewportX + topRight.x;
+        float y2 = viewportY + bottomLeft.y;
+
+        float minX = Math.min(x1, x2);
+        float maxX = Math.max(x1, x2);
+        float minY = Math.min(y1, y2);
+        float maxY = Math.max(y1, y2);
+
+        drawList.addRectFilled(minX, minY, maxX, maxY, fillColor);
+        drawList.addRect(minX, minY, maxX, maxY, borderColor, 0, 0, borderThickness);
     }
 
     /**

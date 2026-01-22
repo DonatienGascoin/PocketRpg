@@ -17,6 +17,7 @@ import org.joml.Vector4f;
  * Custom editor for UIImage component.
  * Provides Unity-style Image Type selection with conditional fields.
  */
+@InspectorFor(UIImage.class)
 public class UIImageInspector extends CustomComponentInspector<UIImage> {
 
     @Override

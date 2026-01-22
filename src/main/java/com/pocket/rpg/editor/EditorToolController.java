@@ -219,6 +219,7 @@ public class EditorToolController {
     }
 
     private void renderTilemapToolSettings(EditorTool activeTool) {
+        // Tool-specific info
         if (activeTool == brushTool) {
             ImGui.text("Brush Settings");
             var selection = brushTool.getSelection();
@@ -228,17 +229,9 @@ public class EditorToolController {
                 ImGui.text("Pattern: " + selection.getWidth() + "x" + selection.getHeight());
             } else {
                 ImGui.text("Tile: " + selection.getFirstTileIndex());
-                int[] size = {brushTool.getBrushSize()};
-                if (ImGui.sliderInt("Size", size, 1, 10)) {
-                    brushTool.setBrushSize(size[0]);
-                }
             }
         } else if (activeTool == eraserTool) {
             ImGui.text("Eraser Settings");
-            int[] size = {eraserTool.getEraserSize()};
-            if (ImGui.sliderInt("Size", size, 1, 10)) {
-                eraserTool.setEraserSize(size[0]);
-            }
         } else if (activeTool == fillTool) {
             ImGui.text("Fill Settings");
             ImGui.textDisabled("Click to flood fill");
@@ -249,6 +242,17 @@ public class EditorToolController {
             ImGui.text("Picker Settings");
             ImGui.textDisabled("Click: Pick tile");
             ImGui.textDisabled("Shift+Drag: Pick pattern");
+        }
+
+        // Unified tool size for brush and eraser (skip for pattern selections)
+        boolean showSize = (activeTool == brushTool || activeTool == eraserTool);
+        boolean isPattern = activeTool == brushTool && brushTool.getSelection() != null && brushTool.getSelection().isPattern();
+        if (showSize && !isPattern) {
+            int[] size = {brushTool.getBrushSize()};
+            if (ImGui.sliderInt("Tool Size", size, 1, 10)) {
+                brushTool.setBrushSize(size[0]);
+                eraserTool.setEraserSize(size[0]);
+            }
         }
 
         ImGui.separator();
@@ -264,19 +268,12 @@ public class EditorToolController {
     private void renderCollisionToolSettings(EditorTool activeTool) {
         CollisionType selectedType = collisionPanel != null ? collisionPanel.getSelectedType() : CollisionType.SOLID;
 
+        // Tool-specific info
         if (activeTool == collisionBrushTool) {
             ImGui.text("Collision Brush");
             ImGui.text("Type: " + selectedType.getDisplayName());
-            int[] size = {collisionBrushTool.getBrushSize()};
-            if (ImGui.sliderInt("Size", size, 1, 10)) {
-                collisionBrushTool.setBrushSize(size[0]);
-            }
         } else if (activeTool == collisionEraserTool) {
             ImGui.text("Collision Eraser");
-            int[] size = {collisionEraserTool.getEraserSize()};
-            if (ImGui.sliderInt("Size", size, 1, 10)) {
-                collisionEraserTool.setEraserSize(size[0]);
-            }
         } else if (activeTool == collisionFillTool) {
             ImGui.text("Collision Fill");
             ImGui.textDisabled("Click to flood fill");
@@ -287,6 +284,15 @@ public class EditorToolController {
         } else if (activeTool == collisionPickerTool) {
             ImGui.text("Collision Picker");
             ImGui.textDisabled("Click to pick type");
+        }
+
+        // Unified tool size for brush and eraser
+        if (activeTool == collisionBrushTool || activeTool == collisionEraserTool) {
+            int[] size = {collisionBrushTool.getBrushSize()};
+            if (ImGui.sliderInt("Tool Size", size, 1, 10)) {
+                collisionBrushTool.setBrushSize(size[0]);
+                collisionEraserTool.setEraserSize(size[0]);
+            }
         }
 
         EditorScene scene = context.getCurrentScene();

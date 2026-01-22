@@ -134,21 +134,26 @@ public class RenderDispatcher {
 
         Vector3f pos = entity.getPosition();
         Vector2f size = entity.getCurrentSize();
+        Vector3f scale = entity.getScale();
         Vector3f rotation = entity.getRotation();
 
-        // Get origin from SpriteRenderer if available, else default to bottom-left (0,0)
-        float originX = 0f;
-        float originY = 0f;
+        // Apply scale to size
+        float width = size.x * scale.x;
+        float height = size.y * scale.y;
+
+        // Get origin from SpriteRenderer if available, else default to center (0.5, 0.5)
+        float originX = 0.5f;
+        float originY = 0.5f;
         SpriteRenderer sr = entity.getComponent(SpriteRenderer.class);
         if (sr != null) {
-            originX = sr.getOriginX();
-            originY = sr.getOriginY();
+            originX = sr.getEffectiveOriginX();
+            originY = sr.getEffectiveOriginY();
         }
 
         batch.submit(
                 sprite,
                 pos.x, pos.y,
-                size.x, size.y,
+                width, height,
                 rotation.z,
                 originX, originY,
                 entity.getZIndex(),

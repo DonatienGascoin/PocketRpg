@@ -27,6 +27,8 @@ public class EditorWindow extends AbstractWindow {
 
     private int screenWidth;
     private int screenHeight;
+    private int framebufferWidth;
+    private int framebufferHeight;
     private boolean isMinimized = false;
     private boolean isFocused = true;
 
@@ -39,6 +41,8 @@ public class EditorWindow extends AbstractWindow {
 
     // Callbacks for editor systems
     private Runnable onResize;
+    private Runnable onFramebufferResize;
+    private Runnable onWindowMove;
 
     /**
      * Creates an EditorWindow with editor configuration.
@@ -108,8 +112,13 @@ public class EditorWindow extends AbstractWindow {
             IntBuffer w = stack.mallocInt(1);
             IntBuffer h = stack.mallocInt(1);
 
+            // Get initial window size
             glfwGetWindowSize(windowHandle, w, h);
             onResizeCallback(w.get(0), h.get(0));
+
+            // Get initial framebuffer size (may differ on high-DPI displays)
+            glfwGetFramebufferSize(windowHandle, w, h);
+            onFramebufferResizeCallback(w.get(0), h.get(0));
         }
 
         // Initial OpenGL state
@@ -149,8 +158,11 @@ public class EditorWindow extends AbstractWindow {
     }
 
     private void setupCallbacks() {
-        // Window size callback
+        // Window size callback (screen coordinates - may differ from framebuffer on high-DPI)
         glfwSetWindowSizeCallback(windowHandle, (window, width, height) -> onResizeCallback(width, height));
+
+        // Framebuffer size callback (actual pixel dimensions for OpenGL)
+        glfwSetFramebufferSizeCallback(windowHandle, (window, width, height) -> onFramebufferResizeCallback(width, height));
 
         // Window iconify callback
         glfwSetWindowIconifyCallback(windowHandle, (window, iconified) -> {
@@ -160,6 +172,13 @@ public class EditorWindow extends AbstractWindow {
         // Window focus callback
         glfwSetWindowFocusCallback(windowHandle, (window, focused) -> {
             isFocused = focused;
+        });
+
+        // Window position callback (detects window moving between monitors)
+        glfwSetWindowPosCallback(windowHandle, (window, xpos, ypos) -> {
+            if (onWindowMove != null) {
+                onWindowMove.run();
+            }
         });
 
         // Mouse position callback
@@ -197,13 +216,25 @@ public class EditorWindow extends AbstractWindow {
         if (width <= 0 || height <= 0) {
             return;
         }
-        System.out.println("New width: " + width + ", new height: " + height);
         screenWidth = width;
         screenHeight = height;
-        glViewport(0, 0, width, height);
 
         if (onResize != null) {
             onResize.run();
+        }
+    }
+
+    private void onFramebufferResizeCallback(int width, int height) {
+        if (width <= 0 || height <= 0) {
+            return;
+        }
+        System.out.println("Framebuffer resize: " + width + "x" + height);
+        framebufferWidth = width;
+        framebufferHeight = height;
+        glViewport(0, 0, width, height);
+
+        if (onFramebufferResize != null) {
+            onFramebufferResize.run();
         }
     }
 
@@ -348,5 +379,21 @@ public class EditorWindow extends AbstractWindow {
 
     public void setOnResize(Runnable callback) {
         this.onResize = callback;
+    }
+
+    public void setOnFramebufferResize(Runnable callback) {
+        this.onFramebufferResize = callback;
+    }
+
+    public int getFramebufferWidth() {
+        return framebufferWidth;
+    }
+
+    public int getFramebufferHeight() {
+        return framebufferHeight;
+    }
+
+    public void setOnWindowMove(Runnable callback) {
+        this.onWindowMove = callback;
     }
 }

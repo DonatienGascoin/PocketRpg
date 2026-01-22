@@ -174,8 +174,8 @@ public class Renderer {
         float finalWidth = sprite.getWorldWidth() * scale.x;
         float finalHeight = sprite.getWorldHeight() * scale.y;
 
-        float originX = finalWidth * spriteRenderer.getOriginX();
-        float originY = finalHeight * spriteRenderer.getOriginY();
+        float originX = finalWidth * spriteRenderer.getEffectiveOriginX();
+        float originY = finalHeight * spriteRenderer.getEffectiveOriginY();
 
         modelMatrix.identity();
 
@@ -235,14 +235,14 @@ public class Renderer {
 
         // Match original working UV mapping
         // Triangle 1
-        putVertex(0f, 0f, u0, v1, tintColor.x, tintColor.y, tintColor.z, tintColor.z);
-        putVertex(0.0f, 1.0f, u0, v0, tintColor.x, tintColor.y, tintColor.z, tintColor.z);
-        putVertex(1.0f, 1.0f, u1, v0, tintColor.x, tintColor.y, tintColor.z, tintColor.z);
+        putVertex(0f, 0f, u0, v1, tintColor.x, tintColor.y, tintColor.z, tintColor.w);
+        putVertex(0.0f, 1.0f, u0, v0, tintColor.x, tintColor.y, tintColor.z, tintColor.w);
+        putVertex(1.0f, 1.0f, u1, v0, tintColor.x, tintColor.y, tintColor.z, tintColor.w);
 
         // Triangle 2
-        putVertex(0.0f, 0.0f, u0, v1, tintColor.x, tintColor.y, tintColor.z, tintColor.z);
-        putVertex(1.0f, 1.0f, u1, v0, tintColor.x, tintColor.y, tintColor.z, tintColor.z);
-        putVertex(1.0f, 0.0f, u1, v1, tintColor.x, tintColor.y, tintColor.z, tintColor.z);
+        putVertex(0.0f, 0.0f, u0, v1, tintColor.x, tintColor.y, tintColor.z, tintColor.w);
+        putVertex(1.0f, 1.0f, u1, v0, tintColor.x, tintColor.y, tintColor.z, tintColor.w);
+        putVertex(1.0f, 0.0f, u1, v1, tintColor.x, tintColor.y, tintColor.z, tintColor.w);
 
         vertexBuffer.flip();
 

@@ -73,7 +73,6 @@ public class PlayerPrefab implements Prefab {
         if (playerSheet != null) {
             spriteRenderer.setSprite(playerSheet.getSprite(0));
         }
-        spriteRenderer.setOriginBottomCenter();
         result.add(spriteRenderer);
 
         // PlayerCameraFollow component

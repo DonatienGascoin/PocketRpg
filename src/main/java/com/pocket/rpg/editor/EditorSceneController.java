@@ -2,6 +2,7 @@ package com.pocket.rpg.editor;
 
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.serialization.EditorSceneSerializer;
+import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.serialization.SceneData;
 
@@ -42,6 +43,9 @@ public class EditorSceneController {
             currentScene.destroy();
         }
 
+        // Clear undo history (actions from previous scene don't apply)
+        UndoManager.getInstance().clear();
+
         // Create new scene
         EditorScene newScene = new EditorScene("Untitled");
         context.setCurrentScene(newScene);
@@ -63,6 +67,9 @@ public class EditorSceneController {
         if (currentScene != null) {
             currentScene.destroy();
         }
+
+        // Clear undo history (actions from previous scene don't apply)
+        UndoManager.getInstance().clear();
 
         try {
             // Load scene data

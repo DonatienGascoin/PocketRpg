@@ -53,8 +53,8 @@ public abstract class FrustumCuller {
         float spriteWidth = sprite.getWorldWidth() * scale.x;
         float spriteHeight = sprite.getWorldHeight() * scale.y;
 
-        float originOffsetX = spriteWidth * spriteRenderer.getOriginX();
-        float originOffsetY = spriteHeight * spriteRenderer.getOriginY();
+        float originOffsetX = spriteWidth * spriteRenderer.getEffectiveOriginX();
+        float originOffsetY = spriteHeight * spriteRenderer.getEffectiveOriginY();
 
         float minX = pos.x - originOffsetX;
         float maxX = pos.x + (spriteWidth - originOffsetX);

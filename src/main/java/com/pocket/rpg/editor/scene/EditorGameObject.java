@@ -867,9 +867,6 @@ public class EditorGameObject implements Renderable {
 
     @Override
     public int getZIndex() {
-        Vector3f pos = getPosition();
-        if (pos.z != 0) return (int) pos.z;
-
         SpriteRenderer spriteRenderer = getComponent(SpriteRenderer.class);
         if (spriteRenderer != null) {
             return spriteRenderer.getZIndex();

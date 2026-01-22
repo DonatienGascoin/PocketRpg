@@ -10,6 +10,7 @@ import org.joml.Vector4f;
 /**
  * Custom editor for UIPanel component.
  */
+@InspectorFor(UIPanel.class)
 public class UIPanelInspector extends CustomComponentInspector<UIPanel> {
 
     // Common color presets

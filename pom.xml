@@ -26,6 +26,7 @@
         <lombok.version>1.18.38</lombok.version>
         <apache.common.text>1.14.0</apache.common.text>
         <common.io>2.19.0</common.io>
+        <reflections.version>0.10.2</reflections.version>
 
         <junit.version>5.10.1</junit.version>
         <mockito.version>5.8.0</mockito.version>
@@ -208,6 +209,13 @@
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
             <version>${gson.version}</version>
+        </dependency>
+
+        <!-- Reflections - runtime classpath scanning -->
+        <dependency>
+            <groupId>org.reflections</groupId>
+            <artifactId>reflections</artifactId>
+            <version>${reflections.version}</version>
         </dependency>
 
         <!-- JUnit 5 for testing -->

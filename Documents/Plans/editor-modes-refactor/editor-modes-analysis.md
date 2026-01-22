@@ -178,24 +178,55 @@ Selection becomes a first-class concept independent of tools:
 
 ---
 
-#### C.3 Tool System (Unified)
+#### C.3 Tool System (Panel-Driven Visibility)
 
-All tools visible in a single toolbar, grouped by category:
+**Key insight from Unity:** Tile Palette tools only appear when the Tile Palette window is open. This reduces clutter while maintaining a modeless design.
+
+**Tool visibility rules:**
+
+| Panel State | Tools Visible in Toolbar |
+|-------------|--------------------------|
+| Only base panels open | Entity tools only: `[Select][Move][Place]` |
+| Tileset Palette open | Entity + Tile tools: `[Select][Move][Place] │ [Brush][Eraser][Fill][Rect][Pick]` |
+| Collision Panel open | Entity + Collision tools: `[Select][Move][Place] │ [C.Brush][C.Eraser][C.Fill][C.Rect][C.Pick]` |
+| Both panels open | All tools visible (rare case) |
+
+**Toolbar appearance:**
 
 ```
+Base state (no painting panels):
+┌─────────────────────────┐
+│ [Select][Move][Place]   │
+└─────────────────────────┘
+
+With Tileset Palette open:
+┌───────────────────────────────────────────────────────────┐
+│ [Select][Move][Place] │ [Brush][Eraser][Fill][Rect][Pick] │
+│                       │  ← appears when panel opens        │
+└───────────────────────────────────────────────────────────┘
+
+With Collision Panel open:
 ┌─────────────────────────────────────────────────────────────────┐
-│ [Select][Move][Place] │ [Brush][Eraser][Fill][Rect][Pick] │ ... │
-│   Entity Tools        │        Painting Tools              │     │
+│ [Select][Move][Place] │ [C.Brush][C.Eraser][C.Fill][C.Rect][C.Pick] │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+**Panel open/close behavior:**
+
+| Action | Result |
+|--------|--------|
+| Open Tileset Palette | Tile tools appear in toolbar |
+| Close Tileset Palette | Tile tools disappear, active tool switches to Select if was tile tool |
+| Open Collision Panel | Collision tools appear in toolbar |
+| Close Collision Panel | Collision tools disappear, active tool switches to Select if was collision tool |
+
 **Tool categories:**
 
-| Category | Tools | Viewport behavior | Requires |
-|----------|-------|-------------------|----------|
-| **Entity** | Select, Move, Place Entity | Operate on entities | Nothing |
-| **Tile Painting** | Brush, Eraser, Fill, Rectangle, Picker | Paint on active tilemap layer | Active layer selected |
-| **Collision Painting** | Collision Brush, Eraser, Fill, Rectangle, Picker | Paint collision data | Collision layer selected |
+| Category | Tools | Viewport behavior | Visible when |
+|----------|-------|-------------------|--------------|
+| **Entity** | Select, Move, Place Entity | Operate on entities | Always |
+| **Tile Painting** | Brush, Eraser, Fill, Rectangle, Picker | Paint on active tilemap layer | Tileset Palette open |
+| **Collision Painting** | Collision Brush, Eraser, Fill, Rectangle, Picker | Paint collision data | Collision Panel open |
 
 **Tool determines click behavior:**
 
@@ -208,6 +239,19 @@ All tools visible in a single toolbar, grouped by category:
 | Tile Eraser | Erase tile at cursor |
 | Collision Brush | Paint collision at cursor |
 | etc. | ... |
+
+**Keyboard shortcut behavior:**
+
+| Shortcut | Panel closed | Panel open |
+|----------|--------------|------------|
+| B (Tile Brush) | Opens Tileset Palette, activates Brush | Activates Brush |
+| C (Collision Brush) | Opens Collision Panel, activates Collision Brush | Activates Collision Brush |
+| V (Select) | Activates Select (panels stay as-is) | Activates Select (panels stay as-is) |
+
+This gives a clean workflow:
+- Press B → Tileset Palette opens, you're ready to paint
+- Press V → Back to Select tool, palette stays open for reference
+- Close palette → Automatically back to Select tool
 
 ---
 
@@ -230,25 +274,52 @@ These are selected via:
 
 ---
 
-#### C.5 Panel Visibility (Tool-Driven)
+#### C.5 Panel Visibility (User-Controlled, Tools Follow)
 
-Panels appear based on **active tool category**, not mode:
+**Inverted from original design:** Panels are user-controlled. Tools follow panel state, not the other way around.
 
-| Active Tool | Panels visible |
-|-------------|----------------|
-| Entity tools (Select, Move, Place) | Asset Browser, Prefab Browser |
-| Tile painting tools | Tileset Palette |
-| Collision painting tools | Collision Panel |
-
-**Always visible:**
+**Always visible (core panels):**
 - Hierarchy (with all sections expanded)
 - Inspector (shows current selection)
 - Scene Viewport
+- Asset Browser (for entity placement)
 
-**Panel behavior:**
-- Panels slide in/out smoothly on tool change
-- Or: All panels docked, just highlighted based on relevance
-- User can pin panels to always show
+**Toggleable painting panels:**
+
+| Panel | How to open | How to close | Effect on tools |
+|-------|-------------|--------------|-----------------|
+| Tileset Palette | Menu, shortcut (B), or click "Tilemap Layers" in Hierarchy | X button, or ESC when tile tool active | Tile tools appear/disappear |
+| Collision Panel | Menu, shortcut (C), or click "Collision Map" in Hierarchy | X button, or ESC when collision tool active | Collision tools appear/disappear |
+
+**Panel states:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Hierarchy  │  Scene Viewport  │  Inspector                 │
+│             │                  │  (shows selection)         │
+│  - Camera   │  [toolbar here]  │                            │
+│  - Entities │                  │                            │
+│  - Tilemap  │                  ├────────────────────────────┤
+│  - Collision│                  │  Tileset Palette           │
+│             │                  │  (when open)               │
+│             │                  ├────────────────────────────┤
+│             │                  │  Collision Panel           │
+│             │                  │  (when open)               │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Hierarchy click shortcuts:**
+
+| Click target | Action |
+|--------------|--------|
+| "Tilemap Layers" | Opens Tileset Palette (if closed), selects tilemap in Inspector |
+| "Collision Map" | Opens Collision Panel (if closed), selects collision in Inspector |
+| Any entity | Selects entity in Inspector (panels unchanged) |
+
+This matches Unity behavior where:
+- Opening Tile Palette enables tile tools
+- Closing Tile Palette disables tile tools (reverts to Select)
+- You control when painting is available by opening/closing the palette
 
 ---
 
@@ -315,51 +386,62 @@ Panels appear based on **active tool category**, not mode:
 **Phase 1: Decouple Selection from Mode**
 1. Create `EditorSelectionManager` to handle selection independently
 2. Move selection state out of `HierarchySelectionHandler`
-3. Make Inspector always show current selection
+3. Make Inspector always show current selection regardless of mode
 4. Remove selection clearing from mode switch code
+5. Test: Switch modes, verify entity stays selected in Inspector
 
-**Phase 2: Unify Tool System**
-1. Remove tool filtering by mode in `SceneViewToolbar`
-2. Show all tools in single toolbar (grouped)
-3. Update `ToolManager` to not care about modes
-4. Add "Active Target" concept for painting tools
+**Phase 2: Panel-Driven Tool Visibility**
+1. Add `isPanelOpen()` checks for Tileset Palette and Collision Panel
+2. Update `SceneViewToolbar` to show tools based on panel state:
+   - Entity tools: always visible
+   - Tile tools: visible when Tileset Palette open
+   - Collision tools: visible when Collision Panel open
+3. Add panel open/close listeners to toolbar
+4. When panel closes, if active tool was from that category, switch to Select
+5. Test: Open/close panels, verify tools appear/disappear correctly
 
-**Phase 3: Update Panel Visibility**
-1. Change panel visibility logic from mode-based to tool-based
-2. Add smooth transitions or highlighting
-3. Allow panel pinning
+**Phase 3: Shortcut-Opens-Panel Behavior**
+1. Update tile tool shortcuts (B, E, F, R, I) to open Tileset Palette if closed
+2. Update collision tool shortcuts (C, X, etc.) to open Collision Panel if closed
+3. Add hierarchy click behavior: clicking "Tilemap Layers" opens palette
+4. Test: Press B with palette closed, verify it opens and Brush activates
 
 **Phase 4: Remove Mode System**
-1. Deprecate `EditorModeManager`
-2. Remove mode dropdown from toolbar
-3. Update all mode listeners to use new patterns
-4. Remove mode shortcuts (E/M/N) or repurpose
+1. Identify all `EditorModeManager` usages
+2. Replace mode checks with panel-open checks or tool-category checks
+3. Remove mode dropdown from toolbar
+4. Deprecate/delete `EditorModeManager`
+5. Update `EditorContext` to remove mode methods
+6. Test: Full workflow without modes
 
 **Phase 5: Polish**
-1. Add Alt+Click for quick select
-2. Add visual feedback for active target
-3. Update keyboard shortcuts
-4. Test all workflows
+1. Add Alt+Click for quick entity select from any tool
+2. Add ESC behavior: close active painting panel OR clear selection
+3. Add visual feedback for active tilemap layer in viewport
+4. Update keyboard shortcut documentation
+5. Test: All workflow examples from C.7
 
 ---
 
 #### C.9 Files Affected (Detailed)
 
-| File | Changes |
-|------|---------|
-| **NEW: `EditorSelectionManager.java`** | New class managing selection state (entity, layer, collision) |
-| `EditorModeManager.java` | **DELETE** or deprecate entirely |
-| `EditorContext.java` | Remove mode methods, add selection manager reference |
-| `HierarchySelectionHandler.java` | Simplify to just handle clicks, delegate to SelectionManager |
-| `HierarchyPanel.java` | Remove mode-based highlighting, use selection-based |
-| `SceneViewToolbar.java` | Remove mode dropdown, show all tools grouped |
-| `EditorToolController.java` | Remove mode filtering, add tool category concept |
-| `EditorUIController.java` | Change panel visibility from mode-based to tool-based |
-| `ViewportInputHandler.java` | Add Alt+Click handling for quick select |
-| `InspectorPanel.java` | Always show selection, remove mode checks |
-| `SelectionTool.java` | Works same as before |
-| `TileBrushTool.java` (and others) | Add "active target" validation |
-| `EditorShortcutHandlersImpl.java` | Update shortcuts for new system |
+| File | Phase | Changes |
+|------|-------|---------|
+| **NEW: `EditorSelectionManager.java`** | 1 | New class managing selection state (entity, layer, collision) independently |
+| `EditorContext.java` | 1, 4 | Add selection manager; later remove mode methods |
+| `HierarchySelectionHandler.java` | 1 | Delegate selection to SelectionManager, don't clear on mode switch |
+| `InspectorPanel.java` | 1 | Always show current selection, remove mode checks |
+| `SceneViewToolbar.java` | 2, 4 | Show tools based on panel state; remove mode dropdown |
+| `TilesetPalettePanel.java` | 2 | Add `isOpen()` method, notify on open/close |
+| `CollisionPanel.java` | 2 | Add `isOpen()` method, notify on open/close |
+| `EditorUIController.java` | 2, 3 | Track panel open state, handle panel-opens-on-shortcut |
+| `EditorToolController.java` | 2 | Remove mode filtering, add tool category checks |
+| `EditorShortcutHandlersImpl.java` | 3 | Update shortcuts to open panels when needed |
+| `HierarchyPanel.java` | 3 | Click "Tilemap Layers" opens palette, click "Collision" opens panel |
+| `EditorModeManager.java` | 4 | **DELETE** entirely |
+| `ViewportInputHandler.java` | 5 | Add Alt+Click handling for quick select |
+| `SelectionTool.java` | - | Unchanged (works same as before) |
+| `TileBrushTool.java` (and others) | - | Minor: validate active target exists |
 
 ---
 

@@ -142,10 +142,20 @@ public class EditorApplication {
         sceneRenderer = new EditorSceneRenderer(uiController.getFramebuffer(), renderingConfig);
         sceneRenderer.init();
 
-        // Wire window resize
+        // Wire window resize (screen coordinates - for UI)
         window.setOnResize(() -> {
             uiController.onWindowResize(window.getWidth(), window.getHeight());
-            sceneRenderer.onResize(window.getWidth(), window.getHeight());
+        });
+
+        // Wire framebuffer resize (pixel dimensions - for rendering)
+        // This handles multi-monitor setups with different DPIs
+        window.setOnFramebufferResize(() -> {
+            sceneRenderer.onResize(window.getFramebufferWidth(), window.getFramebufferHeight());
+        });
+
+        // Wire window move (handles moving between monitors)
+        window.setOnWindowMove(() -> {
+            uiController.getSceneViewport().invalidate();
         });
 
         // FIX: Initialize mode properly - notify all listeners

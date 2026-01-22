@@ -7,6 +7,7 @@ import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.LayerUtils;
 import com.pocket.rpg.editor.scene.LayerUtils.LayerRenderInfo;
 import com.pocket.rpg.editor.scene.TilemapLayer;
+import com.pocket.rpg.editor.scene.LayerVisibilityMode;
 import com.pocket.rpg.rendering.core.RenderCamera;
 import com.pocket.rpg.rendering.pipeline.RenderDispatcher;
 import com.pocket.rpg.rendering.batch.SpriteBatch;
@@ -124,8 +125,8 @@ public class EditorSceneRenderer {
     }
 
     /**
-     * Renders entities with layer-aware tinting.
-     * Entities on inactive layers are dimmed.
+     * Renders entities with visibility mode support.
+     * Entities may be hidden, dimmed, or fully visible based on the current mode.
      */
     private void renderEntities(EditorScene scene, SpriteBatch batch, RenderCamera camera) {
         TilemapLayer activeLayer = scene.getActiveLayer();
@@ -133,8 +134,9 @@ public class EditorSceneRenderer {
         for (EditorGameObject entity : scene.getEntities()) {
             if (!entity.isRenderVisible()) continue;
 
-            // Determine tint based on entity's layer
+            // Determine tint based on visibility mode (null = skip rendering)
             Vector4f tint = getEntityTint(entity, activeLayer, scene);
+            if (tint == null) continue;
 
             // Submit entity via dispatcher
             dispatcher.submit(entity, batch, camera, tint);
@@ -156,29 +158,35 @@ public class EditorSceneRenderer {
     }
 
     /**
-     * Determines the tint for an entity based on its layer.
+     * Determines the tint for an entity based on visibility mode.
+     * - SELECTED_ONLY: Entities are hidden (only the active tilemap layer is visible)
+     * - SELECTED_DIMMED: Entities are dimmed so only the active tilemap layer is prominent
+     * - ALL: Entities are fully visible
      *
      * @param entity      The entity to tint
      * @param activeLayer The currently active tilemap layer
      * @param scene       The editor scene
-     * @return Tint color for the entity
+     * @return Tint color for the entity, or null to skip rendering
      */
     private Vector4f getEntityTint(EditorGameObject entity, TilemapLayer activeLayer, EditorScene scene) {
-        // If no active layer or entity mode, all entities are fully visible
         if (activeLayer == null) {
             return WHITE;
         }
 
-        // Check if entity is on the active layer's elevation
-        int entityElevation = entity.getZIndex();
-        int activeElevation = activeLayer.getZIndex();
+        LayerVisibilityMode mode = scene.getVisibilityMode();
 
-        if (entityElevation == activeElevation) {
-            return WHITE;
+        // In selected-only mode, hide all entities
+        if (mode == LayerVisibilityMode.SELECTED_ONLY) {
+            return null;
         }
 
-        // Dim entities on other elevations
-        return new Vector4f(0.5f, 0.5f, 0.5f, 0.6f);
+        // In dimmed mode, all entities are dimmed so the active tilemap layer stands out
+        if (mode == LayerVisibilityMode.SELECTED_DIMMED) {
+            float opacity = scene.getDimmedOpacity();
+            return new Vector4f(0.8f, 0.8f, 0.8f, opacity);
+        }
+
+        return WHITE;
     }
 
     public void onResize(int width, int height) {

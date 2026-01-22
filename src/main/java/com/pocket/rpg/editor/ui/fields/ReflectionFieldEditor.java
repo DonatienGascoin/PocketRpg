@@ -1,5 +1,6 @@
 package com.pocket.rpg.editor.ui.fields;
 
+import com.pocket.rpg.audio.clips.AudioClip;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
@@ -124,6 +125,11 @@ public class ReflectionFieldEditor {
         // ENUMS
         else if (type.isEnum()) {
             fieldChanged = FieldEditors.drawEnum(label, component, fieldName, type);
+        }
+
+        // AUDIOCLIP (special handling with play/stop button)
+        else if (type == AudioClip.class) {
+            fieldChanged = FieldEditors.drawAudioClip(label, component, fieldName, entity);
         }
 
         // ASSETS
@@ -294,5 +300,6 @@ public class ReflectionFieldEditor {
 
     public static void renderAssetPicker() {
         FieldEditors.renderAssetPicker();
+        FieldEditors.renderAudioClipPicker();
     }
 }

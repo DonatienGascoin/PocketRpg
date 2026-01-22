@@ -5,6 +5,8 @@ import com.pocket.rpg.core.window.AbstractWindow;
 import com.pocket.rpg.platform.PlatformFactory;
 import com.pocket.rpg.input.InputBackend;
 import com.pocket.rpg.input.events.InputEventBus;
+import com.pocket.rpg.audio.backend.AudioBackend;
+import com.pocket.rpg.audio.backend.OpenALAudioBackend;
 import com.pocket.rpg.rendering.postfx.PostProcessor;
 
 /**
@@ -34,5 +36,10 @@ public class GLFWPlatformFactory implements PlatformFactory {
     @Override
     public String getPlatformName() {
         return "GLFW + OpenGL";
+    }
+
+    @Override
+    public AudioBackend createAudioBackend() {
+        return new OpenALAudioBackend();
     }
 }

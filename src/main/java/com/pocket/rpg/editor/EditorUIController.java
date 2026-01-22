@@ -58,6 +58,9 @@ public class EditorUIController {
     private SpriteEditorPanel spriteEditorPanel;
 
     @Getter
+    private AudioBrowserPanel audioBrowserPanel;
+
+    @Getter
     private EditorMenuBar menuBar;
 
     @Getter
@@ -157,6 +160,9 @@ public class EditorUIController {
 
         animationEditorPanel = new AnimationEditorPanel();
         animationEditorPanel.initialize();
+
+        audioBrowserPanel = new AudioBrowserPanel();
+        audioBrowserPanel.initPanel(context.getConfig());
     }
 
     private void createMenuAndStatus() {
@@ -303,6 +309,9 @@ public class EditorUIController {
             if (ImGui.menuItem("Assets", "", assetBrowserPanel.isOpen())) {
                 assetBrowserPanel.toggle();
             }
+            if (ImGui.menuItem("Audio Browser", "", audioBrowserPanel.isOpen())) {
+                audioBrowserPanel.toggle();
+            }
 
             ImGui.separator();
 
@@ -414,6 +423,7 @@ public class EditorUIController {
         uiDesignerPanel.render();
         animationEditorPanel.render();
         spriteEditorPanel.render();
+        audioBrowserPanel.render();
         if (gameViewPanel != null) {
             gameViewPanel.render();
         }

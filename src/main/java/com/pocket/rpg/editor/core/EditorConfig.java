@@ -1,10 +1,16 @@
 package com.pocket.rpg.editor.core;
 
+import com.pocket.rpg.config.ConfigLoader;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.joml.Vector4f;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Configuration for the Scene Editor application.
@@ -159,6 +165,132 @@ public class EditorConfig {
      */
     @Builder.Default
     private String defaultUiFont = "gameData/assets/fonts/zelda.ttf";
+
+    // ===== RECENT FILES =====
+
+    /**
+     * List of recently opened scene file paths.
+     * Most recent is first. Limited to 10 entries.
+     */
+    @Builder.Default
+    private List<String> recentScenes = new ArrayList<>();
+
+    /**
+     * Maximum number of recent scenes to track.
+     */
+    private static final int MAX_RECENT_SCENES = 10;
+
+    /**
+     * Adds a scene path to the recent list.
+     * Moves it to the front if already present.
+     * Path is normalized to forward slashes and stored relative to scenesDirectory.
+     */
+    public void addRecentScene(String path) {
+        if (path == null || path.isEmpty()) return;
+
+        // Normalize to forward slashes for OS-independent storage
+        String normalizedPath = path.replace('\\', '/');
+
+        // Convert to relative path from scenesDirectory
+        String relativePath = toRelativePath(normalizedPath);
+
+        // Remove if already in list (will re-add at front)
+        recentScenes.remove(relativePath);
+
+        // Add to front
+        recentScenes.add(0, relativePath);
+
+        // Trim to max size
+        while (recentScenes.size() > MAX_RECENT_SCENES) {
+            recentScenes.remove(recentScenes.size() - 1);
+        }
+    }
+
+    /**
+     * Converts an absolute or full path to a path relative to scenesDirectory.
+     * If the path doesn't contain scenesDirectory, returns the original path.
+     */
+    private String toRelativePath(String path) {
+        String scenesDir = scenesDirectory.replace('\\', '/');
+        if (!scenesDir.endsWith("/")) {
+            scenesDir += "/";
+        }
+
+        int index = path.indexOf(scenesDir);
+        if (index >= 0) {
+            return path.substring(index + scenesDir.length());
+        }
+
+        // Fallback: if path starts with scenesDirectory without trailing slash
+        String scenesDirNoSlash = scenesDirectory.replace('\\', '/');
+        if (path.startsWith(scenesDirNoSlash + "/")) {
+            return path.substring(scenesDirNoSlash.length() + 1);
+        }
+
+        return path;
+    }
+
+    /**
+     * Converts a relative scene path to a full path using scenesDirectory.
+     */
+    public String toFullPath(String relativePath) {
+        if (relativePath == null || relativePath.isEmpty()) return relativePath;
+
+        // If already contains scenesDirectory, return as-is
+        String scenesDir = scenesDirectory.replace('\\', '/');
+        if (relativePath.contains(scenesDir)) {
+            return relativePath;
+        }
+
+        // Prepend scenesDirectory
+        return scenesDir + "/" + relativePath;
+    }
+
+    /**
+     * Gets the most recently opened scene path as a full path, or null if none.
+     */
+    public String getLastOpenedScene() {
+        if (recentScenes.isEmpty()) return null;
+        return toFullPath(recentScenes.get(0));
+    }
+
+    // ===== PANEL VISIBILITY =====
+
+    /**
+     * Panel visibility state - Map allows dynamic panel registration.
+     * Key is the panel ID, value is whether the panel is open.
+     */
+    @Builder.Default
+    private Map<String, Boolean> panelVisibility = new HashMap<>();
+
+    /**
+     * Gets whether a panel is open.
+     *
+     * @param panelId      The panel ID
+     * @param defaultValue The default value if not set
+     * @return true if the panel is open, false otherwise
+     */
+    public boolean isPanelOpen(String panelId, boolean defaultValue) {
+        return panelVisibility.getOrDefault(panelId, defaultValue);
+    }
+
+    /**
+     * Sets whether a panel is open and persists the config.
+     *
+     * @param panelId The panel ID
+     * @param open    Whether the panel is open
+     */
+    public void setPanelOpen(String panelId, boolean open) {
+        panelVisibility.put(panelId, open);
+        save();
+    }
+
+    /**
+     * Saves this config to disk.
+     */
+    public void save() {
+        ConfigLoader.saveConfigToFile(this, ConfigLoader.ConfigType.EDITOR);
+    }
 
     // ===== FACTORY METHODS =====
 

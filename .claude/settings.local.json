@@ -23,7 +23,8 @@
       "Bash(mvn.cmd compile:*)",
       "WebFetch(domain:claude.ai)",
       "Bash(grep:*)",
-      "Bash(javac:*)"
+      "Bash(javac:*)",
+      "Bash(timeout 10 mvn exec:java:*)"
     ]
   }
 }

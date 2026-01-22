@@ -1,6 +1,6 @@
 package com.pocket.rpg.resources;
 
-import com.pocket.rpg.editor.EditorPanel;
+import com.pocket.rpg.editor.EditorPanelType;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.rendering.resources.Sprite;
 import lombok.Getter;
@@ -352,13 +352,13 @@ public final class Assets {
 
     /**
      * Gets the editor panel that should open when an asset of this type is double-clicked.
-     * Delegates to the loader's getEditorPanel() method.
+     * Delegates to the loader's getEditorPanelType() method.
      *
      * @param type Asset type class
-     * @return EditorPanel to open, or null if no dedicated editor exists
+     * @return EditorPanelType to open, or null if no dedicated editor exists
      */
-    public static EditorPanel getEditorPanel(Class<?> type) {
-        return getContext().getEditorPanel(type);
+    public static EditorPanelType getEditorPanelType(Class<?> type) {
+        return getContext().getEditorPanelType(type);
     }
 
     public static String getAssetRoot() {

@@ -1,9 +1,9 @@
 {
   "version": 4,
-  "name": "Test",
+  "name": "DemoScene",
   "gameObjects": [
     {
-      "id": "3bf7ab31",
+      "id": "e1cf0ff3",
       "name": "AbovePlayer",
       "active": true,
       "order": 0,
@@ -35,7 +35,7 @@
       ]
     },
     {
-      "id": "390ff9f2",
+      "id": "01d88891",
       "name": "Ground",
       "active": true,
       "order": 0,
@@ -67,7 +67,7 @@
       ]
     },
     {
-      "id": "07582397",
+      "id": "2fcf95a5",
       "name": "Ground decoration",
       "active": true,
       "order": 0,
@@ -318,8 +318,8 @@
           "type": "com.pocket.rpg.components.Transform",
           "properties": {
             "localPosition": {
-              "x": -15.9,
-              "y": -0.4,
+              "x": -6.8999996,
+              "y": 2.6,
               "z": 0.0
             },
             "localRotation": {
@@ -337,7 +337,7 @@
         {
           "type": "com.pocket.rpg.components.SpriteRenderer",
           "properties": {
-            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/hudBg.png",
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:spritesheets/Chest.spritesheet#0",
             "tintColor": {
               "x": 0.0,
               "y": 0.0,

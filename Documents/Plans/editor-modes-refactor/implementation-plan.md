@@ -2,6 +2,22 @@
 
 This document describes the implementation plan for removing the mode system and transitioning to a panel-driven, modeless editor design.
 
+## Implementation Status
+
+| Phase | Status | Notes |
+|-------|--------|-------|
+| Phase 1: Decouple Selection | ✅ Complete | EditorSelectionManager, EditorContext, HierarchySelectionHandler, InspectorPanel updated |
+| Phase 2: Panel Visibility | 🟡 In Progress | EditorPanel base class, Window menu, panel persistence added. PrefabBrowserPanel deletion pending |
+| Phase 3: Panel-Driven Tools | ⬜ Pending | |
+| Phase 4: Shortcuts Require Panel | ⬜ Pending | |
+| Phase 5: F1/F2 Shortcuts | ⬜ Pending | |
+| Phase 6: Remove Mode System | ⬜ Pending | |
+| Phase 7: Polish | ⬜ Pending | |
+
+**Prerequisite completed:** Renamed `EditorPanel` enum to `EditorPanelType` to free up the name for the new abstract class.
+
+---
+
 ## Summary of Changes
 
 | Change | Description |
@@ -90,7 +106,7 @@ public void setPanelOpen(String panelId, boolean open) {
 }
 ```
 
-**Option A: Abstract base class**
+**Abstract base class:**
 
 ```java
 public abstract class EditorPanel {
@@ -148,50 +164,9 @@ public class TilesetPalettePanel extends EditorPanel {
 }
 ```
 
-**Option B: Composition with PanelState helper**
+**Flow:**
 
-If panels already extend something else or you prefer composition:
-
-```java
-public class PanelState {
-    private final String panelId;
-    private final boolean defaultOpen;
-    private boolean isOpen;
-    private EditorConfig config;
-
-    public PanelState(String panelId, boolean defaultOpen) {
-        this.panelId = panelId;
-        this.defaultOpen = defaultOpen;
-    }
-
-    public void init(EditorConfig config) {
-        this.config = config;
-        this.isOpen = config.isPanelOpen(panelId, defaultOpen);
-    }
-
-    public boolean isOpen() { return isOpen; }
-    public void setOpen(boolean open) { ... }
-    public void toggle() { setOpen(!isOpen); }
-}
-
-// Usage in panel:
-public class TilesetPalettePanel {
-    private final PanelState state = new PanelState("tilesetPalette", false);
-
-    public void init(EditorConfig config) {
-        state.init(config);
-    }
-
-    public boolean isOpen() { return state.isOpen(); }
-    public void setOpen(boolean open) { state.setOpen(open); }
-}
-```
-
-**Recommendation:** Option A (abstract class) is cleaner if panels don't need to extend other classes. Option B if they do.
-
-**Auto-registration flow:**
-
-1. Panel extends `EditorPanel` with just id + defaultOpen in constructor
+1. Panel extends `EditorPanel` with id + defaultOpen in constructor
 2. `init(config)` called once after creation
 3. `isOpen()`, `setOpen()`, `toggle()` all inherited - no duplication
 
@@ -567,7 +542,7 @@ Selection persists when:
 | File | Action | Phase |
 |------|--------|-------|
 | **NEW: `EditorSelectionManager.java`** | CREATE | 1 |
-| **NEW: `EditorPanel.java`** (interface) | CREATE | 2 |
+| **NEW: `EditorPanel.java`** (abstract class) | CREATE | 2 |
 | `EditorContext.java` | MODIFY | 1, 6 |
 | `HierarchySelectionHandler.java` | MODIFY | 1, 5, 6 |
 | `InspectorPanel.java` | MODIFY | 1 |

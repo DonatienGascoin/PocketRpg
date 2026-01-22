@@ -19,7 +19,7 @@ import java.util.function.Consumer;
  * Shared state container for the editor.
  * <p>
  * Holds references to all core systems and provides a single point of access
- * for controllers. Supports listeners for scene and mode changes.
+ * for controllers. Supports listeners for scene changes.
  */
 public class EditorContext {
 
@@ -45,7 +45,7 @@ public class EditorContext {
     private ToolManager toolManager;
 
     @Getter
-    private EditorModeManager modeManager;
+    private EditorSelectionManager selectionManager;
 
     @Getter
     private EditorScene currentScene;
@@ -56,9 +56,6 @@ public class EditorContext {
 
     // Scene change listeners
     private final List<Consumer<EditorScene>> sceneChangedListeners = new ArrayList<>();
-
-    // Mode change listeners
-    private final List<Consumer<EditorModeManager.Mode>> modeChangedListeners = new ArrayList<>();
 
     /**
      * Initializes the context with core systems.
@@ -72,7 +69,7 @@ public class EditorContext {
         this.window = window;
         this.camera = camera;
         this.toolManager = new ToolManager();
-        this.modeManager = new EditorModeManager();
+        this.selectionManager = new EditorSelectionManager();
     }
 
     /**
@@ -80,6 +77,9 @@ public class EditorContext {
      */
     public void setCurrentScene(EditorScene scene) {
         this.currentScene = scene;
+        if (selectionManager != null) {
+            selectionManager.setScene(scene);
+        }
         notifySceneChanged(scene);
     }
 
@@ -96,71 +96,6 @@ public class EditorContext {
     private void notifySceneChanged(EditorScene scene) {
         for (var listener : sceneChangedListeners) {
             listener.accept(scene);
-        }
-    }
-
-    // ========================================================================
-    // MODE MANAGEMENT
-    // ========================================================================
-
-    /**
-     * Registers a listener for mode changes.
-     * Listener is called after mode has been switched.
-     */
-    public void onModeChanged(Consumer<EditorModeManager.Mode> listener) {
-        modeChangedListeners.add(listener);
-    }
-
-    /**
-     * Switches to a new editor mode and notifies all listeners.
-     * Use this instead of calling modeManager directly.
-     */
-    public void switchMode(EditorModeManager.Mode mode) {
-        if (modeManager.getCurrentMode() == mode) {
-            // Still notify listeners even if mode unchanged (for selection sync)
-            notifyModeChanged(mode);
-            return;
-        }
-
-        modeManager.switchTo(mode);
-
-        // Set default tool for mode
-        switch (mode) {
-            case TILEMAP -> toolManager.setActiveTool("Brush");
-            case COLLISION -> toolManager.setActiveTool("Collision Brush");
-            case ENTITY -> toolManager.setActiveTool("Select");
-        }
-
-        notifyModeChanged(mode);
-    }
-
-    /**
-     * Convenience method to switch to tilemap mode.
-     */
-    public void switchToTilemapMode() {
-        switchMode(EditorModeManager.Mode.TILEMAP);
-    }
-
-    /**
-     * Convenience method to switch to collision mode.
-     */
-    public void switchToCollisionMode() {
-        switchMode(EditorModeManager.Mode.COLLISION);
-    }
-
-    /**
-     * Convenience method to switch to entity mode.
-     */
-    public void switchToEntityMode() {
-        switchMode(EditorModeManager.Mode.ENTITY);
-    }
-
-    /**
-     * Notifies all listeners of a mode change.
-     */
-    private void notifyModeChanged(EditorModeManager.Mode mode) {
-        for (var listener : modeChangedListeners) {
-            listener.accept(mode);
         }
     }
 

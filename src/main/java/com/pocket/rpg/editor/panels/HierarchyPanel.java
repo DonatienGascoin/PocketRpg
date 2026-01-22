@@ -1,6 +1,6 @@
 package com.pocket.rpg.editor.panels;
 
-import com.pocket.rpg.editor.EditorModeManager;
+import com.pocket.rpg.editor.EditorSelectionManager;
 import com.pocket.rpg.editor.assets.HierarchyDropTarget;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.hierarchy.EntityCreationService;
@@ -26,7 +26,9 @@ import java.util.Set;
 /**
  * Unified hierarchy panel - orchestrates tree rendering, selection, drag-drop, and entity creation.
  */
-public class HierarchyPanel {
+public class HierarchyPanel extends EditorPanel {
+
+    private static final String PANEL_ID = "hierarchy";
 
     @Setter
     private EditorScene scene;
@@ -36,8 +38,8 @@ public class HierarchyPanel {
     private final EntityCreationService creationService = new EntityCreationService();
     private final HierarchyTreeRenderer treeRenderer = new HierarchyTreeRenderer();
 
-    public void setModeManager(EditorModeManager modeManager) {
-        selectionHandler.setModeManager(modeManager);
+    public HierarchyPanel() {
+        super(PANEL_ID, true); // Default open - core panel
     }
 
     public void setToolManager(ToolManager toolManager) {
@@ -50,6 +52,10 @@ public class HierarchyPanel {
 
     public void setBrushTool(EditorTool brushTool) {
         selectionHandler.setBrushTool(brushTool);
+    }
+
+    public void setSelectionManager(EditorSelectionManager selectionManager) {
+        selectionHandler.setSelectionManager(selectionManager);
     }
 
     public void setUiFactory(UIEntityFactory uiFactory) {
@@ -95,7 +101,10 @@ public class HierarchyPanel {
     }
 
 
+    @Override
     public void render() {
+        if (!isOpen()) return;
+
         if (ImGui.begin("Hierarchy")) {
             if (scene == null) {
                 ImGui.textDisabled("No scene loaded");

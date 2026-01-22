@@ -1,7 +1,6 @@
 package com.pocket.rpg.editor.panels;
 
 import com.pocket.rpg.collision.CollisionType;
-import com.pocket.rpg.editor.EditorModeManager;
 import com.pocket.rpg.editor.panels.collisions.CollisionToolConfigView;
 import com.pocket.rpg.editor.panels.collisions.CollisionTypeSelector;
 import com.pocket.rpg.editor.scene.EditorScene;
@@ -13,13 +12,16 @@ import imgui.flag.ImGuiWindowFlags;
 import lombok.Getter;
 import lombok.Setter;
 
-public class CollisionPanel {
+/**
+ * Panel for editing collision map and selecting collision types.
+ * When open, collision painting tools become available.
+ */
+public class CollisionPanel extends EditorPanel {
+
+    private static final String PANEL_ID = "collisionPanel";
 
     @Setter
     private EditorScene scene;
-
-    @Setter
-    private EditorModeManager modeManager;
 
     @Setter
     private CollisionBrushTool brushTool;
@@ -42,14 +44,24 @@ public class CollisionPanel {
     @Setter private boolean isHorizontalLayout = false;
 
     public CollisionPanel() {
+        super(PANEL_ID, false); // Default closed - painting panel
         this.typeSelector = new CollisionTypeSelector();
         this.toolConfigView = new CollisionToolConfigView();
 
         typeSelector.setOnTypeSelected(this::onTypeSelected);
     }
 
+    @Override
     public void render() {
-        if (ImGui.begin("Collision")) {
+        if (!isOpen()) {
+            setContentVisible(false);
+            return;
+        }
+
+        boolean visible = ImGui.begin("Collision Panel");
+        setContentVisible(visible);
+
+        if (visible) {
             updateDependencies();
 
             if (isHorizontalLayout) {
@@ -61,9 +73,13 @@ public class CollisionPanel {
         ImGui.end();
     }
 
+    @Override
+    public String getDisplayName() {
+        return "Collision Panel";
+    }
+
     private void updateDependencies() {
         toolConfigView.setScene(scene);
-        toolConfigView.setModeManager(modeManager);
         toolConfigView.setBrushTool(brushTool);
         toolConfigView.setEraserTool(eraserTool);
         toolConfigView.setFillTool(fillTool);

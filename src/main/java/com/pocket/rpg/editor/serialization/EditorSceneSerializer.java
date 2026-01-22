@@ -56,10 +56,11 @@ public class EditorSceneSerializer {
 
     /**
      * Converts SceneData to EditorScene for editing.
+     * Scene name is derived from the file path.
      */
     public static EditorScene fromSceneData(SceneData data, String filePath) {
-        EditorScene scene = new EditorScene(data.getName());
-        scene.setFilePath(filePath);
+        EditorScene scene = new EditorScene();
+        scene.setFilePath(filePath);  // Name is derived from this
 
         // Camera settings
         if (data.getCamera() != null) {

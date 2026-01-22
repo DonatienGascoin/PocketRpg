@@ -131,8 +131,8 @@ public class EditorApplication {
         context = new EditorContext();
         context.init(config, renderingConfig, gameConfig, inputConfig, window, camera);
 
-        // Create initial scene
-        EditorScene initialScene = new EditorScene("Untitled");
+        // Create initial scene (name will be "Untitled" since no filePath)
+        EditorScene initialScene = new EditorScene();
         context.setCurrentScene(initialScene);
 
         // Create controllers (order matters!)
@@ -158,10 +158,31 @@ public class EditorApplication {
             uiController.getSceneViewport().invalidate();
         });
 
-        // FIX: Initialize mode properly - notify all listeners
-        initializeEditorMode();
+        // Initialize default tool
+        initializeDefaultTool();
+
+        // Auto-open last scene if available
+        openLastScene();
 
         System.out.println("Scene Editor initialized successfully");
+    }
+
+    /**
+     * Opens the last opened scene from the recent list, if it exists.
+     */
+    private void openLastScene() {
+        EditorConfig config = context.getConfig();
+        String lastScene = config.getLastOpenedScene();
+
+        if (lastScene != null && !lastScene.isEmpty()) {
+            java.io.File file = new java.io.File(lastScene);
+            if (file.exists()) {
+                System.out.println("Auto-opening last scene: " + lastScene);
+                sceneController.openScene(lastScene);
+            } else {
+                System.out.println("Last scene not found, skipping auto-open: " + lastScene);
+            }
+        }
     }
 
     private void initAssets() {
@@ -204,6 +225,10 @@ public class EditorApplication {
         uiController.getMenuBar().setOnSaveSceneAs(sceneController::saveSceneAs);
         uiController.getMenuBar().setOnExit(this::requestExit);
 
+        // Wire recent scenes
+        updateMenuRecentScenes();
+        sceneController.setOnRecentScenesChanged(this::updateMenuRecentScenes);
+
         // Wire scene change listener
         context.onSceneChanged(this::onSceneChanged);
 
@@ -238,22 +263,18 @@ public class EditorApplication {
         handlers.setPlayModeController(playModeController);
         handlers.setMessageCallback(uiController.getStatusBar()::showMessage);
         handlers.setConfigPanel(uiController.getConfigPanel());
-        handlers.setPrefabBrowserPanel(uiController.getPrefabBrowserPanel());
+        handlers.setTilesetPalettePanel(uiController.getTilesetPalette());
+        handlers.setCollisionPanel(uiController.getCollisionPanel());
 
         // Bind handlers to shortcuts
         EditorShortcuts.bindHandlers(shortcutRegistry, handlers);
     }
 
     /**
-     * FIX: Properly initialize editor mode and tool on startup.
-     * This ensures mode listeners are triggered and UI state is consistent.
+     * Initialize default tool on startup.
      */
-    private void initializeEditorMode() {
-        // Default mode is ENTITY (from EditorModeManager)
-        // Explicitly trigger mode change to initialize everything properly
-        context.switchToEntityMode();
-        
-        // Set default tool for entity mode
+    private void initializeDefaultTool() {
+        // Set selection tool as the default
         context.getToolManager().setActiveTool(toolController.getSelectionTool());
     }
 
@@ -461,6 +482,19 @@ public class EditorApplication {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
+    }
+
+    /**
+     * Updates the menu bar's recent scenes list from the config.
+     * Converts relative paths to full paths for opening.
+     */
+    private void updateMenuRecentScenes() {
+        EditorConfig config = context.getConfig();
+        // Convert relative paths to full paths for the menu bar
+        String[] recentArray = config.getRecentScenes().stream()
+                .map(config::toFullPath)
+                .toArray(String[]::new);
+        uiController.getMenuBar().setRecentFiles(recentArray);
     }
 
     private void destroy() {

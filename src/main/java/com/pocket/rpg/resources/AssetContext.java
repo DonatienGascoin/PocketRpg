@@ -1,6 +1,6 @@
 package com.pocket.rpg.resources;
 
-import com.pocket.rpg.editor.EditorPanel;
+import com.pocket.rpg.editor.EditorPanelType;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.rendering.resources.Sprite;
 import org.joml.Vector3f;
@@ -226,12 +226,12 @@ public interface AssetContext {
 
     /**
      * Gets the editor panel that should open when an asset of this type is double-clicked.
-     * Delegates to the loader's getEditorPanel() method.
+     * Delegates to the loader's getEditorPanelType() method.
      *
      * @param type Asset type class
-     * @return EditorPanel to open, or null if no dedicated editor exists
+     * @return EditorPanelType to open, or null if no dedicated editor exists
      */
-    EditorPanel getEditorPanel(Class<?> type);
+    EditorPanelType getEditorPanelType(Class<?> type);
 
     /**
      * Gets the editor capabilities for an asset type.

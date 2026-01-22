@@ -44,10 +44,9 @@ public final class EditorShortcuts {
     public static final String VIEW_ZOOM_RESET = "editor.view.zoomReset";
     public static final String VIEW_TOGGLE_GRID = "editor.view.toggleGrid";
 
-    // Mode actions
-    public static final String MODE_TILEMAP = "editor.mode.tilemap";
-    public static final String MODE_COLLISION = "editor.mode.collision";
-    public static final String MODE_ENTITY = "editor.mode.entity";
+    // Panel toggle actions
+    public static final String PANEL_TILESET_TOGGLE = "editor.panel.tilesetToggle";
+    public static final String PANEL_COLLISION_TOGGLE = "editor.panel.collisionToggle";
 
     // Tilemap tool actions
     public static final String TOOL_TILE_BRUSH = "editor.tool.tileBrush";
@@ -118,7 +117,7 @@ public final class EditorShortcuts {
         registerFileShortcuts(registry);
         registerEditShortcuts(registry, layout);
         registerViewShortcuts(registry);
-        registerModeShortcuts(registry);
+        registerPanelShortcuts(registry);
         registerTilemapToolShortcuts(registry);
         registerCollisionToolShortcuts(registry);
         registerEntityToolShortcuts(registry);
@@ -301,28 +300,20 @@ public final class EditorShortcuts {
         );
     }
 
-    private static void registerModeShortcuts(ShortcutRegistry registry) {
+    private static void registerPanelShortcuts(ShortcutRegistry registry) {
         registry.registerAll(
                 ShortcutAction.builder()
-                        .id(MODE_ENTITY)
-                        .displayName("Entity Mode")
+                        .id(PANEL_TILESET_TOGGLE)
+                        .displayName("Toggle Tileset Palette")
                         .defaultBinding(ShortcutBinding.key(ImGuiKey.F1))
                         .global()
                         .handler(() -> {})
                         .build(),
 
                 ShortcutAction.builder()
-                        .id(MODE_TILEMAP)
-                        .displayName("Tilemap Mode")
+                        .id(PANEL_COLLISION_TOGGLE)
+                        .displayName("Toggle Collision Panel")
                         .defaultBinding(ShortcutBinding.key(ImGuiKey.F2))
-                        .global()
-                        .handler(() -> {})
-                        .build(),
-
-                ShortcutAction.builder()
-                        .id(MODE_COLLISION)
-                        .displayName("Collision Mode")
-                        .defaultBinding(ShortcutBinding.key(ImGuiKey.F3))
                         .global()
                         .handler(() -> {})
                         .build()
@@ -557,10 +548,9 @@ public final class EditorShortcuts {
         bindings.put(VIEW_ZOOM_RESET, ShortcutBinding.ctrl(ImGuiKey._0));
         bindings.put(VIEW_TOGGLE_GRID, ShortcutBinding.ctrl(ImGuiKey.G));
 
-        // Mode shortcuts (same for all layouts)
-        bindings.put(MODE_ENTITY, ShortcutBinding.key(ImGuiKey.F1));
-        bindings.put(MODE_TILEMAP, ShortcutBinding.key(ImGuiKey.F2));
-        bindings.put(MODE_COLLISION, ShortcutBinding.key(ImGuiKey.F3));
+        // Panel toggle shortcuts (same for all layouts)
+        bindings.put(PANEL_TILESET_TOGGLE, ShortcutBinding.key(ImGuiKey.F1));
+        bindings.put(PANEL_COLLISION_TOGGLE, ShortcutBinding.key(ImGuiKey.F2));
 
         // Tilemap tool shortcuts
         bindings.put(TOOL_TILE_BRUSH, ShortcutBinding.key(ImGuiKey.B));
@@ -630,10 +620,9 @@ public final class EditorShortcuts {
         registry.bindHandler(VIEW_ZOOM_RESET, handlers::onZoomReset);
         registry.bindHandler(VIEW_TOGGLE_GRID, handlers::onToggleGrid);
 
-        // Modes
-        registry.bindHandler(MODE_TILEMAP, handlers::onModeTilemap);
-        registry.bindHandler(MODE_COLLISION, handlers::onModeCollision);
-        registry.bindHandler(MODE_ENTITY, handlers::onModeEntity);
+        // Panel toggles
+        registry.bindHandler(PANEL_TILESET_TOGGLE, handlers::onPanelTilesetToggle);
+        registry.bindHandler(PANEL_COLLISION_TOGGLE, handlers::onPanelCollisionToggle);
 
         // Tilemap tools
         registry.bindHandler(TOOL_TILE_BRUSH, handlers::onToolTileBrush);

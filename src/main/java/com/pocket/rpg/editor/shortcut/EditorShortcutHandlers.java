@@ -39,12 +39,11 @@ public interface EditorShortcutHandlers {
     void onToggleGrid();
 
     // ========================================================================
-    // MODES
+    // PANEL TOGGLES
     // ========================================================================
 
-    void onModeTilemap();
-    void onModeCollision();
-    void onModeEntity();
+    void onPanelTilesetToggle();
+    void onPanelCollisionToggle();
 
     // ========================================================================
     // TILEMAP TOOLS

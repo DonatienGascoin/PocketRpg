@@ -68,7 +68,8 @@ public class EditorMenuBar {
 
             if (ImGui.beginMenu("Open Recent", recentFiles.length > 0)) {
                 for (String file : recentFiles) {
-                    if (ImGui.menuItem(file)) {
+                    String displayLabel = formatRecentSceneLabel(file);
+                    if (ImGui.menuItem(displayLabel)) {
                         checkUnsavedChanges(() -> {
                             if (onOpenScene != null) {
                                 onOpenScene.accept(file);
@@ -258,6 +259,33 @@ public class EditorMenuBar {
      */
     private String getShortcutLabel(String actionId) {
         return ShortcutRegistry.getInstance().getBindingDisplay(actionId);
+    }
+
+    /**
+     * Formats a recent scene path as "SceneName (relative/path.scene)".
+     */
+    private String formatRecentSceneLabel(String path) {
+        if (path == null || path.isEmpty()) return path;
+
+        // Normalize separators for display
+        String normalizedPath = path.replace('\\', '/');
+
+        // Extract scene name (filename without .scene extension)
+        int lastSlash = normalizedPath.lastIndexOf('/');
+        String fileName = lastSlash >= 0 ? normalizedPath.substring(lastSlash + 1) : normalizedPath;
+        String sceneName = fileName.endsWith(".scene")
+                ? fileName.substring(0, fileName.length() - 6)
+                : fileName;
+
+        // Compute relative path from gameData/scenes/ if possible
+        String relativePath = normalizedPath;
+        String scenesPrefix = "gameData/scenes/";
+        int scenesIndex = normalizedPath.indexOf(scenesPrefix);
+        if (scenesIndex >= 0) {
+            relativePath = normalizedPath.substring(scenesIndex + scenesPrefix.length());
+        }
+
+        return sceneName + "  (" + relativePath + ")";
     }
 
     // ========================================================================

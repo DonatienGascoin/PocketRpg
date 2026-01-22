@@ -29,9 +29,10 @@ import java.util.stream.Collectors;
  */
 public class EditorScene {
 
-    @Getter
-    @Setter
-    private String name = "Untitled";
+    /**
+     * Default name used when no file path is set.
+     */
+    private static final String DEFAULT_NAME = "Untitled";
 
     @Getter
     @Setter
@@ -39,6 +40,23 @@ public class EditorScene {
 
     @Getter
     private boolean dirty = false;
+
+    /**
+     * Gets the scene name, derived from the file path.
+     * If no file path is set, returns "Untitled".
+     */
+    public String getName() {
+        if (filePath == null || filePath.isEmpty()) {
+            return DEFAULT_NAME;
+        }
+        // Extract filename without extension
+        String normalized = filePath.replace('\\', '/');
+        int lastSlash = normalized.lastIndexOf('/');
+        String fileName = lastSlash >= 0 ? normalized.substring(lastSlash + 1) : normalized;
+        return fileName.endsWith(".scene")
+                ? fileName.substring(0, fileName.length() - 6)
+                : fileName;
+    }
 
     /**
      * Incremented when hierarchy changes (entity add/remove/reparent).
@@ -111,11 +129,6 @@ public class EditorScene {
     // ========================================================================
 
     public EditorScene() {
-        this.collisionMap = new CollisionMap();
-    }
-
-    public EditorScene(String name) {
-        this.name = name;
         this.collisionMap = new CollisionMap();
     }
 
@@ -743,14 +756,10 @@ public class EditorScene {
     // ========================================================================
 
     public String getDisplayName() {
-        String displayName = name;
+        String displayName = getName();
+        // Add file extension for display if scene has a file
         if (filePath != null) {
-            int lastSep = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'));
-            if (lastSep >= 0) {
-                displayName = filePath.substring(lastSep + 1);
-            } else {
-                displayName = filePath;
-            }
+            displayName = displayName + ".scene";
         }
         return dirty ? displayName + " *" : displayName;
     }
@@ -758,7 +767,7 @@ public class EditorScene {
     @Override
     public String toString() {
         return String.format("EditorScene[name=%s, layers=%d, entities=%d, collision=%d, dirty=%b]",
-                name, layers.size(), entities.size(), collisionMap.getTileCount(), dirty);
+                getName(), layers.size(), entities.size(), collisionMap.getTileCount(), dirty);
     }
 
     public record RenderableWithTint(Renderable renderable, Vector4f tint) {}

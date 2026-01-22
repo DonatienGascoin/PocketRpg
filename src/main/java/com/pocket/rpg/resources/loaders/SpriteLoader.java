@@ -1,7 +1,7 @@
 package com.pocket.rpg.resources.loaders;
 
 import com.pocket.rpg.components.SpriteRenderer;
-import com.pocket.rpg.editor.EditorPanel;
+import com.pocket.rpg.editor.EditorPanelType;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.rendering.resources.Sprite;
@@ -129,8 +129,8 @@ public class SpriteLoader implements AssetLoader<Sprite> {
     }
 
     @Override
-    public EditorPanel getEditorPanel() {
-        return EditorPanel.SPRITE_EDITOR;
+    public EditorPanelType getEditorPanelType() {
+        return EditorPanelType.SPRITE_EDITOR;
     }
 
     /**

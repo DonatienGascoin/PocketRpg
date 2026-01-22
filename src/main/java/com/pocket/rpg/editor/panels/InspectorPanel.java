@@ -1,5 +1,6 @@
 package com.pocket.rpg.editor.panels;
 
+import com.pocket.rpg.editor.EditorSelectionManager;
 import com.pocket.rpg.editor.panels.inspector.*;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
@@ -11,14 +12,17 @@ import java.util.Set;
 
 /**
  * Context-sensitive inspector panel - orchestrates specialized inspectors.
+ * Shows the current selection regardless of editor mode.
  */
-public class InspectorPanel {
+public class InspectorPanel extends EditorPanel {
+
+    private static final String PANEL_ID = "inspector";
 
     @Setter
     private EditorScene scene;
 
     @Setter
-    private HierarchyPanel hierarchyPanel;
+    private EditorSelectionManager selectionManager;
 
     private final CameraInspector cameraInspector = new CameraInspector();
     private final TilemapLayersInspector tilemapInspector = new TilemapLayersInspector();
@@ -26,7 +30,13 @@ public class InspectorPanel {
     private final EntityInspector entityInspector = new EntityInspector();
     private final MultiSelectionInspector multiSelectionInspector = new MultiSelectionInspector();
 
+    public InspectorPanel() {
+        super(PANEL_ID, true); // Default open - core panel
+    }
+
+    @Override
     public void render() {
+        if (!isOpen()) return;
         if (ImGui.begin("Inspector")) {
             if (scene == null) {
                 ImGui.textDisabled("No scene loaded");
@@ -41,21 +51,23 @@ public class InspectorPanel {
             entityInspector.setScene(scene);
             multiSelectionInspector.setScene(scene);
 
-            if (hierarchyPanel != null && hierarchyPanel.isCameraSelected()) {
+            if (selectionManager == null) {
+                ImGui.textDisabled("Select an item to inspect");
+            } else if (selectionManager.isCameraSelected()) {
                 cameraInspector.render();
-            } else if (hierarchyPanel != null && hierarchyPanel.isTilemapLayersSelected()) {
+            } else if (selectionManager.isTilemapLayerSelected()) {
                 tilemapInspector.render();
-            } else if (hierarchyPanel != null && hierarchyPanel.isCollisionMapSelected()) {
+            } else if (selectionManager.isCollisionLayerSelected()) {
                 collisionInspector.render();
-            } else {
-                Set<EditorGameObject> selected = scene.getSelectedEntities();
+            } else if (selectionManager.hasEntitySelection()) {
+                Set<EditorGameObject> selected = selectionManager.getSelectedEntities();
                 if (selected.size() > 1) {
                     multiSelectionInspector.render(selected);
                 } else if (selected.size() == 1) {
                     entityInspector.render(selected.iterator().next());
-                } else {
-                    ImGui.textDisabled("Select an item to inspect");
                 }
+            } else {
+                ImGui.textDisabled("Select an item to inspect");
             }
         }
         ReflectionFieldEditor.renderAssetPicker();

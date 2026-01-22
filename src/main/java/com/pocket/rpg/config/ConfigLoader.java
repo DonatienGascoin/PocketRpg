@@ -13,7 +13,8 @@ import java.util.List;
 
 public class ConfigLoader {
 
-    private static final String CONFIG_DIR = "gameData/config";
+    private static final String GAME_CONFIG_DIR = "gameData/config";
+    private static final String EDITOR_CONFIG_DIR = "editor/config";
 
     public static <T> void saveConfigToFile(T config, ConfigType configType) {
         configFiles.stream().filter(cf -> cf.type == configType)
@@ -32,10 +33,10 @@ public class ConfigLoader {
     }
 
     private static final List<ConfigFile> configFiles = new ArrayList<>(List.of(
-            new ConfigFile(ConfigType.GAME, CONFIG_DIR + "/game.json", GameConfig.class, new GameConfig()),
-            new ConfigFile(ConfigType.INPUT, CONFIG_DIR + "/input.json", InputConfig.class, new InputConfig()),
-            new ConfigFile(ConfigType.RENDERING, CONFIG_DIR + "/rendering.json", RenderingConfig.class, new RenderingConfig()),
-            new ConfigFile(ConfigType.EDITOR, CONFIG_DIR + "/editor.json", EditorConfig.class, EditorConfig.createDefault())
+            new ConfigFile(ConfigType.GAME, GAME_CONFIG_DIR + "/game.json", GameConfig.class, new GameConfig()),
+            new ConfigFile(ConfigType.INPUT, GAME_CONFIG_DIR + "/input.json", InputConfig.class, new InputConfig()),
+            new ConfigFile(ConfigType.RENDERING, GAME_CONFIG_DIR + "/rendering.json", RenderingConfig.class, new RenderingConfig()),
+            new ConfigFile(ConfigType.EDITOR, EDITOR_CONFIG_DIR + "/editor.json", EditorConfig.class, EditorConfig.createDefault())
     ));
 
     /**
@@ -94,7 +95,7 @@ public class ConfigLoader {
      * Save configuration to JSON file.
      */
     private static <T> void saveConfigFile(String filePath, T config) {
-        ensureConfigDirectory();
+        ensureParentDirectory(filePath);
 
         try {
             FileUtils.serializeAndWriteToFile(filePath, config);
@@ -106,14 +107,14 @@ public class ConfigLoader {
     }
 
     /**
-     * Ensures the config directory exists.
+     * Ensures the parent directory of a file path exists.
      */
-    private static void ensureConfigDirectory() {
+    private static void ensureParentDirectory(String filePath) {
         try {
-            Path configPath = Paths.get(CONFIG_DIR);
-            if (!Files.exists(configPath)) {
-                Files.createDirectories(configPath);
-                System.out.println("Created config directory: " + CONFIG_DIR);
+            Path parentPath = Paths.get(filePath).getParent();
+            if (parentPath != null && !Files.exists(parentPath)) {
+                Files.createDirectories(parentPath);
+                System.out.println("Created config directory: " + parentPath);
             }
         } catch (IOException e) {
             System.err.println("Failed to create config directory: " + e.getMessage());

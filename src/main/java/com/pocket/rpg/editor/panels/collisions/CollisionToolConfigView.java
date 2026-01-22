@@ -1,6 +1,5 @@
 package com.pocket.rpg.editor.panels.collisions;
 
-import com.pocket.rpg.editor.EditorModeManager;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.tools.*;
 import imgui.ImGui;
@@ -12,9 +11,6 @@ public class CollisionToolConfigView {
 
     @Setter
     private EditorScene scene;
-
-    @Setter
-    private EditorModeManager modeManager;
 
     @Setter
     private CollisionBrushTool brushTool;
@@ -39,15 +35,8 @@ public class CollisionToolConfigView {
     public void renderVisibilitySection() {
         ImGui.text("Visibility");
 
-        boolean inCollisionMode = modeManager != null && modeManager.isCollisionMode();
-
-        if (scene != null) {
-            if (inCollisionMode) {
-                visibilityToggle.set(true);
-            } else {
-                visibilityToggle.set(scene.isCollisionVisible());
-            }
-        }
+        // When collision panel is open, collision overlay is always visible
+        visibilityToggle.set(true);
 
         if (scene != null) {
             opacitySlider[0] = scene.getCollisionOpacity();

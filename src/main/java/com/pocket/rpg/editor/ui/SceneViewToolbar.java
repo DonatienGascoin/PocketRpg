@@ -1,12 +1,11 @@
 package com.pocket.rpg.editor.ui;
 
 import com.pocket.rpg.editor.EditorContext;
-import com.pocket.rpg.editor.EditorModeManager;
 import com.pocket.rpg.editor.EditorToolController;
 import com.pocket.rpg.editor.core.MaterialIcons;
+import com.pocket.rpg.editor.panels.CollisionPanel;
+import com.pocket.rpg.editor.panels.TilesetPalettePanel;
 import com.pocket.rpg.editor.scene.EditorScene;
-import com.pocket.rpg.editor.shortcut.EditorShortcuts;
-import com.pocket.rpg.editor.shortcut.ShortcutRegistry;
 import com.pocket.rpg.editor.tools.EditorTool;
 import com.pocket.rpg.editor.tools.ToolManager;
 import imgui.ImGui;
@@ -15,11 +14,14 @@ import imgui.flag.ImGuiStyleVar;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
  * Toolbar rendered inside the Scene viewport.
- * Uses EditorModeManager.switchTo() which triggers listeners for hierarchy sync.
+ * Tools are shown based on which panels are open (panel-driven visibility).
  */
 public class SceneViewToolbar {
 
@@ -28,6 +30,15 @@ public class SceneViewToolbar {
 
     @Setter
     private Consumer<String> messageCallback;
+
+    @Setter
+    private TilesetPalettePanel tilesetPalettePanel;
+
+    @Setter
+    private CollisionPanel collisionPanel;
+
+    // Selection tool is always visible
+    private static final ToolDef SELECT_TOOL = new ToolDef("Select", MaterialIcons.NearMe, "V");
 
     private static final ToolDef[] TILEMAP_TOOLS = {
             new ToolDef("Brush", MaterialIcons.Brush, "B"),
@@ -45,11 +56,6 @@ public class SceneViewToolbar {
             new ToolDef("Collision Picker", MaterialIcons.Colorize, "V"),
     };
 
-    private static final ToolDef[] ENTITY_TOOLS = {
-            new ToolDef("Select", MaterialIcons.NearMe, "V"),
-            new ToolDef("Place Entity", MaterialIcons.AddBox, "P"),
-    };
-
     @Getter
     @Setter
     private boolean showGrid = true;
@@ -64,13 +70,10 @@ public class SceneViewToolbar {
         ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, 4, 4);
         ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 6, 4);
 
+        // If active tool's panel closed, switch to select
+        ensureValidToolSelection();
+
         renderToolButtons();
-
-        ImGui.sameLine();
-        ImGui.text("|");
-        ImGui.sameLine();
-
-        renderModeDropdown();
 
         ImGui.sameLine();
         ImGui.text("|");
@@ -82,14 +85,39 @@ public class SceneViewToolbar {
         ImGui.popTabStop();
     }
 
+    /**
+     * Ensures the active tool is valid based on visible panels.
+     * If a panel becomes hidden while using its tool, switches to Select.
+     */
+    private void ensureValidToolSelection() {
+        ToolManager toolManager = context.getToolManager();
+        EditorTool activeTool = toolManager.getActiveTool();
+        if (activeTool == null) return;
+
+        String toolName = activeTool.getName();
+        boolean isTilemapTool = Arrays.stream(TILEMAP_TOOLS).anyMatch(t -> t.toolName.equals(toolName));
+        boolean isCollisionTool = Arrays.stream(COLLISION_TOOLS).anyMatch(t -> t.toolName.equals(toolName));
+
+        boolean tilesetVisible = tilesetPalettePanel != null && tilesetPalettePanel.isContentVisible();
+        boolean collisionVisible = collisionPanel != null && collisionPanel.isContentVisible();
+
+        // If using tilemap tool but palette is not visible, switch to select
+        if (isTilemapTool && !tilesetVisible) {
+            toolManager.setActiveTool("Select");
+        }
+        // If using collision tool but panel is not visible, switch to select
+        if (isCollisionTool && !collisionVisible) {
+            toolManager.setActiveTool("Select");
+        }
+    }
+
     private void renderToolButtons() {
-        EditorModeManager modeManager = context.getModeManager();
         ToolManager toolManager = context.getToolManager();
         EditorTool activeTool = toolManager.getActiveTool();
 
-        ToolDef[] tools = getToolsForMode(modeManager.getCurrentMode());
+        List<ToolDef> visibleTools = getVisibleTools();
 
-        for (ToolDef def : tools) {
+        for (ToolDef def : visibleTools) {
             boolean isActive = activeTool != null && activeTool.getName().equals(def.toolName);
 
             if (isActive) {
@@ -115,39 +143,27 @@ public class SceneViewToolbar {
         }
     }
 
-    private ToolDef[] getToolsForMode(EditorModeManager.Mode mode) {
-        return switch (mode) {
-            case TILEMAP -> TILEMAP_TOOLS;
-            case COLLISION -> COLLISION_TOOLS;
-            case ENTITY -> ENTITY_TOOLS;
-        };
-    }
+    /**
+     * Returns tools that should be visible based on which panels are visible.
+     * Select tool is always visible. Tilemap/collision tools visible when their panels are visible.
+     */
+    private List<ToolDef> getVisibleTools() {
+        List<ToolDef> tools = new ArrayList<>();
 
-    private void renderModeDropdown() {
-        EditorModeManager modeManager = context.getModeManager();
-        String currentModeName = modeManager.getCurrentMode().getDisplayName();
+        // Selection tool is always available
+        tools.add(SELECT_TOOL);
 
-        ImGui.pushItemWidth(100);
-        if (ImGui.beginCombo("##ModeCombo", currentModeName)) {
-            for (EditorModeManager.Mode mode : EditorModeManager.Mode.values()) {
-                boolean isSelected = mode == modeManager.getCurrentMode();
-                if (ImGui.selectable(mode.getDisplayName(), isSelected)) {
-                    switchToMode(mode);
-                }
-                if (isSelected) {
-                    ImGui.setItemDefaultFocus();
-                }
-            }
-            ImGui.endCombo();
+        // Add tilemap tools if tileset palette is visible
+        if (tilesetPalettePanel != null && tilesetPalettePanel.isContentVisible()) {
+            tools.addAll(Arrays.asList(TILEMAP_TOOLS));
         }
-        ImGui.popItemWidth();
 
-        if (ImGui.isItemHovered()) {
-            String entityKey = ShortcutRegistry.getInstance().getBindingDisplay(EditorShortcuts.MODE_ENTITY);
-            String tilemapKey = ShortcutRegistry.getInstance().getBindingDisplay(EditorShortcuts.MODE_TILEMAP);
-            String collisionKey = ShortcutRegistry.getInstance().getBindingDisplay(EditorShortcuts.MODE_COLLISION);
-            ImGui.setTooltip("Editor Mode (" + entityKey + "/" + tilemapKey + "/" + collisionKey + ")");
+        // Add collision tools if collision panel is visible
+        if (collisionPanel != null && collisionPanel.isContentVisible()) {
+            tools.addAll(Arrays.asList(COLLISION_TOOLS));
         }
+
+        return tools;
     }
 
     private void renderVisibilityToggles() {
@@ -184,29 +200,6 @@ public class SceneViewToolbar {
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("Toggle Collision Overlay");
         }
-    }
-
-    /**
-     * Switches mode via EditorModeManager (triggers onModeChanged listeners).
-     */
-    private void switchToMode(EditorModeManager.Mode mode) {
-        EditorModeManager modeManager = context.getModeManager();
-        ToolManager toolManager = context.getToolManager();
-
-        // switchTo() triggers listeners which sync HierarchyPanel
-        modeManager.switchTo(mode);
-
-        // Set default tool
-        switch (mode) {
-            case TILEMAP -> toolManager.setActiveTool("Brush");
-            case COLLISION -> {
-                toolManager.setActiveTool("Collision Brush");
-                toolController.syncCollisionZLevels();
-            }
-            case ENTITY -> toolManager.setActiveTool("Select");
-        }
-
-        showMessage("Switched to " + mode.getDisplayName() + " Mode");
     }
 
     private void showMessage(String message) {

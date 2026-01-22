@@ -3,7 +3,6 @@ package com.pocket.rpg.editor.panels;
 import com.pocket.rpg.editor.panels.tilesets.TileGridRenderer;
 import com.pocket.rpg.editor.panels.tilesets.TileSelectionManager;
 import com.pocket.rpg.editor.panels.tilesets.TilesetSelector;
-import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.tileset.TileSelection;
 import com.pocket.rpg.editor.tools.TileBrushTool;
 import com.pocket.rpg.editor.tools.TileEraserTool;
@@ -16,7 +15,14 @@ import imgui.flag.ImGuiTableFlags;
 import imgui.flag.ImGuiWindowFlags;
 import lombok.Setter;
 
-public class TilesetPalettePanel {
+/**
+ * Panel for selecting and managing tilesets and tile selections.
+ * When open, tile painting tools become available.
+ */
+public class TilesetPalettePanel extends EditorPanel {
+
+    private static final String PANEL_ID = "tilesetPalette";
+
     private final ToolManager toolManager;
 
     @Setter
@@ -37,6 +43,7 @@ public class TilesetPalettePanel {
     private boolean isHorizontalLayout = false;
 
     public TilesetPalettePanel(ToolManager toolManager) {
+        super(PANEL_ID, false); // Default closed - painting panel
         this.toolManager = toolManager;
         this.tilesetSelector = new TilesetSelector();
         this.selectionManager = new TileSelectionManager();
@@ -46,8 +53,17 @@ public class TilesetPalettePanel {
         selectionManager.setOnSelectionCreated(this::onSelectionCreated);
     }
 
+    @Override
     public void render() {
-        if (ImGui.begin("Tileset")) {
+        if (!isOpen()) {
+            setContentVisible(false);
+            return;
+        }
+
+        boolean visible = ImGui.begin("Tileset Palette");
+        setContentVisible(visible);
+
+        if (visible) {
             if (ImGui.isWindowFocused() && ImGui.isKeyPressed(imgui.flag.ImGuiKey.Escape)) {
                 selectionManager.clearSelection();
                 clearToolSelection();
@@ -64,6 +80,11 @@ public class TilesetPalettePanel {
         ImGui.end();
 
         tilesetSelector.renderDialogs();
+    }
+
+    @Override
+    public String getDisplayName() {
+        return "Tileset Palette";
     }
 
     private void renderVertical() {

@@ -37,9 +37,6 @@ public class EditorUIController {
     private CollisionPanel collisionPanel;
 
     @Getter
-    private PrefabBrowserPanel prefabBrowserPanel;
-
-    @Getter
     private HierarchyPanel hierarchyPanel;
 
     @Getter
@@ -92,16 +89,18 @@ public class EditorUIController {
         createMenuAndStatus();
 
         sceneToolbar.setMessageCallback(statusBar::showMessage);
+        sceneToolbar.setTilesetPalettePanel(tilesetPalette);
+        sceneToolbar.setCollisionPanel(collisionPanel);
         animationEditorPanel.setStatusCallback(statusBar::showMessage);
         spriteEditorPanel.setStatusCallback(statusBar::showMessage);
 
         // Register panel handlers for asset double-click
         assetBrowserPanel.registerPanelHandler(
-                EditorPanel.ANIMATION_EDITOR,
+                EditorPanelType.ANIMATION_EDITOR,
                 animationEditorPanel::selectAnimationByPath
         );
         assetBrowserPanel.registerPanelHandler(
-                EditorPanel.SPRITE_EDITOR,
+                EditorPanelType.SPRITE_EDITOR,
                 spriteEditorPanel::open
         );
     }
@@ -110,6 +109,7 @@ public class EditorUIController {
         EditorScene scene = context.getCurrentScene();
 
         tilesetPalette = new TilesetPalettePanel(context.getToolManager());
+        tilesetPalette.initPanel(context.getConfig());
         tilesetPalette.setBrushTool(toolController.getBrushTool());
         tilesetPalette.setEraserTool(toolController.getEraserTool());
         tilesetPalette.setFillTool(toolController.getFillTool());
@@ -117,8 +117,8 @@ public class EditorUIController {
         tilesetPalette.setHorizontalLayout(true);
 
         collisionPanel = new CollisionPanel();
+        collisionPanel.initPanel(context.getConfig());
         collisionPanel.setScene(scene);
-        collisionPanel.setModeManager(context.getModeManager());
         collisionPanel.setBrushTool(toolController.getCollisionBrushTool());
         collisionPanel.setEraserTool(toolController.getCollisionEraserTool());
         collisionPanel.setFillTool(toolController.getCollisionFillTool());
@@ -128,33 +128,28 @@ public class EditorUIController {
 
         toolController.setCollisionPanel(collisionPanel);
 
-        prefabBrowserPanel = new PrefabBrowserPanel();
-        prefabBrowserPanel.setModeManager(context.getModeManager());
-        prefabBrowserPanel.setToolManager(context.getToolManager());
-        prefabBrowserPanel.setEntityPlacerTool(toolController.getEntityPlacerTool());
-
         // Create sprite editor before asset browser (needed for context menu)
         spriteEditorPanel = new SpriteEditorPanel();
 
         assetBrowserPanel = new AssetBrowserPanel();
+        assetBrowserPanel.initPanel(context.getConfig());
         assetBrowserPanel.initialize();
         assetBrowserPanel.setSpriteEditorPanel(spriteEditorPanel);
 
-        toolController.getEntityPlacerTool().setPrefabPanel(prefabBrowserPanel);
-        toolController.setPrefabBrowserPanel(prefabBrowserPanel);
-
         hierarchyPanel = new HierarchyPanel();
+        hierarchyPanel.initPanel(context.getConfig());
         hierarchyPanel.setScene(scene);
-        hierarchyPanel.setModeManager(context.getModeManager());
         hierarchyPanel.setToolManager(context.getToolManager());
         hierarchyPanel.setSelectionTool(toolController.getSelectionTool());
         hierarchyPanel.setBrushTool(toolController.getBrushTool());
+        hierarchyPanel.setSelectionManager(context.getSelectionManager());
         hierarchyPanel.setUiFactory(new UIEntityFactory(context.getGameConfig()));
         hierarchyPanel.init();
 
         inspectorPanel = new InspectorPanel();
+        inspectorPanel.initPanel(context.getConfig());
         inspectorPanel.setScene(scene);
-        inspectorPanel.setHierarchyPanel(hierarchyPanel);
+        inspectorPanel.setSelectionManager(context.getSelectionManager());
 
         configPanel = new ConfigPanel(context);
 
@@ -283,14 +278,63 @@ public class EditorUIController {
             // View menu
             renderViewMenu();
 
-            // Mode menu
-            renderModeMenu();
+            // Window menu for panel visibility
+            renderWindowMenu();
 
             // Scene name on the right
             renderSceneInfo();
 
             ImGui.endMainMenuBar();
         }
+    }
+
+    /**
+     * Renders the Window menu for toggling panel visibility.
+     */
+    private void renderWindowMenu() {
+        if (ImGui.beginMenu("Window")) {
+            // Core panels
+            if (ImGui.menuItem("Hierarchy", "", hierarchyPanel.isOpen())) {
+                hierarchyPanel.toggle();
+            }
+            if (ImGui.menuItem("Inspector", "", inspectorPanel.isOpen())) {
+                inspectorPanel.toggle();
+            }
+            if (ImGui.menuItem("Assets", "", assetBrowserPanel.isOpen())) {
+                assetBrowserPanel.toggle();
+            }
+
+            ImGui.separator();
+
+            // Painting panels with shortcut hints
+            if (ImGui.menuItem("Tileset Palette", "F1", tilesetPalette.isOpen())) {
+                tilesetPalette.toggle();
+            }
+            if (ImGui.menuItem("Collision Panel", "F2", collisionPanel.isOpen())) {
+                collisionPanel.toggle();
+            }
+
+            ImGui.separator();
+
+            // Reset layout option
+            if (ImGui.menuItem("Reset Panel Layout")) {
+                resetPanelLayout();
+            }
+
+            ImGui.endMenu();
+        }
+    }
+
+    /**
+     * Resets all panels to their default visibility state.
+     */
+    private void resetPanelLayout() {
+        hierarchyPanel.setOpen(true);
+        inspectorPanel.setOpen(true);
+        assetBrowserPanel.setOpen(true);
+        tilesetPalette.setOpen(false);
+        collisionPanel.setOpen(false);
+        statusBar.showMessage("Panel layout reset to defaults");
     }
 
     private void renderViewMenu() {
@@ -318,27 +362,6 @@ public class EditorUIController {
         }
     }
 
-    private void renderModeMenu() {
-        if (ImGui.beginMenu("Mode")) {
-            EditorModeManager modeManager = context.getModeManager();
-            boolean isTilemap = modeManager.isTilemapMode();
-            boolean isCollision = modeManager.isCollisionMode();
-
-            if (ImGui.menuItem("Tilemap Mode", "M", isTilemap)) {
-                modeManager.switchToTilemap();
-                context.getToolManager().setActiveTool(toolController.getBrushTool());
-                statusBar.showMessage("Switched to Tilemap Mode");
-            }
-            if (ImGui.menuItem("Collision Mode", "N", isCollision)) {
-                modeManager.switchToCollision();
-                context.getToolManager().setActiveTool(toolController.getCollisionBrushTool());
-                toolController.syncCollisionZLevels();
-                statusBar.showMessage("Switched to Collision Mode");
-            }
-            ImGui.endMenu();
-        }
-    }
-
     private void renderSceneInfo() {
         EditorScene scene = context.getCurrentScene();
         if (scene == null) return;
@@ -360,7 +383,8 @@ public class EditorUIController {
     private void renderCollisionOverlay() {
         EditorScene scene = context.getCurrentScene();
 
-        if (scene == null || (!scene.isCollisionVisible() && !context.getModeManager().isCollisionMode())) {
+        // Show collision overlay if explicitly visible OR collision panel is visible
+        if (scene == null || (!scene.isCollisionVisible() && !collisionPanel.isContentVisible())) {
             return;
         }
 
@@ -375,21 +399,17 @@ public class EditorUIController {
         collisionOverlay.render(scene.getCollisionMap(), context.getCamera());
     }
 
-    private void renderModePanels() {
-        if (context.getModeManager().isTilemapMode()) {
-            tilesetPalette.render();
-        } else if (context.getModeManager().isCollisionMode()) {
-            collisionPanel.render();
-        } else if (context.getModeManager().isEntityMode()) {
-            assetBrowserPanel.render();
-            prefabBrowserPanel.render();
-        }
-    }
-
     private void renderPanels() {
-        renderModePanels();
+        // Core panels (visibility controlled by isOpen())
         hierarchyPanel.render();
         inspectorPanel.render();
+        assetBrowserPanel.render();
+
+        // Painting panels (visibility controlled by isOpen())
+        tilesetPalette.render();
+        collisionPanel.render();
+
+        // Other panels
         configPanel.render();
         uiDesignerPanel.render();
         animationEditorPanel.render();

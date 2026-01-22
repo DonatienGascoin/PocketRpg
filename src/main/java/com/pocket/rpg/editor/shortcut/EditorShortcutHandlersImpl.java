@@ -1,11 +1,11 @@
 package com.pocket.rpg.editor.shortcut;
 
 import com.pocket.rpg.editor.EditorContext;
-import com.pocket.rpg.editor.EditorModeManager;
 import com.pocket.rpg.editor.EditorToolController;
 import com.pocket.rpg.editor.PlayModeController;
+import com.pocket.rpg.editor.panels.CollisionPanel;
 import com.pocket.rpg.editor.panels.ConfigPanel;
-import com.pocket.rpg.editor.panels.PrefabBrowserPanel;
+import com.pocket.rpg.editor.panels.TilesetPalettePanel;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.tools.EditorTool;
@@ -19,6 +19,7 @@ import java.util.function.Consumer;
 /**
  * Implementation of shortcut handlers that wires to the editor systems.
  * This class bridges the shortcut system with the actual editor functionality.
+ * Tool shortcuts only work when their corresponding panel is open.
  */
 public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
@@ -30,10 +31,13 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
     private ConfigPanel configPanel;
 
     @Setter
-    private PrefabBrowserPanel prefabBrowserPanel;
+    private PlayModeController playModeController;
 
     @Setter
-    private PlayModeController playModeController;
+    private TilesetPalettePanel tilesetPalettePanel;
+
+    @Setter
+    private CollisionPanel collisionPanel;
 
     @Setter
     private Consumer<String> messageCallback;
@@ -123,11 +127,8 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onDelete() {
-        // Delegate to entity delete if in entity mode
-        EditorModeManager modeManager = context.getModeManager();
-        if (modeManager.isEntityMode()) {
-            onEntityDelete();
-        }
+        // Entity delete works anytime (only affects selected entity)
+        onEntityDelete();
     }
 
     @Override
@@ -171,47 +172,36 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
     }
 
     // ========================================================================
-    // MODE HANDLERS
+    // PANEL TOGGLE HANDLERS
     // ========================================================================
 
     @Override
-    public void onModeTilemap() {
-        EditorModeManager modeManager = context.getModeManager();
-        if (!modeManager.isTilemapMode()) {
-            context.switchToTilemapMode();
-            context.getToolManager().setActiveTool(toolController.getBrushTool());
-            showMessage("Switched to Tilemap Mode");
+    public void onPanelTilesetToggle() {
+        if (tilesetPalettePanel != null) {
+            tilesetPalettePanel.toggle();
+            showMessage(tilesetPalettePanel.isOpen() ? "Tileset Palette opened" : "Tileset Palette closed");
         }
     }
 
     @Override
-    public void onModeCollision() {
-        EditorModeManager modeManager = context.getModeManager();
-        if (!modeManager.isCollisionMode()) {
-            context.switchToCollisionMode();
-            context.getToolManager().setActiveTool(toolController.getCollisionBrushTool());
-            toolController.syncCollisionZLevels();
-            showMessage("Switched to Collision Mode");
-        }
-    }
-
-    @Override
-    public void onModeEntity() {
-        EditorModeManager modeManager = context.getModeManager();
-        if (!modeManager.isEntityMode()) {
-            context.switchToEntityMode();
-            context.getToolManager().setActiveTool(toolController.getSelectionTool());
-            showMessage("Switched to Entity Mode");
+    public void onPanelCollisionToggle() {
+        if (collisionPanel != null) {
+            collisionPanel.toggle();
+            showMessage(collisionPanel.isOpen() ? "Collision Panel opened" : "Collision Panel closed");
         }
     }
 
     // ========================================================================
-    // TILEMAP TOOL HANDLERS
+    // TILEMAP TOOL HANDLERS (only work when Tileset Palette is open)
     // ========================================================================
+
+    private boolean isTilesetPaletteVisible() {
+        return tilesetPalettePanel != null && tilesetPalettePanel.isContentVisible();
+    }
 
     @Override
     public void onToolTileBrush() {
-        if (context.getModeManager().isTilemapMode()) {
+        if (isTilesetPaletteVisible()) {
             context.getToolManager().setActiveTool(toolController.getBrushTool());
             showMessage("Tile Brush");
         }
@@ -219,7 +209,7 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onToolTileEraser() {
-        if (context.getModeManager().isTilemapMode()) {
+        if (isTilesetPaletteVisible()) {
             context.getToolManager().setActiveTool(toolController.getEraserTool());
             showMessage("Tile Eraser");
         }
@@ -227,7 +217,7 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onToolTileFill() {
-        if (context.getModeManager().isTilemapMode()) {
+        if (isTilesetPaletteVisible()) {
             context.getToolManager().setActiveTool(toolController.getFillTool());
             showMessage("Tile Fill");
         }
@@ -235,7 +225,7 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onToolTileRectangle() {
-        if (context.getModeManager().isTilemapMode()) {
+        if (isTilesetPaletteVisible()) {
             context.getToolManager().setActiveTool(toolController.getRectangleTool());
             showMessage("Tile Rectangle");
         }
@@ -243,19 +233,23 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onToolTilePicker() {
-        if (context.getModeManager().isTilemapMode()) {
+        if (isTilesetPaletteVisible()) {
             context.getToolManager().setActiveTool(toolController.getPickerTool());
             showMessage("Tile Picker");
         }
     }
 
     // ========================================================================
-    // COLLISION TOOL HANDLERS
+    // COLLISION TOOL HANDLERS (only work when Collision Panel is open)
     // ========================================================================
+
+    private boolean isCollisionPanelVisible() {
+        return collisionPanel != null && collisionPanel.isContentVisible();
+    }
 
     @Override
     public void onToolCollisionBrush() {
-        if (context.getModeManager().isCollisionMode()) {
+        if (isCollisionPanelVisible()) {
             context.getToolManager().setActiveTool(toolController.getCollisionBrushTool());
             showMessage("Collision Brush");
         }
@@ -263,7 +257,7 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onToolCollisionEraser() {
-        if (context.getModeManager().isCollisionMode()) {
+        if (isCollisionPanelVisible()) {
             context.getToolManager().setActiveTool(toolController.getCollisionEraserTool());
             showMessage("Collision Eraser");
         }
@@ -271,7 +265,7 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onToolCollisionFill() {
-        if (context.getModeManager().isCollisionMode()) {
+        if (isCollisionPanelVisible()) {
             context.getToolManager().setActiveTool(toolController.getCollisionFillTool());
             showMessage("Collision Fill");
         }
@@ -279,7 +273,7 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onToolCollisionRectangle() {
-        if (context.getModeManager().isCollisionMode()) {
+        if (isCollisionPanelVisible()) {
             context.getToolManager().setActiveTool(toolController.getCollisionRectangleTool());
             showMessage("Collision Rectangle");
         }
@@ -287,7 +281,7 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onToolCollisionPicker() {
-        if (context.getModeManager().isCollisionMode()) {
+        if (isCollisionPanelVisible()) {
             context.getToolManager().setActiveTool(toolController.getCollisionPickerTool());
             showMessage("Collision Picker");
         }
@@ -299,26 +293,18 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onToolSelection() {
-        if (context.getModeManager().isEntityMode()) {
-            context.getToolManager().setActiveTool(toolController.getSelectionTool());
-            showMessage("Selection Tool");
-        }
+        // Selection tool is always available
+        context.getToolManager().setActiveTool(toolController.getSelectionTool());
+        showMessage("Selection Tool");
     }
 
     @Override
     public void onToolEntityPlacer() {
-        if (context.getModeManager().isEntityMode()) {
-            context.getToolManager().setActiveTool(toolController.getEntityPlacerTool());
-            showMessage("Entity Placer");
-        }
+        // EntityPlacerTool removed - drag from Asset Browser instead
     }
 
     @Override
     public void onEntityDelete() {
-        if (!context.getModeManager().isEntityMode()) {
-            return;
-        }
-
         EditorScene scene = context.getCurrentScene();
         if (scene != null) {
             EditorGameObject selected = scene.getSelectedEntity();
@@ -332,26 +318,11 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onEntityCancel() {
-        if (!context.getModeManager().isEntityMode()) {
-            return;
-        }
-
-        EditorTool activeTool = context.getToolManager().getActiveTool();
-
-        // If using placer tool, switch to selection and clear prefab selection
-        if (activeTool == toolController.getEntityPlacerTool()) {
-            context.getToolManager().setActiveTool(toolController.getSelectionTool());
-            if (prefabBrowserPanel != null) {
-                prefabBrowserPanel.clearSelection();
-            }
-            showMessage("Cancelled placement");
-        } else {
-            // Otherwise just deselect entity
-            EditorScene scene = context.getCurrentScene();
-            if (scene != null && scene.getSelectedEntity() != null) {
-                scene.setSelectedEntity(null);
-                showMessage("Deselected");
-            }
+        // Deselect current entity
+        EditorScene scene = context.getCurrentScene();
+        if (scene != null && scene.getSelectedEntity() != null) {
+            scene.setSelectedEntity(null);
+            showMessage("Deselected");
         }
     }
 
@@ -361,9 +332,8 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onBrushSizeIncrease() {
-        EditorModeManager modeManager = context.getModeManager();
-
-        if (modeManager.isTilemapMode()) {
+        // Adjust brush size for whichever panel is open
+        if (isTilesetPaletteVisible()) {
             int size = toolController.getBrushTool().getBrushSize();
             if (size < 10) {
                 int newSize = size + 1;
@@ -371,7 +341,7 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
                 toolController.getEraserTool().setEraserSize(newSize);
                 showMessage("Brush Size: " + newSize);
             }
-        } else if (modeManager.isCollisionMode()) {
+        } else if (isCollisionPanelVisible()) {
             int size = toolController.getCollisionBrushTool().getBrushSize();
             if (size < 10) {
                 int newSize = size + 1;
@@ -384,9 +354,8 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onBrushSizeDecrease() {
-        EditorModeManager modeManager = context.getModeManager();
-
-        if (modeManager.isTilemapMode()) {
+        // Adjust brush size for whichever panel is open
+        if (isTilesetPaletteVisible()) {
             int size = toolController.getBrushTool().getBrushSize();
             if (size > 1) {
                 int newSize = size - 1;
@@ -394,7 +363,7 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
                 toolController.getEraserTool().setEraserSize(newSize);
                 showMessage("Brush Size: " + newSize);
             }
-        } else if (modeManager.isCollisionMode()) {
+        } else if (isCollisionPanelVisible()) {
             int size = toolController.getCollisionBrushTool().getBrushSize();
             if (size > 1) {
                 int newSize = size - 1;
@@ -411,7 +380,7 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onZLevelIncrease() {
-        if (!context.getModeManager().isCollisionMode()) {
+        if (!isCollisionPanelVisible()) {
             return;
         }
 
@@ -428,7 +397,7 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onZLevelDecrease() {
-        if (!context.getModeManager().isCollisionMode()) {
+        if (!isCollisionPanelVisible()) {
             return;
         }
 

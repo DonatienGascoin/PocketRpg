@@ -216,6 +216,18 @@ This gives the user a quick overview of what will be implemented without needing
 
 **Every plan must include a code review step at the end.** After implementing a feature, ask another agent to perform a code review of all changed/added files and write the review to the plan's subfolder (e.g., `Documents/Plans/feature-name/review.md`). The new agent should only know about the implementation plan and must dig the code.
 
+### During Implementation
+
+**Update the plan as you go:**
+- Mark phases/tasks as completed with `[x]` or ~~strikethrough~~
+- Note any deviations or issues discovered
+- Keep the plan as a living document reflecting current status
+
+**After implementation is complete:**
+1. Mark the plan as complete
+2. Check this CLAUDE.md file for sections that need updating (see "Keeping This File Updated" at the top)
+3. Add/update documentation for new systems, patterns, or APIs introduced
+
 ## Inspector Field Editors
 
 When implementing new inspector UI or field types, **prioritize using and extending existing field editors**:

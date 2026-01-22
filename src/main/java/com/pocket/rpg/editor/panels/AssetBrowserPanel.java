@@ -1,6 +1,6 @@
 package com.pocket.rpg.editor.panels;
 
-import com.pocket.rpg.editor.EditorPanel;
+import com.pocket.rpg.editor.EditorPanelType;
 import com.pocket.rpg.editor.assets.AssetDragPayload;
 import com.pocket.rpg.editor.assets.ThumbnailCache;
 import com.pocket.rpg.editor.core.MaterialIcons;
@@ -35,7 +35,13 @@ import java.util.function.Consumer;
  * Drag payloads use unified path format (e.g., "sheets/player.spritesheet#3")
  * that can be used directly with {@code Assets.load(path, type)}.
  */
-public class AssetBrowserPanel {
+public class AssetBrowserPanel extends EditorPanel {
+
+    private static final String PANEL_ID = "assetBrowser";
+
+    public AssetBrowserPanel() {
+        super(PANEL_ID, true); // Default open - core panel
+    }
 
     // ========================================================================
     // CONFIGURATION
@@ -80,8 +86,8 @@ public class AssetBrowserPanel {
     private long lastRefreshTime = 0;
     private static final long REFRESH_COOLDOWN_MS = 1000;
 
-    // Panel handlers for double-click (keyed by EditorPanel)
-    private final Map<EditorPanel, Consumer<String>> panelHandlers = new EnumMap<>(EditorPanel.class);
+    // Panel handlers for double-click (keyed by EditorPanelType)
+    private final Map<EditorPanelType, Consumer<String>> panelHandlers = new EnumMap<>(EditorPanelType.class);
 
     // Sprite editor panel reference for context menu and double-click
     @Setter
@@ -202,7 +208,10 @@ public class AssetBrowserPanel {
     /**
      * Renders the asset browser panel.
      */
+    @Override
     public void render() {
+        if (!isOpen()) return;
+
         if (needsRefresh) {
             refresh();
         }
@@ -487,7 +496,7 @@ public class AssetBrowserPanel {
 
         // Double-click to open asset-specific editor
         if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(0)) {
-            EditorPanel panel = Assets.getEditorPanel(entry.type);
+            EditorPanelType panel = Assets.getEditorPanelType(entry.type);
             if (panel != null) {
                 Consumer<String> handler = panelHandlers.get(panel);
                 if (handler != null) {
@@ -662,7 +671,7 @@ public class AssetBrowserPanel {
      * @param panel   the editor panel this handler opens
      * @param handler receives the asset path when triggered
      */
-    public void registerPanelHandler(EditorPanel panel, Consumer<String> handler) {
+    public void registerPanelHandler(EditorPanelType panel, Consumer<String> handler) {
         panelHandlers.put(panel, handler);
     }
 

@@ -213,7 +213,7 @@ public class PlayModeController {
                 context.setCurrentScene(restored);
             } catch (Exception e) {
                 System.err.println("Failed to restore editor scene: " + e.getMessage());
-                context.setCurrentScene(new EditorScene("Recovered"));
+                context.setCurrentScene(new EditorScene());
             }
         }
 

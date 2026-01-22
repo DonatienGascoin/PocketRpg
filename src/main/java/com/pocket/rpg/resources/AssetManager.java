@@ -1,22 +1,20 @@
 package com.pocket.rpg.resources;
 
-import com.pocket.rpg.animation.Animation;
-import com.pocket.rpg.editor.EditorPanel;
+import com.pocket.rpg.editor.EditorPanelType;
 import com.pocket.rpg.editor.scene.EditorGameObject;
-import com.pocket.rpg.prefab.JsonPrefab;
-import com.pocket.rpg.prefab.JsonPrefabLoader;
-import com.pocket.rpg.rendering.resources.Shader;
 import com.pocket.rpg.rendering.resources.Sprite;
-import com.pocket.rpg.rendering.resources.SpriteSheet;
-import com.pocket.rpg.rendering.resources.Texture;
-import com.pocket.rpg.resources.loaders.*;
-import com.pocket.rpg.serialization.SceneData;
-import com.pocket.rpg.ui.text.Font;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector3f;
+import org.reflections.Reflections;
 
 import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+
+import static org.reflections.scanners.Scanners.SubTypes;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -93,17 +91,82 @@ public class AssetManager implements AssetContext {
     }
 
     /**
-     * Registers default loaders automatically.
+     * Registers default loaders automatically by scanning for AssetLoader implementations.
+     * <p>
+     * Loaders can be defined in any package under com.pocket.rpg.
+     * The asset type is extracted from the generic type parameter (e.g., AssetLoader&lt;Texture&gt;).
      */
+    @SuppressWarnings({"unchecked", "rawtypes"})
     private void registerDefaultLoaders() {
-        registerLoader(Texture.class, new TextureLoader());
-        registerLoader(Shader.class, new ShaderLoader());
-        registerLoader(Sprite.class, new SpriteLoader());
-        registerLoader(SpriteSheet.class, new SpriteSheetLoader());
-        registerLoader(SceneData.class, new SceneDataLoader());
-        registerLoader(JsonPrefab.class, new JsonPrefabLoader());
-        registerLoader(Font.class, new FontLoader());
-        registerLoader(Animation.class, new AnimationLoader());
+        try {
+            // Scan all packages under com.pocket.rpg for AssetLoader implementations
+            Reflections reflections = new Reflections("com.pocket.rpg");
+            Set<Class<?>> loaderClasses = reflections.get(SubTypes.of(AssetLoader.class).asClass());
+
+            int registered = 0;
+            for (Class<?> clazz : loaderClasses) {
+                // Skip interfaces and abstract classes
+                if (clazz.isInterface() || Modifier.isAbstract(clazz.getModifiers())) {
+                    continue;
+                }
+
+                try {
+                    // Extract asset type from generic parameter
+                    Class<?> assetClass = extractAssetType(clazz);
+                    if (assetClass == null) {
+                        System.err.println("Could not determine asset type for loader: " + clazz.getName());
+                        continue;
+                    }
+
+                    Constructor<?> constructor = clazz.getDeclaredConstructor();
+                    constructor.setAccessible(true);
+                    AssetLoader<?> loader = (AssetLoader<?>) constructor.newInstance();
+
+                    registerLoader(assetClass, (AssetLoader) loader);
+                    registered++;
+
+                } catch (NoSuchMethodException e) {
+                    System.err.println("AssetLoader must have a no-arg constructor: " + clazz.getName());
+                } catch (Exception e) {
+                    System.err.println("Failed to instantiate loader: " + clazz.getName() + " - " + e.getMessage());
+                }
+            }
+
+            System.out.println("Loader scanning complete. Registered " + registered + " asset loaders.");
+
+        } catch (Exception e) {
+            System.err.println("Error scanning for loaders: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Extracts the asset type from a loader class's generic type parameter.
+     * For example, TextureLoader implements AssetLoader&lt;Texture&gt;, so this returns Texture.class.
+     *
+     * @param loaderClass The loader class to inspect
+     * @return The asset class, or null if it cannot be determined
+     */
+    private Class<?> extractAssetType(Class<?> loaderClass) {
+        // Check generic interfaces
+        for (Type iface : loaderClass.getGenericInterfaces()) {
+            if (iface instanceof ParameterizedType pType) {
+                if (pType.getRawType() == AssetLoader.class) {
+                    Type typeArg = pType.getActualTypeArguments()[0];
+                    if (typeArg instanceof Class<?>) {
+                        return (Class<?>) typeArg;
+                    }
+                }
+            }
+        }
+
+        // Check superclass chain (for loaders that extend an abstract base)
+        Class<?> superclass = loaderClass.getSuperclass();
+        if (superclass != null && superclass != Object.class) {
+            return extractAssetType(superclass);
+        }
+
+        return null;
     }
 
     /**
@@ -428,9 +491,9 @@ public class AssetManager implements AssetContext {
     }
 
     @Override
-    public EditorPanel getEditorPanel(Class<?> type) {
+    public EditorPanelType getEditorPanelType(Class<?> type) {
         AssetLoader<?> loader = loaders.get(type);
-        return loader != null ? loader.getEditorPanel() : null;
+        return loader != null ? loader.getEditorPanelType() : null;
     }
 
     @Override

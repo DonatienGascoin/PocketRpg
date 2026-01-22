@@ -9,7 +9,7 @@ import com.pocket.rpg.animation.Animation;
 import com.pocket.rpg.animation.AnimationFrame;
 import com.pocket.rpg.components.AnimationComponent;
 import com.pocket.rpg.components.SpriteRenderer;
-import com.pocket.rpg.editor.EditorPanel;
+import com.pocket.rpg.editor.EditorPanelType;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.rendering.resources.Sprite;
@@ -209,8 +209,8 @@ public class AnimationLoader implements AssetLoader<Animation> {
     }
 
     @Override
-    public EditorPanel getEditorPanel() {
-        return EditorPanel.ANIMATION_EDITOR;
+    public EditorPanelType getEditorPanelType() {
+        return EditorPanelType.ANIMATION_EDITOR;
     }
 
     private String extractEntityName(String path) {

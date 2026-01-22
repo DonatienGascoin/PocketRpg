@@ -11,6 +11,7 @@ When modifying core systems, update the corresponding sections in this file:
 | `animation/`, `AnimationComponent` | **Animation System** in Core Systems |
 | `collision/`, `GridMovement` | **Collision System** in Core Systems |
 | `resources/`, `AssetLoader` | **Asset Pipeline** in Core Systems |
+| `save/`, `SaveManager`, `ISaveable` | **Save System** in Core Systems |
 | Serialization annotations | **Serialization** in Architecture |
 | Component lifecycle | **Component Lifecycle** in Common Pitfalls |
 | `editor/ui/fields/` | **Inspector Field Editors** |
@@ -84,6 +85,14 @@ PocketRpg is a 2D game engine with a scene editor, built in Java 25. It uses LWJ
 - Metadata stored in `gameData/.metadata/` (pivots, 9-slice borders)
 - Sub-asset syntax: `"spritesheets/player.spritesheet#3"` loads sprite index 3
 
+**Save System** (`save/`)
+- `SaveManager` - Static API for save/load operations, hooks into `SceneLifecycleListener`
+- `PersistentId` - Component marking GameObjects as saveable with stable IDs
+- `ISaveable` - Interface for components with custom save/load logic
+- Delta-based saves: only stores changes from initial scene state
+- Save location: `%APPDATA%/PocketRpg/saves/` (Windows) or `~/.pocketrpg/saves/` (Unix)
+- Global state (`setGlobal`/`getGlobal`) persists across scenes; scene flags are per-scene
+
 ### Serialization
 
 Components use reflection-based serialization via `ComponentRegistry`:
@@ -107,6 +116,7 @@ Controller pattern with shared `EditorContext`:
 | `src/main/java/com/pocket/rpg/core/` | GameObject, GameLoop, Camera |
 | `src/main/java/com/pocket/rpg/components/` | Built-in components (SpriteRenderer, TilemapRenderer, etc.) |
 | `src/main/java/com/pocket/rpg/serialization/` | Component metadata, registry, scene serialization |
+| `src/main/java/com/pocket/rpg/save/` | Save system (SaveManager, PersistentId, ISaveable) |
 | `src/main/java/com/pocket/rpg/editor/` | Scene editor |
 | `gameData/` | Assets, scenes, and config files |
 
@@ -331,3 +341,31 @@ This applies to any conditional push/pop pattern where the condition might chang
 1. Create class implementing `TileBehavior` in `collision/behavior/`
 2. Implement `checkMove()`, optionally `onEnter()`/`onExit()`
 3. Register in `CollisionSystem` behavior map
+
+### Make an Entity Saveable
+1. Add `PersistentId` component to the GameObject (set `id` or leave blank for auto)
+2. On components that need saving, implement `ISaveable`:
+   - `getSaveState()` - Return map of data to save
+   - `loadSaveState(state)` - Restore from map
+3. For permanent destruction, call `SaveManager.markEntityDestroyed(id)`
+
+### Use the Save System
+```java
+// Initialize at startup
+SaveManager.initialize(sceneManager);
+
+// New game
+SaveManager.newGame();
+SceneManager.loadScene("StartScene");
+
+// Save
+SaveManager.save("slot1", "My Save");
+
+// Load
+SaveManager.load("slot1");
+SceneManager.loadScene(SaveManager.getSavedSceneName());
+
+// Global state (persists across scenes)
+SaveManager.setGlobal("player", "gold", 500);
+int gold = SaveManager.getGlobal("player", "gold", 0);
+```

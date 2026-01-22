@@ -58,6 +58,9 @@ public class EditorUIController {
     private SpriteEditorPanel spriteEditorPanel;
 
     @Getter
+    private ConsolePanel consolePanel;
+
+    @Getter
     private EditorMenuBar menuBar;
 
     @Getter
@@ -157,6 +160,9 @@ public class EditorUIController {
 
         animationEditorPanel = new AnimationEditorPanel();
         animationEditorPanel.initialize();
+
+        consolePanel = new ConsolePanel();
+        consolePanel.initPanel(context.getConfig());
     }
 
     private void createMenuAndStatus() {
@@ -303,6 +309,9 @@ public class EditorUIController {
             if (ImGui.menuItem("Assets", "", assetBrowserPanel.isOpen())) {
                 assetBrowserPanel.toggle();
             }
+            if (ImGui.menuItem("Console", "", consolePanel.isOpen())) {
+                consolePanel.toggle();
+            }
 
             ImGui.separator();
 
@@ -332,6 +341,7 @@ public class EditorUIController {
         hierarchyPanel.setOpen(true);
         inspectorPanel.setOpen(true);
         assetBrowserPanel.setOpen(true);
+        consolePanel.setOpen(true);
         tilesetPalette.setOpen(false);
         collisionPanel.setOpen(false);
         statusBar.showMessage("Panel layout reset to defaults");
@@ -414,6 +424,7 @@ public class EditorUIController {
         uiDesignerPanel.render();
         animationEditorPanel.render();
         spriteEditorPanel.render();
+        consolePanel.render();
         if (gameViewPanel != null) {
             gameViewPanel.render();
         }

@@ -1,0 +1,352 @@
+package com.pocket.rpg.editor.panels;
+
+import com.pocket.rpg.editor.core.MaterialIcons;
+import com.pocket.rpg.logging.Log;
+import com.pocket.rpg.logging.LogBuffer;
+import com.pocket.rpg.logging.LogEntry;
+import com.pocket.rpg.logging.LogLevel;
+import imgui.ImGui;
+import imgui.ImVec4;
+import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiSelectableFlags;
+import imgui.flag.ImGuiWindowFlags;
+import imgui.type.ImBoolean;
+import imgui.type.ImString;
+
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.util.List;
+
+/**
+ * Unity-style console panel for viewing log messages.
+ * Features:
+ * - Level filtering (TRACE/DEBUG/INFO/WARN/ERROR)
+ * - Text search filtering
+ * - Collapse repeated messages
+ * - Auto-scroll to latest
+ * - Detail pane for selected entry
+ * - Copy to clipboard
+ */
+public class ConsolePanel extends EditorPanel {
+
+    private static final String PANEL_ID = "console";
+
+    // Level colors
+    private static final ImVec4 COLOR_TRACE = new ImVec4(0.5f, 0.5f, 0.5f, 1.0f);
+    private static final ImVec4 COLOR_DEBUG = new ImVec4(0.4f, 0.8f, 1.0f, 1.0f);
+    private static final ImVec4 COLOR_INFO = new ImVec4(0.9f, 0.9f, 0.9f, 1.0f);
+    private static final ImVec4 COLOR_WARN = new ImVec4(1.0f, 0.85f, 0.2f, 1.0f);
+    private static final ImVec4 COLOR_ERROR = new ImVec4(1.0f, 0.4f, 0.4f, 1.0f);
+
+    // Filter state
+    private LogLevel minLevel = LogLevel.DEBUG;
+    private final ImString searchFilter = new ImString(256);
+    private final ImBoolean showTrace = new ImBoolean(false);
+    private final ImBoolean showDebug = new ImBoolean(true);
+    private final ImBoolean showInfo = new ImBoolean(true);
+    private final ImBoolean showWarn = new ImBoolean(true);
+    private final ImBoolean showError = new ImBoolean(true);
+
+    // Options
+    private final ImBoolean autoScroll = new ImBoolean(true);
+    private final ImBoolean showTimestamps = new ImBoolean(true);
+    private final ImBoolean collapseEnabled = new ImBoolean(true);
+
+    // Selection
+    private LogEntry selectedEntry = null;
+    private boolean scrollToBottom = false;
+
+    public ConsolePanel() {
+        super(PANEL_ID, true);
+    }
+
+    @Override
+    public void render() {
+        if (!isOpen()) return;
+
+        int windowFlags = ImGuiWindowFlags.MenuBar;
+        boolean visible = ImGui.begin(MaterialIcons.Terminal + " Console###Console", windowFlags);
+        setContentVisible(visible);
+
+        if (visible) {
+            renderMenuBar();
+            renderToolbar();
+
+            // Split between log list and detail pane
+            float availHeight = ImGui.getContentRegionAvailY();
+            float listHeight = selectedEntry != null ? availHeight * 0.65f : availHeight;
+
+            renderLogList(listHeight);
+
+            if (selectedEntry != null) {
+                ImGui.separator();
+                renderDetailPane(availHeight - listHeight - 10);
+            }
+        }
+
+        ImGui.end();
+    }
+
+    private void renderMenuBar() {
+        if (ImGui.beginMenuBar()) {
+            if (ImGui.beginMenu("Options")) {
+                if (ImGui.menuItem("Clear", "")) {
+                    Log.getManager().getBuffer().clear();
+                    selectedEntry = null;
+                }
+                ImGui.separator();
+                ImGui.menuItem("Auto-scroll", "", autoScroll);
+                ImGui.menuItem("Show Timestamps", "", showTimestamps);
+                ImGui.menuItem("Collapse Repeated", "", collapseEnabled);
+                ImGui.endMenu();
+            }
+            ImGui.endMenuBar();
+        }
+    }
+
+    private void renderToolbar() {
+        LogBuffer buffer = Log.getManager().getBuffer();
+
+        // Clear button
+        if (ImGui.button(MaterialIcons.Delete + "##clear")) {
+            buffer.clear();
+            selectedEntry = null;
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("Clear all logs");
+        }
+
+        ImGui.sameLine();
+        ImGui.separator();
+        ImGui.sameLine();
+
+        // Level toggle buttons with counts
+        renderLevelToggle("T", showTrace, LogLevel.TRACE, COLOR_TRACE, countLevel(LogLevel.TRACE));
+        ImGui.sameLine();
+        renderLevelToggle("D", showDebug, LogLevel.DEBUG, COLOR_DEBUG, countLevel(LogLevel.DEBUG));
+        ImGui.sameLine();
+        renderLevelToggle("I", showInfo, LogLevel.INFO, COLOR_INFO, countLevel(LogLevel.INFO));
+        ImGui.sameLine();
+        renderLevelToggle("W", showWarn, LogLevel.WARN, COLOR_WARN, buffer.getWarnCount());
+        ImGui.sameLine();
+        renderLevelToggle("E", showError, LogLevel.ERROR, COLOR_ERROR, buffer.getErrorCount());
+
+        ImGui.sameLine();
+        ImGui.separator();
+        ImGui.sameLine();
+
+        // Collapse checkbox
+        if (ImGui.checkbox("Collapse", collapseEnabled)) {
+            buffer.setCollapseEnabled(collapseEnabled.get());
+        }
+
+        ImGui.sameLine();
+        ImGui.separator();
+        ImGui.sameLine();
+
+        // Search filter
+        ImGui.setNextItemWidth(150);
+        ImGui.inputTextWithHint("##search", MaterialIcons.Search + " Filter...", searchFilter);
+
+        ImGui.sameLine();
+
+        // Entry count
+        List<LogEntry> entries = getFilteredEntries();
+        ImGui.textDisabled(String.format("(%d entries)", entries.size()));
+    }
+
+    private void renderLevelToggle(String label, ImBoolean enabled, LogLevel level, ImVec4 color, int count) {
+        boolean wasEnabled = enabled.get();
+
+        if (wasEnabled) {
+            ImGui.pushStyleColor(ImGuiCol.Button, color.x * 0.6f, color.y * 0.6f, color.z * 0.6f, 1.0f);
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, color.x * 0.8f, color.y * 0.8f, color.z * 0.8f, 1.0f);
+        }
+
+        String buttonLabel = count > 0 ? label + "(" + count + ")" : label;
+        if (ImGui.button(buttonLabel + "##" + level.name())) {
+            enabled.set(!enabled.get());
+            updateMinLevel();
+        }
+
+        if (wasEnabled) {
+            ImGui.popStyleColor(2);
+        }
+
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(level.name() + " messages");
+        }
+    }
+
+    private void updateMinLevel() {
+        if (showTrace.get()) minLevel = LogLevel.TRACE;
+        else if (showDebug.get()) minLevel = LogLevel.DEBUG;
+        else if (showInfo.get()) minLevel = LogLevel.INFO;
+        else if (showWarn.get()) minLevel = LogLevel.WARN;
+        else minLevel = LogLevel.ERROR;
+    }
+
+    private int countLevel(LogLevel level) {
+        LogBuffer buffer = Log.getManager().getBuffer();
+        return (int) buffer.getEntries().stream()
+                .filter(e -> e.getLevel() == level)
+                .count();
+    }
+
+    private List<LogEntry> getFilteredEntries() {
+        LogBuffer buffer = Log.getManager().getBuffer();
+        String filter = searchFilter.get();
+
+        return buffer.getEntries().stream()
+                .filter(e -> isLevelVisible(e.getLevel()))
+                .filter(e -> filter.isEmpty() ||
+                        e.getMessage().toLowerCase().contains(filter.toLowerCase()) ||
+                        e.getLoggerName().toLowerCase().contains(filter.toLowerCase()))
+                .toList();
+    }
+
+    private boolean isLevelVisible(LogLevel level) {
+        return switch (level) {
+            case TRACE -> showTrace.get();
+            case DEBUG -> showDebug.get();
+            case INFO -> showInfo.get();
+            case WARN -> showWarn.get();
+            case ERROR -> showError.get();
+        };
+    }
+
+    private void renderLogList(float height) {
+        ImGui.beginChild("LogList", 0, height, true);
+
+        List<LogEntry> entries = getFilteredEntries();
+
+        for (LogEntry entry : entries) {
+            renderLogEntry(entry);
+        }
+
+        // Auto-scroll
+        if (autoScroll.get() && (scrollToBottom || ImGui.getScrollY() >= ImGui.getScrollMaxY() - 10)) {
+            ImGui.setScrollHereY(1.0f);
+            scrollToBottom = false;
+        }
+
+        ImGui.endChild();
+    }
+
+    private void renderLogEntry(LogEntry entry) {
+        ImVec4 color = getLevelColor(entry.getLevel());
+        String icon = getLevelIcon(entry.getLevel());
+
+        // Build display text
+        StringBuilder sb = new StringBuilder();
+        sb.append(icon).append(" ");
+
+        if (showTimestamps.get()) {
+            sb.append("[").append(entry.getFormattedTime()).append("] ");
+        }
+
+        sb.append("[").append(entry.getLoggerName()).append("] ");
+        sb.append(entry.getMessage());
+
+        if (entry.getRepeatCount() > 1) {
+            sb.append(" (x").append(entry.getRepeatCount()).append(")");
+        }
+
+        // Render selectable
+        boolean isSelected = entry == selectedEntry;
+        ImGui.pushStyleColor(ImGuiCol.Text, color.x, color.y, color.z, color.w);
+
+        if (ImGui.selectable(sb.toString() + "##" + entry.hashCode(),
+                isSelected, ImGuiSelectableFlags.SpanAllColumns)) {
+            selectedEntry = isSelected ? null : entry;
+        }
+
+        ImGui.popStyleColor();
+
+        // Context menu
+        if (ImGui.beginPopupContextItem()) {
+            if (ImGui.menuItem(MaterialIcons.ContentCopy + " Copy Message")) {
+                ImGui.setClipboardText(entry.getMessage());
+            }
+            if (ImGui.menuItem(MaterialIcons.ContentCopy + " Copy Full Entry")) {
+                ImGui.setClipboardText(entry.getFormattedMessage());
+            }
+            if (entry.getThrowable() != null) {
+                if (ImGui.menuItem(MaterialIcons.ContentCopy + " Copy Stack Trace")) {
+                    ImGui.setClipboardText(getStackTrace(entry.getThrowable()));
+                }
+            }
+            ImGui.endPopup();
+        }
+    }
+
+    private void renderDetailPane(float height) {
+        ImGui.beginChild("DetailPane", 0, height, true);
+
+        if (selectedEntry != null) {
+            ImVec4 color = getLevelColor(selectedEntry.getLevel());
+
+            // Header
+            ImGui.textColored(color.x, color.y, color.z, color.w,
+                    getLevelIcon(selectedEntry.getLevel()) + " " + selectedEntry.getLevel().getLabel());
+
+            ImGui.sameLine();
+            ImGui.textDisabled("| " + selectedEntry.getLoggerName());
+
+            ImGui.sameLine();
+            ImGui.textDisabled("| " + selectedEntry.getFormattedTime());
+
+            ImGui.sameLine();
+            ImGui.textDisabled("| Thread: " + selectedEntry.getThreadName());
+
+            ImGui.separator();
+
+            // Message (wrapped)
+            ImGui.textWrapped(selectedEntry.getMessage());
+
+            // Stack trace
+            if (selectedEntry.getThrowable() != null) {
+                ImGui.separator();
+                ImGui.textColored(COLOR_ERROR.x, COLOR_ERROR.y, COLOR_ERROR.z, COLOR_ERROR.w, "Stack Trace:");
+                ImGui.beginChild("StackTrace", 0, 0, false);
+                ImGui.textWrapped(getStackTrace(selectedEntry.getThrowable()));
+                ImGui.endChild();
+            }
+        }
+
+        ImGui.endChild();
+    }
+
+    private ImVec4 getLevelColor(LogLevel level) {
+        return switch (level) {
+            case TRACE -> COLOR_TRACE;
+            case DEBUG -> COLOR_DEBUG;
+            case INFO -> COLOR_INFO;
+            case WARN -> COLOR_WARN;
+            case ERROR -> COLOR_ERROR;
+        };
+    }
+
+    private String getLevelIcon(LogLevel level) {
+        return switch (level) {
+            case TRACE -> MaterialIcons.Code;
+            case DEBUG -> MaterialIcons.BugReport;
+            case INFO -> MaterialIcons.Info;
+            case WARN -> MaterialIcons.Warning;
+            case ERROR -> MaterialIcons.Error;
+        };
+    }
+
+    private String getStackTrace(Throwable t) {
+        StringWriter sw = new StringWriter();
+        t.printStackTrace(new PrintWriter(sw));
+        return sw.toString();
+    }
+
+    /**
+     * Programmatically scroll to the bottom on the next frame.
+     */
+    public void scrollToBottom() {
+        this.scrollToBottom = true;
+    }
+}

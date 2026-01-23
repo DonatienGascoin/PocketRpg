@@ -1,6 +1,7 @@
 package com.pocket.rpg.resources;
 
 import com.pocket.rpg.editor.EditorPanelType;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.rendering.resources.Sprite;
 import lombok.Getter;
@@ -500,6 +501,12 @@ public class AssetManager implements AssetContext {
     public Set<EditorCapability> getEditorCapabilities(Class<?> type) {
         AssetLoader<?> loader = loaders.get(type);
         return loader != null ? loader.getEditorCapabilities() : Set.of();
+    }
+
+    @Override
+    public String getIconCodepoint(Class<?> type) {
+        AssetLoader<?> loader = loaders.get(type);
+        return loader != null ? loader.getIconCodepoint() : MaterialIcons.InsertDriveFile;
     }
 
     @Override

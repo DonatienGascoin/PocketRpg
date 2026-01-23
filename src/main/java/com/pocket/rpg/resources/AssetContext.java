@@ -241,4 +241,13 @@ public interface AssetContext {
      * @return Set of capabilities, or empty set if no loader or none declared
      */
     Set<EditorCapability> getEditorCapabilities(Class<?> type);
+
+    /**
+     * Gets the icon codepoint for an asset type.
+     * Delegates to the loader's getIconCodepoint() method.
+     *
+     * @param type Asset type class
+     * @return Icon codepoint string (MaterialIcons constant)
+     */
+    String getIconCodepoint(Class<?> type);
 }

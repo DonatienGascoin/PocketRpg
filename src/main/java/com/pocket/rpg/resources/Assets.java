@@ -375,4 +375,15 @@ public final class Assets {
     public static Set<EditorCapability> getEditorCapabilities(Class<?> type) {
         return getContext().getEditorCapabilities(type);
     }
+
+    /**
+     * Gets the icon codepoint for an asset type.
+     * Delegates to the loader's getIconCodepoint() method.
+     *
+     * @param type Asset type class
+     * @return Icon codepoint string (MaterialIcons constant)
+     */
+    public static String getIconCodepoint(Class<?> type) {
+        return getContext().getIconCodepoint(type);
+    }
 }

@@ -10,7 +10,6 @@ import lombok.Getter;
 public class AudioClip {
 
     private final String name;
-    private final String path;
     private final int bufferId;
     private final float duration;
     private final int sampleRate;
@@ -20,15 +19,13 @@ public class AudioClip {
      * Create a new AudioClip.
      *
      * @param name       Display name (usually filename without extension)
-     * @param path       Relative path to the audio file
      * @param bufferId   OpenAL buffer ID
      * @param duration   Duration in seconds
      * @param sampleRate Sample rate in Hz
      * @param channels   Number of channels (1 = mono, 2 = stereo)
      */
-    public AudioClip(String name, String path, int bufferId, float duration, int sampleRate, int channels) {
+    public AudioClip(String name, int bufferId, float duration, int sampleRate, int channels) {
         this.name = name;
-        this.path = path;
         this.bufferId = bufferId;
         this.duration = duration;
         this.sampleRate = sampleRate;

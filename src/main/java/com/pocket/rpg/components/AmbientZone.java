@@ -1,12 +1,10 @@
-package com.pocket.rpg.audio.components;
+package com.pocket.rpg.components;
 
 import com.pocket.rpg.audio.Audio;
 import com.pocket.rpg.audio.clips.AudioClip;
 import com.pocket.rpg.audio.mixing.AudioChannel;
 import com.pocket.rpg.audio.sources.AudioHandle;
 import com.pocket.rpg.audio.sources.PlaybackSettings;
-import com.pocket.rpg.components.Component;
-import com.pocket.rpg.components.HideInInspector;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector3f;

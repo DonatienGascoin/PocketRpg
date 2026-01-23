@@ -1,5 +1,6 @@
 package com.pocket.rpg.editor.panels;
 
+import com.pocket.rpg.audio.clips.AudioClip;
 import com.pocket.rpg.editor.EditorPanelType;
 import com.pocket.rpg.editor.assets.AssetDragPayload;
 import com.pocket.rpg.editor.assets.ThumbnailCache;
@@ -713,6 +714,9 @@ public class AssetBrowserPanel extends EditorPanel {
         }
         if (type == com.pocket.rpg.serialization.SceneData.class) {
             return MaterialIcons.Map;
+        }
+        if (type == AudioClip.class) {
+            return MaterialIcons.AudioFile;
         }
         return MaterialIcons.InsertDriveFile;
     }

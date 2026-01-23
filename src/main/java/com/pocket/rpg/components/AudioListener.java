@@ -1,7 +1,6 @@
-package com.pocket.rpg.audio.components;
+package com.pocket.rpg.components;
 
 import com.pocket.rpg.audio.Audio;
-import com.pocket.rpg.components.Component;
 import org.joml.Vector3f;
 
 /**

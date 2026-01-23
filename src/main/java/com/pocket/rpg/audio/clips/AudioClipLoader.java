@@ -22,7 +22,7 @@ import java.nio.file.Path;
 
 /**
  * Asset loader for audio clips.
- * Supports WAV and OGG Vorbis formats.
+ * Supports WAV, OGG Vorbis, and MP3 formats.
  */
 public class AudioClipLoader implements AssetLoader<AudioClip> {
 
@@ -30,10 +30,11 @@ public class AudioClipLoader implements AssetLoader<AudioClip> {
     public AudioClip load(String path) throws IOException {
         String lowerPath = path.toLowerCase();
 
-        if (lowerPath.endsWith(".wav")) {
-            return loadWav(path);
-        } else if (lowerPath.endsWith(".ogg")) {
+        if (lowerPath.endsWith(".ogg")) {
             return loadOgg(path);
+        } else if (lowerPath.endsWith(".wav") || lowerPath.endsWith(".mp3")) {
+            // WAV and MP3 use Java's AudioSystem
+            return loadWithAudioSystem(path);
         } else {
             throw new IOException("Unsupported audio format: " + path);
         }
@@ -52,7 +53,7 @@ public class AudioClipLoader implements AssetLoader<AudioClip> {
 
     @Override
     public String[] getSupportedExtensions() {
-        return new String[]{".wav", ".ogg"};
+        return new String[]{".wav", ".ogg", ".mp3"};
     }
 
     @Override
@@ -61,10 +62,10 @@ public class AudioClipLoader implements AssetLoader<AudioClip> {
     }
 
     // ========================================================================
-    // WAV LOADING
+    // WAV/MP3 LOADING (via Java AudioSystem)
     // ========================================================================
 
-    private AudioClip loadWav(String path) throws IOException {
+    private AudioClip loadWithAudioSystem(String path) throws IOException {
         try (AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(
                 new BufferedInputStream(new FileInputStream(path)))) {
 
@@ -112,11 +113,11 @@ public class AudioClipLoader implements AssetLoader<AudioClip> {
             // Extract name from path
             String name = extractName(path);
 
-            return new AudioClip(name, path, bufferId, duration,
+            return new AudioClip(name, bufferId, duration,
                     (int) targetFormat.getSampleRate(), targetFormat.getChannels());
 
         } catch (Exception e) {
-            throw new IOException("Failed to load WAV file: " + path, e);
+            throw new IOException("Failed to load audio file: " + path, e);
         }
     }
 
@@ -171,7 +172,7 @@ public class AudioClipLoader implements AssetLoader<AudioClip> {
             // Extract name from path
             String name = extractName(path);
 
-            return new AudioClip(name, path, bufferId, duration, sampleRate, channels);
+            return new AudioClip(name, bufferId, duration, sampleRate, channels);
 
         } finally {
             MemoryUtil.memFree(buffer);

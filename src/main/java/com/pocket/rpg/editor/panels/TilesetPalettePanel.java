@@ -1,19 +1,24 @@
 package com.pocket.rpg.editor.panels;
 
+import com.pocket.rpg.editor.EditorSelectionManager;
 import com.pocket.rpg.editor.panels.tilesets.TileGridRenderer;
 import com.pocket.rpg.editor.panels.tilesets.TileSelectionManager;
 import com.pocket.rpg.editor.panels.tilesets.TilesetSelector;
+import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.tileset.TileSelection;
 import com.pocket.rpg.editor.tools.TileBrushTool;
 import com.pocket.rpg.editor.tools.TileEraserTool;
 import com.pocket.rpg.editor.tools.TileFillTool;
 import com.pocket.rpg.editor.tools.TileRectangleTool;
 import com.pocket.rpg.editor.tools.ToolManager;
+import com.pocket.rpg.editor.scene.TilemapLayer;
 import imgui.ImGui;
 import imgui.flag.ImGuiTableColumnFlags;
 import imgui.flag.ImGuiTableFlags;
 import imgui.flag.ImGuiWindowFlags;
 import lombok.Setter;
+
+import java.util.List;
 
 /**
  * Panel for selecting and managing tilesets and tile selections.
@@ -41,6 +46,12 @@ public class TilesetPalettePanel extends EditorPanel {
     private final TileSelectionManager selectionManager;
     private final TileGridRenderer gridRenderer;
     private boolean isHorizontalLayout = false;
+
+    // Scene and selection manager for layer selector and bidirectional sync
+    @Setter
+    private EditorScene scene;
+
+    private EditorSelectionManager editorSelectionManager;
 
     public TilesetPalettePanel(ToolManager toolManager) {
         super(PANEL_ID, false); // Default closed - painting panel
@@ -87,19 +98,110 @@ public class TilesetPalettePanel extends EditorPanel {
         return "Tileset Palette";
     }
 
+    /**
+     * Returns true if ready for painting (layer selected AND in tilemap mode).
+     */
+    private boolean canPaint() {
+        return scene != null
+                && scene.getActiveLayer() != null
+                && editorSelectionManager != null
+                && editorSelectionManager.isTilemapLayerSelected();
+    }
+
+    /**
+     * Returns true if a layer is selected in the dropdown (even if not in tilemap mode).
+     */
+    private boolean hasActiveLayer() {
+        return scene != null && scene.getActiveLayer() != null;
+    }
+
+    /**
+     * Renders the layer selector dropdown in the left column.
+     */
+    private void renderLayerSelector() {
+        if (scene == null) {
+            ImGui.textDisabled("No scene loaded");
+            return;
+        }
+
+        List<TilemapLayer> layers = scene.getLayers();
+        if (layers.isEmpty()) {
+            ImGui.textDisabled("No layers");
+            return;
+        }
+
+        TilemapLayer activeLayer = scene.getActiveLayer();
+        String activeLayerName = activeLayer != null ? activeLayer.getName() : "None";
+
+        ImGui.text("Layer:");
+        ImGui.setNextItemWidth(-1);  // Fill available width
+        if (ImGui.beginCombo("##layer", activeLayerName)) {
+            // "None" option to deselect
+            if (ImGui.selectable("None", activeLayer == null)) {
+                scene.setActiveLayer(-1);
+                if (editorSelectionManager != null) {
+                    editorSelectionManager.clearSelection();
+                }
+            }
+
+            ImGui.separator();
+
+            for (int i = 0; i < layers.size(); i++) {
+                TilemapLayer layer = layers.get(i);
+                boolean isSelected = (activeLayer == layer);
+
+                // Show lock icon if locked
+                String label = layer.isLocked() ? "[L] " + layer.getName() : layer.getName();
+
+                if (ImGui.selectable(label, isSelected)) {
+                    scene.setActiveLayer(i);
+                    // Sync Hierarchy to select Tilemap Layers
+                    syncHierarchyToTilemapLayers(i);
+                }
+            }
+            ImGui.endCombo();
+        }
+
+        // Inline visibility toggle for active layer
+        if (activeLayer != null) {
+            ImGui.sameLine();
+            boolean visible = activeLayer.isVisible();
+            if (ImGui.checkbox("##vis", visible)) {
+                activeLayer.setVisible(!visible);
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("Toggle layer visibility");
+            }
+        }
+    }
+
+    /**
+     * Syncs the Hierarchy selection to Tilemap Layers when interacting with the palette.
+     */
+    private void syncHierarchyToTilemapLayers(int layerIndex) {
+        if (editorSelectionManager != null && layerIndex >= 0) {
+            editorSelectionManager.selectTilemapLayer(layerIndex);
+        }
+    }
+
     private void renderVertical() {
+        renderSelectionWarning();
+        renderLayerSelector();
+        ImGui.separator();
         tilesetSelector.renderSelector();
         ImGui.separator();
 
-        float reservedHeight = ImGui.getTextLineHeightWithSpacing() * 3 +
-                ImGui.getStyle().getItemSpacingY() * 3 +
-                ImGui.getFrameHeightWithSpacing() * 2 + 30;
+        float reservedHeight = ImGui.getTextLineHeightWithSpacing() * 4 +
+                ImGui.getStyle().getItemSpacingY() * 5 +
+                ImGui.getFrameHeightWithSpacing() * 3 + 30;
 
         float availableHeight = ImGui.getContentRegionAvailY() - reservedHeight;
 
+        // Grid is enabled when there's an active layer (clicking will switch to tilemap mode)
+        boolean enabled = hasActiveLayer();
         ImGui.beginChild("tileGridChild", 0, availableHeight, false,
                 imgui.flag.ImGuiWindowFlags.HorizontalScrollbar);
-        gridRenderer.render(tilesetSelector.getSelectedTileset());
+        gridRenderer.render(tilesetSelector.getSelectedTileset(), enabled);
         ImGui.endChild();
 
         ImGui.separator();
@@ -122,17 +224,26 @@ public class TilesetPalettePanel extends EditorPanel {
             // ===== LEFT COLUMN =====
             ImGui.tableNextColumn();
 
+            renderSelectionWarning();
+            renderLayerSelector();
+            ImGui.separator();
             tilesetSelector.renderSelector();
             ImGui.separator();
             renderSelectionInfo();
             renderToolSizeSlider();
-            ImGui.separator();
+
+            // Spacer to push tile size to bottom
+            float remainingHeight = ImGui.getContentRegionAvailY() - ImGui.getFrameHeightWithSpacing() - 8;
+            if (remainingHeight > 0) {
+                ImGui.dummy(0, remainingHeight);
+            }
             gridRenderer.renderSizeSlider();
 
             // ===== RIGHT COLUMN =====
             ImGui.tableNextColumn();
 
-            // Full-height scrollable grid ONLY
+            // Grid is enabled when there's an active layer (clicking will switch to tilemap mode)
+            boolean enabled = hasActiveLayer();
             ImGui.beginChild(
                     "TileGridScroll",
                     0,
@@ -140,7 +251,7 @@ public class TilesetPalettePanel extends EditorPanel {
                     false,
                     ImGuiWindowFlags.HorizontalScrollbar
             );
-            gridRenderer.render(tilesetSelector.getSelectedTileset());
+            gridRenderer.render(tilesetSelector.getSelectedTileset(), enabled);
             ImGui.endChild();
 
             ImGui.endTable();
@@ -154,7 +265,24 @@ public class TilesetPalettePanel extends EditorPanel {
         }
     }
 
+    /**
+     * Renders the warning message above the layer selector based on current state.
+     */
+    private void renderSelectionWarning() {
+        if (!hasActiveLayer()) {
+            ImGui.textColored(1.0f, 0.8f, 0.2f, 1.0f, "Select a layer to start painting");
+        } else if (!canPaint()) {
+            // Layer is selected but not in tilemap mode (e.g., entity selected)
+            ImGui.textColored(1.0f, 0.6f, 0.2f, 1.0f, "Select a tile or brush to resume painting");
+        }
+    }
+
     private void renderSelectionInfo() {
+        // Don't show selection info if can't paint
+        if (!canPaint()) {
+            return;
+        }
+
         if (brushTool == null) {
             ImGui.textDisabled("No brush tool");
             return;
@@ -179,8 +307,11 @@ public class TilesetPalettePanel extends EditorPanel {
         TileSelection selection = brushTool.getSelection();
         if (selection != null && selection.isPattern()) return;
 
+        ImGui.text("Tool Size");
+        ImGui.sameLine();
+        ImGui.setNextItemWidth(-1);
         int[] size = {brushTool.getBrushSize()};
-        if (ImGui.sliderInt("Tool Size", size, 1, 10)) {
+        if (ImGui.sliderInt("##toolSize", size, 1, 10)) {
             brushTool.setBrushSize(size[0]);
             if (eraserTool != null) {
                 eraserTool.setEraserSize(size[0]);
@@ -196,6 +327,19 @@ public class TilesetPalettePanel extends EditorPanel {
         var activeTool = toolManager.getActiveTool();
         if (activeTool != rectangleTool && activeTool != brushTool) {
             toolManager.setActiveTool(brushTool);
+        }
+
+        // Sync Hierarchy to select Tilemap Layers when interacting with palette
+        if (editorSelectionManager != null && scene != null) {
+            TilemapLayer activeLayer = scene.getActiveLayer();
+            if (activeLayer != null) {
+                // Find the index of the active layer
+                List<TilemapLayer> layers = scene.getLayers();
+                int layerIndex = layers.indexOf(activeLayer);
+                if (layerIndex >= 0) {
+                    syncHierarchyToTilemapLayers(layerIndex);
+                }
+            }
         }
     }
 
@@ -229,5 +373,26 @@ public class TilesetPalettePanel extends EditorPanel {
 
     public boolean isHorizontalLayout() {
         return isHorizontalLayout;
+    }
+
+    /**
+     * Sets the editor selection manager and registers a listener to clear
+     * tile selection when leaving tilemap mode.
+     */
+    public void setEditorSelectionManager(EditorSelectionManager manager) {
+        this.editorSelectionManager = manager;
+        if (manager != null) {
+            manager.addListener(this::onSelectionTypeChanged);
+        }
+    }
+
+    /**
+     * Called when the editor selection type changes.
+     * Clears tile selection when leaving tilemap layer mode.
+     */
+    private void onSelectionTypeChanged(EditorSelectionManager.SelectionType newType) {
+        if (newType != EditorSelectionManager.SelectionType.TILEMAP_LAYER) {
+            clearSelection();
+        }
     }
 }

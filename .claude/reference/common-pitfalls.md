@@ -1,0 +1,69 @@
+# Common Pitfalls
+
+**Read this before writing code.** These are frequent mistakes that cause bugs.
+
+---
+
+## ImGui Push/Pop Style Rules
+
+**CRITICAL: Always use the same condition for push and pop.**
+
+When using `pushStyleColor`/`popStyleColor` or `pushStyleVar`/`popStyleVar`, the push and pop **must** use the exact same condition value. If state changes between push and pop (e.g., a button click toggles a boolean), you get assertion errors.
+
+**WRONG - state changes between push and pop:**
+```java
+if (isEnabled) {
+    ImGui.pushStyleColor(ImGuiCol.Button, ...);
+}
+if (ImGui.button("Toggle")) {
+    isEnabled = !isEnabled;  // State changes here!
+}
+if (isEnabled) {  // Different value than push!
+    ImGui.popStyleColor();
+}
+```
+
+**CORRECT - store state before the widget:**
+```java
+boolean wasEnabled = isEnabled;  // Store state
+if (wasEnabled) {
+    ImGui.pushStyleColor(ImGuiCol.Button, ...);
+}
+if (ImGui.button("Toggle")) {
+    isEnabled = !isEnabled;  // State can change safely
+}
+if (wasEnabled) {  // Same value as push
+    ImGui.popStyleColor();
+}
+```
+
+---
+
+## Component Lifecycle
+
+- `onStart()` is called after all components are added but before the first `update()`. Don't assume other GameObjects exist during construction.
+- `@ComponentRef` fields are resolved after `onStart()`. Access them in `update()` or later, not in the constructor.
+- When destroying GameObjects, `onDestroy()` is called on all components. Clean up any external references.
+
+---
+
+## Serialization
+
+- Fields must have a no-arg constructor type or be a primitive/String to serialize properly.
+- Transient fields and fields annotated with `@HideInInspector` or `@ComponentRef` are not serialized.
+- Asset paths are relative to `gameData/assets/`. Use forward slashes even on Windows.
+
+---
+
+## Editor Undo/Redo
+
+- Always capture state before modification, push after. Use `UndoManager.capture()` on widget activation, `push()` on deactivation.
+- Batch related changes into a single undo action when possible.
+
+---
+
+## Asset Loading
+
+- Use `Assets.load()` for cached loading. Direct file reads bypass the cache and hot-reload.
+- Spritesheet sprite indices are 0-based, left-to-right, top-to-bottom.
+- Missing assets throw by default. Use `LoadOptions.usePlaceholder()` for graceful fallback.

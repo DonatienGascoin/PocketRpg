@@ -40,12 +40,12 @@ public class SpriteSheet {
     private float defaultPivotX = 0.5f;
     @Getter
     private float defaultPivotY = 0.5f;
-    private final Map<Integer, float[]> spritePivots = new HashMap<>(); // Per-sprite pivot overrides
+    private final Map<Integer, float[]> spritePivots = new LinkedHashMap<>(); // Per-sprite pivot overrides
 
     // 9-slice settings
     @Getter
     private NineSliceData defaultNineSlice = null;
-    private final Map<Integer, NineSliceData> spriteNineSlices = new HashMap<>(); // Per-sprite 9-slice overrides
+    private final Map<Integer, NineSliceData> spriteNineSlices = new LinkedHashMap<>(); // Per-sprite 9-slice overrides
 
     // -------------------------------------------------------------------------------------
     // Constructors
@@ -221,21 +221,39 @@ public class SpriteSheet {
     // -------------------------------------------------------------------------------------
 
     public List<Sprite> generateAllSprites() {
+        // Ensure all sprites are cached
         for (int i = 0; i < totalFrames; i++) {
             if (!spriteCache.containsKey(i)) {
                 getSprite(i);
             }
         }
-        return new ArrayList<>(allSprites);
+        // Return sprites in frame index order, not insertion order
+        List<Sprite> result = new ArrayList<>(totalFrames);
+        for (int i = 0; i < totalFrames; i++) {
+            Sprite sprite = spriteCache.get(i);
+            if (sprite != null) {
+                result.add(sprite);
+            }
+        }
+        return result;
     }
 
     public List<Sprite> generateAllSprites(float width, float height) {
+        // Ensure all sprites are cached
         for (int i = 0; i < totalFrames; i++) {
             if (!spriteCache.containsKey(i)) {
                 getSprite(i, width, height);
             }
         }
-        return new ArrayList<>(allSprites);
+        // Return sprites in frame index order, not insertion order
+        List<Sprite> result = new ArrayList<>(totalFrames);
+        for (int i = 0; i < totalFrames; i++) {
+            Sprite sprite = spriteCache.get(i);
+            if (sprite != null) {
+                result.add(sprite);
+            }
+        }
+        return result;
     }
 
     // -------------------------------------------------------------------------------------

@@ -3,6 +3,7 @@ package com.pocket.rpg.editor.ui;
 import com.pocket.rpg.editor.camera.EditorCamera;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorScene;
+import com.pocket.rpg.editor.scene.TilemapLayer;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiWindowFlags;
@@ -69,6 +70,9 @@ public class StatusBar {
             // Left side: Message
             renderMessage();
 
+            // Middle: Active layer indicator
+            renderLayerIndicator();
+
             // Right side: Scene info and zoom
             renderRightInfo();
         }
@@ -114,6 +118,29 @@ public class StatusBar {
         }
 
         ImGui.textColored(r, g, b, alpha, icon + " " + message);
+    }
+
+    /**
+     * Renders the active layer indicator in the middle of the status bar.
+     */
+    private void renderLayerIndicator() {
+        if (currentScene == null) return;
+
+        TilemapLayer activeLayer = currentScene.getActiveLayer();
+        if (activeLayer == null) return;
+
+        ImGui.sameLine();
+        ImGui.textDisabled(" | ");
+        ImGui.sameLine();
+
+        String layerName = activeLayer.getName();
+        if (activeLayer.isLocked()) {
+            ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f,
+                    MaterialIcons.Lock + " Layer: " + layerName + " [Locked]");
+        } else {
+            ImGui.textColored(0.6f, 0.8f, 1.0f, 1.0f,
+                    MaterialIcons.Layers + " Layer: " + layerName);
+        }
     }
 
     /**

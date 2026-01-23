@@ -14,9 +14,7 @@ import imgui.flag.ImGuiStyleVar;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -86,8 +84,8 @@ public class SceneViewToolbar {
     }
 
     /**
-     * Ensures the active tool is valid based on visible panels.
-     * If a panel becomes hidden while using its tool, switches to Select.
+     * Ensures the active tool is valid based on visible panels and selection state.
+     * Switches to Select if the current tool's conditions are not met.
      */
     private void ensureValidToolSelection() {
         ToolManager toolManager = context.getToolManager();
@@ -101,12 +99,21 @@ public class SceneViewToolbar {
         boolean tilesetVisible = tilesetPalettePanel != null && tilesetPalettePanel.isContentVisible();
         boolean collisionVisible = collisionPanel != null && collisionPanel.isContentVisible();
 
-        // If using tilemap tool but palette is not visible, switch to select
-        if (isTilemapTool && !tilesetVisible) {
+        var scene = context.getCurrentScene();
+        var selectionManager = context.getSelectionManager();
+
+        // Check if tilemap tools should be disabled
+        boolean tilemapEnabled = tilesetVisible && scene != null && scene.getActiveLayerIndex() >= 0;
+
+        // Check if collision tools should be disabled
+        boolean collisionEnabled = collisionVisible && selectionManager != null && selectionManager.isCollisionLayerSelected();
+
+        // If using tilemap tool but conditions not met, switch to select
+        if (isTilemapTool && !tilemapEnabled) {
             toolManager.setActiveTool("Select");
         }
-        // If using collision tool but panel is not visible, switch to select
-        if (isCollisionTool && !collisionVisible) {
+        // If using collision tool but conditions not met, switch to select
+        if (isCollisionTool && !collisionEnabled) {
             toolManager.setActiveTool("Select");
         }
     }
@@ -114,56 +121,92 @@ public class SceneViewToolbar {
     private void renderToolButtons() {
         ToolManager toolManager = context.getToolManager();
         EditorTool activeTool = toolManager.getActiveTool();
+        var scene = context.getCurrentScene();
 
-        List<ToolDef> visibleTools = getVisibleTools();
+        // Render selection tool (always enabled)
+        renderToolButton(SELECT_TOOL, activeTool, toolManager, ToolCategory.SELECTION, true);
 
-        for (ToolDef def : visibleTools) {
-            boolean isActive = activeTool != null && activeTool.getName().equals(def.toolName);
+        // Render tilemap tools with separator if visible
+        boolean tilesetVisible = tilesetPalettePanel != null && tilesetPalettePanel.isContentVisible();
+        if (tilesetVisible) {
+            // Tilemap tools enabled only if a layer is selected
+            boolean tilemapEnabled = scene != null && scene.getActiveLayerIndex() >= 0;
 
-            if (isActive) {
-                ImGui.pushStyleColor(ImGuiCol.Button, 0.3f, 0.6f, 1.0f, 1.0f);
-                ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.4f, 0.7f, 1.0f, 1.0f);
-                ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.2f, 0.5f, 0.9f, 1.0f);
-            }
-
-            if (ImGui.button(def.icon + "##" + def.toolName)) {
-                toolManager.setActiveTool(def.toolName);
-                showMessage(def.toolName);
-            }
-
-            if (isActive) {
-                ImGui.popStyleColor(3);
-            }
-
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(def.toolName + " (" + def.shortcut + ")");
-            }
-
+            ImGui.text("|");
             ImGui.sameLine();
+            for (ToolDef def : TILEMAP_TOOLS) {
+                renderToolButton(def, activeTool, toolManager, ToolCategory.TILEMAP, tilemapEnabled);
+            }
+        }
+
+        // Render collision tools with separator if visible
+        boolean collisionVisible = collisionPanel != null && collisionPanel.isContentVisible();
+        if (collisionVisible) {
+            // Collision tools enabled only if collision layer is selected
+            var selectionManager = context.getSelectionManager();
+            boolean collisionEnabled = selectionManager != null && selectionManager.isCollisionLayerSelected();
+
+            ImGui.text("|");
+            ImGui.sameLine();
+            for (ToolDef def : COLLISION_TOOLS) {
+                renderToolButton(def, activeTool, toolManager, ToolCategory.COLLISION, collisionEnabled);
+            }
         }
     }
 
-    /**
-     * Returns tools that should be visible based on which panels are visible.
-     * Select tool is always visible. Tilemap/collision tools visible when their panels are visible.
-     */
-    private List<ToolDef> getVisibleTools() {
-        List<ToolDef> tools = new ArrayList<>();
+    private enum ToolCategory { SELECTION, TILEMAP, COLLISION }
 
-        // Selection tool is always available
-        tools.add(SELECT_TOOL);
+    private void renderToolButton(ToolDef def, EditorTool activeTool, ToolManager toolManager, ToolCategory category, boolean enabled) {
+        boolean isActive = activeTool != null && activeTool.getName().equals(def.toolName);
 
-        // Add tilemap tools if tileset palette is visible
-        if (tilesetPalettePanel != null && tilesetPalettePanel.isContentVisible()) {
-            tools.addAll(Arrays.asList(TILEMAP_TOOLS));
+        if (!enabled) {
+            ImGui.beginDisabled(true);
+        } else if (isActive) {
+            ImGui.pushStyleColor(ImGuiCol.Button, 0.3f, 0.6f, 1.0f, 1.0f);
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.4f, 0.7f, 1.0f, 1.0f);
+            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.2f, 0.5f, 0.9f, 1.0f);
         }
 
-        // Add collision tools if collision panel is visible
-        if (collisionPanel != null && collisionPanel.isContentVisible()) {
-            tools.addAll(Arrays.asList(COLLISION_TOOLS));
+        if (ImGui.button(def.icon + "##" + def.toolName)) {
+            toolManager.setActiveTool(def.toolName);
+            showMessage(def.toolName);
+
+            // Switch to appropriate mode when tool is clicked
+            var selectionManager = context.getSelectionManager();
+            var scene = context.getCurrentScene();
+            if (selectionManager != null && scene != null) {
+                if (category == ToolCategory.TILEMAP) {
+                    // Switch to tilemap layer mode
+                    int activeLayerIndex = scene.getActiveLayerIndex();
+                    if (activeLayerIndex >= 0) {
+                        selectionManager.selectTilemapLayer(activeLayerIndex);
+                    }
+                } else if (category == ToolCategory.COLLISION) {
+                    // Switch to collision mode
+                    selectionManager.selectCollisionLayer();
+                }
+            }
         }
 
-        return tools;
+        if (!enabled) {
+            ImGui.endDisabled();
+        } else if (isActive) {
+            ImGui.popStyleColor(3);
+        }
+
+        if (ImGui.isItemHovered()) {
+            String tooltip = def.toolName + " (" + def.shortcut + ")";
+            if (!enabled) {
+                if (category == ToolCategory.TILEMAP) {
+                    tooltip += "\nSelect a layer first";
+                } else if (category == ToolCategory.COLLISION) {
+                    tooltip += "\nSelect collision map first";
+                }
+            }
+            ImGui.setTooltip(tooltip);
+        }
+
+        ImGui.sameLine();
     }
 
     private void renderVisibilityToggles() {

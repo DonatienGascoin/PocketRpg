@@ -19,7 +19,20 @@ public class TileGridRenderer {
         this.selectionManager = selectionManager;
     }
 
+    /**
+     * Renders the tile grid.
+     * @param tilesetName the tileset to render
+     */
     public void render(String tilesetName) {
+        render(tilesetName, true);
+    }
+
+    /**
+     * Renders the tile grid with optional disabled state.
+     * @param tilesetName the tileset to render
+     * @param enabled if false, grid is grayed out and non-interactive
+     */
+    public void render(String tilesetName, boolean enabled) {
         if (tilesetName == null) {
             ImGui.textDisabled("Select a tileset above");
             return;
@@ -37,6 +50,12 @@ public class TileGridRenderer {
         if (sprites == null || sprites.isEmpty()) {
             ImGui.textDisabled("No tiles in spritesheet");
             return;
+        }
+
+        // Disable grid if no layer selected
+        if (!enabled) {
+            ImGui.pushStyleVar(ImGuiStyleVar.Alpha, ImGui.getStyle().getAlpha() * 0.4f);
+            ImGui.beginDisabled(true);
         }
 
         int textureId = entry.getTexture().getTextureId();
@@ -67,7 +86,14 @@ public class TileGridRenderer {
 
         ImGui.popStyleVar();
 
-        handleDragLogic(gridStartX, gridStartY, tileSlotSize, displayCols, tileCount, tilesetName);
+        if (enabled) {
+            handleDragLogic(gridStartX, gridStartY, tileSlotSize, displayCols, tileCount, tilesetName);
+        }
+
+        if (!enabled) {
+            ImGui.endDisabled();
+            ImGui.popStyleVar();
+        }
 
         if (selectionManager.hasSelection()) {
             ImGui.text(selectionManager.getSelectionDebugInfo());
@@ -135,8 +161,11 @@ public class TileGridRenderer {
     }
 
     public void renderSizeSlider() {
+        ImGui.text("Tile Size");
+        ImGui.sameLine();
+        ImGui.setNextItemWidth(-1);
         int[] displayArr = {tileDisplaySize};
-        if (ImGui.sliderInt("Tile Size", displayArr, 16, 64)) {
+        if (ImGui.sliderInt("##tileSize", displayArr, 16, 64)) {
             tileDisplaySize = displayArr[0];
         }
     }

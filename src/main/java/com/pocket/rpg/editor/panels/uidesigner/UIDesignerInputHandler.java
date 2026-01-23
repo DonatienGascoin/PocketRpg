@@ -15,7 +15,9 @@ import imgui.flag.ImGuiPopupFlags;
 import org.joml.Vector2f;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Handles mouse and keyboard input for the UI Designer panel.
@@ -142,18 +144,22 @@ public class UIDesignerInputHandler {
         boolean shift = ImGui.isKeyDown(ImGuiKey.LeftShift) || ImGui.isKeyDown(ImGuiKey.RightShift);
         boolean ctrl = ImGui.isKeyDown(ImGuiKey.LeftCtrl) || ImGui.isKeyDown(ImGuiKey.RightCtrl);
 
+        var selectionManager = context.getSelectionManager();
         if (clicked != null) {
             if (ctrl) {
-                scene.toggleSelection(clicked);
+                selectionManager.toggleEntitySelection(clicked);
             } else if (shift) {
-                scene.addToSelection(clicked);
+                // Add to selection
+                Set<EditorGameObject> selected = new HashSet<>(scene.getSelectedEntities());
+                selected.add(clicked);
+                selectionManager.selectEntities(selected);
             } else {
-                scene.setSelectedEntity(clicked);
+                selectionManager.selectEntity(clicked);
             }
             startMoveDrag(clicked, canvasPos.x, canvasPos.y);
         } else {
             if (!shift && !ctrl) {
-                scene.clearSelection();
+                selectionManager.clearSelection();
             }
         }
     }

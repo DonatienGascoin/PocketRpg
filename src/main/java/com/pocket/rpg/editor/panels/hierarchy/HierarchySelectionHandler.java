@@ -1,6 +1,7 @@
 package com.pocket.rpg.editor.panels.hierarchy;
 
 import com.pocket.rpg.editor.EditorSelectionManager;
+import com.pocket.rpg.editor.EditorUIController;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.tools.EditorTool;
@@ -32,6 +33,9 @@ public class HierarchySelectionHandler {
     @Setter
     private EditorTool brushTool;
 
+    @Setter
+    private EditorUIController uiController;
+
     private EditorGameObject lastClickedEntity = null;
 
     public void init() {
@@ -51,11 +55,19 @@ public class HierarchySelectionHandler {
         if (toolManager != null && brushTool != null) {
             toolManager.setActiveTool(brushTool);
         }
+        // Auto-open and focus the tileset palette
+        if (uiController != null) {
+            uiController.openTilesetPalette();
+        }
     }
 
     public void selectCollisionMap() {
         if (selectionManager != null) {
             selectionManager.selectCollisionLayer();
+        }
+        // Auto-open and focus the collision panel
+        if (uiController != null) {
+            uiController.openCollisionPanel();
         }
     }
 

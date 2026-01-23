@@ -120,6 +120,8 @@ public class EditorUIController {
         tilesetPalette.setEraserTool(toolController.getEraserTool());
         tilesetPalette.setFillTool(toolController.getFillTool());
         tilesetPalette.setRectangleTool(toolController.getRectangleTool());
+        tilesetPalette.setScene(scene);
+        tilesetPalette.setEditorSelectionManager(context.getSelectionManager());
         tilesetPalette.setHorizontalLayout(true);
 
         collisionPanel = new CollisionPanel();
@@ -151,6 +153,7 @@ public class EditorUIController {
         hierarchyPanel.setBrushTool(toolController.getBrushTool());
         hierarchyPanel.setSelectionManager(context.getSelectionManager());
         hierarchyPanel.setUiFactory(new UIEntityFactory(context.getGameConfig()));
+        hierarchyPanel.setUiController(this);
         hierarchyPanel.init();
 
         inspectorPanel = new InspectorPanel();
@@ -190,6 +193,7 @@ public class EditorUIController {
         hierarchyPanel.setScene(scene);
         inspectorPanel.setScene(scene);
         sceneViewport.setScene(scene);
+        tilesetPalette.setScene(scene);
     }
 
     public void setupDocking() {
@@ -465,5 +469,25 @@ public class EditorUIController {
                 playModeController,
                 context.getGameConfig()
         );
+    }
+
+    /**
+     * Opens and focuses the Tileset Palette panel.
+     */
+    public void openTilesetPalette() {
+        if (tilesetPalette != null) {
+            tilesetPalette.setOpen(true);
+            ImGui.setWindowFocus("Tileset Palette");
+        }
+    }
+
+    /**
+     * Opens and focuses the Collision panel.
+     */
+    public void openCollisionPanel() {
+        if (collisionPanel != null) {
+            collisionPanel.setOpen(true);
+            ImGui.setWindowFocus("Collision Panel");
+        }
     }
 }

@@ -210,7 +210,6 @@ public class TilesetRegistry {
         private final String displayName;
         private final String path;
         private final SpriteSheet spriteSheet;
-        private List<Sprite> sprites;
 
         public TilesetEntry(String displayName, String path, SpriteSheet spriteSheet) {
             this.displayName = displayName;
@@ -219,13 +218,12 @@ public class TilesetRegistry {
         }
 
         /**
-         * Gets all sprites from this tileset (cached).
+         * Gets all sprites from this tileset.
+         * Always returns sprites in frame index order.
          */
         public List<Sprite> getSprites() {
-            if (sprites == null) {
-                sprites = spriteSheet.generateAllSprites();
-            }
-            return sprites;
+            // Always regenerate to ensure correct order (generateAllSprites now guarantees order)
+            return spriteSheet.generateAllSprites();
         }
 
         /**

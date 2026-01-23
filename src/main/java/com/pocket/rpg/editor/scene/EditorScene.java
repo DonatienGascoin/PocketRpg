@@ -181,9 +181,7 @@ public class EditorScene {
 
     public void addExistingLayer(TilemapLayer layer) {
         layers.add(layer);
-        if (activeLayerIndex == -1) {
-            activeLayerIndex = 0;
-        }
+        // Don't auto-select - user must explicitly choose a layer
     }
 
     public void removeLayer(int index) {

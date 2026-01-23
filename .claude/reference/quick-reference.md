@@ -1,0 +1,111 @@
+# Quick Reference
+
+How to add common things to the codebase.
+
+## Add a New Component
+
+1. Create class extending `Component` in `com.pocket.rpg.components`
+2. Add no-arg constructor (required for serialization)
+3. Override lifecycle methods (`onStart`, `update`, `onDestroy`)
+4. Use `@ComponentRef` for dependencies, `@Required` for mandatory fields
+
+```java
+public class MyComponent extends Component {
+    @Required
+    private String requiredField;
+
+    @ComponentRef
+    private Transform transform;
+
+    public MyComponent() {} // Required
+
+    @Override
+    public void onStart() {
+        // Initialize
+    }
+
+    @Override
+    public void update(float deltaTime) {
+        // Update logic
+    }
+}
+```
+
+## Add a New Asset Type
+
+1. Create loader implementing `AssetLoader<T>` in `resources/loaders/`
+2. Implement `load()`, `getSupportedExtensions()`
+3. Register in `AssetManager.registerDefaultLoaders()`
+4. Optional: implement `getEditorPanel()` for double-click editing
+
+```java
+public class MyAssetLoader implements AssetLoader<MyAsset> {
+    @Override
+    public MyAsset load(String path, LoadOptions options) {
+        // Load and return asset
+    }
+
+    @Override
+    public String[] getSupportedExtensions() {
+        return new String[] { ".myasset" };
+    }
+}
+```
+
+## Add a New Editor Panel
+
+1. Create class extending `EditorPanel` in `editor/panels/`
+2. Implement `renderContent()` for ImGui UI
+3. Register in `EditorUIController`
+4. Add menu item or shortcut to open
+
+```java
+public class MyPanel extends EditorPanel {
+    @Override
+    protected void renderContent() {
+        ImGui.text("My panel content");
+    }
+
+    @Override
+    public String getTitle() {
+        return "My Panel";
+    }
+}
+```
+
+## Add a New Collision Behavior
+
+1. Create class implementing `TileBehavior` in `collision/behavior/`
+2. Implement `checkMove()`, optionally `onEnter()`/`onExit()`
+3. Register in `CollisionSystem` behavior map
+
+```java
+public class MyBehavior implements TileBehavior {
+    @Override
+    public boolean checkMove(GridMovement mover, int fromX, int fromY, int toX, int toY) {
+        // Return true if move is allowed
+        return true;
+    }
+
+    @Override
+    public void onEnter(GridMovement mover, int x, int y) {
+        // Called when entity enters tile
+    }
+}
+```
+
+## Add a Custom Inspector
+
+1. Create class extending `CustomComponentInspector<T>`
+2. Annotate with `@InspectorFor(MyComponent.class)`
+3. Implement `render(T component)`
+
+```java
+@InspectorFor(MyComponent.class)
+public class MyComponentInspector extends CustomComponentInspector<MyComponent> {
+    @Override
+    public void render(MyComponent component) {
+        // Custom ImGui rendering
+    }
+}
+```

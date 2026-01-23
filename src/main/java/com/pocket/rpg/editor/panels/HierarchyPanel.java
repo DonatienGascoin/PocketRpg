@@ -62,6 +62,10 @@ public class HierarchyPanel extends EditorPanel {
         creationService.setUiFactory(uiFactory);
     }
 
+    public void setUiController(com.pocket.rpg.editor.EditorUIController uiController) {
+        selectionHandler.setUiController(uiController);
+    }
+
     public boolean isCameraSelected() {
         return selectionHandler.isCameraSelected();
     }

@@ -55,6 +55,7 @@ public class EditorSelectionManager {
         if (scene != null) {
             scene.setSelection(Set.of(entity));
         }
+        selectedLayerIndex = -1;  // Clear layer selection
         clearAssetSelection();
         setSelectionType(SelectionType.ENTITY);
     }
@@ -66,6 +67,7 @@ public class EditorSelectionManager {
         if (scene != null) {
             scene.setSelection(entities);
         }
+        selectedLayerIndex = -1;  // Clear layer selection
         clearAssetSelection();
         setSelectionType(entities.isEmpty() ? SelectionType.NONE : SelectionType.ENTITY);
     }
@@ -79,6 +81,8 @@ public class EditorSelectionManager {
             if (scene.getSelectedEntities().isEmpty()) {
                 setSelectionType(SelectionType.NONE);
             } else {
+                selectedLayerIndex = -1;  // Clear layer selection
+                clearAssetSelection();
                 setSelectionType(SelectionType.ENTITY);
             }
         }
@@ -100,6 +104,10 @@ public class EditorSelectionManager {
     public void selectTilemapLayer(int layerIndex) {
         clearEntitySelection();
         this.selectedLayerIndex = layerIndex;
+        // Set the active layer on the scene for painting
+        if (scene != null) {
+            scene.setActiveLayer(layerIndex);
+        }
         clearAssetSelection();
         setSelectionType(SelectionType.TILEMAP_LAYER);
     }

@@ -11,6 +11,7 @@ When implementing new inspector UI or field types, **prioritize using and extend
 | `editor/ui/fields/VectorEditors.java` | Vector2f, Vector3f, Vector4f, color pickers |
 | `editor/ui/fields/EnumEditor.java` | Enum dropdown fields |
 | `editor/ui/fields/AssetEditor.java` | Asset reference fields with picker integration |
+| `editor/ui/fields/ListEditor.java` | List&lt;T&gt; fields (String, primitives, enums, assets) |
 | `editor/ui/fields/TransformEditors.java` | Position/Rotation/Scale with axis coloring |
 | `editor/ui/fields/ReflectionFieldEditor.java` | Auto-discovers and renders component fields |
 | `editor/ui/fields/FieldEditorContext.java` | Override detection, required field highlighting |

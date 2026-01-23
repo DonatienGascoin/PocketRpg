@@ -8,7 +8,6 @@ import com.pocket.rpg.editor.core.EditorFonts;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.rendering.resources.SpriteSheet;
-import com.pocket.rpg.rendering.resources.Texture;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.resources.EditorCapability;
 import imgui.ImGui;
@@ -17,10 +16,10 @@ import imgui.type.ImString;
 import lombok.Getter;
 import lombok.Setter;
 
-import static imgui.flag.ImGuiKey.Escape;
-
 import java.util.*;
 import java.util.function.Consumer;
+
+import static imgui.flag.ImGuiKey.Escape;
 
 /**
  * Asset browser panel with folder tree and asset grid.

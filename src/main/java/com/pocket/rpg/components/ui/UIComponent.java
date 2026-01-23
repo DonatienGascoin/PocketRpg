@@ -1,6 +1,7 @@
 package com.pocket.rpg.components.ui;
 
 import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.ComponentMeta;
 import com.pocket.rpg.rendering.ui.UIRendererBackend;
 import lombok.Getter;
 import lombok.Setter;
@@ -12,6 +13,7 @@ import org.joml.Vector2f;
  * <p>
  * REQUIRES: UITransform component on the same GameObject (except for UICanvas).
  */
+@ComponentMeta(category = "UI")
 public abstract class UIComponent extends Component {
 
     @Getter

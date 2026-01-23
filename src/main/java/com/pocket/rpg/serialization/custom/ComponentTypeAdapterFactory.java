@@ -138,7 +138,13 @@ public class ComponentTypeAdapterFactory implements TypeAdapterFactory {
                     }
 
                     out.name(fieldMeta.name());
-                    writeFieldValue(out, value, gson);
+
+                    // Special handling for List fields with asset element types
+                    if (fieldMeta.isList() && value instanceof List<?> list) {
+                        writeListField(out, list, fieldMeta.elementType(), gson);
+                    } else {
+                        writeFieldValue(out, value, gson);
+                    }
                 } catch (IllegalAccessException e) {
                     System.err.println("Failed to read field " + fieldMeta.name() + ": " + e.getMessage());
                 }
@@ -167,12 +173,48 @@ public class ComponentTypeAdapterFactory implements TypeAdapterFactory {
         gson.toJson(value, value.getClass(), out);
     }
 
+    /**
+     * Serializes a List field with proper type prefixes for asset elements.
+     */
+    private void writeListField(JsonWriter out, List<?> list, Class<?> elementType, Gson gson) throws IOException {
+        out.beginArray();
+
+        for (Object element : list) {
+            if (element == null) {
+                out.nullValue();
+                continue;
+            }
+
+            // Check if element is an asset
+            String assetPath = context.getPathForResource(element);
+            if (assetPath != null) {
+                // Serialize as "full.class.Name:path" for type safety
+                String className = element.getClass().getName();
+                out.value(className + ASSET_DELIMITER + assetPath);
+            } else {
+                // Delegate to Gson for non-asset elements
+                gson.toJson(element, elementType, out);
+            }
+        }
+
+        out.endArray();
+    }
+
     private Component readComponentProperties(JsonObject json, Class<?> clazz, Gson gson) {
         ComponentMeta meta = ComponentRegistry.getByClassName(clazz.getName());
 
         if (meta == null) {
-            // Fallback: not in registry
-            return (Component) gson.fromJson(json, clazz);
+            // Component not in registry - this is an error condition
+            // We cannot use gson.fromJson here as it would recursively call this adapter
+            System.err.println("WARNING: Component not in registry: " + clazz.getName() +
+                    " - attempting manual instantiation");
+            try {
+                Component component = (Component) clazz.getDeclaredConstructor().newInstance();
+                // Can't populate fields without metadata, just return empty instance
+                return component;
+            } catch (Exception e) {
+                throw new JsonParseException("Failed to instantiate unregistered component: " + clazz.getName(), e);
+            }
         }
 
         Component component = ComponentRegistry.instantiateByClassName(clazz.getName());
@@ -190,7 +232,13 @@ public class ComponentTypeAdapterFactory implements TypeAdapterFactory {
             field.setAccessible(true);
 
             try {
-                Object value = readFieldValue(element, fieldMeta.type(), gson);
+                Object value;
+                // Special handling for List fields with known element type
+                if (fieldMeta.isList() && element.isJsonArray()) {
+                    value = readListField(element.getAsJsonArray(), fieldMeta.elementType(), gson);
+                } else {
+                    value = readFieldValue(element, fieldMeta.type(), gson);
+                }
                 field.set(component, value);
             } catch (Exception e) {
                 System.err.println("Failed to set field " + fieldMeta.name() + ": " + e.getMessage());
@@ -225,6 +273,52 @@ public class ComponentTypeAdapterFactory implements TypeAdapterFactory {
 
         // Default: delegate to Gson
         return gson.fromJson(element, targetType);
+    }
+
+    /**
+     * Deserializes a List field with proper element type handling.
+     * Supports asset element types that may be serialized as plain paths.
+     */
+    private List<Object> readListField(JsonArray jsonArray, Class<?> elementType, Gson gson) {
+        List<Object> result = new ArrayList<>();
+
+        for (JsonElement elem : jsonArray) {
+            if (elem.isJsonNull()) {
+                result.add(null);
+                continue;
+            }
+
+            // Try to load as asset if element is a string and elementType is an asset type
+            if (elem.isJsonPrimitive() && elem.getAsJsonPrimitive().isString()) {
+                String stringValue = elem.getAsString();
+
+                // Check for typed format first: "full.class.Name:path"
+                int delimiterIndex = stringValue.indexOf(ASSET_DELIMITER);
+                if (delimiterIndex > 0) {
+                    String className = stringValue.substring(0, delimiterIndex);
+                    String path = stringValue.substring(delimiterIndex + 1);
+                    Class<?> assetType = resolveClass(className);
+                    if (assetType != null && elementType.isAssignableFrom(assetType)) {
+                        result.add(loadAsset(path, assetType));
+                        continue;
+                    }
+                }
+
+                // For asset element types, try loading plain path string as asset
+                if (context.isAssetType(elementType)) {
+                    Object asset = loadAsset(stringValue, elementType);
+                    if (asset != null) {
+                        result.add(asset);
+                        continue;
+                    }
+                }
+            }
+
+            // Default: delegate to Gson with element type
+            result.add(gson.fromJson(elem, elementType));
+        }
+
+        return result;
     }
 
     private Class<?> resolveClass(String fullName) {

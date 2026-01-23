@@ -326,6 +326,16 @@ public final class FieldEditors {
 
 
     // ========================================================================
+    // LISTS
+    // ========================================================================
+
+    public static boolean drawList(String label, Component component,
+                                    com.pocket.rpg.serialization.FieldMeta meta,
+                                    EditorGameObject entity) {
+        return ListEditor.drawList(label, component, meta, entity);
+    }
+
+    // ========================================================================
     // READ-ONLY
     // ========================================================================
 

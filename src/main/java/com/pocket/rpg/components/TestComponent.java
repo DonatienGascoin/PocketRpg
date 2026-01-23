@@ -6,13 +6,13 @@ import com.pocket.rpg.rendering.resources.Sprite;
 
 import java.util.List;
 
-public class TestComponent extends Component{
+public class TestComponent extends Component {
 
     private String msg1 = "Message 1";
     private String msg2 = "Message 2";
 
     private List<String> items;
-
+    private Sprite sprite;
     private List<Sprite> sprites;
 
     @Override

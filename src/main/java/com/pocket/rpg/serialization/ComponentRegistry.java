@@ -4,21 +4,21 @@ import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ComponentRef;
 import com.pocket.rpg.components.HideInInspector;
 import com.pocket.rpg.components.Transform;
+import org.reflections.Reflections;
+import org.reflections.scanners.Scanners;
+import org.reflections.util.ClasspathHelper;
+import org.reflections.util.ConfigurationBuilder;
 
-import java.io.File;
 import java.lang.reflect.*;
-import java.net.URL;
 import java.util.*;
 
 /**
  * Registry of all available components.
- * Scans the components package at startup and caches metadata.
+ * Uses Reflections to discover all Component subclasses at startup.
  * <p>
  * Supports categorized access for UI menus via getCategories().
  */
 public class ComponentRegistry {
-
-    private static final String COMPONENTS_PACKAGE = "com.pocket.rpg.components";
 
     private static Map<String, ComponentMeta> bySimpleName = new HashMap<>();
     private static Map<String, ComponentMeta> byFullName = new HashMap<>();
@@ -48,21 +48,25 @@ public class ComponentRegistry {
                     continue;
                 }
 
-                ComponentMeta meta = buildMeta(clazz);
-                bySimpleName.put(meta.simpleName(), meta);
-                byFullName.put(meta.className(), meta);
-                allComponents.add(meta);
+                try {
+                    ComponentMeta meta = buildMeta(clazz);
+                    bySimpleName.put(meta.simpleName(), meta);
+                    byFullName.put(meta.className(), meta);
+                    allComponents.add(meta);
 
-                // Add to category
-                String categoryName = ComponentCategory.extractCategory(meta.className());
-                ComponentCategory category = categories.computeIfAbsent(
-                        categoryName,
-                        name -> new ComponentCategory(name, ComponentCategory.toDisplayName(name))
-                );
-                category.add(meta);
+                    // Add to category using @ComponentMeta annotation
+                    String categoryName = extractCategory(clazz);
+                    ComponentCategory category = categories.computeIfAbsent(
+                            categoryName,
+                            name -> new ComponentCategory(name, ComponentCategory.toDisplayName(name))
+                    );
+                    category.add(meta);
 
-                System.out.println("  Registered: " + meta.simpleName() +
-                        " [" + categoryName + "] (" + meta.fields().size() + " fields)");
+                    System.out.println("  Registered: " + meta.simpleName() +
+                            " [" + categoryName + "] (" + meta.fields().size() + " fields)");
+                } catch (Exception e) {
+                    System.err.println("  Skipped: " + clazz.getSimpleName() + " - " + e.getMessage());
+                }
             }
 
             // Sort components within each category
@@ -215,49 +219,51 @@ public class ComponentRegistry {
     // PRIVATE HELPERS
     // ========================================================================
 
-    private static List<Class<? extends Component>> scanComponentClasses() throws Exception {
+    @SuppressWarnings("unchecked")
+    private static List<Class<? extends Component>> scanComponentClasses() {
         List<Class<? extends Component>> result = new ArrayList<>();
 
-        String packagePath = COMPONENTS_PACKAGE.replace('.', '/');
-        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+        try {
+            // Configure Reflections with explicit SubTypes scanner
+            Reflections reflections = new Reflections(new ConfigurationBuilder()
+                    .setUrls(ClasspathHelper.forPackage("com.pocket.rpg"))
+                    .setScanners(Scanners.SubTypes));
 
-        Enumeration<URL> resources = classLoader.getResources(packagePath);
+            Set<Class<? extends Component>> classes = reflections.getSubTypesOf(Component.class);
 
-        while (resources.hasMoreElements()) {
-            URL resource = resources.nextElement();
-            File directory = new File(resource.toURI());
-
-            if (directory.exists()) {
-                scanDirectory(directory, COMPONENTS_PACKAGE, result);
+            if (classes.isEmpty()) {
+                System.err.println("ComponentRegistry: WARNING - Reflections found 0 components! " +
+                        "This may indicate a classpath configuration issue.");
             }
+
+            for (Class<? extends Component> clazz : classes) {
+                if (clazz.isInterface() || Modifier.isAbstract(clazz.getModifiers())) {
+                    continue;
+                }
+                if (clazz == Component.class) {
+                    continue;
+                }
+                result.add(clazz);
+            }
+        } catch (Exception e) {
+            System.err.println("ComponentRegistry: Failed to scan components: " + e.getMessage());
+            e.printStackTrace();
         }
 
         return result;
     }
 
-    @SuppressWarnings("unchecked")
-    private static void scanDirectory(File directory, String packageName,
-                                      List<Class<? extends Component>> result) {
-        File[] files = directory.listFiles();
-        if (files == null) return;
+    /**
+     * Extracts category from @ComponentMeta annotation, or returns "other" if not present.
+     */
+    private static String extractCategory(Class<? extends Component> clazz) {
+        com.pocket.rpg.components.ComponentMeta metaAnnotation =
+                clazz.getAnnotation(com.pocket.rpg.components.ComponentMeta.class);
 
-        for (File file : files) {
-            if (file.isDirectory()) {
-                scanDirectory(file, packageName + "." + file.getName(), result);
-            } else if (file.getName().endsWith(".class")) {
-                String className = packageName + "." +
-                        file.getName().substring(0, file.getName().length() - 6);
-
-                try {
-                    Class<?> clazz = Class.forName(className);
-                    if (Component.class.isAssignableFrom(clazz) && clazz != Component.class) {
-                        result.add((Class<? extends Component>) clazz);
-                    }
-                } catch (ClassNotFoundException | NoClassDefFoundError e) {
-                    // Skip classes that can't be loaded
-                }
-            }
+        if (metaAnnotation != null && !metaAnnotation.category().isEmpty()) {
+            return metaAnnotation.category().toLowerCase();
         }
+        return "other";
     }
 
     private static ComponentMeta buildMeta(Class<? extends Component> clazz) {
@@ -323,7 +329,20 @@ public class ComponentRegistry {
             }
 
             Object defaultValue = getDefaultValue(field.getType());
-            fields.add(new FieldMeta(name, field.getType(), field, defaultValue));
+
+            // Extract generic element type for List fields
+            Class<?> elementType = null;
+            if (List.class.isAssignableFrom(field.getType())) {
+                Type genericType = field.getGenericType();
+                if (genericType instanceof ParameterizedType pt) {
+                    Type[] typeArgs = pt.getActualTypeArguments();
+                    if (typeArgs.length > 0 && typeArgs[0] instanceof Class<?> et) {
+                        elementType = et;
+                    }
+                }
+            }
+
+            fields.add(new FieldMeta(name, field.getType(), field, defaultValue, elementType));
         }
     }
 

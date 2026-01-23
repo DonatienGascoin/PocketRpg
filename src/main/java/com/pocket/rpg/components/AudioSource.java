@@ -13,6 +13,7 @@ import org.joml.Vector3f;
  * Component for playing sounds attached to GameObjects.
  * Supports both 2D and 3D spatial audio.
  */
+@ComponentMeta(category = "Audio")
 public class AudioSource extends Component {
 
     // ========================================================================

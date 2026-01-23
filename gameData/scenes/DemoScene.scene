@@ -339,41 +339,12 @@
           "properties": {
             "sprite": "com.pocket.rpg.rendering.resources.Sprite:spritesheets/Chest.spritesheet#0",
             "tintColor": {
-              "x": 0.0,
-              "y": 0.0,
-              "z": 0.0,
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0,
               "w": 1.0
             },
             "zIndex": 3
-          }
-        },
-        {
-          "type": "com.pocket.rpg.components.SceneTransitionTest",
-          "properties": {
-            "targetSceneName": "Test"
-          }
-        },
-        {
-          "type": "com.pocket.rpg.components.AudioSource",
-          "properties": {
-            "clip": "com.pocket.rpg.audio.clips.AudioClip:Medieval Theme 1 - Tavern (Extended).mp3",
-            "volume": 1.0,
-            "pitch": 1.0,
-            "loop": false,
-            "playOnStart": false,
-            "spatialize": true,
-            "minDistance": 1.0,
-            "maxDistance": 500.0,
-            "rolloffFactor": 1.0,
-            "channel": "SFX",
-            "priority": 128
-          }
-        },
-        {
-          "type": "com.pocket.rpg.components.TestComponent",
-          "properties": {
-            "msg1": "Message 1",
-            "msg2": "Message 2"
           }
         }
       ]

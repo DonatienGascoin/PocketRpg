@@ -35,6 +35,7 @@ import org.joml.Vector3f;
  * - SWIM: Water (70% speed)
  * - ENCOUNTER: Tall grass (triggers random encounters)
  */
+@ComponentMeta(category = "Physics")
 public class GridMovement extends Component {
 
     // ========================================================================

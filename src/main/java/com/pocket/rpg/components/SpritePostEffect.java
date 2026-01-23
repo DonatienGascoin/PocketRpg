@@ -24,6 +24,7 @@ import static org.lwjgl.opengl.GL33.*;
  * Performance: ~2-5ms per sprite with effects
  * TODO: FIX ME- Not working
  */
+@ComponentMeta(category = "Rendering")
 public class SpritePostEffect extends Component {
 
     @Getter

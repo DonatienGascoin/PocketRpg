@@ -9,6 +9,7 @@ import org.joml.Vector3f;
  * <p>
  * Only one AudioListener can be active at a time.
  */
+@ComponentMeta(category = "Audio")
 public class AudioListener extends Component {
 
     private static AudioListener activeListener;

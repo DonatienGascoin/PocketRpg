@@ -1,6 +1,7 @@
 package com.pocket.rpg.editor.shortcut;
 
 import imgui.ImGui;
+import imgui.flag.ImGuiPopupFlags;
 
 import java.util.*;
 
@@ -220,6 +221,11 @@ public class ShortcutRegistry {
         // Prevent double-processing in same frame
         long currentFrame = ImGui.getFrameCount();
         if (currentFrame == lastProcessedFrame) {
+            return false;
+        }
+
+        // Don't process shortcuts when a popup is open (popups handle their own input)
+        if (ImGui.isPopupOpen("", ImGuiPopupFlags.AnyPopup)) {
             return false;
         }
 

@@ -14,6 +14,7 @@ import lombok.Setter;
  * via AssetReferenceTypeAdapterFactory, and can be selected using
  * the asset picker in the inspector.
  */
+@ComponentMeta(category = "Rendering")
 public class AnimationComponent extends Component {
 
     // ========================================================================

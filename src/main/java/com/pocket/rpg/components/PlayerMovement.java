@@ -12,6 +12,7 @@ import lombok.Getter;
  * Reads keyboard input and calls GridMovement.move() in the appropriate direction.
  * Also handles debug output for collision testing.
  */
+@ComponentMeta(category = "Physics")
 public class PlayerMovement extends Component {
 
     @ComponentRef

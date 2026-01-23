@@ -20,6 +20,7 @@ import org.joml.Vector4f;
  * The origin point for positioning and rotation is defined by the sprite's pivot.
  * Edit the pivot in the Sprite Editor (Pivot tab) to change how the sprite is positioned.
  */
+@ComponentMeta(category = "Rendering")
 public class SpriteRenderer extends Component implements Renderable {
 
     @Getter

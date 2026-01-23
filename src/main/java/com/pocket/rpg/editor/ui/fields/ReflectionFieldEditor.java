@@ -137,6 +137,11 @@ public class ReflectionFieldEditor {
             fieldChanged = FieldEditors.drawAsset(label, component, fieldName, type, entity);
         }
 
+        // LISTS
+        else if (meta.isList()) {
+            fieldChanged = ListEditor.drawList(label, component, meta, entity);
+        }
+
         // UNKNOWN
         else {
             FieldEditors.drawReadOnly(label, component, fieldName, type.getSimpleName());

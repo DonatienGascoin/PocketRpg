@@ -13,6 +13,7 @@ import org.joml.Vector3f;
  * Trigger-based ambient audio that plays when the listener enters a zone.
  * The zone is defined by a radius around the GameObject's position.
  */
+@ComponentMeta(category = "Audio")
 public class AmbientZone extends Component {
 
     // ========================================================================

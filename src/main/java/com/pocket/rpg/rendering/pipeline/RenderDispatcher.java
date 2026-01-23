@@ -141,13 +141,17 @@ public class RenderDispatcher {
         float width = size.x * scale.x;
         float height = size.y * scale.y;
 
-        // Get origin from SpriteRenderer if available, else default to center (0.5, 0.5)
+        // Get origin and tint from SpriteRenderer if available
         float originX = 0.5f;
         float originY = 0.5f;
+        Vector4f finalTint = tint;
         SpriteRenderer sr = entity.getComponent(SpriteRenderer.class);
         if (sr != null) {
             originX = sr.getEffectiveOriginX();
             originY = sr.getEffectiveOriginY();
+            // Combine SpriteRenderer's tint with editor tint
+            Vector4f spriteTint = sr.getTintColor();
+            finalTint = combineTints(spriteTint, tint);
         }
 
         batch.submit(
@@ -157,7 +161,7 @@ public class RenderDispatcher {
                 rotation.z,
                 originX, originY,
                 entity.getZIndex(),
-                tint
+                finalTint
         );
     }
 

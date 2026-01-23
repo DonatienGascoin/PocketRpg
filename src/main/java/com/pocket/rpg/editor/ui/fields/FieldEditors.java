@@ -1,5 +1,6 @@
 package com.pocket.rpg.editor.ui.fields;
 
+import com.pocket.rpg.audio.clips.AudioClip;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
@@ -308,6 +309,21 @@ public final class FieldEditors {
                                          Class<T> assetType) {
         return AssetEditor.drawAsset(label, key, getter, setter, assetType);
     }
+
+    // ========================================================================
+    // AUDIOCLIP (with play/stop preview)
+    // ========================================================================
+
+    public static boolean drawAudioClip(String label, Component component, String fieldName,
+                                         EditorGameObject entity) {
+        return AudioClipFieldEditor.drawAudioClip(label, component, fieldName, entity);
+    }
+
+    public static boolean drawAudioClip(String label, String key,
+                                         Supplier<AudioClip> getter, Consumer<AudioClip> setter) {
+        return AudioClipFieldEditor.drawAudioClip(label, key, getter, setter);
+    }
+
 
     // ========================================================================
     // READ-ONLY

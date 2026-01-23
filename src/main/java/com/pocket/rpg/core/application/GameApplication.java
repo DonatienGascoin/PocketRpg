@@ -19,6 +19,10 @@ import com.pocket.rpg.rendering.pipeline.RenderPipeline;
 import com.pocket.rpg.rendering.postfx.PostProcessing;
 import com.pocket.rpg.rendering.postfx.PostProcessor;
 import com.pocket.rpg.rendering.targets.ScreenTarget;
+import com.pocket.rpg.audio.Audio;
+import com.pocket.rpg.audio.AudioConfig;
+import com.pocket.rpg.audio.DefaultAudioContext;
+import com.pocket.rpg.audio.backend.OpenALAudioBackend;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.resources.ErrorMode;
 import com.pocket.rpg.scenes.Scene;
@@ -85,6 +89,7 @@ public class GameApplication {
                 .setErrorMode(ErrorMode.USE_PLACEHOLDER)
                 .apply();
         Serializer.init(Assets.getContext());
+        initAudio();
         System.out.println(LogUtils.buildBox("Application starting"));
 
         config = EngineConfiguration.load();
@@ -104,6 +109,14 @@ public class GameApplication {
         createGameSystems();
 
         System.out.println("Application initialization complete");
+    }
+
+    private void initAudio() {
+        OpenALAudioBackend backend = new OpenALAudioBackend();
+        AudioConfig audioConfig = new AudioConfig();
+        DefaultAudioContext audioContext = new DefaultAudioContext(backend, audioConfig);
+        Audio.initialize(audioContext);
+        System.out.println("Audio system initialized");
     }
 
     private PlatformFactory selectPlatform() {
@@ -344,6 +357,7 @@ public class GameApplication {
         }
 
         Input.destroy();
+        Audio.destroy();
 
         if (pipeline != null) {
             pipeline.destroy();

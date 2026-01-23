@@ -3,6 +3,7 @@ package com.pocket.rpg.resources.loaders;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.Transform;
 import com.pocket.rpg.components.ui.UITransform;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.resources.AssetLoader;
 import com.pocket.rpg.serialization.GameObjectData;
 import com.pocket.rpg.serialization.SceneData;
@@ -88,5 +89,10 @@ public class SceneDataLoader implements AssetLoader<SceneData> {
     @Override
     public boolean supportsHotReload() {
         return false;  // Scenes shouldn't hot-reload while editing
+    }
+
+    @Override
+    public String getIconCodepoint() {
+        return MaterialIcons.Landscape;
     }
 }

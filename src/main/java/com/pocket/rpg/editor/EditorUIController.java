@@ -61,6 +61,9 @@ public class EditorUIController {
     private ConsolePanel consolePanel;
 
     @Getter
+    private AudioBrowserPanel audioBrowserPanel;
+
+    @Getter
     private EditorMenuBar menuBar;
 
     @Getter
@@ -138,6 +141,7 @@ public class EditorUIController {
         assetBrowserPanel.initPanel(context.getConfig());
         assetBrowserPanel.initialize();
         assetBrowserPanel.setSpriteEditorPanel(spriteEditorPanel);
+        assetBrowserPanel.setSelectionManager(context.getSelectionManager());
 
         hierarchyPanel = new HierarchyPanel();
         hierarchyPanel.initPanel(context.getConfig());
@@ -163,6 +167,9 @@ public class EditorUIController {
 
         consolePanel = new ConsolePanel();
         consolePanel.initPanel(context.getConfig());
+
+        audioBrowserPanel = new AudioBrowserPanel();
+        audioBrowserPanel.initPanel(context.getConfig());
     }
 
     private void createMenuAndStatus() {
@@ -312,6 +319,9 @@ public class EditorUIController {
             if (ImGui.menuItem("Console", "", consolePanel.isOpen())) {
                 consolePanel.toggle();
             }
+            if (ImGui.menuItem("Audio Browser", "", audioBrowserPanel.isOpen())) {
+                audioBrowserPanel.toggle();
+            }
 
             ImGui.separator();
 
@@ -425,6 +435,7 @@ public class EditorUIController {
         animationEditorPanel.render();
         spriteEditorPanel.render();
         consolePanel.render();
+        audioBrowserPanel.render();
         if (gameViewPanel != null) {
             gameViewPanel.render();
         }

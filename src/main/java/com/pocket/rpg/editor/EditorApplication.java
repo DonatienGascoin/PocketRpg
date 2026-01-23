@@ -22,6 +22,11 @@ import com.pocket.rpg.editor.core.ImGuiLayer;
 import com.pocket.rpg.editor.rendering.EditorSceneRenderer;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.tileset.TilesetRegistry;
+import com.pocket.rpg.audio.Audio;
+import com.pocket.rpg.audio.AudioConfig;
+import com.pocket.rpg.audio.DefaultAudioContext;
+import com.pocket.rpg.audio.backend.OpenALAudioBackend;
+import com.pocket.rpg.audio.editor.EditorAudio;
 import com.pocket.rpg.prefab.PrefabRegistry;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.resources.ErrorMode;
@@ -109,6 +114,9 @@ public class EditorApplication {
         LOG.info("PocketRPG Scene Editor starting up");
         LOG.debug("Java version: " + System.getProperty("java.version"));
         LOG.debug("OS: " + System.getProperty("os.name") + " " + System.getProperty("os.arch"));
+
+        // Initialize audio system
+        initAudio();
 
         // Load configuration
         ConfigLoader.loadAllConfigs();
@@ -204,6 +212,19 @@ public class EditorApplication {
                 .apply();
 
         Serializer.init(Assets.getContext());
+    }
+
+    private void initAudio() {
+        // Initialize audio backend
+        OpenALAudioBackend backend = new OpenALAudioBackend();
+        AudioConfig config = new AudioConfig();
+        DefaultAudioContext audioContext = new DefaultAudioContext(backend, config);
+        Audio.initialize(audioContext);
+
+        // Initialize editor audio for preview functionality
+        EditorAudio.initialize(backend);
+
+        System.out.println("Audio system initialized");
     }
 
     private void createControllers() {
@@ -533,6 +554,10 @@ public class EditorApplication {
 
         TilesetRegistry.destroy();
         FileDialogs.cleanup();
+
+        // Destroy audio systems
+        EditorAudio.destroy();
+        Audio.destroy();
 
         if (imGuiLayer != null) {
             imGuiLayer.destroy();

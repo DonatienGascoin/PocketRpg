@@ -1,6 +1,7 @@
 package com.pocket.rpg.resources;
 
 import com.pocket.rpg.editor.EditorPanelType;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.rendering.resources.Sprite;
 import lombok.Getter;
@@ -503,6 +504,12 @@ public class AssetManager implements AssetContext {
     }
 
     @Override
+    public String getIconCodepoint(Class<?> type) {
+        AssetLoader<?> loader = loaders.get(type);
+        return loader != null ? loader.getIconCodepoint() : MaterialIcons.InsertDriveFile;
+    }
+
+    @Override
     public String getRelativePath(String fullPath) {
         try {
             return fullPath.substring(assetRoot.length());
@@ -526,8 +533,13 @@ public class AssetManager implements AssetContext {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public void persist(Object resource, String path) {
+        persist(resource, path, LoadOptions.defaults());
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public void persist(Object resource, String path, LoadOptions options) {
         if (resource == null) {
             throw new IllegalArgumentException("Cannot persist null resource");
         }
@@ -540,7 +552,7 @@ public class AssetManager implements AssetContext {
         }
 
         String normalizedPath = normalizePath(path);
-        String fullPath = resolvePath(normalizedPath, LoadOptions.defaults());
+        String fullPath = resolvePath(normalizedPath, options);
 
         try {
             loader.save(resource, fullPath);

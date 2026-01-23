@@ -1,12 +1,12 @@
 package com.pocket.rpg.editor.panels;
 
 import com.pocket.rpg.editor.EditorPanelType;
+import com.pocket.rpg.editor.EditorSelectionManager;
 import com.pocket.rpg.editor.assets.AssetDragPayload;
 import com.pocket.rpg.editor.assets.ThumbnailCache;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.rendering.resources.SpriteSheet;
-import com.pocket.rpg.rendering.resources.Shader;
 import com.pocket.rpg.rendering.resources.Texture;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.resources.EditorCapability;
@@ -92,6 +92,10 @@ public class AssetBrowserPanel extends EditorPanel {
     // Sprite editor panel reference for context menu and double-click
     @Setter
     private SpriteEditorPanel spriteEditorPanel;
+
+    // Selection manager for asset selection
+    @Setter
+    private EditorSelectionManager selectionManager;
 
     // ========================================================================
     // INITIALIZATION
@@ -492,6 +496,10 @@ public class AssetBrowserPanel extends EditorPanel {
         // Handle click
         if (clicked) {
             selectedAsset = entry;
+            // Notify selection manager for inspector display
+            if (selectionManager != null) {
+                selectionManager.selectAsset(entry.path, entry.type);
+            }
         }
 
         // Double-click to open asset-specific editor
@@ -699,22 +707,7 @@ public class AssetBrowserPanel extends EditorPanel {
     }
 
     private String getIconForType(Class<?> type) {
-        if (type == Sprite.class || type == Texture.class) {
-            return MaterialIcons.Image;
-        }
-        if (type == SpriteSheet.class) {
-            return MaterialIcons.GridView;
-        }
-        if (type == com.pocket.rpg.prefab.JsonPrefab.class) {
-            return MaterialIcons.Inventory2;
-        }
-        if (type == Shader.class) {
-            return MaterialIcons.Code;
-        }
-        if (type == com.pocket.rpg.serialization.SceneData.class) {
-            return MaterialIcons.Map;
-        }
-        return MaterialIcons.InsertDriveFile;
+        return Assets.getIconCodepoint(type);
     }
 
     private boolean canInstantiate(AssetEntry entry) {

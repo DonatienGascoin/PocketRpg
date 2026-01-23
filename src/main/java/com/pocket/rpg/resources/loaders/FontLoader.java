@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.resources.AssetLoader;
 import com.pocket.rpg.ui.text.Font;
 
@@ -140,6 +141,11 @@ public class FontLoader implements AssetLoader<Font> {
     @Override
     public boolean supportsHotReload() {
         return true;
+    }
+
+    @Override
+    public String getIconCodepoint() {
+        return MaterialIcons.TextFields;
     }
 
     @Override

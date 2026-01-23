@@ -22,7 +22,8 @@ public class EditorSelectionManager {
         ENTITY,
         TILEMAP_LAYER,
         COLLISION_LAYER,
-        CAMERA
+        CAMERA,
+        ASSET
     }
 
     @Getter
@@ -30,6 +31,13 @@ public class EditorSelectionManager {
 
     @Getter
     private int selectedLayerIndex = -1;
+
+    // Asset selection
+    @Getter
+    private String selectedAssetPath = null;
+
+    @Getter
+    private Class<?> selectedAssetType = null;
 
     @Setter
     private EditorScene scene;
@@ -47,6 +55,7 @@ public class EditorSelectionManager {
         if (scene != null) {
             scene.setSelection(Set.of(entity));
         }
+        clearAssetSelection();
         setSelectionType(SelectionType.ENTITY);
     }
 
@@ -57,6 +66,7 @@ public class EditorSelectionManager {
         if (scene != null) {
             scene.setSelection(entities);
         }
+        clearAssetSelection();
         setSelectionType(entities.isEmpty() ? SelectionType.NONE : SelectionType.ENTITY);
     }
 
@@ -80,6 +90,7 @@ public class EditorSelectionManager {
     public void selectCamera() {
         clearEntitySelection();
         selectedLayerIndex = -1;
+        clearAssetSelection();
         setSelectionType(SelectionType.CAMERA);
     }
 
@@ -89,6 +100,7 @@ public class EditorSelectionManager {
     public void selectTilemapLayer(int layerIndex) {
         clearEntitySelection();
         this.selectedLayerIndex = layerIndex;
+        clearAssetSelection();
         setSelectionType(SelectionType.TILEMAP_LAYER);
     }
 
@@ -98,7 +110,19 @@ public class EditorSelectionManager {
     public void selectCollisionLayer() {
         clearEntitySelection();
         selectedLayerIndex = -1;
+        clearAssetSelection();
         setSelectionType(SelectionType.COLLISION_LAYER);
+    }
+
+    /**
+     * Selects an asset from the asset browser.
+     */
+    public void selectAsset(String path, Class<?> type) {
+        clearEntitySelection();
+        selectedLayerIndex = -1;
+        this.selectedAssetPath = path;
+        this.selectedAssetType = type;
+        setSelectionType(SelectionType.ASSET);
     }
 
     /**
@@ -107,6 +131,7 @@ public class EditorSelectionManager {
     public void clearSelection() {
         clearEntitySelection();
         selectedLayerIndex = -1;
+        clearAssetSelection();
         setSelectionType(SelectionType.NONE);
     }
 
@@ -167,6 +192,13 @@ public class EditorSelectionManager {
         return selectionType == SelectionType.COLLISION_LAYER;
     }
 
+    /**
+     * Returns true if an asset is selected.
+     */
+    public boolean isAssetSelected() {
+        return selectionType == SelectionType.ASSET && selectedAssetPath != null;
+    }
+
     // ========================================================================
     // LISTENERS
     // ========================================================================
@@ -201,6 +233,11 @@ public class EditorSelectionManager {
             scene.clearSelection();
             scene.setActiveLayer(-1);
         }
+    }
+
+    private void clearAssetSelection() {
+        selectedAssetPath = null;
+        selectedAssetType = null;
     }
 
     private void notifyListeners() {

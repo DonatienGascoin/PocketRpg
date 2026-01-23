@@ -8,6 +8,8 @@ import com.pocket.rpg.input.KeyCode;
 import com.pocket.rpg.input.events.InputEventBus;
 import com.pocket.rpg.input.events.KeyEvent;
 import com.pocket.rpg.input.events.MouseButtonEvent;
+import com.pocket.rpg.audio.backend.AudioBackend;
+import com.pocket.rpg.audio.backend.NullAudioBackend;
 import com.pocket.rpg.rendering.postfx.PostProcessor;
 
 /**
@@ -37,6 +39,11 @@ public class HeadlessPlatformFactory implements PlatformFactory {
     @Override
     public String getPlatformName() {
         return "Headless (Testing)";
+    }
+
+    @Override
+    public AudioBackend createAudioBackend() {
+        return new NullAudioBackend();
     }
 }
 

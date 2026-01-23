@@ -128,6 +128,15 @@ public interface AssetContext {
     void persist(Object resource, String path);
 
     /**
+     * Saves a resource to a specific path with options.
+     *
+     * @param resource Resource to save
+     * @param path     Path to save to
+     * @param options  Load options (e.g., raw() to skip asset root)
+     */
+    void persist(Object resource, String path, LoadOptions options);
+
+    /**
      * Returns a configuration builder for this context.
      *
      * @return Configuration builder
@@ -241,4 +250,13 @@ public interface AssetContext {
      * @return Set of capabilities, or empty set if no loader or none declared
      */
     Set<EditorCapability> getEditorCapabilities(Class<?> type);
+
+    /**
+     * Gets the icon codepoint for an asset type.
+     * Delegates to the loader's getIconCodepoint() method.
+     *
+     * @param type Asset type class
+     * @return Icon codepoint string (MaterialIcons constant)
+     */
+    String getIconCodepoint(Class<?> type);
 }

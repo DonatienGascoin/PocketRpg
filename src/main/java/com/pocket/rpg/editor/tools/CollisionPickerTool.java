@@ -1,6 +1,7 @@
 package com.pocket.rpg.editor.tools;
 
 import com.pocket.rpg.collision.CollisionType;
+import com.pocket.rpg.collision.trigger.TileCoord;
 import com.pocket.rpg.editor.camera.EditorCamera;
 import com.pocket.rpg.editor.scene.EditorScene;
 import imgui.ImDrawList;
@@ -32,6 +33,12 @@ public class CollisionPickerTool implements EditorTool, ViewportAwareTool {
      */
     @Setter
     private Consumer<CollisionType> onCollisionPicked;
+
+    /**
+     * Callback when a trigger tile is clicked.
+     */
+    @Setter
+    private Consumer<TileCoord> onTriggerSelected;
 
     // Viewport bounds
     private float viewportX, viewportY;
@@ -85,6 +92,11 @@ public class CollisionPickerTool implements EditorTool, ViewportAwareTool {
 
         if (onCollisionPicked != null) {
             onCollisionPicked.accept(pickedType);
+        }
+
+        // If it's a trigger tile, also notify trigger selection
+        if (pickedType != null && pickedType.isTrigger() && onTriggerSelected != null) {
+            onTriggerSelected.accept(new TileCoord(tileX, tileY, zLevel));
         }
     }
 

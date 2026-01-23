@@ -283,6 +283,25 @@ public final class Assets {
         return getContext().scanAll();
     }
 
+    /**
+     * Scans a specific directory for all loadable assets.
+     * Returns paths for all files that any registered loader can handle.
+     * Does NOT load the assets, just returns their paths.
+     * <p>
+     * Example:
+     * <pre>
+     * // Find all scenes
+     * List&lt;String&gt; scenes = Assets.scanAll("gameData/scenes");
+     * // Returns: ["TestScene.scene", "Village.scene", ...]
+     * </pre>
+     *
+     * @param directory Directory to scan (absolute or relative to working directory)
+     * @return List of paths to all loadable assets in that directory
+     */
+    public static List<String> scanAll(String directory) {
+        return getContext().scanAll(directory);
+    }
+
 
     public static String getRelativePath(String fullPath) {
         if (fullPath == null) {

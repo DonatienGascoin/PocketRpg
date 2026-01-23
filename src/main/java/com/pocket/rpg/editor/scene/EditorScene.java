@@ -1,6 +1,7 @@
 package com.pocket.rpg.editor.scene;
 
 import com.pocket.rpg.collision.CollisionMap;
+import com.pocket.rpg.collision.trigger.TriggerDataMap;
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.rendering.core.Renderable;
@@ -90,8 +91,11 @@ public class EditorScene {
     private final CollisionMap collisionMap;
 
     @Getter
+    private final TriggerDataMap triggerDataMap;
+
+    @Getter
     @Setter
-    private boolean collisionVisible = true;
+    private boolean collisionVisible = false;
 
     @Getter
     @Setter
@@ -130,6 +134,7 @@ public class EditorScene {
 
     public EditorScene() {
         this.collisionMap = new CollisionMap();
+        this.triggerDataMap = new TriggerDataMap();
     }
 
     // ========================================================================
@@ -739,6 +744,7 @@ public class EditorScene {
         entities.clear();
         selectedEntities.clear();
         collisionMap.clear();
+        triggerDataMap.clear();
         cameraSettings.reset();
         activeLayerIndex = -1;
         selectedObject = null;

@@ -31,6 +31,11 @@ public class UIPanelInspector extends CustomComponentInspector<UIPanel> {
     public boolean draw() {
         boolean changed = false;
 
+        // === UI KEY ===
+        changed |= FieldEditors.drawString("UI Key", component, "uiKey");
+
+        ImGui.spacing();
+
         // Background Color
         ImGui.text(MaterialIcons.FormatColorFill + " Background Color");
         changed |= FieldEditors.drawColor("Color", component, "color");

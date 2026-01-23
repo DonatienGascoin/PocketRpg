@@ -1,9 +1,11 @@
 package com.pocket.rpg.components;
 
 import com.pocket.rpg.collision.CollisionSystem;
+import com.pocket.rpg.collision.CollisionType;
 import com.pocket.rpg.collision.Direction;
 import com.pocket.rpg.collision.MoveResult;
 import com.pocket.rpg.collision.MovementModifier;
+import com.pocket.rpg.collision.trigger.TriggerSystem;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector3f;
@@ -227,8 +229,8 @@ public class GridMovement extends Component {
             return false;
         }
 
-        // Start movement with modifier
-        startMovement(targetX, targetY, result.modifier());
+        // Start movement with modifier and direction
+        startMovement(targetX, targetY, result.modifier(), direction);
         return true;
     }
 
@@ -240,6 +242,16 @@ public class GridMovement extends Component {
             return null;
         }
         return gameObject.getScene().getCollisionSystem();
+    }
+
+    /**
+     * Gets the TriggerSystem from the scene, or null if not available.
+     */
+    private TriggerSystem getTriggerSystem() {
+        if (gameObject == null || gameObject.getScene() == null) {
+            return null;
+        }
+        return gameObject.getScene().getTriggerSystem();
     }
 
     /**
@@ -261,15 +273,26 @@ public class GridMovement extends Component {
 
     /**
      * Starts movement to target tile.
+     *
+     * @param targetX   Target X coordinate
+     * @param targetY   Target Y coordinate
+     * @param modifier  Movement modifier (normal, slide, jump)
+     * @param direction The direction of movement
      */
-    private void startMovement(int targetX, int targetY, MovementModifier modifier) {
+    private void startMovement(int targetX, int targetY, MovementModifier modifier, Direction direction) {
         if (gameObject == null) return;
 
         CollisionSystem collisionSystem = getCollisionSystem();
+        TriggerSystem triggerSystem = getTriggerSystem();
 
-        // Trigger exit on current tile
+        // Trigger exit on current tile (collision behavior)
         if (collisionSystem != null) {
             collisionSystem.triggerExit(gridX, gridY, zLevel, gameObject);
+        }
+
+        // Trigger exit on current tile (trigger system) with direction
+        if (triggerSystem != null) {
+            triggerSystem.onTileExit(gameObject, gridX, gridY, zLevel, direction);
         }
 
         // Update entity occupancy
@@ -356,16 +379,41 @@ public class GridMovement extends Component {
         currentModifier = MovementModifier.NORMAL;
         snapToGrid();
 
-        // Trigger enter on new tile
+        // Apply elevation change from elevated ledges
+        applyElevationChange();
+
+        // Trigger enter on new tile (collision behavior)
         CollisionSystem collisionSystem = getCollisionSystem();
         if (collisionSystem != null) {
             collisionSystem.triggerEnter(gridX, gridY, zLevel, gameObject);
+        }
+
+        // Trigger enter on new tile (trigger system)
+        TriggerSystem triggerSystem = getTriggerSystem();
+        if (triggerSystem != null) {
+            triggerSystem.onTileEnter(gameObject, gridX, gridY, zLevel);
         }
 
         // Handle ice sliding - continue sliding if we entered via slide
         // and the current tile is also ice
         if (isSliding) {
             handleIceSliding();
+        }
+    }
+
+    /**
+     * Applies elevation change from elevated ledge tiles.
+     * Called after landing on a tile to adjust z-level.
+     */
+    private void applyElevationChange() {
+        CollisionSystem collisionSystem = getCollisionSystem();
+        if (collisionSystem == null) return;
+
+        CollisionType tileType = collisionSystem.getCollisionMap().get(gridX, gridY, zLevel);
+        if (tileType != null && tileType.hasElevationChange()) {
+            int oldLevel = zLevel;
+            zLevel += tileType.getElevationChange();
+            System.out.println("[GridMovement] Elevated ledge: z-level " + oldLevel + " -> " + zLevel);
         }
     }
 
@@ -394,11 +442,11 @@ public class GridMovement extends Component {
         if (result.allowed()) {
             if (result.modifier() == MovementModifier.SLIDE) {
                 // Next tile is also ice - continue sliding
-                startMovement(nextX, nextY, MovementModifier.SLIDE);
+                startMovement(nextX, nextY, MovementModifier.SLIDE, facingDirection);
             } else {
                 // Next tile is not ice - slide onto it and stop
                 isSliding = false;
-                startMovement(nextX, nextY, result.modifier());
+                startMovement(nextX, nextY, result.modifier(), facingDirection);
             }
         } else {
             // Blocked - stop sliding
@@ -429,6 +477,22 @@ public class GridMovement extends Component {
         int targetY = gridY + direction.dy;
         MoveResult result = checkCollision(targetX, targetY, direction);
         return !result.allowed();
+    }
+
+    /**
+     * Attempts to interact with a trigger at the current position or facing tile.
+     * <p>
+     * Call this when the player presses an interact button. Checks the tile
+     * the entity is standing on first, then the tile they're facing.
+     *
+     * @return true if a trigger was activated
+     */
+    public boolean tryInteract() {
+        TriggerSystem triggerSystem = getTriggerSystem();
+        if (triggerSystem == null) {
+            return false;
+        }
+        return triggerSystem.tryInteract(gameObject, gridX, gridY, zLevel, facingDirection);
     }
 
     /**

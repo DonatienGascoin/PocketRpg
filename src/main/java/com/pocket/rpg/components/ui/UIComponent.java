@@ -16,6 +16,15 @@ import org.joml.Vector2f;
 @ComponentMeta(category = "UI")
 public abstract class UIComponent extends Component {
 
+    /**
+     * Optional key for registering this component with UIManager.
+     * If set, the component can be retrieved via UIManager.get(uiKey).
+     * Registration happens during scene initialization, before onStart().
+     */
+    @Getter
+    @Setter
+    protected String uiKey;
+
     @Getter
     @Setter
     protected boolean raycastTarget = true;

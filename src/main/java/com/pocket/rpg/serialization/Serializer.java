@@ -2,6 +2,8 @@ package com.pocket.rpg.serialization;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.pocket.rpg.collision.trigger.TriggerData;
+import com.pocket.rpg.collision.trigger.TriggerDataTypeAdapter;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.rendering.postfx.PostEffect;
 import com.pocket.rpg.resources.AssetContext;
@@ -27,7 +29,9 @@ public class Serializer {
                 // Sprite with object fallback (for programmatic sprites)
                 .registerTypeAdapter(Sprite.class, new SpriteTypeAdapter(Assets.getContext()))
                 // Others
-                .registerTypeAdapter(PostEffect.class, new PostEffectTypeAdapter());
+                .registerTypeAdapter(PostEffect.class, new PostEffectTypeAdapter())
+                // Trigger data (sealed interface with registry-based discovery)
+                .registerTypeAdapter(TriggerData.class, new TriggerDataTypeAdapter());
 
 
         defaultConfig = builder.create();

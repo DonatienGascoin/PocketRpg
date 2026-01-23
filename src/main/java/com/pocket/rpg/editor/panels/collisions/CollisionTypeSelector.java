@@ -1,13 +1,20 @@
 package com.pocket.rpg.editor.panels.collisions;
 
+import com.pocket.rpg.collision.CollisionCategory;
 import com.pocket.rpg.collision.CollisionType;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.List;
 import java.util.function.Consumer;
 
+/**
+ * Selector for collision types in the editor.
+ * <p>
+ * Auto-generates UI from CollisionType enum grouped by CollisionCategory.
+ */
 public class CollisionTypeSelector {
 
     @Getter private CollisionType selectedType = CollisionType.SOLID;
@@ -25,36 +32,23 @@ public class CollisionTypeSelector {
 
         ImGui.text("Collision Types");
 
-        ImGui.textDisabled("Movement");
-        renderCollisionButton(CollisionType.NONE);
-        renderCollisionButton(CollisionType.SOLID);
+        // Auto-generate UI from enum categories
+        for (CollisionCategory category : CollisionCategory.inOrder()) {
+            List<CollisionType> types = CollisionType.getByCategory(category);
+            if (types.isEmpty()) continue;
 
-        ImGui.spacing();
-        ImGui.textDisabled("Ledges");
-        renderCollisionButton(CollisionType.LEDGE_DOWN);
-        ImGui.sameLine();
-        renderCollisionButton(CollisionType.LEDGE_UP);
-        renderCollisionButton(CollisionType.LEDGE_LEFT);
-        ImGui.sameLine();
-        renderCollisionButton(CollisionType.LEDGE_RIGHT);
+            ImGui.spacing();
+            ImGui.textDisabled(category.getDisplayName());
 
-        ImGui.spacing();
-        ImGui.textDisabled("Terrain");
-        renderCollisionButton(CollisionType.WATER);
-        renderCollisionButton(CollisionType.TALL_GRASS);
-        renderCollisionButton(CollisionType.ICE);
-        renderCollisionButton(CollisionType.SAND);
-
-        ImGui.spacing();
-        ImGui.textDisabled("Triggers");
-        renderCollisionButton(CollisionType.WARP);
-        renderCollisionButton(CollisionType.DOOR);
-        renderCollisionButton(CollisionType.SCRIPT_TRIGGER);
+            for (CollisionType type : types) {
+                renderCollisionButton(type);
+            }
+        }
 
         ImGui.spacing();
         ImGui.separator();
         ImGui.text("Selected: " + selectedType.getDisplayName());
-        ImGui.textWrapped(getTypeDescription(selectedType));
+        ImGui.textWrapped(selectedType.getDescription());
     }
 
     public void renderHorizontal() {
@@ -64,42 +58,81 @@ public class CollisionTypeSelector {
     public void renderHorizontal(boolean enabled) {
         this.enabled = enabled;
 
-        // Movement block
-        ImGui.textDisabled("Movement");
-        renderCollisionButton(CollisionType.NONE);
-        ImGui.sameLine();
-        renderCollisionButton(CollisionType.SOLID);
+        // Auto-generate UI from enum categories
+        for (CollisionCategory category : CollisionCategory.inOrder()) {
+            List<CollisionType> types = CollisionType.getByCategory(category);
+            if (types.isEmpty()) continue;
 
-        // Ledges block
-        ImGui.spacing();
-        ImGui.textDisabled("Ledges");
-        renderCollisionButton(CollisionType.LEDGE_DOWN);
-        ImGui.sameLine();
-        renderCollisionButton(CollisionType.LEDGE_UP);
-        ImGui.sameLine();
-        renderCollisionButton(CollisionType.LEDGE_LEFT);
-        ImGui.sameLine();
-        renderCollisionButton(CollisionType.LEDGE_RIGHT);
+            ImGui.spacing();
+            ImGui.textDisabled(category.getDisplayName());
 
-        // Terrain block
-        ImGui.spacing();
-        ImGui.textDisabled("Terrain");
-        renderCollisionButton(CollisionType.WATER);
-        ImGui.sameLine();
-        renderCollisionButton(CollisionType.TALL_GRASS);
-        ImGui.sameLine();
-        renderCollisionButton(CollisionType.ICE);
-        ImGui.sameLine();
-        renderCollisionButton(CollisionType.SAND);
+            boolean first = true;
+            for (CollisionType type : types) {
+                if (!first) ImGui.sameLine();
+                first = false;
+                renderCollisionButton(type);
+            }
+        }
+    }
 
-        // Triggers block
-        ImGui.spacing();
-        ImGui.textDisabled("Triggers");
-        renderCollisionButton(CollisionType.WARP);
-        ImGui.sameLine();
-        renderCollisionButton(CollisionType.DOOR);
-        ImGui.sameLine();
-        renderCollisionButton(CollisionType.SCRIPT_TRIGGER);
+    /**
+     * Renders Column 1: Basic types (Movement, Ledges, Terrain).
+     * These types don't require metadata configuration.
+     */
+    public void renderColumn1() {
+        List<CollisionCategory> col1Categories = List.of(
+                CollisionCategory.MOVEMENT,
+                CollisionCategory.LEDGE,
+                CollisionCategory.TERRAIN
+        );
+
+        for (CollisionCategory category : col1Categories) {
+            List<CollisionType> types = CollisionType.getByCategory(category);
+            if (types.isEmpty()) continue;
+
+            ImGui.textDisabled(category.getDisplayName());
+
+            boolean first = true;
+            for (CollisionType type : types) {
+                if (!first) ImGui.sameLine();
+                first = false;
+                renderCompactButton(type);
+            }
+
+            ImGui.spacing();
+        }
+    }
+
+    /**
+     * Renders Column 2: Metadata types (Elevation, Triggers) + selected type info.
+     * These types require metadata configuration.
+     */
+    public void renderColumn2() {
+        List<CollisionCategory> col2Categories = List.of(
+                CollisionCategory.ELEVATION,
+                CollisionCategory.TRIGGER
+        );
+
+        for (CollisionCategory category : col2Categories) {
+            List<CollisionType> types = CollisionType.getByCategory(category);
+            if (types.isEmpty()) continue;
+
+            ImGui.textDisabled(category.getDisplayName());
+
+            boolean first = true;
+            for (CollisionType type : types) {
+                if (!first) ImGui.sameLine();
+                first = false;
+                renderCompactButton(type);
+            }
+
+            ImGui.spacing();
+        }
+
+        // Selected type info at bottom
+        ImGui.separator();
+        ImGui.text("Selected: " + selectedType.getDisplayName());
+        ImGui.textWrapped(selectedType.getDescription());
     }
 
     private void renderCollisionButton(CollisionType type) {
@@ -124,7 +157,7 @@ public class CollisionTypeSelector {
         }
 
         String label = type.getDisplayName();
-        float buttonWidth = label.contains("Ledge") ? 65 : 140;
+        float buttonWidth = type.isLedge() ? 65 : 140;
 
         if (ImGui.button(label + "##" + type.name(), buttonWidth, 0)) {
             selectType(type);
@@ -133,8 +166,57 @@ public class CollisionTypeSelector {
         ImGui.popStyleColor(3);
 
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(getTypeDescription(type));
+            ImGui.setTooltip(type.getDescription());
         }
+    }
+
+    private void renderCompactButton(CollisionType type) {
+        boolean isSelected = (type == selectedType);
+        float[] color = type.getOverlayColor();
+
+        float r = type == CollisionType.NONE ? 0.3f : color[0];
+        float g = type == CollisionType.NONE ? 0.3f : color[1];
+        float b = type == CollisionType.NONE ? 0.3f : color[2];
+
+        // Dim colors when disabled
+        float dimFactor = enabled ? 1.0f : 0.4f;
+
+        if (isSelected) {
+            ImGui.pushStyleColor(ImGuiCol.Button, r * dimFactor, g * dimFactor, b * dimFactor, 0.9f);
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, r * 1.1f, g * 1.1f, b * 1.1f, 1.0f);
+            ImGui.pushStyleColor(ImGuiCol.ButtonActive, r * 0.8f, g * 0.8f, b * 0.8f, 1.0f);
+        } else {
+            ImGui.pushStyleColor(ImGuiCol.Button, r * dimFactor, g * dimFactor, b * dimFactor, 0.4f);
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, r, g, b, 0.6f);
+            ImGui.pushStyleColor(ImGuiCol.ButtonActive, r, g, b, 0.8f);
+        }
+
+        // Compact label - use icon if available, else abbreviation
+        String label = type.hasIcon()
+                ? type.getIcon()
+                : abbreviate(type.getDisplayName());
+
+        float buttonWidth = type.isLedge() ? 35 : 60;
+
+        if (ImGui.button(label + "##" + type.name(), buttonWidth, 0)) {
+            selectType(type);
+        }
+
+        ImGui.popStyleColor(3);
+
+        // Tooltip with full name and description
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(type.getDisplayName() + "\n" + type.getDescription());
+        }
+    }
+
+    private String abbreviate(String name) {
+        if (name.length() <= 5) return name;
+        if (name.contains(" ")) {
+            String[] parts = name.split(" ");
+            return parts[parts.length - 1]; // Last word
+        }
+        return name.substring(0, 4);
     }
 
     private void selectType(CollisionType type) {
@@ -144,26 +226,7 @@ public class CollisionTypeSelector {
         }
     }
 
-    public String getTypeDescription(CollisionType type) {
-        return switch (type) {
-            case NONE -> "No collision - fully walkable";
-            case SOLID -> "Solid wall - blocks all movement";
-            case LEDGE_DOWN -> "Ledge - can jump down (south)";
-            case LEDGE_UP -> "Ledge - can jump up (north)";
-            case LEDGE_LEFT -> "Ledge - can jump left (west)";
-            case LEDGE_RIGHT -> "Ledge - can jump right (east)";
-            case WATER -> "Water - requires swimming ability";
-            case TALL_GRASS -> "Tall grass - triggers wild encounters";
-            case ICE -> "Ice - causes sliding movement";
-            case SAND -> "Sand - slows movement";
-            case WARP -> "Warp zone - triggers scene transition";
-            case DOOR -> "Door - triggers door interaction";
-            case SCRIPT_TRIGGER -> "Script trigger - executes script on step";
-        };
-    }
-
     public void setSelectedType(CollisionType type) {
         selectType(type);
     }
-
 }

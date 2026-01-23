@@ -32,7 +32,7 @@ Use Java's sealed interfaces to create a type-safe hierarchy:
 ```java
 // Each trigger type has its own record with specific fields
 sealed interface TriggerData
-    permits WarpTriggerData, DoorTriggerData, StairsTriggerData, ScriptTriggerData {
+    permits WarpData, DoorData, StairsData, SpawnPointData {
 
     // Common fields required by all triggers
     ActivationMode activationMode();
@@ -52,6 +52,11 @@ sealed interface TriggerData
 ```java
 public enum ActivationMode {
     /**
+     * Passive marker - no activation (e.g., spawn points).
+     */
+    NONE,
+
+    /**
      * Fires when entity steps onto the tile.
      */
     ON_ENTER,
@@ -63,6 +68,7 @@ public enum ActivationMode {
 
     /**
      * Fires when entity steps off the tile.
+     * For ON_EXIT triggers, the handler receives the exit direction.
      */
     ON_EXIT
 }
@@ -132,12 +138,21 @@ public record TileCoord(int x, int y, int elevation) {
  * <p>
  * Uses sealed interface pattern for type-safe trigger configuration.
  * Each collision type that requires metadata has a corresponding record.
+ * <p>
+ * Benefits of sealed interface:
+ * - Exhaustive switch expressions (compiler ensures all cases handled)
+ * - Adding new type forces updates everywhere it's used
+ * - Registry-based serialization via getPermittedSubclasses()
  */
 public sealed interface TriggerData
-    permits WarpTriggerData, DoorTriggerData, StairsTriggerData, ScriptTriggerData {
+    permits WarpData, DoorData, StairsData, SpawnPointData {
 
     /**
      * When the trigger activates.
+     * - NONE: Passive marker (spawn points)
+     * - ON_ENTER: When stepping onto tile (warps)
+     * - ON_EXIT: When leaving tile (stairs - receives exit direction)
+     * - ON_INTERACT: When pressing action button (doors)
      */
     ActivationMode activationMode();
 
@@ -170,20 +185,20 @@ public sealed interface TriggerData
 
 ## Trigger Data Records
 
-### WarpTriggerData
+### WarpData
 
-**File**: `src/main/java/com/pocket/rpg/collision/trigger/WarpTriggerData.java`
+**File**: `src/main/java/com/pocket/rpg/collision/trigger/WarpData.java`
 
 ```java
 /**
  * Trigger data for WARP collision type.
  * <p>
- * Teleports the player to another scene at a specific position.
+ * Teleports the player to another scene at a spawn point.
+ * Uses spawn point IDs instead of raw coordinates for maintainability.
  */
-public record WarpTriggerData(
+public record WarpData(
     String targetScene,
-    int targetX,
-    int targetY,
+    String spawnPointId,     // References SpawnPointData.id in target scene
     TransitionType transition,
     ActivationMode activationMode,
     boolean oneShot,
@@ -193,8 +208,8 @@ public record WarpTriggerData(
     /**
      * Default constructor with common defaults.
      */
-    public WarpTriggerData(String targetScene, int targetX, int targetY) {
-        this(targetScene, targetX, targetY,
+    public WarpData(String targetScene, String spawnPointId) {
+        this(targetScene, spawnPointId,
              TransitionType.FADE,
              ActivationMode.ON_ENTER,
              false,
@@ -212,29 +227,32 @@ public record WarpTriggerData(
         if (targetScene == null || targetScene.isBlank()) {
             errors.add("Target scene is required");
         }
+        if (spawnPointId == null || spawnPointId.isBlank()) {
+            errors.add("Spawn point ID is required");
+        }
         return errors;
     }
 }
 ```
 
-### DoorTriggerData
+### DoorData
 
-**File**: `src/main/java/com/pocket/rpg/collision/trigger/DoorTriggerData.java`
+**File**: `src/main/java/com/pocket/rpg/collision/trigger/DoorData.java`
 
 ```java
 /**
  * Trigger data for DOOR collision type.
  * <p>
  * Represents a door that may be locked and leads to another location.
+ * Uses spawn points for arrival position.
  */
-public record DoorTriggerData(
+public record DoorData(
     boolean locked,
     String requiredKey,      // Item ID required to unlock (null if not locked)
     boolean consumeKey,      // Whether to remove key from inventory on use
     String lockedMessage,    // Message shown when door is locked
     String targetScene,      // Destination scene (null = same scene)
-    int targetX,
-    int targetY,
+    String spawnPointId,     // References SpawnPointData.id in target scene
     TransitionType transition,
     ActivationMode activationMode,
     boolean oneShot,
@@ -244,9 +262,9 @@ public record DoorTriggerData(
     /**
      * Simple unlocked door constructor.
      */
-    public DoorTriggerData(String targetScene, int targetX, int targetY) {
+    public DoorData(String targetScene, String spawnPointId) {
         this(false, null, false, null,
-             targetScene, targetX, targetY,
+             targetScene, spawnPointId,
              TransitionType.FADE,
              ActivationMode.ON_INTERACT,
              false,
@@ -256,10 +274,10 @@ public record DoorTriggerData(
     /**
      * Locked door constructor.
      */
-    public DoorTriggerData(String requiredKey, String lockedMessage,
-                           String targetScene, int targetX, int targetY) {
+    public DoorData(String requiredKey, String lockedMessage,
+                    String targetScene, String spawnPointId) {
         this(true, requiredKey, true, lockedMessage,
-             targetScene, targetX, targetY,
+             targetScene, spawnPointId,
              TransitionType.FADE,
              ActivationMode.ON_INTERACT,
              false,
@@ -280,106 +298,127 @@ public record DoorTriggerData(
         if (targetScene == null || targetScene.isBlank()) {
             errors.add("Target scene is required");
         }
+        if (spawnPointId == null || spawnPointId.isBlank()) {
+            errors.add("Spawn point ID is required");
+        }
         return errors;
     }
 }
 ```
 
-### StairsTriggerData
+### StairsData
 
-**File**: `src/main/java/com/pocket/rpg/collision/trigger/StairsTriggerData.java`
+**File**: `src/main/java/com/pocket/rpg/collision/trigger/StairsData.java`
 
 ```java
 /**
- * Trigger data for STAIRS_UP and STAIRS_DOWN collision types.
+ * Trigger data for STAIRS collision type.
  * <p>
- * Changes the entity's elevation (floor level) when stepped on.
+ * Changes the entity's elevation based on exit direction.
+ * Uses ON_EXIT activation (mandatory) - the handler receives the direction
+ * the entity is exiting and looks up the corresponding elevation change.
+ * <p>
+ * Example: A north-south staircase:
+ *   elevationChanges = {NORTH: +1, SOUTH: -1, EAST: 0, WEST: 0}
+ *   - Exiting north → elevation increases by 1
+ *   - Exiting south → elevation decreases by 1
+ *   - Exiting east/west → no change (or blocked)
  */
-public record StairsTriggerData(
-    int targetElevation,     // Target elevation (absolute, not relative)
-    Integer targetX,         // Optional: reposition X (null = same X)
-    Integer targetY,         // Optional: reposition Y (null = same Y)
-    ActivationMode activationMode,
-    boolean oneShot,
-    boolean playerOnly
+public record StairsData(
+    Map<Direction, Integer> elevationChanges  // Direction → elevation delta
 ) implements TriggerData {
 
     /**
-     * Simple stairs constructor - just changes elevation.
+     * Simple vertical stairs (north = up, south = down).
      */
-    public StairsTriggerData(int targetElevation) {
-        this(targetElevation, null, null,
-             ActivationMode.ON_ENTER,
-             false,
-             false);  // NPCs can use stairs
+    public static StairsData vertical() {
+        return new StairsData(Map.of(
+            Direction.NORTH, 1,
+            Direction.SOUTH, -1
+        ));
     }
 
     /**
-     * Stairs with repositioning.
+     * Simple horizontal stairs (east = up, west = down).
      */
-    public StairsTriggerData(int targetElevation, int targetX, int targetY) {
-        this(targetElevation, targetX, targetY,
-             ActivationMode.ON_ENTER,
-             false,
-             false);
+    public static StairsData horizontal() {
+        return new StairsData(Map.of(
+            Direction.EAST, 1,
+            Direction.WEST, -1
+        ));
+    }
+
+    @Override
+    public ActivationMode activationMode() {
+        return ActivationMode.ON_EXIT;  // Mandatory for direction-based stairs
+    }
+
+    @Override
+    public boolean oneShot() {
+        return false;
+    }
+
+    @Override
+    public boolean playerOnly() {
+        return false;  // NPCs can use stairs
     }
 
     @Override
     public CollisionType collisionType() {
-        // Could be either STAIRS_UP or STAIRS_DOWN based on context
-        // The collisionType is stored in CollisionMap, not here
-        return null; // Determined by CollisionMap
+        return CollisionType.STAIRS;
     }
 
     @Override
     public List<String> validate() {
-        // targetElevation is a primitive, always valid
+        if (elevationChanges == null || elevationChanges.isEmpty()) {
+            return List.of("At least one direction must have an elevation change");
+        }
         return List.of();
     }
 }
 ```
 
-### ScriptTriggerData
+### SpawnPointData
 
-**File**: `src/main/java/com/pocket/rpg/collision/trigger/ScriptTriggerData.java`
+**File**: `src/main/java/com/pocket/rpg/collision/trigger/SpawnPointData.java`
 
 ```java
 /**
- * Trigger data for SCRIPT_TRIGGER collision type.
+ * Trigger data for SPAWN_POINT collision type.
  * <p>
- * Executes a named script when activated. This is the extension point
- * for custom trigger behavior without creating new collision types.
+ * A passive marker that serves as an arrival point for warps and doors.
+ * Does not activate - it's only referenced by other triggers via its ID.
  */
-public record ScriptTriggerData(
-    String scriptId,
-    Map<String, String> parameters,  // Type-safe: String -> String only
-    ActivationMode activationMode,
-    boolean oneShot,
-    boolean playerOnly
+public record SpawnPointData(
+    String id  // Unique identifier within this scene (e.g., "entrance", "from_cave")
 ) implements TriggerData {
 
-    /**
-     * Simple script trigger constructor.
-     */
-    public ScriptTriggerData(String scriptId) {
-        this(scriptId, Map.of(),
-             ActivationMode.ON_ENTER,
-             false,
-             true);
+    @Override
+    public ActivationMode activationMode() {
+        return ActivationMode.NONE;  // Passive marker
+    }
+
+    @Override
+    public boolean oneShot() {
+        return false;
+    }
+
+    @Override
+    public boolean playerOnly() {
+        return false;
     }
 
     @Override
     public CollisionType collisionType() {
-        return CollisionType.SCRIPT_TRIGGER;
+        return CollisionType.SPAWN_POINT;
     }
 
     @Override
     public List<String> validate() {
-        List<String> errors = new ArrayList<>();
-        if (scriptId == null || scriptId.isBlank()) {
-            errors.add("Script ID is required");
+        if (id == null || id.isBlank()) {
+            return List.of("Spawn point ID is required");
         }
-        return errors;
+        return List.of();
     }
 }
 ```
@@ -500,47 +539,70 @@ public class TriggerDataMap {
 
 ```json
 {
-  "triggers": [
-    {
-      "coord": {"x": 5, "y": 10, "elevation": 0},
-      "type": "WarpTriggerData",
-      "data": {
-        "targetScene": "cave_entrance",
-        "targetX": 3,
-        "targetY": 5,
-        "transition": "FADE",
-        "activationMode": "ON_ENTER",
-        "oneShot": false,
-        "playerOnly": true
+  "triggerData": {
+    "5,10,0": {
+      "type": "WarpData",
+      "targetScene": "cave",
+      "spawnPointId": "entrance",
+      "transition": "FADE",
+      "activationMode": "ON_ENTER",
+      "oneShot": false,
+      "playerOnly": true
+    },
+    "3,3,0": {
+      "type": "DoorData",
+      "locked": true,
+      "requiredKey": "rusty_key",
+      "consumeKey": true,
+      "lockedMessage": "The door is locked. You need a key.",
+      "targetScene": "house_interior",
+      "spawnPointId": "front_door",
+      "transition": "FADE",
+      "activationMode": "ON_INTERACT",
+      "oneShot": false,
+      "playerOnly": true
+    },
+    "8,2,0": {
+      "type": "StairsData",
+      "elevationChanges": {
+        "NORTH": 1,
+        "SOUTH": -1
       }
     },
-    {
-      "coord": {"x": 3, "y": 3, "elevation": 0},
-      "type": "DoorTriggerData",
-      "data": {
-        "locked": true,
-        "requiredKey": "rusty_key",
-        "consumeKey": true,
-        "lockedMessage": "The door is locked. You need a key.",
-        "targetScene": "house_interior",
-        "targetX": 5,
-        "targetY": 8,
-        "transition": "FADE",
-        "activationMode": "ON_INTERACT",
-        "oneShot": false,
-        "playerOnly": true
-      }
+    "0,0,0": {
+      "type": "SpawnPointData",
+      "id": "entrance"
     }
-  ]
+  }
 }
 ```
 
+**Key format**: `"x,y,elevation"` string keys for easy human readability in scene files.
+
 ### Serialization Support
 
-Use Gson with a custom TypeAdapter to handle the sealed interface:
+Use Gson with a custom TypeAdapter that uses **registry-based discovery** via `getPermittedSubclasses()`:
 
 ```java
 public class TriggerDataTypeAdapter extends TypeAdapter<TriggerData> {
+
+    private final Gson gson;
+
+    // Registry built automatically from sealed interface permits clause
+    private static final Map<String, Class<? extends TriggerData>> TYPE_REGISTRY;
+
+    static {
+        TYPE_REGISTRY = new HashMap<>();
+        for (Class<?> permitted : TriggerData.class.getPermittedSubclasses()) {
+            @SuppressWarnings("unchecked")
+            Class<? extends TriggerData> clazz = (Class<? extends TriggerData>) permitted;
+            TYPE_REGISTRY.put(clazz.getSimpleName(), clazz);
+        }
+    }
+
+    public TriggerDataTypeAdapter(Gson gson) {
+        this.gson = gson;
+    }
 
     @Override
     public void write(JsonWriter out, TriggerData data) throws IOException {
@@ -569,18 +631,21 @@ public class TriggerDataTypeAdapter extends TypeAdapter<TriggerData> {
         }
         in.endObject();
 
-        Class<? extends TriggerData> clazz = switch (type) {
-            case "WarpTriggerData" -> WarpTriggerData.class;
-            case "DoorTriggerData" -> DoorTriggerData.class;
-            case "StairsTriggerData" -> StairsTriggerData.class;
-            case "ScriptTriggerData" -> ScriptTriggerData.class;
-            default -> throw new IOException("Unknown trigger type: " + type);
-        };
+        // Look up class from registry - no switch needed!
+        Class<? extends TriggerData> clazz = TYPE_REGISTRY.get(type);
+        if (clazz == null) {
+            throw new IOException("Unknown trigger type: " + type);
+        }
 
         return gson.fromJson(dataElement, clazz);
     }
 }
 ```
+
+**Benefits of registry-based approach:**
+- Adding a new trigger type to the `permits` clause automatically registers it
+- No switch statement to maintain
+- Compile-time safety from sealed interface + runtime discovery for serialization
 
 ---
 
@@ -601,12 +666,13 @@ public class TriggerDataTypeAdapter extends TypeAdapter<TriggerData> {
 
 | File | Type | Description |
 |------|------|-------------|
-| `trigger/ActivationMode.java` | NEW | When trigger activates |
+| `trigger/ActivationMode.java` | NEW | When trigger activates (NONE, ON_ENTER, ON_EXIT, ON_INTERACT) |
 | `trigger/TransitionType.java` | NEW | Scene transition types |
 | `trigger/TileCoord.java` | NEW | Coordinate packing |
 | `trigger/TriggerData.java` | NEW | Sealed interface |
-| `trigger/WarpTriggerData.java` | NEW | Warp configuration |
-| `trigger/DoorTriggerData.java` | NEW | Door configuration |
-| `trigger/StairsTriggerData.java` | NEW | Stairs configuration |
-| `trigger/ScriptTriggerData.java` | NEW | Script configuration |
+| `trigger/WarpData.java` | NEW | Warp configuration (spawn point based) |
+| `trigger/DoorData.java` | NEW | Door configuration (spawn point based, key/lock) |
+| `trigger/StairsData.java` | NEW | Stairs configuration (direction-based elevation, ON_EXIT) |
+| `trigger/SpawnPointData.java` | NEW | Spawn point marker (passive, NONE activation) |
 | `trigger/TriggerDataMap.java` | NEW | Storage map |
+| `trigger/TriggerDataTypeAdapter.java` | NEW | Gson serialization |

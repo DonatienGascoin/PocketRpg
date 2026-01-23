@@ -168,6 +168,16 @@ public interface AssetContext {
      */
     List<String> scanAll();
 
+    /**
+     * Scans a specific directory for all loadable assets.
+     * Returns paths for all files that any registered loader can handle.
+     * Does NOT load the assets, just returns their paths.
+     *
+     * @param directory Directory to scan (absolute or relative to working directory)
+     * @return List of paths to all loadable assets in that directory
+     */
+    List<String> scanAll(String directory);
+
     void setAssetRoot(String assetRoot);
 
     String getAssetRoot();

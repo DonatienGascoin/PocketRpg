@@ -24,6 +24,11 @@ public class UIImageInspector extends CustomComponentInspector<UIImage> {
     public boolean draw() {
         boolean changed = false;
 
+        // === UI KEY ===
+        changed |= FieldEditors.drawString("UI Key", component, "uiKey");
+
+        ImGui.spacing();
+
         // Sprite
         ImGui.text(MaterialIcons.Image + " Sprite");
         changed |= FieldEditors.drawAsset("sprite", component, "sprite", Sprite.class, entity);

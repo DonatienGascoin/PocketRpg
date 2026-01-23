@@ -1,15 +1,22 @@
 package com.pocket.rpg.editor.tools;
 
+import com.pocket.rpg.collision.CollisionType;
+import com.pocket.rpg.collision.trigger.TileCoord;
 import com.pocket.rpg.components.SpriteRenderer;
+import com.pocket.rpg.editor.EditorSelectionManager;
 import com.pocket.rpg.editor.camera.EditorCamera;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.rendering.resources.Sprite;
 import imgui.ImDrawList;
 import imgui.ImGui;
+import imgui.flag.ImGuiMouseCursor;
+import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
+
+import java.util.function.Consumer;
 
 /**
  * Tool for selecting and moving entities in the scene.
@@ -19,6 +26,7 @@ import org.joml.Vector3f;
  * - Drag to move selected entity
  * - Click empty space to deselect
  * - Renders selection highlight
+ * - When collision layer is selected, clicking trigger tiles selects them
  */
 public class SelectionTool implements EditorTool, ViewportAwareTool {
 
@@ -27,6 +35,22 @@ public class SelectionTool implements EditorTool, ViewportAwareTool {
 
     @Setter
     private EditorCamera camera;
+
+    @Setter
+    private EditorSelectionManager selectionManager;
+
+    /**
+     * Callback when a trigger tile is selected (collision layer mode).
+     */
+    @Setter
+    private Consumer<TileCoord> onTriggerSelected;
+
+    /**
+     * Current collision Z-level for trigger selection.
+     */
+    @Getter
+    @Setter
+    private int collisionZLevel = 0;
 
     // Drag state
     private EditorGameObject draggedEntity = null;
@@ -58,6 +82,81 @@ public class SelectionTool implements EditorTool, ViewportAwareTool {
             return;
         }
 
+        // Check if clicking on a trigger tile - auto-select collision layer if needed
+        if (isClickingTrigger(tileX, tileY)) {
+            // Auto-select collision layer if not already selected
+            if (!isCollisionLayerSelected() && selectionManager != null) {
+                selectionManager.selectCollisionLayer();
+            }
+            handleCollisionLayerClick(tileX, tileY);
+            return;
+        }
+
+        // Check if clicking on an entity - this exits collision mode
+        float worldX = tileX + 0.5f;
+        float worldY = tileY + 0.5f;
+        EditorGameObject entity = scene.findEntityAt(worldX, worldY);
+
+        if (entity != null) {
+            // Clicking entity exits collision mode and selects the entity
+            handleEntitySelection(tileX, tileY);
+            return;
+        }
+
+        // If collision layer is selected and clicking empty space, stay in collision mode
+        if (isCollisionLayerSelected()) {
+            return;
+        }
+
+        // Normal entity selection mode (deselect)
+        handleEntitySelection(tileX, tileY);
+    }
+
+    /**
+     * Checks if clicking on a trigger tile.
+     * Uses scene's current collision z-level for accurate detection.
+     */
+    private boolean isClickingTrigger(int tileX, int tileY) {
+        if (scene.getCollisionMap() == null) {
+            return false;
+        }
+        int zLevel = scene.getCollisionZLevel();
+        CollisionType type = scene.getCollisionMap().get(tileX, tileY, zLevel);
+        return type != null && type.isTrigger();
+    }
+
+    /**
+     * Checks if collision layer is currently selected.
+     */
+    private boolean isCollisionLayerSelected() {
+        return selectionManager != null && selectionManager.isCollisionLayerSelected();
+    }
+
+    /**
+     * Handles click in collision layer mode - selects trigger tiles.
+     * Uses scene's current collision z-level.
+     */
+    private void handleCollisionLayerClick(int tileX, int tileY) {
+        if (scene.getCollisionMap() == null) {
+            return;
+        }
+
+        int zLevel = scene.getCollisionZLevel();
+        CollisionType type = scene.getCollisionMap().get(tileX, tileY, zLevel);
+
+        // Only select if it's a trigger tile
+        if (type != null && type.isTrigger()) {
+            TileCoord coord = new TileCoord(tileX, tileY, zLevel);
+            if (onTriggerSelected != null) {
+                onTriggerSelected.accept(coord);
+            }
+        }
+    }
+
+    /**
+     * Handles normal entity selection.
+     */
+    private void handleEntitySelection(int tileX, int tileY) {
         // Calculate world position (approximate - center of tile)
         float worldX = tileX + 0.5f;
         float worldY = tileY + 0.5f;
@@ -66,8 +165,14 @@ public class SelectionTool implements EditorTool, ViewportAwareTool {
         EditorGameObject entity = scene.findEntityAt(worldX, worldY);
 
         if (entity != null) {
-            // Select and start drag
-            scene.setSelectedEntity(entity);
+            // Select entity via EditorSelectionManager (properly exits collision mode)
+            if (selectionManager != null) {
+                selectionManager.selectEntity(entity);
+            } else {
+                scene.setSelectedEntity(entity);
+            }
+
+            // Start drag
             draggedEntity = entity;
             isDragging = true;
 
@@ -75,8 +180,12 @@ public class SelectionTool implements EditorTool, ViewportAwareTool {
             Vector3f pos = entity.getPosition();
             dragOffset.set(pos.x - worldX, pos.y - worldY);
         } else {
-            // Deselect
-            scene.setSelectedEntity(null);
+            // Deselect - clear selection via manager
+            if (selectionManager != null) {
+                selectionManager.clearSelection();
+            } else {
+                scene.setSelectedEntity(null);
+            }
             draggedEntity = null;
             isDragging = false;
         }
@@ -140,14 +249,23 @@ public class SelectionTool implements EditorTool, ViewportAwareTool {
             renderSelectionHighlight(drawList, camera, selected);
         }
 
-        // Draw hover highlight on hovered entity (if different from selected)
+        // Draw hover highlight on hovered entity or trigger (if different from selected)
         if (hoveredTileX != Integer.MIN_VALUE && hoveredTileY != Integer.MIN_VALUE) {
             float worldX = hoveredTileX + 0.5f;
             float worldY = hoveredTileY + 0.5f;
 
             EditorGameObject hovered = scene.findEntityAt(worldX, worldY);
+            boolean hoveringTrigger = isClickingTrigger(hoveredTileX, hoveredTileY);
+
+            // Entity hover: blue bounds + hand cursor
             if (hovered != null && hovered != selected) {
                 renderHoverHighlight(drawList, camera, hovered);
+                ImGui.setMouseCursor(ImGuiMouseCursor.Hand);
+            }
+            // Trigger hover: blue tile bounds + hand cursor
+            else if (hoveringTrigger) {
+                renderTriggerHoverHighlight(drawList, camera, hoveredTileX, hoveredTileY);
+                ImGui.setMouseCursor(ImGuiMouseCursor.Hand);
             }
         }
 
@@ -203,6 +321,25 @@ public class SelectionTool implements EditorTool, ViewportAwareTool {
                 corners[3].x, corners[3].y,
                 hoverColor, 1.5f
         );
+    }
+
+    /**
+     * Renders hover highlight for trigger tiles (cyan tile border).
+     */
+    private void renderTriggerHoverHighlight(ImDrawList drawList, EditorCamera camera, int tileX, int tileY) {
+        Vector2f bottomLeft = camera.worldToScreen(tileX, tileY);
+        Vector2f topRight = camera.worldToScreen(tileX + 1, tileY + 1);
+
+        float minX = viewportX + Math.min(bottomLeft.x, topRight.x);
+        float maxX = viewportX + Math.max(bottomLeft.x, topRight.x);
+        float minY = viewportY + Math.min(bottomLeft.y, topRight.y);
+        float maxY = viewportY + Math.max(bottomLeft.y, topRight.y);
+
+        // Hover color (cyan, semi-transparent) - same as entity hover
+        int hoverColor = ImGui.colorConvertFloat4ToU32(0.3f, 0.8f, 1.0f, 0.6f);
+
+        // Draw tile outline
+        drawList.addRect(minX, minY, maxX, maxY, hoverColor, 0, 0, 1.5f);
     }
 
     /**

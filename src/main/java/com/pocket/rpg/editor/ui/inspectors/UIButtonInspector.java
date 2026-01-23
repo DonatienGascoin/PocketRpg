@@ -24,6 +24,11 @@ public class UIButtonInspector extends CustomComponentInspector<UIButton> {
     public boolean draw() {
         boolean changed = false;
 
+        // === UI KEY ===
+        changed |= FieldEditors.drawString("UI Key", component, "uiKey");
+
+        ImGui.spacing();
+
         // === APPEARANCE SECTION ===
         ImGui.text(MaterialIcons.Palette + " Appearance");
         ImGui.separator();

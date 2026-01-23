@@ -2,8 +2,13 @@ package com.pocket.rpg.editor.rendering;
 
 import com.pocket.rpg.collision.CollisionMap;
 import com.pocket.rpg.collision.CollisionType;
+import com.pocket.rpg.collision.trigger.TileCoord;
+import com.pocket.rpg.collision.trigger.TriggerDataMap;
 import com.pocket.rpg.editor.camera.EditorCamera;
+import com.pocket.rpg.editor.core.EditorFonts;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import imgui.ImDrawList;
+import imgui.ImFont;
 import imgui.ImGui;
 import lombok.Getter;
 import lombok.Setter;
@@ -12,7 +17,8 @@ import org.joml.Vector2f;
 /**
  * Renders collision overlay in the editor viewport.
  * <p>
- * Shows colored semi-transparent squares for each collision tile type.
+ * Shows colored semi-transparent squares for each collision tile type,
+ * with icons for trigger tiles and visual feedback for selection/configuration state.
  */
 public class CollisionOverlayRenderer {
 
@@ -34,14 +40,38 @@ public class CollisionOverlayRenderer {
     @Setter
     private int zLevel = 0;
 
+    /**
+     * Whether to show icons on trigger tiles.
+     */
+    @Getter
+    @Setter
+    private boolean showIcons = true;
+
+    /**
+     * Currently selected trigger tile (for highlight).
+     */
+    @Getter
+    @Setter
+    private TileCoord selectedTrigger;
+
+    /**
+     * TriggerDataMap for checking configuration status.
+     */
+    @Setter
+    private TriggerDataMap triggerDataMap;
+
     // Viewport bounds for clipping
     @Setter
     private float viewportX, viewportY;
     @Setter
     private float viewportWidth, viewportHeight;
 
+    // Animation state for selection pulse
+    private float selectionPulse = 0f;
+
     /**
-     * Renders collision overlay for visible tiles.
+     * Renders collision overlay for visible tiles (non-trigger tiles only).
+     * Triggers are rendered separately via renderTriggersOnly().
      *
      * @param collisionMap CollisionMap to render
      * @param camera       Editor camera
@@ -61,14 +91,13 @@ public class CollisionOverlayRenderer {
         int maxTileX = (int) Math.ceil(worldBounds[2]);
         int maxTileY = (int) Math.ceil(worldBounds[3]);
 
-        // Render each visible tile
+        // Render non-trigger tile backgrounds only
         for (int tileY = minTileY; tileY <= maxTileY; tileY++) {
             for (int tileX = minTileX; tileX <= maxTileX; tileX++) {
                 CollisionType type = collisionMap.get(tileX, tileY, zLevel);
 
-                // Skip NONE (no collision)
-                if (type == CollisionType.NONE) {
-                    continue;
+                if (type == CollisionType.NONE || type.isTrigger()) {
+                    continue; // Skip triggers - they're rendered separately
                 }
 
                 renderTile(drawList, camera, tileX, tileY, type);
@@ -79,7 +108,64 @@ public class CollisionOverlayRenderer {
     }
 
     /**
-     * Renders a single collision tile.
+     * Renders trigger tiles only (always visible regardless of toggle).
+     * Includes tile backgrounds, icons, and selection highlight.
+     *
+     * @param collisionMap CollisionMap to render
+     * @param camera       Editor camera
+     */
+    public void renderTriggersOnly(CollisionMap collisionMap, EditorCamera camera) {
+        if (collisionMap == null) {
+            return;
+        }
+
+        ImDrawList drawList = ImGui.getWindowDrawList();
+        drawList.pushClipRect(viewportX, viewportY, viewportX + viewportWidth, viewportY + viewportHeight, true);
+
+        // Update selection animation (slow pulse)
+        selectionPulse += 0.03f;
+
+        // Get visible tile bounds
+        float[] worldBounds = camera.getWorldBounds();
+        int minTileX = (int) Math.floor(worldBounds[0]);
+        int minTileY = (int) Math.floor(worldBounds[1]);
+        int maxTileX = (int) Math.ceil(worldBounds[2]);
+        int maxTileY = (int) Math.ceil(worldBounds[3]);
+
+        // First pass: render trigger tile backgrounds
+        for (int tileY = minTileY; tileY <= maxTileY; tileY++) {
+            for (int tileX = minTileX; tileX <= maxTileX; tileX++) {
+                CollisionType type = collisionMap.get(tileX, tileY, zLevel);
+
+                if (type != null && type.isTrigger()) {
+                    renderTile(drawList, camera, tileX, tileY, type);
+                }
+            }
+        }
+
+        // Second pass: render icons on top (for triggers)
+        if (showIcons) {
+            for (int tileY = minTileY; tileY <= maxTileY; tileY++) {
+                for (int tileX = minTileX; tileX <= maxTileX; tileX++) {
+                    CollisionType type = collisionMap.get(tileX, tileY, zLevel);
+
+                    if (type != null && type.isTrigger()) {
+                        renderTriggerIcon(drawList, camera, tileX, tileY, type);
+                    }
+                }
+            }
+        }
+
+        // Third pass: render selection highlight
+        if (selectedTrigger != null && selectedTrigger.elevation() == zLevel) {
+            renderSelectionHighlight(drawList, camera);
+        }
+
+        drawList.popClipRect();
+    }
+
+    /**
+     * Renders a single collision tile (colored rectangle).
      */
     private void renderTile(ImDrawList drawList, EditorCamera camera,
                             int tileX, int tileY, CollisionType type) {
@@ -110,6 +196,128 @@ public class CollisionOverlayRenderer {
                 color[0] * 0.8f, color[1] * 0.8f, color[2] * 0.8f, opacity * 0.8f
         );
         drawList.addRect(minX, minY, maxX, maxY, borderColor, 0, 0, 1.0f);
+    }
+
+    /**
+     * Renders icon for trigger tiles.
+     */
+    private void renderTriggerIcon(ImDrawList drawList, EditorCamera camera,
+                                   int tileX, int tileY, CollisionType type) {
+        Vector2f bottomLeft = camera.worldToScreen(tileX, tileY);
+        Vector2f topRight = camera.worldToScreen(tileX + 1, tileY + 1);
+
+        float minX = viewportX + Math.min(bottomLeft.x, topRight.x);
+        float maxX = viewportX + Math.max(bottomLeft.x, topRight.x);
+        float minY = viewportY + Math.min(bottomLeft.y, topRight.y);
+        float maxY = viewportY + Math.max(bottomLeft.y, topRight.y);
+
+        float tileWidth = maxX - minX;
+        float tileHeight = maxY - minY;
+        float centerX = minX + tileWidth / 2;
+        float centerY = minY + tileHeight / 2;
+
+        // Skip if tile is too small to show icons
+        if (tileWidth < 14 || tileHeight < 14) return;
+
+        // Check if trigger is configured
+        boolean isConfigured = triggerDataMap != null && triggerDataMap.has(tileX, tileY, zLevel);
+
+        // Determine icon to show
+        String icon;
+        if (!isConfigured) {
+            // Show warning icon for unconfigured triggers
+            icon = MaterialIcons.Warning;
+        } else if (type.hasIcon()) {
+            icon = type.getIcon();
+        } else {
+            return; // No icon to show
+        }
+
+        // Icon color
+        int iconColor;
+        if (!isConfigured) {
+            // Warning: orange
+            iconColor = ImGui.colorConvertFloat4ToU32(1.0f, 0.6f, 0.2f, 1.0f);
+        } else {
+            // Normal: white
+            iconColor = ImGui.colorConvertFloat4ToU32(1.0f, 1.0f, 1.0f, 0.95f);
+        }
+
+        // Select appropriate icon font based on tile size
+        float targetSize = Math.min(tileWidth, tileHeight) * 0.7f;
+        ImFont iconFont = EditorFonts.getIconFont(targetSize);
+        int fontSize = (int) iconFont.getFontSize();
+
+        // Center the icon
+        float textX = centerX - fontSize / 2f;
+        float textY = centerY - fontSize / 2f;
+
+        // Draw shadow for better visibility
+        int shadowColor = ImGui.colorConvertFloat4ToU32(0.0f, 0.0f, 0.0f, 0.6f);
+        drawList.addText(iconFont, fontSize, textX + 1, textY + 1, shadowColor, icon);
+
+        // Draw icon
+        drawList.addText(iconFont, fontSize, textX, textY, iconColor, icon);
+
+        // For unconfigured triggers, also draw the type icon in top-left corner
+        if (!isConfigured && type.hasIcon() && tileWidth >= 28) {
+            ImFont smallFont = EditorFonts.getIconFontTiny();
+            int smallSize = (int) smallFont.getFontSize();
+            float typeX = minX + 2;
+            float typeY = minY + 2;
+            int typeColor = ImGui.colorConvertFloat4ToU32(1.0f, 1.0f, 1.0f, 0.7f);
+            drawList.addText(smallFont, smallSize, typeX, typeY, typeColor, type.getIcon());
+        }
+    }
+
+    /**
+     * Renders animated selection highlight for selected trigger.
+     * Corner markers are always visible, border lines pulse.
+     */
+    private void renderSelectionHighlight(ImDrawList drawList, EditorCamera camera) {
+        int x = selectedTrigger.x();
+        int y = selectedTrigger.y();
+
+        Vector2f bottomLeft = camera.worldToScreen(x, y);
+        Vector2f topRight = camera.worldToScreen(x + 1, y + 1);
+
+        float minX = viewportX + Math.min(bottomLeft.x, topRight.x);
+        float maxX = viewportX + Math.max(bottomLeft.x, topRight.x);
+        float minY = viewportY + Math.min(bottomLeft.y, topRight.y);
+        float maxY = viewportY + Math.max(bottomLeft.y, topRight.y);
+
+        // Pulsing alpha for border (0.5 to 1.0)
+        float pulse = 0.5f + 0.5f * (float) Math.sin(selectionPulse);
+
+        // Yellow/gold selection color - border pulses
+        int fillColor = ImGui.colorConvertFloat4ToU32(1.0f, 0.9f, 0.0f, 0.15f * pulse);
+        int borderColor = ImGui.colorConvertFloat4ToU32(1.0f, 0.9f, 0.0f, 0.9f * pulse);
+
+        // Draw filled highlight (pulses)
+        drawList.addRectFilled(minX, minY, maxX, maxY, fillColor);
+
+        // Draw thick border (pulses)
+        drawList.addRect(minX, minY, maxX, maxY, borderColor, 0, 0, 2.5f);
+
+        // Draw corner markers - always fully visible (no pulse)
+        float markerSize = Math.min(6, (maxX - minX) * 0.2f);
+        int markerColor = ImGui.colorConvertFloat4ToU32(1.0f, 1.0f, 1.0f, 1.0f);
+
+        // Top-left corner
+        drawList.addLine(minX, minY, minX + markerSize, minY, markerColor, 2);
+        drawList.addLine(minX, minY, minX, minY + markerSize, markerColor, 2);
+
+        // Top-right corner
+        drawList.addLine(maxX, minY, maxX - markerSize, minY, markerColor, 2);
+        drawList.addLine(maxX, minY, maxX, minY + markerSize, markerColor, 2);
+
+        // Bottom-left corner
+        drawList.addLine(minX, maxY, minX + markerSize, maxY, markerColor, 2);
+        drawList.addLine(minX, maxY, minX, maxY - markerSize, markerColor, 2);
+
+        // Bottom-right corner
+        drawList.addLine(maxX, maxY, maxX - markerSize, maxY, markerColor, 2);
+        drawList.addLine(maxX, maxY, maxX, maxY - markerSize, markerColor, 2);
     }
 
     /**

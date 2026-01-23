@@ -5,6 +5,7 @@ import com.pocket.rpg.collision.MovementModifier;
 import com.pocket.rpg.input.Input;
 import com.pocket.rpg.input.KeyCode;
 import lombok.Getter;
+import lombok.Setter;
 
 /**
  * Handles player input and translates it to GridMovement commands.
@@ -12,12 +13,17 @@ import lombok.Getter;
  * Reads keyboard input and calls GridMovement.move() in the appropriate direction.
  * Also handles debug output for collision testing.
  */
-@ComponentMeta(category = "Physics")
+@ComponentMeta(category = "Player")
 public class PlayerMovement extends Component {
 
     @ComponentRef
     private GridMovement movement;
 
+    /**
+     * -- SETTER --
+     *  Enables or disables debug output.
+     */
+    @Setter
     @Getter
     private boolean debugOutput = true;
 
@@ -54,25 +60,6 @@ public class PlayerMovement extends Component {
 
         if (direction != null) {
             boolean moved = movement.move(direction);
-
-            if (debugOutput) {
-                if (moved) {
-                    MovementModifier modifier = movement.getCurrentModifier();
-                    String modStr = modifier != MovementModifier.NORMAL ? " [" + modifier + "]" : "";
-                    System.out.printf("[PlayerMovement] Moving %s to (%d, %d)%s%n",
-                            direction, movement.getGridX(), movement.getGridY(), modStr);
-                } else {
-                    System.out.printf("[PlayerMovement] Blocked %s from (%d, %d)%n",
-                            direction, movement.getGridX(), movement.getGridY());
-                }
-            }
         }
-    }
-
-    /**
-     * Enables or disables debug output.
-     */
-    public void setDebugOutput(boolean enabled) {
-        this.debugOutput = enabled;
     }
 }

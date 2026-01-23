@@ -41,6 +41,12 @@ public class CollisionBehaviorRegistry {
         register(new LedgeBehavior(CollisionType.LEDGE_LEFT));
         register(new LedgeBehavior(CollisionType.LEDGE_RIGHT));
 
+        // Elevated ledges (same behavior, but GridMovement applies elevation change)
+        register(new LedgeBehavior(CollisionType.LEDGE_DOWN_ELEV));
+        register(new LedgeBehavior(CollisionType.LEDGE_UP_ELEV));
+        register(new LedgeBehavior(CollisionType.LEDGE_LEFT_ELEV));
+        register(new LedgeBehavior(CollisionType.LEDGE_RIGHT_ELEV));
+
         // Special terrain
         register(new WaterBehavior());
         register(new IceBehavior());

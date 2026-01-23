@@ -1,7 +1,9 @@
 package com.pocket.rpg.editor.panels;
 
 import com.pocket.rpg.collision.CollisionType;
+import com.pocket.rpg.collision.trigger.TileCoord;
 import com.pocket.rpg.editor.EditorSelectionManager;
+import com.pocket.rpg.editor.panels.collision.TriggerListSection;
 import com.pocket.rpg.editor.panels.collisions.CollisionToolConfigView;
 import com.pocket.rpg.editor.panels.collisions.CollisionTypeSelector;
 import com.pocket.rpg.editor.scene.EditorScene;
@@ -12,6 +14,9 @@ import imgui.flag.ImGuiTableFlags;
 import imgui.flag.ImGuiWindowFlags;
 import lombok.Getter;
 import lombok.Setter;
+
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * Panel for editing collision map and selecting collision types.
@@ -41,8 +46,28 @@ public class CollisionPanel extends EditorPanel {
 
     private final CollisionTypeSelector typeSelector;
     private final CollisionToolConfigView toolConfigView;
+    private final TriggerListSection triggerListSection;
+
     @Getter
     @Setter private boolean isHorizontalLayout = false;
+
+    @Setter
+    private Consumer<TileCoord> onTriggerSelected;
+
+    @Setter
+    private Consumer<TileCoord> onTriggerFocus;
+
+    /**
+     * Callback to switch to brush tool when selecting a collision type.
+     */
+    @Setter
+    private Runnable onSwitchToBrushTool;
+
+    /**
+     * Supplier to get the current active tool for checking if we should switch.
+     */
+    @Setter
+    private Supplier<EditorTool> activeToolSupplier;
 
     private EditorSelectionManager editorSelectionManager;
 
@@ -50,8 +75,12 @@ public class CollisionPanel extends EditorPanel {
         super(PANEL_ID, false); // Default closed - painting panel
         this.typeSelector = new CollisionTypeSelector();
         this.toolConfigView = new CollisionToolConfigView();
+        this.triggerListSection = new TriggerListSection();
 
         typeSelector.setOnTypeSelected(this::onTypeSelected);
+        triggerListSection.setOnTriggerSelected(this::handleTriggerSelected);
+        triggerListSection.setOnTriggerFocus(this::handleTriggerFocus);
+        toolConfigView.setOnElevationChanged(this::onElevationChanged);
     }
 
     /**
@@ -69,8 +98,18 @@ public class CollisionPanel extends EditorPanel {
      * Called when the editor selection type changes.
      */
     private void onSelectionTypeChanged(EditorSelectionManager.SelectionType newType) {
-        // Currently no state to clear when leaving collision mode,
-        // but this allows for future extensions
+        // Clear trigger selection when leaving collision mode
+        if (newType != EditorSelectionManager.SelectionType.COLLISION_LAYER) {
+            clearTriggerSelection();
+        }
+    }
+
+    /**
+     * Called when the elevation level changes.
+     */
+    private void onElevationChanged(int newLevel) {
+        // Clear trigger selection when switching elevation levels
+        clearTriggerSelection();
     }
 
     /**
@@ -115,6 +154,9 @@ public class CollisionPanel extends EditorPanel {
         toolConfigView.setFillTool(fillTool);
         toolConfigView.setRectangleTool(rectangleTool);
         toolConfigView.setPickerTool(pickerTool);
+
+        triggerListSection.setScene(scene);
+        triggerListSection.setCurrentElevation(toolConfigView.getElevation());
     }
 
     private void renderVertical() {
@@ -142,55 +184,49 @@ public class CollisionPanel extends EditorPanel {
     private void renderHorizontal() {
         renderSelectionWarning();
 
-        if (ImGui.beginTable("collisionTable", 2, ImGuiTableFlags.BordersInnerV)) {
+        // Top bar: Tool size, visibility, elevation, stats
+        renderTopBar();
+        ImGui.separator();
 
-            ImGui.tableSetupColumn(
-                    "Left",
-                    ImGuiTableColumnFlags.WidthFixed,
-                    ImGui.getWindowWidth() * 0.33f
-            );
-            ImGui.tableSetupColumn("Right");
+        // 3-column layout
+        if (ImGui.beginTable("collisionTable3", 3, ImGuiTableFlags.BordersInnerV)) {
+            float availWidth = ImGui.getContentRegionAvailX();
+            ImGui.tableSetupColumn("Col1_Basic", ImGuiTableColumnFlags.WidthFixed, availWidth * 0.30f);
+            ImGui.tableSetupColumn("Col2_Metadata", ImGuiTableColumnFlags.WidthFixed, availWidth * 0.30f);
+            ImGui.tableSetupColumn("Col3_Triggers", ImGuiTableColumnFlags.WidthStretch);
 
-            // ===== LEFT COLUMN =====
+            // ===== COLUMN 1: Basic Types =====
             ImGui.tableNextColumn();
+            typeSelector.renderColumn1();
 
-            renderToolSizeForActiveTool();
-            toolConfigView.renderVisibilitySection();
-
-            // Separator between visibility and selected
-            ImGui.separator();
-
-            ImGui.text("Selected: " + typeSelector.getSelectedType().getDisplayName());
-            ImGui.textWrapped(
-                    typeSelector.getTypeDescription(typeSelector.getSelectedType())
-            );
-
-            ImGui.separator();
-            toolConfigView.renderStatsSection();
-
-            // ===== RIGHT COLUMN =====
+            // ===== COLUMN 2: Metadata Types + Selected Info =====
             ImGui.tableNextColumn();
+            typeSelector.renderColumn2();
 
-            toolConfigView.renderZLevelSection();
-
-            // Separator between Z index and collision type
-            ImGui.separator();
-
-            // Scrollable collision type ONLY
-            ImGui.text("Collision Types");
-            ImGui.beginChild(
-                    "CollisionTypeScroll",
-                    0,
-                    0,
-                    false,
-                    ImGuiWindowFlags.HorizontalScrollbar
-            );
-
-            typeSelector.renderHorizontal(canPaint());
-            ImGui.endChild();
+            // ===== COLUMN 3: Trigger List =====
+            ImGui.tableNextColumn();
+            triggerListSection.render();
 
             ImGui.endTable();
         }
+    }
+
+    private void renderTopBar() {
+        // Brush size (compact)
+        ImGui.text("Brush Size:");
+        ImGui.sameLine();
+        ImGui.setNextItemWidth(50);
+        toolConfigView.renderToolSizeSlider();
+        ImGui.sameLine();
+
+        // Elevation buttons
+        ImGui.text("Elevation:");
+        ImGui.sameLine();
+        toolConfigView.renderElevationInput();
+        ImGui.sameLine();
+
+        // Stats
+        ImGui.textDisabled("| " + toolConfigView.getTileCount() + " tiles");
     }
 
 
@@ -208,6 +244,15 @@ public class CollisionPanel extends EditorPanel {
         if (editorSelectionManager != null) {
             editorSelectionManager.selectCollisionLayer();
         }
+
+        // Switch to brush tool if not already in fill or rectangle tool
+        if (onSwitchToBrushTool != null && activeToolSupplier != null) {
+            EditorTool activeTool = activeToolSupplier.get();
+            boolean isFillOrRectangle = activeTool == fillTool || activeTool == rectangleTool;
+            if (!isFillOrRectangle) {
+                onSwitchToBrushTool.run();
+            }
+        }
     }
 
     public CollisionType getSelectedType() {
@@ -216,5 +261,58 @@ public class CollisionPanel extends EditorPanel {
 
     public void setSelectedType(CollisionType type) {
         typeSelector.setSelectedType(type);
+    }
+
+    private void handleTriggerSelected(TileCoord coord) {
+        if (onTriggerSelected != null) {
+            onTriggerSelected.accept(coord);
+        }
+
+        // Also ensure collision layer is selected
+        if (editorSelectionManager != null) {
+            editorSelectionManager.selectCollisionLayer();
+        }
+    }
+
+    private void handleTriggerFocus(TileCoord coord) {
+        // First select the trigger
+        handleTriggerSelected(coord);
+
+        // Then notify to focus camera
+        if (onTriggerFocus != null) {
+            onTriggerFocus.accept(coord);
+        }
+    }
+
+    /**
+     * Gets the currently selected trigger tile, or null if none.
+     */
+    public TileCoord getSelectedTrigger() {
+        return triggerListSection.getSelectedTrigger();
+    }
+
+    /**
+     * Clears the trigger selection and notifies listeners.
+     */
+    public void clearTriggerSelection() {
+        triggerListSection.clearSelection();
+        // Also notify inspector to clear trigger display
+        if (onTriggerSelected != null) {
+            onTriggerSelected.accept(null);
+        }
+    }
+
+    /**
+     * Sets the selected trigger (e.g., when clicking in scene view).
+     */
+    public void setSelectedTrigger(TileCoord coord) {
+        triggerListSection.setSelectedTrigger(coord);
+    }
+
+    /**
+     * Sets the camera world bounds supplier for visibility checking.
+     */
+    public void setCameraWorldBoundsSupplier(Supplier<float[]> supplier) {
+        triggerListSection.setCameraWorldBoundsSupplier(supplier);
     }
 }

@@ -62,6 +62,11 @@ public class RuntimeSceneLoader {
             scene.getCollisionMap().fromBase64(data.getCollisionData());
         }
 
+        // Load trigger data map
+        if (data.getTriggerData() != null) {
+            scene.getTriggerDataMap().fromSerializableMap(data.getTriggerData());
+        }
+
         // Load all GameObjects with hierarchy support
         // Note: GameObjects are added but not started (no scene.initialize() yet)
         loadGameObjectsWithHierarchy(scene, data.getGameObjects());

@@ -1,5 +1,6 @@
 package com.pocket.rpg.editor;
 
+import com.pocket.rpg.collision.trigger.TileCoord;
 import com.pocket.rpg.editor.panels.CollisionPanel;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.tools.*;
@@ -43,6 +44,9 @@ public class EditorToolController {
 
     // Message callback
     @Setter private Consumer<String> messageCallback;
+
+    // Trigger selection callback (when clicking trigger tiles in scene view)
+    @Setter private Consumer<TileCoord> triggerSelectedCallback;
 
     public EditorToolController(EditorContext context) {
         this.context = context;
@@ -91,6 +95,7 @@ public class EditorToolController {
         selectionTool = new SelectionTool();
         selectionTool.setScene(scene);
         selectionTool.setCamera(context.getCamera());
+        selectionTool.setSelectionManager(context.getSelectionManager());
         toolManager.registerTool(selectionTool);
 
         // Setup callbacks
@@ -135,6 +140,7 @@ public class EditorToolController {
         collisionFillTool.setZLevel(z);
         collisionRectangleTool.setZLevel(z);
         collisionPickerTool.setZLevel(z);
+        selectionTool.setCollisionZLevel(z);
     }
 
     private void setupCallbacks() {
@@ -156,6 +162,20 @@ public class EditorToolController {
             }
             toolManager.setActiveTool(collisionBrushTool);
             showMessage("Picked collision: " + type.getDisplayName() + " - switched to Brush");
+        });
+
+        // Trigger selection callback (when clicking on trigger tiles with picker)
+        collisionPickerTool.setOnTriggerSelected(coord -> {
+            if (triggerSelectedCallback != null) {
+                triggerSelectedCallback.accept(coord);
+            }
+        });
+
+        // Trigger selection callback for SelectionTool (when collision layer is selected)
+        selectionTool.setOnTriggerSelected(coord -> {
+            if (triggerSelectedCallback != null) {
+                triggerSelectedCallback.accept(coord);
+            }
         });
     }
 

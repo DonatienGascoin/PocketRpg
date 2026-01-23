@@ -42,7 +42,7 @@ public class UIManager {
     /**
      * Registers a UI component with a key.
      * Also caches the UITransform from the same GameObject if present.
-     * Called automatically by UIComponent.onStart() if uiKey is set.
+     * Called automatically by Scene during component registration if uiKey is set.
      */
     public static void register(String key, UIComponent component) {
         if (key == null || key.isBlank()) {

@@ -584,6 +584,11 @@ public class AssetManager implements AssetContext {
 
     @Override
     public List<String> scanAll() {
+        return scanAll(assetRoot);
+    }
+
+    @Override
+    public List<String> scanAll(String directory) {
         Set<String> allExtensions = new HashSet<>();
         for (AssetLoader<?> loader : loaders.values()) {
             for (String ext : loader.getSupportedExtensions()) {
@@ -591,7 +596,7 @@ public class AssetManager implements AssetContext {
             }
         }
 
-        return scanDirectory(assetRoot, allExtensions.toArray(new String[0]));
+        return scanDirectory(directory, allExtensions.toArray(new String[0]));
     }
 
     /**

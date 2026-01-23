@@ -55,6 +55,11 @@ public class SceneData {
     private String collisionData;
 
     /**
+     * Trigger data map (JSON map of "x,y,z" -> TriggerData).
+     */
+    private java.util.Map<String, Object> triggerData;
+
+    /**
      * Scene-level metadata (can store custom data).
      */
     private java.util.Map<String, Object> metadata;

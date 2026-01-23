@@ -116,12 +116,15 @@ class TransitionManagerTest {
     }
 
     @Test
-    @DisplayName("startTransition fails if already transitioning")
-    void testStartTransitionFailsIfAlreadyTransitioning() {
+    @DisplayName("startTransition is ignored if already transitioning")
+    void testStartTransitionIgnoredIfAlreadyTransitioning() {
         transitionManager.startTransition("Scene1");
 
-        assertThrows(IllegalStateException.class, () ->
-                transitionManager.startTransition("Scene2"));
+        // Second transition should be ignored, not throw
+        transitionManager.startTransition("Scene2");
+
+        // Still transitioning to Scene1, not Scene2
+        assertTrue(transitionManager.isTransitioning());
     }
 
     @Test

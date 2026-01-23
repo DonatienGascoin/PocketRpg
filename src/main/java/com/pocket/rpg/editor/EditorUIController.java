@@ -162,6 +162,36 @@ public class EditorUIController {
         inspectorPanel.setScene(scene);
         inspectorPanel.setSelectionManager(context.getSelectionManager());
 
+        // Wire up trigger selection from collision panel to inspector
+        collisionPanel.setOnTriggerSelected(inspectorPanel::setSelectedTrigger);
+
+        // Wire up collision type selection to switch to brush tool (if not in fill/rectangle)
+        collisionPanel.setActiveToolSupplier(() -> context.getToolManager().getActiveTool());
+        collisionPanel.setOnSwitchToBrushTool(() ->
+                context.getToolManager().setActiveTool(toolController.getCollisionBrushTool())
+        );
+
+        // Wire up trigger focus to center camera
+        collisionPanel.setOnTriggerFocus(coord -> {
+            if (context.getCamera() != null) {
+                context.getCamera().centerOn(coord.x() + 0.5f, coord.y() + 0.5f);
+            }
+        });
+
+        // Wire up camera bounds supplier for visibility checking
+        collisionPanel.setCameraWorldBoundsSupplier(() -> {
+            if (context.getCamera() != null) {
+                return context.getCamera().getWorldBounds();
+            }
+            return null;
+        });
+
+        // Wire up trigger selection from scene view (picker tool or selection tool) to both inspector and collision panel
+        toolController.setTriggerSelectedCallback(coord -> {
+            inspectorPanel.setSelectedTrigger(coord);
+            collisionPanel.setSelectedTrigger(coord);
+        });
+
         configPanel = new ConfigPanel(context);
 
         uiDesignerPanel = new UIDesignerPanel(context);
@@ -407,9 +437,7 @@ public class EditorUIController {
 
     private void renderCollisionOverlay() {
         EditorScene scene = context.getCurrentScene();
-
-        // Show collision overlay if explicitly visible OR collision panel is visible
-        if (scene == null || (!scene.isCollisionVisible() && !collisionPanel.isContentVisible())) {
+        if (scene == null) {
             return;
         }
 
@@ -421,7 +449,19 @@ public class EditorUIController {
         );
         collisionOverlay.setOpacity(scene.getCollisionOpacity());
         collisionOverlay.setZLevel(scene.getCollisionZLevel());
-        collisionOverlay.render(scene.getCollisionMap(), context.getCamera());
+
+        // Wire up trigger data for icon rendering and configuration status
+        collisionOverlay.setTriggerDataMap(scene.getTriggerDataMap());
+        collisionOverlay.setSelectedTrigger(collisionPanel.getSelectedTrigger());
+
+        // Always render triggers (warps, doors, stairs, spawn points)
+        collisionOverlay.renderTriggersOnly(scene.getCollisionMap(), context.getCamera());
+
+        // Render non-trigger collision tiles only when toggle is on OR collision mode is active
+        boolean collisionModeActive = context.getSelectionManager().isCollisionLayerSelected();
+        if (scene.isCollisionVisible() || collisionModeActive) {
+            collisionOverlay.render(scene.getCollisionMap(), context.getCamera());
+        }
     }
 
     private void renderPanels() {

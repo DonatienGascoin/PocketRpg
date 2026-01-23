@@ -162,8 +162,8 @@ public class DemoScene extends Scene {
         // Door tile
         collisionMap.set(15, 5, CollisionType.DOOR);
 
-        // Script trigger
-        collisionMap.set(15, 6, CollisionType.SCRIPT_TRIGGER);
+        // Stairs (elevation trigger)
+        collisionMap.set(15, 6, CollisionType.STAIRS);
 
         System.out.println("[DemoScene] Collision setup complete: " + collisionMap.getTileCount() + " collision tiles");
     }

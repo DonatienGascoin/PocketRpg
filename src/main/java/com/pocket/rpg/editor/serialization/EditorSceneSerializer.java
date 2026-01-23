@@ -45,6 +45,11 @@ public class EditorSceneSerializer {
             data.setCollisionData(editorScene.getCollisionMap().toBase64());
         }
 
+        // Trigger data map
+        if (editorScene.getTriggerDataMap() != null && !editorScene.getTriggerDataMap().isEmpty()) {
+            data.setTriggerData(editorScene.getTriggerDataMap().toSerializableMap());
+        }
+
         // Convert EditorGameObjects to GameObjectData
         for (EditorGameObject entity : editorScene.getEntities()) {
             GameObjectData goData = entity.toData();
@@ -88,6 +93,11 @@ public class EditorSceneSerializer {
         // Collision map
         if (data.getCollisionData() != null) {
             scene.getCollisionMap().fromBase64(data.getCollisionData());
+        }
+
+        // Trigger data map
+        if (data.getTriggerData() != null) {
+            scene.getTriggerDataMap().fromSerializableMap(data.getTriggerData());
         }
 
         // Rebuild parent-child hierarchy and validate IDs

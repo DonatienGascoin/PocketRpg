@@ -30,6 +30,11 @@ public class UICanvasInspector extends CustomComponentInspector<UICanvas> {
     public boolean draw() {
         boolean changed = false;
 
+        // === UI KEY ===
+        changed |= FieldEditors.drawString("UI Key", component, "uiKey");
+
+        ImGui.spacing();
+
         // Render Mode
         ImGui.text(MaterialIcons.DesktopWindows + " Render Mode");
 

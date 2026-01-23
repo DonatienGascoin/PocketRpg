@@ -46,9 +46,10 @@ public enum CollisionCategory {
 ### Changes
 
 1. Add `category` field
-2. Add `icon` field (Material Icons codepoint)
-3. Add new types: `STAIRS_UP`, `STAIRS_DOWN`
-4. Add helper methods: `isTrigger()`, `requiresMetadata()`, `getIcon()`
+2. Add `description` field (for tooltips, no more switch statements)
+3. Add `icon` field (Material Icons codepoint)
+4. Add new types: `STAIRS_UP`, `STAIRS_DOWN`
+5. Add helper methods: `isTrigger()`, `requiresMetadata()`, `getIcon()`
 
 ### Updated Enum
 
@@ -56,58 +57,56 @@ public enum CollisionCategory {
 @Getter
 public enum CollisionType {
     // === MOVEMENT ===
-    NONE(0, "None", Category.MOVEMENT,
+    NONE(0, "None", Category.MOVEMENT, "No collision - fully walkable",
         new float[]{0.0f, 0.0f, 0.0f, 0.0f}, null, null),
 
-    SOLID(1, "Solid", Category.MOVEMENT,
+    SOLID(1, "Solid", Category.MOVEMENT, "Solid wall - blocks all movement",
         new float[]{0.8f, 0.2f, 0.2f, 0.6f}, null, MaterialIcons.Block),
 
     // === LEDGES ===
-    LEDGE_DOWN(2, "Ledge " + MaterialIcons.ArrowDownward, Category.LEDGE,
+    LEDGE_DOWN(2, "Ledge " + MaterialIcons.ArrowDownward, Category.LEDGE, "Ledge - can jump down (south)",
         new float[]{1.0f, 0.5f, 0.0f, 0.6f}, Direction.DOWN, MaterialIcons.ArrowDownward),
 
-    LEDGE_UP(3, "Ledge " + MaterialIcons.ArrowUpward, Category.LEDGE,
+    LEDGE_UP(3, "Ledge " + MaterialIcons.ArrowUpward, Category.LEDGE, "Ledge - can jump up (north)",
         new float[]{1.0f, 0.7f, 0.0f, 0.6f}, Direction.UP, MaterialIcons.ArrowUpward),
 
-    LEDGE_LEFT(4, "Ledge " + MaterialIcons.ArrowBack, Category.LEDGE,
+    LEDGE_LEFT(4, "Ledge " + MaterialIcons.ArrowBack, Category.LEDGE, "Ledge - can jump left (west)",
         new float[]{1.0f, 0.6f, 0.0f, 0.6f}, Direction.LEFT, MaterialIcons.ArrowBack),
 
-    LEDGE_RIGHT(5, "Ledge " + MaterialIcons.ArrowForward, Category.LEDGE,
+    LEDGE_RIGHT(5, "Ledge " + MaterialIcons.ArrowForward, Category.LEDGE, "Ledge - can jump right (east)",
         new float[]{1.0f, 0.65f, 0.0f, 0.6f}, Direction.RIGHT, MaterialIcons.ArrowForward),
 
     // === TERRAIN ===
-    WATER(6, "Water", Category.TERRAIN,
+    WATER(6, "Water", Category.TERRAIN, "Water - requires swimming ability",
         new float[]{0.2f, 0.5f, 0.9f, 0.6f}, null, MaterialIcons.Water),
 
-    TALL_GRASS(7, "Tall Grass", Category.TERRAIN,
+    TALL_GRASS(7, "Tall Grass", Category.TERRAIN, "Tall grass - triggers wild encounters",
         new float[]{0.3f, 0.8f, 0.3f, 0.6f}, null, MaterialIcons.Grass),
 
-    ICE(8, "Ice", Category.TERRAIN,
+    ICE(8, "Ice", Category.TERRAIN, "Ice - causes sliding movement",
         new float[]{0.7f, 0.9f, 1.0f, 0.6f}, null, MaterialIcons.AcUnit),
 
-    SAND(9, "Sand", Category.TERRAIN,
+    SAND(9, "Sand", Category.TERRAIN, "Sand - slows movement",
         new float[]{0.9f, 0.85f, 0.6f, 0.6f}, null, MaterialIcons.Terrain),
 
-    // === ELEVATION TRANSITIONS (NEW) ===
-    STAIRS_UP(13, "Stairs Up", Category.ELEVATION,
+    // === ELEVATION TRANSITIONS ===
+    STAIRS_UP(13, "Stairs Up", Category.ELEVATION, "Stairs going up - increases elevation",
         new float[]{0.5f, 0.7f, 0.9f, 0.6f}, null, MaterialIcons.ArrowUpward),
 
-    STAIRS_DOWN(14, "Stairs Down", Category.ELEVATION,
+    STAIRS_DOWN(14, "Stairs Down", Category.ELEVATION, "Stairs going down - decreases elevation",
         new float[]{0.4f, 0.6f, 0.8f, 0.6f}, null, MaterialIcons.ArrowDownward),
 
     // === TRIGGERS ===
-    WARP(10, "Warp", Category.TRIGGER,
+    WARP(10, "Warp", Category.TRIGGER, "Teleports to another scene",
         new float[]{0.8f, 0.3f, 0.8f, 0.6f}, null, MaterialIcons.ExitToApp),
 
-    DOOR(11, "Door", Category.TRIGGER,
-        new float[]{0.6f, 0.4f, 0.2f, 0.6f}, null, MaterialIcons.DoorFront),
-
-    SCRIPT_TRIGGER(12, "Script", Category.TRIGGER,
-        new float[]{0.9f, 0.9f, 0.3f, 0.6f}, null, MaterialIcons.Code);
+    DOOR(11, "Door", Category.TRIGGER, "Door - may be locked, leads to destination",
+        new float[]{0.6f, 0.4f, 0.2f, 0.6f}, null, MaterialIcons.DoorFront);
 
     private final int id;
     private final String displayName;
     private final CollisionCategory category;
+    private final String description;
     private final float[] overlayColor;
     private final Direction ledgeDirection;
     private final String icon; // Material icon codepoint (nullable)
@@ -118,7 +117,7 @@ public enum CollisionType {
      * Returns true if this type requires trigger metadata configuration.
      */
     public boolean requiresMetadata() {
-        return this == WARP || this == DOOR || this == SCRIPT_TRIGGER
+        return this == WARP || this == DOOR
             || this == STAIRS_UP || this == STAIRS_DOWN;
     }
 
@@ -212,7 +211,7 @@ public class CollisionTypeSelector {
         ImGui.spacing();
         ImGui.separator();
         ImGui.text("Selected: " + selectedType.getDisplayName());
-        ImGui.textWrapped(getTypeDescription(selectedType));
+        ImGui.textWrapped(selectedType.getDescription());
     }
 
     private void renderCollisionButton(CollisionType type) {
@@ -231,32 +230,10 @@ public class CollisionTypeSelector {
         // ... pop style colors ...
 
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(getTypeDescription(type));
+            ImGui.setTooltip(type.getDescription());
         }
     }
 
-    /**
-     * Gets description from CollisionType (could be stored in enum too).
-     */
-    public String getTypeDescription(CollisionType type) {
-        return switch (type) {
-            case NONE -> "No collision - fully walkable";
-            case SOLID -> "Solid wall - blocks all movement";
-            case LEDGE_DOWN -> "Ledge - can jump down (south)";
-            case LEDGE_UP -> "Ledge - can jump up (north)";
-            case LEDGE_LEFT -> "Ledge - can jump left (west)";
-            case LEDGE_RIGHT -> "Ledge - can jump right (east)";
-            case WATER -> "Water - requires swimming ability";
-            case TALL_GRASS -> "Tall grass - triggers wild encounters";
-            case ICE -> "Ice - causes sliding movement";
-            case SAND -> "Sand - slows movement";
-            case STAIRS_UP -> "Stairs going up - increases elevation";
-            case STAIRS_DOWN -> "Stairs going down - decreases elevation";
-            case WARP -> "Warp zone - triggers scene transition";
-            case DOOR -> "Door - triggers door interaction";
-            case SCRIPT_TRIGGER -> "Script trigger - executes custom script";
-        };
-    }
 }
 ```
 
@@ -310,7 +287,6 @@ Ensure these icons are available in `MaterialIcons.java`:
 |------|-----------|----------|
 | `ExitToApp` | `\uE879` | WARP |
 | `DoorFront` | `\uEFFC` | DOOR |
-| `Code` | `\uE86F` | SCRIPT_TRIGGER |
 | `ArrowUpward` | `\uE5D8` | STAIRS_UP, LEDGE_UP |
 | `ArrowDownward` | `\uE5DB` | STAIRS_DOWN, LEDGE_DOWN |
 | `ArrowBack` | `\uE5C4` | LEDGE_LEFT |

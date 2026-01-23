@@ -2,16 +2,16 @@
 
 ## Problems to Solve
 
-1. **Horizontal layout needs tabs** - Avoid scrolling, organize content logically
+1. **Horizontal layout needs 3 columns** - Avoid scrolling, organize content logically
 2. **Trigger list** - See all triggers at a glance, select from list
-3. **Trigger inspector** - Edit trigger properties with type-specific UI
+3. **Trigger inspector** - Edit trigger properties in Inspector panel (reuse existing)
 4. **Visual feedback** - Show which triggers are missing configuration
 
 ---
 
-## Tabbed CollisionPanel Layout
+## Three-Column CollisionPanel Layout
 
-### Current Layout (Horizontal)
+### Current Layout (Horizontal, 2 columns)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -28,38 +28,32 @@
 └──────────────────────┴──────────────────────────────────────────────────┘
 ```
 
-### New Layout with Tabs
+### New 3-Column Layout (No Tabs, No Scrolling)
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│ Collision Panel                                                          │
-├─────────────────────────────────────────────────────────────────────────┤
-│ Tool Size: [3]  │ Visibility: ☑ │ Elevation: [0 ▼] │ Stats: 150 tiles  │
-├─────────────────────────────────────────────────────────────────────────┤
-│ [ Types ]  [ Triggers (3) ]                                    ◄─ TABS  │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                          │
-│  TAB: Types                              TAB: Triggers                   │
-│  ─────────────                           ─────────────                   │
-│                                                                          │
-│  Movement        Ledges                  Filter: [All ▼] [______]       │
-│  [None] [Solid]  [↓][↑][←][→]           ─────────────────────────────   │
-│                                          ● Warp (5,10) → cave_entrance  │
-│  Terrain                                 ⚠ Warp (5,11) [not configured] │
-│  [Water][Grass][Ice][Sand]               ● Door (3,3) → house [locked]  │
-│                                          ● Stairs↑ (8,2) → z=1          │
-│  Elevation                                                              │
-│  [Stairs↑][Stairs↓]                                                     │
-│                                                                          │
-│  Triggers                                                                │
-│  [Warp][Door][Script]                                                   │
-│                                                                          │
-│  ─────────────────────────                                              │
-│  Selected: Warp                                                         │
-│  "Teleports to another scene"                                           │
-│                                                                          │
-└─────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Tool Size: [3]  │ Show: ☑  │ Elev: [0 ▼]                        │ 150 tiles │
+├─────────────────────┬─────────────────────┬─────────────────────────────────┤
+│ COLUMN 1            │ COLUMN 2            │ COLUMN 3                        │
+│ Basic Types         │ Metadata Types      │ Trigger List                    │
+├─────────────────────┼─────────────────────┼─────────────────────────────────┤
+│ Movement            │ Elevation           │ ⚠ Triggers (3)                  │
+│ [None] [Solid]      │ [Stairs↑][Stairs↓]  │                                 │
+│                     │                     │ ● Warp (5,10) → cave            │
+│ Ledges              │ Triggers            │ ⚠ Warp (5,11) [!]               │
+│ [↓][↑][←][→]        │ [Warp][Door]        │ ● Door (3,3) → house            │
+│                     │                     │ ● Stairs↑ (8,2) → elev=1        │
+│ Terrain             ├─────────────────────┤                                 │
+│ [Water][Grass]      │ Selected: Warp      │                                 │
+│ [Ice][Sand]         │ "Teleports to       │                                 │
+│                     │  another scene"     │                                 │
+└─────────────────────┴─────────────────────┴─────────────────────────────────┘
 ```
+
+**Column breakdown:**
+- **Column 1**: Basic collision types (Movement, Ledges, Terrain) - no metadata needed
+- **Column 2**: Metadata types (Elevation, Triggers) + Selected type info at bottom
+- **Column 3**: Trigger list - clicking selects trigger, shows in Inspector panel
 
 ---
 
@@ -70,9 +64,6 @@
 ```java
 public class CollisionPanel {
 
-    private enum Tab { TYPES, TRIGGERS }
-
-    private Tab currentTab = Tab.TYPES;
     private final CollisionTypeSelector typeSelector;
     private final TriggerListSection triggerListSection;
 
@@ -85,17 +76,35 @@ public class CollisionPanel {
     }
 
     private void renderHorizontal() {
-        // Top bar: Tool size, visibility, Z-level, stats (all on one line)
+        // Top bar: Tool size, visibility, elevation, stats (all on one line)
         renderTopBar();
 
         ImGui.separator();
 
-        // Tabs
-        if (ImGui.beginTabBar("CollisionTabs")) {
-            renderTypesTab();
-            renderTriggersTab();
-            ImGui.endTabBar();
-        }
+        // 3-column layout
+        float availableWidth = ImGui.getContentRegionAvailX();
+        float col1Width = availableWidth * 0.30f;  // Basic types
+        float col2Width = availableWidth * 0.30f;  // Metadata types + selected info
+        float col3Width = availableWidth * 0.40f;  // Trigger list
+
+        // Column 1: Basic collision types
+        ImGui.beginChild("Col1_BasicTypes", col1Width, 0, false);
+        typeSelector.renderColumn1();  // Movement, Ledges, Terrain
+        ImGui.endChild();
+
+        ImGui.sameLine();
+
+        // Column 2: Metadata types + selected info
+        ImGui.beginChild("Col2_MetadataTypes", col2Width, 0, false);
+        typeSelector.renderColumn2();  // Elevation, Triggers + selected info
+        ImGui.endChild();
+
+        ImGui.sameLine();
+
+        // Column 3: Trigger list
+        ImGui.beginChild("Col3_TriggerList", col3Width, 0, false);
+        triggerListSection.render();
+        ImGui.endChild();
     }
 
     private void renderTopBar() {
@@ -129,62 +138,59 @@ public class CollisionPanel {
         // Stats
         ImGui.textDisabled("| " + getTileCount() + " tiles");
     }
-
-    private void renderTypesTab() {
-        // Count for badge
-        int triggerCount = triggerListSection.getTriggerCount();
-        String triggersLabel = triggerCount > 0
-            ? "Triggers (" + triggerCount + ")"
-            : "Triggers";
-
-        if (ImGui.beginTabItem("Types")) {
-            typeSelector.renderCompact(); // New compact layout
-            ImGui.endTabItem();
-        }
-    }
-
-    private void renderTriggersTab() {
-        int triggerCount = triggerListSection.getTriggerCount();
-        int unconfiguredCount = triggerListSection.getUnconfiguredCount();
-
-        String label = "Triggers";
-        if (triggerCount > 0) {
-            label += " (" + triggerCount + ")";
-        }
-
-        // Show warning indicator if unconfigured triggers exist
-        boolean hasWarnings = unconfiguredCount > 0;
-        if (hasWarnings) {
-            ImGui.pushStyleColor(ImGuiCol.Tab, 0.8f, 0.5f, 0.2f, 1.0f);
-        }
-
-        if (ImGui.beginTabItem(label)) {
-            triggerListSection.render();
-            ImGui.endTabItem();
-        }
-
-        if (hasWarnings) {
-            ImGui.popStyleColor();
-        }
-    }
 }
 ```
 
 ---
 
-## CollisionTypeSelector Compact Layout
+## CollisionTypeSelector Column Methods
 
 **File**: `src/main/java/com/pocket/rpg/editor/panels/collisions/CollisionTypeSelector.java`
 
-New method for tab content:
+New methods for 3-column layout:
 
 ```java
 /**
- * Renders collision types in compact layout for tabbed panel.
- * Groups by category, all on same lines where possible.
+ * Renders Column 1: Basic types (Movement, Ledges, Terrain).
+ * These types don't require metadata configuration.
  */
-public void renderCompact() {
-    for (CollisionCategory category : CollisionCategory.inOrder()) {
+public void renderColumn1() {
+    List<CollisionCategory> col1Categories = List.of(
+        CollisionCategory.MOVEMENT,
+        CollisionCategory.LEDGE,
+        CollisionCategory.TERRAIN
+    );
+
+    for (CollisionCategory category : col1Categories) {
+        List<CollisionType> types = CollisionType.getByCategory(category);
+        if (types.isEmpty()) continue;
+
+        // Category label
+        ImGui.textDisabled(category.getDisplayName());
+
+        // All buttons on same line
+        boolean first = true;
+        for (CollisionType type : types) {
+            if (!first) ImGui.sameLine();
+            first = false;
+            renderCompactButton(type);
+        }
+
+        ImGui.spacing();
+    }
+}
+
+/**
+ * Renders Column 2: Metadata types (Elevation, Triggers) + selected type info.
+ * These types require metadata configuration.
+ */
+public void renderColumn2() {
+    List<CollisionCategory> col2Categories = List.of(
+        CollisionCategory.ELEVATION,
+        CollisionCategory.TRIGGER
+    );
+
+    for (CollisionCategory category : col2Categories) {
         List<CollisionType> types = CollisionType.getByCategory(category);
         if (types.isEmpty()) continue;
 
@@ -205,7 +211,7 @@ public void renderCompact() {
     // Selected type info at bottom
     ImGui.separator();
     ImGui.text("Selected: " + selectedType.getDisplayName());
-    ImGui.textWrapped(getTypeDescription(selectedType));
+    ImGui.textWrapped(selectedType.getDescription());
 }
 
 private void renderCompactButton(CollisionType type) {
@@ -237,15 +243,14 @@ private void renderCompactButton(CollisionType type) {
 
     ImGui.popStyleColor(3);
 
-    // Tooltip with full name
+    // Tooltip with full name and description from enum
     if (ImGui.isItemHovered()) {
-        ImGui.setTooltip(type.getDisplayName() + "\n" + getTypeDescription(type));
+        ImGui.setTooltip(type.getDisplayName() + "\n" + type.getDescription());
     }
 }
 
 private String abbreviate(String name) {
     // "Tall Grass" -> "Grass"
-    // "Script" -> "Scr"
     if (name.length() <= 5) return name;
     if (name.contains(" ")) {
         String[] parts = name.split(" ");
@@ -264,7 +269,8 @@ private String abbreviate(String name) {
 ```java
 /**
  * Section showing list of all trigger tiles in the scene.
- * Embedded in CollisionPanel's Triggers tab.
+ * Displayed in Column 3 of CollisionPanel.
+ * Clicking a trigger selects it and shows properties in Inspector panel.
  */
 public class TriggerListSection {
 
@@ -420,13 +426,13 @@ public class TriggerListSection {
     private String getSummary(TriggerEntry entry) {
         if (entry.data == null) return "[not configured]";
 
+        // Exhaustive switch - compiler ensures all TriggerData types are handled
         return switch (entry.data) {
             case WarpTriggerData warp -> "→ " + warp.targetScene();
             case DoorTriggerData door -> door.locked()
                 ? "→ " + door.targetScene() + " [locked]"
                 : "→ " + door.targetScene();
             case StairsTriggerData stairs -> "→ elev=" + stairs.targetElevation();
-            case ScriptTriggerData script -> script.scriptId();
         };
     }
 
@@ -451,6 +457,7 @@ public class TriggerListSection {
     }
 
     private void renderDataTooltip(TriggerData data) {
+        // Exhaustive switch - compiler ensures all TriggerData types are handled
         switch (data) {
             case WarpTriggerData warp -> {
                 ImGui.text("Target: " + warp.targetScene());
@@ -466,9 +473,6 @@ public class TriggerListSection {
                 if (stairs.targetX() != null) {
                     ImGui.text("Reposition: (" + stairs.targetX() + ", " + stairs.targetY() + ")");
                 }
-            }
-            case ScriptTriggerData script -> {
-                ImGui.text("Script: " + script.scriptId());
             }
         }
     }
@@ -510,7 +514,6 @@ public class TriggerInspector {
     private final ImString requiredKey = new ImString(64);
     private final ImBoolean consumeKey = new ImBoolean(true);
     private final ImString lockedMessage = new ImString(256);
-    private final ImString scriptId = new ImString(128);
     private final ImBoolean oneShot = new ImBoolean();
     private final ImBoolean playerOnly = new ImBoolean(true);
 
@@ -542,7 +545,6 @@ public class TriggerInspector {
             case WARP -> renderWarpEditor();
             case DOOR -> renderDoorEditor();
             case STAIRS_UP, STAIRS_DOWN -> renderStairsEditor();
-            case SCRIPT_TRIGGER -> renderScriptEditor();
             default -> ImGui.textDisabled("No editor for " + collisionType);
         }
 
@@ -681,18 +683,6 @@ public class TriggerInspector {
         if (ImGui.inputInt("Y##stairsY", targetY)) isDirty = true;
     }
 
-    // ========== SCRIPT EDITOR ==========
-
-    private void renderScriptEditor() {
-        ImGui.text("Script ID");
-        ImGui.setNextItemWidth(-1);
-        if (ImGui.inputText("##scriptId", scriptId)) isDirty = true;
-
-        ImGui.spacing();
-        ImGui.textDisabled("Script triggers execute custom logic.");
-        ImGui.textDisabled("Register handlers in TriggerSystem.");
-    }
-
     // ========== COMMON OPTIONS ==========
 
     private void renderCommonOptions() {
@@ -788,8 +778,8 @@ private void render() {
 
 | File | Type | Description |
 |------|------|-------------|
-| `editor/panels/CollisionPanel.java` | MODIFY | Add tabs, integrate trigger list |
-| `editor/panels/collisions/CollisionTypeSelector.java` | MODIFY | Add compact layout, auto-generate |
-| `editor/panels/collision/TriggerListSection.java` | NEW | Trigger list UI |
+| `editor/panels/CollisionPanel.java` | MODIFY | 3-column layout, integrate trigger list |
+| `editor/panels/collisions/CollisionTypeSelector.java` | MODIFY | Add column methods, auto-generate from enum |
+| `editor/panels/collision/TriggerListSection.java` | NEW | Trigger list UI (column 3) |
 | `editor/ui/inspectors/TriggerInspector.java` | NEW | Trigger property editor |
 | `editor/panels/InspectorPanel.java` | MODIFY | Integrate TriggerInspector |

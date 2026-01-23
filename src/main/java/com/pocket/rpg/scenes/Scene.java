@@ -2,11 +2,20 @@ package com.pocket.rpg.scenes;
 
 import com.pocket.rpg.collision.CollisionMap;
 import com.pocket.rpg.collision.CollisionSystem;
+import com.pocket.rpg.collision.CollisionType;
 import com.pocket.rpg.collision.EntityOccupancyMap;
+import com.pocket.rpg.collision.trigger.*;
+import com.pocket.rpg.collision.trigger.handlers.StairsHandler;
+import com.pocket.rpg.collision.trigger.handlers.WarpHandler;
+import com.pocket.rpg.collision.trigger.handlers.DoorHandler;
 import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.GridMovement;
 import com.pocket.rpg.components.SpriteRenderer;
+import com.pocket.rpg.scenes.transitions.SceneTransition;
 import com.pocket.rpg.components.ui.UICanvas;
+import com.pocket.rpg.components.ui.UIComponent;
 import com.pocket.rpg.config.RenderingConfig;
+import com.pocket.rpg.ui.UIManager;
 import com.pocket.rpg.core.camera.GameCamera;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.core.window.ViewportConfig;
@@ -54,6 +63,12 @@ public abstract class Scene {
     @Getter
     private final CollisionSystem collisionSystem;
 
+    // Trigger system
+    @Getter
+    private final TriggerDataMap triggerDataMap;
+    @Getter
+    private final TriggerSystem triggerSystem;
+
     private boolean initialized = false;
 
     public Scene(String name) {
@@ -67,7 +82,149 @@ public abstract class Scene {
         this.entityOccupancyMap = new EntityOccupancyMap();
         this.collisionSystem = new CollisionSystem(collisionMap, entityOccupancyMap);
 
+        // Initialize trigger system
+        this.triggerDataMap = new TriggerDataMap();
+        this.triggerSystem = new TriggerSystem(triggerDataMap, collisionMap);
+        registerDefaultTriggerHandlers();
+
         // Camera created in initialize() when ViewportConfig is available
+    }
+
+    /**
+     * Registers default trigger handlers.
+     * <p>
+     * Override this method to customize handler registration.
+     * Call super.registerDefaultTriggerHandlers() to keep defaults.
+     */
+    protected void registerDefaultTriggerHandlers() {
+        // Stairs handler has no dependencies
+        triggerSystem.registerHandler(StairsData.class, new StairsHandler());
+
+        // Warp handler with actual teleportation
+        triggerSystem.registerHandler(WarpTriggerData.class, new WarpHandler(
+                (entity, targetScene, targetSpawnId, data) -> {
+                    if (data.isCrossScene()) {
+                        // Cross-scene: use SceneTransition
+                        loadSceneWithSpawn(targetScene, targetSpawnId);
+                    } else {
+                        // Same-scene: teleport to spawn point
+                        teleportToSpawn(entity, targetSpawnId);
+                    }
+                }
+        ));
+
+        // Door handler with actual teleportation (no key system by default)
+        triggerSystem.registerHandler(DoorTriggerData.class, new DoorHandler(
+                null, // keyChecker - override in subclass for inventory support
+                null, // keyConsumer
+                message -> System.out.println("[Door] " + message), // messageDisplay
+                (entity, data) -> {
+                    if (data.hasDestination()) {
+                        if (data.isCrossScene()) {
+                            loadSceneWithSpawn(data.targetScene(), data.targetSpawnId());
+                        } else {
+                            teleportToSpawn(entity, data.targetSpawnId());
+                        }
+                    }
+                }
+        ));
+    }
+
+    /**
+     * Finds a spawn point by ID in this scene.
+     *
+     * @param spawnId The spawn point ID to find
+     * @return TileCoord of the spawn point, or null if not found
+     */
+    public TileCoord findSpawnPoint(String spawnId) {
+        if (spawnId == null || spawnId.isBlank()) {
+            return null;
+        }
+
+        // Search collision map for SPAWN_POINT tiles
+        for (int elevation : collisionMap.getZLevels()) {
+            for (CollisionMap.CollisionChunk chunk : collisionMap.getChunksForLevel(elevation)) {
+                int baseX = chunk.getChunkX() * CollisionMap.CollisionChunk.CHUNK_SIZE;
+                int baseY = chunk.getChunkY() * CollisionMap.CollisionChunk.CHUNK_SIZE;
+
+                for (int tx = 0; tx < CollisionMap.CollisionChunk.CHUNK_SIZE; tx++) {
+                    for (int ty = 0; ty < CollisionMap.CollisionChunk.CHUNK_SIZE; ty++) {
+                        if (chunk.get(tx, ty) == CollisionType.SPAWN_POINT) {
+                            int worldX = baseX + tx;
+                            int worldY = baseY + ty;
+                            TriggerData data = triggerDataMap.get(worldX, worldY, elevation);
+                            if (data instanceof SpawnPointData spawn && spawnId.equals(spawn.id())) {
+                                return new TileCoord(worldX, worldY, elevation);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Teleports an entity to a spawn point in this scene.
+     *
+     * @param entity  The entity to teleport
+     * @param spawnId The spawn point ID
+     */
+    protected void teleportToSpawn(GameObject entity, String spawnId) {
+        TileCoord spawnCoord = findSpawnPoint(spawnId);
+        if (spawnCoord == null) {
+            System.err.println("[Scene] Spawn point not found: " + spawnId);
+            return;
+        }
+
+        // Get GridMovement component if available
+        GridMovement movement = entity.getComponent(GridMovement.class);
+        if (movement != null) {
+            movement.setGridPosition(spawnCoord.x(), spawnCoord.y());
+            movement.setZLevel(spawnCoord.elevation());
+
+            // Apply facing direction if spawn has one configured
+            TriggerData data = triggerDataMap.get(spawnCoord);
+            if (data instanceof SpawnPointData spawn && spawn.facingDirection() != null) {
+                // Note: GridMovement doesn't have setFacingDirection, but we could add it
+                // For now, just log it
+                System.out.println("[Scene] Teleported " + entity.getName() +
+                        " to spawn '" + spawnId + "' at (" + spawnCoord.x() + ", " + spawnCoord.y() + ")");
+            }
+        } else {
+            // Fallback: directly set transform position
+            float tileSize = 1.0f; // Default tile size
+            entity.getTransform().setPosition(
+                    spawnCoord.x() * tileSize + tileSize * 0.5f,
+                    spawnCoord.y() * tileSize + tileSize * 0.5f,
+                    entity.getTransform().getPosition().z
+            );
+            System.out.println("[Scene] Teleported " + entity.getName() +
+                    " to spawn '" + spawnId + "' (no GridMovement)");
+        }
+    }
+
+    /**
+     * Loads another scene and teleports to a spawn point.
+     * <p>
+     * Uses SceneTransition if initialized, otherwise logs a warning.
+     * The spawn point is stored for the target scene to use after loading.
+     *
+     * @param sceneName   Target scene name
+     * @param targetSpawn Spawn point ID in target scene
+     */
+    protected void loadSceneWithSpawn(String sceneName, String targetSpawn) {
+        if (!SceneTransition.isInitialized()) {
+            System.err.println("[Scene] SceneTransition not initialized - cannot load scene: " + sceneName);
+            return;
+        }
+
+        // Store spawn point for target scene (SceneManager can pass this to the loaded scene)
+        // For now, just load the scene - spawn point support requires SceneManager changes
+        System.out.println("[Scene] Loading scene '" + sceneName + "' with spawn point '" + targetSpawn + "'");
+        SceneTransition.loadScene(sceneName);
+
+        // TODO: Pass targetSpawn to SceneManager so the target scene can teleport player on load
     }
 
     // ===========================================
@@ -151,6 +308,7 @@ public abstract class Scene {
         uiCanvases.clear();
         collisionMap.clear();
         entityOccupancyMap.clear();
+        triggerDataMap.clear();
     }
 
     public abstract void onLoad();
@@ -215,6 +373,13 @@ public abstract class Scene {
                     renderableSortDirty = true;
                 }
             }
+            // Register UIComponent with UIManager if uiKey is set
+            if (component instanceof UIComponent uiComp) {
+                String key = uiComp.getUiKey();
+                if (key != null && !key.isBlank()) {
+                    UIManager.register(key, uiComp);
+                }
+            }
         }
 
         // UI canvases (insert sorted)
@@ -241,6 +406,13 @@ public abstract class Scene {
         if (component instanceof UICanvas canvas && !uiCanvases.contains(canvas)) {
             insertCanvasSorted(canvas);
         }
+        // Register UIComponent with UIManager if uiKey is set
+        if (component instanceof UIComponent uiComp) {
+            String key = uiComp.getUiKey();
+            if (key != null && !key.isBlank()) {
+                UIManager.register(key, uiComp);
+            }
+        }
     }
 
     /**
@@ -250,6 +422,13 @@ public abstract class Scene {
         for (Component component : gameObject.getAllComponents()) {
             if (component instanceof Renderable) {
                 renderables.remove(component);
+            }
+            // Unregister UIComponent from UIManager if uiKey is set
+            if (component instanceof UIComponent uiComp) {
+                String key = uiComp.getUiKey();
+                if (key != null && !key.isBlank()) {
+                    UIManager.unregister(key);
+                }
             }
         }
         uiCanvases.removeAll(gameObject.getComponents(UICanvas.class));
@@ -268,6 +447,13 @@ public abstract class Scene {
         }
         if (component instanceof UICanvas canvas) {
             uiCanvases.remove(canvas);
+        }
+        // Unregister UIComponent from UIManager if uiKey is set
+        if (component instanceof UIComponent uiComp) {
+            String key = uiComp.getUiKey();
+            if (key != null && !key.isBlank()) {
+                UIManager.unregister(key);
+            }
         }
     }
 

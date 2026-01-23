@@ -64,8 +64,10 @@ public class TriggerSystem {
     /**
      * Called when an entity exits a tile.
      * Checks if tile is a trigger with ON_EXIT activation.
+     *
+     * @param exitDirection The direction the entity is moving (NORTH, SOUTH, EAST, WEST)
      */
-    public void onTileExit(GameObject entity, int x, int y, int elevation) {
+    public void onTileExit(GameObject entity, int x, int y, int elevation, Direction exitDirection) {
         CollisionType type = collisionMap.get(x, y, elevation);
         if (!type.isTrigger()) return;
 
@@ -75,7 +77,7 @@ public class TriggerSystem {
         if (data.activationMode() != ActivationMode.ON_EXIT) return;
         if (data.playerOnly() && !isPlayer(entity)) return;
 
-        fireTrigger(data, entity, x, y, elevation);
+        fireTrigger(data, entity, x, y, elevation, exitDirection);
     }
 
     /**
@@ -109,10 +111,18 @@ public class TriggerSystem {
     }
 
     /**
-     * Dispatches trigger to registered handler.
+     * Dispatches trigger to registered handler (for ON_ENTER and ON_INTERACT).
+     */
+    private void fireTrigger(TriggerData data, GameObject entity, int x, int y, int elevation) {
+        fireTrigger(data, entity, x, y, elevation, null);
+    }
+
+    /**
+     * Dispatches trigger to registered handler with optional exit direction.
      */
     @SuppressWarnings("unchecked")
-    private void fireTrigger(TriggerData data, GameObject entity, int x, int y, int elevation) {
+    private void fireTrigger(TriggerData data, GameObject entity, int x, int y, int elevation,
+                             Direction exitDirection) {
         TriggerHandler<TriggerData> handler =
             (TriggerHandler<TriggerData>) handlers.get(data.getClass());
 
@@ -121,7 +131,7 @@ public class TriggerSystem {
             return;
         }
 
-        TriggerContext context = new TriggerContext(entity, x, y, elevation, data);
+        TriggerContext context = new TriggerContext(entity, x, y, elevation, data, exitDirection);
         handler.handle(context);
     }
 
@@ -166,7 +176,8 @@ public record TriggerContext(
     int tileX,
     int tileY,
     int tileElevation,
-    TriggerData data
+    TriggerData data,
+    Direction exitDirection  // null for ON_ENTER/ON_INTERACT, present for ON_EXIT
 ) {
     /**
      * Casts data to specific type.
@@ -181,6 +192,13 @@ public record TriggerContext(
      */
     public Scene getScene() {
         return entity.getScene();
+    }
+
+    /**
+     * Returns true if this trigger was activated by exiting a tile.
+     */
+    public boolean isExitTrigger() {
+        return exitDirection != null;
     }
 }
 ```
@@ -197,9 +215,9 @@ public record TriggerContext(
 /**
  * Handles WARP trigger activation.
  * <p>
- * Transitions to target scene and positions player at target coordinates.
+ * Transitions to target scene and positions player at the spawn point.
  */
-public class WarpHandler implements TriggerHandler<WarpTriggerData> {
+public class WarpHandler implements TriggerHandler<WarpData> {
 
     private final SceneManager sceneManager;
     private final TransitionManager transitionManager;
@@ -211,7 +229,7 @@ public class WarpHandler implements TriggerHandler<WarpTriggerData> {
 
     @Override
     public void handle(TriggerContext context) {
-        WarpTriggerData data = context.getData();
+        WarpData data = context.getData();
         GameObject player = context.entity();
 
         // Disable player input during transition
@@ -225,13 +243,16 @@ public class WarpHandler implements TriggerHandler<WarpTriggerData> {
             // Load target scene
             sceneManager.loadScene(data.targetScene());
 
-            // Position player
+            // Find spawn point and position player
             Scene newScene = sceneManager.getCurrentScene();
+            TileCoord spawnCoord = findSpawnPoint(newScene, data.spawnPointId());
+
             GameObject newPlayer = newScene.findWithTag("Player");
-            if (newPlayer != null) {
+            if (newPlayer != null && spawnCoord != null) {
                 GridMovement movement = newPlayer.getComponent(GridMovement.class);
                 if (movement != null) {
-                    movement.setGridPosition(data.targetX(), data.targetY());
+                    movement.setGridPosition(spawnCoord.x(), spawnCoord.y());
+                    movement.setElevation(spawnCoord.elevation());
                 }
             }
 
@@ -248,6 +269,27 @@ public class WarpHandler implements TriggerHandler<WarpTriggerData> {
             transitionManager.startTransition(data.transition(), onTransitionComplete);
         }
     }
+
+    /**
+     * Finds the spawn point tile by ID in the target scene.
+     */
+    private TileCoord findSpawnPoint(Scene scene, String spawnPointId) {
+        if (spawnPointId == null || spawnPointId.isBlank()) {
+            return null;
+        }
+
+        TriggerDataMap triggerMap = scene.getTriggerDataMap();
+        for (var entry : triggerMap.getAll().entrySet()) {
+            if (entry.getValue() instanceof SpawnPointData spawn) {
+                if (spawnPointId.equals(spawn.id())) {
+                    return entry.getKey();
+                }
+            }
+        }
+
+        System.err.println("Spawn point not found: " + spawnPointId);
+        return null;
+    }
 }
 ```
 
@@ -260,8 +302,9 @@ public class WarpHandler implements TriggerHandler<WarpTriggerData> {
  * Handles DOOR trigger activation.
  * <p>
  * Checks lock status and key requirements before allowing passage.
+ * Uses spawn points for arrival position.
  */
-public class DoorHandler implements TriggerHandler<DoorTriggerData> {
+public class DoorHandler implements TriggerHandler<DoorData> {
 
     private final SceneManager sceneManager;
     private final TransitionManager transitionManager;
@@ -276,7 +319,7 @@ public class DoorHandler implements TriggerHandler<DoorTriggerData> {
 
     @Override
     public void handle(TriggerContext context) {
-        DoorTriggerData data = context.getData();
+        DoorData data = context.getData();
         GameObject player = context.entity();
 
         if (data.locked()) {
@@ -301,7 +344,7 @@ public class DoorHandler implements TriggerHandler<DoorTriggerData> {
         performTransition(data, player);
     }
 
-    private void performTransition(DoorTriggerData data, GameObject player) {
+    private void performTransition(DoorData data, GameObject player) {
         PlayerController controller = player.getComponent(PlayerController.class);
         if (controller != null) {
             controller.setInputEnabled(false);
@@ -313,11 +356,14 @@ public class DoorHandler implements TriggerHandler<DoorTriggerData> {
             }
 
             Scene scene = sceneManager.getCurrentScene();
+            TileCoord spawnCoord = findSpawnPoint(scene, data.spawnPointId());
+
             GameObject newPlayer = scene.findWithTag("Player");
-            if (newPlayer != null) {
+            if (newPlayer != null && spawnCoord != null) {
                 GridMovement movement = newPlayer.getComponent(GridMovement.class);
                 if (movement != null) {
-                    movement.setGridPosition(data.targetX(), data.targetY());
+                    movement.setGridPosition(spawnCoord.x(), spawnCoord.y());
+                    movement.setElevation(spawnCoord.elevation());
                 }
             }
 
@@ -332,6 +378,27 @@ public class DoorHandler implements TriggerHandler<DoorTriggerData> {
             transitionManager.startTransition(data.transition(), onComplete);
         }
     }
+
+    /**
+     * Finds the spawn point tile by ID in the target scene.
+     */
+    private TileCoord findSpawnPoint(Scene scene, String spawnPointId) {
+        if (spawnPointId == null || spawnPointId.isBlank()) {
+            return null;
+        }
+
+        TriggerDataMap triggerMap = scene.getTriggerDataMap();
+        for (var entry : triggerMap.getAll().entrySet()) {
+            if (entry.getValue() instanceof SpawnPointData spawn) {
+                if (spawnPointId.equals(spawn.id())) {
+                    return entry.getKey();
+                }
+            }
+        }
+
+        System.err.println("Spawn point not found: " + spawnPointId);
+        return null;
+    }
 }
 ```
 
@@ -341,37 +408,50 @@ public class DoorHandler implements TriggerHandler<DoorTriggerData> {
 
 ```java
 /**
- * Handles STAIRS_UP and STAIRS_DOWN trigger activation.
+ * Handles STAIRS trigger activation (ON_EXIT only).
  * <p>
- * Changes the entity's elevation (floor level) and optionally repositions.
+ * Elevation change is determined by the exit direction.
+ * For example, a stair with {NORTH: +1, SOUTH: -1} will:
+ * - Increase elevation by 1 when exiting northward
+ * - Decrease elevation by 1 when exiting southward
  */
-public class StairsHandler implements TriggerHandler<StairsTriggerData> {
+public class StairsHandler implements TriggerHandler<StairsData> {
 
     @Override
     public void handle(TriggerContext context) {
-        StairsTriggerData data = context.getData();
+        StairsData data = context.getData();
         GameObject entity = context.entity();
+        Direction exitDirection = context.exitDirection();
+
+        // This should always be present for ON_EXIT triggers
+        if (exitDirection == null) {
+            System.err.println("StairsHandler called without exit direction");
+            return;
+        }
 
         GridMovement movement = entity.getComponent(GridMovement.class);
         if (movement == null) return;
 
-        // Update elevation
-        movement.setElevation(data.targetElevation());
-
-        // Optionally reposition X/Y
-        if (data.targetX() != null && data.targetY() != null) {
-            movement.setGridPosition(data.targetX(), data.targetY());
+        // Look up elevation change for this direction
+        Integer elevationChange = data.elevationChanges().get(exitDirection);
+        if (elevationChange == null || elevationChange == 0) {
+            return;  // No change for this direction
         }
+
+        // Apply elevation change
+        int newElevation = movement.getElevation() + elevationChange;
+        movement.setElevation(newElevation);
 
         // Update collision system registration
         Scene scene = context.getScene();
         if (scene != null && scene.getCollisionSystem() != null) {
+            // Entity is moving to (tileX + dx, tileY + dy) at new elevation
+            int newX = context.tileX() + exitDirection.getDx();
+            int newY = context.tileY() + exitDirection.getDy();
             scene.getCollisionSystem().moveEntity(
                 entity,
                 context.tileX(), context.tileY(), context.tileElevation(),
-                data.targetX() != null ? data.targetX() : context.tileX(),
-                data.targetY() != null ? data.targetY() : context.tileY(),
-                data.targetElevation()
+                newX, newY, newElevation
             );
         }
     }
@@ -403,9 +483,10 @@ public class Scene {
 
     private void registerDefaultHandlers() {
         // These require dependencies - inject or get from context
-        triggerSystem.registerHandler(WarpTriggerData.class, new WarpHandler(...));
-        triggerSystem.registerHandler(DoorTriggerData.class, new DoorHandler(...));
-        triggerSystem.registerHandler(StairsTriggerData.class, new StairsHandler());
+        triggerSystem.registerHandler(WarpData.class, new WarpHandler(...));
+        triggerSystem.registerHandler(DoorData.class, new DoorHandler(...));
+        triggerSystem.registerHandler(StairsData.class, new StairsHandler());
+        // SpawnPointData has no handler - it's a passive marker
     }
 
     public TriggerDataMap getTriggerDataMap() {
@@ -440,15 +521,19 @@ private void onMovementComplete() {
 
 /**
  * Called before starting movement from current tile.
+ *
+ * @param moveDirection The direction the entity is about to move
  */
-private void beforeMovementStart() {
-    // Notify trigger system of exit
+private void beforeMovementStart(Direction moveDirection) {
+    // Notify trigger system of exit with direction
     Scene scene = gameObject.getScene();
     if (scene != null && scene.getTriggerSystem() != null) {
-        scene.getTriggerSystem().onTileExit(gameObject, gridX, gridY, elevation);
+        scene.getTriggerSystem().onTileExit(gameObject, gridX, gridY, elevation, moveDirection);
     }
 }
 ```
+
+**Key Change**: `beforeMovementStart` now takes the movement direction and passes it to `onTileExit`. This enables direction-based triggers like stairs to determine the elevation change based on which way the player is exiting.
 
 ---
 
@@ -470,22 +555,27 @@ Scene registers handlers:
 └── StairsHandler (no dependencies)
         │
         ▼
-GridMovement.onMovementComplete()
-        │
-        ▼
-TriggerSystem.onTileEnter()
-        │
-        ├── Get CollisionType from CollisionMap
-        ├── Get TriggerData from TriggerDataMap
-        ├── Check activation mode (ON_ENTER?)
-        ├── Check player-only filter
-        │
-        ▼
-TriggerSystem.fireTrigger()
-        │
-        ├── Look up handler by TriggerData class
-        └── handler.handle(context)
+GridMovement.onMovementComplete()           GridMovement.beforeMovementStart(dir)
+        │                                            │
+        ▼                                            ▼
+TriggerSystem.onTileEnter()                 TriggerSystem.onTileExit(dir)
+        │                                            │
+        ├── Get CollisionType                        ├── Get CollisionType
+        ├── Get TriggerData                          ├── Get TriggerData
+        ├── Check ON_ENTER mode                      ├── Check ON_EXIT mode
+        ├── Check player-only                        ├── Check player-only
+        │                                            │
+        ▼                                            ▼
+TriggerSystem.fireTrigger()                 TriggerSystem.fireTrigger(exitDir)
+        │                                            │
+        └── handler.handle(context)                  └── handler.handle(context)
+                                                         context.exitDirection() = dir
 ```
+
+**Key Points**:
+- `onTileEnter` triggers have `exitDirection = null`
+- `onTileExit` triggers have `exitDirection` set to movement direction
+- Stairs use ON_EXIT so they receive the exit direction to determine elevation change
 
 ---
 
@@ -493,11 +583,11 @@ TriggerSystem.fireTrigger()
 
 | File | Type | Description |
 |------|------|-------------|
-| `trigger/TriggerSystem.java` | NEW | Runtime dispatch |
+| `trigger/TriggerSystem.java` | NEW | Runtime dispatch with `onTileEnter` and `onTileExit(dir)` |
 | `trigger/TriggerHandler.java` | NEW | Handler interface |
-| `trigger/TriggerContext.java` | NEW | Context record |
-| `trigger/handlers/WarpHandler.java` | NEW | Warp logic |
-| `trigger/handlers/DoorHandler.java` | NEW | Door logic |
-| `trigger/handlers/StairsHandler.java` | NEW | Stairs logic |
+| `trigger/TriggerContext.java` | NEW | Context record with `exitDirection` field |
+| `trigger/handlers/WarpHandler.java` | NEW | Warp logic (uses spawn points) |
+| `trigger/handlers/DoorHandler.java` | NEW | Door logic with key/lock support |
+| `trigger/handlers/StairsHandler.java` | NEW | Direction-based elevation (ON_EXIT only) |
 | `scenes/Scene.java` | MODIFY | Add TriggerSystem |
-| `components/GridMovement.java` | MODIFY | Connect callbacks |
+| `components/GridMovement.java` | MODIFY | Pass direction to `beforeMovementStart` |

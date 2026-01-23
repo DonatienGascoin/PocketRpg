@@ -210,6 +210,17 @@ public final class Assets {
     }
 
     /**
+     * Saves a resource to a specific path with options.
+     *
+     * @param resource Resource to save
+     * @param path     Path to save to
+     * @param options  Load options (e.g., raw() to skip asset root)
+     */
+    public static void persist(Object resource, String path, LoadOptions options) {
+        getContext().persist(resource, path, options);
+    }
+
+    /**
      * Returns a configuration builder for the asset system.
      * <p>
      * Example:

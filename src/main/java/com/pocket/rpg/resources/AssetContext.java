@@ -128,6 +128,15 @@ public interface AssetContext {
     void persist(Object resource, String path);
 
     /**
+     * Saves a resource to a specific path with options.
+     *
+     * @param resource Resource to save
+     * @param path     Path to save to
+     * @param options  Load options (e.g., raw() to skip asset root)
+     */
+    void persist(Object resource, String path, LoadOptions options);
+
+    /**
      * Returns a configuration builder for this context.
      *
      * @return Configuration builder

@@ -1,5 +1,7 @@
 package com.pocket.rpg.editor.panels;
 
+import com.pocket.rpg.audio.clips.AudioClip;
+import com.pocket.rpg.audio.editor.EditorAudio;
 import com.pocket.rpg.editor.assets.AssetPreviewRegistry;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.rendering.resources.Sprite;
@@ -225,12 +227,14 @@ public class AssetPickerPopup {
                 focusNoneNextFrame = false;
             }
             if (ImGui.selectable("(None)", selectedPath == null)) {
+                stopAudioPreview();
                 selectedPath = null;
                 previewAsset = null;
                 previewPath = null;
             }
             // Keyboard navigation: update selection when focused
             if (ImGui.isItemFocused() && selectedPath != null) {
+                stopAudioPreview();
                 selectedPath = null;
                 previewAsset = null;
                 previewPath = null;
@@ -348,7 +352,7 @@ public class AssetPickerPopup {
             ImGui.sameLine();
 
             if (ImGui.button("Cancel", buttonWidth, 0)) {
-                ImGui.closeCurrentPopup();
+                cancelSelection();
             }
     }
 
@@ -361,6 +365,9 @@ public class AssetPickerPopup {
             return;  // Already loaded
         }
 
+        // Stop any audio preview when selection changes
+        stopAudioPreview();
+
         previewPath = path;
         previewAsset = null;
 
@@ -369,6 +376,15 @@ public class AssetPickerPopup {
             previewAsset = Assets.load(path, assetType);
         } catch (Exception e) {
             System.err.println("Failed to load preview: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Stops any currently playing audio preview.
+     */
+    private void stopAudioPreview() {
+        if (previewAsset instanceof AudioClip clip) {
+            EditorAudio.stopPreview(clip);
         }
     }
 
@@ -385,11 +401,14 @@ public class AssetPickerPopup {
             return;
         }
 
-        // Delegate to registry - handles all types generically
+        // Delegate to registry - handles all types generically (including AudioClip)
         AssetPreviewRegistry.render(previewAsset, PREVIEW_MAX_SIZE);
     }
 
     private void confirmSelection() {
+        // Stop any audio preview
+        stopAudioPreview();
+
         Object result = null;
 
         if (selectedPath != null) {
@@ -404,6 +423,12 @@ public class AssetPickerPopup {
             onSelected.accept(result);
         }
 
+        ImGui.closeCurrentPopup();
+    }
+
+    private void cancelSelection() {
+        // Stop any audio preview
+        stopAudioPreview();
         ImGui.closeCurrentPopup();
     }
 

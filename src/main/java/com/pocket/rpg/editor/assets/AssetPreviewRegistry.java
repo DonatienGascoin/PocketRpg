@@ -1,5 +1,6 @@
 package com.pocket.rpg.editor.assets;
 
+import com.pocket.rpg.audio.clips.AudioClip;
 import com.pocket.rpg.ui.text.Font;
 import imgui.ImGui;
 
@@ -31,6 +32,7 @@ public final class AssetPreviewRegistry {
     static {
         // Register custom renderers for special cases
         register(Font.class, new FontPreviewRenderer());
+        register(AudioClip.class, new AudioClipPreviewRenderer());
     }
 
     private AssetPreviewRegistry() {

@@ -2,8 +2,11 @@ package com.pocket.rpg.audio.clips;
 
 import com.pocket.rpg.audio.Audio;
 import com.pocket.rpg.audio.backend.AudioBackend;
+import com.pocket.rpg.components.AudioSource;
 import com.pocket.rpg.editor.core.MaterialIcons;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.resources.AssetLoader;
+import org.joml.Vector3f;
 import org.lwjgl.stb.STBVorbis;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
@@ -59,6 +62,31 @@ public class AudioClipLoader implements AssetLoader<AudioClip> {
     @Override
     public String getIconCodepoint() {
         return MaterialIcons.AudioFile;
+    }
+
+    // ========================================================================
+    // EDITOR INSTANTIATION SUPPORT
+    // ========================================================================
+
+    @Override
+    public boolean canInstantiate() {
+        return true;
+    }
+
+    @Override
+    public EditorGameObject instantiate(AudioClip asset, String assetPath, Vector3f position) {
+        // Extract entity name from filename
+        String entityName = extractName(assetPath);
+
+        // Create entity at position
+        EditorGameObject entity = new EditorGameObject(entityName, position, false);
+
+        // Add AudioSource component with the clip
+        AudioSource audioSource = new AudioSource();
+        audioSource.setClip(asset);
+        entity.addComponent(audioSource);
+
+        return entity;
     }
 
     // ========================================================================

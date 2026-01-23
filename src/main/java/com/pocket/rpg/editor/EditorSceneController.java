@@ -132,7 +132,8 @@ public class EditorSceneController {
 
         try {
             SceneData data = EditorSceneSerializer.toSceneData(currentScene);
-            Assets.persist(data, currentScene.getFilePath());
+            // Use raw() to skip asset root - scenes are in gameData/scenes/, not gameData/assets/
+            Assets.persist(data, currentScene.getFilePath(), LoadOptions.raw());
 
             currentScene.clearDirty();
             showMessage("Saved: " + currentScene.getName());

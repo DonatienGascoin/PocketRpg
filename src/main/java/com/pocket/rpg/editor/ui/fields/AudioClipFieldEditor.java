@@ -2,10 +2,8 @@ package com.pocket.rpg.editor.ui.fields;
 
 import com.pocket.rpg.audio.clips.AudioClip;
 import com.pocket.rpg.audio.editor.EditorAudio;
-import com.pocket.rpg.audio.sources.AudioHandle;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.editor.core.MaterialIcons;
-import com.pocket.rpg.editor.panels.AssetPickerPopup;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.SetComponentFieldCommand;
@@ -20,19 +18,14 @@ import java.util.function.Supplier;
 
 /**
  * Field editor for AudioClip assets with play/stop preview button.
+ * Uses AssetEditor's shared popup for asset selection.
  */
 public final class AudioClipFieldEditor {
-
-    private static final AssetPickerPopup assetPicker = new AssetPickerPopup();
-
-    // State for async callback
-    private static Component assetPickerTargetComponent = null;
-    private static String assetPickerFieldName = null;
 
     private AudioClipFieldEditor() {}
 
     /**
-     * Draws an AudioClip field with asset picker and play/stop preview button.
+     * Draws an AudioClip field with play button and asset picker.
      */
     public static boolean drawAudioClip(String label, Component component, String fieldName,
                                          EditorGameObject entity) {
@@ -44,37 +37,40 @@ public final class AudioClipFieldEditor {
 
         try {
             FieldEditorUtils.inspectorRow(label, () -> {
-                // Play/Stop button
-                drawPlayButton(clip);
-                ImGui.sameLine();
-
-                // Asset name display
-                if (clip != null) {
-                    ImGui.textColored(0.6f, 0.9f, 0.6f, 1.0f, display);
-                } else {
-                    ImGui.textDisabled(display);
-                }
-
-                // Asset picker button
-                ImGui.sameLine();
+                // Asset picker button first
                 if (ImGui.smallButton("...")) {
-                    assetPickerTargetComponent = component;
-                    assetPickerFieldName = fieldName;
                     Object oldValue = ComponentReflectionUtils.getFieldValue(component, fieldName);
                     String currentPath = oldValue != null ? Assets.getPathForResource(oldValue) : null;
 
-                    assetPicker.open(AudioClip.class, currentPath, selectedAsset -> {
+                    AssetEditor.openPicker(AudioClip.class, currentPath, selectedAsset -> {
                         UndoManager.getInstance().execute(
                                 new SetComponentFieldCommand(
-                                        assetPickerTargetComponent,
-                                        assetPickerFieldName,
+                                        component,
+                                        fieldName,
                                         oldValue,
                                         selectedAsset,
                                         FieldEditorContext.getEntity()
                                 )
                         );
-                        FieldEditorContext.markFieldOverridden(assetPickerFieldName, selectedAsset);
+                        FieldEditorContext.markFieldOverridden(fieldName, selectedAsset);
                     });
+                }
+
+                // Play/Stop button
+                ImGui.sameLine();
+                drawPlayButton(clip);
+
+                // Asset name (truncated if needed)
+                ImGui.sameLine();
+                String truncated = truncateAssetName(display);
+                if (clip != null) {
+                    ImGui.textColored(0.6f, 0.9f, 0.6f, 1.0f, truncated);
+                } else {
+                    ImGui.textDisabled(truncated);
+                }
+                // Tooltip with full name if truncated
+                if (!truncated.equals(display) && ImGui.isItemHovered()) {
+                    ImGui.setTooltip(display);
                 }
             });
 
@@ -88,7 +84,7 @@ public final class AudioClipFieldEditor {
     }
 
     /**
-     * Draws an AudioClip field using getter/setter pattern with undo support.
+     * Draws an AudioClip field using getter/setter pattern.
      */
     public static boolean drawAudioClip(String label, String key,
                                          Supplier<AudioClip> getter, Consumer<AudioClip> setter) {
@@ -99,24 +95,12 @@ public final class AudioClipFieldEditor {
 
         try {
             FieldEditorUtils.inspectorRow(label, () -> {
-                // Play/Stop button
-                drawPlayButton(clip);
-                ImGui.sameLine();
-
-                // Asset name display
-                if (clip != null) {
-                    ImGui.textColored(0.6f, 0.9f, 0.6f, 1.0f, display);
-                } else {
-                    ImGui.textDisabled(display);
-                }
-
-                // Asset picker button
-                ImGui.sameLine();
+                // Asset picker button first
                 if (ImGui.smallButton("...")) {
                     AudioClip oldValue = getter.get();
                     String currentPath = oldValue != null ? Assets.getPathForResource(oldValue) : null;
 
-                    assetPicker.open(AudioClip.class, currentPath, selectedAsset -> {
+                    AssetEditor.openPicker(AudioClip.class, currentPath, selectedAsset -> {
                         @SuppressWarnings("unchecked")
                         AudioClip typedAsset = (AudioClip) selectedAsset;
 
@@ -124,6 +108,23 @@ public final class AudioClipFieldEditor {
                                 new SetterUndoCommand<>(setter, oldValue, typedAsset, "Change " + label)
                         );
                     });
+                }
+
+                // Play/Stop button
+                ImGui.sameLine();
+                drawPlayButton(clip);
+
+                // Asset name (truncated if needed)
+                ImGui.sameLine();
+                String truncated = truncateAssetName(display);
+                if (clip != null) {
+                    ImGui.textColored(0.6f, 0.9f, 0.6f, 1.0f, truncated);
+                } else {
+                    ImGui.textDisabled(truncated);
+                }
+                // Tooltip with full name if truncated
+                if (!truncated.equals(display) && ImGui.isItemHovered()) {
+                    ImGui.setTooltip(display);
                 }
             });
 
@@ -190,9 +191,32 @@ public final class AudioClipFieldEditor {
     }
 
     /**
-     * Renders the asset picker popup. Call once per frame.
+     * Truncates asset name to fit in available space.
      */
-    public static void renderAssetPicker() {
-        assetPicker.render();
+    private static String truncateAssetName(String name) {
+        if (name == null) return "(none)";
+
+        // Calculate available width (approximate)
+        float availWidth = ImGui.getContentRegionAvailX();
+        float textWidth = ImGui.calcTextSize(name).x;
+
+        if (textWidth <= availWidth) {
+            return name;
+        }
+
+        // Truncate with ellipsis
+        String ellipsis = "...";
+
+        // Binary search for max chars that fit
+        int maxChars = name.length();
+        while (maxChars > 0) {
+            String truncated = name.substring(0, maxChars) + ellipsis;
+            if (ImGui.calcTextSize(truncated).x <= availWidth) {
+                return truncated;
+            }
+            maxChars--;
+        }
+
+        return ellipsis;
     }
 }

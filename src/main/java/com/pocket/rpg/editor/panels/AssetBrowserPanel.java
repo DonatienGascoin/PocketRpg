@@ -1,6 +1,7 @@
 package com.pocket.rpg.editor.panels;
 
 import com.pocket.rpg.editor.EditorPanelType;
+import com.pocket.rpg.editor.EditorSelectionManager;
 import com.pocket.rpg.editor.assets.AssetDragPayload;
 import com.pocket.rpg.editor.assets.ThumbnailCache;
 import com.pocket.rpg.editor.core.MaterialIcons;
@@ -91,6 +92,10 @@ public class AssetBrowserPanel extends EditorPanel {
     // Sprite editor panel reference for context menu and double-click
     @Setter
     private SpriteEditorPanel spriteEditorPanel;
+
+    // Selection manager for asset selection
+    @Setter
+    private EditorSelectionManager selectionManager;
 
     // ========================================================================
     // INITIALIZATION
@@ -491,6 +496,10 @@ public class AssetBrowserPanel extends EditorPanel {
         // Handle click
         if (clicked) {
             selectedAsset = entry;
+            // Notify selection manager for inspector display
+            if (selectionManager != null) {
+                selectionManager.selectAsset(entry.path, entry.type);
+            }
         }
 
         // Double-click to open asset-specific editor

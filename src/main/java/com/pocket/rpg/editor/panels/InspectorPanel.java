@@ -29,6 +29,7 @@ public class InspectorPanel extends EditorPanel {
     private final CollisionMapInspector collisionInspector = new CollisionMapInspector();
     private final EntityInspector entityInspector = new EntityInspector();
     private final MultiSelectionInspector multiSelectionInspector = new MultiSelectionInspector();
+    private final AssetInspector assetInspector = new AssetInspector();
 
     public InspectorPanel() {
         super(PANEL_ID, true); // Default open - core panel
@@ -59,6 +60,10 @@ public class InspectorPanel extends EditorPanel {
                 tilemapInspector.render();
             } else if (selectionManager.isCollisionLayerSelected()) {
                 collisionInspector.render();
+            } else if (selectionManager.isAssetSelected()) {
+                assetInspector.setAssetPath(selectionManager.getSelectedAssetPath());
+                assetInspector.setAssetType(selectionManager.getSelectedAssetType());
+                assetInspector.render();
             } else if (selectionManager.hasEntitySelection()) {
                 Set<EditorGameObject> selected = selectionManager.getSelectedEntities();
                 if (selected.size() > 1) {

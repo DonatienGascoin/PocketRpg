@@ -138,6 +138,7 @@ public class EditorUIController {
         assetBrowserPanel.initPanel(context.getConfig());
         assetBrowserPanel.initialize();
         assetBrowserPanel.setSpriteEditorPanel(spriteEditorPanel);
+        assetBrowserPanel.setSelectionManager(context.getSelectionManager());
 
         hierarchyPanel = new HierarchyPanel();
         hierarchyPanel.initPanel(context.getConfig());

@@ -533,8 +533,13 @@ public class AssetManager implements AssetContext {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public void persist(Object resource, String path) {
+        persist(resource, path, LoadOptions.defaults());
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public void persist(Object resource, String path, LoadOptions options) {
         if (resource == null) {
             throw new IllegalArgumentException("Cannot persist null resource");
         }
@@ -547,7 +552,7 @@ public class AssetManager implements AssetContext {
         }
 
         String normalizedPath = normalizePath(path);
-        String fullPath = resolvePath(normalizedPath, LoadOptions.defaults());
+        String fullPath = resolvePath(normalizedPath, options);
 
         try {
             loader.save(resource, fullPath);

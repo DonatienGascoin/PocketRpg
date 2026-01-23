@@ -300,6 +300,5 @@ public class ReflectionFieldEditor {
 
     public static void renderAssetPicker() {
         FieldEditors.renderAssetPicker();
-        FieldEditors.renderAudioClipPicker();
     }
 }

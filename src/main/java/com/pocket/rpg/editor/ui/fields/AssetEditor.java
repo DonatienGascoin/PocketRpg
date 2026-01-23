@@ -36,13 +36,7 @@ public final class AssetEditor {
 
         try {
             FieldEditorUtils.inspectorRow(label, () -> {
-                if (value != null) {
-                    ImGui.textColored(0.6f, 0.9f, 0.6f, 1.0f, display);
-                } else {
-                    ImGui.textDisabled(display);
-                }
-
-                ImGui.sameLine();
+                // Picker button first
                 if (ImGui.smallButton("...")) {
                     assetPickerTargetComponent = component;
                     assetPickerFieldName = fieldName;
@@ -61,6 +55,19 @@ public final class AssetEditor {
                         );
                         FieldEditorContext.markFieldOverridden(assetPickerFieldName, selectedAsset);
                     });
+                }
+
+                // Asset name (truncated if needed)
+                ImGui.sameLine();
+                String truncated = truncateAssetName(display);
+                if (value != null) {
+                    ImGui.textColored(0.6f, 0.9f, 0.6f, 1.0f, truncated);
+                } else {
+                    ImGui.textDisabled(truncated);
+                }
+                // Tooltip with full name if truncated
+                if (!truncated.equals(display) && ImGui.isItemHovered()) {
+                    ImGui.setTooltip(display);
                 }
             });
 
@@ -98,13 +105,7 @@ public final class AssetEditor {
 
         try {
             FieldEditorUtils.inspectorRow(label, () -> {
-                if (value != null) {
-                    ImGui.textColored(0.6f, 0.9f, 0.6f, 1.0f, display);
-                } else {
-                    ImGui.textDisabled(display);
-                }
-
-                ImGui.sameLine();
+                // Picker button first
                 if (ImGui.smallButton("...")) {
                     T oldValue = getter.get();
                     String currentPath = oldValue != null ? Assets.getPathForResource(oldValue) : null;
@@ -119,12 +120,68 @@ public final class AssetEditor {
                         );
                     });
                 }
+
+                // Asset name (truncated if needed)
+                ImGui.sameLine();
+                String truncated = truncateAssetName(display);
+                if (value != null) {
+                    ImGui.textColored(0.6f, 0.9f, 0.6f, 1.0f, truncated);
+                } else {
+                    ImGui.textDisabled(truncated);
+                }
+                // Tooltip with full name if truncated
+                if (!truncated.equals(display) && ImGui.isItemHovered()) {
+                    ImGui.setTooltip(display);
+                }
             });
 
         } finally {
             ImGui.popID();
         }
         return false;
+    }
+
+    /**
+     * Truncates asset name to fit in available space.
+     */
+    private static String truncateAssetName(String name) {
+        if (name == null) return "(none)";
+
+        // Calculate available width (approximate)
+        float availWidth = ImGui.getContentRegionAvailX();
+        float textWidth = ImGui.calcTextSize(name).x;
+
+        if (textWidth <= availWidth) {
+            return name;
+        }
+
+        // Truncate with ellipsis
+        String ellipsis = "...";
+        float ellipsisWidth = ImGui.calcTextSize(ellipsis).x;
+
+        // Binary search for max chars that fit
+        int maxChars = name.length();
+        while (maxChars > 0) {
+            String truncated = name.substring(0, maxChars) + ellipsis;
+            if (ImGui.calcTextSize(truncated).x <= availWidth) {
+                return truncated;
+            }
+            maxChars--;
+        }
+
+        return ellipsis;
+    }
+
+    /**
+     * Opens the asset picker popup without drawing a field.
+     * Useful when a custom field editor needs to handle the picker button itself.
+     *
+     * @param assetType   The asset class type
+     * @param currentPath Current asset path (for initial selection)
+     * @param callback    Callback when an asset is selected
+     */
+    public static void openPicker(Class<?> assetType, String currentPath, Consumer<Object> callback) {
+        assetPicker.open(assetType, currentPath, callback);
     }
 
     /**

@@ -324,9 +324,6 @@ public final class FieldEditors {
         return AudioClipFieldEditor.drawAudioClip(label, key, getter, setter);
     }
 
-    public static void renderAudioClipPicker() {
-        AudioClipFieldEditor.renderAssetPicker();
-    }
 
     // ========================================================================
     // READ-ONLY

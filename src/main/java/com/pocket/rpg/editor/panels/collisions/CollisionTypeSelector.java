@@ -13,7 +13,16 @@ public class CollisionTypeSelector {
     @Getter private CollisionType selectedType = CollisionType.SOLID;
     @Setter private Consumer<CollisionType> onTypeSelected;
 
+    // Track enabled state for rendering
+    private boolean enabled = true;
+
     public void render() {
+        render(true);
+    }
+
+    public void render(boolean enabled) {
+        this.enabled = enabled;
+
         ImGui.text("Collision Types");
 
         ImGui.textDisabled("Movement");
@@ -49,6 +58,11 @@ public class CollisionTypeSelector {
     }
 
     public void renderHorizontal() {
+        renderHorizontal(true);
+    }
+
+    public void renderHorizontal(boolean enabled) {
+        this.enabled = enabled;
 
         // Movement block
         ImGui.textDisabled("Movement");
@@ -96,12 +110,15 @@ public class CollisionTypeSelector {
         float g = type == CollisionType.NONE ? 0.3f : color[1];
         float b = type == CollisionType.NONE ? 0.3f : color[2];
 
+        // Dim colors when disabled (but still allow clicks to switch modes)
+        float dimFactor = enabled ? 1.0f : 0.4f;
+
         if (isSelected) {
-            ImGui.pushStyleColor(ImGuiCol.Button, r, g, b, 0.8f);
+            ImGui.pushStyleColor(ImGuiCol.Button, r * dimFactor, g * dimFactor, b * dimFactor, 0.8f * dimFactor);
             ImGui.pushStyleColor(ImGuiCol.ButtonHovered, r * 1.1f, g * 1.1f, b * 1.1f, 0.9f);
             ImGui.pushStyleColor(ImGuiCol.ButtonActive, r * 0.9f, g * 0.9f, b * 0.9f, 1.0f);
         } else {
-            ImGui.pushStyleColor(ImGuiCol.Button, r, g, b, 0.5f);
+            ImGui.pushStyleColor(ImGuiCol.Button, r * dimFactor, g * dimFactor, b * dimFactor, 0.5f * dimFactor);
             ImGui.pushStyleColor(ImGuiCol.ButtonHovered, r, g, b, 0.7f);
             ImGui.pushStyleColor(ImGuiCol.ButtonActive, r, g, b, 0.9f);
         }

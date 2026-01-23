@@ -138,7 +138,6 @@ public class TilesetPalettePanel extends EditorPanel {
         if (ImGui.beginCombo("##layer", activeLayerName)) {
             // "None" option to deselect
             if (ImGui.selectable("None", activeLayer == null)) {
-                scene.setActiveLayer(-1);
                 if (editorSelectionManager != null) {
                     editorSelectionManager.clearSelection();
                 }
@@ -154,8 +153,7 @@ public class TilesetPalettePanel extends EditorPanel {
                 String label = layer.isLocked() ? "[L] " + layer.getName() : layer.getName();
 
                 if (ImGui.selectable(label, isSelected)) {
-                    scene.setActiveLayer(i);
-                    // Sync Hierarchy to select Tilemap Layers
+                    // Sync Hierarchy to select Tilemap Layers (also sets scene.activeLayer)
                     syncHierarchyToTilemapLayers(i);
                 }
             }

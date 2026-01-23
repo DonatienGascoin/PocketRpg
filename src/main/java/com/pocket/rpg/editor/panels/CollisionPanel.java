@@ -1,6 +1,7 @@
 package com.pocket.rpg.editor.panels;
 
 import com.pocket.rpg.collision.CollisionType;
+import com.pocket.rpg.editor.EditorSelectionManager;
 import com.pocket.rpg.editor.panels.collisions.CollisionToolConfigView;
 import com.pocket.rpg.editor.panels.collisions.CollisionTypeSelector;
 import com.pocket.rpg.editor.scene.EditorScene;
@@ -43,12 +44,41 @@ public class CollisionPanel extends EditorPanel {
     @Getter
     @Setter private boolean isHorizontalLayout = false;
 
+    private EditorSelectionManager editorSelectionManager;
+
     public CollisionPanel() {
         super(PANEL_ID, false); // Default closed - painting panel
         this.typeSelector = new CollisionTypeSelector();
         this.toolConfigView = new CollisionToolConfigView();
 
         typeSelector.setOnTypeSelected(this::onTypeSelected);
+    }
+
+    /**
+     * Sets the editor selection manager and registers a listener to respond
+     * when leaving collision mode.
+     */
+    public void setEditorSelectionManager(EditorSelectionManager manager) {
+        this.editorSelectionManager = manager;
+        if (manager != null) {
+            manager.addListener(this::onSelectionTypeChanged);
+        }
+    }
+
+    /**
+     * Called when the editor selection type changes.
+     */
+    private void onSelectionTypeChanged(EditorSelectionManager.SelectionType newType) {
+        // Currently no state to clear when leaving collision mode,
+        // but this allows for future extensions
+    }
+
+    /**
+     * Returns true if ready for painting (collision layer selected).
+     */
+    private boolean canPaint() {
+        return editorSelectionManager != null
+                && editorSelectionManager.isCollisionLayerSelected();
     }
 
     @Override
@@ -88,18 +118,30 @@ public class CollisionPanel extends EditorPanel {
     }
 
     private void renderVertical() {
+        renderSelectionWarning();
         toolConfigView.renderVisibilitySection();
         ImGui.separator();
         toolConfigView.renderZLevelSection();
         ImGui.separator();
         toolConfigView.renderBrushSection();
         ImGui.separator();
-        typeSelector.render();
+        typeSelector.render(canPaint());
         ImGui.separator();
         toolConfigView.renderStatsSection();
     }
 
+    /**
+     * Renders the warning message when collision map is not selected.
+     */
+    private void renderSelectionWarning() {
+        if (!canPaint()) {
+            ImGui.textColored(1.0f, 0.8f, 0.2f, 1.0f, "Select collision map to start painting");
+        }
+    }
+
     private void renderHorizontal() {
+        renderSelectionWarning();
+
         if (ImGui.beginTable("collisionTable", 2, ImGuiTableFlags.BordersInnerV)) {
 
             ImGui.tableSetupColumn(
@@ -144,7 +186,7 @@ public class CollisionPanel extends EditorPanel {
                     ImGuiWindowFlags.HorizontalScrollbar
             );
 
-            typeSelector.renderHorizontal();
+            typeSelector.renderHorizontal(canPaint());
             ImGui.endChild();
 
             ImGui.endTable();
@@ -161,6 +203,11 @@ public class CollisionPanel extends EditorPanel {
         if (brushTool != null) brushTool.setSelectedType(type);
         if (fillTool != null) fillTool.setSelectedType(type);
         if (rectangleTool != null) rectangleTool.setSelectedType(type);
+
+        // Sync Hierarchy to select Collision Map when interacting with panel
+        if (editorSelectionManager != null) {
+            editorSelectionManager.selectCollisionLayer();
+        }
     }
 
     public CollisionType getSelectedType() {

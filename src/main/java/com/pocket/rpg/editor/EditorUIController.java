@@ -132,6 +132,7 @@ public class EditorUIController {
         collisionPanel.setFillTool(toolController.getCollisionFillTool());
         collisionPanel.setRectangleTool(toolController.getCollisionRectangleTool());
         collisionPanel.setPickerTool(toolController.getCollisionPickerTool());
+        collisionPanel.setEditorSelectionManager(context.getSelectionManager());
         collisionPanel.setHorizontalLayout(true);
 
         toolController.setCollisionPanel(collisionPanel);

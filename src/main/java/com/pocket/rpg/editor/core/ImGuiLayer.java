@@ -77,30 +77,42 @@ public class ImGuiLayer {
         // This enables FreeType font renderer, which is disabled by default.
         io.getFonts().setFreeTypeRenderer(true);
 
-        // Font config for additional fonts
-        // This is a natively allocated struct so don't forget to call destroy after atlas is built
-        final ImFontConfig fontConfig = new ImFontConfig();
-        fontConfig.setSizePixels(16.0f * dpiScale);
+        // Load icon font data once for reuse
+        byte[] iconFontData = loadFromResources("editor/fonts/MaterialSymbolsSharp-Regular.ttf");
 
         // Build glyph ranges for icon fonts
         final ImFontGlyphRangesBuilder rangesBuilder = new ImFontGlyphRangesBuilder();
         rangesBuilder.addRanges(MaterialIcons._IconRange);
+        final short[] glyphRanges = rangesBuilder.buildRanges();
+
+        // Font config for main font
+        final ImFontConfig fontConfig = new ImFontConfig();
+        fontConfig.setSizePixels(16.0f * dpiScale);
 
         // Add default font for latin glyphs
         io.getFonts().addFontFromMemoryTTF(loadFromResources("editor/fonts/Roboto-Regular.ttf"), 18 * dpiScale, fontConfig);
-        fontConfig.setMergeMode(true);  // Enable merge mode to merge icons with default font
 
-        final short[] glyphRanges = rangesBuilder.buildRanges();
+        // Material Icons merged with default font (for seamless icon+text usage)
+        final ImFontConfig mergedIconConfig = new ImFontConfig();
+        mergedIconConfig.setMergeMode(true);
+        mergedIconConfig.setGlyphOffset(0, 1 * dpiScale);  // Lower icons to align with text
+        io.getFonts().addFontFromMemoryTTF(iconFontData, 18 * dpiScale, mergedIconConfig, glyphRanges);
 
-        // Material Icons need vertical offset adjustment to align with text baseline
-        final ImFontConfig materialIconConfig = new ImFontConfig();
-        materialIconConfig.setMergeMode(true);
-        materialIconConfig.setGlyphOffset(0, 1 * dpiScale);  // Lower icons
-        io.getFonts().addFontFromMemoryTTF(loadFromResources("editor/fonts/MaterialSymbolsSharp-Regular.ttf"), 18 * dpiScale, materialIconConfig, glyphRanges);
+        // Separate icon fonts (NOT merged) for thumbnail fallbacks at various sizes
+        final ImFontConfig iconConfig = new ImFontConfig();
+        ImFont iconFontTiny = io.getFonts().addFontFromMemoryTTF(iconFontData, 12 * dpiScale, iconConfig, glyphRanges);
+        ImFont iconFontSmall = io.getFonts().addFontFromMemoryTTF(iconFontData, 24 * dpiScale, iconConfig, glyphRanges);
+        ImFont iconFontMedium = io.getFonts().addFontFromMemoryTTF(iconFontData, 32 * dpiScale, iconConfig, glyphRanges);
+        ImFont iconFontLarge = io.getFonts().addFontFromMemoryTTF(iconFontData, 48 * dpiScale, iconConfig, glyphRanges);
+
         io.getFonts().build();
 
+        // Register icon fonts with EditorFonts helper
+        EditorFonts.setIconFonts(iconFontTiny, iconFontSmall, iconFontMedium, iconFontLarge);
+
         fontConfig.destroy();
-        materialIconConfig.destroy();
+        mergedIconConfig.destroy();
+        iconConfig.destroy();
     }
 
     private byte[] loadFromResources(String fontPath) {

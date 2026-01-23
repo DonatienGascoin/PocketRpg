@@ -268,10 +268,14 @@ public class UIText extends UIComponent {
 
     @Override
     public void render(com.pocket.rpg.rendering.ui.UIRendererBackend backend) {
-        if (getFont() == null || text.isEmpty()) return;
+        if (getFont() == null || text.isEmpty()) {
+            return;
+        }
 
         UITransform transform = getUITransform();
-        if (transform == null) return;
+        if (transform == null) {
+            return;
+        }
 
         // Use matrix-based methods for correct hierarchy handling
         Vector2f pivotWorld = transform.getWorldPivotPosition2D();

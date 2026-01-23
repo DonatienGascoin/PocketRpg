@@ -1,6 +1,7 @@
 package com.pocket.rpg.editor.rendering;
 
 import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.Transform;
 import com.pocket.rpg.components.ui.UICanvas;
 import com.pocket.rpg.components.ui.UIComponent;
 import com.pocket.rpg.components.ui.UITransform;
@@ -141,18 +142,28 @@ public class EditorUIBridge {
     private GameObject createWrapperGameObject(EditorGameObject entity) {
         GameObject wrapper = new GameObject(entity.getName());
 
-        // Copy transform position/rotation/scale from EditorGameObject
-        wrapper.getTransform().setPosition(entity.getTransform().getPosition());
-        wrapper.getTransform().setRotation(entity.getTransform().getRotation());
-        wrapper.getTransform().setScale(entity.getTransform().getScale());
-
         // Handle UITransform specially - it extends Transform, not UIComponent
         // Must add BEFORE UIComponents so they can find it via getComponent()
         UITransform uiTransform = entity.getComponent(UITransform.class);
         if (uiTransform != null) {
+            // Remove the auto-created Transform before adding UITransform
+            // (addComponentToWrapper bypasses the normal addComponent logic that would do this)
+            removeAutoCreatedTransform(wrapper);
+
             // Reassign UITransform to wrapper
             uiTransform.setGameObject(wrapper);
             addComponentToWrapper(wrapper, uiTransform);
+
+            // Update wrapper's transform reference to point to UITransform
+            setWrapperTransform(wrapper, uiTransform);
+        } else {
+            // No UITransform - copy position from EditorGameObject's transform
+            Transform entityTransform = entity.getTransform();
+            if (entityTransform != null) {
+                wrapper.getTransform().setPosition(entityTransform.getPosition());
+                wrapper.getTransform().setRotation(entityTransform.getRotation());
+                wrapper.getTransform().setScale(entityTransform.getScale());
+            }
         }
 
         // Add UI components to wrapper
@@ -182,6 +193,36 @@ public class EditorUIBridge {
             components.add(component);
         } catch (Exception e) {
             System.err.println("[EditorUIBridge] Failed to add component to wrapper: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Removes the auto-created Transform from wrapper's component list.
+     * Called before adding UITransform to avoid duplicate transforms.
+     */
+    private void removeAutoCreatedTransform(GameObject wrapper) {
+        try {
+            var field = GameObject.class.getDeclaredField("components");
+            field.setAccessible(true);
+            @SuppressWarnings("unchecked")
+            List<Component> components = (List<Component>) field.get(wrapper);
+            components.removeIf(c -> c == wrapper.getTransform());
+        } catch (Exception e) {
+            System.err.println("[EditorUIBridge] Failed to remove auto-created transform: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Sets the wrapper's transform field to the UITransform.
+     * This ensures wrapper.getTransform() returns the UITransform.
+     */
+    private void setWrapperTransform(GameObject wrapper, UITransform uiTransform) {
+        try {
+            var field = GameObject.class.getDeclaredField("transform");
+            field.setAccessible(true);
+            field.set(wrapper, uiTransform);
+        } catch (Exception e) {
+            System.err.println("[EditorUIBridge] Failed to set wrapper transform: " + e.getMessage());
         }
     }
 }

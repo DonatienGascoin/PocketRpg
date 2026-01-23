@@ -127,8 +127,9 @@ public class EditorSceneSerializer {
         copyTilemapData(tilemap, componentForSerialization);
         components.add(componentForSerialization);
 
+        // Use the layer's existing ID instead of generating a new one
         GameObjectData goData = new GameObjectData(
-                UUID.randomUUID().toString().substring(0, 8),
+                layer.getId(),
                 layer.getName(),
                 components
         );
@@ -157,7 +158,10 @@ public class EditorSceneSerializer {
 
         gameObject.addComponent(newTilemap);
 
-        return new TilemapLayer(gameObject, goData.getName());
+        // Preserve the ID from the saved data
+        TilemapLayer layer = new TilemapLayer(gameObject, goData.getName(), goData.getId());
+        layer.setVisible(goData.isActive());
+        return layer;
     }
 
     /**

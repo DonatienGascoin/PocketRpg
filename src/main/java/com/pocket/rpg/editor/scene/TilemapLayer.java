@@ -8,6 +8,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Wraps a tilemap layer for editor use.
@@ -25,6 +26,9 @@ import java.util.List;
  */
 @Getter
 public class TilemapLayer {
+
+    /** Unique identifier for this layer (persisted across save/load) */
+    private String id;
 
     /** The underlying GameObject */
     private final GameObject gameObject;
@@ -62,6 +66,7 @@ public class TilemapLayer {
      * @param zIndex Render order (lower = behind)
      */
     public TilemapLayer(String name, int zIndex) {
+        this.id = UUID.randomUUID().toString().substring(0, 8);
         this.name = name;
         this.gameObject = new GameObject(name);
         this.tilemap = new TilemapRenderer(1.0f); // 1 world unit per tile
@@ -77,6 +82,18 @@ public class TilemapLayer {
      * @param name Display name
      */
     public TilemapLayer(GameObject gameObject, String name) {
+        this(gameObject, name, UUID.randomUUID().toString().substring(0, 8));
+    }
+
+    /**
+     * Creates a layer from an existing GameObject with a specific ID (used for loading).
+     *
+     * @param gameObject Existing GameObject
+     * @param name Display name
+     * @param id Existing ID to preserve
+     */
+    public TilemapLayer(GameObject gameObject, String name, String id) {
+        this.id = id;
         this.gameObject = gameObject;
         this.tilemap = gameObject.getComponent(TilemapRenderer.class);
         if (this.tilemap == null) {

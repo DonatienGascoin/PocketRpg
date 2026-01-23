@@ -197,6 +197,10 @@ public class ComponentTypeAdapterFactory implements TypeAdapterFactory {
             }
         }
 
+        // Reset transient fields to their default values (field initializers)
+        // This ensures caches and other transient state are properly initialized
+        ComponentRegistry.resetTransientFields(component);
+
         return component;
     }
 

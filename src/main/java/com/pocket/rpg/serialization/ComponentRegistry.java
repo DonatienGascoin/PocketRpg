@@ -175,6 +175,42 @@ public class ComponentRegistry {
         return instantiate(meta.simpleName());
     }
 
+    /**
+     * Resets all transient fields in a component to their default values.
+     * <p>
+     * This is necessary after deserialization/cloning because transient fields
+     * are not serialized and may not have their field-initializer values.
+     * Creates a fresh instance and copies transient field values from it.
+     *
+     * @param component The component to reset transient fields on
+     */
+    public static void resetTransientFields(Component component) {
+        if (component == null) return;
+
+        String className = component.getClass().getName();
+        Component freshInstance = instantiateByClassName(className);
+        if (freshInstance == null) {
+            return;
+        }
+
+        // Walk up the class hierarchy to get all transient fields
+        Class<?> clazz = component.getClass();
+        while (clazz != null && clazz != Object.class) {
+            for (Field field : clazz.getDeclaredFields()) {
+                if (Modifier.isTransient(field.getModifiers()) && !Modifier.isStatic(field.getModifiers())) {
+                    try {
+                        field.setAccessible(true);
+                        Object defaultValue = field.get(freshInstance);
+                        field.set(component, defaultValue);
+                    } catch (IllegalAccessException e) {
+                        // Skip fields we can't access
+                    }
+                }
+            }
+            clazz = clazz.getSuperclass();
+        }
+    }
+
     // ========================================================================
     // PRIVATE HELPERS
     // ========================================================================

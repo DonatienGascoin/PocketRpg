@@ -166,7 +166,6 @@ public class UIRenderer implements UIRendererBackend {
         updateProjection();
 
         initialized = true;
-        System.out.println("[UIRenderer] Initialized (" + gameWidth + "x" + gameHeight + ", Y=0 at top)");
     }
 
     /**
@@ -197,7 +196,9 @@ public class UIRenderer implements UIRendererBackend {
      * @param canvases List of canvases to render
      */
     public void render(List<UICanvas> canvases) {
-        if (!initialized || canvases == null || canvases.isEmpty()) return;
+        if (!initialized || canvases == null || canvases.isEmpty()) {
+            return;
+        }
 
         // Setup render state
         glEnable(GL_BLEND);
@@ -205,8 +206,12 @@ public class UIRenderer implements UIRendererBackend {
         glDisable(GL_DEPTH_TEST);
 
         for (UICanvas canvas : canvases) {
-            if (!canvas.isEnabled()) continue;
-            if (canvas.getRenderMode() != UICanvas.RenderMode.SCREEN_SPACE_OVERLAY) continue;
+            if (!canvas.isEnabled()) {
+                continue;
+            }
+            if (canvas.getRenderMode() != UICanvas.RenderMode.SCREEN_SPACE_OVERLAY) {
+                continue;
+            }
 
             // Canvas root starts at (0,0) with full game resolution
             renderCanvasSubtree(canvas.getGameObject(), 0, 0, gameWidth, gameHeight);
@@ -230,18 +235,15 @@ public class UIRenderer implements UIRendererBackend {
 
     private void renderCanvasSubtree(GameObject root, float parentX, float parentY,
                                      float parentWidth, float parentHeight) {
-        if (!root.isEnabled()) return;
+        if (!root.isEnabled()) {
+            return;
+        }
 
         // Update UITransform with screen bounds
+        // ALL UITransforms need screen bounds set for proper position calculations
         UITransform transform = root.getComponent(UITransform.class);
         if (transform != null) {
-            // Only set screen bounds for root elements (those without UITransform parent)
-            // Child elements derive parent bounds from hierarchy automatically
-            GameObject parent = root.getParent();
-            boolean isRoot = (parent == null || parent.getComponent(UITransform.class) == null);
-            if (isRoot) {
-                transform.setScreenBounds(parentWidth, parentHeight);
-            }
+            transform.setScreenBounds(gameWidth, gameHeight);
             // Force position recalculation
             transform.markDirty();
         }
@@ -271,9 +273,9 @@ public class UIRenderer implements UIRendererBackend {
 
     private void renderGameObjectUI(GameObject go) {
         for (var component : go.getAllComponents()) {
-            if (component instanceof UIComponent uiComp && uiComp.isEnabled()) {
+            if (component instanceof UIComponent uiComp) {
                 // Skip UICanvas - it's just a container marker
-                if (!(uiComp instanceof UICanvas)) {
+                if (!(uiComp instanceof UICanvas) && uiComp.isEnabled()) {
                     uiComp.render(this);
                 }
             }
@@ -1324,6 +1326,5 @@ public class UIRenderer implements UIRendererBackend {
         glDeleteTextures(whiteTexture);
 
         initialized = false;
-        System.out.println("[UIRenderer] Destroyed");
     }
 }

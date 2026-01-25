@@ -164,6 +164,11 @@ public class Renderer {
 
     /**
      * Builds the model matrix using world units.
+     * <p>
+     * The pivot point determines how the sprite is positioned relative to the world position.
+     * A pivot of (0.5, 0.5) means the sprite center is at the world position.
+     * A pivot of (0, 0) means the bottom-left corner is at the world position.
+     * This matches Unity's pivot behavior.
      */
     private void buildModelMatrix(Sprite sprite, Transform transform, SpriteRenderer spriteRenderer) {
         Vector3f pos = transform.getPosition();
@@ -174,23 +179,32 @@ public class Renderer {
         float finalWidth = sprite.getWorldWidth() * scale.x;
         float finalHeight = sprite.getWorldHeight() * scale.y;
 
-        float originX = finalWidth * spriteRenderer.getEffectiveOriginX();
-        float originY = finalHeight * spriteRenderer.getEffectiveOriginY();
+        // Get normalized pivot (0-1 range)
+        float pivotX = spriteRenderer.getEffectiveOriginX();
+        float pivotY = spriteRenderer.getEffectiveOriginY();
 
         modelMatrix.identity();
 
-        // Translate to position
+        // Transform sequence (applied in reverse order to vertices):
+        // 1. Translate quad so pivot is at local origin: (-pivotX, -pivotY)
+        // 2. Scale to world size
+        // 3. Rotate around Z axis (pivot is now at origin)
+        // 4. Translate to world position
+
+        // Step 4: Translate to world position
         modelMatrix.translate(pos.x, pos.y, pos.z);
 
-        // Apply rotation around origin point
+        // Step 3: Rotate around pivot (which is at origin after step 1)
         if (rot.z != 0) {
-            modelMatrix.translate(originX, originY, 0);
             modelMatrix.rotateZ((float) Math.toRadians(rot.z));
-            modelMatrix.translate(-originX, -originY, 0);
         }
 
-        // Scale to final world size
+        // Step 2: Scale to final world size
         modelMatrix.scale(finalWidth, finalHeight, 1);
+
+        // Step 1: Translate quad so pivot point is at origin
+        // The quad vertices are in [0,1] range, so we translate by -pivot
+        modelMatrix.translate(-pivotX, -pivotY, 0);
     }
 
     public void end() {

@@ -4,6 +4,7 @@ import com.pocket.rpg.components.Component;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
+import com.pocket.rpg.editor.ui.fields.FieldEditorContext;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
 import com.pocket.rpg.editor.ui.fields.ReflectionFieldEditor;
 import com.pocket.rpg.serialization.ComponentMeta;
@@ -22,6 +23,9 @@ public class ComponentFieldEditor {
     private EditorScene scene;
 
     public boolean renderComponentFields(EditorGameObject entity, Component component, boolean isPrefabInstance) {
+        // Ensure scene is available for inspectors that need it
+        FieldEditorContext.setCurrentScene(scene);
+
         if (isPrefabInstance) {
             FieldEditors.beginOverrideContext(entity, component);
         }

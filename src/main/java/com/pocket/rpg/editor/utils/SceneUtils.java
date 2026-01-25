@@ -1,10 +1,12 @@
 package com.pocket.rpg.editor.utils;
 
-import com.pocket.rpg.collision.trigger.SpawnPointData;
-import com.pocket.rpg.collision.trigger.TriggerData;
-import com.pocket.rpg.collision.trigger.TriggerDataMap;
+import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.interaction.SpawnPoint;
+import com.pocket.rpg.prefab.Prefab;
+import com.pocket.rpg.prefab.PrefabRegistry;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.resources.LoadOptions;
+import com.pocket.rpg.serialization.GameObjectData;
 import com.pocket.rpg.serialization.SceneData;
 
 import java.io.File;
@@ -62,7 +64,7 @@ public final class SceneUtils {
 
     /**
      * Gets the spawn point IDs from a scene.
-     * Results are cached for performance.
+     * Always loads fresh to avoid stale data when spawn points are added/removed.
      *
      * @param sceneName Scene name (without .scene extension)
      * @return List of spawn point IDs, or empty list if scene not found
@@ -72,14 +74,8 @@ public final class SceneUtils {
             return Collections.emptyList();
         }
 
-        // Check cache first
-        if (spawnPointCache.containsKey(sceneName)) {
-            return spawnPointCache.get(sceneName);
-        }
-
-        List<String> spawnPoints = loadSpawnPointsFromScene(sceneName);
-        spawnPointCache.put(sceneName, spawnPoints);
-        return spawnPoints;
+        // Always load fresh - spawn points may have been added/removed
+        return loadSpawnPointsFromScene(sceneName);
     }
 
     /**
@@ -101,45 +97,85 @@ public final class SceneUtils {
 
     /**
      * Loads spawn points directly from a scene file.
+     * Scans entity-based SpawnPoint components.
      */
     private static List<String> loadSpawnPointsFromScene(String sceneName) {
-        List<String> spawnPoints = new ArrayList<>();
+        Set<String> spawnPoints = new HashSet<>();
 
         String path = SCENES_DIRECTORY + "/" + sceneName + SCENE_EXTENSION;
         File file = new File(path);
         if (!file.exists()) {
-            return spawnPoints;
+            return new ArrayList<>();
         }
 
         try {
             // Load scene data without caching (we only need spawn points)
             SceneData sceneData = Assets.load(path, LoadOptions.rawUncached());
             if (sceneData == null) {
-                return spawnPoints;
+                return new ArrayList<>();
             }
 
-            // Extract spawn points from trigger data
-            if (sceneData.getTriggerData() != null) {
-                TriggerDataMap triggerMap = new TriggerDataMap();
-                triggerMap.fromSerializableMap(sceneData.getTriggerData());
-
-                for (var entry : triggerMap.getAll().entrySet()) {
-                    TriggerData data = entry.getValue();
-                    if (data instanceof SpawnPointData spawn) {
-                        String id = spawn.id();
-                        if (id != null && !id.isBlank()) {
-                            spawnPoints.add(id);
-                        }
+            // Extract spawn points from entity-based SpawnPoint components
+            if (sceneData.getGameObjects() != null) {
+                for (GameObjectData gameObjectData : sceneData.getGameObjects()) {
+                    String spawnId = extractSpawnPointId(gameObjectData);
+                    if (spawnId != null && !spawnId.isBlank()) {
+                        spawnPoints.add(spawnId);
                     }
                 }
             }
 
-            Collections.sort(spawnPoints);
+            List<String> sorted = new ArrayList<>(spawnPoints);
+            Collections.sort(sorted);
+            return sorted;
         } catch (Exception e) {
             System.err.println("Failed to load spawn points from scene '" + sceneName + "': " + e.getMessage());
         }
 
-        return spawnPoints;
+        return new ArrayList<>();
+    }
+
+    /**
+     * Extracts SpawnPoint ID from a GameObjectData.
+     * Handles both scratch entities (components list) and prefab instances (overrides + prefab defaults).
+     */
+    private static String extractSpawnPointId(GameObjectData data) {
+        if (data.isScratchEntity()) {
+            // Check components list for SpawnPoint
+            SpawnPoint spawn = data.getComponent(SpawnPoint.class);
+            if (spawn != null) {
+                return spawn.getSpawnId();
+            }
+        } else {
+            // Prefab instance: check overrides first, then prefab default
+            String spawnPointType = "com.pocket.rpg.components.interaction.SpawnPoint";
+
+            // Check overrides
+            var overrides = data.getComponentOverrides();
+            if (overrides != null) {
+                var spawnOverrides = overrides.get(spawnPointType);
+                if (spawnOverrides != null && spawnOverrides.containsKey("spawnId")) {
+                    Object id = spawnOverrides.get("spawnId");
+                    if (id instanceof String s) {
+                        return s;
+                    }
+                }
+            }
+
+            // Fall back to prefab default
+            String prefabId = data.getPrefabId();
+            if (prefabId != null) {
+                Prefab prefab = PrefabRegistry.getInstance().getPrefab(prefabId);
+                if (prefab != null) {
+                    for (Component comp : prefab.getComponents()) {
+                        if (comp instanceof SpawnPoint spawn) {
+                            return spawn.getSpawnId();
+                        }
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     /**

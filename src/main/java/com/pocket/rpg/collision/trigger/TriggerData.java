@@ -16,9 +16,12 @@ import java.util.List;
  *   <li>Adding new type forces updates everywhere it's used</li>
  *   <li>Registry-based serialization via {@code getPermittedSubclasses()}</li>
  * </ul>
+ * <p>
+ * Note: WarpTriggerData, DoorTriggerData, SpawnPointData have been migrated
+ * to entity-based components (WarpZone, Door, SpawnPoint).
  */
 public sealed interface TriggerData
-        permits WarpTriggerData, DoorTriggerData, StairsData, SpawnPointData {
+        permits StairsData {
 
     /**
      * When the trigger activates.

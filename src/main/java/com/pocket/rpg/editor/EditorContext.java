@@ -8,6 +8,7 @@ import com.pocket.rpg.editor.core.EditorConfig;
 import com.pocket.rpg.editor.core.EditorWindow;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.tools.ToolManager;
+import com.pocket.rpg.editor.ui.fields.FieldEditorContext;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -80,6 +81,8 @@ public class EditorContext {
         if (selectionManager != null) {
             selectionManager.setScene(scene);
         }
+        // Update FieldEditorContext so inspectors can access the scene
+        FieldEditorContext.setCurrentScene(scene);
         notifySceneChanged(scene);
     }
 

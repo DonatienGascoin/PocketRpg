@@ -2,6 +2,7 @@ package com.pocket.rpg.editor.ui.fields;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.editor.scene.EditorGameObject;
+import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import imgui.ImDrawList;
 import imgui.ImGui;
@@ -19,6 +20,7 @@ public final class FieldEditorContext {
     private static EditorGameObject entity = null;
     private static Component component = null;
     private static String componentType = null;
+    private static EditorScene currentScene = null;
 
     private static final float[] OVERRIDE_COLOR = {1.0f, 0.8f, 0.2f, 1.0f};
     private static final int REQUIRED_ROW_BG_COLOR = ImGui.colorConvertFloat4ToU32(1f, 0.1f, 0.1f, 0.7f);
@@ -43,12 +45,37 @@ public final class FieldEditorContext {
     }
 
     /**
+     * Begins override context with scene for prefab instance editing.
+     */
+    public static void begin(EditorGameObject entity, Component component, EditorScene scene) {
+        FieldEditorContext.entity = entity;
+        FieldEditorContext.component = component;
+        FieldEditorContext.componentType = component != null ? component.getClass().getName() : null;
+        FieldEditorContext.currentScene = scene;
+    }
+
+    /**
      * Ends override context.
      */
     public static void end() {
         entity = null;
         component = null;
         componentType = null;
+    }
+
+    /**
+     * Sets the current editor scene.
+     * Call this when the scene changes.
+     */
+    public static void setCurrentScene(EditorScene scene) {
+        currentScene = scene;
+    }
+
+    /**
+     * Gets the current editor scene.
+     */
+    public static EditorScene getCurrentScene() {
+        return currentScene;
     }
 
     /**

@@ -153,14 +153,9 @@ public class DemoScene extends Scene {
         collisionMap.set(13, 8, CollisionType.LEDGE_UP);
 
         // =====================================================================
-        // TEST AREA 8: Interaction triggers (for future use)
+        // TEST AREA 8: Stairs trigger
+        // Note: WARP and DOOR are now entity-based (WarpZone, Door components)
         // =====================================================================
-
-        // Warp tile
-        collisionMap.set(0, 10, CollisionType.WARP);
-
-        // Door tile
-        collisionMap.set(15, 5, CollisionType.DOOR);
 
         // Stairs (elevation trigger)
         collisionMap.set(15, 6, CollisionType.STAIRS);

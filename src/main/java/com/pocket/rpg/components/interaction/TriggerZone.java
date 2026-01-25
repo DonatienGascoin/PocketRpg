@@ -3,8 +3,11 @@ package com.pocket.rpg.components.interaction;
 import com.pocket.rpg.collision.TileEntityMap;
 import com.pocket.rpg.collision.trigger.TileCoord;
 import com.pocket.rpg.components.Component;
-import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.components.ComponentMeta;
+import com.pocket.rpg.core.GameObject;
+import com.pocket.rpg.editor.gizmos.GizmoColors;
+import com.pocket.rpg.editor.gizmos.GizmoContext;
+import com.pocket.rpg.editor.gizmos.GizmoDrawableSelected;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector3f;
@@ -43,7 +46,7 @@ import java.util.List;
  * </pre>
  */
 @ComponentMeta(category = "Interaction")
-public class TriggerZone extends Component {
+public class TriggerZone extends Component implements GizmoDrawableSelected {
 
     /**
      * Horizontal offset from entity position (in tiles).
@@ -221,5 +224,25 @@ public class TriggerZone extends Component {
             return null;
         }
         return gameObject.getScene().getCollisionSystem().getTileEntityMap();
+    }
+
+    // ========================================================================
+    // GIZMO DRAWING
+    // ========================================================================
+
+    @Override
+    public void onDrawGizmosSelected(GizmoContext ctx) {
+        Vector3f pos = ctx.getTransform().getPosition();
+        float baseX = (float) Math.floor(pos.x) + offsetX;
+        float baseY = (float) Math.floor(pos.y) + offsetY;
+
+        // Draw filled area (semi-transparent yellow)
+        ctx.setColor(GizmoColors.TRIGGER);
+        ctx.drawRectFilled(baseX, baseY, width, height);
+
+        // Draw border
+        ctx.setColor(GizmoColors.TRIGGER_BORDER);
+        ctx.setThickness(2.0f);
+        ctx.drawRect(baseX, baseY, width, height);
     }
 }

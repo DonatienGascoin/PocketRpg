@@ -4,11 +4,5 @@
   "spriteHeight": 32,
   "offsetY": 16,
   "pivotX": 0.5,
-  "pivotY": 0.0,
-  "spritePivots": {
-    "0": {
-      "pivotX": 0.5,
-      "pivotY": 0.0
-    }
-  }
+  "pivotY": 0.0
 }

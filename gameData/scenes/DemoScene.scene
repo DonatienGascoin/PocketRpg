@@ -274,8 +274,8 @@
           "type": "com.pocket.rpg.components.Transform",
           "properties": {
             "localPosition": {
-              "x": -9.0,
-              "y": 4.0,
+              "x": -9.5,
+              "y": 3.5,
               "z": 0.0
             },
             "localRotation": {
@@ -306,10 +306,10 @@
         {
           "type": "com.pocket.rpg.components.interaction.StaticOccupant",
           "properties": {
-            "offsetX": -1,
+            "offsetX": 0,
             "offsetY": 0,
-            "width": 2,
-            "height": 2,
+            "width": 1,
+            "height": 1,
             "elevation": 0
           }
         }
@@ -518,8 +518,8 @@
           "type": "com.pocket.rpg.components.Transform",
           "properties": {
             "localPosition": {
-              "x": -14.0,
-              "y": 3.0,
+              "x": 3.375631,
+              "y": -3.256365,
               "z": 0.0
             },
             "localRotation": {
@@ -592,6 +592,133 @@
         {
           "type": "com.pocket.rpg.components.PlayerUI",
           "properties": {}
+        },
+        {
+          "type": "com.pocket.rpg.components.interaction.InteractionController",
+          "properties": {
+            "interactionRange": 1,
+            "facingOnly": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "000e8f54",
+      "name": "Door",
+      "active": true,
+      "order": 3,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.Transform",
+          "properties": {
+            "localPosition": {
+              "x": 3.5,
+              "y": -0.5,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            }
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.interaction.Door",
+          "properties": {
+            "open": true,
+            "locked": false,
+            "requiredKeyId": "",
+            "consumeKey": false,
+            "stayOpen": false,
+            "offsetX": 0,
+            "offsetY": 0,
+            "width": 1,
+            "height": 1,
+            "elevation": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "13e1bdc7",
+      "name": "SpawnPoint",
+      "active": true,
+      "order": 4,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.Transform",
+          "properties": {
+            "localPosition": {
+              "x": -12.616844,
+              "y": -3.658204,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            }
+          }
+        },
+        {
+          "type": "com.pocket.rpg.save.PersistentId",
+          "properties": {
+            "id": ""
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.interaction.SpawnPoint",
+          "properties": {
+            "spawnId": "test",
+            "facingDirection": "DOWN"
+          }
+        }
+      ]
+    },
+    {
+      "id": "0655fdee",
+      "name": "Warp",
+      "active": true,
+      "order": 5,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.Transform",
+          "properties": {
+            "localPosition": {
+              "x": -1.4111847,
+              "y": -3.6338005,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            }
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.interaction.WarpZone",
+          "properties": {
+            "targetScene": "",
+            "targetSpawnId": "test",
+            "showDestinationLabel": true
+          }
         }
       ]
     }
@@ -613,23 +740,8 @@
       15.0
     ]
   },
-  "collisionData": "AAAAAgAAAAAAAAAE/////wAAAAAAAABCCQAAAAABCQEAAAABCQIAAAABCQMAAAABCQQAAAABCQUAAAABCQYAAAABCQcAAAABCQgAAAABCQkAAAABCQoAAAABCQsAAAABCQwAAAABCgwAAAABCwwAAAABDAwAAAABDQUAAAABDQYAAAABDQcAAAABDQgAAAABDQkAAAABDQoAAAABDQsAAAABDQwAAAABDgUAAAABDgwAAAABDwUAAAABDwwAAAABEAUAAAABEAwAAAABEQUAAAANEQwAAAABEgUAAAABEgwAAAABEwUAAAABEwwAAAABFAUAAAABFAwAAAABFQUAAAABFQwAAAABFgUAAAABFgYAAAABFgcAAAABFggAAAABFgkAAAABFgoAAAABFgsAAAABFgwAAAABFwwAAAABGAwAAAABGQwAAAABGgwAAAABGwwAAAABHAwAAAABHQAAAAABHQEAAAABHQIAAAABHQwAAAABHgAAAAABHgEAAAABHgIAAAABHgwAAAABHwAAAAABHwEAAAABHwIAAAABHwwAAAABAAAAAAAAAAAAAAAqAAAAAAABAAEAAAABAAIAAAABAAwAAAABAQAAAAABAQEAAAABAQIAAAABAQwAAAABAgAAAAABAgEAAAABAgIAAAABAgwAAAABAwAAAAABAwEAAAABAwIAAAABAwwAAAABBAAAAAABBAEAAAABBAIAAAABBAwAAAABBQwAAAABBgwAAAABBwwAAAABCAwAAAABCQwAAAABCgwAAAABCwwAAAABDAwAAAABDQwAAAABDgAAAAABDgEAAAABDgIAAAABDgMAAAABDgQAAAABDgUAAAABDgYAAAABDgcAAAABDggAAAABDgkAAAABDgoAAAABDgsAAAABDgwAAAABAAAAAP////8AAAA0ABEAAAABABMAAAAGABQAAAAGABUAAAAGABYAAAAGABcAAAAGABgAAAAGAB8AAAABAREAAAABARMAAAAGARQAAAAGARUAAAAGARYAAAAGARcAAAAGARgAAAAGAR8AAAABAhEAAAABAhMAAAAGAhQAAAAGAhUAAAAGAhYAAAAGAhcAAAAGAhgAAAAGAh8AAAABAxEAAAABAx8AAAALBBEAAAABBB8AAAABBREAAAABBhEAAAABBxEAAAABCBEAAAABCREAAAABChEAAAABCxEAAAABDBEAAAABDREAAAABDhEAAAABDhIAAAABDhMAAAABDhQAAAABDhUAAAABDhYAAAABDhcAAAABDhgAAAABDhkAAAABDhoAAAABDhsAAAABDhwAAAABDh0AAAABDh4AAAABDh8AAAAB//////////8AAABSCREAAAABCRIAAAABCRMAAAABCRQAAAABCRUAAAABCRYAAAABCRcAAAABCRgAAAABCRkAAAABCRoAAAABCRsAAAABCRwAAAABCR0AAAABCR4AAAABCR8AAAABChEAAAABCxEAAAABDBEAAAABDREAAAABDhEAAAABDxEAAAABEBEAAAABEREAAAABEhEAAAABExEAAAABFBEAAAABFREAAAABFhEAAAABFxEAAAABGBEAAAABGREAAAABGRMAAAAGGRQAAAAGGRUAAAAGGRYAAAAGGRcAAAAGGRgAAAAGGhEAAAABGhMAAAAGGhQAAAAGGhUAAAAGGhYAAAAGGhcAAAAGGhgAAAAGGxEAAAABGxMAAAAGGxQAAAAGGxUAAAAGGxYAAAAGGxcAAAAGGxgAAAAGHBEAAAABHBMAAAAGHBQAAAAGHBUAAAAGHBYAAAAGHBcAAAAGHBgAAAAGHREAAAABHRMAAAAGHRQAAAAGHRUAAAAGHRYAAAAGHRcAAAAGHRgAAAAGHR8AAAABHhEAAAABHhMAAAAGHhQAAAAGHhUAAAAGHhYAAAAGHhcAAAAGHhgAAAAGHh8AAAABHxEAAAABHxMAAAAGHxQAAAAGHxUAAAAGHxYAAAAGHxcAAAAGHxgAAAAGHx8AAAABAAAAAQAAAAH/////AAAAAAAAACANBQAAAAENBgAAABYNBwAAABYNCAAAABYNCQAAABYNCgAAABYNCwAAABYNDAAAAAEOBQAAABQODAAAAAEPBQAAABQPDAAAAAEQBQAAABQQDAAAAAERBQAAAA0RDAAAAAESBQAAABQSDAAAAAETBQAAABQTDAAAAAEUBQAAABQUDAAAAAEVBQAAABQVDAAAAAEWBQAAAAEWBgAAABcWBwAAABcWCAAAABcWCQAAABcWCgAAABcWCwAAABcWDAAAAAE=",
+  "collisionData": "AAAAAgAAAAAAAAAE/////wAAAAAAAABCCQAAAAABCQEAAAABCQIAAAABCQMAAAABCQQAAAABCQUAAAABCQYAAAABCQcAAAABCQgAAAABCQkAAAABCQoAAAABCQsAAAABCQwAAAABCgwAAAABCwwAAAABDAwAAAABDQUAAAABDQYAAAABDQcAAAABDQgAAAABDQkAAAABDQoAAAABDQsAAAABDQwAAAABDgUAAAABDgwAAAABDwUAAAABDwwAAAABEAUAAAABEAwAAAABEQUAAAANEQwAAAABEgUAAAABEgwAAAABEwUAAAABEwwAAAABFAUAAAABFAwAAAABFQUAAAABFQwAAAABFgUAAAABFgYAAAABFgcAAAABFggAAAABFgkAAAABFgoAAAABFgsAAAABFgwAAAABFwwAAAABGAwAAAABGQwAAAABGgwAAAABGwwAAAABHAwAAAABHQAAAAABHQEAAAABHQIAAAABHQwAAAABHgAAAAABHgEAAAABHgIAAAABHgwAAAABHwAAAAABHwEAAAABHwIAAAABHwwAAAABAAAAAAAAAAAAAAAqAAAAAAABAAEAAAABAAIAAAABAAwAAAABAQAAAAABAQEAAAABAQIAAAABAQwAAAABAgAAAAABAgEAAAABAgIAAAABAgwAAAABAwAAAAABAwEAAAABAwIAAAABAwwAAAABBAAAAAABBAEAAAABBAIAAAABBAwAAAABBQwAAAABBgwAAAABBwwAAAABCAwAAAABCQwAAAABCgwAAAABCwwAAAABDAwAAAABDQwAAAABDgAAAAABDgEAAAABDgIAAAABDgMAAAABDgQAAAABDgUAAAABDgYAAAABDgcAAAABDggAAAABDgkAAAABDgoAAAABDgsAAAABDgwAAAABAAAAAP////8AAAAzABEAAAABABMAAAAGABQAAAAGABUAAAAGABYAAAAGABcAAAAGABgAAAAGAB8AAAABAREAAAABARMAAAAGARQAAAAGARUAAAAGARYAAAAGARcAAAAGARgAAAAGAR8AAAABAhEAAAABAhMAAAAGAhQAAAAGAhUAAAAGAhYAAAAGAhcAAAAGAhgAAAAGAh8AAAABAxEAAAABBBEAAAABBB8AAAABBREAAAABBhEAAAABBxEAAAABCBEAAAABCREAAAABChEAAAABCxEAAAABDBEAAAABDREAAAABDhEAAAABDhIAAAABDhMAAAABDhQAAAABDhUAAAABDhYAAAABDhcAAAABDhgAAAABDhkAAAABDhoAAAABDhsAAAABDhwAAAABDh0AAAABDh4AAAABDh8AAAAB//////////8AAABSCREAAAABCRIAAAABCRMAAAABCRQAAAABCRUAAAABCRYAAAABCRcAAAABCRgAAAABCRkAAAABCRoAAAABCRsAAAABCRwAAAABCR0AAAABCR4AAAABCR8AAAABChEAAAABCxEAAAABDBEAAAABDREAAAABDhEAAAABDxEAAAABEBEAAAABEREAAAABEhEAAAABExEAAAABFBEAAAABFREAAAABFhEAAAABFxEAAAABGBEAAAABGREAAAABGRMAAAAGGRQAAAAGGRUAAAAGGRYAAAAGGRcAAAAGGRgAAAAGGhEAAAABGhMAAAAGGhQAAAAGGhUAAAAGGhYAAAAGGhcAAAAGGhgAAAAGGxEAAAABGxMAAAAGGxQAAAAGGxUAAAAGGxYAAAAGGxcAAAAGGxgAAAAGHBEAAAABHBMAAAAGHBQAAAAGHBUAAAAGHBYAAAAGHBcAAAAGHBgAAAAGHREAAAABHRMAAAAGHRQAAAAGHRUAAAAGHRYAAAAGHRcAAAAGHRgAAAAGHR8AAAABHhEAAAABHhMAAAAGHhQAAAAGHhUAAAAGHhYAAAAGHhcAAAAGHhgAAAAGHh8AAAABHxEAAAABHxMAAAAGHxQAAAAGHxUAAAAGHxYAAAAGHxcAAAAGHxgAAAAGHx8AAAABAAAAAQAAAAH/////AAAAAAAAACANBQAAAAENBgAAABYNBwAAABYNCAAAABYNCQAAABYNCgAAABYNCwAAABYNDAAAAAEOBQAAABQODAAAAAEPBQAAABQPDAAAAAEQBQAAABQQDAAAAAERBQAAAA0RDAAAAAESBQAAABQSDAAAAAETBQAAABQTDAAAAAEUBQAAABQUDAAAAAEVBQAAABQVDAAAAAEWBQAAAAEWBgAAABcWBwAAABcWCAAAABcWCQAAABcWCgAAABcWCwAAABcWDAAAAAE=",
   "triggerData": {
-    "3,-1,0": {
-      "type": "DoorTriggerData",
-      "data": {
-        "locked": false,
-        "requiredKey": "",
-        "consumeKey": false,
-        "lockedMessage": "The door is locked.",
-        "targetScene": "",
-        "targetSpawnId": "",
-        "transition": "FADE",
-        "activationMode": "ON_INTERACT",
-        "oneShot": false,
-        "playerOnly": true
-      }
-    },
     "-15,5,0": {
       "type": "StairsData",
       "data": {

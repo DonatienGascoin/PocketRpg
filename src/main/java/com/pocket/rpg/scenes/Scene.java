@@ -2,13 +2,11 @@ package com.pocket.rpg.scenes;
 
 import com.pocket.rpg.collision.CollisionMap;
 import com.pocket.rpg.collision.CollisionSystem;
-import com.pocket.rpg.collision.CollisionType;
 import com.pocket.rpg.collision.EntityOccupancyMap;
 import com.pocket.rpg.collision.trigger.*;
 import com.pocket.rpg.collision.trigger.handlers.StairsHandler;
-import com.pocket.rpg.collision.trigger.handlers.WarpHandler;
-import com.pocket.rpg.collision.trigger.handlers.DoorHandler;
 import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.interaction.SpawnPoint;
 import com.pocket.rpg.components.GridMovement;
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.scenes.transitions.SceneTransition;
@@ -97,41 +95,17 @@ public abstract class Scene {
      * Call super.registerDefaultTriggerHandlers() to keep defaults.
      */
     protected void registerDefaultTriggerHandlers() {
-        // Stairs handler has no dependencies
+        // Stairs handler - only remaining collision-based trigger
         triggerSystem.registerHandler(StairsData.class, new StairsHandler());
 
-        // Warp handler with actual teleportation
-        triggerSystem.registerHandler(WarpTriggerData.class, new WarpHandler(
-                (entity, targetScene, targetSpawnId, data) -> {
-                    if (data.isCrossScene()) {
-                        // Cross-scene: use SceneTransition
-                        loadSceneWithSpawn(targetScene, targetSpawnId);
-                    } else {
-                        // Same-scene: teleport to spawn point
-                        teleportToSpawn(entity, targetSpawnId);
-                    }
-                }
-        ));
-
-        // Door handler with actual teleportation (no key system by default)
-        triggerSystem.registerHandler(DoorTriggerData.class, new DoorHandler(
-                null, // keyChecker - override in subclass for inventory support
-                null, // keyConsumer
-                message -> System.out.println("[Door] " + message), // messageDisplay
-                (entity, data) -> {
-                    if (data.hasDestination()) {
-                        if (data.isCrossScene()) {
-                            loadSceneWithSpawn(data.targetScene(), data.targetSpawnId());
-                        } else {
-                            teleportToSpawn(entity, data.targetSpawnId());
-                        }
-                    }
-                }
-        ));
+        // Note: WARP and DOOR triggers are now entity-based components:
+        // - WarpZone component with TriggerZone for teleportation
+        // - Door component for interactive doors
     }
 
     /**
      * Finds a spawn point by ID in this scene.
+     * Searches for SpawnPoint components on GameObjects.
      *
      * @param spawnId The spawn point ID to find
      * @return TileCoord of the spawn point, or null if not found
@@ -141,24 +115,15 @@ public abstract class Scene {
             return null;
         }
 
-        // Search collision map for SPAWN_POINT tiles
-        for (int elevation : collisionMap.getZLevels()) {
-            for (CollisionMap.CollisionChunk chunk : collisionMap.getChunksForLevel(elevation)) {
-                int baseX = chunk.getChunkX() * CollisionMap.CollisionChunk.CHUNK_SIZE;
-                int baseY = chunk.getChunkY() * CollisionMap.CollisionChunk.CHUNK_SIZE;
-
-                for (int tx = 0; tx < CollisionMap.CollisionChunk.CHUNK_SIZE; tx++) {
-                    for (int ty = 0; ty < CollisionMap.CollisionChunk.CHUNK_SIZE; ty++) {
-                        if (chunk.get(tx, ty) == CollisionType.SPAWN_POINT) {
-                            int worldX = baseX + tx;
-                            int worldY = baseY + ty;
-                            TriggerData data = triggerDataMap.get(worldX, worldY, elevation);
-                            if (data instanceof SpawnPointData spawn && spawnId.equals(spawn.id())) {
-                                return new TileCoord(worldX, worldY, elevation);
-                            }
-                        }
-                    }
-                }
+        // Search GameObjects for SpawnPoint components
+        for (GameObject obj : gameObjects) {
+            SpawnPoint spawn = obj.getComponent(SpawnPoint.class);
+            if (spawn != null && spawnId.equals(spawn.getSpawnId())) {
+                var pos = obj.getTransform().getPosition();
+                int x = (int) Math.floor(pos.x);
+                int y = (int) Math.floor(pos.y);
+                int z = 0; // Default elevation - SpawnPoint could add elevation field if needed
+                return new TileCoord(x, y, z);
             }
         }
         return null;
@@ -183,14 +148,8 @@ public abstract class Scene {
             movement.setGridPosition(spawnCoord.x(), spawnCoord.y());
             movement.setZLevel(spawnCoord.elevation());
 
-            // Apply facing direction if spawn has one configured
-            TriggerData data = triggerDataMap.get(spawnCoord);
-            if (data instanceof SpawnPointData spawn && spawn.facingDirection() != null) {
-                // Note: GridMovement doesn't have setFacingDirection, but we could add it
-                // For now, just log it
-                System.out.println("[Scene] Teleported " + entity.getName() +
-                        " to spawn '" + spawnId + "' at (" + spawnCoord.x() + ", " + spawnCoord.y() + ")");
-            }
+            System.out.println("[Scene] Teleported " + entity.getName() +
+                    " to spawn '" + spawnId + "' at (" + spawnCoord.x() + ", " + spawnCoord.y() + ")");
         } else {
             // Fallback: directly set transform position
             float tileSize = 1.0f; // Default tile size

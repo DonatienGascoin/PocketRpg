@@ -132,7 +132,8 @@ public class TileEntityMap {
 
     /**
      * Checks if tile is blocked by a blocking component (excluding the mover).
-     * A component is blocking if it implements {@link BlockingComponent}.
+     * A component blocks if it implements {@link BlockingComponent} and
+     * {@link BlockingComponent#isBlocking()} returns true.
      *
      * @param tile  Tile to check
      * @param mover The entity trying to move (excluded from check), can be null
@@ -141,7 +142,7 @@ public class TileEntityMap {
     public synchronized boolean isBlocked(TileCoord tile, Object mover) {
         for (Component c : getAll(tile)) {
             if (c == mover) continue;
-            if (c instanceof BlockingComponent) {
+            if (c instanceof BlockingComponent bc && bc.isBlocking()) {
                 return true;
             }
         }

@@ -125,7 +125,7 @@ public class TriggerListSection {
         if (triggers.isEmpty()) {
             ImGui.textDisabled("No triggers at elev " + currentElevation);
             ImGui.spacing();
-            ImGui.textWrapped("Draw WARP, DOOR, or STAIRS tiles to create triggers.");
+            ImGui.textWrapped("Draw STAIRS tiles to create triggers. Use WarpZone, Door, SpawnPoint entities for other triggers.");
             return;
         }
 
@@ -230,31 +230,16 @@ public class TriggerListSection {
     private String getSummary(TriggerEntry entry) {
         if (entry.data == null) return "";
 
-        return switch (entry.data) {
-            case WarpTriggerData warp -> {
-                String spawn = warp.targetSpawnId();
-                String scene = warp.targetScene();
-                if (spawn == null || spawn.isBlank()) yield "";
-                if (scene != null && !scene.isBlank()) {
-                    yield "-> " + abbreviate(scene) + ":" + abbreviate(spawn);
-                }
-                yield "-> " + abbreviate(spawn);
-            }
-            case DoorTriggerData door -> {
-                String spawn = door.targetSpawnId();
-                String locked = door.locked() ? " [locked]" : "";
-                if (spawn == null || spawn.isBlank()) yield locked.isBlank() ? "" : locked;
-                yield "-> " + abbreviate(spawn) + locked;
-            }
-            case StairsData stairs -> {
-                // Show direction and destination elevation name
-                String dir = stairs.exitDirection().name().charAt(0) + "";
-                int destLevel = entry.coord.elevation() + stairs.elevationChange();
-                String arrow = stairs.elevationChange() > 0 ? MaterialIcons.ArrowUpward : MaterialIcons.ArrowDownward;
-                yield dir + " " + arrow + " " + ElevationLevel.getDisplayName(destLevel);
-            }
-            case SpawnPointData spawn -> spawn.id().isBlank() ? "" : "\"" + abbreviate(spawn.id()) + "\"";
-        };
+        // Only STAIRS triggers use collision-based trigger data now
+        // WARP, DOOR, SPAWN_POINT are entity-based components
+        if (entry.data instanceof StairsData stairs) {
+            // Show direction and destination elevation name
+            String dir = stairs.exitDirection().name().charAt(0) + "";
+            int destLevel = entry.coord.elevation() + stairs.elevationChange();
+            String arrow = stairs.elevationChange() > 0 ? MaterialIcons.ArrowUpward : MaterialIcons.ArrowDownward;
+            return dir + " " + arrow + " " + ElevationLevel.getDisplayName(destLevel);
+        }
+        return "";
     }
 
     private String abbreviate(String text) {
@@ -284,44 +269,15 @@ public class TriggerListSection {
     }
 
     private void renderDataTooltip(TriggerEntry entry) {
-        switch (entry.data) {
-            case WarpTriggerData warp -> {
-                String scene = warp.targetScene();
-                String spawn = warp.targetSpawnId();
-                if (scene != null && !scene.isBlank()) {
-                    ImGui.text("Scene: " + scene);
-                } else {
-                    ImGui.text("Scene: (same scene)");
-                }
-                ImGui.text("Spawn: " + (spawn != null && !spawn.isBlank() ? spawn : "(not set)"));
-                ImGui.text("Transition: " + warp.transition());
-            }
-            case DoorTriggerData door -> {
-                ImGui.text("Locked: " + (door.locked() ? "Yes (" + door.requiredKey() + ")" : "No"));
-                if (door.hasDestination()) {
-                    String scene = door.targetScene();
-                    if (scene != null && !scene.isBlank()) {
-                        ImGui.text("Scene: " + scene);
-                    }
-                    ImGui.text("Spawn: " + door.targetSpawnId());
-                } else {
-                    ImGui.text("Destination: (unlock in place)");
-                }
-            }
-            case StairsData stairs -> {
-                ImGui.text("Exit Direction: " + stairs.exitDirection().name());
-                // Show elevation change with names
-                int fromLevel = entry.coord.elevation();
-                int toLevel = fromLevel + stairs.elevationChange();
-                ImGui.text("From: " + ElevationLevel.getDisplayName(fromLevel));
-                ImGui.text("To: " + ElevationLevel.getDisplayName(toLevel));
-            }
-            case SpawnPointData spawn -> {
-                ImGui.text("ID: " + (spawn.id().isBlank() ? "(not set)" : spawn.id()));
-                if (spawn.facingDirection() != null) {
-                    ImGui.text("Facing: " + spawn.facingDirection().name());
-                }
-            }
+        // Only STAIRS triggers use collision-based trigger data now
+        // WARP, DOOR, SPAWN_POINT are entity-based components
+        if (entry.data instanceof StairsData stairs) {
+            ImGui.text("Exit Direction: " + stairs.exitDirection().name());
+            // Show elevation change with names
+            int fromLevel = entry.coord.elevation();
+            int toLevel = fromLevel + stairs.elevationChange();
+            ImGui.text("From: " + ElevationLevel.getDisplayName(fromLevel));
+            ImGui.text("To: " + ElevationLevel.getDisplayName(toLevel));
         }
     }
 

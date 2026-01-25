@@ -16,8 +16,10 @@ import java.util.List;
  * - MOVEMENT: Basic walkability (None, Solid)
  * - LEDGE: One-way jumps (Pokémon-style)
  * - TERRAIN: Special effects (Water, Grass, Ice, Sand)
- * - ELEVATION: Floor transitions (Stairs Up/Down)
- * - TRIGGER: Interactive zones (Warp, Door)
+ * - ELEVATION: Floor transitions (Stairs)
+ * <p>
+ * Note: WARP, DOOR, SPAWN_POINT are now entity-based components
+ * (WarpZone, Door, SpawnPoint) instead of collision types.
  */
 @Getter
 public enum CollisionType {
@@ -85,20 +87,7 @@ public enum CollisionType {
     // === ELEVATION ===
     STAIRS(13, "Stairs", CollisionCategory.ELEVATION,
             "Bidirectional stairs - elevation based on exit direction",
-            new float[]{0.5f, 0.7f, 0.9f, 0.6f}, null, MaterialIcons.Stairs, 0),
-
-    // === TRIGGERS ===
-    WARP(10, "Warp", CollisionCategory.TRIGGER,
-            "Teleports to another scene or spawn point",
-            new float[]{0.8f, 0.3f, 0.8f, 0.6f}, null, MaterialIcons.ExitToApp, 0),
-
-    DOOR(11, "Door", CollisionCategory.TRIGGER,
-            "Door - may be locked, leads to spawn point",
-            new float[]{0.6f, 0.4f, 0.2f, 0.6f}, null, MaterialIcons.DoorFront, 0),
-
-    SPAWN_POINT(15, "Spawn Point", CollisionCategory.TRIGGER,
-            "Named arrival point - referenced by warps and doors",
-            new float[]{0.2f, 0.9f, 0.5f, 0.6f}, null, MaterialIcons.PersonPinCircle, 0);
+            new float[]{0.5f, 0.7f, 0.9f, 0.6f}, null, MaterialIcons.Stairs, 0);
 
     /**
      * Numeric ID for serialization
@@ -202,7 +191,7 @@ public enum CollisionType {
      * Returns true if this type requires trigger metadata configuration.
      */
     public boolean requiresMetadata() {
-        return this == WARP || this == DOOR || this == SPAWN_POINT || this == STAIRS;
+        return this == STAIRS;
     }
 
     /**
@@ -221,10 +210,11 @@ public enum CollisionType {
     }
 
     /**
-     * Checks if this type triggers an interaction (warp, door)
+     * Checks if this type triggers an interaction.
+     * Note: WARP and DOOR are now entity-based (WarpZone, Door components).
      */
     public boolean isInteractionTrigger() {
-        return this == WARP || this == DOOR;
+        return false;
     }
 
     @Override

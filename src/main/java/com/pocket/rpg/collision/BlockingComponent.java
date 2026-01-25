@@ -1,14 +1,25 @@
 package com.pocket.rpg.collision;
 
 /**
- * Marker interface for components that block movement when registered with TileEntityMap.
+ * Interface for components that can block movement when registered with TileEntityMap.
  * <p>
  * Implementing classes:
- * - StaticOccupant (for static blocking objects like chests, pots)
- * - GridMovement (for moving entities like player, NPCs)
- * - Door (when closed)
- * - SecretPassage (when hidden)
+ * - StaticOccupant (always blocks)
+ * - GridMovement (always blocks)
+ * - Door (blocks when closed)
+ * - SecretPassage (blocks when hidden)
  */
 public interface BlockingComponent {
-    // Marker interface - no methods required
+
+    /**
+     * Checks if this component is currently blocking movement.
+     * <p>
+     * Override to implement conditional blocking (e.g., Door returns false when open).
+     * Default returns true (always blocking).
+     *
+     * @return true if currently blocking movement
+     */
+    default boolean isBlocking() {
+        return true;
+    }
 }

@@ -81,7 +81,8 @@ public class CustomComponentEditorRegistry {
         }
 
         // Set up context for @Required and override styling
-        FieldEditorContext.begin(entity, component);
+        // Preserve existing scene context if set
+        FieldEditorContext.begin(entity, component, FieldEditorContext.getCurrentScene());
         try {
             // Draw the inspector
             return editor.draw();

@@ -2,15 +2,17 @@ package com.pocket.rpg.collision;
 
 import com.pocket.rpg.collision.behavior.CollisionBehaviorRegistry;
 import com.pocket.rpg.collision.behavior.TileBehavior;
+import com.pocket.rpg.collision.trigger.TileCoord;
 import lombok.Getter;
 
 /**
  * Query API for collision checking during gameplay.
  * <p>
  * Uses:
- * - CollisionMap for tile collision data
+ * - CollisionMap for tile collision data (terrain)
  * - CollisionBehaviorRegistry for tile behavior logic
- * - EntityOccupancyMap for entity-to-entity collision
+ * - EntityOccupancyMap for entity-to-entity collision (legacy, used by GridMovement)
+ * - TileEntityMap for unified entity tracking (new system)
  * <p>
  * This provides the high-level API that GridMovement and other game code uses.
  */
@@ -21,6 +23,13 @@ public class CollisionSystem {
 
     @Getter
     private final EntityOccupancyMap entityOccupancyMap;
+
+    /**
+     * Unified entity tracking system.
+     * Used by StaticOccupant, TriggerZone, Door, and other interactive components.
+     */
+    @Getter
+    private final TileEntityMap tileEntityMap;
 
     private final CollisionBehaviorRegistry behaviorRegistry;
 
@@ -37,6 +46,7 @@ public class CollisionSystem {
     public CollisionSystem(CollisionMap collisionMap, EntityOccupancyMap entityOccupancyMap) {
         this.collisionMap = collisionMap;
         this.entityOccupancyMap = entityOccupancyMap;
+        this.tileEntityMap = new TileEntityMap();
         this.behaviorRegistry = CollisionBehaviorRegistry.getInstance();
     }
 
@@ -83,8 +93,13 @@ public class CollisionSystem {
                               int toX, int toY, int toZ,
                               Direction direction,
                               Object entity) {
-        // Check entity collision first
+        // Check entity collision first (legacy EntityOccupancyMap)
         if (entityOccupancyMap.isOccupied(toX, toY, toZ, entity)) {
+            return MoveResult.BlockedByEntity();
+        }
+
+        // Check TileEntityMap blocking (new system - StaticOccupant, Door, etc.)
+        if (tileEntityMap.isBlocked(toX, toY, toZ, entity)) {
             return MoveResult.BlockedByEntity();
         }
 
@@ -109,8 +124,13 @@ public class CollisionSystem {
                               Direction direction,
                               Object entity,
                               TileBehavior.MoveContext context) {
-        // Check entity collision first
+        // Check entity collision first (legacy EntityOccupancyMap)
         if (entityOccupancyMap.isOccupied(toX, toY, toZ, entity)) {
+            return MoveResult.BlockedByEntity();
+        }
+
+        // Check TileEntityMap blocking (new system - StaticOccupant, Door, etc.)
+        if (tileEntityMap.isBlocked(toX, toY, toZ, entity)) {
             return MoveResult.BlockedByEntity();
         }
 
@@ -153,8 +173,13 @@ public class CollisionSystem {
      * Checks if a tile is walkable (specific Z-level).
      */
     public boolean isWalkable(int tileX, int tileY, int z, Object entity) {
-        // Check entity collision
+        // Check entity collision (legacy EntityOccupancyMap)
         if (entityOccupancyMap.isOccupied(tileX, tileY, z, entity)) {
+            return false;
+        }
+
+        // Check TileEntityMap blocking (new system)
+        if (tileEntityMap.isBlocked(tileX, tileY, z, entity)) {
             return false;
         }
 

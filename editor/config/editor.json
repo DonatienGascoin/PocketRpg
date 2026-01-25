@@ -45,6 +45,7 @@
     "hierarchy": true,
     "collisionPanel": true,
     "inspector": true,
-    "tilesetPalette": true
+    "tilesetPalette": true,
+    "configuration": true
   }
 }

@@ -8,7 +8,8 @@ public record PostEffectMeta(
         String simpleName,
         String displayName,
         Class<? extends PostEffect> effectClass,
-        boolean hasNoArgConstructor
+        boolean hasNoArgConstructor,
+        String description
 ) {
     /**
      * Converts class name to display name.

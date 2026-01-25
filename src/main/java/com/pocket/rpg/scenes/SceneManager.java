@@ -203,10 +203,13 @@ public class SceneManager {
             scene.getCamera().setPosition(pos[0], pos[1]);
         }
 
-        // Apply orthographic size
-        scene.getCamera().setOrthographicSize(cameraData.getOrthographicSize());
+        // Apply orthographic size (with guard for invalid values)
+        float orthoSize = cameraData.getOrthographicSize();
+        if (orthoSize > 0) {
+            scene.getCamera().setOrthographicSize(orthoSize);
+        }
 
-        System.out.println("Applied camera data: orthoSize=" + cameraData.getOrthographicSize());
+        System.out.println("Applied camera data: orthoSize=" + orthoSize);
     }
 
     // ========================================================================

@@ -2,6 +2,8 @@ package com.pocket.rpg.serialization.custom;
 
 import com.google.gson.*;
 import com.pocket.rpg.rendering.postfx.PostEffect;
+import com.pocket.rpg.rendering.postfx.PostEffectMeta;
+import com.pocket.rpg.rendering.postfx.PostEffectRegistry;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -39,8 +41,6 @@ import java.util.*;
  */
 public class PostEffectTypeAdapter implements JsonSerializer<PostEffect>, JsonDeserializer<PostEffect> {
 
-    private static final String PACKAGE_PREFIX = "com.pocket.rpg.postProcessing.postEffects.";
-
     @Override
     public JsonElement serialize(PostEffect effect, Type typeOfSrc, JsonSerializationContext context) {
         JsonObject json = new JsonObject();
@@ -62,25 +62,29 @@ public class PostEffectTypeAdapter implements JsonSerializer<PostEffect>, JsonDe
             throws JsonParseException {
 
         JsonObject obj = json.getAsJsonObject();
-        String type = obj.get("type").getAsString();
+
+        // Validate required "type" field
+        JsonElement typeElement = obj.get("type");
+        if (typeElement == null || typeElement.isJsonNull()) {
+            throw new JsonParseException("PostEffect JSON missing required 'type' field");
+        }
+        String type = typeElement.getAsString();
         JsonObject params = obj.getAsJsonObject("params");
 
         try {
-            // Get the full class name
-            String fullClassName = PACKAGE_PREFIX + type;
-            Class<?> effectClass = Class.forName(fullClassName);
-
-            // Verify it's a PostEffect
-            if (!PostEffect.class.isAssignableFrom(effectClass)) {
-                throw new JsonParseException(type + " does not implement PostEffect");
+            // Look up effect class from registry by simple name
+            PostEffectMeta meta = PostEffectRegistry.getBySimpleName(type);
+            if (meta == null) {
+                throw new JsonParseException("Unknown effect type: " + type +
+                        ". Make sure the class is registered in PostEffectRegistry.");
             }
+            Class<?> effectClass = meta.effectClass();
 
             // Instantiate using reflection
             return instantiateEffect(effectClass, params);
 
-        } catch (ClassNotFoundException e) {
-            throw new JsonParseException("Unknown effect type: " + type +
-                    ". Make sure the class exists in " + PACKAGE_PREFIX, e);
+        } catch (JsonParseException e) {
+            throw e;
         } catch (Exception e) {
             throw new JsonParseException("Failed to deserialize effect: " + type +
                     ". Error: " + e.getMessage(), e);

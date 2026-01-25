@@ -46,6 +46,13 @@ public class SelectionTool implements EditorTool, ViewportAwareTool {
     private Consumer<TileCoord> onTriggerSelected;
 
     /**
+     * Callback to switch to a transform tool after selecting an entity.
+     * Called with tool name (e.g., "Move").
+     */
+    @Setter
+    private Consumer<String> onSwitchToTransformTool;
+
+    /**
      * Current collision Z-level for trigger selection.
      */
     @Getter
@@ -172,13 +179,10 @@ public class SelectionTool implements EditorTool, ViewportAwareTool {
                 scene.setSelectedEntity(entity);
             }
 
-            // Start drag
-            draggedEntity = entity;
-            isDragging = true;
-
-            // Calculate offset from entity position to click position
-            Vector3f pos = entity.getPosition();
-            dragOffset.set(pos.x - worldX, pos.y - worldY);
+            // Switch to Move tool for immediate manipulation
+            if (onSwitchToTransformTool != null) {
+                onSwitchToTransformTool.accept("Move");
+            }
         } else {
             // Deselect - clear selection via manager
             if (selectionManager != null) {
@@ -243,11 +247,10 @@ public class SelectionTool implements EditorTool, ViewportAwareTool {
         ImDrawList drawList = ImGui.getForegroundDrawList();
         drawList.pushClipRect(viewportX, viewportY, viewportX + viewportWidth, viewportY + viewportHeight, true);
 
-        // Draw selection highlight on selected entity
+        // Note: Selection highlight is NOT rendered here anymore.
+        // Transform tools (Move, Rotate, Scale) show their own gizmos for selected entities.
+
         EditorGameObject selected = scene.getSelectedEntity();
-        if (selected != null) {
-            renderSelectionHighlight(drawList, camera, selected);
-        }
 
         // Draw hover highlight on hovered entity or trigger (if different from selected)
         if (hoveredTileX != Integer.MIN_VALUE && hoveredTileY != Integer.MIN_VALUE) {
@@ -257,12 +260,12 @@ public class SelectionTool implements EditorTool, ViewportAwareTool {
             EditorGameObject hovered = scene.findEntityAt(worldX, worldY);
             boolean hoveringTrigger = isClickingTrigger(hoveredTileX, hoveredTileY);
 
-            // Entity hover: blue bounds + hand cursor
+            // Entity hover: cyan bounds + hand cursor
             if (hovered != null && hovered != selected) {
                 renderHoverHighlight(drawList, camera, hovered);
                 ImGui.setMouseCursor(ImGuiMouseCursor.Hand);
             }
-            // Trigger hover: blue tile bounds + hand cursor
+            // Trigger hover: cyan tile bounds + hand cursor
             else if (hoveringTrigger) {
                 renderTriggerHoverHighlight(drawList, camera, hoveredTileX, hoveredTileY);
                 ImGui.setMouseCursor(ImGuiMouseCursor.Hand);
@@ -270,37 +273,6 @@ public class SelectionTool implements EditorTool, ViewportAwareTool {
         }
 
         drawList.popClipRect();
-    }
-
-    /**
-     * Renders selection highlight (yellow border).
-     */
-    private void renderSelectionHighlight(ImDrawList drawList, EditorCamera camera, EditorGameObject entity) {
-        // Selection color (yellow)
-        int selectionColor = ImGui.colorConvertFloat4ToU32(1.0f, 1.0f, 0.0f, 0.9f);
-        int handleColor = ImGui.colorConvertFloat4ToU32(1.0f, 1.0f, 1.0f, 1.0f);
-
-        Vector2f[] corners = getEntityScreenCorners(entity, camera);
-        if (corners == null) return;
-
-        // Draw quad outline
-        drawList.addQuad(
-                corners[0].x, corners[0].y,
-                corners[1].x, corners[1].y,
-                corners[2].x, corners[2].y,
-                corners[3].x, corners[3].y,
-                selectionColor, 2.5f
-        );
-
-        // Draw corner handles
-        float handleSize = 6f;
-        for (Vector2f corner : corners) {
-            drawList.addRectFilled(
-                    corner.x - handleSize / 2, corner.y - handleSize / 2,
-                    corner.x + handleSize / 2, corner.y + handleSize / 2,
-                    handleColor
-            );
-        }
     }
 
     /**

@@ -20,12 +20,7 @@ public class SceneCameraSettings {
     @Getter
     private final Vector2f position = new Vector2f(0, 0);
 
-    /**
-     * Orthographic size (half-height in world units).
-     */
-    @Getter
-    @Setter
-    private float orthographicSize = 15f;
+    // Note: Orthographic size is now controlled globally via RenderingConfig
 
     /**
      * Whether the camera should follow a target entity.
@@ -72,8 +67,9 @@ public class SceneCameraSettings {
      * Converts to serializable CameraData.
      */
     public SceneData.CameraData toData() {
+        // Note: orthographicSize is set to 0 as it's now controlled via RenderingConfig
         SceneData.CameraData data = new SceneData.CameraData(
-                position.x, position.y, 0, orthographicSize
+                position.x, position.y, 0, 0
         );
         data.setFollowPlayer(followPlayer);
         data.setFollowTargetName(followTargetName);
@@ -95,7 +91,7 @@ public class SceneCameraSettings {
             position.set(pos[0], pos[1]);
         }
 
-        orthographicSize = data.getOrthographicSize();
+        // Note: orthographicSize from data is ignored - now controlled via RenderingConfig
         followPlayer = data.isFollowPlayer();
 
         String target = data.getFollowTargetName();
@@ -116,7 +112,6 @@ public class SceneCameraSettings {
      */
     public void reset() {
         position.set(0, 0);
-        orthographicSize = 15f;
         followPlayer = true;
         followTargetName = "Player";
         useBounds = false;
@@ -125,8 +120,8 @@ public class SceneCameraSettings {
 
     @Override
     public String toString() {
-        return String.format("SceneCameraSettings[pos=(%.1f,%.1f), size=%.1f, follow=%s, bounds=%s]",
-                position.x, position.y, orthographicSize,
+        return String.format("SceneCameraSettings[pos=(%.1f,%.1f), follow=%s, bounds=%s]",
+                position.x, position.y,
                 followPlayer ? followTargetName : "none",
                 useBounds ? String.format("(%.1f,%.1f,%.1f,%.1f)", bounds.x, bounds.y, bounds.z, bounds.w) : "none");
     }

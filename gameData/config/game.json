@@ -1,12 +1,20 @@
 {
   "title": "Pocket Rpg",
-  "windowWidth": 640,
-  "windowHeight": 480,
+  "windowWidth": 1280,
+  "windowHeight": 960,
   "gameWidth": 640,
   "gameHeight": 480,
   "fullscreen": false,
   "vsync": false,
-  "postProcessingEffects": [],
+  "postProcessingEffects": [
+    {
+      "type": "VignetteEffect",
+      "params": {
+        "vignetteIntensity": 1.0,
+        "vignetteStrength": 0.75
+      }
+    }
+  ],
   "scalingMode": "MAINTAIN_ASPECT_RATIO",
   "enablePillarBox": false,
   "pillarboxAspectRatio": 0.0,

@@ -5,36 +5,36 @@ import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.editor.EditorContext;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.PostEffectBrowserPopup;
+import com.pocket.rpg.editor.ui.fields.FieldEditors;
 import com.pocket.rpg.rendering.postfx.PostEffect;
+import com.pocket.rpg.rendering.postfx.PostEffectMeta;
+import com.pocket.rpg.rendering.postfx.PostEffectRegistry;
 import com.pocket.rpg.rendering.postfx.PostProcessor;
 import imgui.ImGui;
-import imgui.type.ImInt;
-import imgui.type.ImString;
-import lombok.RequiredArgsConstructor;
+import imgui.flag.ImGuiTreeNodeFlags;
 
-import java.util.ArrayList;
 import java.util.List;
 
-@RequiredArgsConstructor
+/**
+ * Configuration tab for game settings.
+ * Uses live editing model - edits apply directly to the live GameConfig.
+ * <p>
+ * Has inner tabs for "General" (all settings) and "Post-Processing" (effects only).
+ */
 public class GameConfigTab implements ConfigTab {
 
     private final EditorContext context;
+    private final Runnable markDirty;
 
-    private GameConfig working;
-    private GameConfig original;
-    private boolean dirty = false;
-
-    private final ImString titleBuffer = new ImString(128);
-    
     // Post-effect browser popup
     private final PostEffectBrowserPopup effectBrowserPopup = new PostEffectBrowserPopup();
 
-    @Override
-    public void initialize() {
-        working = cloneConfig(context.getGameConfig());
-        original = cloneConfig(context.getGameConfig());
-        titleBuffer.set(working.getTitle());
-        dirty = false;
+    // Inner tab selection
+    private int selectedInnerTab = 0;
+
+    public GameConfigTab(EditorContext context, Runnable markDirty) {
+        this.context = context;
+        this.markDirty = markDirty;
     }
 
     @Override
@@ -43,45 +43,58 @@ public class GameConfigTab implements ConfigTab {
     }
 
     @Override
-    public boolean isDirty() {
-        return dirty;
+    public void save() {
+        ConfigLoader.saveConfigToFile(context.getGameConfig(), ConfigLoader.ConfigType.GAME);
     }
 
     @Override
-    public void save() {
-        applyToLive();
-        ConfigLoader.saveConfigToFile(context.getGameConfig(), ConfigLoader.ConfigType.GAME);
-        original = cloneConfig(context.getGameConfig());
-        dirty = false;
+    public void revert() {
+        // Reload from disk by loading config again
+        ConfigLoader.loadAllConfigs();
     }
 
     @Override
     public void resetToDefaults() {
-        working = new GameConfig();
-        original = new GameConfig(); // Reset original too!
-        titleBuffer.set(working.getTitle());
-        dirty = false; // Explicitly set to false
+        GameConfig config = context.getGameConfig();
+        GameConfig defaults = new GameConfig();
+
+        // Copy default values to live config
+        config.setTitle(defaults.getTitle());
+        config.setWindowWidth(defaults.getWindowWidth());
+        config.setWindowHeight(defaults.getWindowHeight());
+        config.setGameWidth(defaults.getGameWidth());
+        config.setGameHeight(defaults.getGameHeight());
+        config.setFullscreen(defaults.isFullscreen());
+        config.setVsync(defaults.isVsync());
+        config.setScalingMode(defaults.getScalingMode());
+        config.setEnablePillarBox(defaults.isEnablePillarBox());
+        config.setPillarboxAspectRatio(defaults.getPillarboxAspectRatio());
+        config.setUiButtonHoverTint(defaults.getUiButtonHoverTint());
+        config.getPostProcessingEffects().clear();
+        config.getPostProcessingEffects().addAll(defaults.getPostProcessingEffects());
     }
 
     @Override
     public void renderContent() {
-        // Scope ALL IDs to this tab
         ImGui.pushID("GameTab");
 
-        if (ImGui.button(MaterialIcons.Undo + " Reset to Defaults")) {
-            resetToDefaults();
-        }
+        // Inner tab bar
+        if (ImGui.beginTabBar("GameInnerTabs")) {
+            if (ImGui.beginTabItem("General##GameGeneral")) {
+                selectedInnerTab = 0;
+                ImGui.spacing();
+                renderGeneralContent();
+                ImGui.endTabItem();
+            }
 
-        ImGui.separator();
+            if (ImGui.beginTabItem("Post-Processing##GamePostFx")) {
+                selectedInnerTab = 1;
+                ImGui.spacing();
+                renderPostProcessingContent();
+                ImGui.endTabItem();
+            }
 
-        if (ImGui.beginChild("Content", 0, 0, false)) {
-            renderWindowSection();
-            renderGameResolutionSection();
-            renderDisplaySection();
-            renderScalingSection();
-            renderUISection();
-            renderPostProcessingSection();
-            ImGui.endChild();
+            ImGui.endTabBar();
         }
 
         // Render popup (must be at same level, not inside child)
@@ -90,272 +103,286 @@ public class GameConfigTab implements ConfigTab {
         ImGui.popID();
     }
 
-    private void renderWindowSection() {
-        ImGui.setNextItemWidth(200);
-        if (ImGui.inputText("Window Title", titleBuffer)) {
-            working.setTitle(titleBuffer.get());
-            updateDirtyFlag();
-        }
-        tooltip("The title displayed in the window title bar");
+    private void renderGeneralContent() {
+        GameConfig config = context.getGameConfig();
 
-        ImGui.spacing();
-        ImGui.text("Window Resolution");
-        ImGui.indent();
-
-        ImInt windowWidth = new ImInt(working.getWindowWidth());
-        ImGui.setNextItemWidth(100);
-        if (ImGui.inputInt("Window Width", windowWidth)) {
-            working.setWindowWidth(Math.max(1, windowWidth.get()));
-            updateDirtyFlag();
-        }
-        tooltip("Physical window width in pixels. Changes apply on restart.");
-
-        ImInt windowHeight = new ImInt(working.getWindowHeight());
-        ImGui.setNextItemWidth(100);
-        if (ImGui.inputInt("Window Height", windowHeight)) {
-            working.setWindowHeight(Math.max(1, windowHeight.get()));
-            updateDirtyFlag();
-        }
-        tooltip("Physical window height in pixels. Changes apply on restart.");
-
-        ImGui.unindent();
-    }
-
-    private void renderGameResolutionSection() {
-        ImGui.spacing();
-        ImGui.text("Game Resolution");
-        ImGui.indent();
-
-        ImInt gameWidth = new ImInt(working.getGameWidth());
-        ImGui.setNextItemWidth(100);
-        if (ImGui.inputInt("Game Width", gameWidth)) {
-            working.setGameWidth(Math.max(1, gameWidth.get()));
-            updateDirtyFlag();
-        }
-        tooltip("Internal game resolution width. Changes apply on restart.");
-
-        ImInt gameHeight = new ImInt(working.getGameHeight());
-        ImGui.setNextItemWidth(100);
-        if (ImGui.inputInt("Game Height", gameHeight)) {
-            working.setGameHeight(Math.max(1, gameHeight.get()));
-            updateDirtyFlag();
-        }
-        tooltip("Internal game resolution height. Changes apply on restart.");
-
-        ImGui.unindent();
-    }
-
-    private void renderDisplaySection() {
-        ImGui.spacing();
-
-        boolean fullscreen = working.isFullscreen();
-        if (ImGui.checkbox("Fullscreen", fullscreen)) {
-            working.setFullscreen(!fullscreen);
-            updateDirtyFlag();
-        }
-        tooltip("Enable fullscreen mode");
-
-        boolean vsync = working.isVsync();
-        if (ImGui.checkbox("VSync", vsync)) {
-            working.setVsync(!vsync);
-            updateDirtyFlag();
-        }
-        tooltip("Synchronize frame rate with monitor refresh rate");
-    }
-
-    private void renderScalingSection() {
-        ImGui.spacing();
-        ImGui.separator();
-        ImGui.text("Scaling");
-        ImGui.spacing();
-
-        ImGui.setNextItemWidth(200);
-        if (ImGui.beginCombo("Scaling Mode", working.getScalingMode().name())) {
-            for (PostProcessor.ScalingMode mode : PostProcessor.ScalingMode.values()) {
-                boolean selected = mode == working.getScalingMode();
-                if (ImGui.selectable(mode.name(), selected)) {
-                    working.setScalingMode(mode);
-                    updateDirtyFlag();
-                }
-            }
-            ImGui.endCombo();
-        }
-        tooltip("How the game image is scaled to fit the window");
-
-        boolean pillarbox = working.isEnablePillarBox();
-        if (ImGui.checkbox("Enable Pillarbox", pillarbox)) {
-            working.setEnablePillarBox(!pillarbox);
-            updateDirtyFlag();
-        }
-        tooltip("Add black bars to maintain aspect ratio");
-
-        if (working.isEnablePillarBox()) {
+        // Window section
+        if (ImGui.collapsingHeader("Window", ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
-            float[] aspect = {working.getPillarboxAspectRatio()};
-            ImGui.setNextItemWidth(150);
-            if (ImGui.dragFloat("Aspect Ratio", aspect, 0.01f, 0.0f, 3.0f, "%.3f")) {
-                working.setPillarboxAspectRatio(aspect[0]);
-                updateDirtyFlag();
+
+            FieldEditors.drawString("Title", "gameTitle",
+                    config::getTitle,
+                    v -> { config.setTitle(v); markDirty.run(); });
+
+            FieldEditors.drawInt("Window Width", "windowWidth",
+                    config::getWindowWidth,
+                    v -> { config.setWindowWidth(Math.max(1, v)); markDirty.run(); });
+            tooltip("Physical window width in pixels. Changes apply on restart.");
+
+            FieldEditors.drawInt("Window Height", "windowHeight",
+                    config::getWindowHeight,
+                    v -> { config.setWindowHeight(Math.max(1, v)); markDirty.run(); });
+            tooltip("Physical window height in pixels. Changes apply on restart.");
+
+            ImGui.unindent();
+        }
+
+        // Game Resolution section
+        if (ImGui.collapsingHeader("Game Resolution", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
+
+            FieldEditors.drawInt("Game Width", "gameWidth",
+                    config::getGameWidth,
+                    v -> { config.setGameWidth(Math.max(1, v)); markDirty.run(); });
+            tooltip("Internal game resolution width. Changes apply on restart.");
+
+            FieldEditors.drawInt("Game Height", "gameHeight",
+                    config::getGameHeight,
+                    v -> { config.setGameHeight(Math.max(1, v)); markDirty.run(); });
+            tooltip("Internal game resolution height. Changes apply on restart.");
+
+            ImGui.unindent();
+        }
+
+        // Display section
+        if (ImGui.collapsingHeader("Display", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
+
+            FieldEditors.drawBoolean("Fullscreen", "fullscreen",
+                    config::isFullscreen,
+                    v -> { config.setFullscreen(v); markDirty.run(); });
+            tooltip("Enable fullscreen mode");
+
+            FieldEditors.drawBoolean("VSync", "vsync",
+                    config::isVsync,
+                    v -> { config.setVsync(v); markDirty.run(); });
+            tooltip("Synchronize frame rate with monitor refresh rate");
+
+            ImGui.unindent();
+        }
+
+        // Scaling section
+        if (ImGui.collapsingHeader("Scaling", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
+
+            FieldEditors.drawEnum("Scaling Mode", "scalingMode",
+                    config::getScalingMode,
+                    v -> { config.setScalingMode(v); markDirty.run(); },
+                    PostProcessor.ScalingMode.class);
+            tooltip("How the game image is scaled to fit the window");
+
+            FieldEditors.drawBoolean("Enable Pillarbox", "enablePillarbox",
+                    config::isEnablePillarBox,
+                    v -> { config.setEnablePillarBox(v); markDirty.run(); });
+            tooltip("Add black bars to maintain aspect ratio");
+
+            if (config.isEnablePillarBox()) {
+                FieldEditors.drawFloat("Aspect Ratio", "pillarboxAspect",
+                        () -> (double) config.getPillarboxAspectRatio(),
+                        v -> { config.setPillarboxAspectRatio((float) v); markDirty.run(); },
+                        0.01f, 0.0f, 3.0f, "%.3f");
+                tooltip("Target aspect ratio. 0 = auto-calculate from game resolution");
             }
-            tooltip("Target aspect ratio. 0 = auto-calculate from game resolution");
+
+            ImGui.unindent();
+        }
+
+        // UI section
+        if (ImGui.collapsingHeader("UI", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
+
+            FieldEditors.drawFloatSlider("Button Hover Tint", "buttonHoverTint",
+                    () -> (double) config.getUiButtonHoverTint(),
+                    v -> { config.setUiButtonHoverTint((float) v); markDirty.run(); },
+                    0.0f, 1.0f);
+            tooltip("How much buttons darken when hovered");
+
             ImGui.unindent();
         }
     }
 
-    private void renderUISection() {
+    private void renderPostProcessingContent() {
+        GameConfig config = context.getGameConfig();
+        List<PostEffect> effects = config.getPostProcessingEffects();
+
+        ImGui.textDisabled("Effects are applied in order (top to bottom)");
         ImGui.spacing();
-        ImGui.separator();
-        ImGui.text("UI");
-        ImGui.spacing();
 
-        float[] hoverTint = {working.getUiButtonHoverTint()};
-        ImGui.setNextItemWidth(150);
-        if (ImGui.sliderFloat("Button Hover Tint", hoverTint, 0.0f, 1.0f, "%.2f")) {
-            working.setUiButtonHoverTint(hoverTint[0]);
-            updateDirtyFlag();
-        }
-        tooltip("How much buttons darken when hovered");
-    }
+        if (effects == null || effects.isEmpty()) {
+            ImGui.textDisabled("No effects configured");
+        } else {
+            for (int i = 0; i < effects.size(); i++) {
+                PostEffect effect = effects.get(i);
+                ImGui.pushID(i);
 
-    private void renderPostProcessingSection() {
-        ImGui.spacing();
-        ImGui.separator();
+                String effectName = effect.getClass().getSimpleName();
 
-        if (ImGui.collapsingHeader("Post-Processing Effects")) {
-            List<PostEffect> effects = working.getPostProcessingEffects();
+                // Expandable tree node for each effect
+                boolean nodeOpen = ImGui.treeNode("effect_node", effectName);
 
-            if (effects == null || effects.isEmpty()) {
-                ImGui.textDisabled("No effects configured");
-            } else {
-                ImGui.textDisabled("Effects are applied in order (top to bottom)");
-                ImGui.spacing();
+                // Buttons on the same line
+                ImGui.sameLine(ImGui.getContentRegionAvailX() - 100);
 
-                for (int i = 0; i < effects.size(); i++) {
-                    PostEffect effect = effects.get(i);
-                    ImGui.pushID(i);
-
-                    String effectName = effect.getClass().getSimpleName();
-                    
-                    // Expandable tree node for each effect
-                    boolean nodeOpen = ImGui.treeNode("effect_node", effectName);
-                    
-                    // Buttons on the same line
-                    ImGui.sameLine(ImGui.getContentRegionAvailX() - 80);
-                    if (i > 0 && ImGui.smallButton(MaterialIcons.ArrowUpward)) {
+                // Move up button
+                if (i > 0) {
+                    if (ImGui.smallButton(MaterialIcons.ArrowUpward)) {
                         swapEffects(effects, i, i - 1);
-                        updateDirtyFlag();
+                        markDirty.run();
                     }
-
-                    ImGui.sameLine();
-                    if (i < effects.size() - 1 && ImGui.smallButton(MaterialIcons.ArrowDownward)) {
-                        swapEffects(effects, i, i + 1);
-                        updateDirtyFlag();
-                    }
-
-                    ImGui.sameLine();
-                    if (ImGui.smallButton(MaterialIcons.Delete)) {
-                        effects.remove(i);
-                        updateDirtyFlag();
-                        ImGui.popID();
-                        if (nodeOpen) ImGui.treePop();
-                        break;
-                    }
-
-                    // Show editable fields if node is open
-                    if (nodeOpen) {
-                        PostEffect newEffect = renderEffectFields(effect, i);
-                        if (newEffect != null && newEffect != effect) {
-                            effects.set(i, newEffect);
-                            updateDirtyFlag();
-                        }
-                        ImGui.treePop();
-                    }
-
-                    ImGui.popID();
+                } else {
+                    ImGui.beginDisabled();
+                    ImGui.smallButton(MaterialIcons.ArrowUpward);
+                    ImGui.endDisabled();
                 }
-            }
 
-            ImGui.spacing();
-            if (ImGui.button(MaterialIcons.Add + " Add Effect")) {
-                effectBrowserPopup.open(effect -> {
-                    if (effects != null) {
-                        effects.add(effect);
-                        updateDirtyFlag();
+                ImGui.sameLine();
+
+                // Move down button
+                if (i < effects.size() - 1) {
+                    if (ImGui.smallButton(MaterialIcons.ArrowDownward)) {
+                        swapEffects(effects, i, i + 1);
+                        markDirty.run();
                     }
-                });
+                } else {
+                    ImGui.beginDisabled();
+                    ImGui.smallButton(MaterialIcons.ArrowDownward);
+                    ImGui.endDisabled();
+                }
+
+                ImGui.sameLine();
+
+                // Delete button
+                if (ImGui.smallButton(MaterialIcons.Delete)) {
+                    effects.remove(i);
+                    markDirty.run();
+                    ImGui.popID();
+                    if (nodeOpen) ImGui.treePop();
+                    break;
+                }
+
+                ImGui.sameLine();
+
+                // Help button with tooltip
+                ImGui.smallButton(MaterialIcons.HelpOutline);
+                if (ImGui.isItemHovered()) {
+                    PostEffectMeta meta = PostEffectRegistry.getBySimpleName(effectName);
+                    ImGui.beginTooltip();
+                    ImGui.pushTextWrapPos(ImGui.getCursorPosX() + 250);
+                    if (meta != null && !meta.description().isEmpty()) {
+                        ImGui.textWrapped(meta.description());
+                    } else {
+                        ImGui.text("No description available");
+                    }
+                    ImGui.popTextWrapPos();
+                    ImGui.endTooltip();
+                }
+
+                // Show editable fields if node is open
+                if (nodeOpen) {
+                    renderEffectFields(effect, i);
+                    ImGui.treePop();
+                }
+
+                ImGui.popID();
             }
+        }
+
+        ImGui.spacing();
+        if (ImGui.button(MaterialIcons.Add + " Add Effect")) {
+            effectBrowserPopup.open(effect -> {
+                if (effects != null) {
+                    effects.add(effect);
+                    markDirty.run();
+                }
+            });
         }
     }
 
     /**
-     * Renders editable fields for a post-effect.
-     * Returns a new effect instance if any field was changed, null otherwise.
+     * Renders editable fields for a post-effect using reflection.
      */
-    private PostEffect renderEffectFields(PostEffect effect, int index) {
+    private void renderEffectFields(PostEffect effect, int index) {
         Class<?> clazz = effect.getClass();
         java.lang.reflect.Field[] fields = clazz.getDeclaredFields();
-        
-        boolean anyChanged = false;
-        java.util.Map<String, Object> newValues = new java.util.LinkedHashMap<>();
-        
+
         for (java.lang.reflect.Field field : fields) {
             // Skip static, transient, and shader fields
             if (java.lang.reflect.Modifier.isStatic(field.getModifiers())) continue;
             if (java.lang.reflect.Modifier.isTransient(field.getModifiers())) continue;
             if (field.getType().getSimpleName().equals("Shader")) continue;
-            
+
             field.setAccessible(true);
             String fieldName = field.getName();
-            
+
             // Skip internal fields
             if (fieldName.contains("Shader") || fieldName.equals("initialized")) continue;
-            
+
             try {
                 Object value = field.get(effect);
                 String displayName = formatFieldName(fieldName);
-                
+                String key = "effect_" + index + "_" + fieldName;
+
                 if (field.getType() == float.class || field.getType() == Float.class) {
-                    float[] floatVal = {(float) value};
-                    ImGui.setNextItemWidth(120);
-                    if (ImGui.dragFloat(displayName, floatVal, 0.01f, 0.0f, 10.0f, "%.3f")) {
-                        newValues.put(fieldName, floatVal[0]);
-                        anyChanged = true;
-                    } else {
-                        newValues.put(fieldName, value);
-                    }
+                    float floatVal = (float) value;
+                    FieldEditors.drawFloat(displayName, key,
+                            () -> {
+                                try {
+                                    return ((Number) field.get(effect)).doubleValue();
+                                } catch (Exception e) {
+                                    return 0.0;
+                                }
+                            },
+                            v -> {
+                                try {
+                                    field.set(effect, (float) v);
+                                    markDirty.run();
+                                } catch (Exception e) {
+                                    System.err.println("Failed to set field: " + e.getMessage());
+                                }
+                            },
+                            0.01f, 0.0f, 10.0f, "%.3f");
                 } else if (field.getType() == int.class || field.getType() == Integer.class) {
-                    int[] intVal = {(int) value};
-                    ImGui.setNextItemWidth(120);
-                    if (ImGui.dragInt(displayName, intVal, 1, 0, 100)) {
-                        newValues.put(fieldName, intVal[0]);
-                        anyChanged = true;
-                    } else {
-                        newValues.put(fieldName, value);
-                    }
+                    FieldEditors.drawInt(displayName, key,
+                            () -> {
+                                try {
+                                    return ((Number) field.get(effect)).intValue();
+                                } catch (Exception e) {
+                                    return 0;
+                                }
+                            },
+                            v -> {
+                                try {
+                                    field.set(effect, v);
+                                    markDirty.run();
+                                } catch (Exception e) {
+                                    System.err.println("Failed to set field: " + e.getMessage());
+                                }
+                            });
                 } else if (field.getType() == boolean.class || field.getType() == Boolean.class) {
-                    boolean boolVal = (boolean) value;
-                    if (ImGui.checkbox(displayName, boolVal)) {
-                        newValues.put(fieldName, !boolVal);
-                        anyChanged = true;
-                    } else {
-                        newValues.put(fieldName, value);
-                    }
+                    FieldEditors.drawBoolean(displayName, key,
+                            () -> {
+                                try {
+                                    return (boolean) field.get(effect);
+                                } catch (Exception e) {
+                                    return false;
+                                }
+                            },
+                            v -> {
+                                try {
+                                    field.set(effect, v);
+                                    markDirty.run();
+                                } catch (Exception e) {
+                                    System.err.println("Failed to set field: " + e.getMessage());
+                                }
+                            });
                 } else {
                     // Show non-editable fields as text
                     ImGui.textDisabled(String.format("%s: %s", displayName, value));
-                    newValues.put(fieldName, value);
                 }
             } catch (Exception e) {
                 // Skip fields that can't be accessed
             }
         }
-        
-        // If any value changed, create new effect instance
-        if (anyChanged) {
-            return createEffectWithValues(clazz, newValues);
-        }
-        
-        return null;
     }
 
     private String formatFieldName(String fieldName) {
@@ -370,212 +397,10 @@ public class GameConfigTab implements ConfigTab {
         return result.toString();
     }
 
-    @SuppressWarnings("unchecked")
-    private PostEffect createEffectWithValues(Class<?> clazz, java.util.Map<String, Object> values) {
-        try {
-            // Try to find a constructor that matches the field types
-            for (java.lang.reflect.Constructor<?> constructor : clazz.getConstructors()) {
-                java.lang.reflect.Parameter[] params = constructor.getParameters();
-                
-                if (params.length == 0) {
-                    // Use no-arg constructor then set fields
-                    PostEffect effect = (PostEffect) constructor.newInstance();
-                    for (java.util.Map.Entry<String, Object> entry : values.entrySet()) {
-                        try {
-                            java.lang.reflect.Field field = clazz.getDeclaredField(entry.getKey());
-                            field.setAccessible(true);
-                            field.set(effect, entry.getValue());
-                        } catch (Exception ignored) {}
-                    }
-                    return effect;
-                }
-                
-                // Try to match constructor parameters to our values
-                if (params.length == values.size()) {
-                    Object[] args = new Object[params.length];
-                    boolean matches = true;
-                    int idx = 0;
-                    for (Object value : values.values()) {
-                        if (idx < params.length && isAssignable(params[idx].getType(), value)) {
-                            args[idx] = value;
-                        } else {
-                            matches = false;
-                            break;
-                        }
-                        idx++;
-                    }
-                    if (matches) {
-                        return (PostEffect) constructor.newInstance(args);
-                    }
-                }
-            }
-            
-            // Fallback: try no-arg constructor
-            return (PostEffect) clazz.getDeclaredConstructor().newInstance();
-        } catch (Exception e) {
-            System.err.println("Failed to create effect: " + e.getMessage());
-            return null;
-        }
-    }
-
-    private boolean isAssignable(Class<?> paramType, Object value) {
-        if (value == null) return !paramType.isPrimitive();
-        Class<?> valueType = value.getClass();
-        if (paramType.isPrimitive()) {
-            if (paramType == float.class) return valueType == Float.class;
-            if (paramType == int.class) return valueType == Integer.class;
-            if (paramType == boolean.class) return valueType == Boolean.class;
-            if (paramType == double.class) return valueType == Double.class;
-        }
-        return paramType.isAssignableFrom(valueType);
-    }
-
     private void swapEffects(List<PostEffect> effects, int i, int j) {
         PostEffect temp = effects.get(i);
         effects.set(i, effects.get(j));
         effects.set(j, temp);
-    }
-
-    private void updateDirtyFlag() {
-        dirty = !isConfigEqual(working, original);
-    }
-
-    private boolean isConfigEqual(GameConfig a, GameConfig b) {
-        if (!a.getTitle().equals(b.getTitle())) return false;
-        if (a.getWindowWidth() != b.getWindowWidth()) return false;
-        if (a.getWindowHeight() != b.getWindowHeight()) return false;
-        if (a.getGameWidth() != b.getGameWidth()) return false;
-        if (a.getGameHeight() != b.getGameHeight()) return false;
-        if (a.isFullscreen() != b.isFullscreen()) return false;
-        if (a.isVsync() != b.isVsync()) return false;
-        if (a.getScalingMode() != b.getScalingMode()) return false;
-        if (a.isEnablePillarBox() != b.isEnablePillarBox()) return false;
-        if (a.getPillarboxAspectRatio() != b.getPillarboxAspectRatio()) return false;
-        if (a.getUiButtonHoverTint() != b.getUiButtonHoverTint()) return false;
-        
-        // Compare post-processing effects (by count and class)
-        return areEffectsEqual(a.getPostProcessingEffects(), b.getPostProcessingEffects());
-    }
-
-    private boolean areEffectsEqual(List<PostEffect> a, List<PostEffect> b) {
-        if (a.size() != b.size()) return false;
-        for (int i = 0; i < a.size(); i++) {
-            PostEffect ea = a.get(i);
-            PostEffect eb = b.get(i);
-            if (!ea.getClass().equals(eb.getClass())) return false;
-            
-            // Compare field values
-            if (!areEffectFieldsEqual(ea, eb)) return false;
-        }
-        return true;
-    }
-
-    private boolean areEffectFieldsEqual(PostEffect a, PostEffect b) {
-        Class<?> clazz = a.getClass();
-        for (java.lang.reflect.Field field : clazz.getDeclaredFields()) {
-            if (java.lang.reflect.Modifier.isStatic(field.getModifiers())) continue;
-            if (java.lang.reflect.Modifier.isTransient(field.getModifiers())) continue;
-            if (field.getType().getSimpleName().equals("Shader")) continue;
-            
-            try {
-                field.setAccessible(true);
-                Object valA = field.get(a);
-                Object valB = field.get(b);
-                if (!java.util.Objects.equals(valA, valB)) {
-                    return false;
-                }
-            } catch (Exception ignored) {}
-        }
-        return true;
-    }
-
-    private void applyToLive() {
-        GameConfig live = context.getGameConfig();
-        live.setTitle(working.getTitle());
-        live.setWindowWidth(working.getWindowWidth());
-        live.setWindowHeight(working.getWindowHeight());
-        live.setGameWidth(working.getGameWidth());
-        live.setGameHeight(working.getGameHeight());
-        live.setFullscreen(working.isFullscreen());
-        live.setVsync(working.isVsync());
-        live.setScalingMode(working.getScalingMode());
-        live.setEnablePillarBox(working.isEnablePillarBox());
-        live.setPillarboxAspectRatio(working.getPillarboxAspectRatio());
-        live.setUiButtonHoverTint(working.getUiButtonHoverTint());
-    }
-
-    private GameConfig cloneConfig(GameConfig source) {
-        return GameConfig.builder()
-                .title(source.getTitle())
-                .windowWidth(source.getWindowWidth())
-                .windowHeight(source.getWindowHeight())
-                .gameWidth(source.getGameWidth())
-                .gameHeight(source.getGameHeight())
-                .fullscreen(source.isFullscreen())
-                .vsync(source.isVsync())
-                .scalingMode(source.getScalingMode())
-                .enablePillarBox(source.isEnablePillarBox())
-                .pillarboxAspectRatio(source.getPillarboxAspectRatio())
-                .uiButtonHoverTint(source.getUiButtonHoverTint())
-                .postProcessingEffects(cloneEffects(source.getPostProcessingEffects()))
-                .defaultTransitionConfig(source.getDefaultTransitionConfig())
-                .build();
-    }
-
-    private List<PostEffect> cloneEffects(List<PostEffect> source) {
-        List<PostEffect> cloned = new ArrayList<>();
-        for (PostEffect effect : source) {
-            PostEffect copy = cloneEffect(effect);
-            if (copy != null) {
-                cloned.add(copy);
-            } else {
-                // Fallback: just use the same instance (won't detect field changes)
-                cloned.add(effect);
-            }
-        }
-        return cloned;
-    }
-
-    @SuppressWarnings("unchecked")
-    private PostEffect cloneEffect(PostEffect effect) {
-        Class<?> clazz = effect.getClass();
-        try {
-            // Collect field values
-            java.util.Map<String, Object> values = new java.util.LinkedHashMap<>();
-            List<Object> constructorArgs = new ArrayList<>();
-            
-            for (java.lang.reflect.Field field : clazz.getDeclaredFields()) {
-                if (java.lang.reflect.Modifier.isStatic(field.getModifiers())) continue;
-                if (java.lang.reflect.Modifier.isTransient(field.getModifiers())) continue;
-                if (field.getType().getSimpleName().equals("Shader")) continue;
-                
-                field.setAccessible(true);
-                Object value = field.get(effect);
-                values.put(field.getName(), value);
-                
-                // Primitive types are likely constructor parameters
-                if (field.getType().isPrimitive() || field.getType() == Float.class || 
-                    field.getType() == Integer.class || field.getType() == Boolean.class) {
-                    constructorArgs.add(value);
-                }
-            }
-            
-            // Try to find matching constructor
-            for (java.lang.reflect.Constructor<?> constructor : clazz.getConstructors()) {
-                java.lang.reflect.Parameter[] params = constructor.getParameters();
-                
-                if (params.length == constructorArgs.size()) {
-                    try {
-                        return (PostEffect) constructor.newInstance(constructorArgs.toArray());
-                    } catch (Exception ignored) {}
-                }
-            }
-            
-            // Fallback: use no-arg constructor
-            return (PostEffect) clazz.getDeclaredConstructor().newInstance();
-        } catch (Exception e) {
-            return null;
-        }
     }
 
     private void tooltip(String text) {

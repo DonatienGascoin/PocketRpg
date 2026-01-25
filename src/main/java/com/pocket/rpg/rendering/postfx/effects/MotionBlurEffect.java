@@ -1,5 +1,6 @@
 package com.pocket.rpg.rendering.postfx.effects;
 
+import com.pocket.rpg.rendering.postfx.EffectDescription;
 import com.pocket.rpg.rendering.postfx.PostEffect;
 import com.pocket.rpg.rendering.resources.Shader;
 import org.joml.Vector2f;
@@ -10,6 +11,7 @@ import static org.lwjgl.opengl.GL33.*;
  * Motion blur effect that blurs in a specific direction to simulate movement.
  * Great for dash abilities, speed effects, or disorientation.
  */
+@EffectDescription("Blurs in the direction of motion to convey speed.")
 public class MotionBlurEffect implements PostEffect {
     private static final Vector2f DEFAULT_DIRECTION = new Vector2f(1.0f, 0.0f);
     private static final float DEFAULT_STRENGTH = 0.02f;
@@ -19,7 +21,7 @@ public class MotionBlurEffect implements PostEffect {
     private final float blurStrength;
     private final int samples;
 
-    private Shader motionBlurShader;
+    private transient Shader motionBlurShader;
 
     /**
      * Creates a motion blur effect with default horizontal blur.

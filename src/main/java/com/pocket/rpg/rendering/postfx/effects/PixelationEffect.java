@@ -1,5 +1,6 @@
 package com.pocket.rpg.rendering.postfx.effects;
 
+import com.pocket.rpg.rendering.postfx.EffectDescription;
 import com.pocket.rpg.rendering.postfx.PostEffect;
 import com.pocket.rpg.rendering.resources.Shader;
 
@@ -9,12 +10,13 @@ import static org.lwjgl.opengl.GL33.*;
  * Pixelation effect that reduces apparent resolution for a retro pixel art look.
  * Can be scaled dynamically for interesting transition effects.
  */
+@EffectDescription("Reduces resolution for a retro pixel art aesthetic.")
 public class PixelationEffect implements PostEffect {
     private static final float DEFAULT_PIXEL_SIZE = 0.005f;
 
     private final float pixelSize;
 
-    private Shader pixelationShader;
+    private transient Shader pixelationShader;
 
     /**
      * Creates a pixelation effect with default parameters.

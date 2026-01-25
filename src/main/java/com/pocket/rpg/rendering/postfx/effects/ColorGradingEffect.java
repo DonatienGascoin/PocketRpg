@@ -1,5 +1,6 @@
 package com.pocket.rpg.rendering.postfx.effects;
 
+import com.pocket.rpg.rendering.postfx.EffectDescription;
 import com.pocket.rpg.rendering.postfx.PostEffect;
 import com.pocket.rpg.rendering.resources.Shader;
 import org.joml.Vector3f;
@@ -11,6 +12,7 @@ import static org.lwjgl.opengl.GL33.*;
  * Perfect for environmental storytelling (red for danger, blue for cold, etc.)
  * or indicating player status effects.
  */
+@EffectDescription("Adjusts color balance and saturation for mood and atmosphere.")
 public class ColorGradingEffect implements PostEffect {
     private static final Vector3f DEFAULT_TINT = new Vector3f(1.0f, 0.8f, 0.8f); // Warm tint
     private static final float DEFAULT_STRENGTH = 0.3f;
@@ -18,7 +20,7 @@ public class ColorGradingEffect implements PostEffect {
     private final Vector3f tintColor;
     private final float tintStrength;
 
-    private Shader gradingShader;
+    private transient Shader gradingShader;
 
     /**
      * Creates a color grading effect with default warm tint.

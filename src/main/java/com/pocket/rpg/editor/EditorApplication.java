@@ -118,6 +118,9 @@ public class EditorApplication {
         // Initialize audio system
         initAudio();
 
+        // Initialize PostEffectRegistry before loading configs (needed for deserialization)
+        PostEffectRegistry.initialize();
+
         // Load configuration
         ConfigLoader.loadAllConfigs();
         EditorConfig config = ConfigLoader.getConfig(ConfigLoader.ConfigType.EDITOR);
@@ -138,7 +141,6 @@ public class EditorApplication {
         TilesetRegistry.initialize();
         TilesetRegistry.getInstance().scanAndLoad();
         PrefabRegistry.initialize();
-        PostEffectRegistry.initialize();
         CustomComponentEditorRegistry.initBuiltInEditors();
 
         // Create camera
@@ -294,7 +296,7 @@ public class EditorApplication {
         );
         handlers.setPlayModeController(playModeController);
         handlers.setMessageCallback(uiController.getStatusBar()::showMessage);
-        handlers.setConfigPanel(uiController.getConfigPanel());
+        handlers.setConfigurationPanel(uiController.getConfigurationPanel());
         handlers.setTilesetPalettePanel(uiController.getTilesetPalette());
         handlers.setCollisionPanel(uiController.getCollisionPanel());
 

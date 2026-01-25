@@ -1,13 +1,19 @@
 package com.pocket.rpg.components;
 
 import com.pocket.rpg.core.GameObject;
+import com.pocket.rpg.editor.gizmos.GizmoContext;
+import com.pocket.rpg.editor.gizmos.GizmoDrawable;
+import com.pocket.rpg.editor.gizmos.GizmoDrawableSelected;
 import lombok.Getter;
 
 /**
  * Base class for all components that can be attached to GameObjects.
  * Components define behavior and data for GameObjects.
+ * <p>
+ * Components can override {@link #onDrawGizmos} and {@link #onDrawGizmosSelected}
+ * to visualize their properties in the editor scene view.
  */
-public abstract class Component {
+public abstract class Component implements GizmoDrawable, GizmoDrawableSelected {
 
     @Getter
     protected GameObject gameObject;
@@ -163,6 +169,37 @@ public abstract class Component {
      * Use this for final cleanup and resource disposal.
      */
     protected void onDestroy() {
+        // Override in subclasses
+    }
+
+    // =======================================================================
+    // Gizmos (Editor Visualization)
+    // =======================================================================
+
+    /**
+     * Called every frame in the editor to draw gizmos for this component.
+     * Gizmos drawn here are visible for ALL entities, not just selected ones.
+     * <p>
+     * Override this to visualize component properties that should always be visible,
+     * such as trigger zones, waypoint connections, or debug information.
+     *
+     * @param ctx The gizmo drawing context
+     */
+    @Override
+    public void onDrawGizmos(GizmoContext ctx) {
+        // Override in subclasses
+    }
+
+    /**
+     * Called every frame in the editor to draw gizmos when this entity is selected.
+     * <p>
+     * Override this to visualize component properties that should only appear
+     * when editing, such as pivot points, bounds, collision shapes, or radii.
+     *
+     * @param ctx The gizmo drawing context
+     */
+    @Override
+    public void onDrawGizmosSelected(GizmoContext ctx) {
         // Override in subclasses
     }
 

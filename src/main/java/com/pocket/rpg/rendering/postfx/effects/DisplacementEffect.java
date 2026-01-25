@@ -1,5 +1,6 @@
 package com.pocket.rpg.rendering.postfx.effects;
 
+import com.pocket.rpg.rendering.postfx.EffectDescription;
 import com.pocket.rpg.rendering.postfx.PostEffect;
 import com.pocket.rpg.rendering.resources.Shader;
 import org.joml.Vector2f;
@@ -11,6 +12,7 @@ import static org.lwjgl.opengl.GL33.*;
  * More sophisticated than basic camera shake - creates ripple and distortion effects.
  * Perfect for impacts, explosions, or environmental disturbances.
  */
+@EffectDescription("Distorts the image for ripples or heat shimmer effects.")
 public class DisplacementEffect implements PostEffect {
     private static final float DEFAULT_STRENGTH = 0.005f;
     private static final Vector2f DEFAULT_SHAKE_DIR = new Vector2f(0.0f, 0.0f);
@@ -18,8 +20,8 @@ public class DisplacementEffect implements PostEffect {
     private final float displacementStrength;
     private final Vector2f shakeDirection;
 
-    private Shader displacementShader;
-    private float time = 0.0f;
+    private transient Shader displacementShader;
+    private transient float time = 0.0f;
 
     /**
      * Creates a displacement effect with wave distortion only.

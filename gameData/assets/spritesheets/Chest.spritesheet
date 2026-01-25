@@ -4,7 +4,5 @@
   "spriteHeight": 32,
   "spacingX": 16,
   "offsetX": 8,
-  "offsetY": 8,
-  "pivotX": 0.5,
-  "pivotY": 0.0
+  "offsetY": 8
 }

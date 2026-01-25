@@ -592,7 +592,7 @@
       0.0,
       0.0
     ],
-    "orthographicSize": 15.0,
+    "orthographicSize": 0.0,
     "followPlayer": true,
     "followTargetName": "Player",
     "useBounds": false,

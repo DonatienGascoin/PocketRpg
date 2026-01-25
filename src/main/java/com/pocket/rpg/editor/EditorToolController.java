@@ -3,7 +3,21 @@ package com.pocket.rpg.editor;
 import com.pocket.rpg.collision.trigger.TileCoord;
 import com.pocket.rpg.editor.panels.CollisionPanel;
 import com.pocket.rpg.editor.scene.EditorScene;
-import com.pocket.rpg.editor.tools.*;
+import com.pocket.rpg.editor.tools.CollisionBrushTool;
+import com.pocket.rpg.editor.tools.CollisionEraserTool;
+import com.pocket.rpg.editor.tools.CollisionFillTool;
+import com.pocket.rpg.editor.tools.CollisionRectangleTool;
+import com.pocket.rpg.editor.tools.CollisionPickerTool;
+import com.pocket.rpg.editor.tools.MoveTool;
+import com.pocket.rpg.editor.tools.RotateTool;
+import com.pocket.rpg.editor.tools.ScaleTool;
+import com.pocket.rpg.editor.tools.SelectionTool;
+import com.pocket.rpg.editor.tools.TileBrushTool;
+import com.pocket.rpg.editor.tools.TileEraserTool;
+import com.pocket.rpg.editor.tools.TileFillTool;
+import com.pocket.rpg.editor.tools.TileRectangleTool;
+import com.pocket.rpg.editor.tools.TilePickerTool;
+import com.pocket.rpg.editor.tools.ToolManager;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -38,6 +52,11 @@ public class EditorToolController {
 
     // Entity tools
     @Getter private SelectionTool selectionTool;
+
+    // Transform tools
+    @Getter private MoveTool moveTool;
+    @Getter private RotateTool rotateTool;
+    @Getter private ScaleTool scaleTool;
 
     // Reference to collision panel for type display
     @Setter private CollisionPanel collisionPanel;
@@ -98,6 +117,25 @@ public class EditorToolController {
         selectionTool.setSelectionManager(context.getSelectionManager());
         toolManager.registerTool(selectionTool);
 
+        // Transform tools
+        moveTool = new MoveTool();
+        moveTool.setScene(scene);
+        moveTool.setCamera(context.getCamera());
+        moveTool.setSelectionManager(context.getSelectionManager());
+        toolManager.registerTool(moveTool);
+
+        rotateTool = new RotateTool();
+        rotateTool.setScene(scene);
+        rotateTool.setCamera(context.getCamera());
+        rotateTool.setSelectionManager(context.getSelectionManager());
+        toolManager.registerTool(rotateTool);
+
+        scaleTool = new ScaleTool();
+        scaleTool.setScene(scene);
+        scaleTool.setCamera(context.getCamera());
+        scaleTool.setSelectionManager(context.getSelectionManager());
+        toolManager.registerTool(scaleTool);
+
         // Setup callbacks
         setupCallbacks();
     }
@@ -122,6 +160,11 @@ public class EditorToolController {
 
         // Entity tools
         selectionTool.setScene(scene);
+
+        // Transform tools
+        moveTool.setScene(scene);
+        rotateTool.setScene(scene);
+        scaleTool.setScene(scene);
 
         // Sync z-levels
         syncCollisionZLevels();
@@ -176,6 +219,11 @@ public class EditorToolController {
             if (triggerSelectedCallback != null) {
                 triggerSelectedCallback.accept(coord);
             }
+        });
+
+        // Switch to transform tool when entity is selected via SelectionTool
+        selectionTool.setOnSwitchToTransformTool(toolName -> {
+            toolManager.setActiveTool(toolName);
         });
     }
 

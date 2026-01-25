@@ -3,31 +3,23 @@ package com.pocket.rpg.editor.panels.config;
 import com.pocket.rpg.config.ConfigLoader;
 import com.pocket.rpg.config.TransitionConfig;
 import com.pocket.rpg.editor.EditorContext;
-import com.pocket.rpg.editor.core.MaterialIcons;
+import com.pocket.rpg.editor.ui.fields.FieldEditors;
 import com.pocket.rpg.scenes.transitions.WipeTransition;
 import imgui.ImGui;
-import imgui.type.ImString;
-import lombok.RequiredArgsConstructor;
-import org.joml.Vector4f;
+import imgui.flag.ImGuiTreeNodeFlags;
 
-@RequiredArgsConstructor
+/**
+ * Configuration tab for transition settings.
+ * Uses live editing model - edits apply directly to the live TransitionConfig.
+ */
 public class TransitionConfigTab implements ConfigTab {
 
     private final EditorContext context;
+    private final Runnable markDirty;
 
-    private TransitionConfig working;
-    private TransitionConfig original;
-    private boolean dirty = false;
-
-    private final ImString transitionTextBuffer = new ImString(256);
-    private final float[] fadeColorBuffer = new float[4];
-
-    @Override
-    public void initialize() {
-        working = cloneConfig(context.getGameConfig().getDefaultTransitionConfig());
-        original = cloneConfig(context.getGameConfig().getDefaultTransitionConfig());
-        syncBuffers();
-        dirty = false;
+    public TransitionConfigTab(EditorContext context, Runnable markDirty) {
+        this.context = context;
+        this.markDirty = markDirty;
     }
 
     @Override
@@ -36,140 +28,101 @@ public class TransitionConfigTab implements ConfigTab {
     }
 
     @Override
-    public boolean isDirty() {
-        return dirty;
+    public void save() {
+        // TransitionConfig is part of GameConfig, so save that
+        ConfigLoader.saveConfigToFile(context.getGameConfig(), ConfigLoader.ConfigType.GAME);
     }
 
     @Override
-    public void save() {
-        applyToLive();
-        ConfigLoader.saveConfigToFile(context.getGameConfig(), ConfigLoader.ConfigType.GAME);
-        original = cloneConfig(context.getGameConfig().getDefaultTransitionConfig());
-        dirty = false;
+    public void revert() {
+        ConfigLoader.loadAllConfigs();
     }
 
     @Override
     public void resetToDefaults() {
-        working = new TransitionConfig();
-        original = new TransitionConfig(); // Reset original too!
-        syncBuffers();
-        dirty = false; // Explicitly set to false
+        TransitionConfig config = context.getGameConfig().getDefaultTransitionConfig();
+        TransitionConfig defaults = new TransitionConfig();
+
+        config.setFadeOutDuration(defaults.getFadeOutDuration());
+        config.setFadeInDuration(defaults.getFadeInDuration());
+        config.getFadeColor().set(defaults.getFadeColor());
+        config.setTransitionText(defaults.getTransitionText());
+        config.setType(defaults.getType());
+        config.setWipeDirection(defaults.getWipeDirection());
     }
 
     @Override
     public void renderContent() {
-        // Scope ALL IDs to this tab
         ImGui.pushID("TransitionTab");
 
-        if (ImGui.button(MaterialIcons.Undo + " Reset to Defaults")) {
-            resetToDefaults();
+        TransitionConfig config = context.getGameConfig().getDefaultTransitionConfig();
+
+        // Timing section
+        if (ImGui.collapsingHeader("Timing", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
+
+            FieldEditors.drawFloat("Fade Out Duration", "fadeOut",
+                    () -> (double) config.getFadeOutDuration(),
+                    v -> { config.setFadeOutDuration(Math.max(0, (float) v)); markDirty.run(); },
+                    0.01f, 0.0f, 5.0f, "%.2f s");
+            tooltip("Duration of the fade-out phase in seconds");
+
+            FieldEditors.drawFloat("Fade In Duration", "fadeIn",
+                    () -> (double) config.getFadeInDuration(),
+                    v -> { config.setFadeInDuration(Math.max(0, (float) v)); markDirty.run(); },
+                    0.01f, 0.0f, 5.0f, "%.2f s");
+            tooltip("Duration of the fade-in phase in seconds");
+
+            ImGui.unindent();
         }
 
+        // Appearance section
+        if (ImGui.collapsingHeader("Appearance", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
+
+            FieldEditors.drawColor("Fade Color", "fadeColor",
+                    config::getFadeColor,
+                    v -> { config.getFadeColor().set(v); markDirty.run(); });
+            tooltip("Color of the transition overlay");
+
+            FieldEditors.drawString("Transition Text", "transitionText",
+                    config::getTransitionText,
+                    v -> { config.setTransitionText(v); markDirty.run(); });
+            tooltip("Optional text shown during transition");
+
+            ImGui.unindent();
+        }
+
+        // Type section
+        if (ImGui.collapsingHeader("Type", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
+
+            FieldEditors.drawEnum("Transition Type", "transitionType",
+                    config::getType,
+                    v -> { config.setType(v); markDirty.run(); },
+                    TransitionConfig.TransitionType.class);
+            tooltip("Type of transition animation");
+
+            ImGui.textDisabled(getTypeDescription(config.getType()));
+
+            if (isWipeType(config.getType())) {
+                ImGui.spacing();
+                FieldEditors.drawEnum("Wipe Direction", "wipeDirection",
+                        config::getWipeDirection,
+                        v -> { config.setWipeDirection(v); markDirty.run(); },
+                        WipeTransition.WipeDirection.class);
+                tooltip("Direction of the wipe animation");
+            }
+
+            ImGui.unindent();
+        }
+
+        // Preview section
+        ImGui.spacing();
         ImGui.separator();
-
-        if (ImGui.beginChild("Content", 0, 0, false)) {
-            renderDurationSection();
-            renderAppearanceSection();
-            renderTypeSection();
-            renderPreviewSection();
-            ImGui.endChild();
-        }
+        ImGui.textDisabled(String.format("Total duration: %.2f seconds", config.getTotalDuration()));
 
         ImGui.popID();
-    }
-
-    private void renderDurationSection() {
-        ImGui.text("Timing");
-        ImGui.indent();
-
-        float[] fadeOut = {working.getFadeOutDuration()};
-        ImGui.setNextItemWidth(150);
-        if (ImGui.dragFloat("Fade Out Duration", fadeOut, 0.01f, 0.0f, 5.0f, "%.2f s")) {
-            working.setFadeOutDuration(Math.max(0, fadeOut[0]));
-            updateDirtyFlag();
-        }
-        tooltip("Duration of the fade-out phase in seconds");
-
-        float[] fadeIn = {working.getFadeInDuration()};
-        ImGui.setNextItemWidth(150);
-        if (ImGui.dragFloat("Fade In Duration", fadeIn, 0.01f, 0.0f, 5.0f, "%.2f s")) {
-            working.setFadeInDuration(Math.max(0, fadeIn[0]));
-            updateDirtyFlag();
-        }
-        tooltip("Duration of the fade-in phase in seconds");
-
-        ImGui.unindent();
-    }
-
-    private void renderAppearanceSection() {
-        ImGui.spacing();
-        ImGui.text("Appearance");
-        ImGui.indent();
-
-        if (ImGui.colorEdit4("Fade Color", fadeColorBuffer)) {
-            working.getFadeColor().set(
-                    fadeColorBuffer[0],
-                    fadeColorBuffer[1],
-                    fadeColorBuffer[2],
-                    fadeColorBuffer[3]
-            );
-            updateDirtyFlag();
-        }
-        tooltip("Color of the transition overlay");
-
-        ImGui.setNextItemWidth(200);
-        if (ImGui.inputText("Transition Text", transitionTextBuffer)) {
-            working.setTransitionText(transitionTextBuffer.get());
-            updateDirtyFlag();
-        }
-        tooltip("Optional text shown during transition");
-
-        ImGui.unindent();
-    }
-
-    private void renderTypeSection() {
-        ImGui.spacing();
-        ImGui.text("Type");
-        ImGui.indent();
-
-        ImGui.setNextItemWidth(200);
-        if (ImGui.beginCombo("Transition Type", working.getType().name())) {
-            for (TransitionConfig.TransitionType type : TransitionConfig.TransitionType.values()) {
-                boolean selected = type == working.getType();
-                if (ImGui.selectable(type.name(), selected)) {
-                    working.setType(type);
-                    updateDirtyFlag();
-                }
-            }
-            ImGui.endCombo();
-        }
-        tooltip("Type of transition animation");
-
-        ImGui.textDisabled(getTypeDescription(working.getType()));
-
-        if (isWipeType(working.getType())) {
-            ImGui.spacing();
-            ImGui.setNextItemWidth(200);
-            if (ImGui.beginCombo("Wipe Direction", working.getWipeDirection().name())) {
-                for (WipeTransition.WipeDirection dir : WipeTransition.WipeDirection.values()) {
-                    boolean selected = dir == working.getWipeDirection();
-                    if (ImGui.selectable(dir.name(), selected)) {
-                        working.setWipeDirection(dir);
-                        updateDirtyFlag();
-                    }
-                }
-                ImGui.endCombo();
-            }
-            tooltip("Direction of the wipe animation");
-        }
-
-        ImGui.unindent();
-    }
-
-    private void renderPreviewSection() {
-        ImGui.spacing();
-        ImGui.separator();
-        ImGui.textDisabled(String.format("Total duration: %.2f seconds", working.getTotalDuration()));
     }
 
     private String getTypeDescription(TransitionConfig.TransitionType type) {
@@ -187,42 +140,6 @@ public class TransitionConfigTab implements ConfigTab {
 
     private boolean isWipeType(TransitionConfig.TransitionType type) {
         return type.name().startsWith("WIPE_");
-    }
-
-    private void syncBuffers() {
-        transitionTextBuffer.set(working.getTransitionText());
-        Vector4f color = working.getFadeColor();
-        fadeColorBuffer[0] = color.x;
-        fadeColorBuffer[1] = color.y;
-        fadeColorBuffer[2] = color.z;
-        fadeColorBuffer[3] = color.w;
-    }
-
-    private void updateDirtyFlag() {
-        dirty = !isConfigEqual(working, original);
-    }
-
-    private boolean isConfigEqual(TransitionConfig a, TransitionConfig b) {
-        return a.getFadeOutDuration() == b.getFadeOutDuration()
-                && a.getFadeInDuration() == b.getFadeInDuration()
-                && a.getFadeColor().equals(b.getFadeColor())
-                && a.getTransitionText().equals(b.getTransitionText())
-                && a.getType() == b.getType()
-                && a.getWipeDirection() == b.getWipeDirection();
-    }
-
-    private void applyToLive() {
-        TransitionConfig live = context.getGameConfig().getDefaultTransitionConfig();
-        live.setFadeOutDuration(working.getFadeOutDuration());
-        live.setFadeInDuration(working.getFadeInDuration());
-        live.getFadeColor().set(working.getFadeColor());
-        live.setTransitionText(working.getTransitionText());
-        live.setType(working.getType());
-        live.setWipeDirection(working.getWipeDirection());
-    }
-
-    private TransitionConfig cloneConfig(TransitionConfig source) {
-        return new TransitionConfig(source);
     }
 
     private void tooltip(String text) {

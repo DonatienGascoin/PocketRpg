@@ -29,7 +29,7 @@ public class Serializer {
                 // Sprite with object fallback (for programmatic sprites)
                 .registerTypeAdapter(Sprite.class, new SpriteTypeAdapter(Assets.getContext()))
                 // Others
-                .registerTypeAdapter(PostEffect.class, new PostEffectTypeAdapter())
+                .registerTypeHierarchyAdapter(PostEffect.class, new PostEffectTypeAdapter())
                 // Trigger data (sealed interface with registry-based discovery)
                 .registerTypeAdapter(TriggerData.class, new TriggerDataTypeAdapter());
 

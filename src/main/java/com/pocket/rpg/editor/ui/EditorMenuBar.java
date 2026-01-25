@@ -1,7 +1,7 @@
 package com.pocket.rpg.editor.ui;
 
 import com.pocket.rpg.editor.core.FileDialogs;
-import com.pocket.rpg.editor.panels.ConfigPanel;
+import com.pocket.rpg.editor.panels.ConfigurationPanel;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.shortcut.EditorShortcuts;
 import com.pocket.rpg.editor.shortcut.ShortcutRegistry;
@@ -18,7 +18,7 @@ import java.util.function.Consumer;
 public class EditorMenuBar {
 
     @Setter
-    private ConfigPanel configPanel;
+    private ConfigurationPanel configurationPanel;
 
     private Runnable onNewScene;
     private Consumer<String> onOpenScene;
@@ -26,6 +26,8 @@ public class EditorMenuBar {
     private Consumer<String> onSaveSceneAs;
     private Runnable onExit;
     private Runnable onOpenSpriteEditor;
+    private Runnable onToggleGizmos;
+    private boolean gizmosEnabled = true;
 
     private EditorScene currentScene;
 
@@ -87,8 +89,8 @@ public class EditorMenuBar {
             ImGui.separator();
 
             if (ImGui.menuItem("Configuration...", "")) {
-                if (configPanel != null) {
-                    configPanel.openModal();
+                if (configurationPanel != null) {
+                    configurationPanel.toggle();
                 }
             }
 
@@ -203,6 +205,13 @@ public class EditorMenuBar {
                 if (ImGui.menuItem("Snap to Grid", "", true)) {
                 }
                 ImGui.endMenu();
+            }
+
+            if (ImGui.menuItem("Show Gizmos", "G", gizmosEnabled)) {
+                gizmosEnabled = !gizmosEnabled;
+                if (onToggleGizmos != null) {
+                    onToggleGizmos.run();
+                }
             }
 
             if (ImGui.beginMenu("Zoom")) {
@@ -470,5 +479,27 @@ public class EditorMenuBar {
 
     public void setOnOpenSpriteEditor(Runnable callback) {
         this.onOpenSpriteEditor = callback;
+    }
+
+    public void setOnToggleGizmos(Runnable callback) {
+        this.onToggleGizmos = callback;
+    }
+
+    public void setGizmosEnabled(boolean enabled) {
+        this.gizmosEnabled = enabled;
+    }
+
+    public boolean isGizmosEnabled() {
+        return gizmosEnabled;
+    }
+
+    /**
+     * Toggles gizmos visibility from shortcut system.
+     */
+    public void triggerToggleGizmos() {
+        gizmosEnabled = !gizmosEnabled;
+        if (onToggleGizmos != null) {
+            onToggleGizmos.run();
+        }
     }
 }

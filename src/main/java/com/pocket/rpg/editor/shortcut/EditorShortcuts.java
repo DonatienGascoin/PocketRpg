@@ -66,6 +66,11 @@ public final class EditorShortcuts {
     public static final String TOOL_SELECTION = "editor.tool.selection";
     public static final String TOOL_ENTITY_PLACER = "editor.tool.entityPlacer";
 
+    // Transform tool actions
+    public static final String TOOL_MOVE = "editor.tool.move";
+    public static final String TOOL_ROTATE = "editor.tool.rotate";
+    public static final String TOOL_SCALE = "editor.tool.scale";
+
     // Brush size actions
     public static final String BRUSH_SIZE_INCREASE = "editor.brush.sizeIncrease";
     public static final String BRUSH_SIZE_DECREASE = "editor.brush.sizeDecrease";
@@ -121,6 +126,7 @@ public final class EditorShortcuts {
         registerTilemapToolShortcuts(registry);
         registerCollisionToolShortcuts(registry);
         registerEntityToolShortcuts(registry);
+        registerTransformToolShortcuts(registry);
         registerBrushShortcuts(registry);
         registerZLevelShortcuts(registry);
         registerPlayShortcuts(registry);
@@ -444,6 +450,34 @@ public final class EditorShortcuts {
         );
     }
 
+    private static void registerTransformToolShortcuts(ShortcutRegistry registry) {
+        registry.registerAll(
+                ShortcutAction.builder()
+                        .id(TOOL_MOVE)
+                        .displayName("Move Tool")
+                        .defaultBinding(ShortcutBinding.key(ImGuiKey.W))
+                        .global()
+                        .handler(() -> {})
+                        .build(),
+
+                ShortcutAction.builder()
+                        .id(TOOL_ROTATE)
+                        .displayName("Rotate Tool")
+                        .defaultBinding(ShortcutBinding.key(ImGuiKey.E))
+                        .global()
+                        .handler(() -> {})
+                        .build(),
+
+                ShortcutAction.builder()
+                        .id(TOOL_SCALE)
+                        .displayName("Scale Tool")
+                        .defaultBinding(ShortcutBinding.key(ImGuiKey.R))
+                        .global()
+                        .handler(() -> {})
+                        .build()
+        );
+    }
+
     private static void registerBrushShortcuts(ShortcutRegistry registry) {
         registry.registerAll(
                 ShortcutAction.builder()
@@ -572,6 +606,11 @@ public final class EditorShortcuts {
         bindings.put(ENTITY_DELETE, ShortcutBinding.key(ImGuiKey.Delete));
         bindings.put(ENTITY_CANCEL, ShortcutBinding.key(ImGuiKey.Escape));
 
+        // Transform tool shortcuts
+        bindings.put(TOOL_MOVE, ShortcutBinding.key(ImGuiKey.W));
+        bindings.put(TOOL_ROTATE, ShortcutBinding.key(ImGuiKey.E));
+        bindings.put(TOOL_SCALE, ShortcutBinding.key(ImGuiKey.R));
+
         // Brush shortcuts
         bindings.put(BRUSH_SIZE_INCREASE, ShortcutBinding.key(ImGuiKey.Equal));
         bindings.put(BRUSH_SIZE_DECREASE, ShortcutBinding.key(ImGuiKey.Minus));
@@ -643,6 +682,11 @@ public final class EditorShortcuts {
         registry.bindHandler(TOOL_ENTITY_PLACER, handlers::onToolEntityPlacer);
         registry.bindHandler(ENTITY_DELETE, handlers::onEntityDelete);
         registry.bindHandler(ENTITY_CANCEL, handlers::onEntityCancel);
+
+        // Transform tools
+        registry.bindHandler(TOOL_MOVE, handlers::onToolMove);
+        registry.bindHandler(TOOL_ROTATE, handlers::onToolRotate);
+        registry.bindHandler(TOOL_SCALE, handlers::onToolScale);
 
         // Brush size
         registry.bindHandler(BRUSH_SIZE_INCREASE, handlers::onBrushSizeIncrease);

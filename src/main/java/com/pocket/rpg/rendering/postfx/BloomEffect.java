@@ -10,6 +10,7 @@ import static org.lwjgl.opengl.GL33.*;
  * and blurring them, then adding them back to the original image.
  * This creates a dreamy, ethereal look perfect for magic effects and glowing objects.
  */
+@EffectDescription("Makes bright areas glow, creating an ethereal look.")
 public class BloomEffect implements PostEffect {
     private static final float DEFAULT_THRESHOLD = 0.8f;
     private static final float DEFAULT_INTENSITY = 1.5f;
@@ -17,7 +18,7 @@ public class BloomEffect implements PostEffect {
     private final float bloomThreshold;
     private final float bloomIntensity;
 
-    private Shader bloomShader;
+    private transient Shader bloomShader;
 
     /**
      * Creates a bloom effect with default parameters.

@@ -14,7 +14,7 @@ import static org.lwjgl.opengl.GL33.*;
  */
 public class PassThroughEffect implements PostEffect {
 
-    private Shader passThroughShader;
+    private transient Shader passThroughShader;
 
     @Override
     public void init() {

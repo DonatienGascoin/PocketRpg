@@ -5,6 +5,8 @@ import com.pocket.rpg.audio.clips.AudioClip;
 import com.pocket.rpg.audio.mixing.AudioChannel;
 import com.pocket.rpg.audio.sources.AudioHandle;
 import com.pocket.rpg.audio.sources.PlaybackSettings;
+import com.pocket.rpg.editor.gizmos.GizmoColors;
+import com.pocket.rpg.editor.gizmos.GizmoContext;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector3f;
@@ -216,5 +218,27 @@ public class AmbientZone extends Component {
      */
     public boolean isPlaying() {
         return ambientHandle != null && ambientHandle.isPlaying();
+    }
+
+    // ========================================================================
+    // GIZMOS
+    // ========================================================================
+
+    @Override
+    public void onDrawGizmosSelected(GizmoContext ctx) {
+        Transform transform = ctx.getTransform();
+        if (transform == null) return;
+
+        Vector3f pos = transform.getWorldPosition();
+
+        // Draw radius circle
+        ctx.setColor(GizmoColors.AUDIO_ZONE);
+        ctx.setThickness(2.0f);
+        ctx.drawCircle(pos.x, pos.y, radius);
+
+        // Draw center point - constant screen size
+        ctx.setColor(GizmoColors.AUDIO_SOURCE);
+        float markerSize = ctx.getHandleSize(8);
+        ctx.drawDiamondFilled(pos.x, pos.y, markerSize);
     }
 }

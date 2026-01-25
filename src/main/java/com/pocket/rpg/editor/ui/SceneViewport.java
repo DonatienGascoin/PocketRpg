@@ -3,6 +3,7 @@ package com.pocket.rpg.editor.ui;
 import com.pocket.rpg.editor.assets.SceneViewportDropTarget;
 import com.pocket.rpg.editor.camera.EditorCamera;
 import com.pocket.rpg.editor.core.EditorConfig;
+import com.pocket.rpg.editor.gizmos.GizmoRenderer;
 import com.pocket.rpg.editor.rendering.EditorFramebuffer;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.tools.*;
@@ -24,6 +25,7 @@ public class SceneViewport {
     private final ViewportRenderer renderer;
     private final GridOverlayRenderer gridRenderer = new GridOverlayRenderer();
     private final CoordinateDisplayRenderer coordRenderer = new CoordinateDisplayRenderer();
+    private final GizmoRenderer gizmoRenderer = new GizmoRenderer();
     private final ViewportInputHandler inputHandler;
 
     @Getter
@@ -68,6 +70,14 @@ public class SceneViewport {
 
     public void setShowCoordinates(boolean show) {
         coordRenderer.setEnabled(show);
+    }
+
+    public void setShowGizmos(boolean show) {
+        gizmoRenderer.setEnabled(show);
+    }
+
+    public boolean isShowGizmos() {
+        return gizmoRenderer.isEnabled();
     }
 
     public void setContentVisible(boolean visible) {
@@ -140,19 +150,25 @@ public class SceneViewport {
     }
 
     /**
-     * Renders tool overlay after the main viewport render.
+     * Renders tool overlay and gizmos after the main viewport render.
      */
     public void renderToolOverlay() {
         if (!renderer.isContentVisible()) return;
         if (ImGui.isPopupOpen("", imgui.flag.ImGuiPopupFlags.AnyPopupId)) return;
 
+        // Render gizmos for selected entities
+        if (scene != null) {
+            gizmoRenderer.render(scene, camera, viewportX, viewportY, viewportWidth, viewportHeight);
+        }
+
+        // Render tool overlay
         EditorTool activeTool = inputHandler.getToolManager() != null
                 ? inputHandler.getToolManager().getActiveTool()
                 : null;
-        if (activeTool == null) return;
-
-        updateToolViewportBounds(activeTool);
-        activeTool.renderOverlay(camera, hoveredTileX, hoveredTileY);
+        if (activeTool != null) {
+            updateToolViewportBounds(activeTool);
+            activeTool.renderOverlay(camera, hoveredTileX, hoveredTileY);
+        }
 
         if (scene != null) {
             SceneViewportDropTarget.renderDragOverlay(

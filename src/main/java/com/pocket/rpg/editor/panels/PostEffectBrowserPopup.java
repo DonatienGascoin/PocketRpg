@@ -1,17 +1,24 @@
 package com.pocket.rpg.editor.panels;
 
+import com.pocket.rpg.editor.utils.FuzzyMatcher;
 import com.pocket.rpg.rendering.postfx.PostEffect;
 import com.pocket.rpg.rendering.postfx.PostEffectMeta;
 import com.pocket.rpg.rendering.postfx.PostEffectRegistry;
 import imgui.ImGui;
+import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiInputTextFlags;
+import imgui.flag.ImGuiKey;
+import imgui.flag.ImGuiSelectableFlags;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImString;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
 /**
  * Popup window for selecting a PostEffect to add.
+ * Features fuzzy search, keyboard navigation, and effect descriptions.
  * <p>
  * Usage:
  * PostEffectBrowserPopup popup = new PostEffectBrowserPopup();
@@ -25,9 +32,13 @@ public class PostEffectBrowserPopup {
     private static final String POPUP_ID = "Add Post Effect";
 
     private boolean shouldOpen = false;
+    private boolean focusSearchNextFrame = false;
+    private boolean focusFirstItemNextFrame = false;
     private Consumer<PostEffect> onEffectSelected;
 
     private final ImString searchBuffer = new ImString(64);
+    private List<PostEffectMeta> filteredEffects = new ArrayList<>();
+    private int hoveredIndex = -1;
 
     /**
      * Opens the popup with a callback for when an effect is selected.
@@ -35,7 +46,9 @@ public class PostEffectBrowserPopup {
     public void open(Consumer<PostEffect> callback) {
         this.onEffectSelected = callback;
         this.shouldOpen = true;
+        this.focusSearchNextFrame = true;
         this.searchBuffer.set("");
+        this.hoveredIndex = -1;
     }
 
     /**
@@ -47,71 +60,145 @@ public class PostEffectBrowserPopup {
             shouldOpen = false;
         }
 
-        ImGui.setNextWindowSize(350, 400);
+        ImGui.setNextWindowSize(400, 500);
 
-        if (ImGui.beginPopupModal(POPUP_ID, ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)) {
-            // Search bar
-            ImGui.text("Search:");
-            ImGui.sameLine();
-            ImGui.setNextItemWidth(-1);
-            ImGui.inputText("##effectSearch", searchBuffer);
-
-            ImGui.separator();
-
-            // Effect list
-            if (ImGui.beginChild("EffectList", 0, -30, false, ImGuiWindowFlags.AlwaysVerticalScrollbar)) {
-                String filter = searchBuffer.get().toLowerCase();
-                List<PostEffectMeta> allEffects = PostEffectRegistry.getAll();
-
-                for (PostEffectMeta meta : allEffects) {
-                    // Apply search filter
-                    if (!filter.isEmpty()) {
-                        if (!meta.simpleName().toLowerCase().contains(filter) &&
-                                !meta.displayName().toLowerCase().contains(filter)) {
-                            continue;
-                        }
-                    }
-
-                    // Disabled style for non-instantiable effects
-                    boolean canInstantiate = meta.hasNoArgConstructor();
-                    if (!canInstantiate) {
-                        ImGui.pushStyleColor(imgui.flag.ImGuiCol.Text, 0.5f, 0.5f, 0.5f, 1.0f);
-                    }
-
-                    // Show effect button
-                    if (ImGui.selectable(meta.displayName(), false, canInstantiate ? 0 : imgui.flag.ImGuiSelectableFlags.Disabled)) {
-                        if (canInstantiate) {
-                            selectEffect(meta);
-                            ImGui.closeCurrentPopup();
-                        }
-                    }
-
-                    if (!canInstantiate) {
-                        ImGui.popStyleColor();
-                    }
-
-                    // Tooltip with details
-                    if (ImGui.isItemHovered()) {
-                        ImGui.beginTooltip();
-                        ImGui.text(meta.simpleName());
-                        if (!canInstantiate) {
-                            ImGui.textColored(1.0f, 0.5f, 0.5f, 1.0f, "Requires parameters - not available");
-                        } else {
-                            ImGui.textDisabled("Click to add with default settings");
-                        }
-                        ImGui.endTooltip();
-                    }
-                }
-                ImGui.endChild();
-            }
-
-            // Cancel button
-            ImGui.separator();
-            if (ImGui.button("Cancel", 100, 0)) {
+        if (ImGui.beginPopup(POPUP_ID)) {
+            // Close on Escape
+            if (ImGui.isKeyPressed(ImGuiKey.Escape)) {
                 ImGui.closeCurrentPopup();
             }
 
+            renderSearchBar();
+            ImGui.separator();
+            renderEffectList();
+            renderDescriptionBox();
+            renderButtons();
+
             ImGui.endPopup();
+        }
+    }
+
+    private void renderSearchBar() {
+        ImGui.setNextItemWidth(-1);
+
+        if (focusSearchNextFrame) {
+            ImGui.setKeyboardFocusHere();
+            focusSearchNextFrame = false;
+        }
+
+        ImGui.inputText(
+                "##effectSearch",
+                searchBuffer,
+                ImGuiInputTextFlags.AutoSelectAll
+        );
+
+        // Down arrow from search -> focus first effect
+        if (ImGui.isItemFocused() && ImGui.isKeyPressed(ImGuiKey.DownArrow)) {
+            focusFirstItemNextFrame = true;
+        }
+    }
+
+    private void renderEffectList() {
+        // Calculate height: total popup minus search bar, description box, buttons
+        float listHeight = ImGui.getContentRegionAvailY() - 100; // Reserve space for description + buttons
+
+        if (ImGui.beginChild("EffectList", 0, listHeight, false, ImGuiWindowFlags.AlwaysVerticalScrollbar)) {
+            String filter = searchBuffer.get().trim();
+            boolean searching = !filter.isEmpty();
+
+            // Build filtered list
+            filteredEffects.clear();
+            List<PostEffectMeta> allEffects = PostEffectRegistry.getAll();
+
+            for (PostEffectMeta meta : allEffects) {
+                if (!searching || FuzzyMatcher.matches(filter, meta.displayName())) {
+                    filteredEffects.add(meta);
+                }
+            }
+
+            boolean isFirstItem = true;
+            for (int i = 0; i < filteredEffects.size(); i++) {
+                PostEffectMeta meta = filteredEffects.get(i);
+                boolean canInstantiate = meta.hasNoArgConstructor();
+
+                // Disabled style for non-instantiable effects
+                if (!canInstantiate) {
+                    ImGui.pushStyleColor(ImGuiCol.Text, 0.5f, 0.5f, 0.5f, 1.0f);
+                }
+
+                // Focus first item when navigating from search
+                if (isFirstItem && focusFirstItemNextFrame) {
+                    ImGui.setKeyboardFocusHere();
+                    focusFirstItemNextFrame = false;
+                }
+
+                boolean selected = (hoveredIndex == i);
+                if (ImGui.selectable(meta.displayName(), selected, canInstantiate ? 0 : ImGuiSelectableFlags.Disabled)) {
+                    if (canInstantiate) {
+                        selectEffect(meta);
+                        ImGui.closeCurrentPopup();
+                    }
+                }
+
+                // Track hovered item for description box
+                if (ImGui.isItemHovered()) {
+                    hoveredIndex = i;
+                }
+
+                // Enter to confirm when focused
+                if (ImGui.isItemFocused()) {
+                    hoveredIndex = i;
+                    if (ImGui.isKeyPressed(ImGuiKey.Enter) && canInstantiate) {
+                        selectEffect(meta);
+                        ImGui.closeCurrentPopup();
+                    }
+                }
+
+                // Up arrow from first item -> back to search box
+                if (isFirstItem && ImGui.isItemFocused() && ImGui.isKeyPressed(ImGuiKey.UpArrow)) {
+                    focusSearchNextFrame = true;
+                }
+
+                if (!canInstantiate) {
+                    ImGui.popStyleColor();
+                }
+
+                isFirstItem = false;
+            }
+
+            ImGui.endChild();
+        }
+    }
+
+    private void renderDescriptionBox() {
+        ImGui.separator();
+
+        // Description box with fixed height
+        if (ImGui.beginChild("DescriptionBox", 0, 60, true)) {
+            if (hoveredIndex >= 0 && hoveredIndex < filteredEffects.size()) {
+                PostEffectMeta meta = filteredEffects.get(hoveredIndex);
+
+                if (!meta.description().isEmpty()) {
+                    ImGui.textWrapped(meta.description());
+                } else {
+                    ImGui.textDisabled("No description available");
+                }
+
+                if (!meta.hasNoArgConstructor()) {
+                    ImGui.spacing();
+                    ImGui.textColored(1.0f, 0.5f, 0.5f, 1.0f, "Requires parameters - not available");
+                }
+            } else {
+                ImGui.textDisabled("Hover an effect to see its description");
+            }
+            ImGui.endChild();
+        }
+    }
+
+    private void renderButtons() {
+        ImGui.spacing();
+        if (ImGui.button("Cancel", 100, 0)) {
+            ImGui.closeCurrentPopup();
         }
     }
 

@@ -1,5 +1,6 @@
 package com.pocket.rpg.rendering.postfx.effects;
 
+import com.pocket.rpg.rendering.postfx.EffectDescription;
 import com.pocket.rpg.rendering.postfx.PostEffect;
 import com.pocket.rpg.rendering.resources.Shader;
 
@@ -9,6 +10,7 @@ import static org.lwjgl.opengl.GL33.*;
  * Scanlines effect that adds horizontal lines across the screen to simulate
  * a CRT monitor or retro display. Perfect for vintage aesthetics.
  */
+@EffectDescription("Adds horizontal scanlines to simulate CRT monitors.")
 public class ScanlinesEffect implements PostEffect {
     private static final float DEFAULT_INTENSITY = 0.3f;
     private static final float DEFAULT_COUNT = 300.0f;
@@ -16,7 +18,7 @@ public class ScanlinesEffect implements PostEffect {
     private final float scanlineIntensity;
     private final float scanlineCount;
 
-    private Shader scanlinesShader;
+    private transient Shader scanlinesShader;
 
     /**
      * Creates a scanlines effect with default parameters.

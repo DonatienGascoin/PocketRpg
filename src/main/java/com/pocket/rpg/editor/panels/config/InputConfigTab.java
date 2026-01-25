@@ -11,30 +11,27 @@ import com.pocket.rpg.input.InputAxis;
 import com.pocket.rpg.input.KeyCode;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
-import lombok.RequiredArgsConstructor;
+import imgui.flag.ImGuiTreeNodeFlags;
 
 import java.util.ArrayList;
 import java.util.List;
 
-@RequiredArgsConstructor
+/**
+ * Configuration tab for input settings.
+ * Uses live editing model - edits apply directly to the live InputConfig.
+ */
 public class InputConfigTab implements ConfigTab {
 
     private final EditorContext context;
-
-    private InputConfig working;
-    private InputConfig original;
-    private boolean dirty = false;
+    private final Runnable markDirty;
 
     // Popup state
     private InputAction selectedAction = null;
     private boolean openBindingPopup = false;
 
-    @Override
-    public void initialize() {
-        working = cloneConfig(context.getInputConfig());
-        original = cloneConfig(context.getInputConfig());
-        dirty = false;
-        selectedAction = null;
+    public InputConfigTab(EditorContext context, Runnable markDirty) {
+        this.context = context;
+        this.markDirty = markDirty;
     }
 
     @Override
@@ -43,46 +40,30 @@ public class InputConfigTab implements ConfigTab {
     }
 
     @Override
-    public boolean isDirty() {
-        return dirty;
+    public void save() {
+        ConfigLoader.saveConfigToFile(context.getInputConfig(), ConfigLoader.ConfigType.INPUT);
     }
 
     @Override
-    public void save() {
-        applyToLive();
-        ConfigLoader.saveConfigToFile(context.getInputConfig(), ConfigLoader.ConfigType.INPUT);
-        original = cloneConfig(context.getInputConfig());
-        dirty = false;
+    public void revert() {
+        ConfigLoader.loadAllConfigs();
     }
 
     @Override
     public void resetToDefaults() {
-        working.resetAllToDefaults();
-        original = new InputConfig(); // Reset original too!
-        dirty = false; // Explicitly set to false
+        context.getInputConfig().resetAllToDefaults();
     }
 
     @Override
     public void renderContent() {
-        // Scope ALL IDs to this tab
         ImGui.pushID("InputTab");
 
-        if (ImGui.button(MaterialIcons.Undo + " Reset to Defaults")) {
-            resetToDefaults();
+        if (ImGui.collapsingHeader("Action Bindings", ImGuiTreeNodeFlags.DefaultOpen)) {
+            renderActionBindings();
         }
 
-        ImGui.separator();
-
-        if (ImGui.beginChild("Content", 0, 0, false)) {
-            if (ImGui.collapsingHeader("Action Bindings", imgui.flag.ImGuiTreeNodeFlags.DefaultOpen)) {
-                renderActionBindings();
-            }
-
-            if (ImGui.collapsingHeader("Axis Configurations")) {
-                renderAxisConfigs();
-            }
-
-            ImGui.endChild();
+        if (ImGui.collapsingHeader("Axis Configurations")) {
+            renderAxisConfigs();
         }
 
         // Popup must be rendered at same level as the trigger
@@ -98,10 +79,12 @@ public class InputConfigTab implements ConfigTab {
     private void renderActionBindings() {
         ImGui.indent();
 
+        InputConfig config = context.getInputConfig();
+
         for (InputAction action : InputAction.values()) {
             ImGui.pushID(action.ordinal());
 
-            List<KeyCode> bindings = working.getBindingForAction(action);
+            List<KeyCode> bindings = config.getBindingForAction(action);
             StringBuilder bindingText = new StringBuilder();
             for (int i = 0; i < bindings.size(); i++) {
                 if (i > 0) bindingText.append(", ");
@@ -120,8 +103,8 @@ public class InputConfigTab implements ConfigTab {
 
             ImGui.sameLine();
             if (ImGui.smallButton(MaterialIcons.Undo)) {
-                working.resetActionToDefault(action);
-                updateDirtyFlag();
+                config.resetActionToDefault(action);
+                markDirty.run();
             }
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip("Reset to default binding");
@@ -136,10 +119,12 @@ public class InputConfigTab implements ConfigTab {
     private void renderBindingEditPopup() {
         if (ImGui.beginPopup("BindingPopup")) {
             if (selectedAction != null) {
+                InputConfig config = context.getInputConfig();
+
                 ImGui.text("Edit bindings for: " + selectedAction.name());
                 ImGui.separator();
 
-                List<KeyCode> bindings = new ArrayList<>(working.getBindingForAction(selectedAction));
+                List<KeyCode> bindings = new ArrayList<>(config.getBindingForAction(selectedAction));
                 boolean modified = false;
 
                 for (int i = 0; i < bindings.size(); i++) {
@@ -173,15 +158,15 @@ public class InputConfigTab implements ConfigTab {
                 }
 
                 if (modified) {
-                    working.setBindingForAction(selectedAction, bindings);
-                    updateDirtyFlag();
+                    config.setBindingForAction(selectedAction, bindings);
+                    markDirty.run();
                 }
 
                 ImGui.spacing();
                 if (ImGui.button(MaterialIcons.Add + " Add Key")) {
                     bindings.add(KeyCode.SPACE); // Default to space, not unknown
-                    working.setBindingForAction(selectedAction, bindings);
-                    updateDirtyFlag();
+                    config.setBindingForAction(selectedAction, bindings);
+                    markDirty.run();
                 }
 
                 ImGui.separator();
@@ -197,23 +182,25 @@ public class InputConfigTab implements ConfigTab {
     private void renderAxisConfigs() {
         ImGui.indent();
 
+        InputConfig config = context.getInputConfig();
+
         for (InputAxis axis : InputAxis.values()) {
             ImGui.pushID(axis.ordinal());
 
-            AxisConfig config = working.getAxisConfig(axis);
+            AxisConfig axisConfig = config.getAxisConfig(axis);
 
-            if (config == null) {
+            if (axisConfig == null) {
                 ImGui.textDisabled(axis.name() + ": (no config)");
                 ImGui.popID();
                 continue;
             }
 
             if (ImGui.treeNode(axis.name())) {
-                renderAxisConfig(config);
+                renderAxisConfig(axisConfig);
                 ImGui.treePop();
             } else {
                 ImGui.sameLine();
-                ImGui.textDisabled(getAxisSummary(config));
+                ImGui.textDisabled(getAxisSummary(axisConfig));
             }
 
             ImGui.popID();
@@ -371,41 +358,5 @@ public class InputConfigTab implements ConfigTab {
             return name.substring(4);
         }
         return name;
-    }
-
-    private void updateDirtyFlag() {
-        dirty = !isConfigEqual(working, original);
-    }
-
-    private boolean isConfigEqual(InputConfig a, InputConfig b) {
-        for (InputAction action : InputAction.values()) {
-            List<KeyCode> aBindings = a.getBindingForAction(action);
-            List<KeyCode> bBindings = b.getBindingForAction(action);
-            if (!aBindings.equals(bBindings)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private void applyToLive() {
-        InputConfig live = context.getInputConfig();
-        for (InputAction action : InputAction.values()) {
-            live.setBindingForAction(action, new ArrayList<>(working.getBindingForAction(action)));
-        }
-    }
-
-    private InputConfig cloneConfig(InputConfig source) {
-        InputConfig clone = new InputConfig();
-        for (InputAction action : InputAction.values()) {
-            clone.setBindingForAction(action, new ArrayList<>(source.getBindingForAction(action)));
-        }
-        for (InputAxis axis : InputAxis.values()) {
-            AxisConfig config = source.getAxisConfig(axis);
-            if (config != null) {
-                clone.setAxisConfig(axis, config);
-            }
-        }
-        return clone;
     }
 }

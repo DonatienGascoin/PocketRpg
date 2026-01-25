@@ -121,24 +121,31 @@ public class ToolManager {
     
     /**
      * Handles mouse movement while button is held.
-     * Only fires onMouseDrag when tile changes.
-     * 
+     * Only fires onMouseDrag when tile changes, unless the tool implements ContinuousDragTool.
+     *
      * @param tileX Current tile X coordinate
      * @param tileY Current tile Y coordinate
      */
     public void handleMouseMove(int tileX, int tileY) {
         if (activeTool == null) return;
-        
+
         if (isMouseDown) {
-            // Only fire drag if tile changed
-            if (tileX != lastTileX || tileY != lastTileY) {
+            // For ContinuousDragTool, always fire drag events
+            if (activeTool instanceof ContinuousDragTool) {
                 lastTileX = tileX;
                 lastTileY = tileY;
                 activeTool.onMouseDrag(tileX, tileY, activeButton);
+            } else {
+                // Only fire drag if tile changed
+                if (tileX != lastTileX || tileY != lastTileY) {
+                    lastTileX = tileX;
+                    lastTileY = tileY;
+                    activeTool.onMouseDrag(tileX, tileY, activeButton);
+                }
             }
         } else {
-            // Just hovering
-            if (tileX != lastTileX || tileY != lastTileY) {
+            // Just hovering - always update for ContinuousDragTool, tile-change only for others
+            if (activeTool instanceof ContinuousDragTool || tileX != lastTileX || tileY != lastTileY) {
                 lastTileX = tileX;
                 lastTileY = tileY;
                 activeTool.onMouseMove(tileX, tileY);

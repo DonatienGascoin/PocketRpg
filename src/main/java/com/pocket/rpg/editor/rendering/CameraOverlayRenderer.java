@@ -23,6 +23,9 @@ public class CameraOverlayRenderer {
     @Setter
     private boolean showGameView = true;
 
+    @Setter
+    private float orthographicSize = 15f;
+
     // Viewport bounds (set before rendering)
     private float viewportX, viewportY, viewportWidth, viewportHeight;
 
@@ -103,7 +106,7 @@ public class CameraOverlayRenderer {
     private void renderGameViewPreview(ImDrawList drawList, EditorCamera camera,
                                        SceneCameraSettings camSettings) {
         Vector2f camPos = camSettings.getPosition();
-        float orthoSize = camSettings.getOrthographicSize();
+        float orthoSize = this.orthographicSize;
 
         // Calculate game view rectangle (assuming 16:9 aspect)
         float aspectRatio = 16f / 9f;

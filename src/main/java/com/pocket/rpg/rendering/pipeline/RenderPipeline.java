@@ -57,6 +57,7 @@ public class RenderPipeline {
     // State for granular API
     private RenderTarget currentTarget;
     private boolean postFxCaptureActive;
+    private Vector4f currentClearColor;
 
     /**
      * -- GETTER --
@@ -81,8 +82,8 @@ public class RenderPipeline {
      * Initializes all sub-renderers.
      * Must be called before any render methods.
      * <p>
-     * Note: PostProcessor must be set externally via {@link #setPostProcessor}
-     * before calling init(), as it requires AbstractWindow for initialization.
+     * Note: PostProcessor is optional. If post-processing effects are needed,
+     * set it via {@link #setPostProcessor} before or after init().
      */
     public void init() {
         if (initialized) return;
@@ -93,10 +94,7 @@ public class RenderPipeline {
         sceneRenderer.init(gameWidth, gameHeight);
         uiRenderer.init();
 
-        // PostProcessor must be set externally (requires window for init)
-        if (postProcessor == null) {
-            System.err.println("[RenderPipeline] WARNING: PostProcessor not set. Call setPostProcessor() before init().");
-        }
+        // PostProcessor is optional - set via setPostProcessor() if post-processing effects are needed
 
         // Create overlay renderer with window dimensions
         if (overlayRenderer == null) {
@@ -146,10 +144,11 @@ public class RenderPipeline {
 
             if (usePostFx) {
                 // Render scene to post-processor's capture FBO
+                postProcessor.setClearColor(params.getClearColor());
                 postProcessor.beginCapture();
                 sceneRenderer.render(params.getRenderables(), params.getCamera());
-                // Apply effects and blit to screen (PostProcessor handles target internally)
-                postProcessor.endCaptureAndApplyEffects();
+                // Apply effects and blit to target
+                postProcessor.endCaptureAndApplyEffects(target);
             } else {
                 // Render scene directly to target
                 sceneRenderer.render(params.getRenderables(), params.getCamera());
@@ -197,6 +196,7 @@ public class RenderPipeline {
 
         currentTarget = target;
         postFxCaptureActive = false;
+        currentClearColor = clearColor;
 
         target.bind();
         target.clear(clearColor);
@@ -212,6 +212,9 @@ public class RenderPipeline {
         postFxCaptureActive = postFxEnabled && hasPostProcessingEffects();
 
         if (postFxCaptureActive) {
+            if (currentClearColor != null) {
+                postProcessor.setClearColor(currentClearColor);
+            }
             postProcessor.beginCapture();
         }
     }
@@ -230,11 +233,11 @@ public class RenderPipeline {
 
     /**
      * Ends scene capture and applies post-processing effects.
-     * Blits result to screen.
+     * Blits result to current target.
      */
     public void endSceneCaptureAndApplyPostFx() {
         if (postFxCaptureActive) {
-            postProcessor.endCaptureAndApplyEffects();
+            postProcessor.endCaptureAndApplyEffects(currentTarget);
             postFxCaptureActive = false;
         }
     }

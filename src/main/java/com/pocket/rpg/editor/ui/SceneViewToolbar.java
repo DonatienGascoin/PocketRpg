@@ -1,10 +1,9 @@
 package com.pocket.rpg.editor.ui;
 
 import com.pocket.rpg.editor.EditorContext;
+import com.pocket.rpg.editor.EditorSelectionManager;
 import com.pocket.rpg.editor.EditorToolController;
 import com.pocket.rpg.editor.core.MaterialIcons;
-import com.pocket.rpg.editor.panels.CollisionPanel;
-import com.pocket.rpg.editor.panels.TilesetPalettePanel;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.tools.EditorTool;
 import com.pocket.rpg.editor.tools.ToolManager;
@@ -19,7 +18,10 @@ import java.util.function.Consumer;
 
 /**
  * Toolbar rendered inside the Scene viewport.
- * Tools are shown based on which panels are open (panel-driven visibility).
+ * Tools are shown based on hierarchy selection state:
+ * - Tilemap layer selected → Tilemap tools
+ * - Collision layer selected → Collision tools
+ * - Otherwise → Transform tools (Move, Rotate, Scale)
  */
 public class SceneViewToolbar {
 
@@ -29,14 +31,15 @@ public class SceneViewToolbar {
     @Setter
     private Consumer<String> messageCallback;
 
-    @Setter
-    private TilesetPalettePanel tilesetPalettePanel;
-
-    @Setter
-    private CollisionPanel collisionPanel;
-
     // Selection tool is always visible
     private static final ToolDef SELECT_TOOL = new ToolDef("Select", MaterialIcons.NearMe, "V");
+
+    // Transform tools - shown when in entity mode (no tileset/collision panel visible)
+    private static final ToolDef[] TRANSFORM_TOOLS = {
+            new ToolDef("Move", MaterialIcons.OpenWith, "W"),
+            new ToolDef("Rotate", MaterialIcons.RotateRight, "E"),
+            new ToolDef("Scale", MaterialIcons.AspectRatio, "R"),
+    };
 
     private static final ToolDef[] TILEMAP_TOOLS = {
             new ToolDef("Brush", MaterialIcons.Brush, "B"),
@@ -84,7 +87,7 @@ public class SceneViewToolbar {
     }
 
     /**
-     * Ensures the active tool is valid based on visible panels and selection state.
+     * Ensures the active tool is valid based on hierarchy selection state.
      * Switches to Select if the current tool's conditions are not met.
      */
     private void ensureValidToolSelection() {
@@ -92,69 +95,65 @@ public class SceneViewToolbar {
         EditorTool activeTool = toolManager.getActiveTool();
         if (activeTool == null) return;
 
+        EditorSelectionManager selectionManager = context.getSelectionManager();
+        if (selectionManager == null) return;
+
         String toolName = activeTool.getName();
         boolean isTilemapTool = Arrays.stream(TILEMAP_TOOLS).anyMatch(t -> t.toolName.equals(toolName));
         boolean isCollisionTool = Arrays.stream(COLLISION_TOOLS).anyMatch(t -> t.toolName.equals(toolName));
 
-        boolean tilesetVisible = tilesetPalettePanel != null && tilesetPalettePanel.isContentVisible();
-        boolean collisionVisible = collisionPanel != null && collisionPanel.isContentVisible();
+        boolean tilemapSelected = selectionManager.isTilemapLayerSelected();
+        boolean collisionSelected = selectionManager.isCollisionLayerSelected();
 
-        var scene = context.getCurrentScene();
-        var selectionManager = context.getSelectionManager();
-
-        // Check if tilemap tools should be disabled
-        boolean tilemapEnabled = tilesetVisible && scene != null && scene.getActiveLayerIndex() >= 0;
-
-        // Check if collision tools should be disabled
-        boolean collisionEnabled = collisionVisible && selectionManager != null && selectionManager.isCollisionLayerSelected();
-
-        // If using tilemap tool but conditions not met, switch to select
-        if (isTilemapTool && !tilemapEnabled) {
+        // If using tilemap tool but tilemap layer not selected, switch to select
+        if (isTilemapTool && !tilemapSelected) {
             toolManager.setActiveTool("Select");
         }
-        // If using collision tool but conditions not met, switch to select
-        if (isCollisionTool && !collisionEnabled) {
+        // If using collision tool but collision layer not selected, switch to select
+        if (isCollisionTool && !collisionSelected) {
             toolManager.setActiveTool("Select");
         }
+        // Transform tools are always allowed
     }
 
     private void renderToolButtons() {
         ToolManager toolManager = context.getToolManager();
         EditorTool activeTool = toolManager.getActiveTool();
-        var scene = context.getCurrentScene();
+        EditorSelectionManager selectionManager = context.getSelectionManager();
 
         // Render selection tool (always enabled)
         renderToolButton(SELECT_TOOL, activeTool, toolManager, ToolCategory.SELECTION, true);
 
-        // Render tilemap tools with separator if visible
-        boolean tilesetVisible = tilesetPalettePanel != null && tilesetPalettePanel.isContentVisible();
-        if (tilesetVisible) {
-            // Tilemap tools enabled only if a layer is selected
-            boolean tilemapEnabled = scene != null && scene.getActiveLayerIndex() >= 0;
+        // Determine selection state
+        boolean tilemapSelected = selectionManager != null && selectionManager.isTilemapLayerSelected();
+        boolean collisionSelected = selectionManager != null && selectionManager.isCollisionLayerSelected();
 
+        // Render tools based on selection state
+        if (tilemapSelected) {
+            // Tilemap layer selected → show tilemap tools
             ImGui.text("|");
             ImGui.sameLine();
             for (ToolDef def : TILEMAP_TOOLS) {
-                renderToolButton(def, activeTool, toolManager, ToolCategory.TILEMAP, tilemapEnabled);
+                renderToolButton(def, activeTool, toolManager, ToolCategory.TILEMAP, true);
             }
-        }
-
-        // Render collision tools with separator if visible
-        boolean collisionVisible = collisionPanel != null && collisionPanel.isContentVisible();
-        if (collisionVisible) {
-            // Collision tools enabled only if collision layer is selected
-            var selectionManager = context.getSelectionManager();
-            boolean collisionEnabled = selectionManager != null && selectionManager.isCollisionLayerSelected();
-
+        } else if (collisionSelected) {
+            // Collision layer selected → show collision tools
             ImGui.text("|");
             ImGui.sameLine();
             for (ToolDef def : COLLISION_TOOLS) {
-                renderToolButton(def, activeTool, toolManager, ToolCategory.COLLISION, collisionEnabled);
+                renderToolButton(def, activeTool, toolManager, ToolCategory.COLLISION, true);
+            }
+        } else {
+            // Entity mode (or nothing selected) → show transform tools
+            ImGui.text("|");
+            ImGui.sameLine();
+            for (ToolDef def : TRANSFORM_TOOLS) {
+                renderToolButton(def, activeTool, toolManager, ToolCategory.TRANSFORM, true);
             }
         }
     }
 
-    private enum ToolCategory { SELECTION, TILEMAP, COLLISION }
+    private enum ToolCategory { SELECTION, TRANSFORM, TILEMAP, COLLISION }
 
     private void renderToolButton(ToolDef def, EditorTool activeTool, ToolManager toolManager, ToolCategory category, boolean enabled) {
         boolean isActive = activeTool != null && activeTool.getName().equals(def.toolName);

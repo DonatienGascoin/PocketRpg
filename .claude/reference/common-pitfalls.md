@@ -67,3 +67,29 @@ if (wasEnabled) {  // Same value as push
 - Use `Assets.load()` for cached loading. Direct file reads bypass the cache and hot-reload.
 - Spritesheet sprite indices are 0-based, left-to-right, top-to-bottom.
 - Missing assets throw by default. Use `LoadOptions.usePlaceholder()` for graceful fallback.
+
+---
+
+## Gizmos
+
+**Always use `ctx.getTransform()` in gizmo methods, not `getTransform()`.**
+
+In the editor, components are stored as data - their `gameObject` field is null. The `GizmoRenderer` passes the correct transform via the context.
+
+**WRONG:**
+```java
+@Override
+public void onDrawGizmosSelected(GizmoContext ctx) {
+    Vector3f pos = getTransform().getWorldPosition();  // NullPointerException!
+}
+```
+
+**CORRECT:**
+```java
+@Override
+public void onDrawGizmosSelected(GizmoContext ctx) {
+    Transform transform = ctx.getTransform();
+    if (transform == null) return;
+    Vector3f pos = transform.getWorldPosition();
+}
+```

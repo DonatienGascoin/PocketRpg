@@ -1,10 +1,13 @@
 package com.pocket.rpg.components;
 
+import com.pocket.rpg.editor.gizmos.GizmoColors;
+import com.pocket.rpg.editor.gizmos.GizmoContext;
 import com.pocket.rpg.rendering.core.Renderable;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.rendering.resources.Texture;
 import lombok.Getter;
 import lombok.Setter;
+import org.joml.Vector3f;
 import org.joml.Vector4f;
 
 /**
@@ -118,6 +121,70 @@ public class SpriteRenderer extends Component implements Renderable {
             return sprite.getPivotY();
         }
         return 0.5f;
+    }
+
+    // ========================================================================
+    // GIZMOS
+    // ========================================================================
+
+    @Override
+    public void onDrawGizmosSelected(GizmoContext ctx) {
+        if (sprite == null) return;
+
+        Transform transform = ctx.getTransform();
+        if (transform == null) return;
+
+        Vector3f pos = transform.getWorldPosition();
+        Vector3f scale = transform.getWorldScale();
+        Vector3f rotation = transform.getWorldRotation();
+
+        // Apply scale to sprite dimensions (use world units, not pixels)
+        float width = sprite.getWorldWidth() * scale.x;
+        float height = sprite.getWorldHeight() * scale.y;
+        float pivotX = getEffectiveOriginX();
+        float pivotY = getEffectiveOriginY();
+
+        // Calculate corner offsets from pivot (before rotation)
+        float left = -pivotX * width;
+        float right = (1 - pivotX) * width;
+        float bottom = -pivotY * height;
+        float top = (1 - pivotY) * height;
+
+        // Draw bounds - handle rotation if present
+        ctx.setColor(GizmoColors.BOUNDS);
+        ctx.setThickness(2.0f);
+
+        float rotZ = rotation.z;
+        if (Math.abs(rotZ) < 0.001f) {
+            // No rotation - simple rectangle
+            ctx.drawRect(pos.x + left, pos.y + bottom, width, height);
+        } else {
+            // Rotated rectangle - compute corners
+            float rad = (float) Math.toRadians(rotZ);
+            float cos = (float) Math.cos(rad);
+            float sin = (float) Math.sin(rad);
+
+            // Four corners relative to pivot, then rotated
+            float blX = pos.x + left * cos - bottom * sin;
+            float blY = pos.y + left * sin + bottom * cos;
+            float brX = pos.x + right * cos - bottom * sin;
+            float brY = pos.y + right * sin + bottom * cos;
+            float trX = pos.x + right * cos - top * sin;
+            float trY = pos.y + right * sin + top * cos;
+            float tlX = pos.x + left * cos - top * sin;
+            float tlY = pos.y + left * sin + top * cos;
+
+            // Draw rotated rectangle as 4 lines
+            ctx.drawLine(blX, blY, brX, brY);
+            ctx.drawLine(brX, brY, trX, trY);
+            ctx.drawLine(trX, trY, tlX, tlY);
+            ctx.drawLine(tlX, tlY, blX, blY);
+        }
+
+        // Draw pivot point (at entity position) - constant screen size (~8px radius)
+        ctx.setColor(GizmoColors.PIVOT);
+        float pivotSize = ctx.getHandleSize(8);
+        ctx.drawPivotPoint(pos.x, pos.y, pivotSize);
     }
 
     // ========================================================================

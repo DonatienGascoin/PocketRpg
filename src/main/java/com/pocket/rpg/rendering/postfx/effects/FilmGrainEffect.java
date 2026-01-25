@@ -1,5 +1,6 @@
 package com.pocket.rpg.rendering.postfx.effects;
 
+import com.pocket.rpg.rendering.postfx.EffectDescription;
 import com.pocket.rpg.rendering.postfx.PostEffect;
 import com.pocket.rpg.rendering.resources.Shader;
 
@@ -9,13 +10,14 @@ import static org.lwjgl.opengl.GL33.*;
  * Film grain effect that adds subtle noise/texture to create a vintage film
  * or security camera aesthetic. The grain animates over time for realism.
  */
+@EffectDescription("Adds subtle noise for a cinematic or retro film aesthetic.")
 public class FilmGrainEffect implements PostEffect {
     private static final float DEFAULT_INTENSITY = 0.05f;
 
     private final float grainIntensity;
 
-    private Shader grainShader;
-    private float time = 0.0f;
+    private transient Shader grainShader;
+    private transient float time = 0.0f;
 
     /**
      * Creates a film grain effect with default parameters.

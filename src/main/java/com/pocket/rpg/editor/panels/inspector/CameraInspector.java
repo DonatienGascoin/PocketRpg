@@ -42,11 +42,7 @@ public class CameraInspector {
             scene.markDirty();
         }
 
-        floatBuffer[0] = cam.getOrthographicSize();
-        if (ImGui.dragFloat("Ortho Size", floatBuffer, 0.5f, 1f, 50f)) {
-            cam.setOrthographicSize(floatBuffer[0]);
-            scene.markDirty();
-        }
+        // Note: Orthographic size is controlled globally via RenderingConfig
 
         ImGui.separator();
         ImGui.text("Follow Target");
@@ -98,15 +94,14 @@ public class CameraInspector {
      */
     private void resetToDefaults() {
         SceneCameraSettings cam = scene.getCameraSettings();
-        
-        // Reset to defaults (matching SceneCameraSettings constructor defaults)
+
+        // Reset to defaults (ortho size is controlled via RenderingConfig)
         cam.setPosition(0, 0);
-        cam.setOrthographicSize(10f);
         cam.setFollowPlayer(false);
         cam.setFollowTargetName("");
         cam.setUseBounds(false);
         cam.setBounds(0, 0, 100, 100);
-        
+
         scene.markDirty();
     }
 }

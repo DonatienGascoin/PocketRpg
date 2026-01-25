@@ -1,5 +1,6 @@
 package com.pocket.rpg.rendering.postfx.effects;
 
+import com.pocket.rpg.rendering.postfx.EffectDescription;
 import com.pocket.rpg.rendering.postfx.PostEffect;
 import com.pocket.rpg.rendering.resources.Shader;
 import org.joml.Vector2f;
@@ -11,6 +12,7 @@ import static org.lwjgl.opengl.GL33.*;
  * Perfect for speed effects, explosions, or dramatic focus moments.
  * Creates a sense of motion radiating from the center.
  */
+@EffectDescription("Blurs radially from a center point for zoom effects.")
 public class RadialBlurEffect implements PostEffect {
     private static final Vector2f DEFAULT_CENTER = new Vector2f(0.5f, 0.5f);
     private static final float DEFAULT_STRENGTH = 0.03f;
@@ -20,7 +22,7 @@ public class RadialBlurEffect implements PostEffect {
     private final float blurStrength;
     private final int samples;
 
-    private Shader radialBlurShader;
+    private transient Shader radialBlurShader;
 
     /**
      * Creates a radial blur effect centered on the screen.

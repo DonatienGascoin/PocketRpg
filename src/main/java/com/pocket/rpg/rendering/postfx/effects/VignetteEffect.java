@@ -1,5 +1,6 @@
 package com.pocket.rpg.rendering.postfx.effects;
 
+import com.pocket.rpg.rendering.postfx.EffectDescription;
 import com.pocket.rpg.rendering.postfx.PostEffect;
 import com.pocket.rpg.rendering.resources.Shader;
 
@@ -9,6 +10,7 @@ import static org.lwjgl.opengl.GL33.*;
  * Post-processing effect that applies a vignette (darkening at the edges) to the screen.
  * This creates a cinematic focus effect by drawing attention to the center of the screen.
  */
+@EffectDescription("Darkens screen edges for cinematic focus, drawing attention to the center.")
 public class VignetteEffect implements PostEffect {
     private static final float DEFAULT_VIGNETTE_INTENSITY = 1.0f;
     private static final float DEFAULT_VIGNETTE_STRENGTH = 0.75f;
@@ -16,7 +18,7 @@ public class VignetteEffect implements PostEffect {
     private final float vignetteIntensity;
     private final float vignetteStrength;
 
-    private Shader vignetteShader;
+    private transient Shader vignetteShader;
 
     /**
      * Creates a vignette effect with default parameters.

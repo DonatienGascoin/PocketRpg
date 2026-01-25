@@ -1,5 +1,7 @@
 package com.pocket.rpg.components;
 
+import com.pocket.rpg.editor.gizmos.GizmoColors;
+import com.pocket.rpg.editor.gizmos.GizmoContext;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
@@ -657,6 +659,26 @@ public class Transform extends Component {
             current = current.getParentTransform();
         }
         return depth;
+    }
+
+    // ========================================================================
+    // GIZMOS
+    // ========================================================================
+
+    @Override
+    public void onDrawGizmosSelected(GizmoContext ctx) {
+        // Use ctx.getTransform() which is set by the GizmoRenderer
+        // (this == ctx.getTransform() for Transform component)
+        Transform transform = ctx.getTransform();
+        if (transform == null) return;
+
+        Vector3f pos = transform.getWorldPosition();
+
+        // Draw position crosshair - constant screen size (~16px total span)
+        ctx.setColor(GizmoColors.POSITION);
+        ctx.setThickness(2.0f);
+        float size = ctx.getHandleSize(8);
+        ctx.drawCrossHair(pos.x, pos.y, size);
     }
 
     @Override

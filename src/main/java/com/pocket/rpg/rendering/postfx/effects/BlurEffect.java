@@ -1,5 +1,6 @@
 package com.pocket.rpg.rendering.postfx.effects;
 
+import com.pocket.rpg.rendering.postfx.EffectDescription;
 import com.pocket.rpg.rendering.postfx.PostEffect;
 import com.pocket.rpg.rendering.resources.Shader;
 
@@ -9,6 +10,7 @@ import static org.lwjgl.opengl.GL33.*;
  * Two-pass Gaussian blur effect implementation.
  * Applies horizontal and vertical blur passes for optimal performance.
  */
+@EffectDescription("Two-pass Gaussian blur. Softens the image for dream sequences or unfocused areas.")
 public class BlurEffect implements PostEffect {
     private static final float DEFAULT_BLUR_STRENGTH = 2.0f;
     private static final int PASS_COUNT = 2;
@@ -20,7 +22,7 @@ public class BlurEffect implements PostEffect {
 
     private final float blurStrength;
 
-    private Shader blurShader;
+    private transient Shader blurShader;
 
     /**
      * Creates a blur effect with the specified strength.

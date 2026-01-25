@@ -46,7 +46,7 @@ public class EditorUIController {
     private InspectorPanel inspectorPanel;
 
     @Getter
-    private ConfigPanel configPanel;
+    private ConfigurationPanel configurationPanel;
 
     @Getter
     private AssetBrowserPanel assetBrowserPanel;
@@ -95,8 +95,6 @@ public class EditorUIController {
         createMenuAndStatus();
 
         sceneToolbar.setMessageCallback(statusBar::showMessage);
-        sceneToolbar.setTilesetPalettePanel(tilesetPalette);
-        sceneToolbar.setCollisionPanel(collisionPanel);
         animationEditorPanel.setStatusCallback(statusBar::showMessage);
         spriteEditorPanel.setStatusCallback(statusBar::showMessage);
 
@@ -192,7 +190,8 @@ public class EditorUIController {
             collisionPanel.setSelectedTrigger(coord);
         });
 
-        configPanel = new ConfigPanel(context);
+        configurationPanel = new ConfigurationPanel(context);
+        configurationPanel.initPanel(context.getConfig());
 
         uiDesignerPanel = new UIDesignerPanel(context);
 
@@ -209,8 +208,11 @@ public class EditorUIController {
     private void createMenuAndStatus() {
         menuBar = new EditorMenuBar();
         menuBar.setCurrentScene(context.getCurrentScene());
-        menuBar.setConfigPanel(configPanel);
+        menuBar.setConfigurationPanel(configurationPanel);
         menuBar.setOnOpenSpriteEditor(() -> spriteEditorPanel.open());
+        menuBar.setOnToggleGizmos(() -> {
+            sceneViewport.setShowGizmos(menuBar.isGizmosEnabled());
+        });
 
         statusBar = new StatusBar();
         statusBar.setCamera(context.getCamera());
@@ -282,6 +284,9 @@ public class EditorUIController {
                 sceneViewport.getViewportWidth(),
                 sceneViewport.getViewportHeight()
         );
+        float orthoSize = context.getRenderingConfig()
+                .getDefaultOrthographicSize(context.getGameConfig().getGameHeight());
+        cameraOverlayRenderer.setOrthographicSize(orthoSize);
         cameraOverlayRenderer.render(context.getCamera(), scene);
     }
 
@@ -356,6 +361,9 @@ public class EditorUIController {
             }
             if (ImGui.menuItem("Audio Browser", "", audioBrowserPanel.isOpen())) {
                 audioBrowserPanel.toggle();
+            }
+            if (ImGui.menuItem("Configuration", "", configurationPanel.isOpen())) {
+                configurationPanel.toggle();
             }
 
             ImGui.separator();
@@ -475,7 +483,7 @@ public class EditorUIController {
         collisionPanel.render();
 
         // Other panels
-        configPanel.render();
+        configurationPanel.render();
         uiDesignerPanel.render();
         animationEditorPanel.render();
         spriteEditorPanel.render();

@@ -1,5 +1,6 @@
 package com.pocket.rpg.rendering.postfx.effects;
 
+import com.pocket.rpg.rendering.postfx.EffectDescription;
 import com.pocket.rpg.rendering.postfx.PostEffect;
 import com.pocket.rpg.rendering.resources.Shader;
 import org.joml.Vector2f;
@@ -11,6 +12,7 @@ import static org.lwjgl.opengl.GL33.*;
  * Edge detection effect that outlines objects using the Sobel operator.
  * Creates a cel-shaded or comic book art style and can improve visual clarity.
  */
+@EffectDescription("Highlights edges for an outline or sketch effect.")
 public class EdgeDetectionEffect implements PostEffect {
     private static final float DEFAULT_THRESHOLD = 0.1f;
     private static final Vector3f DEFAULT_EDGE_COLOR = new Vector3f(0.0f, 0.0f, 0.0f); // Black
@@ -18,7 +20,7 @@ public class EdgeDetectionEffect implements PostEffect {
     private final float edgeThreshold;
     private final Vector3f edgeColor;
 
-    private Shader edgeShader;
+    private transient Shader edgeShader;
 
     /**
      * Creates an edge detection effect with default black outlines.

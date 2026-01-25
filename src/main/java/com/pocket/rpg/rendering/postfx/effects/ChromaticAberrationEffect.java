@@ -1,5 +1,6 @@
 package com.pocket.rpg.rendering.postfx.effects;
 
+import com.pocket.rpg.rendering.postfx.EffectDescription;
 import com.pocket.rpg.rendering.postfx.PostEffect;
 import com.pocket.rpg.rendering.resources.Shader;
 
@@ -10,12 +11,13 @@ import static org.lwjgl.opengl.GL33.*;
  * Creates a cinematic or retro camera feel, especially at screen edges.
  * Great for impact moments or corrupted/damaged visuals.
  */
+@EffectDescription("Splits RGB channels to simulate lens distortion. Great for impact moments.")
 public class ChromaticAberrationEffect implements PostEffect {
     private static final float DEFAULT_STRENGTH = 0.005f;
 
     private final float aberrationStrength;
 
-    private Shader aberrationShader;
+    private transient Shader aberrationShader;
 
     /**
      * Creates a chromatic aberration effect with default parameters.

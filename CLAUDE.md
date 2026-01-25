@@ -52,6 +52,7 @@ When modifying core systems, update corresponding reference files:
 | `animation/`, `AnimationComponent` | `architecture.md` - Animation System |
 | `collision/`, `GridMovement` | `architecture.md` - Collision System |
 | `resources/`, `AssetLoader` | `architecture.md` - Asset Pipeline |
+| `editor/gizmos/`, Component gizmos | `architecture.md` - Gizmos System, `common-pitfalls.md` |
 | `editor/ui/fields/` | `field-editors.md` |
 | Component lifecycle | `common-pitfalls.md` |
 

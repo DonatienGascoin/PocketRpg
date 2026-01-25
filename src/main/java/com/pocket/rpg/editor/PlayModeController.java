@@ -26,8 +26,9 @@ import com.pocket.rpg.serialization.GameObjectData;
 import com.pocket.rpg.serialization.SceneData;
 import com.pocket.rpg.serialization.Serializer;
 import lombok.Getter;
-import org.joml.Vector4f;
 
+import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -79,11 +80,11 @@ public class PlayModeController {
     // Rendering
     private RenderPipeline pipeline;
     private EditorFramebuffer outputFramebuffer;
+    @Getter
     private PostProcessor postProcessor;
 
     private Consumer<String> messageCallback;
 
-    private static final Vector4f CLEAR_COLOR = new Vector4f(0.1f, 0.1f, 0.15f, 1.0f);
 
     public PlayModeController(EditorContext context, GameConfig gameConfig, InputConfig inputConfig) {
         this.context = context;
@@ -267,7 +268,7 @@ public class PlayModeController {
                 .renderables(renderables)
                 .camera(camera)
                 .uiCanvases(scene.getUICanvases())
-                .clearColor(CLEAR_COLOR)
+                .clearColor(renderingConfig.getClearColor())
                 .renderScene(true)
                 .renderUI(true)
                 .renderPostFx(postProcessor != null)
@@ -345,5 +346,37 @@ public class PlayModeController {
 
     public boolean isStopped() {
         return state == PlayState.STOPPED;
+    }
+
+    /**
+     * Gets all available scene names from the scenes directory.
+     *
+     * @return list of scene names (without .scene extension)
+     */
+    public List<String> getAvailableScenes() {
+        List<String> scenes = new ArrayList<>();
+        File scenesDir = new File("gameData/scenes/");
+
+        if (scenesDir.exists() && scenesDir.isDirectory()) {
+            File[] files = scenesDir.listFiles((dir, name) -> name.endsWith(".scene"));
+            if (files != null) {
+                for (File file : files) {
+                    String name = file.getName();
+                    // Remove .scene extension
+                    scenes.add(name.substring(0, name.length() - 6));
+                }
+            }
+        }
+
+        return scenes;
+    }
+
+    /**
+     * Gets the transition manager (only available during play mode).
+     *
+     * @return the transition manager, or null if not in play mode
+     */
+    public TransitionManager getTransitionManager() {
+        return transitionManager;
     }
 }

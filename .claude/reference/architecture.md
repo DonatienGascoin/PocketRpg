@@ -62,6 +62,26 @@ Controller pattern with shared `EditorContext`:
 - `EditorUIController` - ImGui panels (Inspector, Hierarchy, TilesetPalette)
 - `PlayModeController` - Test scenes in-editor
 
+### Gizmos System (`editor/gizmos/`)
+
+Visual helpers drawn in Scene View to visualize component properties (bounds, pivots, radii).
+
+**Core classes:**
+- `GizmoRenderer` - Orchestrates gizmo rendering for all entities
+- `GizmoContext` - Drawing API passed to components
+- `GizmoColors` - Standard color constants
+
+**Component integration:**
+- `Component` implements `GizmoDrawable` and `GizmoDrawableSelected` with empty defaults
+- Override `onDrawGizmos(ctx)` for always-visible gizmos
+- Override `onDrawGizmosSelected(ctx)` for selection-only gizmos
+
+**Sizing strategies:**
+- World-space: `ctx.drawRect()`, `ctx.drawCircle()` - scales with zoom
+- Handle-size: `ctx.getHandleSize(pixels)` - constant screen appearance (like Unity's `HandleUtility.GetHandleSize`)
+
+**Important:** In gizmo methods, use `ctx.getTransform()` not `getTransform()` - the component's `gameObject` field is null in editor context.
+
 ## Key Directories
 
 | Path | Purpose |

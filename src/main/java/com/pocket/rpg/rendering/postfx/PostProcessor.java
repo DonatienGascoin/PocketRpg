@@ -2,9 +2,13 @@ package com.pocket.rpg.rendering.postfx;
 
 import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.core.window.AbstractWindow;
+import com.pocket.rpg.rendering.core.RenderTarget;
 import com.pocket.rpg.rendering.resources.Shader;
 import lombok.Getter;
 import lombok.Setter;
+
+import lombok.Setter;
+import org.joml.Vector4f;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -52,6 +56,9 @@ public class PostProcessor {
     private ScalingMode scalingMode = ScalingMode.MAINTAIN_ASPECT_RATIO;
 
     private Shader blitShader;
+
+    @Setter
+    private Vector4f clearColor = new Vector4f(0, 0, 0, 1);
 
     /**
      * FIX: Creates a post processor with fixed game resolution.
@@ -175,14 +182,31 @@ public class PostProcessor {
         // Only capture if post-processing is enabled and needed
         if (enabled && needsPostProcessing()) {
             bindFboA();
+            // Clear the FBO with the configured clear color
+            glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         }
     }
 
-    public void endCaptureAndApplyEffects() {
+    /**
+     * Ends capture and applies effects, rendering to the specified target.
+     *
+     * @param target The render target for final output (use null for screen)
+     */
+    public void endCaptureAndApplyEffects(RenderTarget target) {
         // Only apply effects if enabled and needed
         if (enabled && needsPostProcessing()) {
-            applyEffects();
+            applyEffects(target);
         }
+    }
+
+    /**
+     * Ends capture and applies effects, rendering to screen.
+     * @deprecated Use {@link #endCaptureAndApplyEffects(RenderTarget)} instead
+     */
+    @Deprecated
+    public void endCaptureAndApplyEffects() {
+        endCaptureAndApplyEffects(null);
     }
 
     private boolean needsPostProcessing() {
@@ -198,13 +222,15 @@ public class PostProcessor {
     }
 
     /**
-     * Applies all post-processing effects in sequence, then renders to screen.
+     * Applies all post-processing effects in sequence, then renders to target.
+     *
+     * @param target The render target for final output (null = screen)
      */
-    private void applyEffects() {
+    private void applyEffects(RenderTarget target) {
         glDisable(GL_DEPTH_TEST);
 
         if (effects.isEmpty()) {
-            renderToScreen(textureA);
+            renderToTarget(textureA, target);
             return;
         }
 
@@ -229,64 +255,75 @@ public class PostProcessor {
             }
         }
 
-        renderToScreen(inputTexture);
+        renderToTarget(inputTexture, target);
     }
 
     /**
-     * Renders the final texture to the screen with proper scaling.
+     * Renders the final texture to the target with proper scaling.
+     *
+     * @param textureId The texture to render
+     * @param target    The render target (null = screen)
      */
-    private void renderToScreen(int textureId) {
+    private void renderToTarget(int textureId, RenderTarget target) {
         if (pillarBox != null) {
+            // PillarBox always renders to screen - not supported with custom targets
+            if (target != null) {
+                System.err.println("PostProcessor: PillarBox not supported with custom render targets");
+            }
             pillarBox.renderToScreen(textureId, quadVAO);
         } else {
-            blitToScreen(textureId);
+            blitToTarget(textureId, target);
         }
     }
 
     /**
-     * FIX: Blits texture to screen with proper aspect ratio handling.
+     * Blits texture to the specified target.
+     *
+     * @param textureId The texture to blit
+     * @param target    The render target (null = screen with aspect ratio handling)
      */
-    private void blitToScreen(int textureId) {
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    private void blitToTarget(int textureId, RenderTarget target) {
+        if (target != null) {
+            // Render to custom target (editor framebuffer) - fill entire target
+            target.bind();
+            glViewport(0, 0, target.getWidth(), target.getHeight());
+        } else {
+            // Render to screen with aspect ratio handling
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-        int viewportX, viewportY, viewportWidth, viewportHeight;
+            int viewportX, viewportY, viewportWidth, viewportHeight;
 
-        if (scalingMode == ScalingMode.MAINTAIN_ASPECT_RATIO) {
-            // FIX: Calculate viewport using game resolution aspect ratio
-            float gameAspect = (float) gameWidth / gameHeight;
-            float windowAspect = (float) window.getScreenWidth() / window.getScreenHeight();
+            if (scalingMode == ScalingMode.MAINTAIN_ASPECT_RATIO) {
+                float gameAspect = (float) gameWidth / gameHeight;
+                float windowAspect = (float) window.getScreenWidth() / window.getScreenHeight();
 
-            if (windowAspect > gameAspect) {
-                // Window is wider - add pillarboxes
-                viewportHeight = window.getScreenHeight();
-                viewportWidth = (int) (viewportHeight * gameAspect);
-                viewportX = (window.getScreenWidth() - viewportWidth) / 2;
-                viewportY = 0;
+                if (windowAspect > gameAspect) {
+                    viewportHeight = window.getScreenHeight();
+                    viewportWidth = (int) (viewportHeight * gameAspect);
+                    viewportX = (window.getScreenWidth() - viewportWidth) / 2;
+                    viewportY = 0;
+                } else {
+                    viewportWidth = window.getScreenWidth();
+                    viewportHeight = (int) (viewportWidth / gameAspect);
+                    viewportX = 0;
+                    viewportY = (window.getScreenHeight() - viewportHeight) / 2;
+                }
+
+                glViewport(0, 0, window.getScreenWidth(), window.getScreenHeight());
+                glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
             } else {
-                // Window is taller - add letterboxes
-                viewportWidth = window.getScreenWidth();
-                viewportHeight = (int) (viewportWidth / gameAspect);
                 viewportX = 0;
-                viewportY = (window.getScreenHeight() - viewportHeight) / 2;
+                viewportY = 0;
+                viewportWidth = window.getScreenWidth();
+                viewportHeight = window.getScreenHeight();
+
+                glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
             }
 
-            // Clear entire window to black
-            glViewport(0, 0, window.getScreenWidth(), window.getScreenHeight());
-            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        } else {
-            // STRETCH mode - fill entire window
-            viewportX = 0;
-            viewportY = 0;
-            viewportWidth = window.getScreenWidth();
-            viewportHeight = window.getScreenHeight();
-
-            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            glViewport(viewportX, viewportY, viewportWidth, viewportHeight);
         }
-
-        // Set viewport
-        glViewport(viewportX, viewportY, viewportWidth, viewportHeight);
 
         glDisable(GL_DEPTH_TEST);
 
@@ -295,7 +332,6 @@ public class PostProcessor {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, textureId);
 
-        // Use nearest neighbor for sharp pixels
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 

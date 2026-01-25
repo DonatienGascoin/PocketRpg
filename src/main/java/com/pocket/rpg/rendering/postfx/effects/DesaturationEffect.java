@@ -1,5 +1,6 @@
 package com.pocket.rpg.rendering.postfx.effects;
 
+import com.pocket.rpg.rendering.postfx.EffectDescription;
 import com.pocket.rpg.rendering.postfx.PostEffect;
 import com.pocket.rpg.rendering.resources.Shader;
 
@@ -9,12 +10,13 @@ import static org.lwjgl.opengl.GL33.*;
  * Post-processing effect that desaturates (removes color from) the screen.
  * This can create retro, noir, or dramatic visual styles.
  */
+@EffectDescription("Removes color saturation for grayscale effects.")
 public class DesaturationEffect implements PostEffect {
     private static final float DEFAULT_DESATURATION_AMOUNT = 0.5f;
 
     private final float desaturationAmount;
 
-    private Shader desaturationShader;
+    private transient Shader desaturationShader;
 
     /**
      * Creates a desaturation effect with default parameters.

@@ -4,11 +4,11 @@
   "enableStatistics": false,
   "statisticsInterval": 300,
   "clearColor": {
-    "x": 0.63,
-    "y": 0.04,
-    "z": 0.34,
+    "x": 0.31274134,
+    "y": 0.26081905,
+    "z": 0.28722024,
     "w": 1.0
   },
   "pixelsPerUnit": 16.0,
-  "defaultOrthographicSize": 15.0
+  "defaultOrthographicSize": 7.5
 }

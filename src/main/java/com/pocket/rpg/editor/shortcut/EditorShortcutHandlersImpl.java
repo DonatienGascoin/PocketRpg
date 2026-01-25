@@ -1,10 +1,11 @@
 package com.pocket.rpg.editor.shortcut;
 
 import com.pocket.rpg.editor.EditorContext;
+import com.pocket.rpg.editor.EditorSelectionManager;
 import com.pocket.rpg.editor.EditorToolController;
 import com.pocket.rpg.editor.PlayModeController;
 import com.pocket.rpg.editor.panels.CollisionPanel;
-import com.pocket.rpg.editor.panels.ConfigPanel;
+import com.pocket.rpg.editor.panels.ConfigurationPanel;
 import com.pocket.rpg.editor.panels.TilesetPalettePanel;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
@@ -19,7 +20,7 @@ import java.util.function.Consumer;
 /**
  * Implementation of shortcut handlers that wires to the editor systems.
  * This class bridges the shortcut system with the actual editor functionality.
- * Tool shortcuts only work when their corresponding panel is open.
+ * Tool shortcuts work based on hierarchy selection state (tilemap layer, collision layer, or entity mode).
  */
 public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
@@ -28,11 +29,12 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
     private final EditorMenuBar menuBar;
 
     @Setter
-    private ConfigPanel configPanel;
+    private ConfigurationPanel configurationPanel;
 
     @Setter
     private PlayModeController playModeController;
 
+    // Panels needed for toggle shortcuts (not for tool visibility)
     @Setter
     private TilesetPalettePanel tilesetPalettePanel;
 
@@ -76,8 +78,8 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onOpenConfiguration() {
-        if (configPanel != null) {
-            configPanel.openModal();
+        if (configurationPanel != null) {
+            configurationPanel.toggle();
         }
     }
 
@@ -195,13 +197,14 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
     // TILEMAP TOOL HANDLERS (only work when Tileset Palette is open)
     // ========================================================================
 
-    private boolean isTilesetPaletteVisible() {
-        return tilesetPalettePanel != null && tilesetPalettePanel.isContentVisible();
+    private boolean isTilemapLayerSelected() {
+        EditorSelectionManager selectionManager = context.getSelectionManager();
+        return selectionManager != null && selectionManager.isTilemapLayerSelected();
     }
 
     @Override
     public void onToolTileBrush() {
-        if (isTilesetPaletteVisible()) {
+        if (isTilemapLayerSelected()) {
             context.getToolManager().setActiveTool(toolController.getBrushTool());
             showMessage("Tile Brush");
         }
@@ -209,7 +212,7 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onToolTileEraser() {
-        if (isTilesetPaletteVisible()) {
+        if (isTilemapLayerSelected()) {
             context.getToolManager().setActiveTool(toolController.getEraserTool());
             showMessage("Tile Eraser");
         }
@@ -217,7 +220,7 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onToolTileFill() {
-        if (isTilesetPaletteVisible()) {
+        if (isTilemapLayerSelected()) {
             context.getToolManager().setActiveTool(toolController.getFillTool());
             showMessage("Tile Fill");
         }
@@ -225,7 +228,7 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onToolTileRectangle() {
-        if (isTilesetPaletteVisible()) {
+        if (isTilemapLayerSelected()) {
             context.getToolManager().setActiveTool(toolController.getRectangleTool());
             showMessage("Tile Rectangle");
         }
@@ -233,7 +236,7 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onToolTilePicker() {
-        if (isTilesetPaletteVisible()) {
+        if (isTilemapLayerSelected()) {
             context.getToolManager().setActiveTool(toolController.getPickerTool());
             showMessage("Tile Picker");
         }
@@ -243,13 +246,14 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
     // COLLISION TOOL HANDLERS (only work when Collision Panel is open)
     // ========================================================================
 
-    private boolean isCollisionPanelVisible() {
-        return collisionPanel != null && collisionPanel.isContentVisible();
+    private boolean isCollisionLayerSelected() {
+        EditorSelectionManager selectionManager = context.getSelectionManager();
+        return selectionManager != null && selectionManager.isCollisionLayerSelected();
     }
 
     @Override
     public void onToolCollisionBrush() {
-        if (isCollisionPanelVisible()) {
+        if (isCollisionLayerSelected()) {
             context.getToolManager().setActiveTool(toolController.getCollisionBrushTool());
             showMessage("Collision Brush");
         }
@@ -257,7 +261,7 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onToolCollisionEraser() {
-        if (isCollisionPanelVisible()) {
+        if (isCollisionLayerSelected()) {
             context.getToolManager().setActiveTool(toolController.getCollisionEraserTool());
             showMessage("Collision Eraser");
         }
@@ -265,7 +269,7 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onToolCollisionFill() {
-        if (isCollisionPanelVisible()) {
+        if (isCollisionLayerSelected()) {
             context.getToolManager().setActiveTool(toolController.getCollisionFillTool());
             showMessage("Collision Fill");
         }
@@ -273,7 +277,7 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onToolCollisionRectangle() {
-        if (isCollisionPanelVisible()) {
+        if (isCollisionLayerSelected()) {
             context.getToolManager().setActiveTool(toolController.getCollisionRectangleTool());
             showMessage("Collision Rectangle");
         }
@@ -281,7 +285,7 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onToolCollisionPicker() {
-        if (isCollisionPanelVisible()) {
+        if (isCollisionLayerSelected()) {
             context.getToolManager().setActiveTool(toolController.getCollisionPickerTool());
             showMessage("Collision Picker");
         }
@@ -327,13 +331,51 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
     }
 
     // ========================================================================
+    // TRANSFORM TOOL HANDLERS
+    // ========================================================================
+
+    /**
+     * Checks if a specialized layer (tilemap or collision) is currently selected.
+     * Transform tools E/R shortcuts should not activate when these layers are selected
+     * (to avoid conflict with Eraser and Rectangle shortcuts).
+     */
+    private boolean isSpecializedLayerSelected() {
+        return isTilemapLayerSelected() || isCollisionLayerSelected();
+    }
+
+    @Override
+    public void onToolMove() {
+        // Move tool works in all contexts (W key doesn't conflict)
+        context.getToolManager().setActiveTool(toolController.getMoveTool());
+        showMessage("Move Tool");
+    }
+
+    @Override
+    public void onToolRotate() {
+        // E conflicts with Tile Eraser - only activate when not in tileset/collision mode
+        if (!isSpecializedLayerSelected()) {
+            context.getToolManager().setActiveTool(toolController.getRotateTool());
+            showMessage("Rotate Tool");
+        }
+    }
+
+    @Override
+    public void onToolScale() {
+        // R conflicts with Tile Rectangle - only activate when not in tileset/collision mode
+        if (!isSpecializedLayerSelected()) {
+            context.getToolManager().setActiveTool(toolController.getScaleTool());
+            showMessage("Scale Tool");
+        }
+    }
+
+    // ========================================================================
     // BRUSH SIZE HANDLERS
     // ========================================================================
 
     @Override
     public void onBrushSizeIncrease() {
         // Adjust brush size for whichever panel is open
-        if (isTilesetPaletteVisible()) {
+        if (isTilemapLayerSelected()) {
             int size = toolController.getBrushTool().getBrushSize();
             if (size < 10) {
                 int newSize = size + 1;
@@ -341,7 +383,7 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
                 toolController.getEraserTool().setEraserSize(newSize);
                 showMessage("Brush Size: " + newSize);
             }
-        } else if (isCollisionPanelVisible()) {
+        } else if (isCollisionLayerSelected()) {
             int size = toolController.getCollisionBrushTool().getBrushSize();
             if (size < 10) {
                 int newSize = size + 1;
@@ -355,7 +397,7 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
     @Override
     public void onBrushSizeDecrease() {
         // Adjust brush size for whichever panel is open
-        if (isTilesetPaletteVisible()) {
+        if (isTilemapLayerSelected()) {
             int size = toolController.getBrushTool().getBrushSize();
             if (size > 1) {
                 int newSize = size - 1;
@@ -363,7 +405,7 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
                 toolController.getEraserTool().setEraserSize(newSize);
                 showMessage("Brush Size: " + newSize);
             }
-        } else if (isCollisionPanelVisible()) {
+        } else if (isCollisionLayerSelected()) {
             int size = toolController.getCollisionBrushTool().getBrushSize();
             if (size > 1) {
                 int newSize = size - 1;
@@ -380,7 +422,7 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onZLevelIncrease() {
-        if (!isCollisionPanelVisible()) {
+        if (!isCollisionLayerSelected()) {
             return;
         }
 
@@ -397,7 +439,7 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onZLevelDecrease() {
-        if (!isCollisionPanelVisible()) {
+        if (!isCollisionLayerSelected()) {
             return;
         }
 

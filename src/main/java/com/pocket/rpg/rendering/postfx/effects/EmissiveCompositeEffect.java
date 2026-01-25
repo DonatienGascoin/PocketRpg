@@ -25,9 +25,9 @@ public class EmissiveCompositeEffect implements PostEffect {
     private static final float DEFAULT_BLOOM_INTENSITY = 1.5f;
 
     private final float bloomIntensity;
-    private int emissiveTextureId = -1;
+    private transient int emissiveTextureId = -1;
 
-    private Shader compositeShader;
+    private transient Shader compositeShader;
 
     /**
      * Creates an emissive composite effect with default bloom intensity.

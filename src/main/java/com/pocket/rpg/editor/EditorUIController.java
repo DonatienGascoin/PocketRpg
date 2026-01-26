@@ -97,6 +97,7 @@ public class EditorUIController {
         sceneToolbar.setMessageCallback(statusBar::showMessage);
         animationEditorPanel.setStatusCallback(statusBar::showMessage);
         spriteEditorPanel.setStatusCallback(statusBar::showMessage);
+        spriteEditorPanel.setOnSaveCallback(assetBrowserPanel::refresh);
 
         // Register panel handlers for asset double-click
         assetBrowserPanel.registerPanelHandler(
@@ -331,6 +332,9 @@ public class EditorUIController {
             // View menu
             renderViewMenu();
 
+            // Tools menu (from EditorMenuBar) - migration tools, etc.
+            menuBar.renderToolsMenu();
+
             // Window menu for panel visibility
             renderWindowMenu();
 
@@ -339,6 +343,9 @@ public class EditorUIController {
 
             ImGui.endMainMenuBar();
         }
+
+        // Render dialogs from EditorMenuBar (migration dialog, etc.)
+        menuBar.renderDialogs();
     }
 
     /**

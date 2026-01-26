@@ -3,7 +3,7 @@ package com.pocket.rpg.editor.scene;
 import com.pocket.rpg.components.TilemapRenderer;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.rendering.resources.Sprite;
-import com.pocket.rpg.rendering.resources.SpriteSheet;
+import com.pocket.rpg.rendering.resources.SpriteGrid;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -50,7 +50,7 @@ public class TilemapLayer {
 
     // Legacy spritesheet support (for layers created with Add Layer dialog)
     @Setter
-    private SpriteSheet spriteSheet;
+    private SpriteGrid spriteGrid;
     @Setter
     private String spriteSheetPath;
     @Setter
@@ -103,20 +103,20 @@ public class TilemapLayer {
     }
 
     // ========================================================================
-    // SPRITESHEET MANAGEMENT (Legacy - for Add Layer dialog)
+    // SPRITE GRID MANAGEMENT (for Add Layer dialog)
     // ========================================================================
 
     /**
-     * Sets a default spritesheet for this layer.
+     * Sets a default sprite grid for this layer.
      * This is used by the Add Layer dialog for convenience, but tiles
      * can be placed from any tileset regardless of this setting.
      */
-    public void setSpriteSheet(SpriteSheet sheet, String path, int spriteW, int spriteH) {
-        this.spriteSheet = sheet;
+    public void setSpriteGrid(SpriteGrid grid, String path, int spriteW, int spriteH) {
+        this.spriteGrid = grid;
         this.spriteSheetPath = path;
         this.spriteWidth = spriteW;
         this.spriteHeight = spriteH;
-        this.sprites = sheet != null ? sheet.generateAllSprites() : null;
+        this.sprites = grid != null ? grid.getAllSprites() : null;
     }
 
     /**

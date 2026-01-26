@@ -5,8 +5,11 @@ import com.pocket.rpg.editor.panels.ConfigurationPanel;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.shortcut.EditorShortcuts;
 import com.pocket.rpg.editor.shortcut.ShortcutRegistry;
+import com.pocket.rpg.editor.tools.SpritesheetMigrationTool;
 import com.pocket.rpg.editor.undo.UndoManager;
 import imgui.ImGui;
+import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiWindowFlags;
 import lombok.Setter;
 
 import java.util.Optional;
@@ -36,6 +39,11 @@ public class EditorMenuBar {
 
     private String[] recentFiles = new String[0];
 
+    // Migration tool state
+    private boolean showMigrationDialog = false;
+    private SpritesheetMigrationTool.MigrationReport migrationReport = null;
+    private boolean migrationInProgress = false;
+
     public boolean render() {
         boolean menuActive = false;
 
@@ -45,6 +53,7 @@ public class EditorMenuBar {
             renderFileMenu();
             renderEditMenu();
             renderViewMenu();
+            renderToolsMenu();
             renderHelpMenu();
 
             renderSceneInfo();
@@ -53,6 +62,7 @@ public class EditorMenuBar {
         }
 
         renderUnsavedChangesDialog();
+        renderMigrationDialog();
 
         return menuActive;
     }
@@ -227,6 +237,171 @@ public class EditorMenuBar {
             }
 
             ImGui.endMenu();
+        }
+    }
+
+    public void renderToolsMenu() {
+        if (ImGui.beginMenu("Tools")) {
+            ImGui.textDisabled("Asset Migration");
+
+            if (ImGui.menuItem("Migrate Spritesheets (Dry Run)...")) {
+                runMigration(true);
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("Preview migration without making changes");
+            }
+
+            if (ImGui.menuItem("Migrate Spritesheets...")) {
+                runMigration(false);
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("Convert .spritesheet files to new .meta format");
+            }
+
+            ImGui.endMenu();
+        }
+    }
+
+    private void runMigration(boolean dryRun) {
+        migrationInProgress = true;
+        migrationReport = null;
+
+        // Run migration in background to not block UI
+        new Thread(() -> {
+            try {
+                SpritesheetMigrationTool tool = new SpritesheetMigrationTool();
+                if (dryRun) {
+                    migrationReport = tool.dryRun();
+                } else {
+                    migrationReport = tool.migrate(true); // Always create backup
+                }
+            } catch (Exception e) {
+                migrationReport = new SpritesheetMigrationTool.MigrationReport();
+                migrationReport.getErrors().add("Migration failed: " + e.getMessage());
+                e.printStackTrace();
+            } finally {
+                migrationInProgress = false;
+                showMigrationDialog = true;
+            }
+        }).start();
+    }
+
+    /**
+     * Renders any dialogs managed by this menu bar (called from EditorUIController).
+     */
+    public void renderDialogs() {
+        renderMigrationDialog();
+    }
+
+    private void renderMigrationDialog() {
+        if (migrationInProgress) {
+            ImGui.openPopup("Migration Progress");
+        }
+
+        if (ImGui.beginPopupModal("Migration Progress", ImGuiWindowFlags.AlwaysAutoResize)) {
+            ImGui.text("Migration in progress...");
+            ImGui.text("Please wait.");
+            ImGui.endPopup();
+        }
+
+        if (showMigrationDialog && migrationReport != null) {
+            ImGui.openPopup("Migration Report");
+            showMigrationDialog = false;
+        }
+
+        ImGui.setNextWindowSize(600, 500);
+        if (ImGui.beginPopupModal("Migration Report", ImGuiWindowFlags.None)) {
+            if (migrationReport != null) {
+                // Header
+                if (migrationReport.isDryRun()) {
+                    ImGui.textColored(0.5f, 0.8f, 1.0f, 1.0f, "DRY RUN - No changes were made");
+                } else {
+                    ImGui.textColored(0.5f, 1.0f, 0.5f, 1.0f, "Migration Complete");
+                }
+
+                ImGui.separator();
+
+                // Summary
+                ImGui.text("Spritesheets found: " + migrationReport.getSpritesheetsFound().size());
+                ImGui.text("Meta files created: " + migrationReport.getMetaFilesCreated().size());
+                ImGui.text("Files updated: " + migrationReport.getFilesUpdated().size());
+
+                if (migrationReport.getBackupPath() != null) {
+                    ImGui.text("Backup: " + migrationReport.getBackupPath());
+                }
+
+                ImGui.separator();
+
+                // Scrollable details
+                float contentHeight = ImGui.getContentRegionAvailY() - 40;
+                if (ImGui.beginChild("MigrationDetails", 0, contentHeight, true)) {
+                    // Spritesheets
+                    if (!migrationReport.getSpritesheetsFound().isEmpty()) {
+                        if (ImGui.treeNode("Spritesheets (" + migrationReport.getSpritesheetsFound().size() + ")")) {
+                            for (String ss : migrationReport.getSpritesheetsFound()) {
+                                ImGui.bulletText(ss);
+                            }
+                            ImGui.treePop();
+                        }
+                    }
+
+                    // Meta files
+                    if (!migrationReport.getMetaFilesCreated().isEmpty()) {
+                        if (ImGui.treeNode("Meta Files Created (" + migrationReport.getMetaFilesCreated().size() + ")")) {
+                            for (String meta : migrationReport.getMetaFilesCreated()) {
+                                ImGui.bulletText(meta);
+                            }
+                            ImGui.treePop();
+                        }
+                    }
+
+                    // Files updated
+                    if (!migrationReport.getFilesUpdated().isEmpty()) {
+                        if (ImGui.treeNode("Files Updated (" + migrationReport.getFilesUpdated().size() + ")")) {
+                            for (String file : migrationReport.getFilesUpdated()) {
+                                ImGui.bulletText(file);
+                            }
+                            ImGui.treePop();
+                        }
+                    }
+
+                    // Warnings
+                    if (!migrationReport.getWarnings().isEmpty()) {
+                        ImGui.pushStyleColor(ImGuiCol.Text, 1.0f, 0.8f, 0.2f, 1.0f);
+                        if (ImGui.treeNode("Warnings (" + migrationReport.getWarnings().size() + ")")) {
+                            for (String warning : migrationReport.getWarnings()) {
+                                ImGui.bulletText(warning);
+                            }
+                            ImGui.treePop();
+                        }
+                        ImGui.popStyleColor();
+                    }
+
+                    // Errors
+                    if (!migrationReport.getErrors().isEmpty()) {
+                        ImGui.pushStyleColor(ImGuiCol.Text, 1.0f, 0.3f, 0.3f, 1.0f);
+                        if (ImGui.treeNode("Errors (" + migrationReport.getErrors().size() + ")")) {
+                            for (String error : migrationReport.getErrors()) {
+                                ImGui.bulletText(error);
+                            }
+                            ImGui.treePop();
+                        }
+                        ImGui.popStyleColor();
+                    }
+                }
+                ImGui.endChild();
+            }
+
+            ImGui.separator();
+
+            float buttonWidth = 100;
+            ImGui.setCursorPosX((ImGui.getContentRegionAvailX() - buttonWidth) / 2);
+            if (ImGui.button("Close", buttonWidth, 0)) {
+                migrationReport = null;
+                ImGui.closeCurrentPopup();
+            }
+
+            ImGui.endPopup();
         }
     }
 

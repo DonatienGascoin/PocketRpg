@@ -190,6 +190,18 @@ public class AssetManager implements AssetContext {
                 " (" + String.join(", ", loader.getSupportedExtensions()) + ")");
     }
 
+    /**
+     * Gets the loader for a specific asset type.
+     *
+     * @param type Asset type class
+     * @param <T>  Asset type
+     * @return The loader, or null if no loader is registered for this type
+     */
+    @SuppressWarnings("unchecked")
+    public <T> AssetLoader<T> getLoader(Class<T> type) {
+        return (AssetLoader<T>) loaders.get(type);
+    }
+
     // ========================================================================
     // PUBLIC LOAD METHODS - all delegate to loadInternal
     // ========================================================================
@@ -233,6 +245,9 @@ public class AssetManager implements AssetContext {
      */
     @SuppressWarnings("unchecked")
     private <T> T loadInternal(String normalizedPath, Class<?> type, LoadOptions options) {
+        // Auto-migrate old .spritesheet paths to .png format
+        normalizedPath = migrateSpritesheetPath(normalizedPath);
+
         // Cache check
         if (options.isUseCache()) {
             T cached = cache.get(normalizedPath);
@@ -385,6 +400,77 @@ public class AssetManager implements AssetContext {
         // Remove leading ./
         if (path.startsWith("./")) {
             path = path.substring(2);
+        }
+
+        return path;
+    }
+
+    /**
+     * Legacy spritesheet to texture path mapping.
+     * Maps old .spritesheet paths to their actual texture file paths.
+     * This is needed because spritesheet filenames didn't always match texture filenames.
+     */
+    private static final Map<String, String> LEGACY_SPRITESHEET_MAPPING = Map.ofEntries(
+            Map.entry("spritesheets/fences.spritesheet", "sprites/Fence.png"),
+            Map.entry("spritesheets/outdoor.spritesheet", "sprites/Outdoors_misc.png"),
+            Map.entry("spritesheets/player.spritesheet", "sprites/characters/Char1_32x32.png"),
+            Map.entry("spritesheets/roads.spritesheet", "sprites/Road_16x16.png"),
+            Map.entry("spritesheets/trees.spritesheet", "sprites/trees.png"),
+            Map.entry("spritesheets/trees splitted.spritesheet", "sprites/trees.png"),
+            Map.entry("spritesheets/water.spritesheet", "sprites/water.png"),
+            Map.entry("spritesheets/chest.spritesheet", "sprites/chests/Chest 06-Sheet.png"),
+            Map.entry("spritesheets/building6 splitted.spritesheet", "sprites/Building6_64x96.png"),
+            Map.entry("spritesheets/buildings6.spritesheet", "sprites/Building6_64x96.png")
+    );
+
+    /**
+     * Migrates old .spritesheet paths to new texture paths.
+     * This provides backwards compatibility after the SpriteSheet class was removed.
+     * <p>
+     * Uses a static mapping for known spritesheets, or falls back to replacing
+     * the extension for unknown paths.
+     * <p>
+     * Examples:
+     * <ul>
+     *   <li>"spritesheets/fences.spritesheet#3" → "sprites/Fence.png#3"</li>
+     *   <li>"spritesheets/player.spritesheet#0" → "sprites/characters/Char1_32x32.png#0"</li>
+     *   <li>"sprites/icon.png" → "sprites/icon.png" (unchanged)</li>
+     * </ul>
+     */
+    private String migrateSpritesheetPath(String path) {
+        if (path == null) {
+            return null;
+        }
+
+        // Extract base path (without #index)
+        int hashIndex = path.indexOf(SUB_ASSET_SEPARATOR);
+        String basePath = hashIndex >= 0 ? path.substring(0, hashIndex) : path;
+        String subId = hashIndex >= 0 ? path.substring(hashIndex) : "";
+
+        // Check for old .spritesheet extension
+        String lowerBasePath = basePath.toLowerCase();
+        if (lowerBasePath.endsWith(".spritesheet") || lowerBasePath.endsWith(".spritesheet.json")) {
+            // Normalize the base path for lookup
+            String lookupPath = basePath;
+            if (lowerBasePath.endsWith(".spritesheet.json")) {
+                lookupPath = basePath.substring(0, basePath.length() - ".json".length());
+            }
+
+            // Try case-insensitive lookup in the mapping
+            for (Map.Entry<String, String> entry : LEGACY_SPRITESHEET_MAPPING.entrySet()) {
+                if (entry.getKey().equalsIgnoreCase(lookupPath)) {
+                    return entry.getValue() + subId;
+                }
+            }
+
+            // Fallback: replace extension with .png (for unknown spritesheets)
+            String newBasePath;
+            if (lowerBasePath.endsWith(".spritesheet.json")) {
+                newBasePath = basePath.substring(0, basePath.length() - ".spritesheet.json".length()) + ".png";
+            } else {
+                newBasePath = basePath.substring(0, basePath.length() - ".spritesheet".length()) + ".png";
+            }
+            return newBasePath + subId;
         }
 
         return path;

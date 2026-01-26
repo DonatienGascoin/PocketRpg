@@ -1,112 +1,180 @@
 package com.pocket.rpg.editor.panels.spriteeditor;
 
-import com.pocket.rpg.editor.undo.UndoManager;
-import com.pocket.rpg.editor.undo.commands.SetterUndoCommand;
-import com.pocket.rpg.rendering.resources.Sprite;
-import imgui.ImDrawList;
+import com.pocket.rpg.rendering.resources.NineSliceData;
+import com.pocket.rpg.rendering.resources.Texture;
+import com.pocket.rpg.resources.SpriteMetadata;
 import imgui.ImGui;
 import imgui.ImVec2;
 import imgui.flag.ImGuiMouseButton;
 import imgui.flag.ImGuiMouseCursor;
-import imgui.flag.ImGuiWindowFlags;
+import imgui.type.ImInt;
 
 /**
- * 9-slice editing tab for the Sprite Editor.
+ * 9-Slice editing tab with full texture view.
  * <p>
  * Features:
  * <ul>
- *   <li>Interactive preview with draggable border lines</li>
- *   <li>Preset buttons (4px, 8px, 16px, clear)</li>
- *   <li>Scaled preview showing how the 9-slice looks at different sizes</li>
+ *   <li>Click-to-select sprite cells (multiple mode)</li>
+ *   <li>9-slice borders visualization on selected sprite</li>
+ *   <li>Interactive border dragging</li>
+ *   <li>Preset buttons for common sizes</li>
+ *   <li>"Apply to All" checkbox for batch editing</li>
  * </ul>
  */
 public class NineSliceEditorTab {
 
     // ========================================================================
+    // CALLBACK
+    // ========================================================================
+
+    /**
+     * Callback for 9-slice changes and cell selection.
+     */
+    public interface Listener {
+        void onSliceChanged(int left, int right, int top, int bottom);
+        void onApplyToAllChanged(boolean applyToAll, NineSliceData sliceData);
+        void onCellSelected(int cellIndex);
+    }
+
+    // ========================================================================
+    // ENUMS
+    // ========================================================================
+
+    /**
+     * Which border is being dragged.
+     */
+    public enum DragBorder {
+        LEFT, RIGHT, TOP, BOTTOM
+    }
+
+    // ========================================================================
     // STATE
     // ========================================================================
 
-    // Border values
-    private int sliceLeft = 0;
-    private int sliceRight = 0;
-    private int sliceTop = 0;
-    private int sliceBottom = 0;
-
-    // Original values (for revert)
-    private int originalSliceLeft = 0;
-    private int originalSliceRight = 0;
-    private int originalSliceTop = 0;
-    private int originalSliceBottom = 0;
+    // 9-Slice editing state (using ImInt for ImGui binding)
+    private final ImInt sliceLeft = new ImInt(0);
+    private final ImInt sliceRight = new ImInt(0);
+    private final ImInt sliceTop = new ImInt(0);
+    private final ImInt sliceBottom = new ImInt(0);
+    private boolean applyToAll = true;
 
     // Drag state
-    private enum DragBorder { NONE, LEFT, RIGHT, TOP, BOTTOM }
-    private DragBorder draggingBorder = DragBorder.NONE;
-    private int dragStartValue = 0;
+    private DragBorder draggingBorder = null;
 
-    // Shared preview renderer
-    private final SpritePreviewRenderer previewRenderer;
+    // Selection state
+    private int selectedCellIndex = 0;
+    private boolean isMultipleMode = false;
 
-    // Current sprite reference
-    private Sprite currentSprite;
+    // Sprite dimensions (needed for drag clamping)
+    private int spriteWidth = 16;
+    private int spriteHeight = 16;
 
-    // ========================================================================
-    // CONSTRUCTOR
-    // ========================================================================
-
-    public NineSliceEditorTab(SpritePreviewRenderer previewRenderer) {
-        this.previewRenderer = previewRenderer;
-    }
+    // Listener
+    private Listener listener;
 
     // ========================================================================
     // PUBLIC API
     // ========================================================================
 
-    public int getSliceLeft() {
-        return sliceLeft;
+    /**
+     * Sets the listener for 9-slice changes and cell selection.
+     */
+    public void setListener(Listener listener) {
+        this.listener = listener;
     }
 
-    public int getSliceRight() {
-        return sliceRight;
+    /**
+     * Sets whether in multiple mode (affects UI display).
+     */
+    public void setMultipleMode(boolean multipleMode) {
+        this.isMultipleMode = multipleMode;
     }
 
-    public int getSliceTop() {
-        return sliceTop;
+    /**
+     * Sets the selected cell index.
+     */
+    public void setSelectedCellIndex(int index) {
+        this.selectedCellIndex = index;
     }
 
-    public int getSliceBottom() {
-        return sliceBottom;
+    /**
+     * Gets the selected cell index.
+     */
+    public int getSelectedCellIndex() {
+        return selectedCellIndex;
     }
 
-    public void setSlices(int left, int right, int top, int bottom) {
-        this.sliceLeft = left;
-        this.sliceRight = right;
-        this.sliceTop = top;
-        this.sliceBottom = bottom;
+    /**
+     * Sets the current 9-slice values.
+     */
+    public void setSlice(int left, int right, int top, int bottom) {
+        sliceLeft.set(left);
+        sliceRight.set(right);
+        sliceTop.set(top);
+        sliceBottom.set(bottom);
     }
 
-    public void setOriginalSlices(int left, int right, int top, int bottom) {
-        this.originalSliceLeft = left;
-        this.originalSliceRight = right;
-        this.originalSliceTop = top;
-        this.originalSliceBottom = bottom;
+    /**
+     * Sets the sprite dimensions (for drag clamping).
+     */
+    public void setSpriteDimensions(int width, int height) {
+        this.spriteWidth = width;
+        this.spriteHeight = height;
     }
 
-    public void revertToOriginal() {
-        sliceLeft = originalSliceLeft;
-        sliceRight = originalSliceRight;
-        sliceTop = originalSliceTop;
-        sliceBottom = originalSliceBottom;
+    /**
+     * Gets the current 9-slice data.
+     */
+    public NineSliceData getSliceData() {
+        return new NineSliceData(sliceLeft.get(), sliceRight.get(), sliceTop.get(), sliceBottom.get());
     }
 
-    public void updateOriginal() {
-        originalSliceLeft = sliceLeft;
-        originalSliceRight = sliceRight;
-        originalSliceTop = sliceTop;
-        originalSliceBottom = sliceBottom;
+    /**
+     * Sets whether "Apply to All" is checked.
+     */
+    public void setApplyToAll(boolean applyToAll) {
+        this.applyToAll = applyToAll;
     }
 
-    public boolean hasSlicing() {
-        return sliceLeft > 0 || sliceRight > 0 || sliceTop > 0 || sliceBottom > 0;
+    /**
+     * Gets whether "Apply to All" is checked.
+     */
+    public boolean isApplyToAll() {
+        return applyToAll;
+    }
+
+    /**
+     * Returns true if currently dragging a border.
+     */
+    public boolean isDragging() {
+        return draggingBorder != null;
+    }
+
+    /**
+     * Loads 9-slice data from metadata for the selected sprite.
+     */
+    public void loadFromMetadata(SpriteMetadata metadata, int spriteIndex) {
+        NineSliceData data;
+
+        if (metadata == null) {
+            data = null;
+        } else if (isMultipleMode) {
+            data = metadata.getEffectiveNineSlice(spriteIndex);
+        } else {
+            data = metadata.nineSlice;
+        }
+
+        if (data != null) {
+            sliceLeft.set(data.left);
+            sliceRight.set(data.right);
+            sliceTop.set(data.top);
+            sliceBottom.set(data.bottom);
+        } else {
+            sliceLeft.set(0);
+            sliceRight.set(0);
+            sliceTop.set(0);
+            sliceBottom.set(0);
+        }
     }
 
     // ========================================================================
@@ -114,319 +182,323 @@ public class NineSliceEditorTab {
     // ========================================================================
 
     /**
-     * Renders the 9-slice tab content.
+     * Renders the 9-slice tab sidebar.
      *
-     * @param sprite The sprite being edited
-     * @param availableWidth Available width for the tab
-     * @param availableHeight Available height for the tab
+     * @param texture  Current texture
+     * @param metadata Current metadata
      */
-    public void render(Sprite sprite, float availableWidth, float availableHeight) {
-        this.currentSprite = sprite;
-
-        // 60% preview / 40% controls layout
-        float previewPanelWidth = availableWidth * 0.60f;
-        float controlsWidth = availableWidth * 0.40f - 5;
-
-        // Left: Preview area with border lines
-        if (ImGui.beginChild("NineSlicePreviewArea", previewPanelWidth, availableHeight, true)) {
-            renderPreview(sprite);
+    public void renderSidebar(Texture texture, SpriteMetadata metadata) {
+        // Selected sprite info
+        if (isMultipleMode) {
+            ImGui.text("Selected: Sprite #" + selectedCellIndex);
+        } else {
+            ImGui.text("Sprite Info");
         }
-        ImGui.endChild();
 
+        if (texture != null) {
+            if (isMultipleMode && metadata != null && metadata.grid != null) {
+                ImGui.text("Size: " + metadata.grid.spriteWidth + "x" + metadata.grid.spriteHeight + " px");
+            } else {
+                ImGui.text("Size: " + texture.getWidth() + "x" + texture.getHeight() + " px");
+            }
+        }
+
+        ImGui.separator();
+        ImGui.spacing();
+
+        // 9-Slice borders
+        ImGui.text("9-Slice Borders");
+
+        ImGui.setNextItemWidth(80);
+        if (ImGui.inputInt("L##SliceL", sliceLeft)) {
+            if (sliceLeft.get() < 0) sliceLeft.set(0);
+            notifySliceChanged();
+        }
         ImGui.sameLine();
-
-        // Right: Controls panel
-        if (ImGui.beginChild("NineSliceControlsPanel", controlsWidth, availableHeight, true, ImGuiWindowFlags.NoScrollbar)) {
-            renderControls(sprite);
+        ImGui.setNextItemWidth(80);
+        if (ImGui.inputInt("R##SliceR", sliceRight)) {
+            if (sliceRight.get() < 0) sliceRight.set(0);
+            notifySliceChanged();
         }
-        ImGui.endChild();
+
+        ImGui.setNextItemWidth(80);
+        if (ImGui.inputInt("T##SliceT", sliceTop)) {
+            if (sliceTop.get() < 0) sliceTop.set(0);
+            notifySliceChanged();
+        }
+        ImGui.sameLine();
+        ImGui.setNextItemWidth(80);
+        if (ImGui.inputInt("B##SliceB", sliceBottom)) {
+            if (sliceBottom.get() < 0) sliceBottom.set(0);
+            notifySliceChanged();
+        }
+
+        ImGui.spacing();
+
+        // Preset buttons
+        ImGui.text("Presets:");
+        if (ImGui.button("4px")) {
+            setSlice(4, 4, 4, 4);
+            notifySliceChanged();
+        }
+        ImGui.sameLine();
+        if (ImGui.button("8px")) {
+            setSlice(8, 8, 8, 8);
+            notifySliceChanged();
+        }
+        ImGui.sameLine();
+        if (ImGui.button("16px")) {
+            setSlice(16, 16, 16, 16);
+            notifySliceChanged();
+        }
+        ImGui.sameLine();
+        if (ImGui.button("Clear")) {
+            setSlice(0, 0, 0, 0);
+            notifySliceChanged();
+        }
+
+        ImGui.spacing();
+        ImGui.separator();
+        ImGui.spacing();
+
+        // Apply to all checkbox (multiple mode only)
+        if (isMultipleMode) {
+            if (ImGui.checkbox("Apply to All Sprites##Slice", applyToAll)) {
+                boolean wasApplyToAll = applyToAll;
+                applyToAll = !applyToAll;
+
+                // Notify listener about the change (it handles propagation)
+                if (listener != null) {
+                    listener.onApplyToAllChanged(applyToAll, getSliceData());
+                }
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("When checked, 9-slice changes apply to all sprites at once");
+            }
+        }
     }
 
-    private void renderPreview(Sprite sprite) {
-        float availWidth = ImGui.getContentRegionAvailX();
-        float availHeight = ImGui.getContentRegionAvailY();
+    // ========================================================================
+    // PREVIEW OVERLAY
+    // ========================================================================
 
-        if (!previewRenderer.beginPreview(sprite, availWidth, availHeight)) {
-            return;
+    /**
+     * Draws 9-slice borders on the preview.
+     *
+     * @param renderer The texture preview renderer
+     * @param metadata The sprite metadata (for reading other sprites' slices)
+     */
+    public void drawPreviewOverlay(TexturePreviewRenderer renderer, SpriteMetadata metadata) {
+        NineSliceData editSliceData = getSliceData();
+
+        if (isMultipleMode) {
+            // Draw 9-slice borders for all cells
+            int totalCells = renderer.getTotalCells();
+            for (int i = 0; i < totalCells; i++) {
+                boolean isSelected = (i == selectedCellIndex);
+                NineSliceData sliceData;
+
+                if (isSelected) {
+                    // Selected sprite uses current editing values
+                    sliceData = editSliceData;
+                } else if (applyToAll) {
+                    // Apply to all: use current editing values
+                    sliceData = editSliceData;
+                } else if (metadata != null) {
+                    // Read from metadata
+                    sliceData = metadata.getEffectiveNineSlice(i);
+                } else {
+                    sliceData = null;
+                }
+
+                if (sliceData != null && sliceData.hasSlicing()) {
+                    renderer.drawNineSliceBorders(i, sliceData);
+                }
+            }
+        } else {
+            // Single mode
+            if (editSliceData.hasSlicing()) {
+                renderer.drawNineSliceBorders(0, editSliceData);
+            }
         }
 
-        // Draw 9-slice border lines
-        drawBorderLines();
-
-        previewRenderer.endPreview();
-
-        // Handle border dragging (only if not panning)
-        if (!previewRenderer.isPanning()) {
-            handleBorderDragging();
-        }
+        // Draw selection highlight
+        renderer.drawSelectionHighlight(selectedCellIndex);
     }
 
-    private void drawBorderLines() {
-        ImDrawList drawList = previewRenderer.getDrawList();
-        float drawX = previewRenderer.getDrawX();
-        float drawY = previewRenderer.getDrawY();
-        float displayWidth = previewRenderer.getDisplayWidth();
-        float displayHeight = previewRenderer.getDisplayHeight();
-        float spriteWidth = previewRenderer.getSpriteWidth();
-        float spriteHeight = previewRenderer.getSpriteHeight();
+    // ========================================================================
+    // INTERACTION
+    // ========================================================================
 
-        // Border line colors
-        int leftRightColor = ImGui.colorConvertFloat4ToU32(0.2f, 0.6f, 1.0f, 0.9f); // Blue
-        int topBottomColor = ImGui.colorConvertFloat4ToU32(1.0f, 0.4f, 0.4f, 0.9f); // Red
-
-        // Calculate line positions
-        float leftLineX = drawX + (sliceLeft / spriteWidth) * displayWidth;
-        float rightLineX = drawX + displayWidth - (sliceRight / spriteWidth) * displayWidth;
-        float topLineY = drawY + (sliceTop / spriteHeight) * displayHeight;
-        float bottomLineY = drawY + displayHeight - (sliceBottom / spriteHeight) * displayHeight;
-
-        // Draw vertical lines
-        if (sliceLeft > 0) {
-            drawList.addLine(leftLineX, drawY, leftLineX, drawY + displayHeight, leftRightColor, 2);
-        }
-        if (sliceRight > 0) {
-            drawList.addLine(rightLineX, drawY, rightLineX, drawY + displayHeight, leftRightColor, 2);
+    /**
+     * Handles mouse interaction for border dragging.
+     *
+     * @param renderer The texture preview renderer
+     * @return true if interaction was handled (prevents other handlers)
+     */
+    public boolean handleInteraction(TexturePreviewRenderer renderer) {
+        if (!renderer.isHovered() && draggingBorder == null) {
+            return false;
         }
 
-        // Draw horizontal lines
-        if (sliceTop > 0) {
-            drawList.addLine(drawX, topLineY, drawX + displayWidth, topLineY, topBottomColor, 2);
-        }
-        if (sliceBottom > 0) {
-            drawList.addLine(drawX, bottomLineY, drawX + displayWidth, bottomLineY, topBottomColor, 2);
-        }
+        int targetCell = isMultipleMode ? selectedCellIndex : 0;
+        float[] cellRect = renderer.cellToScreenRect(targetCell);
+        if (cellRect == null) return false;
 
-        // Draw corner region overlays
-        int cornerColor = ImGui.colorConvertFloat4ToU32(1.0f, 1.0f, 0.0f, 0.15f);
+        float cellX = cellRect[0];
+        float cellY = cellRect[1];
+        float cellW = cellRect[2];
+        float cellH = cellRect[3];
+        float zoom = renderer.getZoom();
 
-        if (sliceLeft > 0 && sliceTop > 0) {
-            drawList.addRectFilled(drawX, drawY, leftLineX, topLineY, cornerColor);
-        }
-        if (sliceRight > 0 && sliceTop > 0) {
-            drawList.addRectFilled(rightLineX, drawY, drawX + displayWidth, topLineY, cornerColor);
-        }
-        if (sliceLeft > 0 && sliceBottom > 0) {
-            drawList.addRectFilled(drawX, bottomLineY, leftLineX, drawY + displayHeight, cornerColor);
-        }
-        if (sliceRight > 0 && sliceBottom > 0) {
-            drawList.addRectFilled(rightLineX, bottomLineY, drawX + displayWidth, drawY + displayHeight, cornerColor);
-        }
+        // Calculate current border positions in screen space
+        float leftLineX = cellX + sliceLeft.get() * zoom;
+        float rightLineX = cellX + cellW - sliceRight.get() * zoom;
+        float topLineY = cellY + sliceTop.get() * zoom;
+        float bottomLineY = cellY + cellH - sliceBottom.get() * zoom;
 
-        // Draw sprite boundary
-        previewRenderer.drawBoundary();
-    }
-
-    private void handleBorderDragging() {
-        boolean isHovered = previewRenderer.isHovered();
-
-        if (!isHovered && draggingBorder == DragBorder.NONE) {
-            return;
-        }
-
+        float hitThreshold = 8f;
         ImVec2 mousePos = ImGui.getMousePos();
-        float mouseX = mousePos.x;
-        float mouseY = mousePos.y;
 
-        float drawX = previewRenderer.getDrawX();
-        float drawY = previewRenderer.getDrawY();
-        float displayWidth = previewRenderer.getDisplayWidth();
-        float displayHeight = previewRenderer.getDisplayHeight();
-        float spriteWidth = previewRenderer.getSpriteWidth();
-        float spriteHeight = previewRenderer.getSpriteHeight();
+        // Start drag on mouse click
+        if (renderer.isHovered() && !renderer.isPanning() &&
+                ImGui.isMouseClicked(ImGuiMouseButton.Left)) {
 
-        // Calculate line positions
-        float leftLineX = drawX + (sliceLeft / spriteWidth) * displayWidth;
-        float rightLineX = drawX + displayWidth - (sliceRight / spriteWidth) * displayWidth;
-        float topLineY = drawY + (sliceTop / spriteHeight) * displayHeight;
-        float bottomLineY = drawY + displayHeight - (sliceBottom / spriteHeight) * displayHeight;
+            // Check which border line is closest to mouse
+            DragBorder hitBorder = null;
+            float minDist = hitThreshold;
 
-        float hitTolerance = 8;
+            // Check vertical borders (left/right)
+            if (mousePos.y >= cellY && mousePos.y <= cellY + cellH) {
+                float distLeft = Math.abs(mousePos.x - leftLineX);
+                float distRight = Math.abs(mousePos.x - rightLineX);
 
-        // Determine which border we're near
-        DragBorder nearBorder = DragBorder.NONE;
-        if (Math.abs(mouseX - leftLineX) < hitTolerance && mouseY >= drawY && mouseY <= drawY + displayHeight) {
-            nearBorder = DragBorder.LEFT;
-        } else if (Math.abs(mouseX - rightLineX) < hitTolerance && mouseY >= drawY && mouseY <= drawY + displayHeight) {
-            nearBorder = DragBorder.RIGHT;
-        } else if (Math.abs(mouseY - topLineY) < hitTolerance && mouseX >= drawX && mouseX <= drawX + displayWidth) {
-            nearBorder = DragBorder.TOP;
-        } else if (Math.abs(mouseY - bottomLineY) < hitTolerance && mouseX >= drawX && mouseX <= drawX + displayWidth) {
-            nearBorder = DragBorder.BOTTOM;
-        }
+                if (distLeft < minDist) {
+                    minDist = distLeft;
+                    hitBorder = DragBorder.LEFT;
+                }
+                if (distRight < minDist) {
+                    minDist = distRight;
+                    hitBorder = DragBorder.RIGHT;
+                }
+            }
 
-        // Set cursor
-        if (draggingBorder == DragBorder.LEFT || draggingBorder == DragBorder.RIGHT ||
-                nearBorder == DragBorder.LEFT || nearBorder == DragBorder.RIGHT) {
-            ImGui.setMouseCursor(ImGuiMouseCursor.ResizeEW);
-        } else if (draggingBorder == DragBorder.TOP || draggingBorder == DragBorder.BOTTOM ||
-                nearBorder == DragBorder.TOP || nearBorder == DragBorder.BOTTOM) {
-            ImGui.setMouseCursor(ImGuiMouseCursor.ResizeNS);
-        }
+            // Check horizontal borders (top/bottom)
+            if (mousePos.x >= cellX && mousePos.x <= cellX + cellW) {
+                float distTop = Math.abs(mousePos.y - topLineY);
+                float distBottom = Math.abs(mousePos.y - bottomLineY);
 
-        // Start drag
-        if (isHovered && ImGui.isMouseClicked(ImGuiMouseButton.Left) && nearBorder != DragBorder.NONE) {
-            draggingBorder = nearBorder;
-            dragStartValue = switch (nearBorder) {
-                case LEFT -> sliceLeft;
-                case RIGHT -> sliceRight;
-                case TOP -> sliceTop;
-                case BOTTOM -> sliceBottom;
-                default -> 0;
-            };
+                if (distTop < minDist) {
+                    minDist = distTop;
+                    hitBorder = DragBorder.TOP;
+                }
+                if (distBottom < minDist) {
+                    minDist = distBottom;
+                    hitBorder = DragBorder.BOTTOM;
+                }
+            }
+
+            if (hitBorder != null) {
+                draggingBorder = hitBorder;
+                return true;
+            } else {
+                // Not on a border - check for cell selection
+                int hitCell = renderer.hitTestCell(mousePos.x, mousePos.y);
+                if (hitCell >= 0 && hitCell != selectedCellIndex) {
+                    if (listener != null) {
+                        listener.onCellSelected(hitCell);
+                    }
+                    return true;
+                }
+            }
         }
 
         // Continue drag
-        if (draggingBorder != DragBorder.NONE && ImGui.isMouseDown(ImGuiMouseButton.Left)) {
-            int maxLeft = (int) spriteWidth - sliceRight - 1;
-            int maxRight = (int) spriteWidth - sliceLeft - 1;
-            int maxTop = (int) spriteHeight - sliceBottom - 1;
-            int maxBottom = (int) spriteHeight - sliceTop - 1;
+        if (draggingBorder != null && ImGui.isMouseDown(ImGuiMouseButton.Left)) {
+            updateBorderFromMouse(mousePos.x, mousePos.y, cellRect, zoom);
 
-            switch (draggingBorder) {
-                case LEFT -> {
-                    float pixelX = previewRenderer.screenToPixelX(mouseX);
-                    sliceLeft = Math.max(0, Math.min(maxLeft, Math.round(pixelX)));
-                }
-                case RIGHT -> {
-                    float pixelX = spriteWidth - previewRenderer.screenToPixelX(mouseX);
-                    sliceRight = Math.max(0, Math.min(maxRight, Math.round(pixelX)));
-                }
-                case TOP -> {
-                    float pixelY = previewRenderer.screenToPixelY(mouseY);
-                    sliceTop = Math.max(0, Math.min(maxTop, Math.round(pixelY)));
-                }
-                case BOTTOM -> {
-                    float pixelY = spriteHeight - previewRenderer.screenToPixelY(mouseY);
-                    sliceBottom = Math.max(0, Math.min(maxBottom, Math.round(pixelY)));
-                }
+            // Set appropriate cursor
+            if (draggingBorder == DragBorder.LEFT || draggingBorder == DragBorder.RIGHT) {
+                ImGui.setMouseCursor(ImGuiMouseCursor.ResizeEW);
+            } else {
+                ImGui.setMouseCursor(ImGuiMouseCursor.ResizeNS);
             }
+            return true;
         }
 
         // End drag
-        if (draggingBorder != DragBorder.NONE && !ImGui.isMouseDown(ImGuiMouseButton.Left)) {
-            int endValue = switch (draggingBorder) {
-                case LEFT -> sliceLeft;
-                case RIGHT -> sliceRight;
-                case TOP -> sliceTop;
-                case BOTTOM -> sliceBottom;
-                default -> 0;
-            };
+        if (draggingBorder != null && !ImGui.isMouseDown(ImGuiMouseButton.Left)) {
+            draggingBorder = null;
+        }
 
-            if (dragStartValue != endValue) {
-                final DragBorder border = draggingBorder;
-                final int start = dragStartValue;
-                final int end = endValue;
+        // Show resize cursor when hovering over borders or edges
+        if (draggingBorder == null && renderer.isHovered()) {
+            boolean nearVertical = false;
+            boolean nearHorizontal = false;
 
-                UndoManager.getInstance().push(new SetterUndoCommand<>(
-                        v -> {
-                            switch (border) {
-                                case LEFT -> sliceLeft = v;
-                                case RIGHT -> sliceRight = v;
-                                case TOP -> sliceTop = v;
-                                case BOTTOM -> sliceBottom = v;
-                            }
-                        },
-                        start, end, "Change 9-Slice Border"
-                ));
+            if (mousePos.y >= cellY && mousePos.y <= cellY + cellH) {
+                if (Math.abs(mousePos.x - leftLineX) < hitThreshold ||
+                        Math.abs(mousePos.x - rightLineX) < hitThreshold) {
+                    nearVertical = true;
+                }
+            }
+            if (mousePos.x >= cellX && mousePos.x <= cellX + cellW) {
+                if (Math.abs(mousePos.y - topLineY) < hitThreshold ||
+                        Math.abs(mousePos.y - bottomLineY) < hitThreshold) {
+                    nearHorizontal = true;
+                }
             }
 
-            draggingBorder = DragBorder.NONE;
+            if (nearVertical) {
+                ImGui.setMouseCursor(ImGuiMouseCursor.ResizeEW);
+            } else if (nearHorizontal) {
+                ImGui.setMouseCursor(ImGuiMouseCursor.ResizeNS);
+            }
         }
+
+        return false;
     }
 
-    private void renderControls(Sprite sprite) {
-        int spriteWidth = sprite != null ? (int) sprite.getWidth() : 64;
-        int spriteHeight = sprite != null ? (int) sprite.getHeight() : 64;
+    private void updateBorderFromMouse(float mouseX, float mouseY, float[] cellRect, float zoom) {
+        if (draggingBorder == null) return;
 
-        // === BORDERS SECTION ===
-        ImGui.text("Borders (pixels)");
-        ImGui.separator();
+        float cellX = cellRect[0];
+        float cellY = cellRect[1];
+        float cellW = cellRect[2];
+        float cellH = cellRect[3];
 
-        float availWidth = ImGui.getContentRegionAvailX();
-        float fieldColWidth = availWidth * 0.55f;
-        float presetColWidth = availWidth * 0.45f - 5;
-
-        // Left column: border fields
-        if (ImGui.beginChild("BorderFields", fieldColWidth, 110, false, ImGuiWindowFlags.NoScrollbar)) {
-            float fieldWidth = 50;
-            float labelWidth = 55;
-
-            ImGui.text("Left:");
-            ImGui.sameLine(labelWidth);
-            ImGui.setNextItemWidth(fieldWidth);
-            int[] leftArr = {sliceLeft};
-            if (ImGui.dragInt("##SliceLeft", leftArr, 1, 0, spriteWidth - sliceRight - 1)) {
-                sliceLeft = leftArr[0];
+        switch (draggingBorder) {
+            case LEFT -> {
+                float pixelX = (mouseX - cellX) / zoom;
+                int value = Math.max(0, Math.min(spriteWidth / 2, Math.round(pixelX)));
+                sliceLeft.set(value);
             }
-
-            ImGui.text("Right:");
-            ImGui.sameLine(labelWidth);
-            ImGui.setNextItemWidth(fieldWidth);
-            int[] rightArr = {sliceRight};
-            if (ImGui.dragInt("##SliceRight", rightArr, 1, 0, spriteWidth - sliceLeft - 1)) {
-                sliceRight = rightArr[0];
+            case RIGHT -> {
+                float pixelX = (cellX + cellW - mouseX) / zoom;
+                int value = Math.max(0, Math.min(spriteWidth / 2, Math.round(pixelX)));
+                sliceRight.set(value);
             }
-
-            ImGui.text("Top:");
-            ImGui.sameLine(labelWidth);
-            ImGui.setNextItemWidth(fieldWidth);
-            int[] topArr = {sliceTop};
-            if (ImGui.dragInt("##SliceTop", topArr, 1, 0, spriteHeight - sliceBottom - 1)) {
-                sliceTop = topArr[0];
+            case TOP -> {
+                float pixelY = (mouseY - cellY) / zoom;
+                int value = Math.max(0, Math.min(spriteHeight / 2, Math.round(pixelY)));
+                sliceTop.set(value);
             }
-
-            ImGui.text("Bottom:");
-            ImGui.sameLine(labelWidth);
-            ImGui.setNextItemWidth(fieldWidth);
-            int[] bottomArr = {sliceBottom};
-            if (ImGui.dragInt("##SliceBottom", bottomArr, 1, 0, spriteHeight - sliceTop - 1)) {
-                sliceBottom = bottomArr[0];
+            case BOTTOM -> {
+                float pixelY = (cellY + cellH - mouseY) / zoom;
+                int value = Math.max(0, Math.min(spriteHeight / 2, Math.round(pixelY)));
+                sliceBottom.set(value);
             }
         }
-        ImGui.endChild();
-
-        ImGui.sameLine();
-
-        // Right column: presets
-        if (ImGui.beginChild("BorderPresets", presetColWidth, 110, false, ImGuiWindowFlags.NoScrollbar)) {
-            float btnWidth = -1;
-            float btnHeight = 20;
-
-            if (ImGui.button("4px", btnWidth, btnHeight)) {
-                setBordersWithUndo(4, 4, 4, 4);
-            }
-            if (ImGui.button("8px", btnWidth, btnHeight)) {
-                setBordersWithUndo(8, 8, 8, 8);
-            }
-            if (ImGui.button("16px", btnWidth, btnHeight)) {
-                setBordersWithUndo(16, 16, 16, 16);
-            }
-            if (ImGui.button("Clear", btnWidth, btnHeight)) {
-                setBordersWithUndo(0, 0, 0, 0);
-            }
-        }
-        ImGui.endChild();
+        notifySliceChanged();
     }
 
-    private void setBordersWithUndo(int left, int right, int top, int bottom) {
-        int oldLeft = sliceLeft, oldRight = sliceRight, oldTop = sliceTop, oldBottom = sliceBottom;
-        sliceLeft = left;
-        sliceRight = right;
-        sliceTop = top;
-        sliceBottom = bottom;
+    // ========================================================================
+    // INTERNAL
+    // ========================================================================
 
-        if (oldLeft != left || oldRight != right || oldTop != top || oldBottom != bottom) {
-            UndoManager.getInstance().push(new SetterUndoCommand<>(
-                    v -> {
-                        sliceLeft = v[0];
-                        sliceRight = v[1];
-                        sliceTop = v[2];
-                        sliceBottom = v[3];
-                    },
-                    new int[]{oldLeft, oldRight, oldTop, oldBottom},
-                    new int[]{left, right, top, bottom},
-                    "Set 9-Slice Borders"
-            ));
+    private void notifySliceChanged() {
+        if (listener != null) {
+            listener.onSliceChanged(sliceLeft.get(), sliceRight.get(), sliceTop.get(), sliceBottom.get());
         }
     }
 }

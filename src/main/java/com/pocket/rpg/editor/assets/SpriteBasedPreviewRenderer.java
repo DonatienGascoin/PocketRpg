@@ -1,7 +1,6 @@
 package com.pocket.rpg.editor.assets;
 
 import com.pocket.rpg.rendering.resources.Sprite;
-import com.pocket.rpg.rendering.resources.SpriteSheet;
 import com.pocket.rpg.rendering.resources.Texture;
 import imgui.ImGui;
 
@@ -11,7 +10,7 @@ import imgui.ImGui;
  * Works for any asset type where the loader provides a preview sprite
  * via {@link com.pocket.rpg.resources.AssetLoader#getPreviewSprite(Object)}.
  * <p>
- * This handles: Sprite, Texture, SpriteSheet, and any other asset with preview sprites.
+ * This handles: Sprite, Texture, and any other asset with preview sprites.
  */
 public class SpriteBasedPreviewRenderer implements AssetPreviewRenderer<Object> {
 
@@ -40,12 +39,6 @@ public class SpriteBasedPreviewRenderer implements AssetPreviewRenderer<Object> 
             texture = tex;
             width = tex.getWidth();
             height = tex.getHeight();
-        } else if (asset instanceof SpriteSheet sheet) {
-            texture = sheet.getTexture();
-            if (texture != null) {
-                width = texture.getWidth();
-                height = texture.getHeight();
-            }
         }
 
         if (texture == null) {

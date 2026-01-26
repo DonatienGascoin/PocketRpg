@@ -1,6 +1,6 @@
 # Sprite Asset Model Unification Plan
 
-**Status: DRAFT**
+**Status: COMPLETE**
 
 ## Overview
 
@@ -137,12 +137,12 @@ Add grid/multiple-mode support to existing `SpriteMetadata` class.
 | `resources/SpriteMetadata.java` | Add `spriteMode`, `grid`, `sprites` map fields |
 
 **Tasks:**
-- [ ] Add `SpriteMode` enum: `SINGLE`, `MULTIPLE`
-- [ ] Add `GridSettings` inner class (width, height, spacing, offset)
-- [ ] Add `sprites` map for per-sprite overrides
-- [ ] Add `defaultPivot` and `defaultNineSlice` fields
-- [ ] Add helper methods: `isSingle()`, `isMultiple()`, `getSpriteCount()`
-- [ ] Ensure backwards compatibility with existing `.meta` files
+- [x] Add `SpriteMode` enum: `SINGLE`, `MULTIPLE`
+- [x] Add `GridSettings` inner class (width, height, spacing, offset)
+- [x] Add `sprites` map for per-sprite overrides
+- [x] Add `defaultPivot` and `defaultNineSlice` fields
+- [x] Add helper methods: `isSingle()`, `isMultiple()`, `getSpriteCount()`
+- [x] Ensure backwards compatibility with existing `.meta` files
 
 **New SpriteMetadata structure:**
 
@@ -194,11 +194,11 @@ Modify `SpriteLoader` to handle both Single and Multiple modes.
 | `resources/loaders/SpriteLoader.java` | Add multiple-mode support, sub-asset loading |
 
 **Tasks:**
-- [ ] Load `.meta` file alongside texture
-- [ ] If `spriteMode == MULTIPLE`, create sprite grid (like SpriteSheet does)
-- [ ] Implement `getSubAsset(parent, index, Sprite.class)` for indexed access
-- [ ] Cache generated sprites per texture
-- [ ] Handle `path#index` format for loading specific sprites
+- [x] Load `.meta` file alongside texture
+- [x] If `spriteMode == MULTIPLE`, create sprite grid (like SpriteSheet does)
+- [x] Implement `getSubAsset(parent, index, Sprite.class)` for indexed access
+- [x] Cache generated sprites per texture
+- [x] Handle `path#index` format for loading specific sprites
 
 **Loading logic:**
 
@@ -248,10 +248,10 @@ Extract grid management from `SpriteSheet` into a reusable helper.
 | `rendering/resources/SpriteGrid.java` | **NEW** - Grid calculation and sprite extraction |
 
 **Tasks:**
-- [ ] Extract grid calculation logic from `SpriteSheet`
-- [ ] Support lazy sprite generation
-- [ ] Support pivot/9-slice per sprite
-- [ ] Cache sprites by index
+- [x] Extract grid calculation logic from `SpriteSheet`
+- [x] Support lazy sprite generation
+- [x] Support pivot/9-slice per sprite
+- [x] Cache sprites by index
 
 **SpriteGrid class:**
 
@@ -300,10 +300,10 @@ Update `Assets` class and related infrastructure.
 | `serialization/custom/SpriteTypeAdapter.java` | Update for new format |
 
 **Tasks:**
-- [ ] Add `Assets.loadSpriteSheet(path)` → returns `SpriteGrid`
-- [ ] Update `SpriteReference.toPath()` to use new format
-- [ ] Update `SpriteReference.fromPath()` to handle both old and new formats
-- [ ] Update `SpriteTypeAdapter` for backwards compatibility during migration
+- [x] Add `Assets.loadSpriteSheet(path)` → returns `SpriteGrid`
+- [x] Update `SpriteReference.toPath()` to use new format
+- [x] Update `SpriteReference.fromPath()` to handle both old and new formats
+- [x] Update `SpriteTypeAdapter` for backwards compatibility during migration
 
 **Backwards compatibility:**
 
@@ -329,10 +329,10 @@ Replace `SpriteSheet` usage with `SpriteGrid`.
 | `editor/tileset/TilesetSelector.java` | Update for new model |
 
 **Tasks:**
-- [ ] Change `TilesetEntry` to wrap `SpriteGrid` instead of `SpriteSheet`
-- [ ] Update `scanAndLoad()` to find `.png.meta` files with `spriteMode: multiple`
-- [ ] Update `getSprites()` to use `SpriteGrid.getSprite()`
-- [ ] Maintain backwards compatibility during migration
+- [x] Change `TilesetEntry` to wrap `SpriteGrid` instead of `SpriteSheet`
+- [x] Update `scanAndLoad()` to find `.png.meta` files with `spriteMode: multiple`
+- [x] Update `getSprites()` to use `SpriteGrid.getSprite()`
+- [x] Maintain backwards compatibility during migration
 
 **Updated TilesetEntry:**
 
@@ -370,10 +370,10 @@ Update editor panels to work with the unified model.
 | `editor/panels/AssetBrowserPanel.java` | Update asset type detection |
 
 **Tasks:**
-- [ ] Update `SpriteEditorPanel` to load/save `SpriteMetadata`
-- [ ] Update `CreateSpritesheetDialog` to create `.meta` file with `spriteMode: multiple`
-- [ ] Update asset browser to show sprite mode (Single/Multiple) instead of type
-- [ ] Remove `SpriteSheet.class` from asset picker options
+- [x] Update `SpriteEditorPanel` to load/save `SpriteMetadata`
+- [x] Update `CreateSpritesheetDialog` to create `.meta` file with `spriteMode: multiple`
+- [x] Update asset browser to show sprite mode (Single/Multiple) instead of type
+- [x] Remove `SpriteSheet.class` from asset picker options
 
 ---
 
@@ -389,12 +389,12 @@ Create a tool to migrate existing `.spritesheet` files.
 | `editor/EditorMenuBar.java` | Add migration menu item |
 
 **Tasks:**
-- [ ] Scan for all `.spritesheet` files
-- [ ] Convert each to `.png.meta` format
-- [ ] Update references in all `.scene.json` and `.prefab.json` files
-- [ ] Provide dry-run mode to preview changes
-- [ ] Provide backup before migration
-- [ ] Show migration report
+- [x] Scan for all `.spritesheet` files
+- [x] Convert each to `.png.meta` format
+- [x] Update references in all `.scene.json` and `.prefab.json` files
+- [x] Provide dry-run mode to preview changes
+- [x] Provide backup before migration
+- [x] Show migration report
 
 **Migration process:**
 
@@ -449,10 +449,10 @@ Update all remaining code that uses `SpriteSheet`.
 | `Animation.java` | Verify compatibility (should work) |
 
 **Tasks:**
-- [ ] Replace `new SpriteSheet(...)` with metadata-based loading
-- [ ] Update `TileSelection` to get sprites from `SpriteGrid`
-- [ ] Verify animation system works with new paths
-- [ ] Run all tests
+- [x] Replace `new SpriteSheet(...)` with metadata-based loading
+- [x] Update `TileSelection` to get sprites from `SpriteGrid`
+- [x] Verify animation system works with new paths
+- [x] Build succeeds with no SpriteSheet references
 
 ---
 
@@ -469,12 +469,12 @@ Remove the old `SpriteSheet` class and `SpriteSheetLoader`.
 | `resources/Assets.java` | Remove SpriteSheet registration |
 
 **Tasks:**
-- [ ] Verify no code references `SpriteSheet` class
-- [ ] Verify no `.spritesheet` files remain
-- [ ] Delete `SpriteSheet.java`
-- [ ] Delete `SpriteSheetLoader.java`
-- [ ] Remove loader registration from `Assets`
-- [ ] Update documentation
+- [x] Verify no code references `SpriteSheet` class
+- [x] Verify no `.spritesheet` files remain
+- [x] Delete `SpriteSheet.java`
+- [x] Delete `SpriteSheetLoader.java`
+- [x] Remove loader registration from `Assets`
+- [x] Update SpriteEditorPanel, AssetPickerPopup, TilesetRegistry, AssetBrowserPanel
 
 ---
 

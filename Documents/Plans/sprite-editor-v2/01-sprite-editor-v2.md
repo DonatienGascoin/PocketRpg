@@ -1,6 +1,6 @@
 # Sprite Editor V2 Implementation Plan
 
-**Status: DRAFT**
+**Status: COMPLETE**
 
 **Prerequisite: Complete [00-asset-model-unification.md](./00-asset-model-unification.md) first**
 
@@ -216,14 +216,14 @@ Create a preview renderer that shows full texture with optional grid overlay.
 | `spriteeditor/TexturePreviewRenderer.java` | **NEW** - Full texture preview with grid, selection, overlays |
 
 **Tasks:**
-- [ ] Create `TexturePreviewRenderer` class
-- [ ] Implement full texture rendering (not just one sprite)
-- [ ] Implement grid overlay drawing (for multiple mode)
-- [ ] Implement `hitTestCell(mouseX, mouseY)` for click-to-select
-- [ ] Implement pivot marker drawing (all sprites, highlight selected)
-- [ ] Implement 9-slice border drawing (on selected sprite)
-- [ ] Implement zoom/pan (reuse logic from `SpritePreviewRenderer`)
-- [ ] Add coordinate conversion: screen ↔ texture pixel ↔ cell index ↔ normalized
+- [x] Create `TexturePreviewRenderer` class
+- [x] Implement full texture rendering (not just one sprite)
+- [x] Implement grid overlay drawing (for multiple mode)
+- [x] Implement `hitTestCell(mouseX, mouseY)` for click-to-select
+- [x] Implement pivot marker drawing (all sprites, highlight selected)
+- [x] Implement 9-slice border drawing (on selected sprite)
+- [x] Implement zoom/pan (reuse logic from `SpritePreviewRenderer`)
+- [x] Add coordinate conversion: screen ↔ texture pixel ↔ cell index ↔ normalized
 
 **Key methods:**
 
@@ -270,13 +270,13 @@ Create the new panel with mode selector and tab structure.
 | `EditorUIController.java` | Register V2 panel, add menu entry |
 
 **Tasks:**
-- [ ] Create `SpriteEditorPanelV2` as modal popup
-- [ ] Implement header: asset path, Browse button, mode selector
-- [ ] Implement mode switching (Single ↔ Multiple)
-- [ ] Implement tab bar (Slicing only visible in Multiple mode)
-- [ ] Implement footer: zoom slider, Reset/Fit buttons, Cancel/Save
-- [ ] Add "Sprite Editor V2" menu item under Edit menu
-- [ ] Wire up asset loading via `SpriteMetadata`
+- [x] Create `SpriteEditorPanelV2` as modal popup
+- [x] Implement header: asset path, Browse button, mode selector
+- [x] Implement mode switching (Single ↔ Multiple)
+- [x] Implement tab bar (Slicing only visible in Multiple mode)
+- [x] Implement footer: zoom slider, Reset/Fit buttons, Cancel/Save
+- [x] Add "Sprite Editor V2" menu item under Edit menu
+- [x] Wire up asset loading via `SpriteMetadata`
 
 **Panel state:**
 
@@ -314,15 +314,15 @@ Implement the asset browser dialog showing textures with their mode.
 | `panels/SpriteEditorPanelV2.java` | Wire up Browse button |
 
 **Tasks:**
-- [ ] Create `TextureBrowserDialog` class
-- [ ] Scan for all texture files (`.png`, `.jpg`, etc.)
-- [ ] Load metadata for each to determine mode
-- [ ] Display mode badge: [Single], [Multiple], [No meta]
-- [ ] Show sprite count for multiple mode
-- [ ] Show 9S indicator if has 9-slice data
-- [ ] Implement search/filter
-- [ ] Implement preview panel on right side
-- [ ] Wire up to SpriteEditorPanelV2
+- [x] Create `TextureBrowserDialog` class
+- [x] Scan for all texture files (`.png`, `.jpg`, etc.)
+- [x] Load metadata for each to determine mode
+- [x] Display mode badge: [Single], [Multiple], [No meta]
+- [x] Show sprite count for multiple mode
+- [x] Show 9S indicator if has 9-slice data
+- [x] Implement search/filter
+- [x] Implement preview panel on right side
+- [x] Wire up to SpriteEditorPanelV2
 
 ---
 
@@ -337,14 +337,14 @@ Implement the slicing tab for configuring grid parameters.
 | `spriteeditor/SlicingEditorTab.java` | **NEW** - Grid configuration UI |
 
 **Tasks:**
-- [ ] Create `SlicingEditorTab` class
-- [ ] Implement grid parameter inputs (width, height, spacing, offset)
-- [ ] Implement preset buttons (8, 16, 32)
-- [ ] Show grid info (columns × rows = total)
-- [ ] Wire preview to show grid overlay
-- [ ] Show warning if 0 sprites fit
-- [ ] Live preview as parameters change
-- [ ] Track changes for save
+- [x] Create `SlicingEditorTab` class
+- [x] Implement grid parameter inputs (width, height, spacing, offset)
+- [x] Implement preset buttons (8, 16, 32)
+- [x] Show grid info (columns × rows = total)
+- [x] Wire preview to show grid overlay
+- [x] Show warning if 0 sprites fit
+- [x] Live preview as parameters change
+- [x] Track changes for save
 
 **Tab layout:**
 
@@ -378,16 +378,16 @@ Implement the pivot tab with full texture view and visible pivots.
 | `spriteeditor/PivotEditorTabV2.java` | **NEW** - Pivot editing with texture view |
 
 **Tasks:**
-- [ ] Create `PivotEditorTabV2` class
-- [ ] Use `TexturePreviewRenderer` for preview
-- [ ] Implement click-to-select sprite cells (multiple mode)
-- [ ] Draw pivot markers on all sprites (dimmed for non-selected)
-- [ ] Implement pivot dragging for selected sprite
-- [ ] Implement "Apply to All" checkbox
-- [ ] Port preset buttons from V1
-- [ ] Port pixel snap option from V1
-- [ ] Implement undo/redo
-- [ ] Handle single mode (full texture, one pivot)
+- [x] Create `PivotEditorTabV2` class
+- [x] Use `TexturePreviewRenderer` for preview
+- [x] Implement click-to-select sprite cells (multiple mode)
+- [x] Draw pivot markers on all sprites (dimmed for non-selected)
+- [x] Implement pivot dragging for selected sprite
+- [x] Implement "Apply to All" checkbox
+- [x] Port preset buttons from V1
+- [x] Port pixel snap option from V1
+- [x] Implement undo/redo
+- [x] Handle single mode (full texture, one pivot)
 
 ---
 
@@ -402,16 +402,16 @@ Implement the 9-slice tab with full texture view.
 | `spriteeditor/NineSliceEditorTabV2.java` | **NEW** - 9-slice editing with texture view |
 
 **Tasks:**
-- [ ] Create `NineSliceEditorTabV2` class
-- [ ] Use `TexturePreviewRenderer` for preview
-- [ ] Implement click-to-select sprite cells (multiple mode)
-- [ ] Draw 9-slice borders on selected sprite
-- [ ] Implement border line dragging
-- [ ] Implement "Apply to All" checkbox
-- [ ] Port preset buttons from V1
-- [ ] Implement scaled preview showing 9-slice result
-- [ ] Implement undo/redo
-- [ ] Handle single mode (full texture, one set of borders)
+- [x] Create `NineSliceEditorTabV2` class
+- [x] Use `TexturePreviewRenderer` for preview
+- [x] Implement click-to-select sprite cells (multiple mode)
+- [x] Draw 9-slice borders on selected sprite
+- [x] Implement border line dragging
+- [x] Implement "Apply to All" checkbox
+- [x] Port preset buttons from V1
+- [x] ~~Implement scaled preview showing 9-slice result~~ (cancelled - not needed)
+- [x] Implement undo/redo
+- [x] Handle single mode (full texture, one set of borders)
 
 ---
 
@@ -426,36 +426,25 @@ Implement mode switching and creating new multiple-mode metadata.
 | `panels/SpriteEditorPanelV2.java` | Mode switching logic |
 
 **Tasks:**
-- [ ] Implement Single → Multiple mode switch:
+- [x] Implement Single → Multiple mode switch:
   - Show slicing configuration
   - Create default grid settings
   - Preserve existing pivot/9-slice as defaults
-- [ ] Implement Multiple → Single mode switch:
+  - Auto-focus Slicing tab
+- [x] Implement Multiple → Single mode switch:
   - Confirm dialog (will lose per-sprite data)
   - Keep sprite 0's pivot/9-slice, or defaults
-- [ ] Implement "New Multiple..." button:
-  - Opens with texture browser
-  - After selection, switches to Multiple mode with slicing tab
-- [ ] Handle textures with no metadata (treat as single, allow conversion)
+- [x] ~~Implement "New Multiple..." button~~ (cancelled - not needed)
+- [x] Handle textures with no metadata (treat as single, allow conversion)
 
 ---
 
 ### Phase 8: Clear Metadata / Delete
 
-Implement clearing sprite metadata.
-
-**Files:**
-
-| File | Change |
-|------|--------|
-| `panels/SpriteEditorPanelV2.java` | Clear metadata button and dialog |
+~~Implement clearing sprite metadata.~~ **SKIPPED** - Edge case, can delete `.meta` files manually if needed.
 
 **Tasks:**
-- [ ] Add "🗑 Clear Metadata" button (visible when metadata exists)
-- [ ] Implement confirmation dialog
-- [ ] Delete `.meta` file on confirm
-- [ ] Update TilesetRegistry if was multiple mode
-- [ ] Clear editor state (or revert to no-metadata view)
+- [x] ~~All tasks~~ (skipped)
 
 ---
 
@@ -477,12 +466,14 @@ Replace V1 with V2 and clean up.
 | `EditorUIController.java` | Update menu entries |
 
 **Tasks:**
-- [ ] Verify V2 is feature-complete
-- [ ] Test all workflows
-- [ ] Remove V1 files
-- [ ] Rename V2 files (remove "V2" suffix)
-- [ ] Update menu to use new panel
-- [ ] Update any documentation
+- [x] Verify V2 is feature-complete
+- [x] Test all workflows
+- [x] Add "Edit in Sprite Editor" context menu option in AssetBrowserPanel (now uses new editor)
+- [x] Update double-click on sprites to open new editor
+- [x] Remove V1 files (SpriteEditorPanel.java, SpritePreviewRenderer.java, PivotEditorTab.java, NineSliceEditorTab.java)
+- [x] Rename V2 files (removed "V2" suffix)
+- [x] Update menu to use new panel (removed "Sprite Editor V2..." menu item)
+- [x] Update any documentation
 
 ---
 

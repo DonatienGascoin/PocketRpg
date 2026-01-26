@@ -1,0 +1,8 @@
+{
+    "spriteMode": "MULTIPLE",
+    "grid": {
+      "spriteWidth": 16,
+      "spriteHeight": 16
+    },
+    "defaultPivot": { "x": 0.5, "y": 0.0 }
+  }

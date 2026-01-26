@@ -3,7 +3,7 @@ package com.pocket.rpg.scenes;
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.rendering.resources.Sprite;
-import com.pocket.rpg.rendering.resources.SpriteSheet;
+import com.pocket.rpg.rendering.resources.SpriteGrid;
 import com.pocket.rpg.resources.Assets;
 import org.joml.Vector3f;
 
@@ -22,8 +22,8 @@ public class DemoScene2 extends Scene {
 
         System.out.println("Player:" + playerSprite);
 
-        SpriteSheet playerSheet = new SpriteSheet(playerSprite.getTexture(), 32, 32, 0, 0, 0, 0);
-        var sprites = playerSheet.generateAllSprites();
+        SpriteGrid playerGrid = SpriteGrid.create(playerSprite.getTexture(), 32, 32);
+        var sprites = playerGrid.getAllSprites();
 
         SpriteRenderer spriteRenderer = new SpriteRenderer();
         spriteRenderer.setSprite(sprites.get(5));

@@ -5,8 +5,10 @@ import com.pocket.rpg.audio.editor.EditorAudio;
 import com.pocket.rpg.editor.assets.AssetPreviewRegistry;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.rendering.resources.Sprite;
-import com.pocket.rpg.rendering.resources.SpriteSheet;
+import com.pocket.rpg.rendering.resources.SpriteGrid;
+import com.pocket.rpg.resources.AssetMetadata;
 import com.pocket.rpg.resources.Assets;
+import com.pocket.rpg.resources.SpriteMetadata;
 import com.pocket.rpg.resources.SpriteReference;
 import imgui.ImGui;
 import imgui.flag.ImGuiKey;
@@ -22,16 +24,16 @@ import java.util.function.Consumer;
  * Popup for selecting asset files.
  * <p>
  * Works with any asset type registered in Assets. For Sprite selection,
- * also displays individual sprites from spritesheets in an indented list format:
+ * also displays individual sprites from MULTIPLE-mode sprites in an indented list format:
  * <pre>
- * player.spritesheet
- *   └─ player.spritesheet#0
- *   └─ player.spritesheet#1
- *   └─ player.spritesheet#2
+ * player.png (tileset)
+ *   - player.png#0
+ *   - player.png#1
+ *   - player.png#2
  * enemy.png
  * </pre>
  * <p>
- * Selection returns the full path (including #index for spritesheet sprites),
+ * Selection returns the full path (including #index for grid sprites),
  * which can be used directly with {@code Assets.load(path, type)}.
  * <p>
  * Usage:
@@ -95,8 +97,7 @@ public class AssetPickerPopup {
     /**
      * Scans for assets of the requested type.
      * <p>
-     * Special case: For Sprite, also expands spritesheets with individual sprites.
-     * This is the only exception because Sprite can come from multiple source types.
+     * Special case: For Sprite, also expands MULTIPLE-mode sprites with individual sub-sprites.
      */
     private void scanAssets() {
         availableAssets.clear();
@@ -104,44 +105,36 @@ public class AssetPickerPopup {
         try {
             List<String> paths = Assets.scanByType(assetType);
 
-            // Special case: Sprite can also come from spritesheets
+            // Special case: Sprite can come from MULTIPLE-mode sprite grids
             if (assetType == Sprite.class) {
                 paths = new ArrayList<>(paths);  // Make mutable
-                List<String> sheetPaths = Assets.scanByType(SpriteSheet.class);
-                
-                // Add sheets and expand them
-                for (String sheetPath : sheetPaths) {
-                    if (!paths.contains(sheetPath)) {
-                        paths.add(sheetPath);
-                    }
-                }
-                
+
                 // Sort all paths
                 paths.sort(String::compareToIgnoreCase);
-                
-                // Add entries with spritesheet expansion
+
+                // Add entries with MULTIPLE-mode expansion
                 for (String path : paths) {
                     String fileName = getFileName(path);
-                    
-                    // Check if this is a spritesheet
-                    Class<?> pathType = Assets.getTypeForPath(path);
-                    if (pathType == SpriteSheet.class) {
-                        // Add the spritesheet header
+
+                    // Check if this is a MULTIPLE-mode sprite
+                    if (isMultipleModeSprite(path)) {
+                        // Add the sprite grid header
                         availableAssets.add(new AssetEntry(path, MaterialIcons.PhotoLibrary + " " + fileName, false, false));
-                        
+
                         // Expand individual sprites
                         try {
-                            SpriteSheet sheet = Assets.load(path, SpriteSheet.class);
-                            if (sheet != null) {
-                                int totalFrames = sheet.getTotalFrames();
-                                for (int i = 0; i < totalFrames; i++) {
+                            Sprite parent = Assets.load(path, Sprite.class);
+                            SpriteGrid grid = Assets.getSpriteGrid(parent);
+                            if (grid != null) {
+                                int totalSprites = grid.getTotalSprites();
+                                for (int i = 0; i < totalSprites; i++) {
                                     String spritePath = SpriteReference.buildPath(path, i);
                                     String spriteName = "  " + MaterialIcons.Image + " " + fileName + "#" + i;
                                     availableAssets.add(new AssetEntry(spritePath, spriteName, true, true));
                                 }
                             }
                         } catch (Exception e) {
-                            System.err.println("Failed to expand spritesheet: " + path + " - " + e.getMessage());
+                            System.err.println("Failed to expand sprite grid: " + path + " - " + e.getMessage());
                         }
                     } else {
                         // Regular image file
@@ -153,13 +146,25 @@ public class AssetPickerPopup {
                 for (String path : paths) {
                     availableAssets.add(new AssetEntry(path, getFileName(path), false, true));
                 }
-                
+
                 // Sort alphabetically
                 availableAssets.sort((a, b) -> a.displayName.compareToIgnoreCase(b.displayName));
             }
 
         } catch (Exception e) {
             System.err.println("Failed to scan assets: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Checks if a sprite path points to a MULTIPLE-mode sprite.
+     */
+    private boolean isMultipleModeSprite(String path) {
+        try {
+            SpriteMetadata meta = AssetMetadata.load(path, SpriteMetadata.class);
+            return meta != null && meta.isMultiple();
+        } catch (Exception e) {
+            return false;
         }
     }
 
@@ -308,7 +313,7 @@ public class AssetPickerPopup {
 
                     isFirstSelectableItem = false;
                 } else {
-                    // Non-selectable header (spritesheet when selecting Sprite)
+                    // Non-selectable header (sprite grid when selecting Sprite)
                     ImGui.textDisabled(entry.displayName);
                 }
             }

@@ -10,7 +10,7 @@ import com.pocket.rpg.rendering.postfx.PostEffect;
 import com.pocket.rpg.rendering.postfx.PostProcessing;
 import com.pocket.rpg.rendering.postfx.effects.VignetteEffect;
 import com.pocket.rpg.rendering.resources.Sprite;
-import com.pocket.rpg.rendering.resources.SpriteSheet;
+import com.pocket.rpg.rendering.resources.SpriteGrid;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.ui.AnchorPreset;
 import com.pocket.rpg.components.ui.UIButton;
@@ -205,45 +205,40 @@ public class DemoScene extends Scene {
         var sprite = Assets.<Sprite>load("sprites/Road_16x16.png");
 
         // 16×16 pixel tiles with PPU=16 → each tile is 1×1 world units
-        SpriteSheet sheet = new SpriteSheet(sprite.getTexture(), 16, 16);
-        Assets.persist(sheet, "spritesheets/roads.spritesheet");
-        return sheet.generateAllSprites();
+        SpriteGrid grid = SpriteGrid.create(sprite.getTexture(), 16, 16);
+        return grid.getAllSprites();
     }
 
     private List<Sprite> getTrees() {
         var sprite = Assets.<Sprite>load("sprites/trees.png");
 
-        // 16×16 pixel tiles with PPU=16 → each tile is 1×1 world units
-        SpriteSheet sheet = new SpriteSheet(sprite.getTexture(), 32, 48);
-        Assets.persist(sheet, "spritesheets/trees.spritesheet");
-        return sheet.generateAllSprites();
+        // 32×48 pixel tiles
+        SpriteGrid grid = SpriteGrid.create(sprite.getTexture(), 32, 48);
+        return grid.getAllSprites();
     }
 
     private List<Sprite> getWater() {
         var sprite = Assets.<Sprite>load("sprites/water.png");
 
         // 16×16 pixel tiles with PPU=16 → each tile is 1×1 world units
-        SpriteSheet sheet = new SpriteSheet(sprite.getTexture(), 16, 16);
-        Assets.persist(sheet, "spritesheets/water.spritesheet");
-        return sheet.generateAllSprites();
+        SpriteGrid grid = SpriteGrid.create(sprite.getTexture(), 16, 16);
+        return grid.getAllSprites();
     }
 
     private List<Sprite> getHouses() {
         var sprite = Assets.<Sprite>load("sprites/Building6_64x96.png");
 
-        // 16×16 pixel tiles with PPU=16 → each tile is 1×1 world units
-        SpriteSheet sheet = new SpriteSheet(sprite.getTexture(), 64, 96);
-        Assets.persist(sheet, "spritesheets/buildings6.spritesheet");
-        return sheet.generateAllSprites();
+        // 64×96 pixel tiles
+        SpriteGrid grid = SpriteGrid.create(sprite.getTexture(), 64, 96);
+        return grid.getAllSprites();
     }
 
     private List<Sprite> getFences() {
         var sprite = Assets.<Sprite>load("sprites/Fence.png");
 
         // 16×16 pixel tiles with PPU=16 → each tile is 1×1 world units
-        SpriteSheet sheet = new SpriteSheet(sprite.getTexture(), 16, 16);
-        Assets.persist(sheet, "spritesheets/fences.spritesheet");
-        return sheet.generateAllSprites();
+        SpriteGrid grid = SpriteGrid.create(sprite.getTexture(), 16, 16);
+        return grid.getAllSprites();
     }
 
     private static List<Sprite> getOutdoorSprites() {
@@ -252,10 +247,8 @@ public class DemoScene extends Scene {
         var outdoorTex = Assets.<Sprite>load("sprites/Outdoors_misc.png");
 
         // 16×16 pixel tiles with PPU=16 → each tile is 1×1 world units
-        SpriteSheet levelSheet = new SpriteSheet(outdoorTex.getTexture(), 16, 16);
-        Assets.persist(levelSheet, "spritesheets/outdoor.spritesheet");
-        var sprites = levelSheet.generateAllSprites();
-        return sprites;
+        SpriteGrid grid = SpriteGrid.create(outdoorTex.getTexture(), 16, 16);
+        return grid.getAllSprites();
     }
 
     public int getRandomNumber(int min, int max) {
@@ -275,9 +268,9 @@ public class DemoScene extends Scene {
         var playerTex = Assets.<Sprite>load("sprites/characters/Char1_32x32.png");
 
         // 32×32 pixel sprites with PPU=16 → each frame is 2×2 world units
-        SpriteSheet playerSheet = new SpriteSheet(playerTex.getTexture(), 32, 32, 0, 0, 0, 16);
-        var sprites = playerSheet.generateAllSprites();
-        Assets.persist(playerSheet, "spritesheets/player.spritesheet");
+        // Note: offsetY of 16 in original was to skip a header row
+        SpriteGrid playerGrid = SpriteGrid.create(playerTex.getTexture(), 32, 32, 0, 0, 0, 16);
+        var sprites = playerGrid.getAllSprites();
 
         SpriteRenderer spriteRenderer = new SpriteRenderer();
         spriteRenderer.setSprite(sprites.get(0));

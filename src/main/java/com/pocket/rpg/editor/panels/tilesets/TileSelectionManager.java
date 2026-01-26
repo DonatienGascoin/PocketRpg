@@ -3,7 +3,6 @@ package com.pocket.rpg.editor.panels.tilesets;
 import com.pocket.rpg.editor.tileset.TileSelection;
 import com.pocket.rpg.editor.tileset.TilesetRegistry;
 import com.pocket.rpg.rendering.resources.Sprite;
-import com.pocket.rpg.rendering.resources.SpriteSheet;
 import lombok.Setter;
 
 import java.util.List;
@@ -73,7 +72,6 @@ public class TileSelectionManager {
         TilesetRegistry.TilesetEntry entry = TilesetRegistry.getInstance().getTileset(tilesetName);
         if (entry == null) return;
 
-        SpriteSheet sheet = entry.getSpriteSheet();
         List<Sprite> allSprites = entry.getSprites();
 
         int selectionWidth = selectionMaxDisplayX - selectionMinDisplayX + 1;

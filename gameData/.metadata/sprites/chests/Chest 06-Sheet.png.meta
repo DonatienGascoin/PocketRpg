@@ -1,0 +1,21 @@
+{
+  "spriteMode": "MULTIPLE",
+  "pixelsPerUnitOverride": null,
+  "pivotX": null,
+  "pivotY": null,
+  "nineSlice": null,
+  "grid": {
+    "spriteWidth": 32,
+    "spriteHeight": 32,
+    "spacingX": 16,
+    "spacingY": 0,
+    "offsetX": 8,
+    "offsetY": 8
+  },
+  "defaultPivot": {
+    "x": 0.5,
+    "y": 0.5
+  },
+  "defaultNineSlice": null,
+  "sprites": null
+}

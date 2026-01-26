@@ -2,7 +2,6 @@ package com.pocket.rpg.editor.panels.tilesets;
 
 import com.pocket.rpg.editor.tileset.TilesetRegistry;
 import com.pocket.rpg.rendering.resources.Sprite;
-import com.pocket.rpg.rendering.resources.SpriteSheet;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiMouseButton;
@@ -44,11 +43,10 @@ public class TileGridRenderer {
             return;
         }
 
-        SpriteSheet sheet = entry.getSpriteSheet();
         List<Sprite> sprites = entry.getSprites();
 
         if (sprites == null || sprites.isEmpty()) {
-            ImGui.textDisabled("No tiles in spritesheet");
+            ImGui.textDisabled("No tiles in tileset");
             return;
         }
 
@@ -59,8 +57,8 @@ public class TileGridRenderer {
         }
 
         int textureId = entry.getTexture().getTextureId();
-        int tilesPerRow = sheet.getColumns();
-        int tileCount = sheet.getTotalFrames();
+        int tilesPerRow = entry.getColumns();
+        int tileCount = entry.getTotalSprites();
 
         float availableWidth = ImGui.getContentRegionAvailX();
         float tileSlotSize = tileDisplaySize + 2;

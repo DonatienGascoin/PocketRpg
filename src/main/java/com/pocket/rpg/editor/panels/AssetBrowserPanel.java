@@ -7,8 +7,10 @@ import com.pocket.rpg.editor.assets.ThumbnailCache;
 import com.pocket.rpg.editor.core.EditorFonts;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.rendering.resources.Sprite;
-import com.pocket.rpg.rendering.resources.SpriteSheet;
+import com.pocket.rpg.rendering.resources.SpriteGrid;
+import com.pocket.rpg.resources.AssetMetadata;
 import com.pocket.rpg.resources.Assets;
+import com.pocket.rpg.resources.SpriteMetadata;
 import com.pocket.rpg.resources.EditorCapability;
 import imgui.ImGui;
 import imgui.flag.*;
@@ -29,7 +31,7 @@ import static imgui.flag.ImGuiKey.Escape;
  * - Right panel: Asset grid with thumbnails
  * - Breadcrumb navigation
  * - Search/filter
- * - SpriteSheet inline expansion
+ * - Multiple-mode sprite inline expansion
  * - Drag-drop source for scene placement
  * <p>
  * Drag payloads use unified path format (e.g., "sheets/player.spritesheet#3")
@@ -118,6 +120,7 @@ public class AssetBrowserPanel extends EditorPanel {
             return;
         }
         lastRefreshTime = now;
+        multipleModeCache.clear();
 
         // Scan all assets
         List<String> allPaths = Assets.scanAll();
@@ -451,7 +454,7 @@ public class AssetBrowserPanel extends EditorPanel {
 
     private void renderAssetListItem(AssetEntry entry) {
         boolean isSelected = entry == selectedAsset;
-        boolean isSpriteSheet = entry.type == SpriteSheet.class;
+        boolean isMultipleMode = isMultipleModeSprite(entry);
         boolean isExpanded = expandedSpritesheets.contains(entry.path);
 
         ImGui.pushID(entry.path);
@@ -478,8 +481,8 @@ public class AssetBrowserPanel extends EditorPanel {
             ImGui.popStyleColor(2);
         }
 
-        // SpriteSheet expand button on same line
-        if (isSpriteSheet) {
+        // Multiple-mode sprite expand button on same line
+        if (isMultipleMode) {
             ImGui.sameLine(ImGui.getContentRegionAvailX() - 20);
             String expandIcon = isExpanded ? MaterialIcons.ExpandLess : MaterialIcons.ExpandMore;
             if (ImGui.smallButton(expandIcon + "##expand_" + entry.path)) {
@@ -542,9 +545,10 @@ public class AssetBrowserPanel extends EditorPanel {
     }
 
     private void renderSpritesheetListChildren(AssetEntry entry) {
-        SpriteSheet sheet;
+        SpriteGrid grid;
         try {
-            sheet = Assets.load(entry.path, SpriteSheet.class);
+            Sprite parent = Assets.load(entry.path, Sprite.class);
+            grid = Assets.getSpriteGrid(parent);
         } catch (Exception e) {
             ImGui.indent(20);
             ImGui.textDisabled("Failed to load");
@@ -552,7 +556,7 @@ public class AssetBrowserPanel extends EditorPanel {
             return;
         }
 
-        if (sheet == null || sheet.getTotalFrames() == 0) {
+        if (grid == null || grid.getTotalSprites() == 0) {
             ImGui.indent(20);
             ImGui.textDisabled("Empty");
             ImGui.unindent(20);
@@ -560,7 +564,7 @@ public class AssetBrowserPanel extends EditorPanel {
         }
 
         ImGui.indent(20);
-        for (int i = 0; i < sheet.getTotalFrames(); i++) {
+        for (int i = 0; i < grid.getTotalSprites(); i++) {
             String spritePath = entry.path + "#" + i;
             ImGui.pushID(spritePath);
 
@@ -571,7 +575,7 @@ public class AssetBrowserPanel extends EditorPanel {
             // Drag source for individual sprite
             if (ImGui.beginDragDropSource(ImGuiDragDropFlags.SourceAllowNullID)) {
                 if (!AssetDragPayload.isDragCancelled()) {
-                    AssetDragPayload payload = AssetDragPayload.ofSpriteSheetSprite(entry.path, i);
+                    AssetDragPayload payload = AssetDragPayload.of(spritePath, Sprite.class);
                     ImGui.setDragDropPayload(AssetDragPayload.DRAG_TYPE, payload.serialize());
                     ImGui.text(entry.filename + "#" + i);
                 }
@@ -592,7 +596,7 @@ public class AssetBrowserPanel extends EditorPanel {
 
     private void renderAssetItem(AssetEntry entry, float thumbnailSize) {
         boolean isSelected = entry == selectedAsset;
-        boolean isSpriteSheet = entry.type == SpriteSheet.class;
+        boolean isMultipleMode = isMultipleModeSprite(entry);
         boolean isExpanded = expandedSpritesheets.contains(entry.path);
 
         ImGui.pushID(entry.path);
@@ -627,8 +631,8 @@ public class AssetBrowserPanel extends EditorPanel {
             ImGui.popStyleColor(2);
         }
 
-        // SpriteSheet expand/collapse button (Unity-style arrow)
-        if (isSpriteSheet) {
+        // Multiple-mode sprite expand/collapse button (Unity-style arrow)
+        if (isMultipleMode) {
             ImGui.sameLine(0, 2);
             String expandIcon = isExpanded ? MaterialIcons.ExpandLess : MaterialIcons.ExpandMore;
             if (ImGui.smallButton(expandIcon + "##expand_" + entry.path)) {
@@ -698,7 +702,7 @@ public class AssetBrowserPanel extends EditorPanel {
             ImGui.textDisabled("Type: " + entry.type.getSimpleName());
             ImGui.textDisabled("Path: " + entry.path);
 
-            if (isSpriteSheet) {
+            if (isMultipleMode) {
                 ImGui.separator();
                 ImGui.text(MaterialIcons.ExpandMore + " Click arrow to expand");
             }
@@ -741,17 +745,18 @@ public class AssetBrowserPanel extends EditorPanel {
     }
 
     private void renderSpritesheetChildren(AssetEntry entry, float parentThumbnailSize) {
-        // Load spritesheet if needed
-        SpriteSheet sheet;
+        // Load sprite grid
+        SpriteGrid grid;
         try {
-            sheet = Assets.load(entry.path, SpriteSheet.class);
+            Sprite parent = Assets.load(entry.path, Sprite.class);
+            grid = Assets.getSpriteGrid(parent);
         } catch (Exception e) {
-            ImGui.textDisabled("Failed to load spritesheet");
+            ImGui.textDisabled("Failed to load sprite grid");
             return;
         }
 
-        if (sheet == null || sheet.getTotalFrames() == 0) {
-            ImGui.textDisabled("Empty spritesheet");
+        if (grid == null || grid.getTotalSprites() == 0) {
+            ImGui.textDisabled("Empty sprite grid");
             return;
         }
 
@@ -764,21 +769,21 @@ public class AssetBrowserPanel extends EditorPanel {
         float windowWidth = ImGui.getContentRegionAvailX();
         int columns = Math.max(1, (int) (windowWidth / (childSize + THUMBNAIL_PADDING)));
 
-        int totalFrames = sheet.getTotalFrames();
-        for (int i = 0; i < totalFrames; i++) {
+        int totalSprites = grid.getTotalSprites();
+        for (int i = 0; i < totalSprites; i++) {
             if (i > 0 && i % columns != 0) {
                 ImGui.sameLine();
             }
 
-            renderSpritesheetSprite(entry, sheet, i, childSize);
+            renderSpritesheetSprite(entry, grid, i, childSize);
         }
 
         ImGui.unindent(20);
         ImGui.separator();
     }
 
-    private void renderSpritesheetSprite(AssetEntry sheetEntry, SpriteSheet sheet, int index, float size) {
-        Sprite sprite = sheet.getSprite(index);
+    private void renderSpritesheetSprite(AssetEntry sheetEntry, SpriteGrid grid, int index, float size) {
+        Sprite sprite = grid.getSprite(index);
         if (sprite == null) return;
 
         // Full path for this specific sprite
@@ -800,7 +805,7 @@ public class AssetBrowserPanel extends EditorPanel {
         // Drag source - use unified path format with #index
         if (ImGui.beginDragDropSource(ImGuiDragDropFlags.SourceAllowNullID)) {
             if (!AssetDragPayload.isDragCancelled()) {
-                AssetDragPayload payload = AssetDragPayload.ofSpriteSheetSprite(sheetEntry.path, index);
+                AssetDragPayload payload = AssetDragPayload.of(spritePath, Sprite.class);
                 ImGui.setDragDropPayload(AssetDragPayload.DRAG_TYPE, payload.serialize());
 
                 // Drag preview with sprite thumbnail
@@ -857,6 +862,35 @@ public class AssetBrowserPanel extends EditorPanel {
             expandedSpritesheets.remove(path);
         } else {
             expandedSpritesheets.add(path);
+        }
+    }
+
+    /** Cache for multiple-mode sprite checks */
+    private final Map<String, Boolean> multipleModeCache = new HashMap<>();
+
+    /**
+     * Checks if an asset entry is a MULTIPLE-mode sprite (tileset/spritesheet).
+     */
+    private boolean isMultipleModeSprite(AssetEntry entry) {
+        if (entry.type != Sprite.class) {
+            return false;
+        }
+
+        // Check cache first
+        Boolean cached = multipleModeCache.get(entry.path);
+        if (cached != null) {
+            return cached;
+        }
+
+        // Check metadata
+        try {
+            SpriteMetadata meta = AssetMetadata.load(entry.path, SpriteMetadata.class);
+            boolean isMultiple = meta != null && meta.isMultiple();
+            multipleModeCache.put(entry.path, isMultiple);
+            return isMultiple;
+        } catch (Exception e) {
+            multipleModeCache.put(entry.path, false);
+            return false;
         }
     }
 

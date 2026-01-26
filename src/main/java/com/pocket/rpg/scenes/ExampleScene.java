@@ -6,7 +6,7 @@ import com.pocket.rpg.components.ui.*;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.rendering.postfx.BloomEffect;
 import com.pocket.rpg.rendering.resources.Sprite;
-import com.pocket.rpg.rendering.resources.SpriteSheet;
+import com.pocket.rpg.rendering.resources.SpriteGrid;
 import com.pocket.rpg.rendering.resources.Texture;
 import com.pocket.rpg.ui.*;
 import org.joml.Vector3f;
@@ -344,10 +344,10 @@ public class ExampleScene extends Scene {
 
     private void createTightlyPackedAnimation() throws Exception {
         Texture texture = new Texture("gameData/assets/sheet_tight.png");
-        SpriteSheet sheet = new SpriteSheet(texture, 32, 32);
+        SpriteGrid grid = SpriteGrid.create(texture, 32, 32);
 
         GameObject entity = new GameObject("TightPacked", new Vector3f(100, 150, 0));
-        List<Sprite> frames = sheet.generateAllSprites(48, 48);
+        List<Sprite> frames = grid.getAllSprites();
 
         SpriteRenderer renderer = new SpriteRenderer(); renderer.setSprite(frames.get(0));
         entity.addComponent(renderer);
@@ -359,10 +359,10 @@ public class ExampleScene extends Scene {
 
     private void createUniformSpacingAnimation() throws Exception {
         Texture texture = new Texture("gameData/assets/sheet_spacing.png");
-        SpriteSheet sheet = new SpriteSheet(texture, 32, 32, 2);
+        SpriteGrid grid = SpriteGrid.create(texture, 32, 32, 2);
 
         GameObject entity = new GameObject("UniformSpacing", new Vector3f(200, 150, 0));
-        List<Sprite> frames = sheet.generateAllSprites(48, 48);
+        List<Sprite> frames = grid.getAllSprites();
 
         SpriteRenderer renderer = new SpriteRenderer(); renderer.setSprite(frames.get(0));
         entity.addComponent(renderer);
@@ -374,10 +374,10 @@ public class ExampleScene extends Scene {
 
     private void createXYSpacingAnimation() throws Exception {
         Texture texture = new Texture("gameData/assets/sheet_xy_spacing.png");
-        SpriteSheet sheet = new SpriteSheet(texture, 32, 32, 4, 2, 0, 0);
+        SpriteGrid grid = SpriteGrid.create(texture, 32, 32, 4, 2, 0, 0);
 
         GameObject entity = new GameObject("XYSpacing", new Vector3f(300, 150, 0));
-        List<Sprite> frames = sheet.generateAllSprites(48, 48);
+        List<Sprite> frames = grid.getAllSprites();
 
         SpriteRenderer renderer = new SpriteRenderer(); renderer.setSprite(frames.get(0));
         entity.addComponent(renderer);
@@ -389,10 +389,10 @@ public class ExampleScene extends Scene {
 
     private void createMarginAnimation() throws Exception {
         Texture texture = new Texture("gameData/assets/sheet_margin.png");
-        SpriteSheet sheet = new SpriteSheet(texture, 32, 32, 0, 0, 8, 8);
+        SpriteGrid grid = SpriteGrid.create(texture, 32, 32, 0, 0, 8, 8);
 
         GameObject entity = new GameObject("Margin", new Vector3f(400, 150, 0));
-        List<Sprite> frames = sheet.generateAllSprites(48, 48);
+        List<Sprite> frames = grid.getAllSprites();
 
         SpriteRenderer renderer = new SpriteRenderer(); renderer.setSprite(frames.get(0));
         entity.addComponent(renderer);
@@ -404,10 +404,10 @@ public class ExampleScene extends Scene {
 
     private void createComplexAnimation() throws Exception {
         Texture texture = new Texture("gameData/assets/sheet_complex.png");
-        SpriteSheet sheet = new SpriteSheet(texture, 32, 32, 2, 4, 8, 8);
+        SpriteGrid grid = SpriteGrid.create(texture, 32, 32, 2, 4, 8, 8);
 
         GameObject entity = new GameObject("Complex", new Vector3f(500, 150, 0));
-        List<Sprite> frames = sheet.generateAllSprites(48, 48);
+        List<Sprite> frames = grid.getAllSprites();
 
         SpriteRenderer renderer = new SpriteRenderer(); renderer.setSprite(frames.get(0));
         entity.addComponent(renderer);
@@ -480,8 +480,8 @@ public class ExampleScene extends Scene {
 
     private void createSharedSpriteEntities() throws Exception {
         Texture texture = new Texture("gameData/assets/sheet_tight.png");
-        SpriteSheet sheet = new SpriteSheet(texture, 32, 32);
-        List<Sprite> sharedFrames = sheet.generateAllSprites(32, 32);
+        SpriteGrid grid = SpriteGrid.create(texture, 32, 32);
+        List<Sprite> sharedFrames = grid.getAllSprites();
 
         for (int i = 0; i < 10; i++) {
             GameObject entity = new GameObject("Shared_" + i,

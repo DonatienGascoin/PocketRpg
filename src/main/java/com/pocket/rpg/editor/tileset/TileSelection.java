@@ -1,7 +1,6 @@
 package com.pocket.rpg.editor.tileset;
 
 import com.pocket.rpg.rendering.resources.Sprite;
-import com.pocket.rpg.rendering.resources.SpriteSheet;
 import lombok.Getter;
 
 import java.util.List;
@@ -201,9 +200,8 @@ public class TileSelection {
                 return null;
             }
 
-            SpriteSheet sheet = entry.getSpriteSheet();
             List<Sprite> allSprites = entry.getSprites();
-            int tilesPerRow = sheet.getColumns();
+            int tilesPerRow = entry.getColumns();
 
             int width = endX - startX + 1;
             int height = endY - startY + 1;

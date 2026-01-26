@@ -1,56 +1,66 @@
 package com.pocket.rpg.editor.panels;
 
-import com.pocket.rpg.editor.assets.AssetPreviewRegistry;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.spriteeditor.NineSliceEditorTab;
 import com.pocket.rpg.editor.panels.spriteeditor.PivotEditorTab;
-import com.pocket.rpg.editor.panels.spriteeditor.SpritePreviewRenderer;
+import com.pocket.rpg.editor.panels.spriteeditor.SlicingEditorTab;
+import com.pocket.rpg.editor.panels.spriteeditor.TextureBrowserDialog;
+import com.pocket.rpg.editor.panels.spriteeditor.TexturePreviewRenderer;
 import com.pocket.rpg.rendering.resources.NineSliceData;
 import com.pocket.rpg.rendering.resources.Sprite;
-import com.pocket.rpg.rendering.resources.SpriteSheet;
+import com.pocket.rpg.rendering.resources.SpriteGrid;
+import com.pocket.rpg.rendering.resources.Texture;
 import com.pocket.rpg.resources.AssetMetadata;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.resources.SpriteMetadata;
-import com.pocket.rpg.resources.loaders.SpriteSheetLoader;
-import imgui.ImDrawList;
+import com.pocket.rpg.resources.SpriteMetadata.GridSettings;
+import com.pocket.rpg.resources.SpriteMetadata.PivotData;
 import imgui.ImGui;
 import imgui.ImVec2;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiInputTextFlags;
+import imgui.flag.ImGuiKey;
+import imgui.flag.ImGuiTabItemFlags;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * Modal panel for editing sprite metadata (pivot points and 9-slice borders).
+ * Sprite Editor - Full texture view with grid overlay and click-to-select.
  * <p>
- * Accessible from:
+ * Features:
  * <ul>
- *   <li>Main menu: Edit &gt; Sprite Editor...</li>
- *   <li>Asset Browser: Right-click on sprite/spritesheet &gt; "Sprite Editor..."</li>
- *   <li>Asset Browser: Double-click on sprite/spritesheet</li>
+ *   <li>Full texture preview (not just individual sprites)</li>
+ *   <li>Grid overlay for multiple mode spritesheets</li>
+ *   <li>Click-to-select sprites in the preview</li>
+ *   <li>Mode switching (Single ↔ Multiple)</li>
+ *   <li>Tabs: Slicing (multiple only), Pivot, 9-Slice</li>
  * </ul>
  */
-public class SpriteEditorPanel {
+public class SpriteEditorPanel implements
+        SlicingEditorTab.OnChangeListener,
+        PivotEditorTab.Listener,
+        NineSliceEditorTab.Listener {
 
     // ========================================================================
     // CONSTANTS
     // ========================================================================
 
     private static final String POPUP_ID = "Sprite Editor";
+    private static final float SIDEBAR_WIDTH = 250f;
 
     // ========================================================================
-    // TAB STATE
+    // ENUMS
     // ========================================================================
 
     public enum EditorTab {
+        SLICING,
         PIVOT,
         NINE_SLICE
     }
-
-    private EditorTab activeTab = EditorTab.PIVOT;
 
     // ========================================================================
     // STATE
@@ -60,38 +70,62 @@ public class SpriteEditorPanel {
     private boolean isOpen = false;
 
     // Current asset
-    private String assetPath = null;
-    private Sprite sprite = null;
-    private SpriteSheet spriteSheet = null;
-    private boolean isSpriteSheet = false;
+    private String texturePath = null;
+    private Texture texture = null;
+    private SpriteMetadata metadata = null;
+    private SpriteMetadata originalMetadata = null;
+    private boolean hasUnsavedChanges = false;
 
-    // Sprite sheet mode
+    // Mode state
+    private boolean isMultipleMode = false;
+    private SpriteGrid spriteGrid = null;
     private int selectedSpriteIndex = 0;
-    private boolean applyToAllSprites = true;
 
-    // Asset picker state
-    private boolean showAssetPicker = false;
-    private final imgui.type.ImString assetSearchBuffer = new imgui.type.ImString(128);
-    private String previewAssetPath = null;
-    private Object previewAsset = null;
-    private int assetPickerTab = 0;
+    // UI state
+    private EditorTab activeTab = EditorTab.PIVOT;
+    private EditorTab forceSelectTab = null; // Set to force-select a tab on next frame
 
-    // Components
-    private final SpritePreviewRenderer previewRenderer;
+    // Tab components
+    private final TexturePreviewRenderer previewRenderer;
+    private final SlicingEditorTab slicingTab;
     private final PivotEditorTab pivotTab;
     private final NineSliceEditorTab nineSliceTab;
 
-    // Status callback
+    // Asset browser dialog
+    private final TextureBrowserDialog textureBrowserDialog;
+
+    // Confirmation dialogs
+    private boolean showSingleModeConfirmation = false;
+
+    // Undo/Redo state (local to editor session)
+    private final java.util.Deque<SpriteMetadata> undoStack = new java.util.ArrayDeque<>();
+    private final java.util.Deque<SpriteMetadata> redoStack = new java.util.ArrayDeque<>();
+    private static final int MAX_UNDO_HISTORY = 50;
+    private SpriteMetadata lastPushedState = null;
+    private long lastUndoPushTime = 0;
+    private static final long UNDO_DEBOUNCE_MS = 300; // Debounce rapid changes (drag operations)
+
+    // Callbacks
     private Consumer<String> statusCallback;
+    private Runnable onSaveCallback;
 
     // ========================================================================
     // CONSTRUCTOR
     // ========================================================================
 
     public SpriteEditorPanel() {
-        this.previewRenderer = new SpritePreviewRenderer();
-        this.pivotTab = new PivotEditorTab(previewRenderer);
-        this.nineSliceTab = new NineSliceEditorTab(previewRenderer);
+        this.previewRenderer = new TexturePreviewRenderer();
+
+        this.slicingTab = new SlicingEditorTab();
+        this.slicingTab.setOnChangeListener(this);
+
+        this.pivotTab = new PivotEditorTab();
+        this.pivotTab.setListener(this);
+
+        this.nineSliceTab = new NineSliceEditorTab();
+        this.nineSliceTab.setListener(this);
+
+        this.textureBrowserDialog = new TextureBrowserDialog();
     }
 
     // ========================================================================
@@ -99,26 +133,29 @@ public class SpriteEditorPanel {
     // ========================================================================
 
     /**
-     * Opens the sprite editor for the specified asset.
+     * Opens the sprite editor for the specified texture path.
      */
     public void open(String path) {
         if (path == null || path.isEmpty()) {
             return;
         }
-        this.assetPath = path;
+        this.texturePath = path;
         this.shouldOpen = true;
-        loadAsset(path);
+        loadTexture(path);
     }
 
     /**
-     * Opens the sprite editor without a pre-selected asset.
+     * Opens the sprite editor without a pre-selected texture.
      */
     public void open() {
         this.shouldOpen = true;
-        this.assetPath = null;
-        this.sprite = null;
-        this.spriteSheet = null;
-        this.isSpriteSheet = false;
+        this.texturePath = null;
+        this.texture = null;
+        this.metadata = null;
+        this.originalMetadata = null;
+        this.spriteGrid = null;
+        this.isMultipleMode = false;
+        this.hasUnsavedChanges = false;
     }
 
     public boolean isOpen() {
@@ -137,6 +174,76 @@ public class SpriteEditorPanel {
         this.statusCallback = callback;
     }
 
+    public void setOnSaveCallback(Runnable callback) {
+        this.onSaveCallback = callback;
+    }
+
+    // ========================================================================
+    // TAB CALLBACKS - SlicingEditorTab.OnChangeListener
+    // ========================================================================
+
+    @Override
+    public void onGridSettingsChanged(GridSettings settings) {
+        if (metadata == null || !isMultipleMode) return;
+
+        pushUndoState();
+        metadata.grid = settings;
+        markDirty();
+    }
+
+    // ========================================================================
+    // TAB CALLBACKS - PivotEditorTab.Listener
+    // ========================================================================
+
+    @Override
+    public void onPivotChanged(float pivotX, float pivotY) {
+        pushUndoState(); // Debounced for drag operations
+        markDirty();
+    }
+
+    @Override
+    public void onApplyToAllChanged(boolean applyToAll, float pivotX, float pivotY) {
+        if (!applyToAll && metadata != null) {
+            pushUndoState(true); // Force push for discrete action
+            // Turning OFF "Apply to All" - save current value to all sprites
+            PivotData pivotData = new PivotData(pivotX, pivotY);
+            int totalCells = previewRenderer.getTotalCells();
+            for (int i = 0; i < totalCells; i++) {
+                setSpriteOverrideDirect(i, pivotData.copy(), null, true, false);
+            }
+            markDirty();
+        }
+    }
+
+    @Override
+    public void onCellSelected(int cellIndex) {
+        selectSprite(cellIndex);
+    }
+
+    // ========================================================================
+    // TAB CALLBACKS - NineSliceEditorTab.Listener
+    // ========================================================================
+
+    @Override
+    public void onSliceChanged(int left, int right, int top, int bottom) {
+        pushUndoState(); // Debounced for drag operations
+        markDirty();
+    }
+
+    @Override
+    public void onApplyToAllChanged(boolean applyToAll, NineSliceData sliceData) {
+        if (!applyToAll && metadata != null) {
+            pushUndoState(true); // Force push for discrete action
+            // Turning OFF "Apply to All" - save current value to all sprites
+            NineSliceData sliceToStore = sliceData.hasSlicing() ? sliceData : null;
+            int totalCells = previewRenderer.getTotalCells();
+            for (int i = 0; i < totalCells; i++) {
+                setSpriteOverrideDirect(i, null, sliceToStore != null ? sliceToStore.copy() : null, false, true);
+            }
+            markDirty();
+        }
+    }
+
     // ========================================================================
     // RENDERING
     // ========================================================================
@@ -148,12 +255,13 @@ public class SpriteEditorPanel {
             isOpen = true;
         }
 
-        ImGui.setNextWindowSize(800, 750);
+        ImGui.setNextWindowSize(1000, 750);
 
         ImBoolean pOpen = new ImBoolean(true);
         int flags = ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoScrollbar;
 
         if (ImGui.beginPopupModal(POPUP_ID, pOpen, flags)) {
+            handleKeyboardShortcuts();
             renderContent();
             ImGui.endPopup();
         }
@@ -164,155 +272,83 @@ public class SpriteEditorPanel {
     }
 
     private void renderContent() {
-        renderAssetSelector();
+        // Header: Asset selector and mode
+        renderHeader();
         ImGui.separator();
 
-        Sprite currentSprite = getCurrentSprite();
+        // Calculate layout dimensions
+        float footerHeight = 40;
+        float contentHeight = ImGui.getContentRegionAvailY() - footerHeight;
 
-        if (currentSprite == null) {
-            ImGui.textDisabled("Select an asset to edit.");
-            renderFooter(null);
-            return;
-        }
-
-        // Tab bar
-        if (ImGui.beginTabBar("SpriteEditorTabs")) {
-            if (ImGui.beginTabItem("Pivot")) {
-                activeTab = EditorTab.PIVOT;
-                ImGui.endTabItem();
+        if (texture == null) {
+            // No asset - show placeholder in content area
+            if (ImGui.beginChild("NoAssetContent", 0, contentHeight, false)) {
+                renderNoAssetMessage();
             }
-            if (ImGui.beginTabItem("9-Slice")) {
-                activeTab = EditorTab.NINE_SLICE;
-                ImGui.endTabItem();
-            }
-            ImGui.endTabBar();
-        }
-
-        // Calculate available height
-        float footerHeight = 45;
-        float spriteSheetHeight = (isSpriteSheet && spriteSheet != null) ? 165 : 0;
-        float reservedHeight = footerHeight + spriteSheetHeight + 25;
-
-        float availableWidth = ImGui.getContentRegionAvailX();
-        float availableHeight = ImGui.getContentRegionAvailY() - reservedHeight;
-
-        // Render active tab
-        if (activeTab == EditorTab.PIVOT) {
-            pivotTab.render(currentSprite, availableWidth, availableHeight);
+            ImGui.endChild();
         } else {
-            nineSliceTab.render(currentSprite, availableWidth, availableHeight);
+            // Tab bar
+            renderTabBar();
+
+            // Main content area (preview + sidebar)
+            float remainingHeight = ImGui.getContentRegionAvailY() - footerHeight;
+
+            if (ImGui.beginChild("MainContent", 0, remainingHeight, false)) {
+                float availableWidth = ImGui.getContentRegionAvailX();
+                float previewWidth = availableWidth - SIDEBAR_WIDTH - 10;
+
+                // Preview area (left)
+                if (ImGui.beginChild("PreviewArea", previewWidth, 0, true)) {
+                    renderPreview();
+                }
+                ImGui.endChild();
+
+                ImGui.sameLine();
+
+                // Sidebar (right)
+                if (ImGui.beginChild("Sidebar", SIDEBAR_WIDTH, 0, true)) {
+                    renderSidebar();
+                }
+                ImGui.endChild();
+            }
+            ImGui.endChild();
         }
 
-        // Sprite sheet selector
-        if (isSpriteSheet && spriteSheet != null) {
-            ImGui.separator();
-            renderSpriteSheetSelector();
-        }
-
-        // Footer
+        // Footer (always at bottom)
         ImGui.separator();
-        renderFooter(currentSprite);
+        renderFooter();
+
+        // Asset browser dialog (always rendered so it can open)
+        textureBrowserDialog.render();
+
+        // Confirmation dialogs
+        renderSingleModeConfirmation();
     }
 
-    // ========================================================================
-    // ASSET SELECTOR
-    // ========================================================================
-
-    private void renderAssetSelector() {
-        float padding = 10;
-
-        ImGui.text("Asset:");
-        ImGui.sameLine();
-
-        String displayPath = assetPath != null ? assetPath : "(None selected)";
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() - 90 - padding);
-        ImGui.inputText("##AssetPath", new imgui.type.ImString(displayPath, 256),
-                ImGuiInputTextFlags.ReadOnly);
-
-        ImGui.sameLine();
-
-        if (ImGui.button(MaterialIcons.FolderOpen + " Browse")) {
-            showAssetPicker = true;
-            assetSearchBuffer.set("");
+    private void renderSingleModeConfirmation() {
+        if (showSingleModeConfirmation) {
+            ImGui.openPopup("Convert to Single Mode?");
+            showSingleModeConfirmation = false;
         }
 
-        ImGui.sameLine();
-        ImGui.dummy(padding, 0);
-
-        renderAssetPickerPopup();
-    }
-
-    private void renderAssetPickerPopup() {
-        if (showAssetPicker) {
-            ImGui.openPopup("Select Asset##SpriteEditor");
-            showAssetPicker = false;
-            previewAssetPath = null;
-            previewAsset = null;
-        }
-
-        ImGui.setNextWindowSize(600, 420);
-        if (ImGui.beginPopupModal("Select Asset##SpriteEditor", ImGuiWindowFlags.NoResize)) {
-            ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-            ImGui.inputTextWithHint("##search", "Search...", assetSearchBuffer);
-
+        ImGui.setNextWindowSize(350, 0);
+        if (ImGui.beginPopupModal("Convert to Single Mode?")) {
+            ImGui.textWrapped("Converting to Single mode will discard per-sprite pivot and 9-slice data.");
+            ImGui.spacing();
+            ImGui.textWrapped("Sprite #0's values will be used for the single sprite.");
+            ImGui.spacing();
             ImGui.separator();
+            ImGui.spacing();
 
-            java.util.List<String> spriteAssets = Assets.scanByType(Sprite.class);
-            java.util.List<String> sheetAssets = Assets.scanByType(SpriteSheet.class);
-            String filter = assetSearchBuffer.get().toLowerCase();
-
-            float contentHeight = ImGui.getContentRegionAvailY() - 35;
-            float leftWidth = 300;
-            float rightWidth = ImGui.getContentRegionAvailX() - leftWidth - 10;
-
-            if (ImGui.beginChild("LeftPanel", leftWidth, contentHeight, true)) {
-                if (ImGui.beginTabBar("AssetTypeTabs")) {
-                    if (ImGui.beginTabItem(MaterialIcons.Image + " Sprites (" + spriteAssets.size() + ")")) {
-                        assetPickerTab = 0;
-                        renderAssetList(spriteAssets, filter, Sprite.class);
-                        ImGui.endTabItem();
-                    }
-                    if (ImGui.beginTabItem(MaterialIcons.GridView + " Sheets (" + sheetAssets.size() + ")")) {
-                        assetPickerTab = 1;
-                        renderAssetList(sheetAssets, filter, SpriteSheet.class);
-                        ImGui.endTabItem();
-                    }
-                    ImGui.endTabBar();
-                }
-            }
-            ImGui.endChild();
-
-            ImGui.sameLine();
-
-            if (ImGui.beginChild("RightPanel", rightWidth, contentHeight, true)) {
-                ImGui.text("Preview");
-                ImGui.separator();
-
-                if (previewAsset != null) {
-                    ImGui.textDisabled(previewAssetPath);
-                    ImGui.spacing();
-                    float previewMaxSize = Math.min(rightWidth - 20, contentHeight - 80);
-                    AssetPreviewRegistry.render(previewAsset, previewMaxSize);
-                } else {
-                    ImGui.textDisabled("Select an asset to preview");
-                }
-            }
-            ImGui.endChild();
-
-            ImGui.separator();
             float buttonWidth = 80;
-            float totalButtonWidth = buttonWidth * 2 + 10;
-            ImGui.setCursorPosX((ImGui.getContentRegionAvailX() - totalButtonWidth) / 2);
+            float totalWidth = buttonWidth * 2 + 10;
+            float startX = (ImGui.getContentRegionAvailX() - totalWidth) / 2;
+            ImGui.setCursorPosX(ImGui.getCursorPosX() + startX);
 
-            boolean canLoad = previewAssetPath != null;
-            if (!canLoad) ImGui.beginDisabled();
-            if (ImGui.button("Load", buttonWidth, 0)) {
-                loadAsset(previewAssetPath);
-                assetPath = previewAssetPath;
+            if (ImGui.button("Convert", buttonWidth, 0)) {
+                switchToSingleMode();
                 ImGui.closeCurrentPopup();
             }
-            if (!canLoad) ImGui.endDisabled();
-
             ImGui.sameLine();
             if (ImGui.button("Cancel", buttonWidth, 0)) {
                 ImGui.closeCurrentPopup();
@@ -322,130 +358,171 @@ public class SpriteEditorPanel {
         }
     }
 
-    private void renderAssetList(java.util.List<String> assets, String filter, Class<?> assetType) {
-        for (String path : assets) {
-            if (!filter.isEmpty() && !path.toLowerCase().contains(filter)) {
-                continue;
-            }
-
-            boolean isSelected = path.equals(previewAssetPath);
-            if (ImGui.selectable(getFileName(path), isSelected)) {
-                loadPreviewAsset(path, assetType);
-            }
-
-            if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(0)) {
-                loadAsset(path);
-                assetPath = path;
-                ImGui.closeCurrentPopup();
-            }
-
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(path);
-            }
-        }
-    }
-
-    private void loadPreviewAsset(String path, Class<?> assetType) {
-        if (path.equals(previewAssetPath)) return;
-
-        previewAssetPath = path;
-        previewAsset = null;
-
-        try {
-            previewAsset = Assets.load(path, assetType);
-        } catch (Exception e) {
-            System.err.println("[SpriteEditorPanel] Failed to load preview: " + e.getMessage());
-        }
-    }
-
     // ========================================================================
-    // SPRITE SHEET SELECTOR
+    // HEADER
     // ========================================================================
 
-    private void renderSpriteSheetSelector() {
-        if (spriteSheet == null) return;
-
-        ImGui.text("Sprite Sheet Mode");
-        ImGui.spacing();
-
-        if (ImGui.radioButton("Apply to All Sprites", applyToAllSprites)) {
-            applyToAllSprites = true;
-        }
+    private void renderHeader() {
+        // Row 1: Asset path and Browse button
+        ImGui.text("Asset:");
         ImGui.sameLine();
-        if (ImGui.radioButton("Apply to Selected Only", !applyToAllSprites)) {
-            applyToAllSprites = false;
+
+        String displayPath = texturePath != null ? texturePath : "(None selected)";
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() - 100);
+        ImGui.inputText("##AssetPath", new imgui.type.ImString(displayPath, 256),
+                ImGuiInputTextFlags.ReadOnly);
+
+        ImGui.sameLine();
+
+        if (ImGui.button(MaterialIcons.FolderOpen + " Browse")) {
+            textureBrowserDialog.open(this::onTextureSelected);
         }
 
-        ImGui.spacing();
-        ImGui.text("Select Sprite:");
+        // Row 2: Mode selector
+        if (texture != null) {
+            ImGui.text("Mode:");
+            ImGui.sameLine();
 
-        int totalSprites = spriteSheet.getTotalFrames();
-        float previewSize = 48;
-        float spacing = 4;
-        float availWidth = ImGui.getContentRegionAvailX();
-        int columns = Math.max(1, (int) ((availWidth + spacing) / (previewSize + spacing)));
-
-        if (ImGui.beginChild("SpriteGrid", 0, 90, true)) {
-            ImDrawList drawList = ImGui.getWindowDrawList();
-
-            for (int i = 0; i < totalSprites; i++) {
-                if (i > 0 && i % columns != 0) {
-                    ImGui.sameLine(0, spacing);
+            if (ImGui.radioButton("Single", !isMultipleMode)) {
+                if (isMultipleMode) {
+                    showSingleModeConfirmation = true;
                 }
-
-                Sprite frameSprite = spriteSheet.getSprite(i);
-                if (frameSprite == null || frameSprite.getTexture() == null) continue;
-
-                boolean isSelected = i == selectedSpriteIndex;
-                ImVec2 cursorPos = ImGui.getCursorScreenPos();
-
-                if (isSelected) {
-                    int highlightColor = ImGui.colorConvertFloat4ToU32(0.3f, 0.6f, 1.0f, 0.5f);
-                    drawList.addRectFilled(
-                            cursorPos.x - 2, cursorPos.y - 2,
-                            cursorPos.x + previewSize + 2, cursorPos.y + previewSize + 2,
-                            highlightColor, 4);
-                }
-
-                ImGui.pushID(i);
-                if (ImGui.invisibleButton("##sprite", previewSize, previewSize)) {
-                    selectedSpriteIndex = i;
-                    loadPivotForSelectedSprite();
-                }
-                ImGui.popID();
-
-                int texId = frameSprite.getTexture().getTextureId();
-                drawList.addImage(texId,
-                        cursorPos.x, cursorPos.y,
-                        cursorPos.x + previewSize, cursorPos.y + previewSize,
-                        frameSprite.getU0(), frameSprite.getV1(), frameSprite.getU1(), frameSprite.getV0());
-
-                int borderColor = isSelected
-                        ? ImGui.colorConvertFloat4ToU32(0.3f, 0.6f, 1.0f, 1.0f)
-                        : ImGui.colorConvertFloat4ToU32(0.5f, 0.5f, 0.5f, 0.5f);
-                drawList.addRect(cursorPos.x, cursorPos.y,
-                        cursorPos.x + previewSize, cursorPos.y + previewSize, borderColor);
-
-                if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("Sprite #" + i);
+            }
+            ImGui.sameLine();
+            if (ImGui.radioButton("Multiple", isMultipleMode)) {
+                if (!isMultipleMode) {
+                    switchToMultipleMode();
                 }
             }
         }
-        ImGui.endChild();
+    }
+
+    // ========================================================================
+    // TAB BAR
+    // ========================================================================
+
+    private void renderTabBar() {
+        if (ImGui.beginTabBar("SpriteEditorTabs")) {
+            // Slicing tab (only visible in multiple mode)
+            if (isMultipleMode) {
+                int slicingFlags = (forceSelectTab == EditorTab.SLICING) ? ImGuiTabItemFlags.SetSelected : 0;
+                if (ImGui.beginTabItem("Slicing", slicingFlags)) {
+                    activeTab = EditorTab.SLICING;
+                    ImGui.endTabItem();
+                }
+            }
+
+            int pivotFlags = (forceSelectTab == EditorTab.PIVOT) ? ImGuiTabItemFlags.SetSelected : 0;
+            if (ImGui.beginTabItem("Pivot", pivotFlags)) {
+                activeTab = EditorTab.PIVOT;
+                ImGui.endTabItem();
+            }
+
+            int nineSliceFlags = (forceSelectTab == EditorTab.NINE_SLICE) ? ImGuiTabItemFlags.SetSelected : 0;
+            if (ImGui.beginTabItem("9-Slice", nineSliceFlags)) {
+                activeTab = EditorTab.NINE_SLICE;
+                ImGui.endTabItem();
+            }
+
+            ImGui.endTabBar();
+
+            // Clear force-select after one frame
+            forceSelectTab = null;
+        }
+    }
+
+    // ========================================================================
+    // PREVIEW
+    // ========================================================================
+
+    private void renderPreview() {
+        float availWidth = ImGui.getContentRegionAvailX();
+        float availHeight = ImGui.getContentRegionAvailY();
+
+        if (previewRenderer.beginPreview(texture, metadata, availWidth, availHeight)) {
+            // Draw grid overlay in multiple mode
+            if (isMultipleMode) {
+                previewRenderer.drawGridOverlay();
+
+                if (activeTab == EditorTab.SLICING) {
+                    previewRenderer.drawCellNumbers();
+                }
+            }
+
+            // Draw tab-specific overlays
+            switch (activeTab) {
+                case SLICING -> {
+                    // Grid overlay already drawn above
+                }
+                case PIVOT -> {
+                    pivotTab.drawPreviewOverlay(previewRenderer, metadata);
+                }
+                case NINE_SLICE -> {
+                    nineSliceTab.drawPreviewOverlay(previewRenderer, metadata);
+                }
+            }
+
+            // Handle interaction
+            handlePreviewInteraction();
+
+            previewRenderer.endPreview();
+        }
+    }
+
+    private void handlePreviewInteraction() {
+        switch (activeTab) {
+            case SLICING -> {
+                // Slicing tab doesn't have special preview interaction
+                handleCellSelection();
+            }
+            case PIVOT -> {
+                if (!pivotTab.handleInteraction(previewRenderer)) {
+                    // Pivot tab didn't handle it
+                }
+            }
+            case NINE_SLICE -> {
+                if (!nineSliceTab.handleInteraction(previewRenderer)) {
+                    // Nine-slice tab didn't handle it
+                }
+            }
+        }
+    }
+
+    private void handleCellSelection() {
+        if (previewRenderer.isHovered() && !previewRenderer.isPanning() &&
+                ImGui.isMouseClicked(imgui.flag.ImGuiMouseButton.Left)) {
+            ImVec2 mousePos = ImGui.getMousePos();
+            int hitCell = previewRenderer.hitTestCell(mousePos.x, mousePos.y);
+            if (hitCell >= 0 && hitCell != selectedSpriteIndex) {
+                selectSprite(hitCell);
+            }
+        }
+    }
+
+    // ========================================================================
+    // SIDEBAR
+    // ========================================================================
+
+    private void renderSidebar() {
+        switch (activeTab) {
+            case SLICING -> slicingTab.renderSidebar(texture, metadata);
+            case PIVOT -> pivotTab.renderSidebar(texture, metadata);
+            case NINE_SLICE -> nineSliceTab.renderSidebar(texture, metadata);
+        }
     }
 
     // ========================================================================
     // FOOTER
     // ========================================================================
 
-    private void renderFooter(Sprite currentSprite) {
+    private void renderFooter() {
         // Zoom controls
         ImGui.text("Zoom:");
         ImGui.sameLine();
-        ImGui.setNextItemWidth(100);
+        ImGui.setNextItemWidth(120);
         float[] zoomArr = {previewRenderer.getZoom()};
-        if (ImGui.sliderFloat("##Zoom", zoomArr, SpritePreviewRenderer.MIN_ZOOM,
-                SpritePreviewRenderer.MAX_ZOOM, "%.1fx")) {
+        if (ImGui.sliderFloat("##Zoom", zoomArr, TexturePreviewRenderer.MIN_ZOOM,
+                TexturePreviewRenderer.MAX_ZOOM, "%.2fx")) {
             previewRenderer.setZoom(zoomArr[0]);
         }
         ImGui.sameLine();
@@ -457,10 +534,10 @@ public class SpriteEditorPanel {
         }
         ImGui.sameLine();
         if (ImGui.smallButton("Fit")) {
-            previewRenderer.fit(currentSprite, previewRenderer.getAreaWidth(), previewRenderer.getAreaHeight());
+            previewRenderer.fit(texture, previewRenderer.getAreaWidth(), previewRenderer.getAreaHeight());
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("Fit sprite to preview area");
+            ImGui.setTooltip("Fit texture to preview area");
         }
 
         // Buttons on the right
@@ -469,8 +546,7 @@ public class SpriteEditorPanel {
         ImGui.sameLine(ImGui.getContentRegionAvailX() - totalWidth);
 
         if (ImGui.button("Cancel", buttonWidth, 0)) {
-            pivotTab.revertToOriginal();
-            nineSliceTab.revertToOriginal();
+            revertChanges();
             ImGui.closeCurrentPopup();
             isOpen = false;
         }
@@ -481,17 +557,50 @@ public class SpriteEditorPanel {
         ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.3f, 0.6f, 0.3f, 1f);
         ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.4f, 0.7f, 0.4f, 1f);
         if (ImGui.button(MaterialIcons.Save + " Save", buttonWidth, 0)) {
-            if (activeTab == EditorTab.PIVOT) {
-                applyPivot(true);
-            } else {
-                applyNineSlice(true);
-            }
+            saveChanges();
         }
         ImGui.popStyleColor(3);
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(activeTab == EditorTab.PIVOT
-                    ? "Save pivot to metadata file"
-                    : "Save 9-slice to metadata file");
+            ImGui.setTooltip("Save changes to metadata file");
+        }
+    }
+
+    // ========================================================================
+    // NO ASSET MESSAGE
+    // ========================================================================
+
+    private void renderNoAssetMessage() {
+        float centerX = ImGui.getContentRegionAvailX() / 2;
+        float centerY = ImGui.getContentRegionAvailY() / 2 - 50;
+
+        ImGui.dummy(0, centerY);
+
+        String message = "Select an asset to edit";
+        ImVec2 textSize = new ImVec2();
+        ImGui.calcTextSize(textSize, message);
+        ImGui.setCursorPosX((ImGui.getContentRegionAvailX() - textSize.x) / 2);
+        ImGui.textDisabled(message);
+
+        ImGui.spacing();
+
+        float buttonWidth = 100;
+        ImGui.setCursorPosX((ImGui.getContentRegionAvailX() - buttonWidth) / 2);
+        if (ImGui.button(MaterialIcons.FolderOpen + " Browse...", buttonWidth, 0)) {
+            textureBrowserDialog.open(this::onTextureSelected);
+        }
+    }
+
+    // ========================================================================
+    // TEXTURE SELECTION CALLBACK
+    // ========================================================================
+
+    /**
+     * Called when a texture is selected from the browser dialog.
+     */
+    private void onTextureSelected(String path) {
+        if (path != null && !path.isEmpty()) {
+            texturePath = path;
+            loadTexture(path);
         }
     }
 
@@ -499,207 +608,444 @@ public class SpriteEditorPanel {
     // ASSET LOADING
     // ========================================================================
 
-    private void loadAsset(String path) {
-        sprite = null;
-        spriteSheet = null;
-        isSpriteSheet = false;
+    private void loadTexture(String path) {
+        texture = null;
+        metadata = null;
+        originalMetadata = null;
+        spriteGrid = null;
+        isMultipleMode = false;
+        hasUnsavedChanges = false;
+        selectedSpriteIndex = 0;
 
         previewRenderer.reset();
 
         if (path == null || path.isEmpty()) return;
 
         try {
-            Class<?> type = Assets.getTypeForPath(path);
+            // Load texture via sprite
+            Sprite sprite = Assets.load(path, Sprite.class);
+            if (sprite == null) {
+                showStatus("Failed to load texture: " + path);
+                return;
+            }
+            texture = sprite.getTexture();
 
-            if (type == SpriteSheet.class) {
-                spriteSheet = Assets.load(path, SpriteSheet.class);
-                isSpriteSheet = true;
-                selectedSpriteIndex = 0;
-
-                float[] pivot = spriteSheet.getEffectivePivot(selectedSpriteIndex);
-                pivotTab.setPivot(pivot[0], pivot[1]);
-                pivotTab.setOriginalPivot(pivot[0], pivot[1]);
-
-                // Load 9-slice data from sprite sheet
-                NineSliceData nineSlice = spriteSheet.getEffectiveNineSlice(selectedSpriteIndex);
-                if (nineSlice != null) {
-                    nineSliceTab.setSlices(nineSlice.left, nineSlice.right, nineSlice.top, nineSlice.bottom);
-                } else {
-                    nineSliceTab.setSlices(0, 0, 0, 0);
-                }
-                nineSliceTab.setOriginalSlices(nineSliceTab.getSliceLeft(), nineSliceTab.getSliceRight(),
-                        nineSliceTab.getSliceTop(), nineSliceTab.getSliceBottom());
-
-            } else if (type == Sprite.class || isImageExtension(path)) {
-                sprite = Assets.load(path, Sprite.class);
-
-                SpriteMetadata meta = AssetMetadata.load(path, SpriteMetadata.class);
-                if (meta != null && meta.hasPivot()) {
-                    pivotTab.setPivot(meta.pivotX, meta.pivotY);
-                } else {
-                    pivotTab.setPivot(sprite.getPivotX(), sprite.getPivotY());
-                }
-                pivotTab.setOriginalPivot(pivotTab.getPivotX(), pivotTab.getPivotY());
-
-                if (meta != null && meta.hasNineSlice()) {
-                    nineSliceTab.setSlices(meta.nineSlice.left, meta.nineSlice.right,
-                            meta.nineSlice.top, meta.nineSlice.bottom);
-                } else {
-                    nineSliceTab.setSlices(0, 0, 0, 0);
-                }
-                nineSliceTab.setOriginalSlices(nineSliceTab.getSliceLeft(), nineSliceTab.getSliceRight(),
-                        nineSliceTab.getSliceTop(), nineSliceTab.getSliceBottom());
+            // Load metadata
+            metadata = AssetMetadata.load(path, SpriteMetadata.class);
+            if (metadata == null) {
+                metadata = new SpriteMetadata();
             }
 
+            // Store original for revert
+            originalMetadata = copyMetadata(metadata);
+
+            // Determine mode
+            isMultipleMode = metadata.isMultiple();
+
+            // Initialize tabs
+            slicingTab.loadFromMetadata(metadata);
+            pivotTab.setMultipleMode(isMultipleMode);
+            pivotTab.setSelectedCellIndex(selectedSpriteIndex);
+            pivotTab.loadFromMetadata(metadata, selectedSpriteIndex);
+            nineSliceTab.setMultipleMode(isMultipleMode);
+            nineSliceTab.setSelectedCellIndex(selectedSpriteIndex);
+            nineSliceTab.loadFromMetadata(metadata, selectedSpriteIndex);
+
+            // Update sprite dimensions for 9-slice
+            updateSpriteDimensions();
+
+            if (isMultipleMode && metadata.grid != null) {
+                // Get sprite grid for reference
+                spriteGrid = Assets.getSpriteGrid(sprite);
+            }
+
+            // Auto-fit to preview
+            if (texture != null) {
+                previewRenderer.fit(texture, 600, 500);
+            }
+
+            showStatus("Loaded: " + path);
+
         } catch (Exception e) {
-            System.err.println("[SpriteEditorPanel] Failed to load asset: " + path + " - " + e.getMessage());
-            showStatus("Failed to load asset: " + e.getMessage());
+            System.err.println("[SpriteEditorPanel] Failed to load: " + path + " - " + e.getMessage());
+            showStatus("Failed to load: " + e.getMessage());
         }
     }
 
-    private void loadPivotForSelectedSprite() {
-        if (spriteSheet == null) return;
-
-        // Load pivot
-        float[] pivot = spriteSheet.getEffectivePivot(selectedSpriteIndex);
-        pivotTab.setPivot(pivot[0], pivot[1]);
-        pivotTab.setOriginalPivot(pivot[0], pivot[1]);
-
-        // Load 9-slice
-        NineSliceData nineSlice = spriteSheet.getEffectiveNineSlice(selectedSpriteIndex);
-        if (nineSlice != null) {
-            nineSliceTab.setSlices(nineSlice.left, nineSlice.right, nineSlice.top, nineSlice.bottom);
+    private void updateSpriteDimensions() {
+        int width, height;
+        if (isMultipleMode && metadata != null && metadata.grid != null) {
+            width = metadata.grid.spriteWidth;
+            height = metadata.grid.spriteHeight;
+        } else if (texture != null) {
+            width = texture.getWidth();
+            height = texture.getHeight();
         } else {
-            nineSliceTab.setSlices(0, 0, 0, 0);
+            width = 16;
+            height = 16;
         }
-        nineSliceTab.setOriginalSlices(nineSliceTab.getSliceLeft(), nineSliceTab.getSliceRight(),
-                nineSliceTab.getSliceTop(), nineSliceTab.getSliceBottom());
+        pivotTab.setSpriteDimensions(width, height);
+        nineSliceTab.setSpriteDimensions(width, height);
     }
 
-    private Sprite getCurrentSprite() {
-        if (isSpriteSheet && spriteSheet != null) {
-            return spriteSheet.getSprite(selectedSpriteIndex);
-        }
-        return sprite;
+    private void selectSprite(int index) {
+        // Save current edits to metadata before switching
+        saveCurrentEditsToMetadata();
+
+        selectedSpriteIndex = index;
+
+        // Update tabs
+        pivotTab.setSelectedCellIndex(index);
+        pivotTab.loadFromMetadata(metadata, index);
+        nineSliceTab.setSelectedCellIndex(index);
+        nineSliceTab.loadFromMetadata(metadata, index);
     }
 
-    private boolean isImageExtension(String path) {
-        String lower = path.toLowerCase();
-        return lower.endsWith(".png") || lower.endsWith(".jpg") ||
-                lower.endsWith(".jpeg") || lower.endsWith(".bmp") ||
-                lower.endsWith(".tga");
+    /**
+     * Writes current editing values to the working metadata copy.
+     */
+    private void saveCurrentEditsToMetadata() {
+        if (metadata == null) return;
+
+        if (isMultipleMode) {
+            PivotData pivotData = new PivotData(pivotTab.getPivotX(), pivotTab.getPivotY());
+            NineSliceData sliceData = nineSliceTab.getSliceData();
+            NineSliceData sliceToStore = sliceData.hasSlicing() ? sliceData : null;
+
+            int totalCells = previewRenderer.getTotalCells();
+            if (totalCells == 0) totalCells = 1;
+
+            if (pivotTab.isApplyToAll()) {
+                for (int i = 0; i < totalCells; i++) {
+                    setSpriteOverrideDirect(i, pivotData.copy(), null, true, false);
+                }
+            } else {
+                setSpriteOverrideDirect(selectedSpriteIndex, pivotData, null, true, false);
+            }
+
+            if (nineSliceTab.isApplyToAll()) {
+                for (int i = 0; i < totalCells; i++) {
+                    setSpriteOverrideDirect(i, null, sliceToStore != null ? sliceToStore.copy() : null, false, true);
+                }
+            } else {
+                setSpriteOverrideDirect(selectedSpriteIndex, null, sliceToStore, false, true);
+            }
+        } else {
+            // Single mode
+            metadata.pivotX = pivotTab.getPivotX();
+            metadata.pivotY = pivotTab.getPivotY();
+
+            NineSliceData sliceData = nineSliceTab.getSliceData();
+            metadata.nineSlice = sliceData.hasSlicing() ? sliceData : null;
+        }
+
+        markDirty();
+    }
+
+    /**
+     * Directly sets sprite override fields, allowing null values to clear.
+     */
+    private void setSpriteOverrideDirect(int index, PivotData pivot, NineSliceData nineSlice,
+                                          boolean updatePivot, boolean updateNineSlice) {
+        if (metadata.sprites == null) {
+            metadata.sprites = new java.util.LinkedHashMap<>();
+        }
+
+        SpriteMetadata.SpriteOverride override = metadata.sprites.computeIfAbsent(index,
+                k -> new SpriteMetadata.SpriteOverride());
+
+        if (updatePivot) {
+            override.pivot = pivot != null ? pivot.copy() : null;
+        }
+        if (updateNineSlice) {
+            override.nineSlice = nineSlice != null ? nineSlice.copy() : null;
+        }
+
+        // Remove empty overrides to keep metadata clean
+        if (override.isEmpty()) {
+            metadata.sprites.remove(index);
+        }
+    }
+
+    // ========================================================================
+    // MODE SWITCHING
+    // ========================================================================
+
+    private void switchToSingleMode() {
+        if (!isMultipleMode) return;
+
+        isMultipleMode = false;
+        selectedSpriteIndex = 0;
+
+        if (metadata != null) {
+            metadata.convertToSingle();
+        }
+
+        // Update tabs
+        pivotTab.setMultipleMode(false);
+        pivotTab.setSelectedCellIndex(0);
+        pivotTab.loadFromMetadata(metadata, 0);
+        nineSliceTab.setMultipleMode(false);
+        nineSliceTab.setSelectedCellIndex(0);
+        nineSliceTab.loadFromMetadata(metadata, 0);
+        updateSpriteDimensions();
+
+        markDirty();
+
+        // Switch to Pivot tab (Slicing not available in single mode)
+        if (activeTab == EditorTab.SLICING) {
+            forceSelectTab = EditorTab.PIVOT;
+        }
+    }
+
+    private void switchToMultipleMode() {
+        if (isMultipleMode) return;
+
+        isMultipleMode = true;
+        selectedSpriteIndex = 0;
+
+        if (metadata == null) {
+            metadata = new SpriteMetadata();
+        }
+
+        // Create default grid settings if none exist
+        GridSettings grid = slicingTab.toGridSettings();
+        metadata.convertToMultiple(grid);
+
+        // Update tabs
+        slicingTab.loadFromMetadata(metadata);
+        pivotTab.setMultipleMode(true);
+        pivotTab.setSelectedCellIndex(0);
+        pivotTab.loadFromMetadata(metadata, 0);
+        nineSliceTab.setMultipleMode(true);
+        nineSliceTab.setSelectedCellIndex(0);
+        nineSliceTab.loadFromMetadata(metadata, 0);
+        updateSpriteDimensions();
+
+        markDirty();
+
+        // Switch to Slicing tab to configure grid
+        forceSelectTab = EditorTab.SLICING;
+    }
+
+    // ========================================================================
+    // SAVE / REVERT
+    // ========================================================================
+
+    private void saveChanges() {
+        if (texturePath == null || metadata == null) return;
+
+        try {
+            // Save current editing values to metadata before persisting
+            saveCurrentEditsToMetadata();
+
+            // Save to file
+            AssetMetadata.save(texturePath, metadata);
+
+            // Update original for future revert
+            originalMetadata = copyMetadata(metadata);
+            hasUnsavedChanges = false;
+
+            showStatus("Saved: " + texturePath);
+
+            // Notify listeners (e.g., to refresh asset browser)
+            if (onSaveCallback != null) {
+                onSaveCallback.run();
+            }
+
+        } catch (IOException e) {
+            System.err.println("[SpriteEditorPanel] Failed to save: " + e.getMessage());
+            showStatus("Failed to save: " + e.getMessage());
+        }
+    }
+
+    private void revertChanges() {
+        if (originalMetadata != null) {
+            // Restore metadata from original
+            metadata = copyMetadata(originalMetadata);
+
+            // Reload tabs
+            slicingTab.loadFromMetadata(metadata);
+            pivotTab.loadFromMetadata(metadata, selectedSpriteIndex);
+            nineSliceTab.loadFromMetadata(metadata, selectedSpriteIndex);
+        }
+        hasUnsavedChanges = false;
+    }
+
+    private void markDirty() {
+        hasUnsavedChanges = true;
+    }
+
+    // ========================================================================
+    // UNDO / REDO
+    // ========================================================================
+
+    /**
+     * Pushes current state to undo stack before making changes.
+     * Call this before modifying metadata.
+     *
+     * @param force If true, bypasses debounce (use for discrete actions like presets)
+     */
+    private void pushUndoState(boolean force) {
+        if (metadata == null) return;
+
+        long now = System.currentTimeMillis();
+
+        // Debounce rapid changes (during drag operations)
+        if (!force && (now - lastUndoPushTime) < UNDO_DEBOUNCE_MS) {
+            return;
+        }
+
+        SpriteMetadata snapshot = copyMetadata(metadata);
+
+        undoStack.push(snapshot);
+        lastPushedState = snapshot;
+        lastUndoPushTime = now;
+        redoStack.clear(); // New change invalidates redo history
+
+        // Enforce max history size
+        while (undoStack.size() > MAX_UNDO_HISTORY) {
+            undoStack.removeLast();
+        }
+    }
+
+    /**
+     * Pushes current state to undo stack (with debounce).
+     */
+    private void pushUndoState() {
+        pushUndoState(false);
+    }
+
+    /**
+     * Undoes the last change.
+     */
+    private void undo() {
+        if (undoStack.isEmpty() || metadata == null) {
+            showStatus("Nothing to undo");
+            return;
+        }
+
+        // Push current state to redo stack
+        redoStack.push(copyMetadata(metadata));
+
+        // Restore previous state
+        metadata = undoStack.pop();
+        lastPushedState = null;
+
+        // Reload all tabs
+        reloadTabs();
+        showStatus("Undo");
+    }
+
+    /**
+     * Redoes the last undone change.
+     */
+    private void redo() {
+        if (redoStack.isEmpty() || metadata == null) {
+            showStatus("Nothing to redo");
+            return;
+        }
+
+        // Push current state to undo stack
+        undoStack.push(copyMetadata(metadata));
+
+        // Restore redo state
+        metadata = redoStack.pop();
+        lastPushedState = null;
+
+        // Reload all tabs
+        reloadTabs();
+        showStatus("Redo");
+    }
+
+    /**
+     * Reloads all tabs from current metadata.
+     */
+    private void reloadTabs() {
+        slicingTab.loadFromMetadata(metadata);
+        pivotTab.loadFromMetadata(metadata, selectedSpriteIndex);
+        nineSliceTab.loadFromMetadata(metadata, selectedSpriteIndex);
+        updateSpriteDimensions();
+        hasUnsavedChanges = true;
+    }
+
+    /**
+     * Clears undo/redo history.
+     */
+    private void clearUndoHistory() {
+        undoStack.clear();
+        redoStack.clear();
+        lastPushedState = null;
+    }
+
+    /**
+     * Checks if two metadata objects are equal (for avoiding duplicate undo states).
+     */
+    private boolean metadataEquals(SpriteMetadata a, SpriteMetadata b) {
+        if (a == b) return true;
+        if (a == null || b == null) return false;
+        // Simple comparison - just check if they serialize to the same JSON
+        // For now, always return false to allow all states
+        return false;
+    }
+
+    /**
+     * Handles keyboard shortcuts for the editor.
+     */
+    private void handleKeyboardShortcuts() {
+        // Only handle when popup is focused
+        if (!isOpen) return;
+
+        boolean ctrl = ImGui.getIO().getKeyCtrl();
+        boolean shift = ImGui.getIO().getKeyShift();
+
+        // Ctrl+Z = Undo
+        if (ctrl && !shift && ImGui.isKeyPressed(ImGuiKey.Z)) {
+            undo();
+        }
+        // Ctrl+Shift+Z or Ctrl+Y = Redo
+        if ((ctrl && shift && ImGui.isKeyPressed(ImGuiKey.Z)) ||
+                (ctrl && ImGui.isKeyPressed(ImGuiKey.Y))) {
+            redo();
+        }
+    }
+
+    // ========================================================================
+    // UTILITIES
+    // ========================================================================
+
+    private SpriteMetadata copyMetadata(SpriteMetadata source) {
+        if (source == null) return null;
+
+        SpriteMetadata copy = new SpriteMetadata();
+        copy.spriteMode = source.spriteMode;
+        copy.pixelsPerUnitOverride = source.pixelsPerUnitOverride;
+        copy.pivotX = source.pivotX;
+        copy.pivotY = source.pivotY;
+        copy.nineSlice = source.nineSlice != null ? source.nineSlice.copy() : null;
+
+        if (source.grid != null) {
+            copy.grid = source.grid.copy();
+        }
+        if (source.defaultPivot != null) {
+            copy.defaultPivot = source.defaultPivot.copy();
+        }
+        if (source.defaultNineSlice != null) {
+            copy.defaultNineSlice = source.defaultNineSlice.copy();
+        }
+        if (source.sprites != null) {
+            copy.sprites = new java.util.LinkedHashMap<>();
+            for (var entry : source.sprites.entrySet()) {
+                copy.sprites.put(entry.getKey(), entry.getValue().copy());
+            }
+        }
+
+        return copy;
     }
 
     private String getFileName(String path) {
         int lastSlash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
         return lastSlash >= 0 ? path.substring(lastSlash + 1) : path;
-    }
-
-    // ========================================================================
-    // SAVE/APPLY
-    // ========================================================================
-
-    private void applyPivot(boolean saveToFile) {
-        if (assetPath == null) return;
-
-        float pivotX = pivotTab.getPivotX();
-        float pivotY = pivotTab.getPivotY();
-
-        try {
-            if (isSpriteSheet && spriteSheet != null) {
-                if (applyToAllSprites) {
-                    spriteSheet.setDefaultPivot(pivotX, pivotY);
-                    spriteSheet.clearSpritePivots();
-                    for (int i = 0; i < spriteSheet.getTotalFrames(); i++) {
-                        spriteSheet.getSprite(i).setPivot(pivotX, pivotY);
-                    }
-                    showStatus("Applied pivot to all " + spriteSheet.getTotalFrames() + " sprites");
-                } else {
-                    spriteSheet.setSpritePivot(selectedSpriteIndex, pivotX, pivotY);
-                    spriteSheet.getSprite(selectedSpriteIndex).setPivot(pivotX, pivotY);
-                    showStatus("Applied pivot to sprite #" + selectedSpriteIndex);
-                }
-
-                if (saveToFile) {
-                    String filePath = java.nio.file.Paths.get(Assets.getAssetRoot(), assetPath).toString();
-                    new SpriteSheetLoader().save(spriteSheet, filePath);
-                    showStatus("Saved pivot to " + assetPath);
-                }
-
-            } else if (sprite != null) {
-                sprite.setPivot(pivotX, pivotY);
-
-                if (saveToFile) {
-                    SpriteMetadata meta = AssetMetadata.loadOrDefault(
-                            assetPath, SpriteMetadata.class, SpriteMetadata::new);
-                    meta.pivotX = pivotX;
-                    meta.pivotY = pivotY;
-                    AssetMetadata.saveOrDelete(assetPath, meta);
-                    showStatus("Saved pivot for " + assetPath);
-                } else {
-                    showStatus("Applied pivot (not saved)");
-                }
-            }
-
-            pivotTab.updateOriginal();
-
-        } catch (IOException e) {
-            System.err.println("[SpriteEditorPanel] Failed to save pivot: " + e.getMessage());
-            showStatus("Failed to save: " + e.getMessage());
-        }
-    }
-
-    private void applyNineSlice(boolean saveToFile) {
-        if (assetPath == null) return;
-
-        try {
-            boolean hasSlicing = nineSliceTab.hasSlicing();
-            NineSliceData data = hasSlicing ? new NineSliceData(
-                    nineSliceTab.getSliceLeft(), nineSliceTab.getSliceRight(),
-                    nineSliceTab.getSliceTop(), nineSliceTab.getSliceBottom()) : null;
-
-            if (isSpriteSheet && spriteSheet != null) {
-                if (applyToAllSprites) {
-                    spriteSheet.setDefaultNineSlice(data);
-                    spriteSheet.clearSpriteNineSlices();
-                    for (int i = 0; i < spriteSheet.getTotalFrames(); i++) {
-                        Sprite s = spriteSheet.getSprite(i);
-                        s.setNineSliceData(data != null ? data.copy() : null);
-                    }
-                    showStatus("Applied 9-slice to all " + spriteSheet.getTotalFrames() + " sprites");
-                } else {
-                    spriteSheet.setSpriteNineSlice(selectedSpriteIndex, data);
-                    Sprite s = spriteSheet.getSprite(selectedSpriteIndex);
-                    s.setNineSliceData(data != null ? data.copy() : null);
-                    showStatus("Applied 9-slice to sprite #" + selectedSpriteIndex);
-                }
-
-                if (saveToFile) {
-                    String filePath = java.nio.file.Paths.get(Assets.getAssetRoot(), assetPath).toString();
-                    new SpriteSheetLoader().save(spriteSheet, filePath);
-                    showStatus("Saved 9-slice to " + assetPath);
-                }
-
-            } else if (sprite != null) {
-                sprite.setNineSliceData(data);
-
-                if (saveToFile) {
-                    SpriteMetadata meta = AssetMetadata.loadOrDefault(
-                            assetPath, SpriteMetadata.class, SpriteMetadata::new);
-                    meta.nineSlice = data;
-                    AssetMetadata.saveOrDelete(assetPath, meta);
-                    showStatus("Saved 9-slice for " + assetPath);
-                } else {
-                    showStatus("Applied 9-slice (not saved)");
-                }
-            }
-
-            nineSliceTab.updateOriginal();
-
-        } catch (IOException e) {
-            System.err.println("[SpriteEditorPanel] Failed to save 9-slice: " + e.getMessage());
-            showStatus("Failed to save: " + e.getMessage());
-        }
     }
 
     private void showStatus(String message) {

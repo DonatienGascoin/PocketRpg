@@ -1,0 +1,131 @@
+{
+  "spriteMode": "MULTIPLE",
+  "pixelsPerUnitOverride": null,
+  "pivotX": null,
+  "pivotY": null,
+  "nineSlice": null,
+  "grid": {
+    "spriteWidth": 32,
+    "spriteHeight": 32,
+    "spacingX": 0,
+    "spacingY": 0,
+    "offsetX": 10,
+    "offsetY": 13
+  },
+  "defaultPivot": null,
+  "defaultNineSlice": null,
+  "sprites": {
+    "0": {
+      "pivot": {
+        "x": 0.5,
+        "y": 0.0
+      },
+      "nineSlice": null
+    },
+    "1": {
+      "pivot": {
+        "x": 0.5,
+        "y": 0.0
+      },
+      "nineSlice": null
+    },
+    "2": {
+      "pivot": {
+        "x": 0.5,
+        "y": 0.0
+      },
+      "nineSlice": null
+    },
+    "3": {
+      "pivot": {
+        "x": 0.5,
+        "y": 0.0
+      },
+      "nineSlice": null
+    },
+    "4": {
+      "pivot": {
+        "x": 0.5,
+        "y": 0.0
+      },
+      "nineSlice": null
+    },
+    "5": {
+      "pivot": {
+        "x": 0.5,
+        "y": 0.0
+      },
+      "nineSlice": null
+    },
+    "6": {
+      "pivot": {
+        "x": 0.5,
+        "y": 0.0
+      },
+      "nineSlice": null
+    },
+    "7": {
+      "pivot": {
+        "x": 0.5,
+        "y": 0.0
+      },
+      "nineSlice": null
+    },
+    "8": {
+      "pivot": {
+        "x": 0.5,
+        "y": 0.0
+      },
+      "nineSlice": null
+    },
+    "9": {
+      "pivot": {
+        "x": 0.5,
+        "y": 0.0
+      },
+      "nineSlice": null
+    },
+    "10": {
+      "pivot": {
+        "x": 0.5,
+        "y": 0.0
+      },
+      "nineSlice": null
+    },
+    "11": {
+      "pivot": {
+        "x": 0.5,
+        "y": 0.0
+      },
+      "nineSlice": null
+    },
+    "12": {
+      "pivot": {
+        "x": 0.5,
+        "y": 0.0
+      },
+      "nineSlice": null
+    },
+    "13": {
+      "pivot": {
+        "x": 0.5,
+        "y": 0.0
+      },
+      "nineSlice": null
+    },
+    "14": {
+      "pivot": {
+        "x": 0.5,
+        "y": 0.0
+      },
+      "nineSlice": null
+    },
+    "15": {
+      "pivot": {
+        "x": 0.5,
+        "y": 0.0
+      },
+      "nineSlice": null
+    }
+  }
+}

@@ -15,15 +15,20 @@ import java.io.IOException;
 /**
  * Unified TypeAdapter for Sprite serialization.
  * <p>
- * Handles two formats:
+ * Handles multiple formats:
  * <ul>
- *   <li>String references - "path/to/sprite.png" or "path/to/sheet.spritesheet#3"</li>
+ *   <li>String references - "path/to/sprite.png" or "path/to/sheet.png#3" (new format)</li>
+ *   <li>Legacy references - "path/to/sheet.spritesheet#3" (auto-converted to new format)</li>
  *   <li>Object definitions - for programmatic sprites without asset paths</li>
  * </ul>
  * <p>
  * Path resolution is centralized through {@link Assets#getPathForResource(Object)}
- * and {@link Assets#load(String, Class)}. The #index format for spritesheet sprites
+ * and {@link Assets#load(String, Class)}. The #index format for sprite grid sprites
  * is handled automatically by AssetManager.
+ * <p>
+ * <b>Migration Support:</b> Old .spritesheet paths are automatically converted to the
+ * new .png format via {@link SpriteReference#migratePathIfNeeded(String)}. When saving,
+ * sprites are always written in the new format.
  */
 public class SpriteTypeAdapter extends TypeAdapter<Sprite> {
 

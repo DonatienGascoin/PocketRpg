@@ -3,6 +3,8 @@ package com.pocket.rpg.resources;
 import com.pocket.rpg.editor.EditorPanelType;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.rendering.resources.Sprite;
+import com.pocket.rpg.rendering.resources.SpriteGrid;
+import com.pocket.rpg.resources.loaders.SpriteLoader;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector3f;
@@ -435,5 +437,115 @@ public final class Assets {
      */
     public static String getIconCodepoint(Class<?> type) {
         return getContext().getIconCodepoint(type);
+    }
+
+    // ========================================================================
+    // SPRITE GRID HELPERS
+    // ========================================================================
+
+    /**
+     * Loads a SpriteGrid from a multiple-mode sprite texture.
+     * <p>
+     * This is a convenience method for loading spritesheets as a grid.
+     * The texture must have metadata with {@code spriteMode: MULTIPLE}.
+     * <p>
+     * Example:
+     * <pre>
+     * SpriteGrid grid = Assets.loadSpriteGrid("spritesheets/player.png");
+     * Sprite frame0 = grid.getSprite(0);
+     * Sprite frame5 = grid.getSprite(5);
+     * </pre>
+     *
+     * @param path Path to the texture (must have multiple-mode metadata)
+     * @return SpriteGrid for the texture
+     * @throws IllegalArgumentException if the sprite is not in multiple mode
+     */
+    public static SpriteGrid loadSpriteGrid(String path) {
+        Sprite parent = load(path, Sprite.class);
+        return getSpriteGrid(parent);
+    }
+
+    /**
+     * Gets the SpriteGrid for an already-loaded multiple-mode sprite.
+     * <p>
+     * Use this when you already have the parent sprite loaded.
+     *
+     * @param parent The parent sprite (must be in multiple mode)
+     * @return SpriteGrid for the sprite
+     * @throws IllegalArgumentException if the sprite is not in multiple mode
+     */
+    public static SpriteGrid getSpriteGrid(Sprite parent) {
+        if (parent == null) {
+            throw new IllegalArgumentException("Parent sprite cannot be null");
+        }
+
+        // Get the SpriteLoader to access its grid functionality
+        AssetContext ctx = getContext();
+        if (ctx instanceof AssetManager manager) {
+            // Access the loader directly to get the SpriteGrid
+            SpriteLoader loader = getSpriteLoader(manager);
+            if (loader != null) {
+                SpriteGrid grid = loader.getSpriteGrid(parent);
+                if (grid != null) {
+                    return grid;
+                }
+            }
+        }
+
+        throw new IllegalArgumentException(
+                "Sprite is not in MULTIPLE mode or was not loaded through Assets: " +
+                        getPathForResource(parent)
+        );
+    }
+
+    /**
+     * Checks if a sprite is in multiple (spritesheet) mode.
+     *
+     * @param sprite The sprite to check
+     * @return true if the sprite is in multiple mode
+     */
+    public static boolean isMultipleMode(Sprite sprite) {
+        if (sprite == null) {
+            return false;
+        }
+
+        AssetContext ctx = getContext();
+        if (ctx instanceof AssetManager manager) {
+            SpriteLoader loader = getSpriteLoader(manager);
+            if (loader != null) {
+                return loader.isMultipleMode(sprite);
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Gets the total sprite count for a multiple-mode sprite.
+     *
+     * @param sprite The sprite to check
+     * @return Number of sprites in the grid, or 1 if single mode
+     */
+    public static int getSpriteCount(Sprite sprite) {
+        if (sprite == null) {
+            return 0;
+        }
+
+        AssetContext ctx = getContext();
+        if (ctx instanceof AssetManager manager) {
+            SpriteLoader loader = getSpriteLoader(manager);
+            if (loader != null) {
+                return loader.getSpriteCount(sprite);
+            }
+        }
+        return 1;
+    }
+
+    /**
+     * Gets the SpriteLoader instance from the AssetManager.
+     * Helper method for accessing sprite-specific functionality.
+     */
+    private static SpriteLoader getSpriteLoader(AssetManager manager) {
+        AssetLoader<Sprite> loader = manager.getLoader(Sprite.class);
+        return (loader instanceof SpriteLoader) ? (SpriteLoader) loader : null;
     }
 }

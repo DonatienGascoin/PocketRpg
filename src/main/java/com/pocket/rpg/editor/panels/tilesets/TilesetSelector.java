@@ -60,7 +60,7 @@ public class TilesetSelector {
                     TilesetRegistry.TilesetEntry entry = TilesetRegistry.getInstance().getTileset(name);
                     if (entry != null) {
                         ImGui.setTooltip(entry.getSpriteWidth() + "x" + entry.getSpriteHeight() +
-                                " sprites, " + entry.getSpriteSheet().getTotalFrames() + " tiles");
+                                " sprites, " + entry.getTotalSprites() + " tiles");
                     }
                 }
             }
@@ -87,7 +87,7 @@ public class TilesetSelector {
             TilesetRegistry.TilesetEntry entry = TilesetRegistry.getInstance().getTileset(selectedTileset);
             if (entry != null) {
                 ImGui.textDisabled(entry.getSpriteWidth() + "x" + entry.getSpriteHeight() +
-                        " px, " + entry.getSpriteSheet().getTotalFrames() + " tiles");
+                        " px, " + entry.getTotalSprites() + " tiles");
             }
         }
     }

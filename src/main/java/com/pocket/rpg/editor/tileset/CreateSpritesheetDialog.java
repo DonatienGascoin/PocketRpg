@@ -1,8 +1,9 @@
 package com.pocket.rpg.editor.tileset;
 
-import com.pocket.rpg.rendering.resources.SpriteSheet;
 import com.pocket.rpg.rendering.resources.Texture;
+import com.pocket.rpg.resources.AssetMetadata;
 import com.pocket.rpg.resources.Assets;
+import com.pocket.rpg.resources.SpriteMetadata;
 import imgui.ImGui;
 import imgui.ImVec2;
 import imgui.flag.ImGuiKey;
@@ -14,14 +15,22 @@ import lombok.Setter;
 import java.util.List;
 
 /**
- * Dialog for creating new spritesheet definition files.
+ * Dialog for creating new spritesheet/tileset definitions.
+ * <p>
+ * Creates a {@code .meta} file with {@code spriteMode: MULTIPLE} for the selected texture,
+ * enabling it to be used as a spritesheet/tileset in the editor.
  * <p>
  * Allows user to:
- * - Select a source texture (PNG)
- * - Set sprite dimensions
- * - Set spacing and offset
- * - Preview the result
- * - Save as .spritesheet file
+ * <ul>
+ *   <li>Select a source texture (PNG)</li>
+ *   <li>Set sprite dimensions (width/height)</li>
+ *   <li>Set spacing and offset</li>
+ *   <li>Preview the resulting grid</li>
+ *   <li>Save as metadata for the texture</li>
+ * </ul>
+ *
+ * @see SpriteMetadata
+ * @see SpriteMetadata.SpriteMode#MULTIPLE
  */
 public class CreateSpritesheetDialog {
 
@@ -40,9 +49,8 @@ public class CreateSpritesheetDialog {
     // Dialog state
     private List<String> availableTextures;
     private int selectedTextureIndex = 0;
-    private ImString spritesheetName = new ImString("new_tileset", 64);
 
-    // Spritesheet settings
+    // Grid settings
     private ImInt spriteWidth = new ImInt(16);
     private ImInt spriteHeight = new ImInt(16);
     private ImInt spacingX = new ImInt(0);
@@ -52,12 +60,10 @@ public class CreateSpritesheetDialog {
 
     // Preview
     private Texture previewTexture;
+    private String previewTexturePath;
     private int previewColumns;
     private int previewRows;
     private int previewTotalTiles;
-
-    // Output path
-    private static final String SPRITESHEET_DIR = "spritesheets/";
 
     /**
      * Opens the dialog.
@@ -65,12 +71,13 @@ public class CreateSpritesheetDialog {
     public void open() {
         open = true;
 
-        // Scan for available textures
-        availableTextures = Assets.scanByType(Texture.class);
+        // Scan for available textures (filter out those that already have MULTIPLE mode)
+        availableTextures = Assets.scanByType(Texture.class).stream()
+                .filter(path -> !hasMultipleModeMetadata(path))
+                .toList();
         selectedTextureIndex = 0;
 
         // Reset fields
-        spritesheetName.set("new_tileset");
         spriteWidth.set(16);
         spriteHeight.set(16);
         spacingX.set(0);
@@ -79,8 +86,21 @@ public class CreateSpritesheetDialog {
         offsetY.set(0);
 
         previewTexture = null;
+        previewTexturePath = null;
 
-        System.out.println("CreateSpritesheetDialog: Found " + availableTextures.size() + " textures");
+        System.out.println("CreateSpritesheetDialog: Found " + availableTextures.size() + " textures available for conversion");
+    }
+
+    /**
+     * Checks if a texture already has MULTIPLE mode metadata.
+     */
+    private boolean hasMultipleModeMetadata(String texturePath) {
+        try {
+            SpriteMetadata meta = AssetMetadata.load(texturePath, SpriteMetadata.class);
+            return meta != null && meta.isMultiple();
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     /**
@@ -97,23 +117,21 @@ public class CreateSpritesheetDialog {
     public void render() {
         if (!open) return;
 
-        ImGui.openPopup("Create Spritesheet");
+        ImGui.openPopup("Create Tileset");
 
         // Center the popup
         ImGui.setNextWindowSize(700, 600);
 
-        if (ImGui.beginPopupModal("Create Spritesheet")) {
+        if (ImGui.beginPopupModal("Create Tileset")) {
             renderContent();
             ImGui.endPopup();
         }
     }
 
     private void renderContent() {
-        // Name input
-        ImGui.text("Spritesheet Name:");
-        ImGui.inputText("##name", spritesheetName);
-
-        ImGui.separator();
+        ImGui.textWrapped("Convert a texture to a tileset by defining grid settings. " +
+                "This will create metadata that enables the texture to be used as a spritesheet.");
+        ImGui.spacing();
 
         // Texture selection
         ImGui.text("Source Texture:");
@@ -227,15 +245,15 @@ public class CreateSpritesheetDialog {
 
         // Buttons
         boolean canCreate = !availableTextures.isEmpty() &&
-                !spritesheetName.get().trim().isEmpty() &&
+                previewTexturePath != null &&
                 previewTotalTiles > 0;
 
         if (!canCreate) {
             ImGui.beginDisabled();
         }
 
-        if (ImGui.button("Create", 120, 0)) {
-            createSpritesheet();
+        if (ImGui.button("Create Tileset", 140, 0)) {
+            createTileset();
         }
 
         if (!canCreate) {
@@ -256,16 +274,17 @@ public class CreateSpritesheetDialog {
     private void updatePreview() {
         if (availableTextures.isEmpty() || selectedTextureIndex >= availableTextures.size()) {
             previewTexture = null;
+            previewTexturePath = null;
             previewColumns = 0;
             previewRows = 0;
             previewTotalTiles = 0;
             return;
         }
 
-        String texturePath = availableTextures.get(selectedTextureIndex);
+        previewTexturePath = availableTextures.get(selectedTextureIndex);
 
         try {
-            previewTexture = Assets.load(texturePath, Texture.class);
+            previewTexture = Assets.load(previewTexturePath, Texture.class);
 
             if (previewTexture != null) {
                 // Calculate grid
@@ -278,6 +297,7 @@ public class CreateSpritesheetDialog {
             }
         } catch (Exception e) {
             previewTexture = null;
+            previewTexturePath = null;
             previewColumns = 0;
             previewRows = 0;
             previewTotalTiles = 0;
@@ -510,45 +530,37 @@ public class CreateSpritesheetDialog {
 
 
     /**
-     * Creates the spritesheet file.
+     * Creates the tileset by saving MULTIPLE mode metadata for the selected texture.
      */
-    private void createSpritesheet() {
-        if (availableTextures.isEmpty() || selectedTextureIndex >= availableTextures.size()) {
-            return;
-        }
-
-        String texturePath = availableTextures.get(selectedTextureIndex);
-        String name = spritesheetName.get().trim();
-
-        if (name.isEmpty()) {
+    private void createTileset() {
+        if (previewTexturePath == null || previewTotalTiles == 0) {
             return;
         }
 
         try {
-            // Load texture to create spritesheet
-            Texture texture = Assets.load(texturePath, Texture.class);
-
-            // Create spritesheet object
-            SpriteSheet sheet = new SpriteSheet(
-                    texture,
+            // Create metadata with MULTIPLE mode
+            SpriteMetadata meta = new SpriteMetadata();
+            meta.convertToMultiple(new SpriteMetadata.GridSettings(
                     spriteWidth.get(),
                     spriteHeight.get(),
                     spacingX.get(),
                     spacingY.get(),
                     offsetX.get(),
                     offsetY.get()
-            );
+            ));
 
-            // Generate output path
-            String outputPath = SPRITESHEET_DIR + name + ".spritesheet";
+            // Set default pivot (center-bottom is common for game sprites)
+            meta.defaultPivot = new SpriteMetadata.PivotData(0.5f, 0.0f);
 
-            // Save using Assets
-            Assets.persist(sheet, outputPath);
+            // Save metadata for the texture
+            AssetMetadata.save(previewTexturePath, meta);
 
-            System.out.println("Created spritesheet: " + outputPath);
+            System.out.println("Created tileset metadata for: " + previewTexturePath +
+                    " (" + previewTotalTiles + " tiles, " +
+                    spriteWidth.get() + "x" + spriteHeight.get() + ")");
 
             // Register with TilesetRegistry
-            TilesetRegistry.getInstance().registerNew(outputPath);
+            TilesetRegistry.getInstance().registerNew(previewTexturePath);
 
             // Callback
             if (onCreated != null) {
@@ -560,7 +572,7 @@ public class CreateSpritesheetDialog {
             ImGui.closeCurrentPopup();
 
         } catch (Exception e) {
-            System.err.println("Failed to create spritesheet: " + e.getMessage());
+            System.err.println("Failed to create tileset: " + e.getMessage());
             e.printStackTrace();
         }
     }

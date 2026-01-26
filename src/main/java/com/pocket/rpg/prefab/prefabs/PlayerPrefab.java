@@ -3,7 +3,7 @@ package com.pocket.rpg.prefab.prefabs;
 import com.pocket.rpg.components.*;
 import com.pocket.rpg.prefab.Prefab;
 import com.pocket.rpg.rendering.resources.Sprite;
-import com.pocket.rpg.rendering.resources.SpriteSheet;
+import com.pocket.rpg.rendering.resources.SpriteGrid;
 import com.pocket.rpg.resources.Assets;
 
 import java.util.ArrayList;
@@ -20,17 +20,21 @@ import java.util.List;
  */
 public class PlayerPrefab implements Prefab {
 
-    private SpriteSheet playerSheet;
+    private SpriteGrid playerGrid;
     private Sprite previewSprite;
     private List<Component> components;
 
     public PlayerPrefab() {
         try {
-            playerSheet = Assets.load("spritesheets/player.spritesheet");
-            previewSprite = Sprite.copy(playerSheet.getSprite(0));
-            previewSprite.setPivotCenter();
+            // Load player sprite using the actual texture path
+            Sprite baseSprite = Assets.load("sprites/characters/Char1_32x32.png", Sprite.class);
+            if (baseSprite != null) {
+                playerGrid = SpriteGrid.create(baseSprite.getTexture(), 32, 32, 0, 0, 0, 16);
+                previewSprite = Sprite.copy(playerGrid.getSprite(0));
+                previewSprite.setPivotCenter();
+            }
         } catch (Exception e) {
-            System.err.println("Failed to load player spritesheet: " + e.getMessage());
+            System.err.println("Failed to load player sprites: " + e.getMessage());
         }
     }
 
@@ -70,8 +74,8 @@ public class PlayerPrefab implements Prefab {
 
         // SpriteRenderer component
         SpriteRenderer spriteRenderer = new SpriteRenderer();
-        if (playerSheet != null) {
-            spriteRenderer.setSprite(playerSheet.getSprite(0));
+        if (playerGrid != null) {
+            spriteRenderer.setSprite(playerGrid.getSprite(0));
         }
         result.add(spriteRenderer);
 

@@ -6,7 +6,7 @@ import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.rendering.core.Renderable;
 import com.pocket.rpg.rendering.resources.Sprite;
-import com.pocket.rpg.rendering.resources.SpriteSheet;
+import com.pocket.rpg.rendering.resources.SpriteGrid;
 import com.pocket.rpg.resources.Assets;
 import lombok.Getter;
 import lombok.Setter;
@@ -178,8 +178,8 @@ public class EditorScene {
             return layer;
         }
 
-        SpriteSheet sheet = new SpriteSheet(sprite.getTexture(), spriteWidth, spriteHeight);
-        layer.setSpriteSheet(sheet, spritesheetPath, spriteWidth, spriteHeight);
+        SpriteGrid grid = SpriteGrid.create(sprite.getTexture(), spriteWidth, spriteHeight);
+        layer.setSpriteGrid(grid, spritesheetPath, spriteWidth, spriteHeight);
 
         return layer;
     }

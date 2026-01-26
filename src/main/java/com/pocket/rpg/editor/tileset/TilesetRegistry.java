@@ -1,31 +1,30 @@
 package com.pocket.rpg.editor.tileset;
 
-import com.pocket.rpg.rendering.resources.SpriteSheet;
 import com.pocket.rpg.rendering.resources.Sprite;
+import com.pocket.rpg.rendering.resources.SpriteGrid;
 import com.pocket.rpg.rendering.resources.Texture;
+import com.pocket.rpg.resources.AssetMetadata;
 import com.pocket.rpg.resources.Assets;
+import com.pocket.rpg.resources.SpriteMetadata;
 import lombok.Getter;
 
 import java.util.*;
 
 /**
- * Manages available spritesheets for the editor.
+ * Manages available sprite grids (tilesets) for the editor.
+ * <p>
+ * Scans for {@code .png} files that have {@code spriteMode: MULTIPLE} in their metadata.
+ * <p>
+ * New tilesets can be created via the CreateSpritesheetDialog.
  *
- * Uses Assets.scanByType(SpriteSheet.class) to find all .spritesheet files,
- * then loads them via Assets.load().
- *
- * Spritesheets are JSON files defining:
- * - texture path
- * - sprite dimensions
- * - spacing/offset
- *
- * New spritesheets can be created via the CreateSpritesheetDialog.
+ * @see SpriteGrid
+ * @see SpriteMetadata
  */
 public class TilesetRegistry {
 
     private static TilesetRegistry instance;
 
-    /** Loaded spritesheets, keyed by display name */
+    /** Loaded tilesets, keyed by display name */
     private final Map<String, TilesetEntry> tilesets = new LinkedHashMap<>();
 
     /** Path to display name mapping */
@@ -58,79 +57,110 @@ public class TilesetRegistry {
     // ========================================================================
 
     /**
-     * Scans for all .spritesheet files and loads them.
+     * Scans for all tilesets (MULTIPLE-mode .png files).
      */
     public void scanAndLoad() {
         tilesets.clear();
         pathToName.clear();
 
-        // Get all spritesheet paths
-        List<String> paths = Assets.scanByType(SpriteSheet.class);
+        int count = 0;
 
-        System.out.println("TilesetRegistry: Found " + paths.size() + " spritesheet files");
-
-        for (String path : paths) {
-            loadSpritesheet(path);
+        // Load .png files with MULTIPLE mode metadata
+        List<String> spritePaths = Assets.scanByType(Sprite.class);
+        for (String path : spritePaths) {
+            if (loadMultipleModeSprite(path)) {
+                count++;
+            }
         }
 
-        System.out.println("TilesetRegistry: Loaded " + tilesets.size() + " spritesheets");
+        System.out.println("TilesetRegistry: Loaded " + count + " tilesets");
     }
 
     /**
-     * Loads a single spritesheet by path.
+     * Checks if a .png file has MULTIPLE mode metadata and loads it as a tileset.
+     *
+     * @param path Path to the .png file
+     * @return true if loaded successfully as a MULTIPLE-mode sprite
      */
-    public void loadSpritesheet(String path) {
+    private boolean loadMultipleModeSprite(String path) {
         try {
-            SpriteSheet sheet = Assets.load(path, SpriteSheet.class);
-            if (sheet == null) {
-                System.err.println("TilesetRegistry: Failed to load " + path);
-                return;
+            // Check if this sprite has MULTIPLE mode metadata
+            SpriteMetadata meta = AssetMetadata.load(path, SpriteMetadata.class);
+            if (meta == null || !meta.isMultiple()) {
+                return false; // Not a tileset, skip
             }
 
-            // Extract display name from path
+            // Load the parent sprite and get its grid
+            Sprite parent = Assets.load(path, Sprite.class);
+            if (parent == null) {
+                return false;
+            }
+
+            SpriteGrid grid = Assets.getSpriteGrid(parent);
+            if (grid == null) {
+                return false;
+            }
+
             String displayName = extractDisplayName(path);
+            displayName = ensureUniqueName(displayName, path);
 
-            // Handle duplicates
-            if (tilesets.containsKey(displayName)) {
-                displayName = displayName + " (" + path.hashCode() + ")";
-            }
-
-            TilesetEntry entry = new TilesetEntry(displayName, path, sheet);
+            TilesetEntry entry = new TilesetEntry(displayName, path, grid);
             tilesets.put(displayName, entry);
             pathToName.put(path, displayName);
 
             System.out.println("TilesetRegistry: Loaded " + displayName +
-                    " (" + sheet.getTotalFrames() + " tiles, " +
-                    sheet.getSpriteWidth() + "x" + sheet.getSpriteHeight() + ")");
+                    " (" + entry.getTotalSprites() + " tiles, " +
+                    entry.getSpriteWidth() + "x" + entry.getSpriteHeight() + ")");
+
+            return true;
 
         } catch (Exception e) {
-            System.err.println("TilesetRegistry: Error loading " + path + ": " + e.getMessage());
+            // Not an error - most .png files won't be MULTIPLE mode
+            return false;
         }
     }
 
     /**
+     * Loads a single tileset by path.
+     *
+     * @param path Path to the tileset file (.png with MULTIPLE metadata)
+     */
+    public void loadSpritesheet(String path) {
+        loadMultipleModeSprite(path);
+    }
+
+    /**
+     * Ensures a display name is unique by appending hash if needed.
+     */
+    private String ensureUniqueName(String displayName, String path) {
+        if (tilesets.containsKey(displayName)) {
+            return displayName + " (" + Math.abs(path.hashCode() % 10000) + ")";
+        }
+        return displayName;
+    }
+
+    /**
      * Extracts a display name from a path.
-     * Example: "gameData/assets/spritesheets/Road_16x16.spritesheet" → "Road_16x16"
+     * Example: "spritesheets/outdoor.png" → "outdoor"
      */
     private String extractDisplayName(String path) {
         // Get filename
         int lastSlash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
         String filename = lastSlash >= 0 ? path.substring(lastSlash + 1) : path;
 
-        // Remove extensions
-        if (filename.endsWith(".spritesheet.json")) {
-            filename = filename.substring(0, filename.length() - ".spritesheet.json".length());
-        } else if (filename.endsWith(".spritesheet")) {
-            filename = filename.substring(0, filename.length() - ".spritesheet".length());
-        } else if (filename.endsWith(".ss.json")) {
-            filename = filename.substring(0, filename.length() - ".ss.json".length());
+        // Remove extension
+        if (filename.endsWith(".png")) {
+            filename = filename.substring(0, filename.length() - ".png".length());
+        } else if (filename.endsWith(".jpg") || filename.endsWith(".jpeg")) {
+            int dotIndex = filename.lastIndexOf('.');
+            filename = filename.substring(0, dotIndex);
         }
 
         return filename;
     }
 
     /**
-     * Reloads all spritesheets (rescan + reload).
+     * Reloads all tilesets (rescan + reload).
      */
     public void reload() {
         scanAndLoad();
@@ -173,17 +203,16 @@ public class TilesetRegistry {
      * Gets a sprite from a tileset.
      *
      * @param tilesetName Tileset display name
-     * @param spriteIndex Index of sprite in the sheet
+     * @param spriteIndex Index of sprite in the tileset
      * @return Sprite, or null if not found
      */
     public Sprite getSprite(String tilesetName, int spriteIndex) {
         TilesetEntry entry = tilesets.get(tilesetName);
         if (entry == null) return null;
 
-        SpriteSheet sheet = entry.getSpriteSheet();
-        if (spriteIndex < 0 || spriteIndex >= sheet.getTotalFrames()) return null;
+        if (spriteIndex < 0 || spriteIndex >= entry.getTotalSprites()) return null;
 
-        return sheet.getSprite(spriteIndex);
+        return entry.getSprite(spriteIndex);
     }
 
     // ========================================================================
@@ -191,8 +220,8 @@ public class TilesetRegistry {
     // ========================================================================
 
     /**
-     * Registers a newly created spritesheet.
-     * Call this after creating and saving a new .spritesheet file.
+     * Registers a newly created tileset.
+     * Call this after creating and saving a new tileset.
      */
     public void registerNew(String path) {
         loadSpritesheet(path);
@@ -203,48 +232,74 @@ public class TilesetRegistry {
     // ========================================================================
 
     /**
-     * Represents a loaded tileset/spritesheet.
+     * Represents a loaded tileset backed by a SpriteGrid.
      */
     @Getter
     public static class TilesetEntry {
         private final String displayName;
         private final String path;
-        private final SpriteSheet spriteSheet;
+        private final SpriteGrid spriteGrid;
 
-        public TilesetEntry(String displayName, String path, SpriteSheet spriteSheet) {
+        public TilesetEntry(String displayName, String path, SpriteGrid spriteGrid) {
             this.displayName = displayName;
             this.path = path;
-            this.spriteSheet = spriteSheet;
+            this.spriteGrid = spriteGrid;
+        }
+
+        /**
+         * Gets a specific sprite by index.
+         */
+        public Sprite getSprite(int index) {
+            return spriteGrid != null ? spriteGrid.getSprite(index) : null;
         }
 
         /**
          * Gets all sprites from this tileset.
-         * Always returns sprites in frame index order.
          */
         public List<Sprite> getSprites() {
-            // Always regenerate to ensure correct order (generateAllSprites now guarantees order)
-            return spriteSheet.generateAllSprites();
+            return spriteGrid != null ? spriteGrid.getAllSprites() : List.of();
         }
 
         /**
-         * Gets the texture from the spritesheet.
+         * Gets the total number of sprites.
+         */
+        public int getTotalSprites() {
+            return spriteGrid != null ? spriteGrid.getTotalSprites() : 0;
+        }
+
+        /**
+         * Gets the texture from the tileset.
          */
         public Texture getTexture() {
-            return spriteSheet.getTexture();
+            return spriteGrid != null ? spriteGrid.getTexture() : null;
         }
 
         /**
          * Gets sprite width.
          */
         public int getSpriteWidth() {
-            return spriteSheet.getSpriteWidth();
+            return spriteGrid != null ? spriteGrid.getSpriteWidth() : 0;
         }
 
         /**
          * Gets sprite height.
          */
         public int getSpriteHeight() {
-            return spriteSheet.getSpriteHeight();
+            return spriteGrid != null ? spriteGrid.getSpriteHeight() : 0;
+        }
+
+        /**
+         * Gets the number of columns in the grid.
+         */
+        public int getColumns() {
+            return spriteGrid != null ? spriteGrid.getColumns() : 0;
+        }
+
+        /**
+         * Gets the number of rows in the grid.
+         */
+        public int getRows() {
+            return spriteGrid != null ? spriteGrid.getRows() : 0;
         }
     }
 }

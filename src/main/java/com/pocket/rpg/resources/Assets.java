@@ -266,6 +266,26 @@ public final class Assets {
     }
 
     /**
+     * Scans a specific directory for assets of a given type.
+     * Returns paths for files with extensions matching the loader for that type.
+     * Does NOT load the assets, just returns their paths.
+     * <p>
+     * Example:
+     * <pre>
+     * // Find all scenes in the scenes folder
+     * List&lt;String&gt; scenes = Assets.scanByType(SceneData.class, "gameData/scenes");
+     * // Returns: ["TestScene.scene", "Village.scene", ...]
+     * </pre>
+     *
+     * @param type Asset type class (e.g., SceneData.class)
+     * @param directory Directory to scan (e.g., "gameData/scenes")
+     * @return List of paths to assets of that type in the directory
+     */
+    public static List<String> scanByType(Class<?> type, String directory) {
+        return getContext().scanByType(type, directory);
+    }
+
+    /**
      * Scans the asset directory for all loadable assets.
      * Returns paths for all files that any registered loader can handle.
      * Does NOT load the assets, just returns their paths.

@@ -1,5 +1,7 @@
 package com.pocket.rpg.editor.ui;
 
+import com.pocket.rpg.audio.Audio;
+import com.pocket.rpg.audio.mixing.AudioChannel;
 import com.pocket.rpg.components.ui.UICanvas;
 import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.config.RenderingConfig;
@@ -101,6 +103,9 @@ public class GameViewPanel {
     // Post-processing toggle state (shared between preview and play mode)
     private boolean postFxEnabled = true;
 
+    // Editor audio mute state (runtime only, doesn't affect AudioConfig)
+    private boolean editorAudioMuted = false;
+
     public GameViewPanel(EditorContext context, PlayModeController playController,
                          GameConfig gameConfig, RenderingConfig renderingConfig) {
         this.context = context;
@@ -185,8 +190,8 @@ public class GameViewPanel {
             ImGui.sameLine();
             ImGui.textDisabled("Scene: " + getSceneName());
 
-            // Post-fx toggle on far right
-            renderPostFxToggle(60);
+            // Audio mute and post-fx toggle on far right
+            renderRightToolbarButtons(95);
         } else {
             if (state == PlayState.PLAYING) {
                 if (ImGui.button(MaterialIcons.Pause + " Pause")) {
@@ -209,24 +214,76 @@ public class GameViewPanel {
             String stateText = state == PlayState.PLAYING ? "Playing" : "Paused";
             ImGui.textColored(0.4f, 0.8f, 0.4f, 1.0f, stateText);
 
-            // Transition debug button and post-fx toggle on far right
-            ImGui.sameLine(ImGui.getWindowWidth() - ImGui.getStyle().getWindowPaddingX() - 160);
+            // Transition debug button, audio mute, and post-fx toggle on far right
+            ImGui.sameLine(ImGui.getWindowWidth() - ImGui.getStyle().getWindowPaddingX() - 200);
             ImGui.text("|");
             ImGui.sameLine();
             renderTransitionButton();
             ImGui.sameLine();
-            renderPostFxToggleButton();
+            renderRightToolbarButtonsInline();
         }
     }
 
     /**
-     * Renders the post-fx toggle button on the right side of the toolbar.
+     * Renders audio mute and post-fx buttons on the right side of toolbar (preview mode).
      */
-    private void renderPostFxToggle(float rightOffset) {
+    private void renderRightToolbarButtons(float rightOffset) {
         ImGui.sameLine(ImGui.getWindowWidth() - ImGui.getStyle().getWindowPaddingX() - rightOffset);
         ImGui.text("|");
         ImGui.sameLine();
+        renderRightToolbarButtonsInline();
+    }
+
+    /**
+     * Renders audio mute and post-fx buttons inline (no positioning).
+     */
+    private void renderRightToolbarButtonsInline() {
+        renderAudioMuteButton();
+        ImGui.sameLine();
         renderPostFxToggleButton();
+    }
+
+    /**
+     * Renders the audio mute toggle button.
+     * This is editor-only mute that doesn't affect the saved AudioConfig.
+     */
+    private void renderAudioMuteButton() {
+        // CRITICAL: Capture state BEFORE button for push/pop matching (see common-pitfalls.md)
+        boolean wasMuted = editorAudioMuted;
+
+        // Style muted button with red color
+        if (wasMuted) {
+            ImGui.pushStyleColor(ImGuiCol.Button, 0.8f, 0.3f, 0.3f, 1f);
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.9f, 0.4f, 0.4f, 1f);
+            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.7f, 0.2f, 0.2f, 1f);
+        }
+
+        String icon = wasMuted ? MaterialIcons.VolumeOff : MaterialIcons.VolumeUp;
+        if (ImGui.button(icon + "##audioMute")) {
+            editorAudioMuted = !editorAudioMuted;
+            applyEditorAudioMute();
+        }
+
+        // Pop uses same captured state as push
+        if (wasMuted) {
+            ImGui.popStyleColor(3);
+        }
+
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(wasMuted ? "Unmute Audio" : "Mute Audio");
+        }
+    }
+
+    /**
+     * Applies the editor mute state to the audio system.
+     * Uses master channel mute which is runtime-only (doesn't persist to AudioConfig).
+     */
+    private void applyEditorAudioMute() {
+        if (editorAudioMuted) {
+            Audio.muteChannel(AudioChannel.MASTER);
+        } else {
+            Audio.unmuteChannel(AudioChannel.MASTER);
+        }
     }
 
     /**

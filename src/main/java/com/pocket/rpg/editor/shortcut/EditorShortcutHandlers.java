@@ -102,4 +102,10 @@ public interface EditorShortcutHandlers {
 
     void onPlayToggle();
     void onPlayStop();
+
+    // ========================================================================
+    // CONFIGURATION
+    // ========================================================================
+
+    void onConfigSave();
 }

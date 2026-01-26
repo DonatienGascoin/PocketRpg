@@ -1,26 +1,126 @@
 {
   "axisConfigs": {
     "HORIZONTAL": {
-      "type": "KEYBOARD",
-      "positiveKey": "D",
-      "negativeKey": "A",
-      "altPositiveKey": "RIGHT",
-      "altNegativeKey": "LEFT",
+      "type": "COMPOSITE",
+      "sources": [
+        {
+          "type": "KEYBOARD",
+          "positiveKey": "D",
+          "negativeKey": "A",
+          "altPositiveKey": "RIGHT",
+          "altNegativeKey": "LEFT",
+          "sensitivity": 1.0,
+          "gravity": 3.0,
+          "deadZone": 0.001,
+          "snap": true
+        },
+        {
+          "type": "GAMEPAD",
+          "gamepadAxis": "LEFT_STICK_X",
+          "sensitivity": 1.0,
+          "gravity": 0.0,
+          "deadZone": 0.15,
+          "snap": false
+        },
+        {
+          "type": "GAMEPAD",
+          "positiveButton": "DPAD_RIGHT",
+          "negativeButton": "DPAD_LEFT",
+          "sensitivity": 1.0,
+          "gravity": 3.0,
+          "deadZone": 0.001,
+          "snap": true
+        }
+      ],
       "sensitivity": 1.0,
-      "gravity": 3.0,
-      "deadZone": 0.001,
-      "snap": true
+      "gravity": 0.0,
+      "deadZone": 0.0,
+      "snap": false
     },
     "VERTICAL": {
-      "type": "KEYBOARD",
-      "positiveKey": "W",
-      "negativeKey": "S",
-      "altPositiveKey": "UP",
-      "altNegativeKey": "DOWN",
+      "type": "COMPOSITE",
+      "sources": [
+        {
+          "type": "KEYBOARD",
+          "positiveKey": "W",
+          "negativeKey": "S",
+          "altPositiveKey": "UP",
+          "altNegativeKey": "DOWN",
+          "sensitivity": 1.0,
+          "gravity": 3.0,
+          "deadZone": 0.001,
+          "snap": true
+        },
+        {
+          "type": "GAMEPAD",
+          "gamepadAxis": "LEFT_STICK_Y",
+          "sensitivity": 1.0,
+          "gravity": 0.0,
+          "deadZone": 0.15,
+          "snap": false
+        },
+        {
+          "type": "GAMEPAD",
+          "positiveButton": "DPAD_UP",
+          "negativeButton": "DPAD_DOWN",
+          "sensitivity": 1.0,
+          "gravity": 3.0,
+          "deadZone": 0.001,
+          "snap": true
+        }
+      ],
       "sensitivity": 1.0,
-      "gravity": 3.0,
-      "deadZone": 0.001,
-      "snap": true
+      "gravity": 0.0,
+      "deadZone": 0.0,
+      "snap": false
+    },
+    "MOUSE_X": {
+      "type": "COMPOSITE",
+      "sources": [
+        {
+          "type": "MOUSE_DELTA",
+          "sensitivity": 1.0,
+          "gravity": 0.0,
+          "deadZone": 0.0,
+          "snap": false
+        },
+        {
+          "type": "GAMEPAD",
+          "gamepadAxis": "RIGHT_STICK_X",
+          "sensitivity": 3.0,
+          "gravity": 0.0,
+          "deadZone": 0.15,
+          "snap": false
+        }
+      ],
+      "sensitivity": 1.0,
+      "gravity": 0.0,
+      "deadZone": 0.0,
+      "snap": false
+    },
+    "MOUSE_Y": {
+      "type": "COMPOSITE",
+      "sources": [
+        {
+          "type": "MOUSE_DELTA",
+          "sensitivity": 1.0,
+          "gravity": 0.0,
+          "deadZone": 0.0,
+          "snap": false
+        },
+        {
+          "type": "GAMEPAD",
+          "gamepadAxis": "RIGHT_STICK_Y",
+          "sensitivity": 3.0,
+          "gravity": 0.0,
+          "deadZone": 0.15,
+          "snap": false
+        }
+      ],
+      "sensitivity": 1.0,
+      "gravity": 0.0,
+      "deadZone": 0.0,
+      "snap": false
     },
     "MOUSE_WHEEL": {
       "type": "MOUSE_WHEEL",
@@ -29,44 +129,46 @@
       "deadZone": 0.0,
       "snap": false
     },
-    "MOUSE_Y": {
-      "type": "MOUSE_DELTA",
+    "RIGHT_STICK_X": {
+      "type": "GAMEPAD",
+      "gamepadAxis": "RIGHT_STICK_X",
       "sensitivity": 1.0,
       "gravity": 0.0,
-      "deadZone": 0.0,
+      "deadZone": 0.15,
       "snap": false
     },
-    "MOUSE_X": {
-      "type": "MOUSE_DELTA",
+    "RIGHT_STICK_Y": {
+      "type": "GAMEPAD",
+      "gamepadAxis": "RIGHT_STICK_Y",
       "sensitivity": 1.0,
       "gravity": 0.0,
-      "deadZone": 0.0,
+      "deadZone": 0.15,
       "snap": false
     }
   },
   "actionBindings": {
-    "JUMP": [
-      "SPACE"
-    ],
-    "INTERACT": [
-      "E"
-    ],
-    "PAUSE": [
-      "P",
-      "ESCAPE"
-    ],
-    "RELOAD": [
-      "R"
-    ],
-    "MENU": [
-      "ESCAPE"
-    ],
     "FIRE": [
       "SPACE",
       "MOUSE_BUTTON_LEFT"
     ],
+    "JUMP": [
+      "SPACE"
+    ],
     "CROUCH": [
       "LEFT_CONTROL"
+    ],
+    "RELOAD": [
+      "R"
+    ],
+    "INTERACT": [
+      "E"
+    ],
+    "MENU": [
+      "ESCAPE"
+    ],
+    "PAUSE": [
+      "P",
+      "ESCAPE"
     ]
   }
 }

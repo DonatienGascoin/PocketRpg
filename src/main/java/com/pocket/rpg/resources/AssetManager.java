@@ -583,6 +583,17 @@ public class AssetManager implements AssetContext {
     }
 
     @Override
+    public List<String> scanByType(Class<?> type, String directory) {
+        AssetLoader<?> loader = loaders.get(type);
+        if (loader == null) {
+            return new ArrayList<>();
+        }
+
+        String[] extensions = loader.getSupportedExtensions();
+        return scanDirectory(directory, extensions);
+    }
+
+    @Override
     public List<String> scanAll() {
         return scanAll(assetRoot);
     }

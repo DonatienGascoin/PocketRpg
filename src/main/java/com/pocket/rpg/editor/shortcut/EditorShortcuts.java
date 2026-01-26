@@ -87,6 +87,9 @@ public final class EditorShortcuts {
     public static final String PLAY_TOGGLE = "editor.play.toggle";
     public static final String PLAY_STOP = "editor.play.stop";
 
+    // Configuration panel
+    public static final String CONFIG_SAVE = "editor.config.save";
+
     // ========================================================================
     // PANEL IDS
     // ========================================================================
@@ -102,6 +105,7 @@ public final class EditorShortcuts {
         public static final String PREFABS = "prefabs";
         public static final String CONSOLE = "console";
         public static final String ANIMATION_EDITOR = "animationEditor";
+        public static final String CONFIGURATION = "configuration";
 
         private PanelIds() {
         }
@@ -130,6 +134,7 @@ public final class EditorShortcuts {
         registerBrushShortcuts(registry);
         registerZLevelShortcuts(registry);
         registerPlayShortcuts(registry);
+        registerConfigurationShortcuts(registry);
     }
 
     private static void registerFileShortcuts(ShortcutRegistry registry) {
@@ -538,6 +543,19 @@ public final class EditorShortcuts {
         );
     }
 
+    private static void registerConfigurationShortcuts(ShortcutRegistry registry) {
+        registry.registerAll(
+                ShortcutAction.builder()
+                        .id(CONFIG_SAVE)
+                        .displayName("Save Configuration")
+                        .defaultBinding(ShortcutBinding.ctrl(ImGuiKey.S))
+                        .panelFocused(PanelIds.CONFIGURATION)
+                        .allowInInput(true)
+                        .handler(() -> {})
+                        .build()
+        );
+    }
+
     // ========================================================================
     // DEFAULT BINDINGS BY LAYOUT
     // ========================================================================
@@ -623,6 +641,9 @@ public final class EditorShortcuts {
         bindings.put(PLAY_TOGGLE, ShortcutBinding.ctrl(ImGuiKey.P));
         bindings.put(PLAY_STOP, ShortcutBinding.ctrlShift(ImGuiKey.P));
 
+        // Configuration shortcuts
+        bindings.put(CONFIG_SAVE, ShortcutBinding.ctrl(ImGuiKey.S));
+
         return bindings;
     }
 
@@ -699,5 +720,8 @@ public final class EditorShortcuts {
         // Play
         registry.bindHandler(PLAY_TOGGLE, handlers::onPlayToggle);
         registry.bindHandler(PLAY_STOP, handlers::onPlayStop);
+
+        // Configuration
+        registry.bindHandler(CONFIG_SAVE, handlers::onConfigSave);
     }
 }

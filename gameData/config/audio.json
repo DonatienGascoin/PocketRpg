@@ -1,0 +1,12 @@
+{
+  "masterVolume": 0.3,
+  "musicVolume": 0.8,
+  "sfxVolume": 1.0,
+  "voiceVolume": 1.0,
+  "ambientVolume": 0.7,
+  "uiVolume": 1.0,
+  "maxSimultaneousSounds": 32,
+  "defaultRolloffFactor": 1.0,
+  "musicCrossfadeDuration": 2.0,
+  "enableReverb": false
+}

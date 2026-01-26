@@ -485,6 +485,18 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
     }
 
     // ========================================================================
+    // CONFIGURATION HANDLERS
+    // ========================================================================
+
+    @Override
+    public void onConfigSave() {
+        if (configurationPanel != null && configurationPanel.isDirty()) {
+            configurationPanel.save();
+            showMessage("Configuration saved");
+        }
+    }
+
+    // ========================================================================
     // HELPERS
     // ========================================================================
 

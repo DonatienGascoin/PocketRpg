@@ -51,9 +51,20 @@ public class ConfigurationPanel extends EditorPanel {
         dirty = false;
     }
 
+    /**
+     * Saves all configuration tabs to disk.
+     * Called by shortcut system when Ctrl+S is pressed while panel is focused.
+     */
+    public void save() {
+        saveAll();
+    }
+
     @Override
     public void render() {
-        if (!isOpen()) return;
+        if (!isOpen()) {
+            setFocused(false);
+            return;
+        }
 
         initializeTabsIfNeeded();
 
@@ -65,6 +76,7 @@ public class ConfigurationPanel extends EditorPanel {
         int flags = ImGuiWindowFlags.None;
         if (ImGui.begin(title, open, flags)) {
             setContentVisible(true);
+            setFocused(ImGui.isWindowFocused(imgui.flag.ImGuiFocusedFlags.RootAndChildWindows));
 
             ImGui.pushID("ConfigurationPanel");
 
@@ -75,6 +87,7 @@ public class ConfigurationPanel extends EditorPanel {
             ImGui.popID();
         } else {
             setContentVisible(false);
+            setFocused(false);
         }
 
         ImGui.end();
@@ -91,6 +104,8 @@ public class ConfigurationPanel extends EditorPanel {
             tabs.add(new InputConfigTab(context, this::markDirty));
             tabs.add(new RenderingConfigTab(context, this::markDirty));
             tabs.add(new TransitionConfigTab(context, this::markDirty));
+            tabs.add(new AudioConfigTab(this::markDirty));
+            tabs.add(new MusicConfigTab(this::markDirty));
             tabsInitialized = true;
         }
     }

@@ -160,6 +160,17 @@ public interface AssetContext {
     List<String> scanByType(Class<?> type);
 
     /**
+     * Scans a specific directory for assets of a given type.
+     * Returns paths for files with extensions matching the loader for that type.
+     * Does NOT load the assets, just returns their paths.
+     *
+     * @param type Asset type class (e.g., SceneData.class)
+     * @param directory Directory to scan (e.g., "gameData/scenes")
+     * @return List of paths to assets of that type in the directory
+     */
+    List<String> scanByType(Class<?> type, String directory);
+
+    /**
      * Scans the asset directory for all loadable assets.
      * Returns paths for all files that any registered loader can handle.
      * Does NOT load the assets, just returns their paths.

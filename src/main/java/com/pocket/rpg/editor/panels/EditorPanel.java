@@ -28,6 +28,13 @@ public abstract class EditorPanel {
     @Getter
     private boolean contentVisible;
 
+    /**
+     * Whether the panel window was focused in the last frame.
+     * Use this for panel-scoped shortcuts.
+     */
+    @Getter
+    private boolean focused;
+
     private EditorConfig config;
 
     /** Cached display name computed from panelId. */
@@ -86,6 +93,16 @@ public abstract class EditorPanel {
      */
     protected void setContentVisible(boolean visible) {
         this.contentVisible = visible;
+    }
+
+    /**
+     * Updates the focused state.
+     * Call this with ImGui.isWindowFocused() inside your render method's begin/end block.
+     *
+     * @param focused Whether the window is focused
+     */
+    protected void setFocused(boolean focused) {
+        this.focused = focused;
     }
 
     /**

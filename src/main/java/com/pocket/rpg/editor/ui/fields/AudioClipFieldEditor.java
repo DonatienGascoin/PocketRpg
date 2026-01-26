@@ -136,8 +136,11 @@ public final class AudioClipFieldEditor {
 
     /**
      * Draws a play/stop button for the given clip.
+     * Can be used standalone in custom layouts (e.g., MusicConfigTab track list).
+     *
+     * @param clip The audio clip (can be null, shows disabled button)
      */
-    private static void drawPlayButton(AudioClip clip) {
+    public static void drawPlayButton(AudioClip clip) {
         if (clip == null) {
             // Disabled play button when no clip
             ImGui.pushStyleColor(ImGuiCol.Button, 0.3f, 0.3f, 0.3f, 1.0f);

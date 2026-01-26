@@ -143,6 +143,11 @@ public final class GizmoColors {
      */
     public static final int AUDIO_SOURCE = ImGui.colorConvertFloat4ToU32(1.0f, 0.2f, 0.8f, 0.8f);
 
+    /**
+     * Music zone (cyan-blue, distinct from ambient zone purple).
+     */
+    public static final int MUSIC_ZONE = ImGui.colorConvertFloat4ToU32(0.2f, 0.7f, 0.9f, 0.6f);
+
     // ========================================================================
     // COLLISION
     // ========================================================================

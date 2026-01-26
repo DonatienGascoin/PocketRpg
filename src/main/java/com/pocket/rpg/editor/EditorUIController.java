@@ -539,4 +539,42 @@ public class EditorUIController {
             ImGui.setWindowFocus("Collision Panel");
         }
     }
+
+    /**
+     * Builds a ShortcutContext with current panel focus information.
+     * Uses focus state from the previous frame (retained in panel fields).
+     */
+    public com.pocket.rpg.editor.shortcut.ShortcutContext buildShortcutContext() {
+        var builder = com.pocket.rpg.editor.shortcut.ShortcutContext.builder()
+                .popupOpen(ImGui.isPopupOpen("", imgui.flag.ImGuiPopupFlags.AnyPopup))
+                .textInputActive(ImGui.getIO().getWantTextInput());
+
+        // Check all EditorPanel subclasses for focus state
+        if (configurationPanel != null && configurationPanel.isFocused()) {
+            builder.panelFocused(configurationPanel.getPanelId());
+        }
+        if (hierarchyPanel != null && hierarchyPanel.isFocused()) {
+            builder.panelFocused(hierarchyPanel.getPanelId());
+        }
+        if (inspectorPanel != null && inspectorPanel.isFocused()) {
+            builder.panelFocused(inspectorPanel.getPanelId());
+        }
+        if (assetBrowserPanel != null && assetBrowserPanel.isFocused()) {
+            builder.panelFocused(assetBrowserPanel.getPanelId());
+        }
+        if (consolePanel != null && consolePanel.isFocused()) {
+            builder.panelFocused(consolePanel.getPanelId());
+        }
+        if (tilesetPalette != null && tilesetPalette.isFocused()) {
+            builder.panelFocused(tilesetPalette.getPanelId());
+        }
+        if (collisionPanel != null && collisionPanel.isFocused()) {
+            builder.panelFocused(collisionPanel.getPanelId());
+        }
+        if (audioBrowserPanel != null && audioBrowserPanel.isFocused()) {
+            builder.panelFocused(audioBrowserPanel.getPanelId());
+        }
+
+        return builder.build();
+    }
 }

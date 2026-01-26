@@ -10,7 +10,6 @@ import com.pocket.rpg.editor.camera.EditorCamera;
 import com.pocket.rpg.editor.shortcut.EditorShortcutHandlersImpl;
 import com.pocket.rpg.editor.shortcut.EditorShortcuts;
 import com.pocket.rpg.editor.shortcut.KeyboardLayout;
-import com.pocket.rpg.editor.shortcut.ShortcutContext;
 import com.pocket.rpg.editor.shortcut.ShortcutRegistry;
 import com.pocket.rpg.editor.ui.inspectors.CustomComponentEditorRegistry;
 import com.pocket.rpg.rendering.postfx.PostEffectRegistry;
@@ -355,6 +354,9 @@ public class EditorApplication {
     private void update() {
         float deltaTime = ImGui.getIO().getDeltaTime();
 
+        // Update audio system (music crossfades, sound updates)
+        Audio.update(deltaTime);
+
         // Handle Escape key to stop play mode (edge-triggered)
         if (playModeController.isActive()) {
             boolean escapePressed = isEscapePressed();
@@ -413,7 +415,8 @@ public class EditorApplication {
         imGuiLayer.newFrame();
 
         // Process shortcuts (after newFrame, before ImGui windows)
-        ShortcutRegistry.getInstance().processShortcuts(ShortcutContext.current());
+        // Uses panel focus state from the previous frame
+        ShortcutRegistry.getInstance().processShortcuts(uiController.buildShortcutContext());
 
         // Setup docking and render UI
         uiController.setupDocking();

@@ -1,14 +1,13 @@
 {
   "maxBatchSize": 10000,
   "sortingStrategy": "DEPTH_PRIORITY",
-  "enableStatistics": false,
+  "enableStatistics": true,
   "statisticsInterval": 300,
   "clearColor": {
-    "x": 0.31274134,
-    "y": 0.26081905,
-    "z": 0.28722024,
+    "x": 0.16216218,
+    "y": 0.16028385,
+    "z": 0.16028385,
     "w": 1.0
   },
-  "pixelsPerUnit": 16.0,
-  "defaultOrthographicSize": 7.5
+  "pixelsPerUnit": 16.0
 }

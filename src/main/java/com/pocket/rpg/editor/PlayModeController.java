@@ -1,5 +1,7 @@
 package com.pocket.rpg.editor;
 
+import com.pocket.rpg.audio.Audio;
+import com.pocket.rpg.audio.music.MusicManager;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.config.GameConfig;
@@ -17,6 +19,7 @@ import com.pocket.rpg.rendering.pipeline.RenderPipeline;
 import com.pocket.rpg.rendering.postfx.PostProcessor;
 import com.pocket.rpg.rendering.targets.FramebufferTarget;
 import com.pocket.rpg.core.application.GameLoop;
+import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.scenes.RuntimeScene;
 import com.pocket.rpg.scenes.Scene;
 import com.pocket.rpg.scenes.SceneManager;
@@ -169,7 +172,10 @@ public class PlayModeController {
             // 11. Create GameLoop
             gameLoop = new GameLoop(sceneManager, transitionManager);
 
-            // 12. Load initial scene from a copy (keeps snapshot pristine for restore)
+            // 12. Initialize MusicManager for scene-based music
+            MusicManager.initialize(sceneManager, Assets.getContext());
+
+            // 13. Load initial scene from a copy (keeps snapshot pristine for restore)
             SceneData runtimeCopy = Serializer.deepCopy(snapshot, SceneData.class);
             RuntimeScene runtimeScene = sceneLoader.load(runtimeCopy);
             sceneManager.loadScene(runtimeScene);
@@ -296,6 +302,11 @@ public class PlayModeController {
     // ========================================================================
 
     private void cleanup() {
+        // Stop music playback
+        if (Audio.music() != null) {
+            Audio.music().stop();
+        }
+
         if (inputManager != null) {
             inputManager.destroy();
             inputManager = null;

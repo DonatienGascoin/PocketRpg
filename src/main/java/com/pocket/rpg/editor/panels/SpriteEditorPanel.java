@@ -1,6 +1,8 @@
 package com.pocket.rpg.editor.panels;
 
 import com.pocket.rpg.editor.core.MaterialIcons;
+import com.pocket.rpg.editor.events.AssetChangedEvent;
+import com.pocket.rpg.editor.events.EditorEventBus;
 import com.pocket.rpg.editor.panels.spriteeditor.NineSliceEditorTab;
 import com.pocket.rpg.editor.panels.spriteeditor.PivotEditorTab;
 import com.pocket.rpg.editor.panels.spriteeditor.SlicingEditorTab;
@@ -107,7 +109,6 @@ public class SpriteEditorPanel implements
 
     // Callbacks
     private Consumer<String> statusCallback;
-    private Runnable onSaveCallback;
 
     // ========================================================================
     // CONSTRUCTOR
@@ -172,10 +173,6 @@ public class SpriteEditorPanel implements
 
     public void setStatusCallback(Consumer<String> callback) {
         this.statusCallback = callback;
-    }
-
-    public void setOnSaveCallback(Runnable callback) {
-        this.onSaveCallback = callback;
     }
 
     // ========================================================================
@@ -848,10 +845,8 @@ public class SpriteEditorPanel implements
 
             showStatus("Saved: " + texturePath);
 
-            // Notify listeners (e.g., to refresh asset browser)
-            if (onSaveCallback != null) {
-                onSaveCallback.run();
-            }
+            // Publish event to notify other components (e.g., asset browser)
+            EditorEventBus.get().publish(new AssetChangedEvent(texturePath, AssetChangedEvent.ChangeType.MODIFIED));
 
         } catch (IOException e) {
             System.err.println("[SpriteEditorPanel] Failed to save: " + e.getMessage());

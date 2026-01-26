@@ -3,14 +3,15 @@ package com.pocket.rpg.editor.tools;
 import com.pocket.rpg.collision.CollisionType;
 import com.pocket.rpg.collision.trigger.TileCoord;
 import com.pocket.rpg.editor.camera.EditorCamera;
+import com.pocket.rpg.editor.events.CollisionTypePickedEvent;
+import com.pocket.rpg.editor.events.EditorEventBus;
+import com.pocket.rpg.editor.events.TriggerSelectedEvent;
 import com.pocket.rpg.editor.scene.EditorScene;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector2f;
-
-import java.util.function.Consumer;
 
 /**
  * Picker tool for sampling collision types from the map.
@@ -27,18 +28,6 @@ public class CollisionPickerTool implements EditorTool, ViewportAwareTool {
     @Getter
     @Setter
     private int zLevel = 0;
-
-    /**
-     * Callback when a collision type is picked.
-     */
-    @Setter
-    private Consumer<CollisionType> onCollisionPicked;
-
-    /**
-     * Callback when a trigger tile is clicked.
-     */
-    @Setter
-    private Consumer<TileCoord> onTriggerSelected;
 
     // Viewport bounds
     private float viewportX, viewportY;
@@ -90,13 +79,12 @@ public class CollisionPickerTool implements EditorTool, ViewportAwareTool {
 
         CollisionType pickedType = scene.getCollisionMap().get(tileX, tileY, zLevel);
 
-        if (onCollisionPicked != null) {
-            onCollisionPicked.accept(pickedType);
-        }
+        // Publish collision type picked event
+        EditorEventBus.get().publish(new CollisionTypePickedEvent(pickedType));
 
-        // If it's a trigger tile, also notify trigger selection
-        if (pickedType != null && pickedType.isTrigger() && onTriggerSelected != null) {
-            onTriggerSelected.accept(new TileCoord(tileX, tileY, zLevel));
+        // If it's a trigger tile, also publish trigger selection event
+        if (pickedType != null && pickedType.isTrigger()) {
+            EditorEventBus.get().publish(new TriggerSelectedEvent(new TileCoord(tileX, tileY, zLevel)));
         }
     }
 

@@ -5,10 +5,14 @@ import com.pocket.rpg.collision.CollisionType;
 import com.pocket.rpg.collision.Direction;
 import com.pocket.rpg.collision.MoveResult;
 import com.pocket.rpg.collision.MovementModifier;
+import com.pocket.rpg.collision.TileEntityMap;
 import com.pocket.rpg.collision.trigger.TriggerSystem;
+import com.pocket.rpg.components.interaction.TriggerZone;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector3f;
+
+import java.util.List;
 
 /**
  * Component for Pokémon-style grid-based movement.
@@ -255,6 +259,14 @@ public class GridMovement extends Component {
     }
 
     /**
+     * Gets the TileEntityMap from the scene, or null if not available.
+     */
+    private TileEntityMap getTileEntityMap() {
+        CollisionSystem collisionSystem = getCollisionSystem();
+        return collisionSystem != null ? collisionSystem.getTileEntityMap() : null;
+    }
+
+    /**
      * Checks collision using the scene's CollisionSystem.
      */
     private MoveResult checkCollision(int targetX, int targetY, Direction direction) {
@@ -284,6 +296,7 @@ public class GridMovement extends Component {
 
         CollisionSystem collisionSystem = getCollisionSystem();
         TriggerSystem triggerSystem = getTriggerSystem();
+        TileEntityMap tileEntityMap = getTileEntityMap();
 
         // Trigger exit on current tile (collision behavior)
         if (collisionSystem != null) {
@@ -293,6 +306,14 @@ public class GridMovement extends Component {
         // Trigger exit on current tile (trigger system) with direction
         if (triggerSystem != null) {
             triggerSystem.onTileExit(gameObject, gridX, gridY, zLevel, direction);
+        }
+
+        // Notify TriggerZone components on exit (component-based triggers)
+        if (tileEntityMap != null) {
+            List<TriggerZone> triggers = tileEntityMap.get(gridX, gridY, zLevel, TriggerZone.class);
+            for (TriggerZone trigger : triggers) {
+                trigger.onEntityExit(gameObject);
+            }
         }
 
         // Update entity occupancy
@@ -392,6 +413,15 @@ public class GridMovement extends Component {
         TriggerSystem triggerSystem = getTriggerSystem();
         if (triggerSystem != null) {
             triggerSystem.onTileEnter(gameObject, gridX, gridY, zLevel);
+        }
+
+        // Notify TriggerZone components on enter (component-based triggers)
+        TileEntityMap tileEntityMap = getTileEntityMap();
+        if (tileEntityMap != null) {
+            List<TriggerZone> triggers = tileEntityMap.get(gridX, gridY, zLevel, TriggerZone.class);
+            for (TriggerZone trigger : triggers) {
+                trigger.onEntityEnter(gameObject);
+            }
         }
 
         // Handle ice sliding - continue sliding if we entered via slide

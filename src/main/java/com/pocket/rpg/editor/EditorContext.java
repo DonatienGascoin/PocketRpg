@@ -5,6 +5,8 @@ import com.pocket.rpg.config.InputConfig;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.editor.camera.EditorCamera;
 import com.pocket.rpg.editor.core.EditorConfig;
+import com.pocket.rpg.editor.events.EditorEventBus;
+import com.pocket.rpg.editor.events.SceneChangedEvent;
 import com.pocket.rpg.editor.core.EditorWindow;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.tools.ToolManager;
@@ -97,9 +99,12 @@ public class EditorContext {
      * Notifies all listeners of a scene change.
      */
     private void notifySceneChanged(EditorScene scene) {
+        // Notify legacy listeners
         for (var listener : sceneChangedListeners) {
             listener.accept(scene);
         }
+        // Publish event
+        EditorEventBus.get().publish(new SceneChangedEvent(scene));
     }
 
     /**

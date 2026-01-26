@@ -655,8 +655,8 @@
           "type": "com.pocket.rpg.components.Transform",
           "properties": {
             "localPosition": {
-              "x": -12.616844,
-              "y": -3.658204,
+              "x": -14.8125,
+              "y": 3.3125,
               "z": 0.0
             },
             "localRotation": {
@@ -696,8 +696,8 @@
           "type": "com.pocket.rpg.components.Transform",
           "properties": {
             "localPosition": {
-              "x": -1.4111847,
-              "y": -3.6338005,
+              "x": -1.0,
+              "y": -4.0,
               "z": 0.0
             },
             "localRotation": {
@@ -717,7 +717,19 @@
           "properties": {
             "targetScene": "",
             "targetSpawnId": "test",
-            "showDestinationLabel": true
+            "showDestinationLabel": false
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.interaction.TriggerZone",
+          "properties": {
+            "offsetX": 0,
+            "offsetY": 0,
+            "width": 1,
+            "height": 1,
+            "oneShot": false,
+            "playerOnly": true,
+            "elevation": 0
           }
         }
       ]
@@ -752,47 +764,6 @@
           "type": "com.pocket.rpg.components.SpriteRenderer",
           "properties": {
             "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/test.png#0",
-            "tintColor": {
-              "x": 1.0,
-              "y": 1.0,
-              "z": 1.0,
-              "w": 1.0
-            },
-            "zIndex": 0
-          }
-        }
-      ]
-    },
-    {
-      "id": "4f7b7675",
-      "name": "Entity_13",
-      "active": true,
-      "order": 7,
-      "components": [
-        {
-          "type": "com.pocket.rpg.components.Transform",
-          "properties": {
-            "localPosition": {
-              "x": -16.8125,
-              "y": -0.4375,
-              "z": 0.0
-            },
-            "localRotation": {
-              "x": 0.0,
-              "y": 0.0,
-              "z": 0.0
-            },
-            "localScale": {
-              "x": 1.0,
-              "y": 1.0,
-              "z": 1.0
-            }
-          }
-        },
-        {
-          "type": "com.pocket.rpg.components.SpriteRenderer",
-          "properties": {
-            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sheet_tight.png",
             "tintColor": {
               "x": 1.0,
               "y": 1.0,

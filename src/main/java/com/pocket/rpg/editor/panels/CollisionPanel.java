@@ -3,6 +3,10 @@ package com.pocket.rpg.editor.panels;
 import com.pocket.rpg.collision.CollisionType;
 import com.pocket.rpg.collision.trigger.TileCoord;
 import com.pocket.rpg.editor.EditorSelectionManager;
+import com.pocket.rpg.editor.events.EditorEventBus;
+import com.pocket.rpg.editor.events.SelectionChangedEvent;
+import com.pocket.rpg.editor.events.TriggerFocusRequestEvent;
+import com.pocket.rpg.editor.events.TriggerSelectedEvent;
 import com.pocket.rpg.editor.panels.collision.TriggerListSection;
 import com.pocket.rpg.editor.panels.collisions.CollisionToolConfigView;
 import com.pocket.rpg.editor.panels.collisions.CollisionTypeSelector;
@@ -15,7 +19,6 @@ import imgui.flag.ImGuiWindowFlags;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
@@ -51,12 +54,6 @@ public class CollisionPanel extends EditorPanel {
     @Getter
     @Setter private boolean isHorizontalLayout = false;
 
-    @Setter
-    private Consumer<TileCoord> onTriggerSelected;
-
-    @Setter
-    private Consumer<TileCoord> onTriggerFocus;
-
     /**
      * Callback to switch to brush tool when selecting a collision type.
      */
@@ -84,22 +81,21 @@ public class CollisionPanel extends EditorPanel {
     }
 
     /**
-     * Sets the editor selection manager and registers a listener to respond
-     * when leaving collision mode.
+     * Sets the editor selection manager and subscribes to selection change events.
      */
     public void setEditorSelectionManager(EditorSelectionManager manager) {
         this.editorSelectionManager = manager;
         if (manager != null) {
-            manager.addListener(this::onSelectionTypeChanged);
+            EditorEventBus.get().subscribe(SelectionChangedEvent.class, this::onSelectionChanged);
         }
     }
 
     /**
-     * Called when the editor selection type changes.
+     * Called when the editor selection changes.
      */
-    private void onSelectionTypeChanged(EditorSelectionManager.SelectionType newType) {
+    private void onSelectionChanged(SelectionChangedEvent event) {
         // Clear trigger selection when leaving collision mode
-        if (newType != EditorSelectionManager.SelectionType.COLLISION_LAYER) {
+        if (event.selectionType() != EditorSelectionManager.SelectionType.COLLISION_LAYER) {
             clearTriggerSelection();
         }
     }
@@ -264,9 +260,8 @@ public class CollisionPanel extends EditorPanel {
     }
 
     private void handleTriggerSelected(TileCoord coord) {
-        if (onTriggerSelected != null) {
-            onTriggerSelected.accept(coord);
-        }
+        // Publish trigger selected event
+        EditorEventBus.get().publish(new TriggerSelectedEvent(coord));
 
         // Also ensure collision layer is selected
         if (editorSelectionManager != null) {
@@ -278,10 +273,8 @@ public class CollisionPanel extends EditorPanel {
         // First select the trigger
         handleTriggerSelected(coord);
 
-        // Then notify to focus camera
-        if (onTriggerFocus != null) {
-            onTriggerFocus.accept(coord);
-        }
+        // Then publish focus request event
+        EditorEventBus.get().publish(new TriggerFocusRequestEvent(coord));
     }
 
     /**
@@ -296,10 +289,8 @@ public class CollisionPanel extends EditorPanel {
      */
     public void clearTriggerSelection() {
         triggerListSection.clearSelection();
-        // Also notify inspector to clear trigger display
-        if (onTriggerSelected != null) {
-            onTriggerSelected.accept(null);
-        }
+        // Publish event to clear trigger display in inspector
+        EditorEventBus.get().publish(new TriggerSelectedEvent(null));
     }
 
     /**

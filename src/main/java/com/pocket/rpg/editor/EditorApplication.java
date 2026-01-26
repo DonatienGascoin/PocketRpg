@@ -247,10 +247,6 @@ public class EditorApplication {
         // Create scene controller
         sceneController = new EditorSceneController(context);
 
-        // Wire message callbacks
-        toolController.setMessageCallback(uiController.getStatusBar()::showMessage);
-        sceneController.setMessageCallback(uiController.getStatusBar()::showMessage);
-
         // Wire menu bar actions
         uiController.getMenuBar().setOnNewScene(sceneController::newScene);
         uiController.getMenuBar().setOnOpenScene(sceneController::openScene);

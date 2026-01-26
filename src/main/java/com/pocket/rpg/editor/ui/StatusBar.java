@@ -2,6 +2,8 @@ package com.pocket.rpg.editor.ui;
 
 import com.pocket.rpg.editor.camera.EditorCamera;
 import com.pocket.rpg.editor.core.MaterialIcons;
+import com.pocket.rpg.editor.events.EditorEventBus;
+import com.pocket.rpg.editor.events.StatusMessageEvent;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.TilemapLayer;
 import imgui.ImGui;
@@ -31,6 +33,13 @@ public class StatusBar {
     // Current message
     private String message = "";
     private float messageTimer = 0;
+
+    /**
+     * Initializes the status bar and subscribes to status message events.
+     */
+    public void initialize() {
+        EditorEventBus.get().subscribe(StatusMessageEvent.class, event -> showMessage(event.message()));
+    }
 
     /**
      * Shows a temporary message in the status bar.

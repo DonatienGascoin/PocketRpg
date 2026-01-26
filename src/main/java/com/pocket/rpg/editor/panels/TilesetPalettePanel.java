@@ -1,6 +1,8 @@
 package com.pocket.rpg.editor.panels;
 
 import com.pocket.rpg.editor.EditorSelectionManager;
+import com.pocket.rpg.editor.events.EditorEventBus;
+import com.pocket.rpg.editor.events.SelectionChangedEvent;
 import com.pocket.rpg.editor.panels.tilesets.TileGridRenderer;
 import com.pocket.rpg.editor.panels.tilesets.TileSelectionManager;
 import com.pocket.rpg.editor.panels.tilesets.TilesetSelector;
@@ -374,22 +376,21 @@ public class TilesetPalettePanel extends EditorPanel {
     }
 
     /**
-     * Sets the editor selection manager and registers a listener to clear
-     * tile selection when leaving tilemap mode.
+     * Sets the editor selection manager and subscribes to selection change events.
      */
     public void setEditorSelectionManager(EditorSelectionManager manager) {
         this.editorSelectionManager = manager;
         if (manager != null) {
-            manager.addListener(this::onSelectionTypeChanged);
+            EditorEventBus.get().subscribe(SelectionChangedEvent.class, this::onSelectionChanged);
         }
     }
 
     /**
-     * Called when the editor selection type changes.
+     * Called when the editor selection changes.
      * Clears tile selection when leaving tilemap layer mode.
      */
-    private void onSelectionTypeChanged(EditorSelectionManager.SelectionType newType) {
-        if (newType != EditorSelectionManager.SelectionType.TILEMAP_LAYER) {
+    private void onSelectionChanged(SelectionChangedEvent event) {
+        if (event.selectionType() != EditorSelectionManager.SelectionType.TILEMAP_LAYER) {
             clearSelection();
         }
     }

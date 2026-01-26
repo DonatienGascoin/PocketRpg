@@ -7,13 +7,14 @@ import com.pocket.rpg.components.ComponentMeta;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.editor.gizmos.GizmoColors;
 import com.pocket.rpg.editor.gizmos.GizmoContext;
-import com.pocket.rpg.editor.gizmos.GizmoDrawableSelected;
+import com.pocket.rpg.editor.gizmos.GizmoDrawable;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiConsumer;
 
 /**
  * Non-blocking trigger that fires when entities enter its tile(s).
@@ -46,7 +47,7 @@ import java.util.List;
  * </pre>
  */
 @ComponentMeta(category = "Interaction")
-public class TriggerZone extends Component implements GizmoDrawableSelected {
+public class TriggerZone extends Component implements GizmoDrawable {
 
     /**
      * Horizontal offset from entity position (in tiles).
@@ -108,6 +109,10 @@ public class TriggerZone extends Component implements GizmoDrawableSelected {
     private transient TileEntityMap tileEntityMap;
     private transient List<TileCoord> registeredTiles;
 
+    // Callbacks for enter/exit events
+    private transient BiConsumer<GameObject, TriggerZone> onEnterCallback;
+    private transient BiConsumer<GameObject, TriggerZone> onExitCallback;
+
     @Override
     protected void onStart() {
         tileEntityMap = getTileEntityMap();
@@ -121,8 +126,26 @@ public class TriggerZone extends Component implements GizmoDrawableSelected {
     }
 
     /**
-     * Called by the collision system when an entity enters this tile.
-     * Notifies all TriggerListener components on this GameObject.
+     * Registers a callback to be invoked when an entity enters the trigger zone.
+     *
+     * @param callback Callback receiving (entity, triggerZone)
+     */
+    public void setOnEnterCallback(BiConsumer<GameObject, TriggerZone> callback) {
+        this.onEnterCallback = callback;
+    }
+
+    /**
+     * Registers a callback to be invoked when an entity exits the trigger zone.
+     *
+     * @param callback Callback receiving (entity, triggerZone)
+     */
+    public void setOnExitCallback(BiConsumer<GameObject, TriggerZone> callback) {
+        this.onExitCallback = callback;
+    }
+
+    /**
+     * Called by GridMovement when an entity enters this trigger's tiles.
+     * Invokes the registered callback and notifies TriggerListener components.
      *
      * @param entity The entity that entered
      */
@@ -132,26 +155,41 @@ public class TriggerZone extends Component implements GizmoDrawableSelected {
 
         triggered = true;
 
-        // Notify all TriggerListener components on this GameObject
-        for (Component c : gameObject.getAllComponents()) {
-            if (c instanceof TriggerListener listener) {
-                listener.onTriggerEnter(entity, this);
+        // Invoke callback if registered
+        if (onEnterCallback != null) {
+            onEnterCallback.accept(entity, this);
+        }
+
+        // Also notify TriggerListener components for backward compatibility
+        if (gameObject != null) {
+            for (Component c : gameObject.getAllComponents()) {
+                if (c instanceof TriggerListener listener) {
+                    listener.onTriggerEnter(entity, this);
+                }
             }
         }
     }
 
     /**
-     * Called by the collision system when an entity exits this tile.
+     * Called by GridMovement when an entity exits this trigger's tiles.
+     * Invokes the registered callback and notifies TriggerListener components.
      *
      * @param entity The entity that exited
      */
     public void onEntityExit(GameObject entity) {
         if (playerOnly && !isPlayer(entity)) return;
 
-        // Notify all TriggerListener components on this GameObject
-        for (Component c : gameObject.getAllComponents()) {
-            if (c instanceof TriggerListener listener) {
-                listener.onTriggerExit(entity, this);
+        // Invoke callback if registered
+        if (onExitCallback != null) {
+            onExitCallback.accept(entity, this);
+        }
+
+        // Also notify TriggerListener components for backward compatibility
+        if (gameObject != null) {
+            for (Component c : gameObject.getAllComponents()) {
+                if (c instanceof TriggerListener listener) {
+                    listener.onTriggerExit(entity, this);
+                }
             }
         }
     }
@@ -227,11 +265,11 @@ public class TriggerZone extends Component implements GizmoDrawableSelected {
     }
 
     // ========================================================================
-    // GIZMO DRAWING
+    // GIZMO DRAWING - Always visible
     // ========================================================================
 
     @Override
-    public void onDrawGizmosSelected(GizmoContext ctx) {
+    public void onDrawGizmos(GizmoContext ctx) {
         Vector3f pos = ctx.getTransform().getPosition();
         float baseX = (float) Math.floor(pos.x) + offsetX;
         float baseY = (float) Math.floor(pos.y) + offsetY;

@@ -2,10 +2,12 @@ package com.pocket.rpg.components.interaction;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ComponentMeta;
+import com.pocket.rpg.components.ComponentRef;
+import com.pocket.rpg.components.GridMovement;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.editor.gizmos.GizmoColors;
 import com.pocket.rpg.editor.gizmos.GizmoContext;
-import com.pocket.rpg.editor.gizmos.GizmoDrawableSelected;
+import com.pocket.rpg.editor.gizmos.GizmoDrawable;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector3f;
@@ -33,7 +35,14 @@ import org.joml.Vector3f;
  * </pre>
  */
 @ComponentMeta(category = "Interaction")
-public class WarpZone extends Component implements TriggerListener, GizmoDrawableSelected {
+public class WarpZone extends Component implements GizmoDrawable {
+
+    /**
+     * Reference to the TriggerZone that activates this warp.
+     * Resolved automatically at runtime.
+     */
+    @ComponentRef
+    private TriggerZone triggerZone;
 
     /**
      * Target scene to load. Leave empty to warp within the same scene.
@@ -58,11 +67,24 @@ public class WarpZone extends Component implements TriggerListener, GizmoDrawabl
     private boolean showDestinationLabel = true;
 
     // ========================================================================
-    // TRIGGER LISTENER
+    // LIFECYCLE
     // ========================================================================
 
     @Override
-    public void onTriggerEnter(GameObject entity, TriggerZone trigger) {
+    protected void onStart() {
+        // Register callback with TriggerZone (resolved via @ComponentRef)
+        if (triggerZone != null) {
+            triggerZone.setOnEnterCallback(this::onTriggerEnter);
+        } else {
+            System.err.println("[WarpZone] No TriggerZone found on " +
+                (gameObject != null ? gameObject.getName() : "null"));
+        }
+    }
+
+    /**
+     * Called when an entity enters the trigger zone.
+     */
+    private void onTriggerEnter(GameObject entity, TriggerZone trigger) {
         // Only warp player
         String name = entity.getName();
         if (name == null || !name.contains("Player")) {
@@ -70,11 +92,6 @@ public class WarpZone extends Component implements TriggerListener, GizmoDrawabl
         }
 
         executeWarp(entity);
-    }
-
-    @Override
-    public void onTriggerExit(GameObject entity, TriggerZone trigger) {
-        // Not used
     }
 
     // ========================================================================
@@ -108,14 +125,23 @@ public class WarpZone extends Component implements TriggerListener, GizmoDrawabl
             return;
         }
 
-        // Move player to spawn position
         Vector3f spawnPos = spawn.getSpawnPosition();
-        player.getTransform().setPosition(spawnPos);
+        int targetGridX = (int) Math.floor(spawnPos.x);
+        int targetGridY = (int) Math.floor(spawnPos.y);
+
+        // Update GridMovement if player has one (handles occupancy map + visual position)
+        GridMovement gridMovement = player.getComponent(GridMovement.class);
+        if (gridMovement != null) {
+            gridMovement.setGridPosition(targetGridX, targetGridY);
+        } else {
+            // Fallback: just move transform directly
+            player.getTransform().setPosition(spawnPos);
+        }
 
         // TODO: Set facing direction
         // TODO: Play warp effect/sound
 
-        System.out.println("[WarpZone] Warped player to: " + spawnPos);
+        System.out.println("[WarpZone] Warped player to grid: (" + targetGridX + ", " + targetGridY + ")");
     }
 
     /**
@@ -150,31 +176,35 @@ public class WarpZone extends Component implements TriggerListener, GizmoDrawabl
     }
 
     // ========================================================================
-    // GIZMO DRAWING
+    // GIZMO DRAWING - Always visible
     // ========================================================================
 
     @Override
-    public void onDrawGizmosSelected(GizmoContext ctx) {
+    public void onDrawGizmos(GizmoContext ctx) {
         Vector3f pos = ctx.getTransform().getPosition();
         float x = pos.x;
         float y = pos.y;
 
-        // Draw warp symbol (portal-like)
-        float size = 0.4f;
+        // Draw warp symbol (portal-like) at tile center
+        float tileX = (float) Math.floor(x);
+        float tileY = (float) Math.floor(y);
+        float centerX = tileX + 0.5f;
+        float centerY = tileY + 0.5f;
+        float size = 0.35f;
 
         // Outer ring
-        ctx.setColor(GizmoColors.fromRGBA(0.6f, 0.2f, 1.0f, 0.6f));
+        ctx.setColor(GizmoColors.fromRGBA(0.6f, 0.2f, 1.0f, 0.7f));
         ctx.setThickness(3.0f);
-        ctx.drawCircle(x + 0.5f, y + 0.5f, size);
+        ctx.drawCircle(centerX, centerY, size);
 
         // Inner ring
-        ctx.setColor(GizmoColors.fromRGBA(0.8f, 0.4f, 1.0f, 0.8f));
+        ctx.setColor(GizmoColors.fromRGBA(0.8f, 0.4f, 1.0f, 0.9f));
         ctx.setThickness(2.0f);
-        ctx.drawCircle(x + 0.5f, y + 0.5f, size * 0.6f);
+        ctx.drawCircle(centerX, centerY, size * 0.6f);
 
         // Center dot
         ctx.setColor(GizmoColors.fromRGBA(1.0f, 0.8f, 1.0f, 1.0f));
-        ctx.drawCircleFilled(x + 0.5f, y + 0.5f, size * 0.15f);
+        ctx.drawCircleFilled(centerX, centerY, size * 0.15f);
 
         // Draw destination label
         if (showDestinationLabel) {
@@ -182,7 +212,7 @@ public class WarpZone extends Component implements TriggerListener, GizmoDrawabl
                 ? "-> " + targetSpawnId
                 : "-> " + targetScene + ":" + targetSpawnId;
             ctx.setColor(GizmoColors.fromRGBA(0.8f, 0.6f, 1.0f, 1.0f));
-            ctx.drawText(x + 0.5f, y + 0.5f, label, 5, -20);
+            ctx.drawText(centerX, centerY, label, 5, -20);
         }
     }
 }

@@ -1,12 +1,13 @@
 package com.pocket.rpg.editor;
 
+import com.pocket.rpg.editor.events.EditorEventBus;
+import com.pocket.rpg.editor.events.SelectionChangedEvent;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.*;
-import java.util.function.Consumer;
+import java.util.Set;
 
 /**
  * Centralized manager for editor selection state.
@@ -41,8 +42,6 @@ public class EditorSelectionManager {
 
     @Setter
     private EditorScene scene;
-
-    private final List<Consumer<SelectionType>> listeners = new ArrayList<>();
 
     // ========================================================================
     // SELECTION METHODS
@@ -208,31 +207,14 @@ public class EditorSelectionManager {
     }
 
     // ========================================================================
-    // LISTENERS
-    // ========================================================================
-
-    /**
-     * Registers a listener for selection changes.
-     */
-    public void addListener(Consumer<SelectionType> listener) {
-        listeners.add(listener);
-    }
-
-    /**
-     * Removes a selection change listener.
-     */
-    public void removeListener(Consumer<SelectionType> listener) {
-        listeners.remove(listener);
-    }
-
-    // ========================================================================
     // PRIVATE HELPERS
     // ========================================================================
 
     private void setSelectionType(SelectionType type) {
         if (this.selectionType != type) {
+            SelectionType previousType = this.selectionType;
             this.selectionType = type;
-            notifyListeners();
+            publishSelectionEvent(previousType);
         }
     }
 
@@ -248,9 +230,7 @@ public class EditorSelectionManager {
         selectedAssetType = null;
     }
 
-    private void notifyListeners() {
-        for (Consumer<SelectionType> listener : listeners) {
-            listener.accept(selectionType);
-        }
+    private void publishSelectionEvent(SelectionType previousType) {
+        EditorEventBus.get().publish(new SelectionChangedEvent(selectionType, previousType));
     }
 }

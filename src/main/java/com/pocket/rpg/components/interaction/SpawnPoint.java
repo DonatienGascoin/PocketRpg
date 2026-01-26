@@ -77,24 +77,39 @@ public class SpawnPoint extends Component implements GizmoDrawable {
         float x = pos.x;
         float y = pos.y;
 
-        // Draw spawn marker (diamond shape)
-        float size = ctx.getHandleSize(12);
+        // Calculate tile-aligned position for the area box
+        float tileX = (float) Math.floor(x);
+        float tileY = (float) Math.floor(y);
+
+        // Draw 1x1 tile area box (semi-transparent fill)
+        ctx.setColor(GizmoColors.fromRGBA(0.3f, 0.6f, 1.0f, 0.15f));
+        ctx.drawRectFilled(tileX, tileY, 1, 1);
+
+        // Draw area box outline
+        ctx.setColor(GizmoColors.fromRGBA(0.3f, 0.6f, 1.0f, 0.6f));
+        ctx.setThickness(2.0f);
+        ctx.drawRect(tileX, tileY, 1, 1);
+
+        // Draw spawn marker (diamond shape) at tile center
+        float centerX = tileX + 0.5f;
+        float centerY = tileY + 0.5f;
+        float size = ctx.getHandleSize(10);
 
         // Blue diamond outline
-        ctx.setColor(GizmoColors.fromRGBA(0.3f, 0.6f, 1.0f, 0.8f));
+        ctx.setColor(GizmoColors.fromRGBA(0.3f, 0.6f, 1.0f, 0.9f));
         ctx.setThickness(2.0f);
-        ctx.drawDiamond(x, y, size);
+        ctx.drawDiamond(centerX, centerY, size);
 
         // Draw facing direction arrow
         float arrowSize = size * 0.8f;
-        float arrowX = x + (facingDirection != null ? facingDirection.dx * size * 1.5f : 0);
-        float arrowY = y + (facingDirection != null ? facingDirection.dy * size * 1.5f : 0);
+        float arrowX = centerX + (facingDirection != null ? facingDirection.dx * size * 1.5f : 0);
+        float arrowY = centerY + (facingDirection != null ? facingDirection.dy * size * 1.5f : 0);
 
         ctx.setColor(GizmoColors.fromRGBA(1.0f, 1.0f, 1.0f, 0.6f));
-        ctx.drawArrow(x, y, arrowX, arrowY, arrowSize * 0.3f);
+        ctx.drawArrow(centerX, centerY, arrowX, arrowY, arrowSize * 0.3f);
 
         // Draw spawn ID label
         ctx.setColor(GizmoColors.WHITE);
-        ctx.drawText(x, y, spawnId, 5, -15);
+        ctx.drawText(centerX, centerY, spawnId, 5, -15);
     }
 }

@@ -1,6 +1,7 @@
 package com.pocket.rpg.editor.ui.inspectors;
 
 import com.pocket.rpg.components.interaction.SpawnPoint;
+import com.pocket.rpg.components.interaction.TriggerZone;
 import com.pocket.rpg.components.interaction.WarpZone;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;

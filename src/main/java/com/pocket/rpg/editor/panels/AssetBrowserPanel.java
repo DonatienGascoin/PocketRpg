@@ -3,6 +3,8 @@ package com.pocket.rpg.editor.panels;
 import com.pocket.rpg.editor.EditorPanelType;
 import com.pocket.rpg.editor.EditorSelectionManager;
 import com.pocket.rpg.editor.assets.AssetDragPayload;
+import com.pocket.rpg.editor.events.AssetChangedEvent;
+import com.pocket.rpg.editor.events.EditorEventBus;
 import com.pocket.rpg.editor.assets.ThumbnailCache;
 import com.pocket.rpg.editor.core.EditorFonts;
 import com.pocket.rpg.editor.core.MaterialIcons;
@@ -109,6 +111,17 @@ public class AssetBrowserPanel extends EditorPanel {
      */
     public void initialize() {
         refresh();
+
+        // Subscribe to asset change events
+        EditorEventBus.get().subscribe(AssetChangedEvent.class, this::onAssetChanged);
+    }
+
+    private void onAssetChanged(AssetChangedEvent event) {
+        // Refresh when assets are created or modified
+        if (event.changeType() == AssetChangedEvent.ChangeType.CREATED ||
+                event.changeType() == AssetChangedEvent.ChangeType.MODIFIED) {
+            refresh();
+        }
     }
 
     /**

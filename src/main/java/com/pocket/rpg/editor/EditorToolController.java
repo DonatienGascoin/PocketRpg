@@ -1,6 +1,9 @@
 package com.pocket.rpg.editor;
 
-import com.pocket.rpg.collision.trigger.TileCoord;
+import com.pocket.rpg.editor.events.CollisionTypePickedEvent;
+import com.pocket.rpg.editor.events.EditorEventBus;
+import com.pocket.rpg.editor.events.StatusMessageEvent;
+import com.pocket.rpg.editor.events.TilesPickedEvent;
 import com.pocket.rpg.editor.panels.CollisionPanel;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.tools.CollisionBrushTool;
@@ -20,8 +23,6 @@ import com.pocket.rpg.editor.tools.TilePickerTool;
 import com.pocket.rpg.editor.tools.ToolManager;
 import lombok.Getter;
 import lombok.Setter;
-
-import java.util.function.Consumer;
 
 /**
  * Manages editor tools: creation and registration.
@@ -60,12 +61,6 @@ public class EditorToolController {
 
     // Reference to collision panel for type display
     @Setter private CollisionPanel collisionPanel;
-
-    // Message callback
-    @Setter private Consumer<String> messageCallback;
-
-    // Trigger selection callback (when clicking trigger tiles in scene view)
-    @Setter private Consumer<TileCoord> triggerSelectedCallback;
 
     public EditorToolController(EditorContext context) {
         this.context = context;
@@ -189,36 +184,22 @@ public class EditorToolController {
     private void setupCallbacks() {
         ToolManager toolManager = context.getToolManager();
 
-        // Tile picker callback
-        pickerTool.setOnTilesPicked(selection -> {
-            brushTool.setSelection(selection);
-            fillTool.setSelection(selection);
-            rectangleTool.setSelection(selection);
+        // Subscribe to tile picker events
+        EditorEventBus.get().subscribe(TilesPickedEvent.class, event -> {
+            brushTool.setSelection(event.selection());
+            fillTool.setSelection(event.selection());
+            rectangleTool.setSelection(event.selection());
             toolManager.setActiveTool(brushTool);
             showMessage("Picked tiles - switched to Brush");
         });
 
-        // Collision picker callback
-        collisionPickerTool.setOnCollisionPicked(type -> {
+        // Subscribe to collision picker events
+        EditorEventBus.get().subscribe(CollisionTypePickedEvent.class, event -> {
             if (collisionPanel != null) {
-                collisionPanel.setSelectedType(type);
+                collisionPanel.setSelectedType(event.collisionType());
             }
             toolManager.setActiveTool(collisionBrushTool);
-            showMessage("Picked collision: " + type.getDisplayName() + " - switched to Brush");
-        });
-
-        // Trigger selection callback (when clicking on trigger tiles with picker)
-        collisionPickerTool.setOnTriggerSelected(coord -> {
-            if (triggerSelectedCallback != null) {
-                triggerSelectedCallback.accept(coord);
-            }
-        });
-
-        // Trigger selection callback for SelectionTool (when collision layer is selected)
-        selectionTool.setOnTriggerSelected(coord -> {
-            if (triggerSelectedCallback != null) {
-                triggerSelectedCallback.accept(coord);
-            }
+            showMessage("Picked collision: " + event.collisionType().getDisplayName() + " - switched to Brush");
         });
 
         // Switch to transform tool when entity is selected via SelectionTool
@@ -228,8 +209,6 @@ public class EditorToolController {
     }
 
     private void showMessage(String message) {
-        if (messageCallback != null) {
-            messageCallback.accept(message);
-        }
+        EditorEventBus.get().publish(new StatusMessageEvent(message));
     }
 }

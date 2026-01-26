@@ -2,14 +2,15 @@ package com.pocket.rpg.editor;
 
 import com.pocket.rpg.config.ConfigLoader;
 import com.pocket.rpg.editor.core.EditorConfig;
+import com.pocket.rpg.editor.events.EditorEventBus;
+import com.pocket.rpg.editor.events.RecentScenesChangedEvent;
+import com.pocket.rpg.editor.events.StatusMessageEvent;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.serialization.EditorSceneSerializer;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.resources.LoadOptions;
 import com.pocket.rpg.serialization.SceneData;
-
-import java.util.function.Consumer;
 
 /**
  * Handles scene operations: new, open, save.
@@ -20,10 +21,7 @@ public class EditorSceneController {
 
     private final EditorContext context;
 
-    // Optional message callback for status updates
-    private Consumer<String> messageCallback;
-
-    // Callback when recent scenes list changes
+    // Callback when recent scenes list changes (legacy - will be migrated to event)
     private Runnable onRecentScenesChanged;
 
     public EditorSceneController(EditorContext context) {
@@ -35,13 +33,6 @@ public class EditorSceneController {
      */
     public void setOnRecentScenesChanged(Runnable callback) {
         this.onRecentScenesChanged = callback;
-    }
-
-    /**
-     * Sets a callback for status messages.
-     */
-    public void setMessageCallback(Consumer<String> callback) {
-        this.messageCallback = callback;
     }
 
     /**
@@ -113,10 +104,12 @@ public class EditorSceneController {
         config.addRecentScene(path);
         ConfigLoader.saveConfigToFile(config, ConfigLoader.ConfigType.EDITOR);
 
-        // Notify listeners
+        // Notify legacy listener
         if (onRecentScenesChanged != null) {
             onRecentScenesChanged.run();
         }
+        // Publish event
+        EditorEventBus.get().publish(new RecentScenesChangedEvent());
     }
 
     /**
@@ -179,8 +172,6 @@ public class EditorSceneController {
     }
 
     private void showMessage(String message) {
-        if (messageCallback != null) {
-            messageCallback.accept(message);
-        }
+        EditorEventBus.get().publish(new StatusMessageEvent(message));
     }
 }

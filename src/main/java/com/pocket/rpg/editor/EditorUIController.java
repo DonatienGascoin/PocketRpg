@@ -1,5 +1,8 @@
 package com.pocket.rpg.editor;
 
+import com.pocket.rpg.editor.events.EditorEventBus;
+import com.pocket.rpg.editor.events.TriggerFocusRequestEvent;
+import com.pocket.rpg.editor.events.TriggerSelectedEvent;
 import com.pocket.rpg.editor.panels.*;
 import com.pocket.rpg.editor.rendering.CameraOverlayRenderer;
 import com.pocket.rpg.editor.rendering.CollisionOverlayRenderer;
@@ -97,7 +100,6 @@ public class EditorUIController {
         sceneToolbar.setMessageCallback(statusBar::showMessage);
         animationEditorPanel.setStatusCallback(statusBar::showMessage);
         spriteEditorPanel.setStatusCallback(statusBar::showMessage);
-        spriteEditorPanel.setOnSaveCallback(assetBrowserPanel::refresh);
 
         // Register panel handlers for asset double-click
         assetBrowserPanel.registerPanelHandler(
@@ -161,8 +163,18 @@ public class EditorUIController {
         inspectorPanel.setScene(scene);
         inspectorPanel.setSelectionManager(context.getSelectionManager());
 
-        // Wire up trigger selection from collision panel to inspector
-        collisionPanel.setOnTriggerSelected(inspectorPanel::setSelectedTrigger);
+        // Subscribe to trigger selection events (from collision panel or scene view)
+        EditorEventBus.get().subscribe(TriggerSelectedEvent.class, event -> {
+            inspectorPanel.setSelectedTrigger(event.coordinate());
+            collisionPanel.setSelectedTrigger(event.coordinate());
+        });
+
+        // Subscribe to trigger focus events (double-click in collision panel)
+        EditorEventBus.get().subscribe(TriggerFocusRequestEvent.class, event -> {
+            if (context.getCamera() != null) {
+                context.getCamera().centerOn(event.coordinate().x() + 0.5f, event.coordinate().y() + 0.5f);
+            }
+        });
 
         // Wire up collision type selection to switch to brush tool (if not in fill/rectangle)
         collisionPanel.setActiveToolSupplier(() -> context.getToolManager().getActiveTool());
@@ -170,25 +182,12 @@ public class EditorUIController {
                 context.getToolManager().setActiveTool(toolController.getCollisionBrushTool())
         );
 
-        // Wire up trigger focus to center camera
-        collisionPanel.setOnTriggerFocus(coord -> {
-            if (context.getCamera() != null) {
-                context.getCamera().centerOn(coord.x() + 0.5f, coord.y() + 0.5f);
-            }
-        });
-
         // Wire up camera bounds supplier for visibility checking
         collisionPanel.setCameraWorldBoundsSupplier(() -> {
             if (context.getCamera() != null) {
                 return context.getCamera().getWorldBounds();
             }
             return null;
-        });
-
-        // Wire up trigger selection from scene view (picker tool or selection tool) to both inspector and collision panel
-        toolController.setTriggerSelectedCallback(coord -> {
-            inspectorPanel.setSelectedTrigger(coord);
-            collisionPanel.setSelectedTrigger(coord);
         });
 
         configurationPanel = new ConfigurationPanel(context);
@@ -216,6 +215,7 @@ public class EditorUIController {
         });
 
         statusBar = new StatusBar();
+        statusBar.initialize();
         statusBar.setCamera(context.getCamera());
         statusBar.setCurrentScene(context.getCurrentScene());
     }
@@ -307,6 +307,7 @@ public class EditorUIController {
             ImGui.separator();
 
             sceneViewport.setShowGrid(sceneToolbar.isShowGrid());
+            sceneViewport.setShowGizmos(sceneToolbar.isShowGizmos());
             sceneViewport.renderContent();
 
             // Render overlays INSIDE the window context (required for getWindowDrawList)

@@ -2,6 +2,8 @@ package com.pocket.rpg.editor.tools;
 
 import com.pocket.rpg.components.TilemapRenderer;
 import com.pocket.rpg.editor.camera.EditorCamera;
+import com.pocket.rpg.editor.events.EditorEventBus;
+import com.pocket.rpg.editor.events.TilesPickedEvent;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.TilemapLayer;
 import com.pocket.rpg.editor.tileset.TileSelection;
@@ -25,10 +27,6 @@ public class TilePickerTool implements EditorTool {
 
     @Setter
     private EditorScene scene;
-
-    /** Callback to update brush tool's selection */
-    @Setter
-    private TileSelectionCallback onTilesPicked;
 
     // Pattern picking state
     private boolean isPickingPattern = false;
@@ -139,10 +137,8 @@ public class TilePickerTool implements EditorTool {
                 sprite
         );
 
-        // Notify callback
-        if (onTilesPicked != null) {
-            onTilesPicked.onTilesPicked(selection);
-        }
+        // Publish event
+        EditorEventBus.get().publish(new TilesPickedEvent(selection));
 
         System.out.println("Picked single tile from (" + tileX + ", " + tileY + ")");
     }
@@ -246,10 +242,8 @@ public class TilePickerTool implements EditorTool {
                 sprites
         );
 
-        // Notify callback
-        if (onTilesPicked != null) {
-            onTilesPicked.onTilesPicked(selection);
-        }
+        // Publish event
+        EditorEventBus.get().publish(new TilesPickedEvent(selection));
 
         System.out.println("Picked pattern " + width + "x" + height + " from (" + minX + ", " + minY + ")");
     }
@@ -359,12 +353,5 @@ public class TilePickerTool implements EditorTool {
 
         drawList.addRectFilled(minX, minY, maxX, maxY, fillColor);
         drawList.addRect(minX, minY, maxX, maxY, borderColor, 0, 0, borderThickness);
-    }
-
-    /**
-     * Callback interface for notifying when tiles are picked.
-     */
-    public interface TileSelectionCallback {
-        void onTilesPicked(TileSelection selection);
     }
 }

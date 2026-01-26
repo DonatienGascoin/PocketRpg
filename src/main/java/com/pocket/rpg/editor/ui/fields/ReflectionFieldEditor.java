@@ -40,7 +40,10 @@ public class ReflectionFieldEditor {
 
         // Check for custom editor first
         if (CustomComponentEditorRegistry.hasCustomEditor(component.getClass().getName())) {
-            return CustomComponentEditorRegistry.drawCustomEditor(component, entity);
+            boolean changed = CustomComponentEditorRegistry.drawCustomEditor(component, entity);
+            // Still draw component references after custom editor
+            drawComponentReferences(meta.references(), entity);
+            return changed;
         }
 
         // Set up context for @Required and override styling

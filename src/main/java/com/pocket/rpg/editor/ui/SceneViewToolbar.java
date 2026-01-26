@@ -61,6 +61,10 @@ public class SceneViewToolbar {
     @Setter
     private boolean showGrid = true;
 
+    @Getter
+    @Setter
+    private boolean showGizmos = true;
+
     public SceneViewToolbar(EditorContext context, EditorToolController toolController) {
         this.context = context;
         this.toolController = toolController;
@@ -241,6 +245,27 @@ public class SceneViewToolbar {
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("Toggle Collision Overlay");
+        }
+
+        ImGui.sameLine();
+
+        // Gizmos toggle - blue when on, red when off
+        boolean gizmosActive = showGizmos;
+        if (gizmosActive) {
+            ImGui.pushStyleColor(ImGuiCol.Button, 0.3f, 0.5f, 0.9f, 1.0f);
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.4f, 0.6f, 1.0f, 1.0f);
+            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.2f, 0.4f, 0.8f, 1.0f);
+        } else {
+            ImGui.pushStyleColor(ImGuiCol.Button, 0.7f, 0.2f, 0.2f, 1.0f);
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.8f, 0.3f, 0.3f, 1.0f);
+            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.6f, 0.15f, 0.15f, 1.0f);
+        }
+        if (ImGui.button(MaterialIcons.Visibility + "##Gizmos")) {
+            showGizmos = !showGizmos;
+        }
+        ImGui.popStyleColor(3);
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("Toggle Gizmos");
         }
     }
 

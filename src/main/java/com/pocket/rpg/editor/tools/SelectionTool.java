@@ -5,6 +5,8 @@ import com.pocket.rpg.collision.trigger.TileCoord;
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.editor.EditorSelectionManager;
 import com.pocket.rpg.editor.camera.EditorCamera;
+import com.pocket.rpg.editor.events.EditorEventBus;
+import com.pocket.rpg.editor.events.TriggerSelectedEvent;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.rendering.resources.Sprite;
@@ -38,12 +40,6 @@ public class SelectionTool implements EditorTool, ViewportAwareTool {
 
     @Setter
     private EditorSelectionManager selectionManager;
-
-    /**
-     * Callback when a trigger tile is selected (collision layer mode).
-     */
-    @Setter
-    private Consumer<TileCoord> onTriggerSelected;
 
     /**
      * Callback to switch to a transform tool after selecting an entity.
@@ -154,9 +150,7 @@ public class SelectionTool implements EditorTool, ViewportAwareTool {
         // Only select if it's a trigger tile
         if (type != null && type.isTrigger()) {
             TileCoord coord = new TileCoord(tileX, tileY, zLevel);
-            if (onTriggerSelected != null) {
-                onTriggerSelected.accept(coord);
-            }
+            EditorEventBus.get().publish(new TriggerSelectedEvent(coord));
         }
     }
 

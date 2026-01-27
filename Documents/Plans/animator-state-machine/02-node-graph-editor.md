@@ -1,5 +1,48 @@
 # Animator Node Graph Editor
 
+## CURRENT STATUS (2026-01-27)
+
+**Implementation is 95% complete. One bug remains:**
+
+### Bug: ImNodes Assertion Error on Tab Open
+The `ImNodes.getHoveredNode()` call causes an assertion error:
+```
+Dear ImGui Assertion Failed: GImNodes->CurrentScope == ImNodesScope_None
+```
+
+**Root Cause:** ImNodes hover functions must be called AFTER `endNodeEditor()`, not before.
+
+**Fix Required in `AnimatorGraphEditor.java` (around line 157-162):**
+
+Current (WRONG):
+```java
+// Capture hover state BEFORE ending the editor (required for context menus)
+hoveredNodeId = ImNodes.getHoveredNode();
+hoveredLinkId = ImNodes.getHoveredLink();
+editorHovered = ImNodes.isEditorHovered();
+
+ImNodes.endNodeEditor();
+```
+
+Should be (CORRECT):
+```java
+ImNodes.endNodeEditor();
+
+// Capture hover state AFTER ending the editor
+hoveredNodeId = ImNodes.getHoveredNode();
+hoveredLinkId = ImNodes.getHoveredLink();
+editorHovered = ImNodes.isEditorHovered();
+```
+
+### Files Created/Modified:
+- `editor/panels/animator/AnimatorGraphEditor.java` - NEW (needs fix above)
+- `editor/panels/animator/AnimatorIdManager.java` - NEW
+- `animation/AnimatorLayoutData.java` - NEW
+- `resources/loaders/AnimatorLayoutLoader.java` - NEW
+- `editor/panels/AnimatorEditorPanel.java` - Modified for graph view
+
+---
+
 ## Overview
 
 This document describes a visual node-based editor for AnimatorController assets. States are represented as draggable nodes, and transitions as curved arrows between them.
@@ -928,14 +971,36 @@ Show current parameter values in a bar:
 
 ---
 
-## Alternative: Use External Library
+## Decision: Use imgui-node-editor Library
 
-Instead of building from scratch, consider integrating an existing node graph library:
+**Final Choice:** Use `imgui-node-editor` (already included in imgui-java dependency)
 
-| Library | Pros | Cons |
-|---------|------|------|
-| **imnodes** | ImGui-based, C++ with Java bindings possible | Requires JNI wrapper |
-| **imgui-node-editor** | More features, better looking | More complex, JNI required |
-| **Custom** | Full control, no dependencies | More development time |
+| Factor | Decision |
+|--------|----------|
+| **Library** | imgui-node-editor (NOT custom, NOT imnodes) |
+| **Layout** | Graph + Side Inspector |
+| **View Toggle** | No - replace list view entirely |
+| **Play Mode** | Deferred to separate play-mode-inspection plan |
+| **Time Estimate** | ~2 weeks (vs 5 weeks custom) |
 
-**Recommendation:** Start with custom implementation for Phase 1-3, evaluate complexity, then decide whether to integrate a library for advanced features.
+### Self-Loop Handling
+
+imgui-node-editor doesn't render self-loops well (bezier collapses). Solution:
+1. Allow self-transitions in data model
+2. Skip `NodeEditor.link()` for self-loops
+3. Render manually using `ImDrawList.addBezierCubic()` with loop control points
+
+```java
+// Self-loop rendering (above the node)
+if (fromState.equals(toState)) {
+    ImVec2 nodePos = getNodePosition(fromState);
+    float loopHeight = 50f;
+    drawList.addBezierCubic(
+        nodePos.x + nodeWidth, nodePos.y + nodeHeight/2,  // Start (right side)
+        nodePos.x + nodeWidth + loopHeight, nodePos.y - loopHeight,  // Control 1
+        nodePos.x + loopHeight, nodePos.y - loopHeight,  // Control 2
+        nodePos.x, nodePos.y + nodeHeight/2,  // End (left side, same node)
+        color, thickness
+    );
+}
+```

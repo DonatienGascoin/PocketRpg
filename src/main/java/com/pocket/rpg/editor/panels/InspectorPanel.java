@@ -1,5 +1,8 @@
 package com.pocket.rpg.editor.panels;
 
+import com.pocket.rpg.animation.animator.AnimatorController;
+import com.pocket.rpg.animation.animator.AnimatorState;
+import com.pocket.rpg.animation.animator.AnimatorTransition;
 import com.pocket.rpg.collision.trigger.TileCoord;
 import com.pocket.rpg.editor.EditorSelectionManager;
 import com.pocket.rpg.editor.panels.inspector.*;
@@ -35,6 +38,10 @@ public class InspectorPanel extends EditorPanel {
 
     @Getter
     private final TriggerInspector triggerInspector = new TriggerInspector();
+
+    // Animator inspectors
+    private final AnimatorStateInspector animatorStateInspector = new AnimatorStateInspector();
+    private final AnimatorTransitionInspector animatorTransitionInspector = new AnimatorTransitionInspector();
 
     // Track if we were showing asset inspector last frame
     private boolean wasShowingAssetInspector = false;
@@ -94,6 +101,16 @@ public class InspectorPanel extends EditorPanel {
      * Renders the appropriate inspector based on current selection.
      */
     private void renderCurrentInspector(boolean shouldShowAsset) {
+        // Animator inspectors take highest priority
+        if (animatorStateInspector.hasSelection()) {
+            animatorStateInspector.render();
+            return;
+        }
+        if (animatorTransitionInspector.hasSelection()) {
+            animatorTransitionInspector.render();
+            return;
+        }
+
         // Check if a trigger is selected (takes priority when collision layer is active)
         if (triggerInspector.hasSelection() && selectionManager != null && selectionManager.isCollisionLayerSelected()) {
             triggerInspector.render();
@@ -137,5 +154,48 @@ public class InspectorPanel extends EditorPanel {
      */
     public void clearTriggerSelection() {
         triggerInspector.clearSelection();
+    }
+
+    // ========================================================================
+    // ANIMATOR SELECTION
+    // ========================================================================
+
+    /**
+     * Sets the selected animator state for the inspector.
+     *
+     * @param state The state to inspect
+     * @param controller The controller containing the state
+     * @param onModified Callback when state is modified (for undo capture)
+     */
+    public void setAnimatorState(AnimatorState state, AnimatorController controller, Runnable onModified) {
+        animatorTransitionInspector.clearSelection();
+        animatorStateInspector.setSelection(state, controller, onModified);
+    }
+
+    /**
+     * Sets the selected animator transition for the inspector.
+     *
+     * @param transition The transition to inspect
+     * @param controller The controller containing the transition
+     * @param onModified Callback when transition is modified (for undo capture)
+     */
+    public void setAnimatorTransition(AnimatorTransition transition, AnimatorController controller, Runnable onModified) {
+        animatorStateInspector.clearSelection();
+        animatorTransitionInspector.setSelection(transition, controller, onModified);
+    }
+
+    /**
+     * Clears the animator selection (both state and transition).
+     */
+    public void clearAnimatorSelection() {
+        animatorStateInspector.clearSelection();
+        animatorTransitionInspector.clearSelection();
+    }
+
+    /**
+     * Checks if an animator state or transition is currently selected.
+     */
+    public boolean hasAnimatorSelection() {
+        return animatorStateInspector.hasSelection() || animatorTransitionInspector.hasSelection();
     }
 }

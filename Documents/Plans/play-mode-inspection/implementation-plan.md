@@ -4,6 +4,16 @@
 
 Enable the hierarchy and inspector panels to display and interact with runtime GameObjects during play mode. Changes made during play mode affect only the running game and reset when play stops (Unity-style behavior).
 
+## Prerequisites
+
+**Requires**: `igameobject-interface` plan must be implemented first.
+
+This plan depends on:
+- `IGameObject` interface existing
+- `GameObject implements IGameObject`
+- `EditorGameObject implements IGameObject`
+- `Component.getOwner()` returning `IGameObject`
+
 ## Current State
 
 - **EditorScene** with **EditorGameObjects** is frozen at play start, restored when play stops
@@ -13,11 +23,26 @@ Enable the hierarchy and inspector panels to display and interact with runtime G
 
 ## Design Approach
 
-Use a **Mode-Aware Adapter Pattern**:
-1. Create a `HierarchyItem` interface that abstracts the common display needs
-2. Create a `RuntimeGameObjectAdapter` that wraps runtime `GameObject`s
+Use a **Mode-Aware Adapter Pattern** with interface inheritance:
+1. Create `HierarchyItem extends IGameObject` interface for hierarchy-specific needs
+2. Create `RuntimeGameObjectAdapter implements HierarchyItem` that wraps runtime `GameObject`s
 3. Add a `PlayModeSelectionManager` for runtime selection (separate from editor selection)
 4. Modify panels to detect play mode and switch data sources
+
+### Interface Hierarchy
+
+```
+IGameObject (from igameobject-interface plan)
+    ├── GameObject implements IGameObject
+    ├── EditorGameObject implements HierarchyItem
+    └── HierarchyItem extends IGameObject
+            └── RuntimeGameObjectAdapter implements HierarchyItem (wraps GameObject)
+```
+
+This design:
+- Eliminates duplicate methods between interfaces
+- Keeps hierarchy/UI concerns separate from core game object functionality
+- Uses adapter pattern to bridge GameObject (no hierarchy methods) to HierarchyItem
 
 ---
 
@@ -29,27 +54,175 @@ Use a **Mode-Aware Adapter Pattern**:
 **File:** `src/main/java/com/pocket/rpg/editor/panels/hierarchy/HierarchyItem.java`
 
 ```java
-public interface HierarchyItem {
-    String getDisplayName();
-    String getUniqueId();
+package com.pocket.rpg.editor.panels.hierarchy;
+
+import com.pocket.rpg.core.IGameObject;
+import java.util.List;
+
+/**
+ * Extended interface for game objects that can be displayed in the hierarchy panel.
+ * Extends {@link IGameObject} to add hierarchy navigation and editability.
+ * <p>
+ * Implemented by {@link EditorGameObject} directly and by {@link RuntimeGameObjectAdapter}
+ * which wraps runtime {@link GameObject}s for hierarchy display.
+ */
+public interface HierarchyItem extends IGameObject {
+
+    /**
+     * Returns child items for hierarchy tree display.
+     * For EditorGameObject: returns children directly.
+     * For RuntimeGameObjectAdapter: returns wrapped children.
+     */
     List<? extends HierarchyItem> getHierarchyChildren();
-    boolean hasHierarchyChildren();
-    List<Component> getInspectableComponents();
-    boolean isEditable();  // false during play mode
+
+    /**
+     * Returns whether this item has children to display.
+     */
+    default boolean hasHierarchyChildren() {
+        return !getHierarchyChildren().isEmpty();
+    }
+
+    /**
+     * Returns whether this item can be edited (rename, delete, reparent, etc.)
+     * Returns true for editor objects, false for runtime objects during play mode.
+     */
+    default boolean isEditable() {
+        return isEditor();
+    }
 }
 ```
+
+**Note**: Methods from `IGameObject` are inherited:
+- `getName()` - used as display name
+- `getId()` - used as unique ID for ImGui
+- `getAllComponents()` - used for inspector
+- `isEnabled()`, `isRuntime()`, `isEditor()` - context checks
 
 #### 2. `RuntimeGameObjectAdapter` (NEW)
 **File:** `src/main/java/com/pocket/rpg/editor/scene/RuntimeGameObjectAdapter.java`
 
-Wraps a runtime `GameObject` to implement `HierarchyItem`:
-- `getDisplayName()` → `gameObject.getName()`
-- `getUniqueId()` → generate stable ID from object identity (e.g., `"runtime_" + System.identityHashCode(gameObject)`)
-- `getHierarchyChildren()` → wrap children in adapters (cache adapters to avoid recreation)
-- `getInspectableComponents()` → `gameObject.getAllComponents()`
-- `isEditable()` → `false`
+Wraps a runtime `GameObject` to implement `HierarchyItem`. Delegates `IGameObject` methods to the wrapped object:
 
-Also store reference to the wrapped `GameObject` for selection purposes.
+```java
+package com.pocket.rpg.editor.scene;
+
+import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.core.GameObject;
+import com.pocket.rpg.editor.panels.hierarchy.HierarchyItem;
+import lombok.Getter;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.WeakHashMap;
+
+/**
+ * Adapts a runtime {@link GameObject} to the {@link HierarchyItem} interface
+ * for display in the hierarchy panel during play mode.
+ * <p>
+ * Uses a static cache to avoid recreating adapters for the same GameObject.
+ */
+public class RuntimeGameObjectAdapter implements HierarchyItem {
+
+    // Cache adapters by GameObject to maintain stable references
+    private static final Map<GameObject, RuntimeGameObjectAdapter> adapterCache = new WeakHashMap<>();
+
+    @Getter
+    private final GameObject gameObject;
+
+    private List<HierarchyItem> cachedChildren;
+
+    private RuntimeGameObjectAdapter(GameObject gameObject) {
+        this.gameObject = gameObject;
+    }
+
+    /**
+     * Gets or creates an adapter for the given GameObject.
+     */
+    public static RuntimeGameObjectAdapter of(GameObject gameObject) {
+        return adapterCache.computeIfAbsent(gameObject, RuntimeGameObjectAdapter::new);
+    }
+
+    /**
+     * Clears the adapter cache. Call when play mode ends.
+     */
+    public static void clearCache() {
+        adapterCache.clear();
+    }
+
+    // ========================================================================
+    // IGameObject methods - delegate to wrapped GameObject
+    // ========================================================================
+
+    @Override
+    public String getName() {
+        return gameObject.getName();
+    }
+
+    @Override
+    public String getId() {
+        // Prefix to distinguish from editor IDs
+        return "runtime_" + gameObject.getId();
+    }
+
+    @Override
+    public Transform getTransform() {
+        return gameObject.getTransform();
+    }
+
+    @Override
+    public <T extends Component> T getComponent(Class<T> type) {
+        return gameObject.getComponent(type);
+    }
+
+    @Override
+    public <T extends Component> List<T> getComponents(Class<T> type) {
+        return gameObject.getComponents(type);
+    }
+
+    @Override
+    public List<Component> getAllComponents() {
+        return gameObject.getAllComponents();
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return gameObject.isEnabled();
+    }
+
+    @Override
+    public boolean isRuntime() {
+        return true;  // Always runtime
+    }
+
+    // ========================================================================
+    // HierarchyItem methods
+    // ========================================================================
+
+    @Override
+    public List<? extends HierarchyItem> getHierarchyChildren() {
+        List<GameObject> children = gameObject.getChildren();
+        if (children.isEmpty()) {
+            return List.of();
+        }
+
+        // Cache and wrap children
+        if (cachedChildren == null || cachedChildren.size() != children.size()) {
+            cachedChildren = new ArrayList<>(children.size());
+            for (GameObject child : children) {
+                cachedChildren.add(RuntimeGameObjectAdapter.of(child));
+            }
+        }
+        return cachedChildren;
+    }
+
+    @Override
+    public boolean isEditable() {
+        return false;  // Runtime objects are not editable
+    }
+}
+```
 
 #### 3. `PlayModeSelectionManager` (NEW)
 **File:** `src/main/java/com/pocket/rpg/editor/PlayModeSelectionManager.java`

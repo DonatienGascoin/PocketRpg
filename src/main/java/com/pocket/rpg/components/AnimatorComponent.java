@@ -144,10 +144,19 @@ public class AnimatorComponent extends Component {
     }
 
     /**
-     * Gets the current facing direction.
+     * Gets the current facing direction from the direction parameter.
+     * Returns DOWN if no direction parameter is defined or no state machine.
      */
     public Direction getDirection() {
         return stateMachine != null ? stateMachine.getCurrentDirection() : Direction.DOWN;
+    }
+
+    /**
+     * Checks if this animator has a direction parameter defined.
+     */
+    public boolean hasDirectionParameter() {
+        return controller != null && controller.getParameters().stream()
+            .anyMatch(p -> p.getType() == com.pocket.rpg.animation.animator.ParameterType.DIRECTION);
     }
 
     /**

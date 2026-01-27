@@ -35,9 +35,9 @@ This folder contains the implementation plans for the Sprite Editor V2 feature a
 
 | File | Description | Status | Phases |
 |------|-------------|--------|--------|
-| [00-asset-model-unification.md](./00-asset-model-unification.md) | Unify Sprite/SpriteSheet | DRAFT | 9 |
-| [01-sprite-editor-v2.md](./01-sprite-editor-v2.md) | New editor implementation | DRAFT | 9 |
-| [02-asset-inspector-enhancements.md](./02-asset-inspector-enhancements.md) | Inspector editable fields | DRAFT | 4 |
+| [00-asset-model-unification.md](00-asset-model-unification.md) | Unify Sprite/SpriteSheet | DRAFT | 9 |
+| [01-sprite-editor-v2.md](01-sprite-editor-v2.md) | New editor implementation | DRAFT | 9 |
+| [02-asset-inspector-enhancements.md](02-asset-inspector-enhancements.md) | Inspector editable fields | DRAFT | 4 |
 
 ## Summary of Changes
 

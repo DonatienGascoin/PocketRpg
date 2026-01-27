@@ -4,6 +4,7 @@ import com.pocket.rpg.config.ConfigLoader;
 import com.pocket.rpg.editor.core.EditorConfig;
 import com.pocket.rpg.editor.events.EditorEventBus;
 import com.pocket.rpg.editor.events.RecentScenesChangedEvent;
+import com.pocket.rpg.editor.events.SceneWillChangeEvent;
 import com.pocket.rpg.editor.events.StatusMessageEvent;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.serialization.EditorSceneSerializer;
@@ -39,6 +40,9 @@ public class EditorSceneController {
      * Creates a new empty scene.
      */
     public void newScene() {
+        // Notify subscribers before scene changes (e.g., stop play mode)
+        EditorEventBus.get().publish(new SceneWillChangeEvent());
+
         System.out.println("Creating new scene...");
 
         // Destroy current scene
@@ -64,6 +68,9 @@ public class EditorSceneController {
      * Opens a scene from a file path.
      */
     public void openScene(String path) {
+        // Notify subscribers before scene changes (e.g., stop play mode)
+        EditorEventBus.get().publish(new SceneWillChangeEvent());
+
         System.out.println("Opening scene: " + path);
 
         // Destroy current scene

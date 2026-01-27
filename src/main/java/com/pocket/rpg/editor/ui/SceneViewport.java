@@ -3,11 +3,16 @@ package com.pocket.rpg.editor.ui;
 import com.pocket.rpg.editor.assets.SceneViewportDropTarget;
 import com.pocket.rpg.editor.camera.EditorCamera;
 import com.pocket.rpg.editor.core.EditorConfig;
+import com.pocket.rpg.editor.core.MaterialIcons;
+import com.pocket.rpg.editor.events.EditorEventBus;
+import com.pocket.rpg.editor.events.PlayModeStartedEvent;
+import com.pocket.rpg.editor.events.PlayModeStoppedEvent;
 import com.pocket.rpg.editor.gizmos.GizmoRenderer;
 import com.pocket.rpg.editor.rendering.EditorFramebuffer;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.tools.*;
 import com.pocket.rpg.editor.ui.viewport.*;
+import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
 import imgui.flag.ImGuiWindowFlags;
@@ -45,10 +50,20 @@ public class SceneViewport {
     @Setter
     private EditorScene scene;
 
+    private boolean playModeActive = false;
+
     public SceneViewport(EditorCamera camera, EditorConfig config) {
         this.camera = camera;
         this.renderer = new ViewportRenderer(camera);
         this.inputHandler = new ViewportInputHandler(camera, config);
+
+        // Subscribe to play mode events
+        EditorEventBus.get().subscribe(PlayModeStartedEvent.class, e -> playModeActive = true);
+        EditorEventBus.get().subscribe(PlayModeStoppedEvent.class, e -> playModeActive = false);
+    }
+
+    private boolean isPlayModeActive() {
+        return playModeActive;
     }
 
     public void init(int initialWidth, int initialHeight) {
@@ -133,6 +148,13 @@ public class SceneViewport {
         // FIX: Check hover IMMEDIATELY after image render, before any other ImGui calls
         isHovered = ImGui.isItemHovered();
 
+        // Play mode overlay - blocks input and shows message
+        if (isPlayModeActive()) {
+            renderPlayModeOverlay();
+            // Skip all input handling and drop target during play mode
+            return;
+        }
+
         if (scene != null) {
             SceneViewportDropTarget.handleDropTarget(camera, scene, viewportX, viewportY);
         }
@@ -149,11 +171,44 @@ public class SceneViewport {
         }
     }
 
+    private void renderPlayModeOverlay() {
+        ImDrawList drawList = ImGui.getWindowDrawList();
+
+        // Dim overlay
+        int dimColor = ImGui.colorConvertFloat4ToU32(0.1f, 0.1f, 0.1f, 0.6f);
+        drawList.addRectFilled(viewportX, viewportY,
+                viewportX + viewportWidth, viewportY + viewportHeight, dimColor);
+
+        // Orange border (3px)
+        int borderColor = ImGui.colorConvertFloat4ToU32(1f, 0.5f, 0.1f, 0.9f);
+        drawList.addRect(viewportX, viewportY,
+                viewportX + viewportWidth, viewportY + viewportHeight,
+                borderColor, 0, 0, 3.0f);
+
+        // Center messages
+        float centerX = viewportX + viewportWidth / 2;
+        float centerY = viewportY + viewportHeight / 2;
+
+        String message = MaterialIcons.PlayArrow + " PLAY MODE ACTIVE";
+        String subMessage = "Use Game View to see runtime";
+
+        ImVec2 textSize = new ImVec2();
+
+        int textColor = ImGui.colorConvertFloat4ToU32(1f, 0.6f, 0.2f, 1f);
+        ImGui.calcTextSize(textSize, message);
+        drawList.addText(centerX - textSize.x / 2, centerY - 15, textColor, message);
+
+        int subColor = ImGui.colorConvertFloat4ToU32(0.7f, 0.7f, 0.7f, 1f);
+        ImGui.calcTextSize(textSize, subMessage);
+        drawList.addText(centerX - textSize.x / 2, centerY + 10, subColor, subMessage);
+    }
+
     /**
      * Renders tool overlay and gizmos after the main viewport render.
      */
     public void renderToolOverlay() {
         if (!renderer.isContentVisible()) return;
+        if (isPlayModeActive()) return;
         if (ImGui.isPopupOpen("", imgui.flag.ImGuiPopupFlags.AnyPopupId)) return;
 
         // Render gizmos for selected entities

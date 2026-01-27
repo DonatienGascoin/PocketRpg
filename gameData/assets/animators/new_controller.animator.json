@@ -1,18 +1,45 @@
 {
   "name": "new_controller",
   "defaultState": "idle",
-  "parameters": [],
+  "parameters": [
+    {
+      "name": "direction",
+      "type": "direction",
+      "default": "DOWN"
+    }
+  ],
   "states": [
     {
       "name": "idle",
-      "type": "simple",
-      "animation": ""
+      "type": "directional",
+      "animations": {
+        "UP": "animations/player_idle_up.anim.json",
+        "DOWN": "animations/player_idle_down.anim.json",
+        "LEFT": "animations/player_idle_left.anim.json",
+        "RIGHT": "animations/player_idle_right.anim.json"
+      }
     },
     {
-      "name": "new_state",
-      "type": "simple",
-      "animation": ""
+      "name": "move",
+      "type": "directional",
+      "animations": {
+        "UP": "animations/player_move_up.anim.json",
+        "DOWN": "animations/player_move_down.anim.json",
+        "LEFT": "animations/player_move_left.anim.json",
+        "RIGHT": "animations/player_move_right.anim.json"
+      }
     }
   ],
-  "transitions": []
+  "transitions": [
+    {
+      "from": "idle",
+      "to": "move",
+      "type": "INSTANT"
+    },
+    {
+      "from": "move",
+      "to": "idle",
+      "type": "INSTANT"
+    }
+  ]
 }

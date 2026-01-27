@@ -142,8 +142,13 @@ public class AnimatorController {
 
     /**
      * Adds a transition to this controller.
+     * Self-loop transitions (from == to) are not allowed.
      */
     public void addTransition(AnimatorTransition transition) {
+        // Reject self-loops
+        if (Objects.equals(transition.getFrom(), transition.getTo())) {
+            return;
+        }
         transitions.add(transition);
     }
 
@@ -181,8 +186,13 @@ public class AnimatorController {
 
     /**
      * Checks if a transition already exists between two states.
+     * Self-loops are always reported as "existing" to prevent creation.
      */
     public boolean hasTransition(String from, String to) {
+        // Self-loops not allowed
+        if (Objects.equals(from, to)) {
+            return true;
+        }
         for (AnimatorTransition t : transitions) {
             if (Objects.equals(t.getFrom(), from) && Objects.equals(t.getTo(), to)) {
                 return true;

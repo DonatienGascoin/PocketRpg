@@ -2,7 +2,7 @@
 
 **Status: COMPLETE**
 
-**Prerequisite: Complete [00-asset-model-unification.md](./00-asset-model-unification.md) first**
+**Prerequisite: Complete [00-asset-model-unification.md](00-asset-model-unification.md) first**
 
 ## Overview
 
@@ -562,7 +562,7 @@ Replace V1 with V2 and clean up.
 ## Dependencies
 
 **This plan depends on:**
-- [00-asset-model-unification.md](./00-asset-model-unification.md) - Must be completed first
+- [00-asset-model-unification.md](00-asset-model-unification.md) - Must be completed first
 
 **Uses these systems:**
 - `SpriteMetadata` - For loading/saving sprite data

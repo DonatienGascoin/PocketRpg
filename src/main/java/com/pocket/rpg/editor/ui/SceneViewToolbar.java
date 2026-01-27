@@ -4,6 +4,9 @@ import com.pocket.rpg.editor.EditorContext;
 import com.pocket.rpg.editor.EditorSelectionManager;
 import com.pocket.rpg.editor.EditorToolController;
 import com.pocket.rpg.editor.core.MaterialIcons;
+import com.pocket.rpg.editor.events.EditorEventBus;
+import com.pocket.rpg.editor.events.PlayModeStartedEvent;
+import com.pocket.rpg.editor.events.PlayModeStoppedEvent;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.tools.EditorTool;
 import com.pocket.rpg.editor.tools.ToolManager;
@@ -65,15 +68,30 @@ public class SceneViewToolbar {
     @Setter
     private boolean showGizmos = true;
 
+    private boolean playModeActive = false;
+
     public SceneViewToolbar(EditorContext context, EditorToolController toolController) {
         this.context = context;
         this.toolController = toolController;
+
+        // Subscribe to play mode events
+        EditorEventBus.get().subscribe(PlayModeStartedEvent.class, e -> playModeActive = true);
+        EditorEventBus.get().subscribe(PlayModeStoppedEvent.class, e -> playModeActive = false);
+    }
+
+    private boolean isPlayModeActive() {
+        return playModeActive;
     }
 
     public void render(float viewportWidth) {
         ImGui.pushTabStop(false);
         ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, 4, 4);
         ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 6, 4);
+
+        boolean playMode = isPlayModeActive();
+        if (playMode) {
+            ImGui.beginDisabled();
+        }
 
         // If active tool's panel closed, switch to select
         ensureValidToolSelection();
@@ -85,6 +103,10 @@ public class SceneViewToolbar {
         ImGui.sameLine();
 
         renderVisibilityToggles();
+
+        if (playMode) {
+            ImGui.endDisabled();
+        }
 
         ImGui.popStyleVar(2);
         ImGui.popTabStop();

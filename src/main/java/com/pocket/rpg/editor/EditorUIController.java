@@ -1,5 +1,6 @@
 package com.pocket.rpg.editor;
 
+import com.pocket.rpg.editor.events.*;
 import com.pocket.rpg.editor.events.EditorEventBus;
 import com.pocket.rpg.editor.events.OpenAnimationEditorEvent;
 import com.pocket.rpg.editor.events.OpenSpriteEditorEvent;
@@ -10,8 +11,10 @@ import com.pocket.rpg.editor.rendering.CameraOverlayRenderer;
 import com.pocket.rpg.editor.rendering.CollisionOverlayRenderer;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.UIEntityFactory;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.ui.*;
 import imgui.ImGui;
+import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiDockNodeFlags;
 import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiWindowFlags;
@@ -79,6 +82,9 @@ public class EditorUIController {
 
     private CollisionOverlayRenderer collisionOverlay;
     private CameraOverlayRenderer cameraOverlayRenderer;
+
+    // Flag to focus Game panel on next frame (after window exists)
+    private boolean requestGameFocus = false;
 
     public EditorUIController(EditorContext context, EditorToolController toolController) {
         this.context = context;
@@ -200,6 +206,17 @@ public class EditorUIController {
             if (event.animationPath() != null) {
                 animationEditorPanel.selectAnimationByPath(event.animationPath());
             }
+        });
+
+        // Subscribe to animator selection events (from Animator Editor)
+        EditorEventBus.get().subscribe(AnimatorStateSelectedEvent.class, event -> {
+            inspectorPanel.setAnimatorState(event.state(), event.controller(), event.onModified());
+        });
+        EditorEventBus.get().subscribe(AnimatorTransitionSelectedEvent.class, event -> {
+            inspectorPanel.setAnimatorTransition(event.transition(), event.controller(), event.onModified());
+        });
+        EditorEventBus.get().subscribe(AnimatorSelectionClearedEvent.class, event -> {
+            inspectorPanel.clearAnimatorSelection();
         });
 
         // Wire up collision type selection to switch to brush tool (if not in fill/rectangle)
@@ -368,6 +385,9 @@ public class EditorUIController {
             // Window menu for panel visibility
             renderWindowMenu();
 
+            // Play mode controls
+            renderPlayModeControls();
+
             // Scene name on the right
             renderSceneInfo();
 
@@ -376,6 +396,90 @@ public class EditorUIController {
 
         // Render dialogs from EditorMenuBar (migration dialog, etc.)
         menuBar.renderDialogs();
+    }
+
+    private void renderPlayModeControls() {
+        if (playModeController == null) return;
+
+        PlayModeController.PlayState state = playModeController.getState();
+        boolean isStopped = state == PlayModeController.PlayState.STOPPED;
+        boolean isPlaying = state == PlayModeController.PlayState.PLAYING;
+        boolean isPaused = state == PlayModeController.PlayState.PAUSED;
+
+        // Calculate button width for centering (3 buttons + spacing)
+        float buttonWidth = 28;
+        float spacing = 4;
+        float totalWidth = buttonWidth * 3 + spacing * 2;
+
+        // Center in menu bar
+        float menuBarWidth = ImGui.getWindowWidth();
+        float centerX = (menuBarWidth - totalWidth) / 2;
+        ImGui.setCursorPosX(centerX);
+
+        // Play button - active styling when playing, disabled when already playing
+        if (isPlaying) {
+            ImGui.pushStyleColor(ImGuiCol.Button, 0.2f, 0.5f, 0.2f, 1f);
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.2f, 0.5f, 0.2f, 1f);
+            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.2f, 0.5f, 0.2f, 1f);
+        }
+        if (isPlaying) {
+            ImGui.beginDisabled();
+        }
+        if (ImGui.button(MaterialIcons.PlayArrow + "##PlayMenu")) {
+            if (isPaused) {
+                playModeController.resume();
+            } else {
+                playModeController.play();
+                requestGameFocus = true;
+            }
+        }
+        if (isPlaying) {
+            ImGui.endDisabled();
+            ImGui.popStyleColor(3);
+        }
+        if (ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled)) {
+            ImGui.setTooltip(isPlaying ? "Playing" : (isPaused ? "Resume" : "Play"));
+        }
+
+        ImGui.sameLine(0, spacing);
+
+        // Pause button - active styling when paused, disabled when stopped or paused
+        if (isPaused) {
+            ImGui.pushStyleColor(ImGuiCol.Button, 0.6f, 0.5f, 0.2f, 1f);
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.6f, 0.5f, 0.2f, 1f);
+            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.6f, 0.5f, 0.2f, 1f);
+        }
+        if (isStopped || isPaused) {
+            ImGui.beginDisabled();
+        }
+        if (ImGui.button(MaterialIcons.Pause + "##PauseMenu")) {
+            playModeController.pause();
+        }
+        if (isStopped || isPaused) {
+            ImGui.endDisabled();
+        }
+        if (isPaused) {
+            ImGui.popStyleColor(3);
+        }
+        if (ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled)) {
+            ImGui.setTooltip(isPaused ? "Paused" : "Pause");
+        }
+
+        ImGui.sameLine(0, spacing);
+
+        // Stop button - disabled when stopped
+        if (isStopped) {
+            ImGui.beginDisabled();
+        }
+        if (ImGui.button(MaterialIcons.Stop + "##StopMenu")) {
+            playModeController.stop();
+        }
+        if (isStopped) {
+            ImGui.endDisabled();
+        }
+        if (ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled)) {
+            ImGui.setTooltip("Stop");
+        }
     }
 
     /**
@@ -539,6 +643,11 @@ public class EditorUIController {
         audioBrowserPanel.render();
         if (gameViewPanel != null) {
             gameViewPanel.render();
+            // Focus Game panel if requested (must happen after render creates the window)
+            if (requestGameFocus) {
+                ImGui.setWindowFocus("Game");
+                requestGameFocus = false;
+            }
         }
     }
 

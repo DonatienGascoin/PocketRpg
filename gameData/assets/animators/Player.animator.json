@@ -25,6 +25,16 @@
       "from": "idle",
       "to": "idle",
       "type": "INSTANT"
+    },
+    {
+      "from": "idle",
+      "to": "move",
+      "type": "INSTANT"
+    },
+    {
+      "from": "move",
+      "to": "idle",
+      "type": "INSTANT"
     }
   ]
 }

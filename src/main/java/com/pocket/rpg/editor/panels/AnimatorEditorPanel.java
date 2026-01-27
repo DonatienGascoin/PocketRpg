@@ -1,17 +1,22 @@
 package com.pocket.rpg.editor.panels;
 
-import com.pocket.rpg.animation.Animation;
+import com.pocket.rpg.animation.AnimatorLayoutData;
 import com.pocket.rpg.animation.animator.*;
 import com.pocket.rpg.collision.Direction;
 import com.pocket.rpg.editor.core.MaterialIcons;
+import com.pocket.rpg.editor.events.AnimatorSelectionClearedEvent;
+import com.pocket.rpg.editor.events.AnimatorStateSelectedEvent;
+import com.pocket.rpg.editor.events.AnimatorTransitionSelectedEvent;
 import com.pocket.rpg.editor.events.AssetChangedEvent;
 import com.pocket.rpg.editor.events.EditorEventBus;
+import com.pocket.rpg.editor.panels.animator.AnimatorGraphEditor;
 import com.pocket.rpg.editor.shortcut.EditorShortcuts;
 import com.pocket.rpg.editor.ui.fields.AssetEditor;
-import com.pocket.rpg.editor.ui.fields.FieldEditorUtils;
 import com.pocket.rpg.resources.loaders.AnimatorControllerLoader;
+import com.pocket.rpg.resources.loaders.AnimatorLayoutLoader;
 import com.pocket.rpg.resources.Assets;
 import imgui.ImGui;
+import imgui.ImVec2;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiFocusedFlags;
 import imgui.flag.ImGuiTableColumnFlags;
@@ -32,17 +37,22 @@ import java.util.List;
  * Editor panel for creating and editing AnimatorController assets.
  * <p>
  * Features:
- * - Controller list browser
- * - States list with add/remove
- * - Parameters list with add/remove
- * - Transitions list with add/remove
- * - Properties editor for selected items
+ * - Visual node graph editor for states and transitions
+ * - Side inspector for editing selected items
+ * - Parameters bar at bottom
+ * - Undo/redo support
  */
 public class AnimatorEditorPanel extends EditorPanel {
 
     public AnimatorEditorPanel() {
         super(EditorShortcuts.PanelIds.ANIMATOR_EDITOR, true);
     }
+
+    // ========================================================================
+    // CONFIGURATION
+    // ========================================================================
+
+    private static final float PARAMETERS_PANEL_WIDTH = 200f;
 
     // ========================================================================
     // STATE
@@ -52,6 +62,11 @@ public class AnimatorEditorPanel extends EditorPanel {
     private ControllerEntry selectedEntry = null;
     private AnimatorController editingController = null;
     private boolean hasUnsavedChanges = false;
+
+    // Graph editor
+    private AnimatorGraphEditor graphEditor;
+    private AnimatorLayoutData layoutData;
+    private final AnimatorLayoutLoader layoutLoader = new AnimatorLayoutLoader();
 
     // Selection
     private int selectedStateIndex = -1;
@@ -122,7 +137,171 @@ public class AnimatorEditorPanel extends EditorPanel {
     // ========================================================================
 
     public void initialize() {
+        // Initialize graph editor
+        graphEditor = new AnimatorGraphEditor();
+        graphEditor.initialize();
+        setupGraphEditorCallbacks();
+
         refresh();
+    }
+
+    private void setupGraphEditorCallbacks() {
+        graphEditor.setOnStateSelected(stateName -> {
+            int index = editingController != null ? editingController.getStateIndex(stateName) : -1;
+            if (index >= 0) {
+                selectedStateIndex = index;
+                selectedTransitionIndex = -1;
+                AnimatorState state = editingController.getState(index);
+                stateNameInput.set(state.getName());
+                publishStateSelected(state);
+            }
+        });
+
+        graphEditor.setOnTransitionSelected(transIndex -> {
+            if (transIndex >= 0 && editingController != null && transIndex < editingController.getTransitionCount()) {
+                selectedTransitionIndex = transIndex;
+                selectedStateIndex = -1;
+                AnimatorTransition trans = editingController.getTransition(transIndex);
+                transFromInput.set(trans.getFrom());
+                transToInput.set(trans.getTo());
+                transTypeIndex.set(trans.getType().ordinal());
+                publishTransitionSelected(trans);
+            }
+        });
+
+        graphEditor.setOnSelectionCleared(() -> {
+            selectedStateIndex = -1;
+            selectedTransitionIndex = -1;
+            clearInspectorSelection();
+        });
+
+        graphEditor.setOnAddState(() -> {
+            captureUndoState();
+            String newName = generateUniqueStateName("new_state");
+            AnimatorState newState = new AnimatorState(newName, "");
+            editingController.addState(newState);
+
+            // Position near context menu
+            ImVec2 pos = graphEditor.getNewNodePosition();
+            graphEditor.setNodePosition(newName, pos.x, pos.y);
+
+            selectedStateIndex = editingController.getStateCount() - 1;
+            selectedTransitionIndex = -1;
+            stateNameInput.set(newName);
+            markModified();
+            publishStateSelected(newState);
+        });
+
+        graphEditor.setOnEditState(stateName -> {
+            int index = editingController.getStateIndex(stateName);
+            if (index >= 0) {
+                selectedStateIndex = index;
+                selectedTransitionIndex = -1;
+                stateNameInput.set(stateName);
+                publishStateSelected(editingController.getState(index));
+            }
+        });
+
+        graphEditor.setOnDeleteState(stateName -> {
+            editingController.removeState(stateName);
+            selectedStateIndex = Math.min(selectedStateIndex, editingController.getStateCount() - 1);
+            markModified();
+            clearInspectorSelection();
+        });
+
+        graphEditor.setOnSetDefaultState(stateName -> {
+            editingController.setDefaultState(stateName);
+            markModified();
+        });
+
+        graphEditor.setOnCreateTransition(indices -> {
+            int fromIndex = indices[0];
+            int toIndex = indices[1];
+            String fromState = editingController.getState(fromIndex).getName();
+            String toState = editingController.getState(toIndex).getName();
+
+            AnimatorTransition newTrans = new AnimatorTransition(fromState, toState, TransitionType.INSTANT);
+            editingController.addTransition(newTrans);
+
+            selectedTransitionIndex = editingController.getTransitionCount() - 1;
+            selectedStateIndex = -1;
+            transFromInput.set(fromState);
+            transToInput.set(toState);
+            transTypeIndex.set(0);
+            markModified();
+            publishTransitionSelected(newTrans);
+        });
+
+        graphEditor.setOnEditTransition(transIndex -> {
+            if (transIndex >= 0 && transIndex < editingController.getTransitionCount()) {
+                selectedTransitionIndex = transIndex;
+                selectedStateIndex = -1;
+                AnimatorTransition trans = editingController.getTransition(transIndex);
+                transFromInput.set(trans.getFrom());
+                transToInput.set(trans.getTo());
+                transTypeIndex.set(trans.getType().ordinal());
+                publishTransitionSelected(trans);
+            }
+        });
+
+        graphEditor.setOnDeleteTransition(transIndex -> {
+            editingController.removeTransition(transIndex);
+            selectedTransitionIndex = Math.min(selectedTransitionIndex, editingController.getTransitionCount() - 1);
+            markModified();
+            clearInspectorSelection();
+        });
+
+        graphEditor.setOnAutoLayout(() -> {
+            graphEditor.requestLayout();
+        });
+
+        graphEditor.setOnCaptureUndo(this::captureUndoState);
+    }
+
+    // ========================================================================
+    // INSPECTOR SELECTION EVENTS
+    // ========================================================================
+
+    private void publishStateSelected(AnimatorState state) {
+        EditorEventBus.get().publish(new AnimatorStateSelectedEvent(
+            state,
+            editingController,
+            this::onInspectorModified
+        ));
+    }
+
+    private void publishTransitionSelected(AnimatorTransition transition) {
+        EditorEventBus.get().publish(new AnimatorTransitionSelectedEvent(
+            transition,
+            editingController,
+            this::onInspectorModified
+        ));
+    }
+
+    private void clearInspectorSelection() {
+        EditorEventBus.get().publish(new AnimatorSelectionClearedEvent());
+    }
+
+    /**
+     * Called by Inspector when it modifies state/transition data.
+     * Captures undo state and marks the controller as modified.
+     */
+    private void onInspectorModified() {
+        captureUndoState();
+        markModified();
+    }
+
+    private String generateUniqueStateName(String baseName) {
+        if (editingController == null || !editingController.hasState(baseName)) {
+            return baseName;
+        }
+        int counter = 1;
+        String name;
+        do {
+            name = baseName + "_" + counter;
+            counter++;
+        } while (editingController.hasState(name));
+        return name;
     }
 
     public void refresh() {
@@ -373,26 +552,23 @@ public class AnimatorEditorPanel extends EditorPanel {
 
         float availHeight = ImGui.getContentRegionAvailY();
 
-        if (ImGui.beginTable("MainContent", 3, ImGuiTableFlags.Resizable | ImGuiTableFlags.BordersInnerV)) {
-            ImGui.tableSetupColumn("States", ImGuiTableColumnFlags.WidthStretch, 1.0f);
-            ImGui.tableSetupColumn("Parameters", ImGuiTableColumnFlags.WidthStretch, 1.0f);
-            ImGui.tableSetupColumn("Transitions", ImGuiTableColumnFlags.WidthStretch, 1.5f);
+        // Main layout: Parameters list | Graph canvas
+        if (ImGui.beginTable("MainContent", 2, ImGuiTableFlags.Resizable | ImGuiTableFlags.BordersInnerV)) {
+            ImGui.tableSetupColumn("Parameters", ImGuiTableColumnFlags.WidthFixed, PARAMETERS_PANEL_WIDTH);
+            ImGui.tableSetupColumn("Graph", ImGuiTableColumnFlags.WidthStretch);
 
             ImGui.tableNextRow();
 
+            // Parameters list (left column)
             ImGui.tableNextColumn();
-            ImGui.beginChild("StatesChild", 0, availHeight - 10, false);
-            renderStatesPanel();
+            ImGui.beginChild("ParametersChild", 0, availHeight, false);
+            renderParametersList();
             ImGui.endChild();
 
+            // Graph canvas (right column)
             ImGui.tableNextColumn();
-            ImGui.beginChild("ParamsChild", 0, availHeight - 10, false);
-            renderParametersPanel();
-            ImGui.endChild();
-
-            ImGui.tableNextColumn();
-            ImGui.beginChild("TransChild", 0, availHeight - 10, false);
-            renderTransitionsPanel();
+            ImGui.beginChild("GraphChild", 0, availHeight, false, ImGuiWindowFlags.NoScrollbar);
+            graphEditor.render(editingController);
             ImGui.endChild();
 
             ImGui.endTable();
@@ -400,315 +576,98 @@ public class AnimatorEditorPanel extends EditorPanel {
     }
 
     // ========================================================================
-    // STATES PANEL
+    // PARAMETERS LIST (Left Panel)
     // ========================================================================
 
-    private void renderStatesPanel() {
-        ImGui.text("States");
-        ImGui.separator();
-
-        // List
-        if (ImGui.beginChild("StatesList", 0, ImGui.getContentRegionAvailY() - 120, true)) {
-            for (int i = 0; i < editingController.getStateCount(); i++) {
-                AnimatorState state = editingController.getState(i);
-                String label = state.getName();
-                if (i == 0) {
-                    label += " (default)";
-                }
-
-                boolean isSelected = i == selectedStateIndex;
-                if (ImGui.selectable(label + "##state" + i, isSelected)) {
-                    selectedStateIndex = i;
-                    stateNameInput.set(state.getName());
-                }
-            }
-        }
-        ImGui.endChild();
-
-        ImGui.separator();
-
-        // Add button
-        if (ImGui.button(MaterialIcons.Add + " Add State")) {
-            captureUndoState();
-            AnimatorState newState = new AnimatorState("new_state", "");
-            editingController.addState(newState);
-            selectedStateIndex = editingController.getStateCount() - 1;
-            stateNameInput.set("new_state");
-            markModified();
-        }
-
-        ImGui.sameLine();
-
-        // Remove button
-        boolean canRemove = selectedStateIndex >= 0 && editingController.getStateCount() > 1;
-        if (!canRemove) ImGui.beginDisabled();
-        if (ImGui.button(MaterialIcons.Delete + "##RemoveState")) {
-            captureUndoState();
-            AnimatorState state = editingController.getState(selectedStateIndex);
-            editingController.removeState(state.getName());
-            selectedStateIndex = Math.min(selectedStateIndex, editingController.getStateCount() - 1);
-            markModified();
-        }
-        if (!canRemove) ImGui.endDisabled();
-
-        // State editor
-        if (selectedStateIndex >= 0 && selectedStateIndex < editingController.getStateCount()) {
-            ImGui.spacing();
-            AnimatorState state = editingController.getState(selectedStateIndex);
-
-            ImGui.setNextItemWidth(-1);
-            if (ImGui.inputText("Name##StateName", stateNameInput)) {
-                captureUndoState();
-                state.setName(stateNameInput.get());
-                markModified();
-            }
-
-            // Animation asset field
-            renderAnimationField("Animation", state);
-        }
-    }
-
-    /**
-     * Renders an animation asset field with picker.
-     */
-    private void renderAnimationField(String label, AnimatorState state) {
-        String currentPath = state.getAnimation();
-        Animation currentAnim = null;
-        if (currentPath != null && !currentPath.isBlank()) {
-            try {
-                currentAnim = Assets.load(currentPath, Animation.class);
-            } catch (Exception ignored) {
-                // Asset not found
-            }
-        }
-
-        String display = currentAnim != null ? FieldEditorUtils.getAssetDisplayName(currentAnim) : "(none)";
-
-        ImGui.text(label);
-        ImGui.sameLine();
-
-        // Picker button
-        if (ImGui.smallButton("...##PickAnim")) {
-            AssetEditor.openPicker(Animation.class, currentPath, selected -> {
-                if (selected != null) {
-                    String path = Assets.getPathForResource(selected);
-                    if (path != null) {
-                        captureUndoState();
-                        state.setAnimation(path);
-                        markModified();
-                    }
-                }
-            });
-        }
-
-        ImGui.sameLine();
-        if (currentAnim != null) {
-            ImGui.textColored(0.6f, 0.9f, 0.6f, 1.0f, display);
-        } else {
-            ImGui.textDisabled(display);
-        }
-    }
-
-    // ========================================================================
-    // PARAMETERS PANEL
-    // ========================================================================
-
-    private void renderParametersPanel() {
+    private void renderParametersList() {
         ImGui.text("Parameters");
         ImGui.separator();
 
-        // List
-        if (ImGui.beginChild("ParamsList", 0, ImGui.getContentRegionAvailY() - 90, true)) {
-            for (int i = 0; i < editingController.getParameterCount(); i++) {
-                AnimatorParameter param = editingController.getParameter(i);
-                String label = param.getName() + " (" + param.getType().name().toLowerCase() + ")";
+        // Parameter list
+        for (int i = 0; i < editingController.getParameterCount(); i++) {
+            AnimatorParameter param = editingController.getParameter(i);
 
-                boolean isSelected = i == selectedParamIndex;
-                if (ImGui.selectable(label + "##param" + i, isSelected)) {
-                    selectedParamIndex = i;
-                    paramNameInput.set(param.getName());
-                    paramTypeIndex.set(param.getType().ordinal());
-                }
-            }
-        }
-        ImGui.endChild();
+            boolean isSelected = i == selectedParamIndex;
 
-        ImGui.separator();
+            // Type icon
+            String icon = switch (param.getType()) {
+                case BOOL -> MaterialIcons.CheckBox;
+                case TRIGGER -> MaterialIcons.Bolt;
+                case DIRECTION -> MaterialIcons.Explore;
+            };
 
-        // Add buttons
-        if (ImGui.button("+ Bool")) {
-            captureUndoState();
-            editingController.addParameter(new AnimatorParameter("new_bool", false));
-            selectedParamIndex = editingController.getParameterCount() - 1;
-            markModified();
-        }
-        ImGui.sameLine();
-        if (ImGui.button("+ Trigger")) {
-            captureUndoState();
-            editingController.addParameter(AnimatorParameter.trigger("new_trigger"));
-            selectedParamIndex = editingController.getParameterCount() - 1;
-            markModified();
-        }
-        ImGui.sameLine();
-        if (ImGui.button("+ Dir")) {
-            captureUndoState();
-            editingController.addParameter(new AnimatorParameter("direction", Direction.DOWN));
-            selectedParamIndex = editingController.getParameterCount() - 1;
-            markModified();
-        }
-
-        // Remove button
-        boolean canRemove = selectedParamIndex >= 0;
-        if (!canRemove) ImGui.beginDisabled();
-        ImGui.sameLine();
-        if (ImGui.button(MaterialIcons.Delete + "##RemoveParam")) {
-            captureUndoState();
-            editingController.removeParameter(selectedParamIndex);
-            selectedParamIndex = Math.min(selectedParamIndex, editingController.getParameterCount() - 1);
-            markModified();
-        }
-        if (!canRemove) ImGui.endDisabled();
-
-        // Parameter editor (name only - type is immutable)
-        if (selectedParamIndex >= 0 && selectedParamIndex < editingController.getParameterCount()) {
-            ImGui.spacing();
-            AnimatorParameter param = editingController.getParameter(selectedParamIndex);
-
-            ImGui.setNextItemWidth(-1);
-            if (ImGui.inputText("Name##ParamName", paramNameInput)) {
-                captureUndoState();
-                param.setName(paramNameInput.get());
-                markModified();
-            }
-        }
-    }
-
-    // ========================================================================
-    // TRANSITIONS PANEL
-    // ========================================================================
-
-    private void renderTransitionsPanel() {
-        ImGui.text("Transitions");
-        ImGui.separator();
-
-        // List
-        if (ImGui.beginChild("TransList", 0, ImGui.getContentRegionAvailY() - 120, true)) {
-            for (int i = 0; i < editingController.getTransitionCount(); i++) {
-                AnimatorTransition trans = editingController.getTransition(i);
-                String label = trans.getFrom() + " -> " + trans.getTo() + " [" + trans.getType().name() + "]";
-                if (trans.hasConditions()) {
-                    label += " (" + trans.getConditions().size() + " conditions)";
-                }
-
-                boolean isSelected = i == selectedTransitionIndex;
-                if (ImGui.selectable(label + "##trans" + i, isSelected)) {
-                    selectedTransitionIndex = i;
-                    transFromInput.set(trans.getFrom());
-                    transToInput.set(trans.getTo());
-                    transTypeIndex.set(trans.getType().ordinal());
-                }
-            }
-        }
-        ImGui.endChild();
-
-        ImGui.separator();
-
-        // Add button
-        if (ImGui.button(MaterialIcons.Add + " Add Transition")) {
-            captureUndoState();
-            String fromState = editingController.getStateCount() > 0 ? editingController.getState(0).getName() : "idle";
-            String toState = editingController.getStateCount() > 1 ? editingController.getState(1).getName() : fromState;
-            AnimatorTransition newTrans = new AnimatorTransition(fromState, toState, TransitionType.INSTANT);
-            editingController.addTransition(newTrans);
-            selectedTransitionIndex = editingController.getTransitionCount() - 1;
-            transFromInput.set(fromState);
-            transToInput.set(toState);
-            transTypeIndex.set(0);
-            markModified();
-        }
-
-        ImGui.sameLine();
-
-        // Remove button
-        boolean canRemove = selectedTransitionIndex >= 0;
-        if (!canRemove) ImGui.beginDisabled();
-        if (ImGui.button(MaterialIcons.Delete + "##RemoveTrans")) {
-            captureUndoState();
-            editingController.removeTransition(selectedTransitionIndex);
-            selectedTransitionIndex = Math.min(selectedTransitionIndex, editingController.getTransitionCount() - 1);
-            markModified();
-        }
-        if (!canRemove) ImGui.endDisabled();
-
-        // Transition editor
-        if (selectedTransitionIndex >= 0 && selectedTransitionIndex < editingController.getTransitionCount()) {
-            ImGui.spacing();
-            AnimatorTransition trans = editingController.getTransition(selectedTransitionIndex);
-
-            ImGui.setNextItemWidth(100);
-            if (ImGui.inputText("From##TransFrom", transFromInput)) {
-                captureUndoState();
-                trans.setFrom(transFromInput.get());
-                markModified();
-            }
-            ImGui.sameLine();
-            ImGui.text("->");
-            ImGui.sameLine();
-            ImGui.setNextItemWidth(100);
-            if (ImGui.inputText("To##TransTo", transToInput)) {
-                captureUndoState();
-                trans.setTo(transToInput.get());
-                markModified();
+            // Selectable row
+            String label = icon + " " + param.getName();
+            if (ImGui.selectable(label + "##param" + i, isSelected)) {
+                selectedParamIndex = i;
+                paramNameInput.set(param.getName());
             }
 
-            String[] typeNames = {"INSTANT", "WAIT_FOR_COMPLETION", "WAIT_FOR_LOOP"};
-            ImGui.setNextItemWidth(-1);
-            if (ImGui.combo("Type##TransType", transTypeIndex, typeNames)) {
-                captureUndoState();
-                trans.setType(TransitionType.values()[transTypeIndex.get()]);
-                markModified();
+            // Type hint on hover
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip(param.getType().name().toLowerCase() + " - Right-click to delete");
             }
 
-            // Conditions section
-            ImGui.spacing();
-            ImGui.text("Conditions:");
-            renderConditionsEditor(trans);
-        }
-    }
-
-    private void renderConditionsEditor(AnimatorTransition trans) {
-        if (ImGui.beginChild("ConditionsChild", 0, 60, true)) {
-            for (int i = 0; i < trans.getConditions().size(); i++) {
-                TransitionCondition cond = trans.getCondition(i);
-                ImGui.text(cond.getParameter() + " == " + cond.getValue());
-                ImGui.sameLine();
-                if (ImGui.smallButton("X##cond" + i)) {
+            // Right-click context menu
+            if (ImGui.beginPopupContextItem("param_ctx_" + i)) {
+                if (ImGui.menuItem("Delete")) {
                     captureUndoState();
-                    trans.removeCondition(i);
+                    editingController.removeParameter(i);
+                    if (selectedParamIndex == i) {
+                        selectedParamIndex = -1;
+                    } else if (selectedParamIndex > i) {
+                        selectedParamIndex--;
+                    }
                     markModified();
                 }
+                ImGui.endPopup();
             }
         }
-        ImGui.endChild();
 
-        // Add condition dropdown (parameters)
-        if (editingController.getParameterCount() > 0) {
-            String[] paramNames = new String[editingController.getParameterCount()];
-            for (int i = 0; i < paramNames.length; i++) {
-                paramNames[i] = editingController.getParameter(i).getName();
-            }
-            ImInt condParamIdx = new ImInt(0);
-            ImGui.setNextItemWidth(100);
-            ImGui.combo("##AddCondParam", condParamIdx, paramNames);
-            ImGui.sameLine();
-            if (ImGui.button("+ Condition")) {
-                captureUndoState();
-                AnimatorParameter param = editingController.getParameter(condParamIdx.get());
-                Object value = param.getType() == ParameterType.BOOL || param.getType() == ParameterType.TRIGGER ? true : Direction.DOWN;
-                trans.addCondition(new TransitionCondition(param.getName(), value));
-                markModified();
-            }
+        if (editingController.getParameterCount() == 0) {
+            ImGui.textDisabled("No parameters");
         }
+
+        ImGui.spacing();
+        ImGui.separator();
+        ImGui.spacing();
+
+        // Add parameter buttons (vertical layout)
+        float buttonWidth = ImGui.getContentRegionAvailX();
+        if (ImGui.button(MaterialIcons.Add + " Bool", buttonWidth, 0)) {
+            captureUndoState();
+            String name = generateUniqueParamName("new_bool");
+            editingController.addParameter(new AnimatorParameter(name, false));
+            selectedParamIndex = editingController.getParameterCount() - 1;
+            markModified();
+        }
+        if (ImGui.button(MaterialIcons.Add + " Trigger", buttonWidth, 0)) {
+            captureUndoState();
+            String name = generateUniqueParamName("new_trigger");
+            editingController.addParameter(AnimatorParameter.trigger(name));
+            selectedParamIndex = editingController.getParameterCount() - 1;
+            markModified();
+        }
+        if (ImGui.button(MaterialIcons.Add + " Direction", buttonWidth, 0)) {
+            captureUndoState();
+            String name = generateUniqueParamName("direction");
+            editingController.addParameter(new AnimatorParameter(name, Direction.DOWN));
+            selectedParamIndex = editingController.getParameterCount() - 1;
+            markModified();
+        }
+    }
+
+    private String generateUniqueParamName(String baseName) {
+        if (editingController == null || !editingController.hasParameter(baseName)) {
+            return baseName;
+        }
+        int counter = 1;
+        String name;
+        do {
+            name = baseName + "_" + counter;
+            counter++;
+        } while (editingController.hasParameter(name));
+        return name;
     }
 
     // ========================================================================
@@ -716,6 +675,9 @@ public class AnimatorEditorPanel extends EditorPanel {
     // ========================================================================
 
     private void selectController(ControllerEntry entry) {
+        // Clear inspector selection first
+        clearInspectorSelection();
+
         selectedEntry = entry;
         editingController = entry != null ? entry.controller : null;
         hasUnsavedChanges = false;
@@ -724,6 +686,35 @@ public class AnimatorEditorPanel extends EditorPanel {
         selectedTransitionIndex = -1;
         undoStack.clear();
         redoStack.clear();
+
+        // Load layout data
+        if (entry != null) {
+            String fullPath = Paths.get(Assets.getAssetRoot(), entry.path).toString();
+            layoutData = layoutLoader.load(fullPath);
+        } else {
+            layoutData = new AnimatorLayoutData();
+        }
+
+        // Reset graph editor for new controller
+        if (graphEditor != null) {
+            graphEditor.reset();
+
+            // Apply loaded layout positions
+            if (layoutData != null && editingController != null) {
+                for (int i = 0; i < editingController.getStateCount(); i++) {
+                    String stateName = editingController.getState(i).getName();
+                    AnimatorLayoutData.NodeLayout nodeLayout = layoutData.getNodeLayout(stateName);
+                    if (nodeLayout != null) {
+                        graphEditor.setNodePosition(stateName, nodeLayout.getX(), nodeLayout.getY());
+                    }
+                }
+            }
+
+            // Select first state (triggers callback which publishes event)
+            if (editingController != null && editingController.getStateCount() > 0) {
+                graphEditor.selectState(editingController.getState(0).getName());
+            }
+        }
     }
 
     private void saveCurrentController() {
@@ -733,11 +724,36 @@ public class AnimatorEditorPanel extends EditorPanel {
             AnimatorControllerLoader loader = new AnimatorControllerLoader();
             java.nio.file.Path filePath = Paths.get(Assets.getAssetRoot(), selectedEntry.path);
             loader.save(editingController, filePath.toString());
+
+            // Save layout data
+            saveLayoutData();
+
             hasUnsavedChanges = false;
             showStatus("Saved: " + selectedEntry.filename);
         } catch (IOException e) {
             System.err.println("[AnimatorEditorPanel] Failed to save: " + e.getMessage());
             showStatus("Error saving: " + e.getMessage());
+        }
+    }
+
+    private void saveLayoutData() {
+        if (selectedEntry == null || graphEditor == null || layoutData == null) return;
+
+        // Update layout data from graph editor positions
+        for (int i = 0; i < editingController.getStateCount(); i++) {
+            String stateName = editingController.getState(i).getName();
+            float[] pos = graphEditor.getNodePosition(stateName);
+            if (pos != null) {
+                layoutData.setNodeLayout(stateName, pos[0], pos[1]);
+            }
+        }
+
+        // Save to file
+        try {
+            String fullPath = Paths.get(Assets.getAssetRoot(), selectedEntry.path).toString();
+            layoutLoader.save(fullPath, layoutData);
+        } catch (IOException e) {
+            System.err.println("[AnimatorEditorPanel] Failed to save layout: " + e.getMessage());
         }
     }
 
@@ -981,6 +997,9 @@ public class AnimatorEditorPanel extends EditorPanel {
     }
 
     public void destroy() {
-        // Cleanup if needed
+        if (graphEditor != null) {
+            graphEditor.destroy();
+            graphEditor = null;
+        }
     }
 }

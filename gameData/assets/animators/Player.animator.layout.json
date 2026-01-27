@@ -1,0 +1,17 @@
+{
+  "viewPanX": 0.0,
+  "viewPanY": 0.0,
+  "viewZoom": 1.0,
+  "nodeLayouts": {
+    "move": {
+      "x": 428.0,
+      "y": 223.0,
+      "collapsed": false
+    },
+    "idle": {
+      "x": 100.0,
+      "y": 100.0,
+      "collapsed": false
+    }
+  }
+}

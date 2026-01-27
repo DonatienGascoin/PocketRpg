@@ -28,6 +28,11 @@ import com.pocket.rpg.scenes.transitions.TransitionManager;
 import com.pocket.rpg.serialization.GameObjectData;
 import com.pocket.rpg.serialization.SceneData;
 import com.pocket.rpg.serialization.Serializer;
+import com.pocket.rpg.editor.events.EditorEventBus;
+import com.pocket.rpg.editor.events.PlayModePausedEvent;
+import com.pocket.rpg.editor.events.PlayModeStartedEvent;
+import com.pocket.rpg.editor.events.PlayModeStoppedEvent;
+import com.pocket.rpg.editor.events.SceneWillChangeEvent;
 import lombok.Getter;
 
 import java.io.File;
@@ -94,6 +99,13 @@ public class PlayModeController {
         this.gameConfig = gameConfig;
         this.renderingConfig = context.getRenderingConfig();
         this.inputConfig = inputConfig;
+
+        // Stop play mode when scene is about to change
+        EditorEventBus.get().subscribe(SceneWillChangeEvent.class, event -> {
+            if (isActive()) {
+                stop();
+            }
+        });
     }
 
     public void setMessageCallback(Consumer<String> callback) {
@@ -182,6 +194,7 @@ public class PlayModeController {
 
             // 13. Switch state
             state = PlayState.PLAYING;
+            EditorEventBus.get().publish(new PlayModeStartedEvent());
 
             showMessage("Play mode started");
             System.out.println("Play mode started: " + editorScene.getName());
@@ -197,12 +210,14 @@ public class PlayModeController {
     public void pause() {
         if (state != PlayState.PLAYING) return;
         state = PlayState.PAUSED;
+        EditorEventBus.get().publish(new PlayModePausedEvent());
         showMessage("Paused");
     }
 
     public void resume() {
         if (state != PlayState.PAUSED) return;
         state = PlayState.PLAYING;
+        EditorEventBus.get().publish(new PlayModeStartedEvent());
         showMessage("Resumed");
     }
 
@@ -227,6 +242,7 @@ public class PlayModeController {
         snapshot = null;
         snapshotFilePath = null;
         state = PlayState.STOPPED;
+        EditorEventBus.get().publish(new PlayModeStoppedEvent());
 
         showMessage("Play mode stopped");
         System.out.println("Play mode stopped");

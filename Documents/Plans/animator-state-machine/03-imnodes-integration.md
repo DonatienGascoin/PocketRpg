@@ -28,6 +28,18 @@ Both are included in the existing `imgui-java-binding` dependency - no additiona
 
 ---
 
+## FINAL DECISIONS (Updated)
+
+| Decision | Choice |
+|----------|--------|
+| **Library** | imgui-node-editor (confirmed) |
+| **Layout** | Graph + Side Inspector |
+| **View Toggle** | No - replace list view entirely |
+| **Play Mode** | Deferred to play-mode-inspection plan |
+| **Self-Loops** | Custom rendering via ImDrawList (library doesn't handle well) |
+
+---
+
 ## Part 2: ImNodes Example (Simpler Option)
 
 ### Basic Structure

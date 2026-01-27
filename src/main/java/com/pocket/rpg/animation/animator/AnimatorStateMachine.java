@@ -30,9 +30,6 @@ public class AnimatorStateMachine {
     @Getter
     private String previousState;
 
-    @Getter
-    private Direction currentDirection = Direction.DOWN;
-
     private final Map<String, Object> parameterValues = new HashMap<>();
 
     // Pending transition (for WAIT_FOR_COMPLETION)
@@ -40,6 +37,9 @@ public class AnimatorStateMachine {
 
     // Track if we need to update the animation due to direction change
     private Direction lastAppliedDirection;
+
+    // Cached name of the direction parameter (first one found, or null)
+    private String directionParameterName;
 
     // ========================================================================
     // CONSTRUCTORS
@@ -49,9 +49,12 @@ public class AnimatorStateMachine {
         this.controller = controller;
         this.player = player;
 
-        // Initialize parameter values to defaults
+        // Initialize parameter values to defaults and find direction parameter
         for (AnimatorParameter param : controller.getParameters()) {
             parameterValues.put(param.getName(), param.getDefaultValue());
+            if (param.getType() == ParameterType.DIRECTION && directionParameterName == null) {
+                directionParameterName = param.getName();
+            }
         }
 
         // Enter default state
@@ -89,7 +92,8 @@ public class AnimatorStateMachine {
         // Check for direction change in directional states
         AnimatorState state = controller.getState(currentState);
         if (state != null && state.getType() == StateType.DIRECTIONAL) {
-            if (lastAppliedDirection != currentDirection) {
+            Direction currentDir = getCurrentDirection();
+            if (lastAppliedDirection != currentDir) {
                 applyStateAnimation(state);
             }
         }
@@ -246,11 +250,12 @@ public class AnimatorStateMachine {
      * Applies the animation for the current state and direction.
      */
     private void applyStateAnimation(AnimatorState state) {
-        Animation anim = state.loadAnimation(currentDirection);
+        Direction dir = getCurrentDirection();
+        Animation anim = state.loadAnimation(dir);
         if (anim != null) {
             player.setAnimation(anim);
         }
-        lastAppliedDirection = currentDirection;
+        lastAppliedDirection = dir;
     }
 
     // ========================================================================
@@ -276,16 +281,27 @@ public class AnimatorStateMachine {
     }
 
     /**
-     * Sets the direction parameter (special built-in parameter).
+     * Sets the direction parameter value.
+     * Requires a direction-type parameter to be defined in the controller.
      */
     public void setDirection(Direction direction) {
-        this.currentDirection = direction;
-        // Also set any direction-type parameters
-        for (AnimatorParameter param : controller.getParameters()) {
-            if (param.getType() == ParameterType.DIRECTION) {
-                parameterValues.put(param.getName(), direction);
+        if (directionParameterName != null) {
+            parameterValues.put(directionParameterName, direction);
+        }
+    }
+
+    /**
+     * Gets the current direction from the direction parameter.
+     * Returns DOWN if no direction parameter is defined.
+     */
+    public Direction getCurrentDirection() {
+        if (directionParameterName != null) {
+            Object value = parameterValues.get(directionParameterName);
+            if (value instanceof Direction) {
+                return (Direction) value;
             }
         }
+        return Direction.DOWN;
     }
 
     /**

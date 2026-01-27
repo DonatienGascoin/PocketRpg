@@ -4,6 +4,7 @@ import com.pocket.rpg.editor.EditorContext;
 import com.pocket.rpg.editor.EditorSelectionManager;
 import com.pocket.rpg.editor.EditorToolController;
 import com.pocket.rpg.editor.PlayModeController;
+import com.pocket.rpg.editor.panels.AnimatorEditorPanel;
 import com.pocket.rpg.editor.panels.CollisionPanel;
 import com.pocket.rpg.editor.panels.ConfigurationPanel;
 import com.pocket.rpg.editor.panels.TilesetPalettePanel;
@@ -40,6 +41,9 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Setter
     private CollisionPanel collisionPanel;
+
+    @Setter
+    private AnimatorEditorPanel animatorEditorPanel;
 
     @Setter
     private Consumer<String> messageCallback;
@@ -493,6 +497,46 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
         if (configurationPanel != null && configurationPanel.isDirty()) {
             configurationPanel.save();
             showMessage("Configuration saved");
+        }
+    }
+
+    // ========================================================================
+    // ANIMATOR EDITOR HANDLERS
+    // ========================================================================
+
+    @Override
+    public void onAnimatorSave() {
+        if (animatorEditorPanel != null) {
+            animatorEditorPanel.save();
+        }
+    }
+
+    @Override
+    public void onAnimatorNew() {
+        if (animatorEditorPanel != null) {
+            animatorEditorPanel.openNewDialog();
+        }
+    }
+
+    @Override
+    public void onAnimatorUndo() {
+        if (animatorEditorPanel != null) {
+            animatorEditorPanel.undo();
+        }
+    }
+
+    @Override
+    public void onAnimatorRedo() {
+        if (animatorEditorPanel != null) {
+            animatorEditorPanel.redo();
+        }
+    }
+
+    @Override
+    public void onAnimatorRefresh() {
+        if (animatorEditorPanel != null) {
+            animatorEditorPanel.refresh();
+            showMessage("Animator list refreshed");
         }
     }
 

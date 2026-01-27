@@ -53,6 +53,9 @@ public class AnimationEditorPanel {
     // STATE
     // ========================================================================
 
+    // Panel visibility
+    private boolean open = true;
+
     // Animation list
     private final List<AnimationEntry> animations = new ArrayList<>();
     private AnimationEntry selectedEntry = null;
@@ -183,6 +186,22 @@ public class AnimationEditorPanel {
         refresh();
     }
 
+    // ========================================================================
+    // VISIBILITY
+    // ========================================================================
+
+    public boolean isOpen() {
+        return open;
+    }
+
+    public void setOpen(boolean open) {
+        this.open = open;
+    }
+
+    public void toggle() {
+        this.open = !this.open;
+    }
+
     public void refresh() {
         long now = System.currentTimeMillis();
         if (now - lastRefreshTime < REFRESH_COOLDOWN_MS) {
@@ -214,6 +233,10 @@ public class AnimationEditorPanel {
     // ========================================================================
 
     public void render() {
+        if (!open) {
+            return;
+        }
+
         if (needsRefresh) {
             refresh();
         }

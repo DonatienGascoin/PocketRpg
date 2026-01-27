@@ -117,11 +117,9 @@ public class AssetBrowserPanel extends EditorPanel {
     }
 
     private void onAssetChanged(AssetChangedEvent event) {
-        // Refresh when assets are created or modified
-        if (event.changeType() == AssetChangedEvent.ChangeType.CREATED ||
-                event.changeType() == AssetChangedEvent.ChangeType.MODIFIED) {
-            refresh();
-        }
+        // Force refresh (bypass cooldown) when assets change
+        lastRefreshTime = 0;
+        refresh();
     }
 
     /**
@@ -155,10 +153,28 @@ public class AssetBrowserPanel extends EditorPanel {
         // Sort all assets by filename
         allAssets.sort(Comparator.comparing(e -> e.filename.toLowerCase()));
 
-        // Set current folder to root if not set
-        if (currentFolder == null) {
+        // Re-navigate to current folder in the new tree
+        if (currentPath == null || currentPath.isEmpty()) {
             currentFolder = rootFolder;
             currentPath = "";
+        } else {
+            // Navigate to the same path in new tree
+            FolderNode folder = rootFolder;
+            String[] parts = currentPath.split("/");
+            for (String part : parts) {
+                if (!part.isEmpty()) {
+                    FolderNode child = folder.getChild(part);
+                    if (child != null) {
+                        folder = child;
+                    } else {
+                        // Path no longer exists, go to root
+                        folder = rootFolder;
+                        currentPath = "";
+                        break;
+                    }
+                }
+            }
+            currentFolder = folder;
         }
 
         // Refresh current folder contents

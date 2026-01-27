@@ -61,6 +61,9 @@ public class EditorUIController {
     private SpriteEditorPanel spriteEditorPanel;
 
     @Getter
+    private AnimatorEditorPanel animatorEditorPanel;
+
+    @Getter
     private ConsolePanel consolePanel;
 
     @Getter
@@ -100,6 +103,7 @@ public class EditorUIController {
         sceneToolbar.setMessageCallback(statusBar::showMessage);
         animationEditorPanel.setStatusCallback(statusBar::showMessage);
         spriteEditorPanel.setStatusCallback(statusBar::showMessage);
+        animatorEditorPanel.setStatusCallback(statusBar::showMessage);
 
         // Register panel handlers for asset double-click
         assetBrowserPanel.registerPanelHandler(
@@ -109,6 +113,10 @@ public class EditorUIController {
         assetBrowserPanel.registerPanelHandler(
                 EditorPanelType.SPRITE_EDITOR,
                 spriteEditorPanel::open
+        );
+        assetBrowserPanel.registerPanelHandler(
+                EditorPanelType.ANIMATOR_EDITOR,
+                animatorEditorPanel::selectControllerByPath
         );
     }
 
@@ -197,6 +205,9 @@ public class EditorUIController {
 
         animationEditorPanel = new AnimationEditorPanel();
         animationEditorPanel.initialize();
+
+        animatorEditorPanel = new AnimatorEditorPanel();
+        animatorEditorPanel.initialize();
 
         consolePanel = new ConsolePanel();
         consolePanel.initPanel(context.getConfig());
@@ -386,6 +397,16 @@ public class EditorUIController {
 
             ImGui.separator();
 
+            // Animation panels
+            if (ImGui.menuItem("Animation Editor", "", animationEditorPanel.isOpen())) {
+                animationEditorPanel.toggle();
+            }
+            if (ImGui.menuItem("Animator Editor", "", animatorEditorPanel.isOpen())) {
+                animatorEditorPanel.toggle();
+            }
+
+            ImGui.separator();
+
             // Reset layout option
             if (ImGui.menuItem("Reset Panel Layout")) {
                 resetPanelLayout();
@@ -494,6 +515,7 @@ public class EditorUIController {
         configurationPanel.render();
         uiDesignerPanel.render();
         animationEditorPanel.render();
+        animatorEditorPanel.render();
         spriteEditorPanel.render();
         consolePanel.render();
         audioBrowserPanel.render();
@@ -581,6 +603,9 @@ public class EditorUIController {
         }
         if (audioBrowserPanel != null && audioBrowserPanel.isFocused()) {
             builder.panelFocused(audioBrowserPanel.getPanelId());
+        }
+        if (animatorEditorPanel != null && animatorEditorPanel.isFocused()) {
+            builder.panelFocused(animatorEditorPanel.getPanelId());
         }
 
         return builder.build();

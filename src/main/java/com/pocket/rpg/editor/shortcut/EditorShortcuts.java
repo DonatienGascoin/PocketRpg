@@ -90,6 +90,13 @@ public final class EditorShortcuts {
     // Configuration panel
     public static final String CONFIG_SAVE = "editor.config.save";
 
+    // Animator editor panel
+    public static final String ANIMATOR_SAVE = "editor.animator.save";
+    public static final String ANIMATOR_NEW = "editor.animator.new";
+    public static final String ANIMATOR_UNDO = "editor.animator.undo";
+    public static final String ANIMATOR_REDO = "editor.animator.redo";
+    public static final String ANIMATOR_REFRESH = "editor.animator.refresh";
+
     // ========================================================================
     // PANEL IDS
     // ========================================================================
@@ -105,6 +112,7 @@ public final class EditorShortcuts {
         public static final String PREFABS = "prefabs";
         public static final String CONSOLE = "console";
         public static final String ANIMATION_EDITOR = "animationEditor";
+        public static final String ANIMATOR_EDITOR = "animatorEditor";
         public static final String CONFIGURATION = "configuration";
 
         private PanelIds() {
@@ -135,6 +143,7 @@ public final class EditorShortcuts {
         registerZLevelShortcuts(registry);
         registerPlayShortcuts(registry);
         registerConfigurationShortcuts(registry);
+        registerAnimatorShortcuts(registry, layout);
     }
 
     private static void registerFileShortcuts(ShortcutRegistry registry) {
@@ -556,6 +565,62 @@ public final class EditorShortcuts {
         );
     }
 
+    private static void registerAnimatorShortcuts(ShortcutRegistry registry, KeyboardLayout layout) {
+        // Undo/Redo bindings depend on keyboard layout
+        ShortcutBinding undoBinding = layout == KeyboardLayout.AZERTY
+                ? ShortcutBinding.ctrl(ImGuiKey.W)
+                : ShortcutBinding.ctrl(ImGuiKey.Z);
+
+        ShortcutBinding redoBinding = layout == KeyboardLayout.AZERTY
+                ? ShortcutBinding.ctrlShift(ImGuiKey.W)
+                : ShortcutBinding.ctrlShift(ImGuiKey.Z);
+
+        registry.registerAll(
+                ShortcutAction.builder()
+                        .id(ANIMATOR_SAVE)
+                        .displayName("Save Animator")
+                        .defaultBinding(ShortcutBinding.ctrl(ImGuiKey.S))
+                        .panelFocused(PanelIds.ANIMATOR_EDITOR)
+                        .allowInInput(true)
+                        .handler(() -> {})
+                        .build(),
+
+                ShortcutAction.builder()
+                        .id(ANIMATOR_NEW)
+                        .displayName("New Animator")
+                        .defaultBinding(ShortcutBinding.ctrl(ImGuiKey.N))
+                        .panelFocused(PanelIds.ANIMATOR_EDITOR)
+                        .handler(() -> {})
+                        .build(),
+
+                ShortcutAction.builder()
+                        .id(ANIMATOR_UNDO)
+                        .displayName("Animator Undo")
+                        .defaultBinding(undoBinding)
+                        .panelFocused(PanelIds.ANIMATOR_EDITOR)
+                        .allowInInput(true)
+                        .handler(() -> {})
+                        .build(),
+
+                ShortcutAction.builder()
+                        .id(ANIMATOR_REDO)
+                        .displayName("Animator Redo")
+                        .defaultBinding(redoBinding)
+                        .panelFocused(PanelIds.ANIMATOR_EDITOR)
+                        .allowInInput(true)
+                        .handler(() -> {})
+                        .build(),
+
+                ShortcutAction.builder()
+                        .id(ANIMATOR_REFRESH)
+                        .displayName("Refresh Animator List")
+                        .defaultBinding(ShortcutBinding.key(ImGuiKey.F5))
+                        .panelFocused(PanelIds.ANIMATOR_EDITOR)
+                        .handler(() -> {})
+                        .build()
+        );
+    }
+
     // ========================================================================
     // DEFAULT BINDINGS BY LAYOUT
     // ========================================================================
@@ -644,6 +709,18 @@ public final class EditorShortcuts {
         // Configuration shortcuts
         bindings.put(CONFIG_SAVE, ShortcutBinding.ctrl(ImGuiKey.S));
 
+        // Animator editor shortcuts
+        bindings.put(ANIMATOR_SAVE, ShortcutBinding.ctrl(ImGuiKey.S));
+        bindings.put(ANIMATOR_NEW, ShortcutBinding.ctrl(ImGuiKey.N));
+        if (layout == KeyboardLayout.AZERTY) {
+            bindings.put(ANIMATOR_UNDO, ShortcutBinding.ctrl(ImGuiKey.W));
+            bindings.put(ANIMATOR_REDO, ShortcutBinding.ctrlShift(ImGuiKey.W));
+        } else {
+            bindings.put(ANIMATOR_UNDO, ShortcutBinding.ctrl(ImGuiKey.Z));
+            bindings.put(ANIMATOR_REDO, ShortcutBinding.ctrlShift(ImGuiKey.Z));
+        }
+        bindings.put(ANIMATOR_REFRESH, ShortcutBinding.key(ImGuiKey.F5));
+
         return bindings;
     }
 
@@ -723,5 +800,12 @@ public final class EditorShortcuts {
 
         // Configuration
         registry.bindHandler(CONFIG_SAVE, handlers::onConfigSave);
+
+        // Animator editor
+        registry.bindHandler(ANIMATOR_SAVE, handlers::onAnimatorSave);
+        registry.bindHandler(ANIMATOR_NEW, handlers::onAnimatorNew);
+        registry.bindHandler(ANIMATOR_UNDO, handlers::onAnimatorUndo);
+        registry.bindHandler(ANIMATOR_REDO, handlers::onAnimatorRedo);
+        registry.bindHandler(ANIMATOR_REFRESH, handlers::onAnimatorRefresh);
     }
 }

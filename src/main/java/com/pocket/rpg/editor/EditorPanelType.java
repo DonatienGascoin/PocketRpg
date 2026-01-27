@@ -9,7 +9,8 @@ import lombok.Getter;
 @Getter
 public enum EditorPanelType {
     ANIMATION_EDITOR("Animation Editor"),
-    SPRITE_EDITOR("Sprite Editor");
+    SPRITE_EDITOR("Sprite Editor"),
+    ANIMATOR_EDITOR("Animator Editor");
 
     private final String windowName;
 

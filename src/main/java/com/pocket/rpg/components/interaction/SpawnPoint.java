@@ -1,5 +1,6 @@
 package com.pocket.rpg.components.interaction;
 
+import com.pocket.rpg.audio.clips.AudioClip;
 import com.pocket.rpg.collision.Direction;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ComponentMeta;
@@ -48,6 +49,13 @@ public class SpawnPoint extends Component implements GizmoDrawable {
     @Getter
     @Setter
     private Direction facingDirection = Direction.DOWN;
+
+    /**
+     * Optional sound to play when an entity arrives at this spawn point.
+     */
+    @Getter
+    @Setter
+    private AudioClip arrivalSound;
 
     /**
      * Gets the world position of this spawn point.

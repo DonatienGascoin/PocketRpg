@@ -115,6 +115,57 @@ public class TransitionManager {
     }
 
     /**
+     * Callback to execute at the midpoint of a fade effect.
+     */
+    private Runnable midpointCallback;
+
+    /**
+     * Plays a fade effect without changing scenes.
+     * Useful for within-scene transitions like warps, doors, or cutscenes.
+     * <p>
+     * The callback is executed at the midpoint (when screen is fully faded).
+     *
+     * @param onMidpoint action to perform at midpoint (e.g., teleport player)
+     * @param config     the transition configuration to use
+     * @throws IllegalStateException if a transition is already in progress
+     */
+    public void playFadeEffect(Runnable onMidpoint, TransitionConfig config) {
+        if (state != State.IDLE) {
+            System.out.println(
+                    "Cannot start fade effect while another transition is in progress. " +
+                            "Current state: " + state
+            );
+            return;
+        }
+
+        if (onMidpoint == null) {
+            throw new IllegalArgumentException("Midpoint callback cannot be null");
+        }
+
+        if (config == null) {
+            throw new IllegalArgumentException("TransitionConfig cannot be null");
+        }
+
+        this.targetSceneName = null; // No scene change
+        this.midpointCallback = onMidpoint;
+        this.currentTransition = createTransition(config);
+        this.currentTransition.reset();
+        this.state = State.FADING_OUT;
+
+        System.out.println("Starting fade effect");
+    }
+
+    /**
+     * Plays a fade effect with the default configuration.
+     *
+     * @param onMidpoint action to perform at midpoint
+     * @throws IllegalStateException if a transition is already in progress
+     */
+    public void playFadeEffect(Runnable onMidpoint) {
+        playFadeEffect(onMidpoint, defaultConfig);
+    }
+
+    /**
      * Updates the transition state.
      * Must be called every frame.
      * Does nothing if no transition is active (early return for performance).
@@ -133,10 +184,10 @@ public class TransitionManager {
         // Handle state transitions
         switch (state) {
             case FADING_OUT:
-                // Check if we've reached the midpoint (scene switch point)
+                // Check if we've reached the midpoint (scene switch / callback point)
                 if (currentTransition.isAtMidpoint()) {
                     state = State.SWITCHING;
-                    performSceneSwitch();
+                    performMidpointAction();
                     state = State.FADING_IN;
                 }
                 break;
@@ -233,15 +284,22 @@ public class TransitionManager {
     }
 
     /**
-     * Performs the actual scene switch.
+     * Performs the midpoint action: either scene switch or callback execution.
      * Called at the midpoint of the transition.
      */
-    private void performSceneSwitch() {
+    private void performMidpointAction() {
         try {
-            System.out.println("Switching to scene: " + targetSceneName);
-            sceneManager.loadScene(targetSceneName);
+            if (targetSceneName != null) {
+                // Scene transition: load the target scene
+                System.out.println("Switching to scene: " + targetSceneName);
+                sceneManager.loadScene(targetSceneName);
+            } else if (midpointCallback != null) {
+                // Fade effect: execute the callback
+                System.out.println("Executing fade effect callback");
+                midpointCallback.run();
+            }
         } catch (Exception e) {
-            System.err.println("Scene switch failed: " + e.getMessage());
+            System.err.println("Midpoint action failed: " + e.getMessage());
             completeTransition();  // Reset state on failure
         }
     }
@@ -254,6 +312,7 @@ public class TransitionManager {
         state = State.IDLE;
         currentTransition = null;
         targetSceneName = null;
+        midpointCallback = null;
     }
 
     /**

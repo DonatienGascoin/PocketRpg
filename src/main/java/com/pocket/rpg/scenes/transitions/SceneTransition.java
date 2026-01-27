@@ -112,6 +112,32 @@ public class SceneTransition {
     }
 
     /**
+     * Plays a fade effect without changing scenes.
+     * Useful for within-scene transitions like warps, doors, or cutscenes.
+     * <p>
+     * The callback is executed at the midpoint (when screen is fully faded).
+     *
+     * @param onMidpoint action to perform at midpoint (e.g., teleport player)
+     * @throws IllegalStateException if not initialized
+     */
+    public static void playFadeEffect(Runnable onMidpoint) {
+        checkInitialized();
+        instance.playFadeEffect(onMidpoint);
+    }
+
+    /**
+     * Plays a fade effect with a custom configuration.
+     *
+     * @param onMidpoint action to perform at midpoint
+     * @param config     transition configuration
+     * @throws IllegalStateException if not initialized
+     */
+    public static void playFadeEffect(Runnable onMidpoint, TransitionConfig config) {
+        checkInitialized();
+        instance.playFadeEffect(onMidpoint, config);
+    }
+
+    /**
      * Checks if a transition is currently in progress.
      *
      * @return true if transitioning, false otherwise

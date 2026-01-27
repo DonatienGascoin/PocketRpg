@@ -1,8 +1,8 @@
 package com.pocket.rpg.editor.ui.inspectors;
 
 import com.pocket.rpg.components.interaction.SpawnPoint;
-import com.pocket.rpg.components.interaction.TriggerZone;
 import com.pocket.rpg.components.interaction.WarpZone;
+import com.pocket.rpg.config.TransitionConfig;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.ui.fields.FieldEditorContext;
@@ -15,6 +15,7 @@ import imgui.type.ImBoolean;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Custom editor for WarpZone component.
@@ -29,20 +30,24 @@ import java.util.List;
 public class WarpZoneInspector extends CustomComponentInspector<WarpZone> {
 
     private final ImBoolean showLabelState = new ImBoolean();
+    private final ImBoolean useFadeState = new ImBoolean();
+    private final ImBoolean overrideDefaultsState = new ImBoolean();
+    private final float[] fadeOutDuration = new float[1];
+    private final float[] fadeInDuration = new float[1];
 
     private static final int ERROR_ROW_BG_COLOR = ImGui.colorConvertFloat4ToU32(1f, 0.1f, 0.1f, 0.7f);
 
     @Override
     public boolean draw() {
-        boolean changed = false;
+        AtomicBoolean changed = new AtomicBoolean(false);
 
         // Destination section
         ImGui.text("Destination");
         ImGui.separator();
 
-        changed |= drawSceneDropdown();
+        changed.set(changed.get() | drawSceneDropdown());
         ImGui.spacing();
-        changed |= drawSpawnPointDropdown();
+        changed.set(changed.get() | drawSpawnPointDropdown());
 
         ImGui.spacing();
         ImGui.spacing();
@@ -61,7 +66,76 @@ public class WarpZoneInspector extends CustomComponentInspector<WarpZone> {
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("If true, show warp destination in editor gizmo.");
         }
-        if (ImGui.isItemDeactivatedAfterEdit()) changed = true;
+        if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
+
+        ImGui.spacing();
+        ImGui.spacing();
+
+        // Audio section
+        ImGui.text("Audio");
+        ImGui.separator();
+
+        changed.set(changed.get() | FieldEditors.drawAudioClip("Warp Out Sound", component, "warpOutSound", entity));
+
+        ImGui.spacing();
+        ImGui.spacing();
+
+        // Transition section
+        ImGui.text("Transition");
+        ImGui.separator();
+
+        // Use fade toggle
+        useFadeState.set(component.isUseFade());
+        FieldEditors.inspectorRow("Use Fade", () -> {
+            if (ImGui.checkbox("##useFade", useFadeState)) {
+                component.setUseFade(useFadeState.get());
+                changed.set(true);
+            }
+        });
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("Enable fade transition effect when warping.");
+        }
+
+        // Only show override option if useFade is enabled
+        if (component.isUseFade()) {
+            // Override defaults toggle
+            overrideDefaultsState.set(component.isOverrideTransitionDefaults());
+            FieldEditors.inspectorRow("Override Defaults", () -> {
+                if (ImGui.checkbox("##overrideDefaults", overrideDefaultsState)) {
+                    component.setOverrideTransitionDefaults(overrideDefaultsState.get());
+                    changed.set(true);
+                }
+            });
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("Override the default transition settings from rendering config.");
+            }
+
+            // Only show custom settings if override is enabled
+            if (component.isOverrideTransitionDefaults()) {
+                // Fade out duration
+                fadeOutDuration[0] = component.getFadeOutDuration();
+                FieldEditors.inspectorRow("Fade Out", () -> {
+                    ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+                    if (ImGui.dragFloat("##fadeOut", fadeOutDuration, 0.01f, 0.0f, 5.0f, "%.2f s")) {
+                        component.setFadeOutDuration(fadeOutDuration[0]);
+                    }
+                });
+                if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
+
+                // Fade in duration
+                fadeInDuration[0] = component.getFadeInDuration();
+                FieldEditors.inspectorRow("Fade In", () -> {
+                    ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+                    if (ImGui.dragFloat("##fadeIn", fadeInDuration, 0.01f, 0.0f, 5.0f, "%.2f s")) {
+                        component.setFadeInDuration(fadeInDuration[0]);
+                    }
+                });
+                if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
+
+                // Transition type
+                changed.set(changed.get() | FieldEditors.drawEnum("Type", component, "transitionType", TransitionConfig.TransitionType.class));
+            }
+        }
 
         // Preview
         ImGui.spacing();
@@ -69,7 +143,7 @@ public class WarpZoneInspector extends CustomComponentInspector<WarpZone> {
         ImGui.spacing();
         drawDestinationPreview();
 
-        return changed;
+        return changed.get();
     }
 
     private boolean drawSceneDropdown() {

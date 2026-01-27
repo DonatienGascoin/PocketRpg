@@ -36,6 +36,14 @@ public class SpawnPointInspector extends CustomComponentInspector<SpawnPoint> {
         // Facing direction dropdown
         changed |= drawFacingDirectionDropdown();
 
+        ImGui.spacing();
+
+        // Audio section
+        ImGui.text("Audio");
+        ImGui.separator();
+
+        changed |= FieldEditors.drawAudioClip("Arrival Sound", component, "arrivalSound", entity);
+
         // Preview
         ImGui.spacing();
         ImGui.separator();

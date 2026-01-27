@@ -1,13 +1,17 @@
 package com.pocket.rpg.components.interaction;
 
+import com.pocket.rpg.audio.Audio;
+import com.pocket.rpg.audio.clips.AudioClip;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ComponentMeta;
 import com.pocket.rpg.components.ComponentRef;
 import com.pocket.rpg.components.GridMovement;
+import com.pocket.rpg.config.TransitionConfig;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.editor.gizmos.GizmoColors;
 import com.pocket.rpg.editor.gizmos.GizmoContext;
 import com.pocket.rpg.editor.gizmos.GizmoDrawable;
+import com.pocket.rpg.scenes.transitions.SceneTransition;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector3f;
@@ -65,6 +69,48 @@ public class WarpZone extends Component implements GizmoDrawable {
     @Getter
     @Setter
     private boolean showDestinationLabel = true;
+
+    /**
+     * Optional sound to play when warping out (departure sound).
+     */
+    @Getter
+    @Setter
+    private AudioClip warpOutSound;
+
+    /**
+     * If true, use a fade transition effect.
+     */
+    @Getter
+    @Setter
+    private boolean useFade = false;
+
+    /**
+     * If true, use custom transition settings instead of defaults from rendering config.
+     */
+    @Getter
+    @Setter
+    private boolean overrideTransitionDefaults = false;
+
+    /**
+     * Duration of fade-out in seconds (only used if overrideTransitionDefaults is true).
+     */
+    @Getter
+    @Setter
+    private float fadeOutDuration = 0.3f;
+
+    /**
+     * Duration of fade-in in seconds (only used if overrideTransitionDefaults is true).
+     */
+    @Getter
+    @Setter
+    private float fadeInDuration = 0.3f;
+
+    /**
+     * Type of transition effect (only used if overrideTransitionDefaults is true).
+     */
+    @Getter
+    @Setter
+    private TransitionConfig.TransitionType transitionType = TransitionConfig.TransitionType.FADE;
 
     // ========================================================================
     // LIFECYCLE
@@ -125,21 +171,71 @@ public class WarpZone extends Component implements GizmoDrawable {
             return;
         }
 
+        // Play departure sound
+        if (warpOutSound != null) {
+            Audio.playOneShot(warpOutSound);
+        }
+
+        if (useFade && SceneTransition.isInitialized()) {
+            // Fade warp: execute teleport at midpoint
+            playLocalFadeTransition(() -> performTeleport(player, spawn));
+        } else {
+            // Instant warp: teleport immediately
+            performTeleport(player, spawn);
+        }
+    }
+
+    /**
+     * Plays a fade transition for within-scene warps (no scene change).
+     * Uses the SceneTransition fade overlay system to fade out, execute the action, then fade in.
+     *
+     * @param onMidpoint action to perform at the midpoint (when screen is fully faded)
+     */
+    private void playLocalFadeTransition(Runnable onMidpoint) {
+        if (overrideTransitionDefaults) {
+            SceneTransition.playFadeEffect(onMidpoint, buildTransitionConfig());
+        } else {
+            SceneTransition.playFadeEffect(onMidpoint);
+        }
+    }
+
+    /**
+     * Builds a TransitionConfig from the inline fields (only used when overriding defaults).
+     */
+    private TransitionConfig buildTransitionConfig() {
+        return TransitionConfig.builder()
+                .fadeOutDuration(fadeOutDuration)
+                .fadeInDuration(fadeInDuration)
+                .type(transitionType)
+                .build();
+    }
+
+    /**
+     * Performs the actual teleport: moves player, sets facing, plays arrival sound.
+     */
+    private void performTeleport(GameObject player, SpawnPoint spawn) {
         Vector3f spawnPos = spawn.getSpawnPosition();
         int targetGridX = (int) Math.floor(spawnPos.x);
         int targetGridY = (int) Math.floor(spawnPos.y);
 
-        // Update GridMovement if player has one (handles occupancy map + visual position)
         GridMovement gridMovement = player.getComponent(GridMovement.class);
         if (gridMovement != null) {
+            // Update grid position (handles occupancy map + visual position)
             gridMovement.setGridPosition(targetGridX, targetGridY);
+            // Set facing direction from spawn point
+            if (spawn.getFacingDirection() != null) {
+                gridMovement.setFacingDirection(spawn.getFacingDirection());
+            }
         } else {
             // Fallback: just move transform directly
             player.getTransform().setPosition(spawnPos);
         }
 
-        // TODO: Set facing direction
-        // TODO: Play warp effect/sound
+        // Play arrival sound from spawn point
+        AudioClip arrivalSound = spawn.getArrivalSound();
+        if (arrivalSound != null) {
+            Audio.playOneShot(arrivalSound);
+        }
 
         System.out.println("[WarpZone] Warped player to grid: (" + targetGridX + ", " + targetGridY + ")");
     }
@@ -148,13 +244,34 @@ public class WarpZone extends Component implements GizmoDrawable {
      * Initiates transition to another scene.
      */
     private void warpToScene() {
-        // TODO: Implement scene transition when SceneManager API is finalized
-        // Need to access SceneManager instance and call loadScene with spawn info
+        if (!SceneTransition.isInitialized()) {
+            System.err.println("[WarpZone] SceneTransition not initialized, cannot warp to scene: " + targetScene);
+            return;
+        }
+
+        // Play departure sound
+        if (warpOutSound != null) {
+            Audio.playOneShot(warpOutSound);
+        }
+
+        // TODO: Store spawn ID so the new scene can position the player at targetSpawnId
         // Options:
-        // 1. Store spawn ID in a static/shared location for the new scene to read
-        // 2. Pass spawn ID through SceneManager.loadScene(sceneName, spawnId)
+        // 1. Store in static/shared location for the new scene to read
+        // 2. Pass through SceneManager.loadScene(sceneName, spawnId)
         // 3. Use an event system
-        System.out.println("[WarpZone] Scene transition not yet implemented: " + targetScene);
+
+        if (!useFade) {
+            // Instant scene change, no transition
+            SceneTransition.loadSceneInstant(targetScene);
+        } else if (overrideTransitionDefaults) {
+            // Custom transition settings
+            SceneTransition.loadScene(targetScene, buildTransitionConfig());
+        } else {
+            // Default transition from rendering config
+            SceneTransition.loadScene(targetScene);
+        }
+
+        System.out.println("[WarpZone] Loading scene: " + targetScene);
     }
 
     /**

@@ -117,6 +117,7 @@ public class GridMovement extends Component {
      * Current facing direction.
      */
     @Getter
+    @Setter
     private Direction facingDirection = Direction.DOWN;
 
     // Internal movement state

@@ -1,6 +1,6 @@
 # Asset Inspector Enhancements Plan
 
-**Status: DRAFT**
+**Status: COMPLETE**
 
 **Can be done in parallel with other plans (no hard dependencies)**
 
@@ -285,11 +285,11 @@ Create the base framework for type-specific inspectors.
 | `inspector/AssetInspector.java` | Update to use registry |
 
 **Tasks:**
-- [ ] Create `AssetInspectorRenderer` interface
-- [ ] Create `AssetInspectorRegistry` with registration and lookup
-- [ ] Create `DefaultAssetInspectorRenderer` that delegates to `AssetPreviewRegistry`
-- [ ] Update `AssetInspector` to use the registry
-- [ ] Add save button logic with unsaved changes tracking
+- [x] Create `AssetInspectorRenderer` interface
+- [x] Create `AssetInspectorRegistry` with registration and lookup
+- [x] Create `DefaultAssetInspectorRenderer` that delegates to `AssetPreviewRegistry`
+- [x] Update `AssetInspector` to use the registry
+- [x] Add save button logic with unsaved changes tracking
 
 ---
 
@@ -305,19 +305,19 @@ Create the sprite-specific inspector with mode switching.
 | `inspector/GridConfigDialog.java` | **NEW** - Quick dialog for configuring grid when switching to Multiple |
 
 **Tasks:**
-- [ ] Create `SpriteInspectorRenderer` class
-- [ ] Show sprite preview with pivot marker
-- [ ] Show read-only info: size
-- [ ] Show editable fields: pivot X/Y, pixelsPerUnit
-- [ ] Add pivot preset button (opens small popup or inline 3x3 grid)
-- [ ] Add "Open Sprite Editor..." button
-- [ ] Implement save functionality (updates `.meta` file)
-- [ ] Handle both Single and Multiple mode sprites
-- [ ] For Multiple mode: show grid preview, sprite count, default pivot
-- [ ] **Add mode switcher (Single ↔ Multiple radio buttons)**
-- [ ] **Create `GridConfigDialog` for Single → Multiple conversion**
-- [ ] **Implement Multiple → Single with confirmation dialog**
-- [ ] Update TilesetRegistry when mode changes
+- [x] Create `SpriteInspectorRenderer` class
+- [x] Show sprite preview with pivot marker
+- [x] Show read-only info: size
+- [x] Show editable fields: pivot X/Y, pixelsPerUnit
+- [x] Add pivot preset grid (3x3)
+- [x] Add "Open Sprite Editor..." button (via event bus)
+- [x] Implement save functionality (updates `.meta` file)
+- [x] Handle both Single and Multiple mode sprites
+- [x] For Multiple mode: show grid preview, sprite count, default pivot
+- [ ] ~~Add mode switcher (Single ↔ Multiple radio buttons)~~ - Deferred (use Sprite Editor for mode changes)
+- [ ] ~~Create `GridConfigDialog` for Single → Multiple conversion~~ - Deferred
+- [ ] ~~Implement Multiple → Single with confirmation dialog~~ - Deferred
+- [ ] ~~Update TilesetRegistry when mode changes~~ - Deferred
 
 **Mode Switcher Implementation:**
 
@@ -402,19 +402,17 @@ Create the animation-specific inspector with animated preview.
 | File | Change |
 |------|--------|
 | `inspector/AnimationInspectorRenderer.java` | **NEW** - Animation inspector with playback |
-| `assets/AnimationPreviewRenderer.java` | **NEW** - Animated preview for AssetPreviewRegistry |
 
 **Tasks:**
-- [ ] Create `AnimationPreviewRenderer` for `AssetPreviewRegistry`
-  - Plays animation in loop
-  - Play/Stop buttons
-  - Shows current frame
-- [ ] Create `AnimationInspectorRenderer`
-  - Uses `AnimationPreviewRenderer` for preview
+- [x] Create `AnimationInspectorRenderer`
+  - Animated preview (plays frames)
+  - Play/Pause/Stop/Restart controls
   - Shows frame count, duration, FPS
-  - Shows loop checkbox (editable)
-  - Add "Open Animation Editor..." button
-- [ ] Register both renderers
+  - Loop checkbox (editable)
+  - "Open Animation Editor..." button (via event bus)
+- [x] Register renderer in `AssetInspectorRegistry`
+- [x] Create `OpenAnimationEditorEvent`
+- [x] Wire event to open Animation Editor panel
 
 **What to show for Animation:**
 
@@ -438,15 +436,16 @@ Wire everything together and polish the UI.
 |------|--------|
 | `AssetInspectorRegistry.java` | Register all inspectors |
 | `EditorUIController.java` | Wire up "Open X Editor" buttons |
+| `events/OpenAnimationEditorEvent.java` | **NEW** - Event for opening animation editor |
 
 **Tasks:**
-- [ ] Register `SpriteInspectorRenderer` in registry
-- [ ] Register `AnimationInspectorRenderer` in registry
-- [ ] Wire "Open Sprite Editor" to open `SpriteEditorPanel(V2)`
-- [ ] Wire "Open Animation Editor" to open Animation panel
-- [ ] Add keyboard shortcut for save (Ctrl+S when inspector focused?)
-- [ ] Add unsaved changes indicator in inspector header
-- [ ] Test all asset types
+- [x] Register `SpriteInspectorRenderer` in registry
+- [x] Register `AnimationInspectorRenderer` in registry
+- [x] Wire "Open Sprite Editor" to open `SpriteEditorPanel(V2)`
+- [x] Wire "Open Animation Editor" to open Animation panel
+- [ ] Add keyboard shortcut for save (Ctrl+S when inspector focused?) - DEFERRED
+- [ ] Add unsaved changes indicator in inspector header - Already exists via save button color
+- [x] Test all asset types (compilation verified)
 
 ---
 

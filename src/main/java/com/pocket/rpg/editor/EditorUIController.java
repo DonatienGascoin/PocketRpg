@@ -1,6 +1,8 @@
 package com.pocket.rpg.editor;
 
 import com.pocket.rpg.editor.events.EditorEventBus;
+import com.pocket.rpg.editor.events.OpenAnimationEditorEvent;
+import com.pocket.rpg.editor.events.OpenSpriteEditorEvent;
 import com.pocket.rpg.editor.events.TriggerFocusRequestEvent;
 import com.pocket.rpg.editor.events.TriggerSelectedEvent;
 import com.pocket.rpg.editor.panels.*;
@@ -173,6 +175,22 @@ public class EditorUIController {
         EditorEventBus.get().subscribe(TriggerFocusRequestEvent.class, event -> {
             if (context.getCamera() != null) {
                 context.getCamera().centerOn(event.coordinate().x() + 0.5f, event.coordinate().y() + 0.5f);
+            }
+        });
+
+        // Subscribe to open sprite editor events (from inspector "Open Sprite Editor" button)
+        EditorEventBus.get().subscribe(OpenSpriteEditorEvent.class, event -> {
+            if (event.texturePath() != null) {
+                spriteEditorPanel.open(event.texturePath());
+            } else {
+                spriteEditorPanel.open();
+            }
+        });
+
+        // Subscribe to open animation editor events (from inspector "Open Animation Editor" button)
+        EditorEventBus.get().subscribe(OpenAnimationEditorEvent.class, event -> {
+            if (event.animationPath() != null) {
+                animationEditorPanel.selectAnimationByPath(event.animationPath());
             }
         });
 

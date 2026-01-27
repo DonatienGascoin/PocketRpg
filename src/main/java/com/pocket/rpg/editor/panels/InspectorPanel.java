@@ -36,6 +36,9 @@ public class InspectorPanel extends EditorPanel {
     @Getter
     private final TriggerInspector triggerInspector = new TriggerInspector();
 
+    // Track if we were showing asset inspector last frame
+    private boolean wasShowingAssetInspector = false;
+
     public InspectorPanel() {
         super(PANEL_ID, true); // Default open - core panel
     }
@@ -58,36 +61,66 @@ public class InspectorPanel extends EditorPanel {
             multiSelectionInspector.setScene(scene);
             triggerInspector.setScene(scene);
 
-            // Check if a trigger is selected (takes priority when collision layer is active)
-            if (triggerInspector.hasSelection() && selectionManager != null && selectionManager.isCollisionLayerSelected()) {
-                triggerInspector.render();
-            } else if (selectionManager == null) {
-                ImGui.textDisabled("Select an item to inspect");
-            } else if (selectionManager.isCameraSelected()) {
-                cameraInspector.render();
-            } else if (selectionManager.isTilemapLayerSelected()) {
-                tilemapInspector.render();
-            } else if (selectionManager.isCollisionLayerSelected()) {
-                collisionInspector.render();
-            } else if (selectionManager.isAssetSelected()) {
-                assetInspector.setAssetPath(selectionManager.getSelectedAssetPath());
-                assetInspector.setAssetType(selectionManager.getSelectedAssetType());
+            // Determine what should be shown
+            boolean shouldShowAsset = selectionManager != null && selectionManager.isAssetSelected();
+
+            // Check if asset inspector has a pending popup that needs to be handled
+            if (assetInspector.hasPendingPopup()) {
+                // Keep showing asset inspector while popup is active
                 assetInspector.render();
-            } else if (selectionManager.hasEntitySelection()) {
-                Set<EditorGameObject> selected = selectionManager.getSelectedEntities();
-                if (selected.size() > 1) {
-                    multiSelectionInspector.render(selected);
-                } else if (selected.size() == 1) {
-                    entityInspector.render(selected.iterator().next());
+            } else if (wasShowingAssetInspector && !shouldShowAsset) {
+                // Switching away from asset inspector - check for unsaved changes
+                if (assetInspector.checkUnsavedChangesBeforeLeaving()) {
+                    // Has unsaved changes, show popup (will be rendered next frame)
+                    assetInspector.render();
+                } else {
+                    // No unsaved changes, render the new inspector
+                    renderCurrentInspector(shouldShowAsset);
                 }
             } else {
-                ImGui.textDisabled("Select an item to inspect");
+                // Normal rendering
+                renderCurrentInspector(shouldShowAsset);
             }
+
+            // Track state for next frame
+            wasShowingAssetInspector = shouldShowAsset || assetInspector.hasPendingPopup();
         }
         ReflectionFieldEditor.renderAssetPicker();
         entityInspector.renderDeleteConfirmationPopup();
         ImGui.end();
+    }
 
+    /**
+     * Renders the appropriate inspector based on current selection.
+     */
+    private void renderCurrentInspector(boolean shouldShowAsset) {
+        // Check if a trigger is selected (takes priority when collision layer is active)
+        if (triggerInspector.hasSelection() && selectionManager != null && selectionManager.isCollisionLayerSelected()) {
+            triggerInspector.render();
+        } else if (selectionManager == null) {
+            ImGui.textDisabled("Select an item to inspect");
+        } else if (selectionManager.isCameraSelected()) {
+            cameraInspector.render();
+        } else if (selectionManager.isTilemapLayerSelected()) {
+            tilemapInspector.render();
+        } else if (selectionManager.isCollisionLayerSelected()) {
+            collisionInspector.render();
+        } else if (shouldShowAsset) {
+            assetInspector.setAsset(
+                selectionManager.getSelectedAssetPath(),
+                selectionManager.getSelectedAssetType()
+            );
+            assetInspector.render();
+        } else if (selectionManager.hasEntitySelection()) {
+            Set<EditorGameObject> selected = selectionManager.getSelectedEntities();
+            if (selected.size() > 1) {
+                multiSelectionInspector.render(selected);
+            } else if (selected.size() == 1) {
+                entityInspector.render(selected.iterator().next());
+            }
+        } else {
+            ImGui.textDisabled("Select an item to inspect");
+        }
     }
 
     /**

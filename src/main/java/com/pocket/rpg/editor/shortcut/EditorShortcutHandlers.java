@@ -108,4 +108,14 @@ public interface EditorShortcutHandlers {
     // ========================================================================
 
     void onConfigSave();
+
+    // ========================================================================
+    // ANIMATOR EDITOR
+    // ========================================================================
+
+    void onAnimatorSave();
+    void onAnimatorNew();
+    void onAnimatorUndo();
+    void onAnimatorRedo();
+    void onAnimatorRefresh();
 }

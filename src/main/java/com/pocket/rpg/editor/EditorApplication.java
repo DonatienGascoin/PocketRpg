@@ -294,6 +294,7 @@ public class EditorApplication {
         handlers.setConfigurationPanel(uiController.getConfigurationPanel());
         handlers.setTilesetPalettePanel(uiController.getTilesetPalette());
         handlers.setCollisionPanel(uiController.getCollisionPanel());
+        handlers.setAnimatorEditorPanel(uiController.getAnimatorEditorPanel());
 
         // Bind handlers to shortcuts
         EditorShortcuts.bindHandlers(shortcutRegistry, handlers);

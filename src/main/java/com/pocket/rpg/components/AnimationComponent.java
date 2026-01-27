@@ -1,8 +1,8 @@
 package com.pocket.rpg.components;
 
 import com.pocket.rpg.animation.Animation;
-import com.pocket.rpg.animation.AnimationFrame;
-import com.pocket.rpg.resources.Assets;
+import com.pocket.rpg.animation.AnimationPlayer;
+import com.pocket.rpg.rendering.resources.Sprite;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -13,6 +13,8 @@ import lombok.Setter;
  * The Animation field is automatically serialized as a path string
  * via AssetReferenceTypeAdapterFactory, and can be selected using
  * the asset picker in the inspector.
+ * <p>
+ * Internally uses {@link AnimationPlayer} for playback logic.
  */
 @ComponentMeta(category = "Rendering")
 public class AnimationComponent extends Component {
@@ -48,14 +50,7 @@ public class AnimationComponent extends Component {
     // ========================================================================
 
     @HideInInspector
-    private int currentFrame = 0;
-
-    @HideInInspector
-    private float timer = 0;
-
-    @HideInInspector
-    @Getter
-    private AnimationState state = AnimationState.STOPPED;
+    private final AnimationPlayer player = new AnimationPlayer();
 
     // ========================================================================
     // COMPONENT REFERENCE (auto-resolved, not serialized)
@@ -65,7 +60,7 @@ public class AnimationComponent extends Component {
     private SpriteRenderer spriteRenderer;
 
     // ========================================================================
-    // STATE ENUM
+    // STATE ENUM (for API compatibility)
     // ========================================================================
 
     public enum AnimationState {
@@ -92,6 +87,12 @@ public class AnimationComponent extends Component {
 
     @Override
     protected void onStart() {
+        // Sync animation to player
+        if (animation != null) {
+            player.setAnimationWithoutPlaying(animation);
+            player.setSpeed(speed);
+        }
+
         if (autoPlay && animation != null && animation.getFrameCount() > 0) {
             play();
         }
@@ -99,36 +100,15 @@ public class AnimationComponent extends Component {
 
     @Override
     public void update(float deltaTime) {
-        if (state != AnimationState.PLAYING) return;
-        if (animation == null || animation.getFrameCount() == 0) return;
         if (spriteRenderer == null) return;
 
-        // Advance timer
-        timer += deltaTime * speed;
-
-        AnimationFrame frame = animation.getFrame(currentFrame);
-
-        // Check if frame duration exceeded
-        while (timer >= frame.duration()) {
-            timer -= frame.duration();
-            currentFrame++;
-
-            // Handle end of animation
-            if (currentFrame >= animation.getFrameCount()) {
-                if (animation.isLooping()) {
-                    currentFrame = 0;
-                } else {
-                    currentFrame = animation.getFrameCount() - 1;
-                    state = AnimationState.FINISHED;
-                    return;
-                }
+        boolean frameChanged = player.update(deltaTime);
+        if (frameChanged) {
+            Sprite sprite = player.getCurrentSprite();
+            if (sprite != null) {
+                spriteRenderer.setSprite(sprite);
             }
-
-            frame = animation.getFrame(currentFrame);
         }
-
-        // Update sprite
-        spriteRenderer.setSprite(animation.getFrameSprite(currentFrame));
     }
 
     // ========================================================================
@@ -141,13 +121,15 @@ public class AnimationComponent extends Component {
     public void play() {
         if (animation == null || animation.getFrameCount() == 0) return;
 
-        currentFrame = 0;
-        timer = 0;
-        state = AnimationState.PLAYING;
+        player.setAnimation(animation);
+        player.setSpeed(speed);
 
         // Set initial frame
         if (spriteRenderer != null) {
-            spriteRenderer.setSprite(animation.getFrameSprite(0));
+            Sprite sprite = player.getCurrentSprite();
+            if (sprite != null) {
+                spriteRenderer.setSprite(sprite);
+            }
         }
     }
 
@@ -167,38 +149,35 @@ public class AnimationComponent extends Component {
             stop();
             return;
         }
-        this.animation = Assets.load(path, Animation.class);
-        play();
+        player.setAnimation(path);
+        this.animation = player.getAnimation();
     }
 
     /**
      * Pauses playback at current frame.
      */
     public void pause() {
-        if (state == AnimationState.PLAYING) {
-            state = AnimationState.PAUSED;
-        }
+        player.pause();
     }
 
     /**
      * Resumes playback from current position.
      */
     public void resume() {
-        if (state == AnimationState.PAUSED) {
-            state = AnimationState.PLAYING;
-        }
+        player.resume();
     }
 
     /**
      * Stops playback and resets to first frame.
      */
     public void stop() {
-        currentFrame = 0;
-        timer = 0;
-        state = AnimationState.STOPPED;
+        player.stop();
 
-        if (animation != null && animation.getFrameCount() > 0 && spriteRenderer != null) {
-            spriteRenderer.setSprite(animation.getFrameSprite(0));
+        if (spriteRenderer != null) {
+            Sprite sprite = player.getCurrentSprite();
+            if (sprite != null) {
+                spriteRenderer.setSprite(sprite);
+            }
         }
     }
 
@@ -214,41 +193,49 @@ public class AnimationComponent extends Component {
     // ========================================================================
 
     public boolean isPlaying() {
-        return state == AnimationState.PLAYING;
+        return player.isPlaying();
     }
 
     public boolean isPaused() {
-        return state == AnimationState.PAUSED;
+        return player.isPaused();
     }
 
     public boolean isFinished() {
-        return state == AnimationState.FINISHED;
+        return player.isFinished();
     }
 
     public int getCurrentFrameIndex() {
-        return currentFrame;
+        return player.getCurrentFrame();
     }
 
     public float getTimer() {
-        return timer;
+        return player.getTimer();
+    }
+
+    /**
+     * Gets the current playback state.
+     */
+    public AnimationState getState() {
+        return switch (player.getState()) {
+            case STOPPED -> AnimationState.STOPPED;
+            case PLAYING -> AnimationState.PLAYING;
+            case PAUSED -> AnimationState.PAUSED;
+            case FINISHED -> AnimationState.FINISHED;
+        };
     }
 
     /**
      * Gets normalized progress (0.0 to 1.0) through the animation.
      */
     public float getProgress() {
-        if (animation == null || animation.getFrameCount() == 0) return 0;
+        return player.getProgress();
+    }
 
-        float totalDuration = animation.getTotalDuration();
-        if (totalDuration <= 0) return 0;
-
-        float elapsed = 0;
-        for (int i = 0; i < currentFrame; i++) {
-            elapsed += animation.getFrame(i).duration();
-        }
-        elapsed += timer;
-
-        return Math.min(1.0f, elapsed / totalDuration);
+    /**
+     * Gets the underlying AnimationPlayer for direct access.
+     */
+    public AnimationPlayer getPlayer() {
+        return player;
     }
 
     // ========================================================================
@@ -257,5 +244,6 @@ public class AnimationComponent extends Component {
 
     public void setSpeed(float speed) {
         this.speed = Math.max(0.01f, speed);
+        player.setSpeed(this.speed);
     }
 }

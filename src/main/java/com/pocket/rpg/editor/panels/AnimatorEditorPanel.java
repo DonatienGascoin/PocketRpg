@@ -10,6 +10,7 @@ import com.pocket.rpg.editor.events.AnimatorTransitionSelectedEvent;
 import com.pocket.rpg.editor.events.AssetChangedEvent;
 import com.pocket.rpg.editor.events.EditorEventBus;
 import com.pocket.rpg.editor.panels.animator.AnimatorGraphEditor;
+import com.pocket.rpg.editor.panels.animator.AnimatorPreviewPanel;
 import com.pocket.rpg.editor.shortcut.EditorShortcuts;
 import com.pocket.rpg.editor.ui.fields.AssetEditor;
 import com.pocket.rpg.resources.loaders.AnimatorControllerLoader;
@@ -53,6 +54,7 @@ public class AnimatorEditorPanel extends EditorPanel {
     // ========================================================================
 
     private static final float PARAMETERS_PANEL_WIDTH = 200f;
+    private static final float PREVIEW_PANEL_WIDTH = 220f;
 
     // ========================================================================
     // STATE
@@ -67,6 +69,10 @@ public class AnimatorEditorPanel extends EditorPanel {
     private AnimatorGraphEditor graphEditor;
     private AnimatorLayoutData layoutData;
     private final AnimatorLayoutLoader layoutLoader = new AnimatorLayoutLoader();
+
+    // Preview panel
+    private AnimatorPreviewPanel previewPanel;
+    private boolean previewPanelOpen = false;
 
     // Selection
     private int selectedStateIndex = -1;
@@ -90,6 +96,10 @@ public class AnimatorEditorPanel extends EditorPanel {
     private final ImString transToInput = new ImString(64);
     private final ImInt transTypeIndex = new ImInt(0);
     private final ImInt paramTypeIndex = new ImInt(0);
+
+    // Parameter rename editing
+    private int renamingParamIndex = -1;
+    private final ImString renameInput = new ImString(64);
 
     // Refresh tracking
     private boolean needsRefresh = true;
@@ -141,6 +151,9 @@ public class AnimatorEditorPanel extends EditorPanel {
         graphEditor = new AnimatorGraphEditor();
         graphEditor.initialize();
         setupGraphEditorCallbacks();
+
+        // Initialize preview panel
+        previewPanel = new AnimatorPreviewPanel();
 
         refresh();
     }
@@ -484,8 +497,27 @@ public class AnimatorEditorPanel extends EditorPanel {
         if (!canRedo) ImGui.endDisabled();
 
         // Controller dropdown on the right
-        ImGui.sameLine(ImGui.getContentRegionAvailX() - 250);
+        ImGui.sameLine(ImGui.getContentRegionAvailX() - 290);
         renderControllerDropdown();
+
+        // Hamburger menu for preview panel (after dropdown)
+        ImGui.sameLine();
+        boolean wasOpen = previewPanelOpen;
+        if (wasOpen) {
+            ImGui.pushStyleColor(ImGuiCol.Button, 0.2f, 0.5f, 0.3f, 1.0f);
+        }
+        if (ImGui.button(MaterialIcons.Menu + "##preview")) {
+            previewPanelOpen = !previewPanelOpen;
+            if (previewPanelOpen && editingController != null) {
+                previewPanel.setController(editingController);
+            }
+        }
+        if (wasOpen) {
+            ImGui.popStyleColor();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(previewPanelOpen ? "Hide Preview Panel" : "Show Preview Panel");
+        }
     }
 
     private void renderControllerDropdown() {
@@ -550,12 +582,26 @@ public class AnimatorEditorPanel extends EditorPanel {
             return;
         }
 
-        float availHeight = ImGui.getContentRegionAvailY();
+        // Update preview panel
+        if (previewPanelOpen && previewPanel != null) {
+            previewPanel.update(ImGui.getIO().getDeltaTime());
+            // Update graph editor highlighting
+            graphEditor.setActiveState(previewPanel.getActiveStateName());
+            graphEditor.setPendingTransitionTarget(previewPanel.getPendingTransitionTarget());
+        } else {
+            graphEditor.clearPreviewHighlighting();
+        }
 
-        // Main layout: Parameters list | Graph canvas
-        if (ImGui.beginTable("MainContent", 2, ImGuiTableFlags.Resizable | ImGuiTableFlags.BordersInnerV)) {
+        float availHeight = ImGui.getContentRegionAvailY();
+        int columnCount = previewPanelOpen ? 3 : 2;
+
+        // Main layout: Parameters list | Graph canvas | (Preview panel)
+        if (ImGui.beginTable("MainContent", columnCount, ImGuiTableFlags.Resizable | ImGuiTableFlags.BordersInnerV)) {
             ImGui.tableSetupColumn("Parameters", ImGuiTableColumnFlags.WidthFixed, PARAMETERS_PANEL_WIDTH);
             ImGui.tableSetupColumn("Graph", ImGuiTableColumnFlags.WidthStretch);
+            if (previewPanelOpen) {
+                ImGui.tableSetupColumn("Preview", ImGuiTableColumnFlags.WidthFixed, PREVIEW_PANEL_WIDTH);
+            }
 
             ImGui.tableNextRow();
 
@@ -565,11 +611,19 @@ public class AnimatorEditorPanel extends EditorPanel {
             renderParametersList();
             ImGui.endChild();
 
-            // Graph canvas (right column)
+            // Graph canvas (center column)
             ImGui.tableNextColumn();
             ImGui.beginChild("GraphChild", 0, availHeight, false, ImGuiWindowFlags.NoScrollbar);
             graphEditor.render(editingController);
             ImGui.endChild();
+
+            // Preview panel (right column, when open)
+            if (previewPanelOpen) {
+                ImGui.tableNextColumn();
+                ImGui.beginChild("PreviewChild", 0, availHeight, false);
+                previewPanel.render(editingController);
+                ImGui.endChild();
+            }
 
             ImGui.endTable();
         }
@@ -588,6 +642,7 @@ public class AnimatorEditorPanel extends EditorPanel {
             AnimatorParameter param = editingController.getParameter(i);
 
             boolean isSelected = i == selectedParamIndex;
+            boolean isRenaming = i == renamingParamIndex;
 
             // Type icon
             String icon = switch (param.getType()) {
@@ -596,20 +651,54 @@ public class AnimatorEditorPanel extends EditorPanel {
                 case DIRECTION -> MaterialIcons.Explore;
             };
 
-            // Selectable row
-            String label = icon + " " + param.getName();
-            if (ImGui.selectable(label + "##param" + i, isSelected)) {
-                selectedParamIndex = i;
-                paramNameInput.set(param.getName());
+            // Renaming mode
+            if (isRenaming) {
+                ImGui.text(icon);
+                ImGui.sameLine();
+                ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+                ImGui.setKeyboardFocusHere();
+                if (ImGui.inputText("##rename" + i, renameInput,
+                        imgui.flag.ImGuiInputTextFlags.EnterReturnsTrue | imgui.flag.ImGuiInputTextFlags.AutoSelectAll)) {
+                    // Enter pressed - confirm rename
+                    finishParameterRename(param);
+                }
+                // Cancel on Escape or click elsewhere
+                if (ImGui.isKeyPressed(imgui.flag.ImGuiKey.Escape)) {
+                    renamingParamIndex = -1;
+                } else if (!ImGui.isItemActive() && ImGui.isMouseClicked(0)) {
+                    finishParameterRename(param);
+                }
+            } else if (previewPanelOpen && previewPanel != null) {
+                // Preview mode - show editable values inline
+                ImGui.text(icon + " " + param.getName());
+                ImGui.sameLine(ImGui.getContentRegionAvailX() - 85);
+                previewPanel.renderParameterValue(param);
+            } else {
+                // Normal selectable mode
+                String label = icon + " " + param.getName();
+                if (ImGui.selectable(label + "##param" + i, isSelected)) {
+                    selectedParamIndex = i;
+                    paramNameInput.set(param.getName());
+                }
+
+                // Double-click to rename
+                if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(0)) {
+                    renamingParamIndex = i;
+                    renameInput.set(param.getName());
+                }
             }
 
-            // Type hint on hover
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(param.getType().name().toLowerCase() + " - Right-click to delete");
+            // Type hint on hover (when not renaming)
+            if (!isRenaming && ImGui.isItemHovered()) {
+                ImGui.setTooltip(param.getType().name().toLowerCase() + " - Double-click to rename, Right-click to delete");
             }
 
             // Right-click context menu
             if (ImGui.beginPopupContextItem("param_ctx_" + i)) {
+                if (ImGui.menuItem("Rename")) {
+                    renamingParamIndex = i;
+                    renameInput.set(param.getName());
+                }
                 if (ImGui.menuItem("Delete")) {
                     captureUndoState();
                     editingController.removeParameter(i);
@@ -617,6 +706,11 @@ public class AnimatorEditorPanel extends EditorPanel {
                         selectedParamIndex = -1;
                     } else if (selectedParamIndex > i) {
                         selectedParamIndex--;
+                    }
+                    if (renamingParamIndex == i) {
+                        renamingParamIndex = -1;
+                    } else if (renamingParamIndex > i) {
+                        renamingParamIndex--;
                     }
                     markModified();
                 }
@@ -655,6 +749,47 @@ public class AnimatorEditorPanel extends EditorPanel {
             selectedParamIndex = editingController.getParameterCount() - 1;
             markModified();
         }
+    }
+
+    private void finishParameterRename(AnimatorParameter param) {
+        String newName = renameInput.get().trim();
+        String oldName = param.getName();
+        renamingParamIndex = -1;
+
+        if (newName.isEmpty() || newName.equals(oldName)) {
+            return; // No change or empty name
+        }
+
+        if (editingController.hasParameter(newName)) {
+            showStatus("Parameter name already exists: " + newName);
+            return;
+        }
+
+        captureUndoState();
+
+        // Update parameter name
+        param.setName(newName);
+
+        // Update all transition conditions that reference this parameter
+        for (int i = 0; i < editingController.getTransitionCount(); i++) {
+            AnimatorTransition trans = editingController.getTransition(i);
+            for (TransitionCondition cond : trans.getConditions()) {
+                if (cond.getParameter().equals(oldName)) {
+                    cond.setParameter(newName);
+                }
+            }
+        }
+
+        // Update all directional states that reference this parameter
+        for (int i = 0; i < editingController.getStateCount(); i++) {
+            AnimatorState state = editingController.getState(i);
+            if (oldName.equals(state.getDirectionParameter())) {
+                state.setDirectionParameter(newName);
+            }
+        }
+
+        markModified();
+        showStatus("Renamed parameter: " + oldName + " -> " + newName);
     }
 
     private String generateUniqueParamName(String baseName) {
@@ -714,6 +849,11 @@ public class AnimatorEditorPanel extends EditorPanel {
             if (editingController != null && editingController.getStateCount() > 0) {
                 graphEditor.selectState(editingController.getState(0).getName());
             }
+        }
+
+        // Update preview panel
+        if (previewPanel != null) {
+            previewPanel.setController(editingController);
         }
     }
 

@@ -1,13 +1,7 @@
 {
   "name": "Player",
   "defaultState": "idle",
-  "parameters": [
-    {
-      "name": "direction",
-      "type": "direction",
-      "default": "DOWN"
-    }
-  ],
+  "parameters": [],
   "states": [
     {
       "name": "idle",

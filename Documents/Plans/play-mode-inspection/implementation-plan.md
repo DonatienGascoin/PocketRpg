@@ -228,29 +228,93 @@ public class RuntimeGameObjectAdapter implements HierarchyItem {
 **File:** `src/main/java/com/pocket/rpg/editor/PlayModeSelectionManager.java`
 
 ```java
+package com.pocket.rpg.editor;
+
+import com.pocket.rpg.core.GameObject;
+import lombok.Getter;
+
+import java.util.LinkedHashSet;
+import java.util.Set;
+
+/**
+ * Manages selection of runtime GameObjects during play mode.
+ * Separate from the editor's SelectionManager to keep runtime and editor state isolated.
+ */
 public class PlayModeSelectionManager {
+
+    @Getter
     private final Set<GameObject> selectedObjects = new LinkedHashSet<>();
 
-    public void select(GameObject obj);
-    public void addToSelection(GameObject obj);
-    public void toggleSelection(GameObject obj);
-    public void clearSelection();
-    public Set<GameObject> getSelectedObjects();
-    public GameObject getSingleSelected();
-    public boolean isSelected(GameObject obj);
+    public void select(GameObject obj) {
+        selectedObjects.clear();
+        if (obj != null) {
+            selectedObjects.add(obj);
+        }
+    }
+
+    public void addToSelection(GameObject obj) {
+        if (obj != null) {
+            selectedObjects.add(obj);
+        }
+    }
+
+    public void toggleSelection(GameObject obj) {
+        if (obj == null) return;
+        if (selectedObjects.contains(obj)) {
+            selectedObjects.remove(obj);
+        } else {
+            selectedObjects.add(obj);
+        }
+    }
+
+    public void clearSelection() {
+        selectedObjects.clear();
+    }
+
+    public GameObject getSingleSelected() {
+        if (selectedObjects.size() == 1) {
+            return selectedObjects.iterator().next();
+        }
+        return null;
+    }
+
+    public boolean isSelected(GameObject obj) {
+        return selectedObjects.contains(obj);
+    }
 }
 ```
 
-#### 4. Make `EditorGameObject` implement `HierarchyItem`
+#### 4. Update `EditorGameObject` to implement `HierarchyItem`
 **File:** `src/main/java/com/pocket/rpg/editor/scene/EditorGameObject.java`
 
-Add `implements HierarchyItem` to class declaration and implement methods:
-- `getDisplayName()` → `getName()`
-- `getUniqueId()` → `getId()`
-- `getHierarchyChildren()` → `getChildren()` (already returns `List<EditorGameObject>`)
-- `hasHierarchyChildren()` → `hasChildren()` (already exists)
-- `getInspectableComponents()` → `getComponents()` (already exists)
-- `isEditable()` → `return true;`
+Change from `implements IGameObject` to `implements HierarchyItem` (which extends IGameObject):
+
+```java
+// Was: implements Renderable, IGameObject (from igameobject-interface plan)
+// Now: implements Renderable, HierarchyItem
+public class EditorGameObject implements Renderable, HierarchyItem {
+```
+
+Add only the hierarchy-specific method (IGameObject methods already implemented):
+
+```java
+/**
+ * Returns children for hierarchy display.
+ * EditorGameObject children are already HierarchyItems.
+ */
+@Override
+public List<? extends HierarchyItem> getHierarchyChildren() {
+    return getChildren();  // List<EditorGameObject> is List<? extends HierarchyItem>
+}
+
+// isEditable() uses default implementation: returns isEditor() which is true
+// hasHierarchyChildren() uses default implementation: checks getHierarchyChildren().isEmpty()
+```
+
+**Note**: Since `EditorGameObject` already implements `IGameObject` (from the igameobject-interface plan), and `HierarchyItem extends IGameObject`, we only need to:
+1. Change the implements clause
+2. Add `getHierarchyChildren()` method
+3. Import `HierarchyItem`
 
 ---
 
@@ -283,6 +347,9 @@ if (selectionManager != null) {
     selectionManager.clearSelection();
     selectionManager = null;
 }
+
+// Clear adapter cache to release references to destroyed GameObjects
+RuntimeGameObjectAdapter.clearCache();
 ```
 
 #### 6. Wire up in `EditorUIController`
@@ -351,8 +418,8 @@ private void renderRuntimeHierarchy() {
         ImGui.textDisabled("No entities");
     } else {
         for (GameObject obj : rootObjects) {
-            RuntimeGameObjectAdapter adapter = new RuntimeGameObjectAdapter(obj);
-            treeRenderer.renderHierarchyItemTree(adapter, true);
+            HierarchyItem adapter = RuntimeGameObjectAdapter.of(obj);
+            treeRenderer.renderHierarchyItemTree(adapter);
         }
     }
 }
@@ -365,60 +432,72 @@ Move existing hierarchy code to `renderEditorHierarchy()`.
 
 Add generic method for rendering any `HierarchyItem`:
 ```java
-public void renderHierarchyItemTree(HierarchyItem item, boolean isPlayMode) {
+/**
+ * Renders a HierarchyItem and its children as a tree.
+ * Works for both EditorGameObject (editor mode) and RuntimeGameObjectAdapter (play mode).
+ */
+public void renderHierarchyItemTree(HierarchyItem item) {
     int flags = ImGuiTreeNodeFlags.SpanAvailWidth | ImGuiTreeNodeFlags.OpenOnArrow;
 
     if (!item.hasHierarchyChildren()) {
         flags |= ImGuiTreeNodeFlags.Leaf | ImGuiTreeNodeFlags.NoTreePushOnOpen;
     }
 
-    // Check selection (different for play mode vs editor)
-    if (isPlayMode) {
+    // Check selection based on context
+    if (item.isRuntime()) {
         if (isRuntimeItemSelected(item)) {
+            flags |= ImGuiTreeNodeFlags.Selected;
+        }
+    } else {
+        // Editor selection check (existing code path)
+        if (isEditorItemSelected((EditorGameObject) item)) {
             flags |= ImGuiTreeNodeFlags.Selected;
         }
     }
 
     String icon = IconUtils.getGenericEntityIcon();
-    boolean open = ImGui.treeNodeEx(item.getUniqueId(), flags, icon + " " + item.getDisplayName());
+    // Use IGameObject methods: getName() for display, getId() for ImGui ID
+    boolean open = ImGui.treeNodeEx(item.getId(), flags, icon + " " + item.getName());
 
-    // Handle click - select in appropriate selection manager
+    // Handle click
     if (ImGui.isItemClicked()) {
-        handlePlayModeSelection(item);
+        if (item.isRuntime()) {
+            handlePlayModeSelection(item);
+        } else {
+            handleEditorSelection((EditorGameObject) item);
+        }
     }
 
-    // NO context menu during play mode
-    // NO drag-drop during play mode
+    // Context menu and drag-drop only for editable items
+    if (item.isEditable()) {
+        renderContextMenu((EditorGameObject) item);
+        handleDragDrop((EditorGameObject) item);
+    }
 
     if (open && item.hasHierarchyChildren()) {
         for (HierarchyItem child : item.getHierarchyChildren()) {
-            renderHierarchyItemTree(child, isPlayMode);
+            renderHierarchyItemTree(child);
         }
         ImGui.treePop();
     }
 }
-```
 
-#### 9. Update `HierarchySelectionHandler`
-**File:** `src/main/java/com/pocket/rpg/editor/panels/hierarchy/HierarchySelectionHandler.java`
-
-Add runtime selection support:
-```java
-@Setter
-private PlayModeSelectionManager playModeSelectionManager;
-
-public void selectRuntimeObject(GameObject obj, boolean addToSelection) {
-    if (playModeSelectionManager == null) return;
-
-    if (addToSelection) {
-        playModeSelectionManager.addToSelection(obj);
-    } else {
-        playModeSelectionManager.select(obj);
-    }
+private boolean isRuntimeItemSelected(HierarchyItem item) {
+    if (!(item instanceof RuntimeGameObjectAdapter adapter)) return false;
+    return playModeSelectionManager != null &&
+           playModeSelectionManager.isSelected(adapter.getGameObject());
 }
 
-public boolean isRuntimeObjectSelected(GameObject obj) {
-    return playModeSelectionManager != null && playModeSelectionManager.isSelected(obj);
+private void handlePlayModeSelection(HierarchyItem item) {
+    if (!(item instanceof RuntimeGameObjectAdapter adapter)) return;
+    if (playModeSelectionManager == null) return;
+
+    boolean addToSelection = ImGui.isKeyDown(ImGuiKey.LeftCtrl) || ImGui.isKeyDown(ImGuiKey.RightCtrl);
+    if (addToSelection) {
+        playModeSelectionManager.toggleSelection(adapter.getGameObject());
+    } else {
+        playModeSelectionManager.select(adapter.getGameObject());
+    }
 }
 ```
 
@@ -426,7 +505,7 @@ public boolean isRuntimeObjectSelected(GameObject obj) {
 
 ### Phase 4: Inspector Panel Updates
 
-#### 10. Update `InspectorPanel`
+#### 9. Update `InspectorPanel`
 **File:** `src/main/java/com/pocket/rpg/editor/panels/InspectorPanel.java`
 
 Add field:
@@ -467,17 +546,22 @@ private void renderPlayModeInspector() {
         return;
     }
 
-    GameObject obj = selected.iterator().next();
+    // Pass as IGameObject - renderRuntime accepts the interface
+    IGameObject obj = selected.iterator().next();
     entityInspector.renderRuntime(obj);
 }
 ```
 
-#### 11. Update `EntityInspector`
+#### 10. Update `EntityInspector`
 **File:** `src/main/java/com/pocket/rpg/editor/panels/inspector/EntityInspector.java`
 
-Add runtime rendering method:
+Add runtime rendering method that works with `IGameObject`:
 ```java
-public void renderRuntime(GameObject gameObject) {
+/**
+ * Renders inspector for a runtime game object (during play mode).
+ * Uses IGameObject interface methods for compatibility.
+ */
+public void renderRuntime(IGameObject gameObject) {
     // Header with name (read-only display)
     String icon = MaterialIcons.Cube;
     ImGui.text(icon);
@@ -494,7 +578,7 @@ public void renderRuntime(GameObject gameObject) {
 
     ImGui.separator();
 
-    // Render components
+    // Render components using IGameObject.getAllComponents()
     List<Component> components = gameObject.getAllComponents();
     for (int i = 0; i < components.size(); i++) {
         Component comp = components.get(i);
@@ -518,7 +602,7 @@ public void renderRuntime(GameObject gameObject) {
 }
 ```
 
-#### 12. Update `ComponentFieldEditor`
+#### 11. Update `ComponentFieldEditor`
 **File:** `src/main/java/com/pocket/rpg/editor/panels/inspector/ComponentFieldEditor.java`
 
 Add runtime-specific method:
@@ -565,7 +649,7 @@ public static FieldEditorContext forRuntime(Component component, FieldMeta field
 
 ### Phase 5: Polish
 
-#### 13. Visual Indicators
+#### 12. Visual Indicators
 
 **Hierarchy Panel:**
 - Orange "PLAY MODE" header when active
@@ -575,7 +659,7 @@ public static FieldEditorContext forRuntime(Component component, FieldMeta field
 - Show "Changes reset when play mode stops" notice
 - Possibly use orange accent color for field labels
 
-#### 14. Edge Cases to Handle
+#### 13. Edge Cases to Handle
 
 1. **Scene transitions during play** - If the game loads a different scene, hierarchy should update
    - Solution: Check `getRuntimeScene()` each frame, clear selection if scene changed
@@ -592,19 +676,20 @@ public static FieldEditorContext forRuntime(Component component, FieldMeta field
 
 | File | Change Type | Description |
 |------|-------------|-------------|
-| `editor/panels/hierarchy/HierarchyItem.java` | NEW | Interface for hierarchy display abstraction |
-| `editor/scene/RuntimeGameObjectAdapter.java` | NEW | Wraps GameObject for hierarchy display |
+| `editor/panels/hierarchy/HierarchyItem.java` | NEW | Interface extending IGameObject for hierarchy display |
+| `editor/scene/RuntimeGameObjectAdapter.java` | NEW | Wraps GameObject, implements HierarchyItem |
 | `editor/PlayModeSelectionManager.java` | NEW | Tracks runtime selection |
-| `editor/scene/EditorGameObject.java` | MODIFY | Implement HierarchyItem interface |
-| `editor/PlayModeController.java` | MODIFY | Add selection manager and getRuntimeScene() |
+| `editor/scene/EditorGameObject.java` | MODIFY | Change to `implements HierarchyItem`, add `getHierarchyChildren()` |
+| `editor/PlayModeController.java` | MODIFY | Add selection manager, getRuntimeScene(), clear adapter cache on stop |
 | `editor/ui/EditorUIController.java` | MODIFY | Wire PlayModeController to panels |
 | `editor/panels/HierarchyPanel.java` | MODIFY | Add play mode detection and runtime rendering |
-| `editor/panels/hierarchy/HierarchyTreeRenderer.java` | MODIFY | Support HierarchyItem generic rendering |
-| `editor/panels/hierarchy/HierarchySelectionHandler.java` | MODIFY | Support runtime selection |
+| `editor/panels/hierarchy/HierarchyTreeRenderer.java` | MODIFY | Unified `renderHierarchyItemTree(HierarchyItem)` method |
 | `editor/panels/InspectorPanel.java` | MODIFY | Add play mode detection and routing |
 | `editor/panels/inspector/EntityInspector.java` | MODIFY | Add renderRuntime() method |
 | `editor/panels/inspector/ComponentFieldEditor.java` | MODIFY | Add runtime mode (skip undo) |
 | `editor/ui/fields/FieldEditorContext.java` | MODIFY | Add forRuntime() factory method |
+
+**Note:** `HierarchySelectionHandler` removed from list - selection logic moved to `HierarchyTreeRenderer` for simplicity.
 
 ---
 

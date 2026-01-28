@@ -292,9 +292,21 @@ public class AnimatorStateMachine {
 
     /**
      * Gets the current direction from the direction parameter.
+     * If the current state has an explicit direction parameter set, uses that.
+     * Otherwise, uses the first direction parameter found.
      * Returns DOWN if no direction parameter is defined.
      */
     public Direction getCurrentDirection() {
+        // Check if current state has explicit direction parameter
+        AnimatorState state = currentState != null ? controller.getState(currentState) : null;
+        if (state != null && state.getDirectionParameter() != null) {
+            Object value = parameterValues.get(state.getDirectionParameter());
+            if (value instanceof Direction) {
+                return (Direction) value;
+            }
+        }
+
+        // Fallback to first direction parameter
         if (directionParameterName != null) {
             Object value = parameterValues.get(directionParameterName);
             if (value instanceof Direction) {

@@ -3,9 +3,14 @@
   "defaultState": "idle",
   "parameters": [
     {
-      "name": "direction",
+      "name": "directiontest",
       "type": "direction",
       "default": "DOWN"
+    },
+    {
+      "name": "isMoving",
+      "type": "bool",
+      "default": false
     }
   ],
   "states": [
@@ -34,12 +39,24 @@
     {
       "from": "idle",
       "to": "move",
-      "type": "INSTANT"
+      "type": "INSTANT",
+      "conditions": [
+        {
+          "parameter": "isMoving",
+          "value": true
+        }
+      ]
     },
     {
       "from": "move",
       "to": "idle",
-      "type": "INSTANT"
+      "type": "INSTANT",
+      "conditions": [
+        {
+          "parameter": "isMoving",
+          "value": false
+        }
+      ]
     }
   ]
 }

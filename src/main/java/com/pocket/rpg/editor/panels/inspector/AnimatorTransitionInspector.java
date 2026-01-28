@@ -17,6 +17,7 @@ public class AnimatorTransitionInspector {
     private Runnable onModified;
 
     private final ImInt typeIndex = new ImInt(0);
+    private final ImInt addCondParamIndex = new ImInt(0);
 
     /**
      * Sets the current selection.
@@ -29,6 +30,7 @@ public class AnimatorTransitionInspector {
         if (transition != null) {
             typeIndex.set(transition.getType().ordinal());
         }
+        addCondParamIndex.set(0);
     }
 
     /**
@@ -167,13 +169,17 @@ public class AnimatorTransitionInspector {
             paramNames[i] = controller.getParameter(i).getName();
         }
 
-        ImInt condParamIdx = new ImInt(0);
+        // Clamp index if parameters were removed
+        if (addCondParamIndex.get() >= paramNames.length) {
+            addCondParamIndex.set(0);
+        }
+
         ImGui.setNextItemWidth(120);
-        ImGui.combo("##AddCondParam", condParamIdx, paramNames);
+        ImGui.combo("##AddCondParam", addCondParamIndex, paramNames);
         ImGui.sameLine();
         if (ImGui.button("+ Add Condition")) {
             notifyModified();
-            AnimatorParameter param = controller.getParameter(condParamIdx.get());
+            AnimatorParameter param = controller.getParameter(addCondParamIndex.get());
             Object value = switch (param.getType()) {
                 case BOOL, TRIGGER -> true;
                 case DIRECTION -> Direction.DOWN;

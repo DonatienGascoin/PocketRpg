@@ -80,6 +80,10 @@ public class AnimatorGraphEditor {
     private final Map<String, float[]> nodeScreenPositions = new HashMap<>();
     private boolean needsInitialLayout = true;
 
+    // Preview highlighting (pulsing effect)
+    private String activeStateName = null;
+    private String pendingTransitionTarget = null;
+
     // Callbacks
     private Consumer<String> onStateSelected;
     private Consumer<Integer> onTransitionSelected;
@@ -229,6 +233,7 @@ public class AnimatorGraphEditor {
         int nodeId = (int) idManager.getNodeId(state.getName());
         boolean isDefault = state.getName().equals(controller.getDefaultState());
         boolean isLinkSource = state.getName().equals(pendingTransitionFrom);
+        boolean isActive = state.getName().equals(activeStateName);
 
         // Set initial position for new nodes
         if (!nodePositions.containsKey(state.getName())) {
@@ -237,8 +242,17 @@ public class AnimatorGraphEditor {
             ImNodes.setNodeScreenSpacePos(nodeId, pos[0], pos[1]);
         }
 
-        // Push style for default state (green tint) or link source (highlight)
-        if (isLinkSource) {
+        // Push style for active state (pulsing), link source, or default state
+        if (isActive) {
+            // Pulsing green for active state
+            float time = (float) ImGui.getTime();
+            float pulse = 0.6f + 0.4f * (float) Math.sin(time * 5.0);
+            int pulseGreen = (int) (180 * pulse);
+            ImNodes.pushColorStyle(ImNodesCol.TitleBar, packColor(40, pulseGreen, 40, 255));
+            ImNodes.pushColorStyle(ImNodesCol.TitleBarHovered, packColor(50, pulseGreen + 20, 50, 255));
+            ImNodes.pushColorStyle(ImNodesCol.TitleBarSelected, packColor(60, pulseGreen + 40, 60, 255));
+            ImNodes.pushColorStyle(ImNodesCol.NodeOutline, packColor(100, (int)(255 * pulse), 100, 255));
+        } else if (isLinkSource) {
             ImNodes.pushColorStyle(ImNodesCol.TitleBar, packColor(80, 80, 40, 255));
             ImNodes.pushColorStyle(ImNodesCol.TitleBarHovered, packColor(100, 100, 50, 255));
             ImNodes.pushColorStyle(ImNodesCol.TitleBarSelected, packColor(120, 120, 60, 255));
@@ -282,7 +296,12 @@ public class AnimatorGraphEditor {
 
         ImNodes.endNode();
 
-        if (isLinkSource) {
+        if (isActive) {
+            ImNodes.popColorStyle();
+            ImNodes.popColorStyle();
+            ImNodes.popColorStyle();
+            ImNodes.popColorStyle();
+        } else if (isLinkSource) {
             ImNodes.popColorStyle();
             ImNodes.popColorStyle();
             ImNodes.popColorStyle();
@@ -981,5 +1000,33 @@ public class AnimatorGraphEditor {
 
     public float[] getNodePosition(String stateName) {
         return nodePositions.get(stateName);
+    }
+
+    // ========================================================================
+    // PREVIEW HIGHLIGHTING
+    // ========================================================================
+
+    /**
+     * Sets the active state for preview highlighting (pulsing effect).
+     * @param stateName The state currently playing, or null to clear
+     */
+    public void setActiveState(String stateName) {
+        this.activeStateName = stateName;
+    }
+
+    /**
+     * Sets the pending transition target for preview highlighting.
+     * @param targetStateName The state we're transitioning to, or null to clear
+     */
+    public void setPendingTransitionTarget(String targetStateName) {
+        this.pendingTransitionTarget = targetStateName;
+    }
+
+    /**
+     * Clears all preview highlighting.
+     */
+    public void clearPreviewHighlighting() {
+        this.activeStateName = null;
+        this.pendingTransitionTarget = null;
     }
 }

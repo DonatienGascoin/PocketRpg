@@ -4,13 +4,13 @@
   "viewZoom": 1.0,
   "nodeLayouts": {
     "move": {
-      "x": 534.99994,
-      "y": 171.0,
+      "x": 485.0,
+      "y": 100.0,
       "collapsed": false
     },
     "idle": {
-      "x": 177.70554,
-      "y": 201.2026,
+      "x": 100.0,
+      "y": 100.0,
       "collapsed": false
     },
     "new_state": {

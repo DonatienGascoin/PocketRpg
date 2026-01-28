@@ -35,6 +35,12 @@ public class AnimatorState {
     private Map<Direction, String> directionalAnimations;
 
     /**
+     * Name of the direction parameter to use for DIRECTIONAL states.
+     * If null, uses the first direction parameter found in the controller.
+     */
+    private String directionParameter;
+
+    /**
      * Default constructor for serialization.
      */
     public AnimatorState() {
@@ -158,6 +164,20 @@ public class AnimatorState {
     // ========================================================================
 
     /**
+     * Gets the direction parameter name for directional states.
+     */
+    public String getDirectionParameter() {
+        return directionParameter;
+    }
+
+    /**
+     * Sets the direction parameter name for directional states.
+     */
+    public void setDirectionParameter(String directionParameter) {
+        this.directionParameter = directionParameter;
+    }
+
+    /**
      * Creates a deep copy of this state.
      */
     public AnimatorState copy() {
@@ -165,6 +185,7 @@ public class AnimatorState {
         copy.name = this.name;
         copy.type = this.type;
         copy.animation = this.animation;
+        copy.directionParameter = this.directionParameter;
         if (this.directionalAnimations != null) {
             copy.directionalAnimations = new EnumMap<>(this.directionalAnimations);
         }
@@ -179,12 +200,13 @@ public class AnimatorState {
         return Objects.equals(name, that.name) &&
                type == that.type &&
                Objects.equals(animation, that.animation) &&
-               Objects.equals(directionalAnimations, that.directionalAnimations);
+               Objects.equals(directionalAnimations, that.directionalAnimations) &&
+               Objects.equals(directionParameter, that.directionParameter);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(name, type, animation, directionalAnimations);
+        return Objects.hash(name, type, animation, directionalAnimations, directionParameter);
     }
 
     @Override

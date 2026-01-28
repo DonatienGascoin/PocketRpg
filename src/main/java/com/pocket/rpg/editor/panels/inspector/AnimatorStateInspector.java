@@ -107,6 +107,10 @@ public class AnimatorStateInspector {
         if (state.getType() == StateType.SIMPLE) {
             renderAnimationField("Animation:", null);
         } else {
+            // Direction parameter selector
+            renderDirectionParameterSelector();
+
+            ImGui.spacing();
             ImGui.text("Animations:");
             for (Direction dir : Direction.values()) {
                 renderAnimationField(dir.name() + ":", dir);
@@ -142,6 +146,48 @@ public class AnimatorStateInspector {
         }
         if (!hasOutgoing) {
             ImGui.textDisabled("No outgoing transitions");
+        }
+    }
+
+    private void renderDirectionParameterSelector() {
+        // Collect all direction parameters from controller
+        java.util.List<String> dirParams = new java.util.ArrayList<>();
+        for (int i = 0; i < controller.getParameterCount(); i++) {
+            AnimatorParameter param = controller.getParameter(i);
+            if (param.getType() == ParameterType.DIRECTION) {
+                dirParams.add(param.getName());
+            }
+        }
+
+        if (dirParams.isEmpty()) {
+            ImGui.textColored(1f, 0.6f, 0.2f, 1f, MaterialIcons.Warning + " No direction parameters!");
+            return;
+        }
+
+        ImGui.text("Direction Parameter:");
+
+        // Find current selection index
+        String currentParam = state.getDirectionParameter();
+        int selectedIdx = 0;
+        if (currentParam != null) {
+            int idx = dirParams.indexOf(currentParam);
+            if (idx >= 0) {
+                selectedIdx = idx;
+            }
+        }
+
+        // Auto-select first if not set
+        if (currentParam == null && !dirParams.isEmpty()) {
+            state.setDirectionParameter(dirParams.get(0));
+            notifyModified();
+        }
+
+        String[] paramNames = dirParams.toArray(new String[0]);
+        ImInt paramIdx = new ImInt(selectedIdx);
+        ImGui.setNextItemWidth(-1);
+        if (ImGui.combo("##DirParam", paramIdx, paramNames)) {
+            notifyModified();
+            state.setDirectionParameter(dirParams.get(paramIdx.get()));
         }
     }
 

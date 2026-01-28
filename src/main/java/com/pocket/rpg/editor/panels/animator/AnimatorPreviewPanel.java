@@ -7,6 +7,7 @@ import com.pocket.rpg.animation.animator.AnimatorParameter;
 import com.pocket.rpg.animation.animator.ParameterType;
 import com.pocket.rpg.collision.Direction;
 import com.pocket.rpg.editor.core.MaterialIcons;
+import com.pocket.rpg.editor.rendering.SpritePreviewRenderer;
 import com.pocket.rpg.rendering.resources.Sprite;
 import imgui.ImDrawList;
 import imgui.ImGui;
@@ -16,19 +17,21 @@ import lombok.Getter;
 
 /**
  * Preview panel for animator editor.
- * Shows animation preview and allows parameter value editing for testing.
+ * Shows animation preview using the render pipeline (WYSIWYG with pivot support)
+ * and allows parameter value editing for testing.
  */
 public class AnimatorPreviewPanel {
 
-    private static final int CHECKER_SIZE = 8;
     private static final float PREVIEW_MIN_HEIGHT = 150f;
 
     @Getter
     private final AnimatorPreviewState previewState = new AnimatorPreviewState();
 
-    // Cached sprite dimensions
-    private float maxSpriteWidth = 32f;
-    private float maxSpriteHeight = 32f;
+    private final SpritePreviewRenderer spriteRenderer = new SpritePreviewRenderer();
+
+    // Cached sprite dimensions (in world units for stable scaling)
+    private float maxSpriteWorldWidth = 0f;
+    private float maxSpriteWorldHeight = 0f;
 
     public AnimatorPreviewPanel() {
     }
@@ -71,14 +74,33 @@ public class AnimatorPreviewPanel {
         renderStateInfo();
     }
 
+    /**
+     * Stops playback and resets state.
+     */
+    public void stopAndReset() {
+        previewState.setPlaying(false);
+        previewState.reset();
+    }
+
+    /**
+     * Cleans up GPU resources.
+     */
+    public void destroy() {
+        spriteRenderer.destroy();
+    }
+
     private void renderPlaybackControls() {
         boolean isPlaying = previewState.isPlaying();
 
-        // Play/Pause button
+        // Play/Pause button - green when playing
         if (isPlaying) {
+            ImGui.pushStyleColor(ImGuiCol.Button, 0.15f, 0.5f, 0.15f, 1f);
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.2f, 0.6f, 0.2f, 1f);
+            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.25f, 0.7f, 0.25f, 1f);
             if (ImGui.button(MaterialIcons.Pause + "##pause", 30, 0)) {
                 previewState.setPlaying(false);
             }
+            ImGui.popStyleColor(3);
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip("Pause");
             }
@@ -93,10 +115,17 @@ public class AnimatorPreviewPanel {
 
         ImGui.sameLine();
 
-        // Stop button
+        // Stop button - red tint when playing
+        if (isPlaying) {
+            ImGui.pushStyleColor(ImGuiCol.Button, 0.5f, 0.15f, 0.15f, 1f);
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.6f, 0.2f, 0.2f, 1f);
+            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.7f, 0.25f, 0.25f, 1f);
+        }
         if (ImGui.button(MaterialIcons.Stop + "##stop", 30, 0)) {
-            previewState.setPlaying(false);
-            previewState.reset();
+            stopAndReset();
+        }
+        if (isPlaying) {
+            ImGui.popStyleColor(3);
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("Stop & Reset");
@@ -116,26 +145,18 @@ public class AnimatorPreviewPanel {
 
         ImDrawList drawList = ImGui.getWindowDrawList();
 
-        // Draw checker background
-        drawCheckerBackground(drawList, previewX, previewY, previewWidth, previewHeight);
-
-        // Draw current frame sprite
+        // Get current frame sprite
+        Sprite sprite = null;
         Animation anim = previewState.getCurrentAnimation();
         if (anim != null && anim.getFrameCount() > 0) {
             int frameIndex = Math.min(previewState.getCurrentFrameIndex(), anim.getFrameCount() - 1);
-            Sprite sprite = getFrameSpriteSafe(anim, frameIndex);
-            if (sprite != null && sprite.getTexture() != null) {
-                drawSpritePreview(drawList, sprite, previewX, previewY, previewWidth, previewHeight);
-            }
-        } else {
-            // No animation
-            String text = "No animation";
-            ImVec2 textSize = new ImVec2();
-            ImGui.calcTextSize(textSize, text);
-            float textX = previewX + (previewWidth - textSize.x) / 2;
-            float textY = previewY + (previewHeight - textSize.y) / 2;
-            drawList.addText(textX, textY, ImGui.colorConvertFloat4ToU32(0.5f, 0.5f, 0.5f, 1f), text);
+            sprite = getFrameSpriteSafe(anim, frameIndex);
         }
+
+        // Render through pipeline (handles checker bg, pivot, and "No animation" text)
+        spriteRenderer.renderSprite(drawList, sprite,
+                previewX, previewY, previewWidth, previewHeight,
+                maxSpriteWorldWidth, maxSpriteWorldHeight);
 
         // Reserve space
         ImGui.dummy(previewWidth, previewHeight);
@@ -217,58 +238,6 @@ public class AnimatorPreviewPanel {
         ImGui.popID();
     }
 
-    private void drawCheckerBackground(ImDrawList drawList, float x, float y, float width, float height) {
-        int colorA = ImGui.colorConvertFloat4ToU32(0.2f, 0.2f, 0.2f, 1f);
-        int colorB = ImGui.colorConvertFloat4ToU32(0.25f, 0.25f, 0.25f, 1f);
-
-        int cols = (int) Math.ceil(width / CHECKER_SIZE);
-        int rows = (int) Math.ceil(height / CHECKER_SIZE);
-
-        for (int row = 0; row < rows; row++) {
-            for (int col = 0; col < cols; col++) {
-                float rectX = x + col * CHECKER_SIZE;
-                float rectY = y + row * CHECKER_SIZE;
-                float rectW = Math.min(CHECKER_SIZE, x + width - rectX);
-                float rectH = Math.min(CHECKER_SIZE, y + height - rectY);
-
-                int color = ((row + col) % 2 == 0) ? colorA : colorB;
-                drawList.addRectFilled(rectX, rectY, rectX + rectW, rectY + rectH, color);
-            }
-        }
-    }
-
-    private void drawSpritePreview(ImDrawList drawList, Sprite sprite, float areaX, float areaY, float areaWidth, float areaHeight) {
-        float spriteW = sprite.getWidth();
-        float spriteH = sprite.getHeight();
-
-        // Calculate fit scale
-        float refWidth = maxSpriteWidth > 0 ? maxSpriteWidth : spriteW;
-        float refHeight = maxSpriteHeight > 0 ? maxSpriteHeight : spriteH;
-
-        float scale = Math.min(areaWidth / refWidth, areaHeight / refHeight);
-
-        float displayWidth = spriteW * scale;
-        float displayHeight = spriteH * scale;
-
-        // Center in preview area
-        float offsetX = (areaWidth - displayWidth) / 2;
-        float offsetY = (areaHeight - displayHeight) / 2;
-
-        float left = areaX + offsetX;
-        float top = areaY + offsetY;
-        float right = left + displayWidth;
-        float bottom = top + displayHeight;
-
-        // Draw sprite (flip V for OpenGL)
-        int textureId = sprite.getTexture().getTextureId();
-        float u0 = sprite.getU0();
-        float v0 = sprite.getV0();
-        float u1 = sprite.getU1();
-        float v1 = sprite.getV1();
-
-        drawList.addImage(textureId, left, top, right, bottom, u0, v1, u1, v0);
-    }
-
     private Sprite getFrameSpriteSafe(Animation anim, int frameIndex) {
         if (anim == null || frameIndex < 0 || frameIndex >= anim.getFrameCount()) {
             return null;
@@ -285,8 +254,8 @@ public class AnimatorPreviewPanel {
     }
 
     private void recalculateMaxSpriteDimensions() {
-        maxSpriteWidth = 32f;
-        maxSpriteHeight = 32f;
+        maxSpriteWorldWidth = 0f;
+        maxSpriteWorldHeight = 0f;
 
         Animation anim = previewState.getCurrentAnimation();
         if (anim == null) return;
@@ -294,8 +263,8 @@ public class AnimatorPreviewPanel {
         for (int i = 0; i < anim.getFrameCount(); i++) {
             Sprite sprite = getFrameSpriteSafe(anim, i);
             if (sprite != null) {
-                maxSpriteWidth = Math.max(maxSpriteWidth, sprite.getWidth());
-                maxSpriteHeight = Math.max(maxSpriteHeight, sprite.getHeight());
+                maxSpriteWorldWidth = Math.max(maxSpriteWorldWidth, sprite.getWorldWidth());
+                maxSpriteWorldHeight = Math.max(maxSpriteWorldHeight, sprite.getWorldHeight());
             }
         }
     }

@@ -2,6 +2,7 @@ package com.pocket.rpg.editor.panels.animation;
 
 import com.pocket.rpg.animation.Animation;
 import com.pocket.rpg.animation.AnimationFrame;
+import com.pocket.rpg.editor.rendering.SpritePreviewRenderer;
 import com.pocket.rpg.rendering.resources.Sprite;
 import imgui.ImDrawList;
 import imgui.ImGui;
@@ -12,11 +13,9 @@ import java.util.function.IntConsumer;
 
 /**
  * Renders the animation preview with playback controls.
- * Shows the current frame sprite with zoom options and handles playback timing.
+ * Uses the render pipeline for WYSIWYG sprite display with pivot support.
  */
 public class AnimationPreviewRenderer {
-
-    private static final int CHECKER_SIZE = 8;
 
     /**
      * Zoom mode for preview display.
@@ -44,9 +43,12 @@ public class AnimationPreviewRenderer {
     private float previewSpeed = 1.0f;
     private ZoomMode zoomMode = ZoomMode.FIT;
 
-    // Cached max sprite dimensions (for stable preview sizing)
-    private float maxSpriteWidth = 0f;
-    private float maxSpriteHeight = 0f;
+    // Cached max sprite dimensions (world units, for stable preview sizing)
+    private float maxSpriteWorldWidth = 0f;
+    private float maxSpriteWorldHeight = 0f;
+
+    // Pipeline-based sprite renderer
+    private final SpritePreviewRenderer spriteRenderer = new SpritePreviewRenderer();
 
     // Callback when preview frame changes (for syncing with timeline)
     private IntConsumer onPreviewFrameChanged;
@@ -162,31 +164,34 @@ public class AnimationPreviewRenderer {
 
         ImDrawList drawList = ImGui.getWindowDrawList();
 
-        // Draw checker background
-        drawCheckerBackground(drawList, previewX, previewY, previewWidth, previewHeight);
-
-        // Draw current frame sprite
+        // Get current frame sprite
+        Sprite sprite = null;
         if (animation != null && animation.getFrameCount() > 0) {
             int frameIndex = Math.min(currentPreviewFrame, animation.getFrameCount() - 1);
-            Sprite sprite = getFrameSpriteSafe(frameIndex);
-            if (sprite != null && sprite.getTexture() != null) {
-                drawSpritePreview(drawList, sprite, previewX, previewY, previewWidth, previewHeight);
-            }
-        } else {
-            // No animation - show placeholder text
-            String text = animation == null ? "Select an animation" : "No frames";
-            ImVec2 textSize = new ImVec2();
-            ImGui.calcTextSize(textSize, text);
-            float textX = previewX + (previewWidth - textSize.x) / 2;
-            float textY = previewY + (previewHeight - textSize.y) / 2;
-            drawList.addText(textX, textY, ImGui.colorConvertFloat4ToU32(0.5f, 0.5f, 0.5f, 1f), text);
+            sprite = getFrameSpriteSafe(frameIndex);
         }
+
+        // Scale max ref dimensions by zoom
+        float refW = maxSpriteWorldWidth > 0 ? maxSpriteWorldWidth / zoomMode.multiplier : 0;
+        float refH = maxSpriteWorldHeight > 0 ? maxSpriteWorldHeight / zoomMode.multiplier : 0;
+
+        // Render through pipeline (handles checker bg, pivot, and "No animation" text)
+        spriteRenderer.renderSprite(drawList, sprite,
+                previewX, previewY, previewWidth, previewHeight,
+                refW, refH);
 
         // Invisible button for interaction area
         ImGui.invisibleButton("PreviewArea", previewWidth, previewHeight);
 
         // Update playback
         updatePlayback(ImGui.getIO().getDeltaTime());
+    }
+
+    /**
+     * Cleans up GPU resources.
+     */
+    public void destroy() {
+        spriteRenderer.destroy();
     }
 
     /**
@@ -224,81 +229,19 @@ public class AnimationPreviewRenderer {
     }
 
     /**
-     * Draws checker background pattern.
-     */
-    private void drawCheckerBackground(ImDrawList drawList, float x, float y, float width, float height) {
-        int colorA = ImGui.colorConvertFloat4ToU32(0.3f, 0.3f, 0.3f, 1f);
-        int colorB = ImGui.colorConvertFloat4ToU32(0.4f, 0.4f, 0.4f, 1f);
-
-        int cols = (int) Math.ceil(width / CHECKER_SIZE);
-        int rows = (int) Math.ceil(height / CHECKER_SIZE);
-
-        for (int row = 0; row < rows; row++) {
-            for (int col = 0; col < cols; col++) {
-                float rectX = x + col * CHECKER_SIZE;
-                float rectY = y + row * CHECKER_SIZE;
-                float rectW = Math.min(CHECKER_SIZE, x + width - rectX);
-                float rectH = Math.min(CHECKER_SIZE, y + height - rectY);
-
-                int color = ((row + col) % 2 == 0) ? colorA : colorB;
-                drawList.addRectFilled(rectX, rectY, rectX + rectW, rectY + rectH, color);
-            }
-        }
-    }
-
-    /**
-     * Draws the sprite in the preview area.
-     */
-    private void drawSpritePreview(ImDrawList drawList, Sprite sprite, float areaX, float areaY, float areaWidth, float areaHeight) {
-        float spriteW = sprite.getWidth();
-        float spriteH = sprite.getHeight();
-
-        // Calculate fit scale based on max sprite dimensions (for stable preview)
-        float refWidth = maxSpriteWidth > 0 ? maxSpriteWidth : spriteW;
-        float refHeight = maxSpriteHeight > 0 ? maxSpriteHeight : spriteH;
-
-        float fitScale = Math.min(areaWidth / refWidth, areaHeight / refHeight);
-
-        // Apply zoom mode multiplier
-        float scale = fitScale * zoomMode.multiplier;
-
-        // Calculate display size for current sprite
-        float displayWidth = spriteW * scale;
-        float displayHeight = spriteH * scale;
-
-        // Center in preview area
-        float offsetX = (areaWidth - displayWidth) / 2;
-        float offsetY = (areaHeight - displayHeight) / 2;
-
-        float left = areaX + offsetX;
-        float top = areaY + offsetY;
-        float right = left + displayWidth;
-        float bottom = top + displayHeight;
-
-        // Draw sprite with UV coordinates (flip V for OpenGL)
-        int textureId = sprite.getTexture().getTextureId();
-        float u0 = sprite.getU0();
-        float v0 = sprite.getV0();
-        float u1 = sprite.getU1();
-        float v1 = sprite.getV1();
-
-        drawList.addImage(textureId, left, top, right, bottom, u0, v1, u1, v0);
-    }
-
-    /**
      * Recalculates max sprite dimensions for stable preview sizing.
      */
     public void recalculateMaxSpriteDimensions() {
-        maxSpriteWidth = 0f;
-        maxSpriteHeight = 0f;
+        maxSpriteWorldWidth = 0f;
+        maxSpriteWorldHeight = 0f;
 
         if (animation == null) return;
 
         for (int i = 0; i < animation.getFrameCount(); i++) {
             Sprite sprite = getFrameSpriteSafe(i);
             if (sprite != null) {
-                maxSpriteWidth = Math.max(maxSpriteWidth, sprite.getWidth());
-                maxSpriteHeight = Math.max(maxSpriteHeight, sprite.getHeight());
+                maxSpriteWorldWidth = Math.max(maxSpriteWorldWidth, sprite.getWorldWidth());
+                maxSpriteWorldHeight = Math.max(maxSpriteWorldHeight, sprite.getWorldHeight());
             }
         }
     }

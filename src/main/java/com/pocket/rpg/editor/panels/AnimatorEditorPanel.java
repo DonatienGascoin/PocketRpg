@@ -510,6 +510,8 @@ public class AnimatorEditorPanel extends EditorPanel {
             previewPanelOpen = !previewPanelOpen;
             if (previewPanelOpen && editingController != null) {
                 previewPanel.setController(editingController);
+            } else if (!previewPanelOpen) {
+                previewPanel.stopAndReset();
             }
         }
         if (wasOpen) {
@@ -612,10 +614,10 @@ public class AnimatorEditorPanel extends EditorPanel {
             ImGui.endChild();
 
             // Graph canvas (center column)
+            // No beginChild wrapper - ImNodes creates its own internal child window
+            // and an extra wrapper prevents scroll events from reaching it (breaks zoom)
             ImGui.tableNextColumn();
-            ImGui.beginChild("GraphChild", 0, availHeight, false, ImGuiWindowFlags.NoScrollbar);
             graphEditor.render(editingController);
-            ImGui.endChild();
 
             // Preview panel (right column, when open)
             if (previewPanelOpen) {
@@ -1140,6 +1142,10 @@ public class AnimatorEditorPanel extends EditorPanel {
         if (graphEditor != null) {
             graphEditor.destroy();
             graphEditor = null;
+        }
+        if (previewPanel != null) {
+            previewPanel.destroy();
+            previewPanel = null;
         }
     }
 }

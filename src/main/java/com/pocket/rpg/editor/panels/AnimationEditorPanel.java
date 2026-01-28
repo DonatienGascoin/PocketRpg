@@ -1407,7 +1407,9 @@ public class AnimationEditorPanel {
      * Cleans up resources used by this panel.
      */
     public void destroy() {
-        // Currently no OpenGL resources to clean up
+        if (previewRenderer != null) {
+            previewRenderer.destroy();
+        }
         previewRenderer = null;
         trackTimelineRenderer = null;
         stripTimelineRenderer = null;

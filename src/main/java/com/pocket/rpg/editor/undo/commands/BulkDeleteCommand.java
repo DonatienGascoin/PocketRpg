@@ -19,7 +19,8 @@ public class BulkDeleteCommand implements EditorCommand {
     private final EditorScene scene;
     private final List<EditorGameObject> entities;
 
-    // Saved state for undo
+    // All entities removed (selected + their descendants), saved on execute for undo
+    private final List<EditorGameObject> allRemoved = new ArrayList<>();
     private final Map<EditorGameObject, String> savedParentIds = new HashMap<>();
     private final Map<EditorGameObject, Integer> savedOrders = new HashMap<>();
 
@@ -30,13 +31,18 @@ public class BulkDeleteCommand implements EditorCommand {
 
     @Override
     public void execute() {
-        // Save hierarchy state before removal
-        for (EditorGameObject entity : entities) {
-            savedParentIds.put(entity, entity.getParentId());
-            savedOrders.put(entity, entity.getOrder());
-        }
+        allRemoved.clear();
+        savedParentIds.clear();
+        savedOrders.clear();
 
-        // Remove all entities
+        // Collect all entities + descendants before removal (clears parent references)
+        Set<EditorGameObject> visited = new java.util.LinkedHashSet<>();
+        for (EditorGameObject entity : entities) {
+            collectDescendants(entity, visited);
+        }
+        allRemoved.addAll(visited);
+
+        // Remove all selected entities (removeEntity handles children recursively)
         for (EditorGameObject entity : entities) {
             scene.removeEntity(entity);
         }
@@ -45,10 +51,20 @@ public class BulkDeleteCommand implements EditorCommand {
         scene.markDirty();
     }
 
+    private void collectDescendants(EditorGameObject e, Set<EditorGameObject> visited) {
+        if (!visited.add(e)) return;
+        savedParentIds.put(e, e.getParentId());
+        savedOrders.put(e, e.getOrder());
+        for (EditorGameObject child : e.getChildren()) {
+            collectDescendants(child, visited);
+        }
+    }
+
     @Override
     public void undo() {
-        // Re-add entities
-        for (EditorGameObject entity : entities) {
+        // Re-add all removed entities (selected + their descendants)
+        for (EditorGameObject entity : allRemoved) {
+            entity.setParentId(savedParentIds.get(entity));
             scene.addEntity(entity);
         }
 
@@ -56,7 +72,7 @@ public class BulkDeleteCommand implements EditorCommand {
         scene.resolveHierarchy();
 
         // Restore orders
-        for (EditorGameObject entity : entities) {
+        for (EditorGameObject entity : allRemoved) {
             Integer order = savedOrders.get(entity);
             if (order != null) {
                 entity.setOrder(order);

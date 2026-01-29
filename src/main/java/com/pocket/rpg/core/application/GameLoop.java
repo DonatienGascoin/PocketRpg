@@ -55,19 +55,21 @@ public class GameLoop {
     /**
      * Main update method. Call once per frame.
      * <p>
-     * Scene will NOT update during transitions. This prevents:
-     * <ul>
-     *   <li>Double transition attempts</li>
-     *   <li>Game state changes mid-transition</li>
-     *   <li>Visual glitches</li>
-     * </ul>
+     * Scene is frozen during fade-out and scene switching to prevent
+     * game state changes mid-transition. During fade-in, scene updates
+     * resume so that camera and other systems reflect the new state
+     * before the overlay clears (input is already cleared by TransitionManager).
      *
      * @param deltaTime Time since last frame in seconds
      */
     public void update(float deltaTime) {
-        // Transition gets priority - scene frozen during transition
         if (transitionManager != null && transitionManager.isTransitioning()) {
             transitionManager.update(deltaTime);
+
+            // During fade-in, allow scene updates so camera/components settle
+            if (transitionManager.isFadingIn()) {
+                sceneManager.update(deltaTime);
+            }
             return;
         }
 

@@ -2,6 +2,7 @@ package com.pocket.rpg.scenes.transitions;
 
 import com.pocket.rpg.config.TransitionConfig;
 import com.pocket.rpg.config.TransitionEntry;
+import com.pocket.rpg.input.Input;
 import com.pocket.rpg.rendering.core.OverlayRenderer;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.scenes.SceneManager;
@@ -138,6 +139,12 @@ public class TransitionManager {
         this.currentTransition.reset();
         this.state = State.FADING_OUT;
 
+        // Clear input to prevent movement during the one-frame gap
+        // (transition starts mid-scene-update, remaining components still run this frame)
+        if (Input.hasContext()) {
+            Input.clear();
+        }
+
         System.out.println("Starting transition to scene: " + sceneName);
     }
 
@@ -178,6 +185,11 @@ public class TransitionManager {
         this.currentTransition = createTransition(config);
         this.currentTransition.reset();
         this.state = State.FADING_OUT;
+
+        // Clear input to prevent movement during the one-frame gap
+        if (Input.hasContext()) {
+            Input.clear();
+        }
 
         System.out.println("Starting fade effect");
     }

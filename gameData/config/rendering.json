@@ -9,5 +9,6 @@
     "z": 0.16028385,
     "w": 1.0
   },
-  "pixelsPerUnit": 16.0
+  "pixelsPerUnit": 16.0,
+  "defaultOrthographicSize": 7.5
 }

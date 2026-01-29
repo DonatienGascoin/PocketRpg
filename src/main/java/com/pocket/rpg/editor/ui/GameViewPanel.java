@@ -622,6 +622,11 @@ public class GameViewPanel {
 
         // Render texture (flip UV vertically for OpenGL)
         ImGui.image(textureId, displayWidth, displayHeight, 0, 1, 1, 0);
+
+        // Inform play controller of display area for UI input coordinate conversion
+        if (playController.isActive()) {
+            playController.setDisplayArea(lastViewportX, lastViewportY, displayWidth, displayHeight);
+        }
     }
 
     /**

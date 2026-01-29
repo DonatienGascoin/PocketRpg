@@ -33,6 +33,8 @@ import com.pocket.rpg.editor.events.PlayModePausedEvent;
 import com.pocket.rpg.editor.events.PlayModeStartedEvent;
 import com.pocket.rpg.editor.events.PlayModeStoppedEvent;
 import com.pocket.rpg.editor.events.SceneWillChangeEvent;
+import com.pocket.rpg.input.Input;
+import com.pocket.rpg.ui.UIInputHandler;
 import lombok.Getter;
 
 import java.io.File;
@@ -84,6 +86,10 @@ public class PlayModeController {
     private GameLoop gameLoop;
     private TransitionManager transitionManager;
     private PlayModeInputManager inputManager;
+    private UIInputHandler uiInputHandler;
+
+    // Display area within editor window (set by GameViewPanel each frame)
+    private float displayX, displayY, displayWidth, displayHeight;
 
     // Rendering
     private RenderPipeline pipeline;
@@ -184,6 +190,9 @@ public class PlayModeController {
             // 11. Create GameLoop
             gameLoop = new GameLoop(sceneManager, transitionManager);
 
+            // 12. Create UI input handler
+            uiInputHandler = new UIInputHandler(gameConfig);
+
             // 12. Initialize MusicManager for scene-based music
             MusicManager.initialize(sceneManager, Assets.getContext());
 
@@ -260,6 +269,9 @@ public class PlayModeController {
             inputManager.update(deltaTime);
         }
 
+        // UI input (hover, clicks) - convert editor window mouse to game coordinates
+        updateUIInput();
+
         // GameLoop handles transition freeze
         if (gameLoop != null) {
             gameLoop.update(deltaTime);
@@ -268,6 +280,33 @@ public class PlayModeController {
         // End frame for input
         if (inputManager != null) {
             inputManager.endFrame();
+        }
+    }
+
+    /**
+     * Sets the display area of the game image within the editor window.
+     * Called by GameViewPanel after rendering the game texture.
+     * Uses previous frame's values, which is standard for input.
+     */
+    public void setDisplayArea(float x, float y, float width, float height) {
+        this.displayX = x;
+        this.displayY = y;
+        this.displayWidth = width;
+        this.displayHeight = height;
+    }
+
+    private void updateUIInput() {
+        if (uiInputHandler == null || gameLoop == null) return;
+        if (displayWidth <= 0 || displayHeight <= 0) return;
+
+        // Convert editor window mouse position to game coordinates
+        var mousePos = Input.getMousePosition();
+        float gameMouseX = (mousePos.x - displayX) / displayWidth * gameConfig.getGameWidth();
+        float gameMouseY = (mousePos.y - displayY) / displayHeight * gameConfig.getGameHeight();
+
+        Scene currentScene = gameLoop.getSceneManager().getCurrentScene();
+        if (currentScene != null) {
+            uiInputHandler.update(currentScene.getUICanvases(), gameMouseX, gameMouseY);
         }
     }
 
@@ -348,6 +387,7 @@ public class PlayModeController {
             outputFramebuffer = null;
         }
 
+        uiInputHandler = null;
         transitionManager = null;
         sceneLoader = null;
         viewportConfig = null;

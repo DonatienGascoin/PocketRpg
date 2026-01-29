@@ -32,6 +32,7 @@ import com.pocket.rpg.resources.ErrorMode;
 import com.pocket.rpg.serialization.Serializer;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiConfigFlags;
 import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiWindowFlags;
 
@@ -406,6 +407,14 @@ public class EditorApplication {
         EditorScene scene = context.getCurrentScene();
         if (sceneRenderer != null && scene != null && !playModeController.isActive()) {
             sceneRenderer.render(scene, context.getCamera());
+        }
+
+        // Disable ImGui keyboard navigation during play mode so arrow keys
+        // don't select menu bar items (game owns the keyboard)
+        if (playModeController.isActive()) {
+            ImGui.getIO().removeConfigFlags(ImGuiConfigFlags.NavEnableKeyboard);
+        } else {
+            ImGui.getIO().addConfigFlags(ImGuiConfigFlags.NavEnableKeyboard);
         }
 
         // Begin ImGui frame

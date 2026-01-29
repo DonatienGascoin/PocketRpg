@@ -1,5 +1,8 @@
 package com.pocket.rpg.editor.shortcut;
 
+import com.pocket.rpg.editor.events.EditorEventBus;
+import com.pocket.rpg.editor.events.PlayModeStartedEvent;
+import com.pocket.rpg.editor.events.PlayModeStoppedEvent;
 import imgui.ImGui;
 import imgui.flag.ImGuiPopupFlags;
 
@@ -30,7 +33,12 @@ public class ShortcutRegistry {
     // Prevent duplicate firing in same frame
     private long lastProcessedFrame = -1;
 
+    // Play mode state (updated via event bus)
+    private boolean playModeActive = false;
+
     private ShortcutRegistry() {
+        EditorEventBus.get().subscribe(PlayModeStartedEvent.class, e -> playModeActive = true);
+        EditorEventBus.get().subscribe(PlayModeStoppedEvent.class, e -> playModeActive = false);
     }
 
     public static ShortcutRegistry getInstance() {
@@ -221,6 +229,11 @@ public class ShortcutRegistry {
         // Prevent double-processing in same frame
         long currentFrame = ImGui.getFrameCount();
         if (currentFrame == lastProcessedFrame) {
+            return false;
+        }
+
+        // Don't process shortcuts when play mode is active (game owns the keyboard)
+        if (playModeActive) {
             return false;
         }
 

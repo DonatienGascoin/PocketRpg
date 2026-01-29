@@ -6,7 +6,15 @@
   "gameHeight": 480,
   "fullscreen": false,
   "vsync": false,
-  "postProcessingEffects": [],
+  "postProcessingEffects": [
+    {
+      "type": "VignetteEffect",
+      "params": {
+        "vignetteIntensity": 1.0,
+        "vignetteStrength": 0.5
+      }
+    }
+  ],
   "scalingMode": "MAINTAIN_ASPECT_RATIO",
   "enablePillarBox": false,
   "pillarboxAspectRatio": 0.0,
@@ -20,7 +28,7 @@
       "w": 1.0
     },
     "transitionText": "",
-    "type": "FADE",
+    "type": "WIPE_CIRCLE_IN",
     "wipeDirection": "LEFT"
   },
   "uiButtonHoverTint": 0.1

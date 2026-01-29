@@ -103,19 +103,5 @@ public interface EditorShortcutHandlers {
     void onPlayToggle();
     void onPlayStop();
 
-    // ========================================================================
-    // CONFIGURATION
-    // ========================================================================
-
-    void onConfigSave();
-
-    // ========================================================================
-    // ANIMATOR EDITOR
-    // ========================================================================
-
-    void onAnimatorSave();
-    void onAnimatorNew();
-    void onAnimatorUndo();
-    void onAnimatorRedo();
-    void onAnimatorRefresh();
+    // NOTE: Configuration and Animator shortcuts are handled directly by their panels
 }

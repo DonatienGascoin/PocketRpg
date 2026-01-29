@@ -3,7 +3,11 @@ package com.pocket.rpg.editor.panels;
 import com.pocket.rpg.editor.EditorContext;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.config.*;
+import com.pocket.rpg.editor.shortcut.KeyboardLayout;
+import com.pocket.rpg.editor.shortcut.ShortcutAction;
+import com.pocket.rpg.editor.shortcut.ShortcutBinding;
 import imgui.ImGui;
+import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 import lombok.Getter;
@@ -57,6 +61,23 @@ public class ConfigurationPanel extends EditorPanel {
      */
     public void save() {
         saveAll();
+    }
+
+    @Override
+    public java.util.List<ShortcutAction> provideShortcuts(KeyboardLayout layout) {
+        return java.util.List.of(
+                panelShortcut()
+                        .id("editor.config.save")
+                        .displayName("Save Configuration")
+                        .defaultBinding(ShortcutBinding.ctrl(ImGuiKey.S))
+                        .allowInInput(true)
+                        .handler(() -> {
+                            if (isDirty()) {
+                                save();
+                            }
+                        })
+                        .build()
+        );
     }
 
     @Override

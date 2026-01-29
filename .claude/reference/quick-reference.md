@@ -55,23 +55,57 @@ public class MyAssetLoader implements AssetLoader<MyAsset> {
 ## Add a New Editor Panel
 
 1. Create class extending `EditorPanel` in `editor/panels/`
-2. Implement `renderContent()` for ImGui UI
-3. Register in `EditorUIController`
-4. Add menu item or shortcut to open
+2. Call `super(panelId, defaultOpen)` in the constructor
+3. Implement `render()` — check `isOpen()`, call `setContentVisible()` and `setFocused()`
+4. Register in `EditorUIController`
+5. Optionally override `provideShortcuts()` for panel-scoped shortcuts
 
 ```java
 public class MyPanel extends EditorPanel {
-    @Override
-    protected void renderContent() {
-        ImGui.text("My panel content");
+
+    public MyPanel() {
+        super("myPanel", true); // panelId, defaultOpen
     }
 
     @Override
-    public String getTitle() {
+    public void render() {
+        if (!isOpen()) return;
+
+        boolean visible = ImGui.begin(getDisplayName());
+        setContentVisible(visible);
+        setFocused(ImGui.isWindowFocused());
+
+        if (visible) {
+            ImGui.text("My panel content");
+        }
+        ImGui.end();
+    }
+
+    @Override
+    public String getDisplayName() {
         return "My Panel";
+    }
+
+    // Optional: panel-scoped shortcuts (auto-registered)
+    @Override
+    public List<ShortcutAction> provideShortcuts(KeyboardLayout layout) {
+        return List.of(
+            panelShortcut()
+                .id("editor.myPanel.doThing")
+                .displayName("Do Thing")
+                .defaultBinding(ShortcutBinding.key(ImGuiKey.Space))
+                .handler(this::doThing)
+                .build()
+        );
     }
 }
 ```
+
+Panel features you get automatically:
+- Open/close state persisted via `EditorConfig`
+- `toggle()`, `isOpen()`, `setOpen()` visibility management
+- Focus tracked for shortcut scope resolution
+- Registered in `EditorPanel.getAllPanels()` for context auto-discovery
 
 ## Add a New Collision Behavior
 

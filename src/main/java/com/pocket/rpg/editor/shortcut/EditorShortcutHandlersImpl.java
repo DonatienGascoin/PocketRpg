@@ -4,13 +4,12 @@ import com.pocket.rpg.editor.EditorContext;
 import com.pocket.rpg.editor.EditorSelectionManager;
 import com.pocket.rpg.editor.EditorToolController;
 import com.pocket.rpg.editor.PlayModeController;
-import com.pocket.rpg.editor.panels.AnimatorEditorPanel;
 import com.pocket.rpg.editor.panels.CollisionPanel;
-import com.pocket.rpg.editor.panels.ConfigurationPanel;
 import com.pocket.rpg.editor.panels.TilesetPalettePanel;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.tools.EditorTool;
+import com.pocket.rpg.editor.tools.ToolManager;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.RemoveEntityCommand;
 import com.pocket.rpg.editor.ui.EditorMenuBar;
@@ -30,7 +29,7 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
     private final EditorMenuBar menuBar;
 
     @Setter
-    private ConfigurationPanel configurationPanel;
+    private com.pocket.rpg.editor.panels.ConfigurationPanel configurationPanel;
 
     @Setter
     private PlayModeController playModeController;
@@ -41,9 +40,6 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Setter
     private CollisionPanel collisionPanel;
-
-    @Setter
-    private AnimatorEditorPanel animatorEditorPanel;
 
     @Setter
     private Consumer<String> messageCallback;
@@ -326,6 +322,19 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onEntityCancel() {
+        // Clear tool selection (brush/fill/rectangle tile selections)
+        ToolManager toolManager = context.getToolManager();
+        if (toolManager != null) {
+            EditorTool tool = toolManager.getActiveTool();
+            if (tool instanceof com.pocket.rpg.editor.tools.TileBrushTool brushTool) {
+                brushTool.setSelection(null);
+            } else if (tool instanceof com.pocket.rpg.editor.tools.TileFillTool fillTool) {
+                fillTool.setSelection(null);
+            } else if (tool instanceof com.pocket.rpg.editor.tools.TileRectangleTool rectTool) {
+                rectTool.setSelection(null);
+            }
+        }
+
         // Deselect current entity
         EditorScene scene = context.getCurrentScene();
         if (scene != null && scene.getSelectedEntity() != null) {
@@ -488,57 +497,7 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
         }
     }
 
-    // ========================================================================
-    // CONFIGURATION HANDLERS
-    // ========================================================================
-
-    @Override
-    public void onConfigSave() {
-        if (configurationPanel != null && configurationPanel.isDirty()) {
-            configurationPanel.save();
-            showMessage("Configuration saved");
-        }
-    }
-
-    // ========================================================================
-    // ANIMATOR EDITOR HANDLERS
-    // ========================================================================
-
-    @Override
-    public void onAnimatorSave() {
-        if (animatorEditorPanel != null) {
-            animatorEditorPanel.save();
-        }
-    }
-
-    @Override
-    public void onAnimatorNew() {
-        if (animatorEditorPanel != null) {
-            animatorEditorPanel.openNewDialog();
-        }
-    }
-
-    @Override
-    public void onAnimatorUndo() {
-        if (animatorEditorPanel != null) {
-            animatorEditorPanel.undo();
-        }
-    }
-
-    @Override
-    public void onAnimatorRedo() {
-        if (animatorEditorPanel != null) {
-            animatorEditorPanel.redo();
-        }
-    }
-
-    @Override
-    public void onAnimatorRefresh() {
-        if (animatorEditorPanel != null) {
-            animatorEditorPanel.refresh();
-            showMessage("Animator list refreshed");
-        }
-    }
+    // NOTE: Configuration and Animator handlers moved to their respective panels
 
     // ========================================================================
     // HELPERS

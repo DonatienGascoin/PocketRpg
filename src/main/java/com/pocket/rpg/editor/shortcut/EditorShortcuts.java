@@ -83,25 +83,24 @@ public final class EditorShortcuts {
     public static final String ENTITY_DELETE = "editor.entity.delete";
     public static final String ENTITY_CANCEL = "editor.entity.cancel";
 
-    // Camera pan actions (held keys)
+    // Camera pan actions (held keys) — WASD
     public static final String CAMERA_PAN_UP = "editor.camera.panUp";
     public static final String CAMERA_PAN_DOWN = "editor.camera.panDown";
     public static final String CAMERA_PAN_LEFT = "editor.camera.panLeft";
     public static final String CAMERA_PAN_RIGHT = "editor.camera.panRight";
 
+    // Camera pan actions (held keys) — Arrow keys
+    public static final String CAMERA_PAN_UP_ARROW = "editor.camera.panUpArrow";
+    public static final String CAMERA_PAN_DOWN_ARROW = "editor.camera.panDownArrow";
+    public static final String CAMERA_PAN_LEFT_ARROW = "editor.camera.panLeftArrow";
+    public static final String CAMERA_PAN_RIGHT_ARROW = "editor.camera.panRightArrow";
+
     // Play mode
     public static final String PLAY_TOGGLE = "editor.play.toggle";
     public static final String PLAY_STOP = "editor.play.stop";
 
-    // Configuration panel
-    public static final String CONFIG_SAVE = "editor.config.save";
-
-    // Animator editor panel
-    public static final String ANIMATOR_SAVE = "editor.animator.save";
-    public static final String ANIMATOR_NEW = "editor.animator.new";
-    public static final String ANIMATOR_UNDO = "editor.animator.undo";
-    public static final String ANIMATOR_REDO = "editor.animator.redo";
-    public static final String ANIMATOR_REFRESH = "editor.animator.refresh";
+    // NOTE: Configuration shortcuts (editor.config.*) moved to ConfigurationPanel.provideShortcuts()
+    // NOTE: Animator shortcuts (editor.animator.*) moved to AnimatorEditorPanel.provideShortcuts()
 
     // ========================================================================
     // PANEL IDS
@@ -149,8 +148,6 @@ public final class EditorShortcuts {
         registerZLevelShortcuts(registry);
         registerCameraPanShortcuts(registry);
         registerPlayShortcuts(registry);
-        registerConfigurationShortcuts(registry);
-        registerAnimatorShortcuts(registry, layout);
     }
 
     private static void registerFileShortcuts(ShortcutRegistry registry) {
@@ -541,6 +538,7 @@ public final class EditorShortcuts {
 
     private static void registerCameraPanShortcuts(ShortcutRegistry registry) {
         registry.registerAll(
+                // WASD
                 ShortcutAction.builder()
                         .id(CAMERA_PAN_UP)
                         .displayName("Camera Pan Up")
@@ -571,6 +569,39 @@ public final class EditorShortcuts {
                         .defaultBinding(ShortcutBinding.key(ImGuiKey.D))
                         .panelFocused(PanelIds.SCENE_VIEW)
                         .handler(() -> {})
+                        .build(),
+
+                // Arrow keys
+                ShortcutAction.builder()
+                        .id(CAMERA_PAN_UP_ARROW)
+                        .displayName("Camera Pan Up (Arrow)")
+                        .defaultBinding(ShortcutBinding.key(ImGuiKey.UpArrow))
+                        .panelFocused(PanelIds.SCENE_VIEW)
+                        .handler(() -> {})
+                        .build(),
+
+                ShortcutAction.builder()
+                        .id(CAMERA_PAN_DOWN_ARROW)
+                        .displayName("Camera Pan Down (Arrow)")
+                        .defaultBinding(ShortcutBinding.key(ImGuiKey.DownArrow))
+                        .panelFocused(PanelIds.SCENE_VIEW)
+                        .handler(() -> {})
+                        .build(),
+
+                ShortcutAction.builder()
+                        .id(CAMERA_PAN_LEFT_ARROW)
+                        .displayName("Camera Pan Left (Arrow)")
+                        .defaultBinding(ShortcutBinding.key(ImGuiKey.LeftArrow))
+                        .panelFocused(PanelIds.SCENE_VIEW)
+                        .handler(() -> {})
+                        .build(),
+
+                ShortcutAction.builder()
+                        .id(CAMERA_PAN_RIGHT_ARROW)
+                        .displayName("Camera Pan Right (Arrow)")
+                        .defaultBinding(ShortcutBinding.key(ImGuiKey.RightArrow))
+                        .panelFocused(PanelIds.SCENE_VIEW)
+                        .handler(() -> {})
                         .build()
         );
     }
@@ -590,75 +621,6 @@ public final class EditorShortcuts {
                         .displayName("Stop")
                         .defaultBinding(ShortcutBinding.ctrlShift(ImGuiKey.P))
                         .global()
-                        .handler(() -> {})
-                        .build()
-        );
-    }
-
-    private static void registerConfigurationShortcuts(ShortcutRegistry registry) {
-        registry.registerAll(
-                ShortcutAction.builder()
-                        .id(CONFIG_SAVE)
-                        .displayName("Save Configuration")
-                        .defaultBinding(ShortcutBinding.ctrl(ImGuiKey.S))
-                        .panelFocused(PanelIds.CONFIGURATION)
-                        .allowInInput(true)
-                        .handler(() -> {})
-                        .build()
-        );
-    }
-
-    private static void registerAnimatorShortcuts(ShortcutRegistry registry, KeyboardLayout layout) {
-        // Undo/Redo bindings depend on keyboard layout
-        ShortcutBinding undoBinding = layout == KeyboardLayout.AZERTY
-                ? ShortcutBinding.ctrl(ImGuiKey.W)
-                : ShortcutBinding.ctrl(ImGuiKey.Z);
-
-        ShortcutBinding redoBinding = layout == KeyboardLayout.AZERTY
-                ? ShortcutBinding.ctrlShift(ImGuiKey.W)
-                : ShortcutBinding.ctrlShift(ImGuiKey.Z);
-
-        registry.registerAll(
-                ShortcutAction.builder()
-                        .id(ANIMATOR_SAVE)
-                        .displayName("Save Animator")
-                        .defaultBinding(ShortcutBinding.ctrl(ImGuiKey.S))
-                        .panelFocused(PanelIds.ANIMATOR_EDITOR)
-                        .allowInInput(true)
-                        .handler(() -> {})
-                        .build(),
-
-                ShortcutAction.builder()
-                        .id(ANIMATOR_NEW)
-                        .displayName("New Animator")
-                        .defaultBinding(ShortcutBinding.ctrl(ImGuiKey.N))
-                        .panelFocused(PanelIds.ANIMATOR_EDITOR)
-                        .handler(() -> {})
-                        .build(),
-
-                ShortcutAction.builder()
-                        .id(ANIMATOR_UNDO)
-                        .displayName("Animator Undo")
-                        .defaultBinding(undoBinding)
-                        .panelFocused(PanelIds.ANIMATOR_EDITOR)
-                        .allowInInput(true)
-                        .handler(() -> {})
-                        .build(),
-
-                ShortcutAction.builder()
-                        .id(ANIMATOR_REDO)
-                        .displayName("Animator Redo")
-                        .defaultBinding(redoBinding)
-                        .panelFocused(PanelIds.ANIMATOR_EDITOR)
-                        .allowInInput(true)
-                        .handler(() -> {})
-                        .build(),
-
-                ShortcutAction.builder()
-                        .id(ANIMATOR_REFRESH)
-                        .displayName("Refresh Animator List")
-                        .defaultBinding(ShortcutBinding.key(ImGuiKey.F5))
-                        .panelFocused(PanelIds.ANIMATOR_EDITOR)
                         .handler(() -> {})
                         .build()
         );
@@ -745,30 +707,23 @@ public final class EditorShortcuts {
         bindings.put(Z_LEVEL_INCREASE, ShortcutBinding.key(ImGuiKey.RightBracket));
         bindings.put(Z_LEVEL_DECREASE, ShortcutBinding.key(ImGuiKey.LeftBracket));
 
-        // Camera pan shortcuts
+        // Camera pan shortcuts (WASD)
         bindings.put(CAMERA_PAN_UP, ShortcutBinding.key(ImGuiKey.W));
         bindings.put(CAMERA_PAN_DOWN, ShortcutBinding.key(ImGuiKey.S));
         bindings.put(CAMERA_PAN_LEFT, ShortcutBinding.key(ImGuiKey.A));
         bindings.put(CAMERA_PAN_RIGHT, ShortcutBinding.key(ImGuiKey.D));
 
+        // Camera pan shortcuts (Arrow keys)
+        bindings.put(CAMERA_PAN_UP_ARROW, ShortcutBinding.key(ImGuiKey.UpArrow));
+        bindings.put(CAMERA_PAN_DOWN_ARROW, ShortcutBinding.key(ImGuiKey.DownArrow));
+        bindings.put(CAMERA_PAN_LEFT_ARROW, ShortcutBinding.key(ImGuiKey.LeftArrow));
+        bindings.put(CAMERA_PAN_RIGHT_ARROW, ShortcutBinding.key(ImGuiKey.RightArrow));
+
         // Play shortcuts
         bindings.put(PLAY_TOGGLE, ShortcutBinding.ctrl(ImGuiKey.P));
         bindings.put(PLAY_STOP, ShortcutBinding.ctrlShift(ImGuiKey.P));
 
-        // Configuration shortcuts
-        bindings.put(CONFIG_SAVE, ShortcutBinding.ctrl(ImGuiKey.S));
-
-        // Animator editor shortcuts
-        bindings.put(ANIMATOR_SAVE, ShortcutBinding.ctrl(ImGuiKey.S));
-        bindings.put(ANIMATOR_NEW, ShortcutBinding.ctrl(ImGuiKey.N));
-        if (layout == KeyboardLayout.AZERTY) {
-            bindings.put(ANIMATOR_UNDO, ShortcutBinding.ctrl(ImGuiKey.W));
-            bindings.put(ANIMATOR_REDO, ShortcutBinding.ctrlShift(ImGuiKey.W));
-        } else {
-            bindings.put(ANIMATOR_UNDO, ShortcutBinding.ctrl(ImGuiKey.Z));
-            bindings.put(ANIMATOR_REDO, ShortcutBinding.ctrlShift(ImGuiKey.Z));
-        }
-        bindings.put(ANIMATOR_REFRESH, ShortcutBinding.key(ImGuiKey.F5));
+        // NOTE: Configuration and Animator shortcuts are provided by their panels via provideShortcuts()
 
         return bindings;
     }
@@ -847,14 +802,6 @@ public final class EditorShortcuts {
         registry.bindHandler(PLAY_TOGGLE, handlers::onPlayToggle);
         registry.bindHandler(PLAY_STOP, handlers::onPlayStop);
 
-        // Configuration
-        registry.bindHandler(CONFIG_SAVE, handlers::onConfigSave);
-
-        // Animator editor
-        registry.bindHandler(ANIMATOR_SAVE, handlers::onAnimatorSave);
-        registry.bindHandler(ANIMATOR_NEW, handlers::onAnimatorNew);
-        registry.bindHandler(ANIMATOR_UNDO, handlers::onAnimatorUndo);
-        registry.bindHandler(ANIMATOR_REDO, handlers::onAnimatorRedo);
-        registry.bindHandler(ANIMATOR_REFRESH, handlers::onAnimatorRefresh);
+        // NOTE: Configuration and Animator handlers are bound directly in panel provideShortcuts()
     }
 }

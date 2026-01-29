@@ -1,7 +1,13 @@
 package com.pocket.rpg.editor.panels;
 
 import com.pocket.rpg.editor.core.EditorConfig;
+import com.pocket.rpg.editor.shortcut.KeyboardLayout;
+import com.pocket.rpg.editor.shortcut.ShortcutAction;
 import lombok.Getter;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * Abstract base class for editor panels with built-in visibility management and persistence.
@@ -9,8 +15,34 @@ import lombok.Getter;
  * - Open/closed state tracking
  * - Persistence of panel state via EditorConfig
  * - Toggle and focus functionality
+ * - Automatic registration in the global panel list for shortcut context discovery
  */
 public abstract class EditorPanel {
+
+    // ========================================================================
+    // STATIC PANEL TRACKING
+    // ========================================================================
+
+    private static final List<EditorPanel> allPanels = new ArrayList<>();
+
+    /**
+     * Returns all EditorPanel instances that have been created.
+     * Used by the shortcut system to auto-discover panel focus state.
+     */
+    public static List<EditorPanel> getAllPanels() {
+        return Collections.unmodifiableList(allPanels);
+    }
+
+    /**
+     * Clears the panel list. For testing or editor restart.
+     */
+    public static void reset() {
+        allPanels.clear();
+    }
+
+    // ========================================================================
+    // INSTANCE FIELDS
+    // ========================================================================
 
     @Getter
     private final String panelId;
@@ -51,6 +83,7 @@ public abstract class EditorPanel {
         this.defaultOpen = defaultOpen;
         this.open = defaultOpen;
         this.displayName = computeDisplayName(panelId);
+        allPanels.add(this);
     }
 
     /**
@@ -128,6 +161,33 @@ public abstract class EditorPanel {
     public String getDisplayName() {
         return displayName;
     }
+
+    // ========================================================================
+    // SHORTCUT SUPPORT
+    // ========================================================================
+
+    /**
+     * Override to provide panel-specific shortcuts.
+     * These are automatically registered during editor initialization.
+     *
+     * @param layout The keyboard layout (affects Undo/Redo bindings)
+     * @return List of shortcut actions owned by this panel
+     */
+    public List<ShortcutAction> provideShortcuts(KeyboardLayout layout) {
+        return List.of();
+    }
+
+    /**
+     * Convenience method for building a panel-scoped shortcut.
+     * Pre-configures the builder with this panel's ID and PANEL_FOCUSED scope.
+     */
+    protected ShortcutAction.Builder panelShortcut() {
+        return ShortcutAction.builder().panelFocused(getPanelId());
+    }
+
+    // ========================================================================
+    // UTILITIES
+    // ========================================================================
 
     /**
      * Converts a camelCase panelId to Title Case with spaces.

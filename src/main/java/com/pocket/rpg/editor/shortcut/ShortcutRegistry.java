@@ -40,6 +40,9 @@ public class ShortcutRegistry {
     // Prevents e.g. Ctrl+S from also triggering S when Ctrl is released first.
     private final Set<Integer> consumedKeys = new HashSet<>();
 
+    // Last context passed to processShortcuts(), shared for isActionHeld callers
+    private ShortcutContext lastContext;
+
     // Play mode state (updated via event bus)
     private boolean playModeActive = false;
 
@@ -241,6 +244,9 @@ public class ShortcutRegistry {
      * @return true if a shortcut was handled
      */
     public boolean processShortcuts(ShortcutContext context) {
+        // Store context for isActionHeld callers (e.g. camera panning)
+        this.lastContext = context;
+
         // Prevent double-processing in same frame
         long currentFrame = ImGui.getFrameCount();
         if (currentFrame == lastProcessedFrame) {
@@ -287,6 +293,14 @@ public class ShortcutRegistry {
         }
 
         return false;
+    }
+
+    /**
+     * Returns the last ShortcutContext passed to {@link #processShortcuts(ShortcutContext)}.
+     * Use this instead of building your own context. Returns null before first call.
+     */
+    public ShortcutContext getLastContext() {
+        return lastContext;
     }
 
     /**

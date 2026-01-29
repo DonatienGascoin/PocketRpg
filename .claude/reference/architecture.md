@@ -82,6 +82,41 @@ Visual helpers drawn in Scene View to visualize component properties (bounds, pi
 
 **Important:** In gizmo methods, use `ctx.getTransform()` not `getTransform()` - the component's `gameObject` field is null in editor context.
 
+### Shortcut System (`editor/shortcut/`)
+
+Centralized, rebindable keyboard shortcuts with scope-aware dispatch.
+
+**Core classes:**
+- `ShortcutRegistry` (singleton) - Registers actions, processes input, manages bindings, persists config
+- `ShortcutAction` - Defines a shortcut: ID, display name, default binding, scope, handler. Built via `ShortcutAction.builder()`
+- `ShortcutBinding` - Key + modifiers (Ctrl/Shift/Alt). Supports `isPressed()` (single frame) and `isHeld()` (continuous)
+- `ShortcutContext` - Per-frame UI state snapshot (focused panels, text input active, popup open)
+- `ShortcutScope` - `GLOBAL`, `PANEL_FOCUSED`, `PANEL_VISIBLE`, `POPUP` (higher specificity wins conflicts)
+- `KeyboardLayout` - `QWERTY` / `AZERTY` (affects default bindings for undo/redo)
+
+**Registration flow (in `EditorApplication`):**
+1. `ShortcutRegistry.loadConfigAndGetLayout()` → determines keyboard layout
+2. `EditorShortcuts.registerDefaults()` → registers global/tool shortcuts
+3. `EditorPanel.getAllPanels()` → each panel's `provideShortcuts()` is registered
+4. `applyConfigBindings()` → applies user overrides from config file
+5. `EditorShortcuts.bindHandlers()` → connects handlers to global actions
+
+**Panel-owned shortcuts:**
+- Panels override `provideShortcuts(KeyboardLayout)` to declare their own shortcuts
+- Use `panelShortcut()` helper for pre-configured `PANEL_FOCUSED` scope
+- Auto-registered during initialization, auto-included in config generation
+
+**Processing:**
+- `ShortcutRegistry.processShortcuts(context)` called once per frame
+- Bindings sorted by modifier count (Ctrl+S checked before S)
+- Consumed keys tracked to prevent modifier release triggering plain key
+- `isActionHeld()` for continuous actions (camera panning)
+- Suppressed during play mode and popup windows
+
+**Config persistence:**
+- `gameData/config/shortcuts.json` - Per-layout bindings, keyboard layout selection
+- `generateCompleteConfig()` generates defaults for both layouts, merges with existing
+
 ## Key Directories
 
 | Path | Purpose |

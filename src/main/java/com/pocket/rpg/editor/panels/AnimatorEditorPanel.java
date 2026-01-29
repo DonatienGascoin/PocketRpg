@@ -12,7 +12,11 @@ import com.pocket.rpg.editor.events.EditorEventBus;
 import com.pocket.rpg.editor.panels.animator.AnimatorGraphEditor;
 import com.pocket.rpg.editor.panels.animator.AnimatorPreviewPanel;
 import com.pocket.rpg.editor.shortcut.EditorShortcuts;
+import com.pocket.rpg.editor.shortcut.KeyboardLayout;
+import com.pocket.rpg.editor.shortcut.ShortcutAction;
+import com.pocket.rpg.editor.shortcut.ShortcutBinding;
 import com.pocket.rpg.editor.ui.fields.AssetEditor;
+import imgui.flag.ImGuiKey;
 import com.pocket.rpg.resources.loaders.AnimatorControllerLoader;
 import com.pocket.rpg.resources.loaders.AnimatorLayoutLoader;
 import com.pocket.rpg.resources.Assets;
@@ -159,6 +163,52 @@ public class AnimatorEditorPanel extends EditorPanel {
         previewPanel = new AnimatorPreviewPanel();
 
         refresh();
+    }
+
+    @Override
+    public java.util.List<ShortcutAction> provideShortcuts(KeyboardLayout layout) {
+        ShortcutBinding undoBinding = layout == KeyboardLayout.AZERTY
+                ? ShortcutBinding.ctrl(ImGuiKey.W)
+                : ShortcutBinding.ctrl(ImGuiKey.Z);
+        ShortcutBinding redoBinding = layout == KeyboardLayout.AZERTY
+                ? ShortcutBinding.ctrlShift(ImGuiKey.W)
+                : ShortcutBinding.ctrlShift(ImGuiKey.Z);
+
+        return java.util.List.of(
+                panelShortcut()
+                        .id("editor.animator.save")
+                        .displayName("Save Animator")
+                        .defaultBinding(ShortcutBinding.ctrl(ImGuiKey.S))
+                        .allowInInput(true)
+                        .handler(this::save)
+                        .build(),
+                panelShortcut()
+                        .id("editor.animator.new")
+                        .displayName("New Animator")
+                        .defaultBinding(ShortcutBinding.ctrl(ImGuiKey.N))
+                        .handler(this::openNewDialog)
+                        .build(),
+                panelShortcut()
+                        .id("editor.animator.undo")
+                        .displayName("Animator Undo")
+                        .defaultBinding(undoBinding)
+                        .allowInInput(true)
+                        .handler(this::undo)
+                        .build(),
+                panelShortcut()
+                        .id("editor.animator.redo")
+                        .displayName("Animator Redo")
+                        .defaultBinding(redoBinding)
+                        .allowInInput(true)
+                        .handler(this::redo)
+                        .build(),
+                panelShortcut()
+                        .id("editor.animator.refresh")
+                        .displayName("Refresh Animator List")
+                        .defaultBinding(ShortcutBinding.key(ImGuiKey.F5))
+                        .handler(this::refresh)
+                        .build()
+        );
     }
 
     private void setupGraphEditorCallbacks() {

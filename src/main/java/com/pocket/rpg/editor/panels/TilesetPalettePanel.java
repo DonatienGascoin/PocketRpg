@@ -12,9 +12,13 @@ import com.pocket.rpg.editor.tools.TileBrushTool;
 import com.pocket.rpg.editor.tools.TileEraserTool;
 import com.pocket.rpg.editor.tools.TileFillTool;
 import com.pocket.rpg.editor.tools.TileRectangleTool;
+import com.pocket.rpg.editor.shortcut.KeyboardLayout;
+import com.pocket.rpg.editor.shortcut.ShortcutAction;
+import com.pocket.rpg.editor.shortcut.ShortcutBinding;
 import com.pocket.rpg.editor.tools.ToolManager;
 import com.pocket.rpg.editor.scene.TilemapLayer;
 import imgui.ImGui;
+import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiTableColumnFlags;
 import imgui.flag.ImGuiTableFlags;
 import imgui.flag.ImGuiWindowFlags;
@@ -67,21 +71,30 @@ public class TilesetPalettePanel extends EditorPanel {
     }
 
     @Override
+    public java.util.List<ShortcutAction> provideShortcuts(KeyboardLayout layout) {
+        return java.util.List.of(
+                panelShortcut()
+                        .id("editor.tileset.clearSelection")
+                        .displayName("Clear Tileset Selection")
+                        .defaultBinding(ShortcutBinding.key(ImGuiKey.Escape))
+                        .handler(this::clearSelection)
+                        .build()
+        );
+    }
+
+    @Override
     public void render() {
         if (!isOpen()) {
             setContentVisible(false);
+            setFocused(false);
             return;
         }
 
         boolean visible = ImGui.begin("Tileset Palette");
         setContentVisible(visible);
+        setFocused(ImGui.isWindowFocused());
 
         if (visible) {
-            if (ImGui.isWindowFocused() && ImGui.isKeyPressed(imgui.flag.ImGuiKey.Escape)) {
-                selectionManager.clearSelection();
-                clearToolSelection();
-            }
-
             syncSelectionWithTool();
 
             if (isHorizontalLayout) {

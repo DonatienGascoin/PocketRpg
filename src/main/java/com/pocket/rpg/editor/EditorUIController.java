@@ -83,6 +83,9 @@ public class EditorUIController {
     private CollisionOverlayRenderer collisionOverlay;
     private CameraOverlayRenderer cameraOverlayRenderer;
 
+    // Scene view focus state (SceneViewport doesn't extend EditorPanel)
+    private boolean sceneViewFocused = false;
+
     // Flag to focus Game panel on next frame (after window exists)
     private boolean requestGameFocus = false;
 
@@ -358,6 +361,9 @@ public class EditorUIController {
 
         // Update SceneViewport's contentVisible based on window visibility
         sceneViewport.setContentVisible(isVisible);
+
+        // Track scene view focus for shortcut context (SceneViewport doesn't extend EditorPanel)
+        sceneViewFocused = isVisible && sceneViewport.isFocused();
 
         if (isVisible) {
             float viewportWidth = ImGui.getContentRegionAvailX();
@@ -713,39 +719,23 @@ public class EditorUIController {
     /**
      * Builds a ShortcutContext with current panel focus information.
      * Uses focus state from the previous frame (retained in panel fields).
+     * Auto-discovers all EditorPanel instances instead of hardcoding each one.
      */
     public com.pocket.rpg.editor.shortcut.ShortcutContext buildShortcutContext() {
         var builder = com.pocket.rpg.editor.shortcut.ShortcutContext.builder()
                 .popupOpen(ImGui.isPopupOpen("", imgui.flag.ImGuiPopupFlags.AnyPopup))
                 .textInputActive(ImGui.getIO().getWantTextInput());
 
-        // Check all EditorPanel subclasses for focus state
-        if (configurationPanel != null && configurationPanel.isFocused()) {
-            builder.panelFocused(configurationPanel.getPanelId());
+        // Auto-discover focus state from all registered EditorPanel instances
+        for (com.pocket.rpg.editor.panels.EditorPanel panel : com.pocket.rpg.editor.panels.EditorPanel.getAllPanels()) {
+            if (panel.isFocused()) {
+                builder.panelFocused(panel.getPanelId());
+            }
         }
-        if (hierarchyPanel != null && hierarchyPanel.isFocused()) {
-            builder.panelFocused(hierarchyPanel.getPanelId());
-        }
-        if (inspectorPanel != null && inspectorPanel.isFocused()) {
-            builder.panelFocused(inspectorPanel.getPanelId());
-        }
-        if (assetBrowserPanel != null && assetBrowserPanel.isFocused()) {
-            builder.panelFocused(assetBrowserPanel.getPanelId());
-        }
-        if (consolePanel != null && consolePanel.isFocused()) {
-            builder.panelFocused(consolePanel.getPanelId());
-        }
-        if (tilesetPalette != null && tilesetPalette.isFocused()) {
-            builder.panelFocused(tilesetPalette.getPanelId());
-        }
-        if (collisionPanel != null && collisionPanel.isFocused()) {
-            builder.panelFocused(collisionPanel.getPanelId());
-        }
-        if (audioBrowserPanel != null && audioBrowserPanel.isFocused()) {
-            builder.panelFocused(audioBrowserPanel.getPanelId());
-        }
-        if (animatorEditorPanel != null && animatorEditorPanel.isFocused()) {
-            builder.panelFocused(animatorEditorPanel.getPanelId());
+
+        // SceneViewport doesn't extend EditorPanel (different lifecycle) — handle as special case
+        if (sceneViewFocused) {
+            builder.panelFocused(com.pocket.rpg.editor.shortcut.EditorShortcuts.PanelIds.SCENE_VIEW);
         }
 
         return builder.build();

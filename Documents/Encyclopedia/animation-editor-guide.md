@@ -169,11 +169,19 @@ Animations are assets stored in `gameData/assets/animations/`. They can be share
 | Shortcut | Action |
 |----------|--------|
 | Ctrl+S | Save current animation |
+| Ctrl+N | Create new animation |
 | Ctrl+Z | Undo |
-| Ctrl+Y | Redo |
+| Ctrl+Shift+Z | Redo |
+| Ctrl+Y | Redo (alternative) |
+| F5 | Refresh animation list |
 | Space | Play/Pause preview |
+| Left Arrow | Previous frame |
+| Right Arrow | Next frame |
+| Home | First frame |
+| End | Last frame |
 | Delete | Delete selected frame |
-| Left/Right | Select previous/next frame |
+
+> **Note:** All shortcuts are rebindable via **Edit > Shortcuts**. These shortcuts only activate when the Animation Editor panel is focused.
 
 ---
 

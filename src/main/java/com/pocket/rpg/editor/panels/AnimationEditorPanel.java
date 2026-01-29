@@ -3,6 +3,9 @@ package com.pocket.rpg.editor.panels;
 import com.pocket.rpg.animation.Animation;
 import com.pocket.rpg.animation.AnimationFrame;
 import com.pocket.rpg.editor.core.MaterialIcons;
+import com.pocket.rpg.editor.shortcut.KeyboardLayout;
+import com.pocket.rpg.editor.shortcut.ShortcutAction;
+import com.pocket.rpg.editor.shortcut.ShortcutBinding;
 import com.pocket.rpg.resources.loaders.AnimationLoader;
 import com.pocket.rpg.editor.panels.animation.AnimationPreviewRenderer;
 import com.pocket.rpg.editor.panels.animation.AnimationTimelineContext;
@@ -37,7 +40,7 @@ import java.util.List;
  * - Properties editor (name, looping)
  * - Frame inspector (duration, sprite path)
  */
-public class AnimationEditorPanel {
+public class AnimationEditorPanel extends EditorPanel {
 
     // ========================================================================
     // CONFIGURATION
@@ -49,12 +52,158 @@ public class AnimationEditorPanel {
     private static final float PIXELS_PER_SECOND_DEFAULT = 200f;
     private static final float MIN_FRAME_DURATION = 0.01f;
 
+    public AnimationEditorPanel() {
+        super(com.pocket.rpg.editor.shortcut.EditorShortcuts.PanelIds.ANIMATION_EDITOR, true);
+    }
+
+    @Override
+    public java.util.List<ShortcutAction> provideShortcuts(KeyboardLayout layout) {
+        ShortcutBinding undoBinding = layout == KeyboardLayout.AZERTY
+                ? ShortcutBinding.ctrl(ImGuiKey.W)
+                : ShortcutBinding.ctrl(ImGuiKey.Z);
+        ShortcutBinding redoBinding = layout == KeyboardLayout.AZERTY
+                ? ShortcutBinding.ctrlShift(ImGuiKey.W)
+                : ShortcutBinding.ctrlShift(ImGuiKey.Z);
+
+        return java.util.List.of(
+                panelShortcut()
+                        .id("editor.animation.save")
+                        .displayName("Save Animation")
+                        .defaultBinding(ShortcutBinding.ctrl(ImGuiKey.S))
+                        .allowInInput(true)
+                        .handler(() -> {
+                            if (selectedEntry != null && hasUnsavedChanges) {
+                                saveCurrentAnimation();
+                            }
+                        })
+                        .build(),
+                panelShortcut()
+                        .id("editor.animation.new")
+                        .displayName("New Animation")
+                        .defaultBinding(ShortcutBinding.ctrl(ImGuiKey.N))
+                        .handler(this::openNewDialog)
+                        .build(),
+                panelShortcut()
+                        .id("editor.animation.undo")
+                        .displayName("Animation Undo")
+                        .defaultBinding(undoBinding)
+                        .allowInInput(true)
+                        .handler(this::undo)
+                        .build(),
+                panelShortcut()
+                        .id("editor.animation.redo")
+                        .displayName("Animation Redo")
+                        .defaultBinding(redoBinding)
+                        .allowInInput(true)
+                        .handler(this::redo)
+                        .build(),
+                panelShortcut()
+                        .id("editor.animation.redoAlt")
+                        .displayName("Animation Redo (Alt)")
+                        .defaultBinding(ShortcutBinding.ctrl(ImGuiKey.Y))
+                        .allowInInput(true)
+                        .handler(this::redo)
+                        .build(),
+                panelShortcut()
+                        .id("editor.animation.refresh")
+                        .displayName("Refresh Animation List")
+                        .defaultBinding(ShortcutBinding.key(ImGuiKey.F5))
+                        .handler(() -> needsRefresh = true)
+                        .build(),
+                panelShortcut()
+                        .id("editor.animation.playPause")
+                        .displayName("Play/Pause Animation")
+                        .defaultBinding(ShortcutBinding.key(ImGuiKey.Space))
+                        .handler(this::togglePlayback)
+                        .build(),
+                panelShortcut()
+                        .id("editor.animation.prevFrame")
+                        .displayName("Previous Frame")
+                        .defaultBinding(ShortcutBinding.key(ImGuiKey.LeftArrow))
+                        .handler(this::gotoPreviousFrame)
+                        .build(),
+                panelShortcut()
+                        .id("editor.animation.nextFrame")
+                        .displayName("Next Frame")
+                        .defaultBinding(ShortcutBinding.key(ImGuiKey.RightArrow))
+                        .handler(this::gotoNextFrame)
+                        .build(),
+                panelShortcut()
+                        .id("editor.animation.firstFrame")
+                        .displayName("First Frame")
+                        .defaultBinding(ShortcutBinding.key(ImGuiKey.Home))
+                        .handler(this::gotoFirstFrame)
+                        .build(),
+                panelShortcut()
+                        .id("editor.animation.lastFrame")
+                        .displayName("Last Frame")
+                        .defaultBinding(ShortcutBinding.key(ImGuiKey.End))
+                        .handler(this::gotoLastFrame)
+                        .build(),
+                panelShortcut()
+                        .id("editor.animation.deleteFrame")
+                        .displayName("Delete Frame")
+                        .defaultBinding(ShortcutBinding.key(ImGuiKey.Delete))
+                        .handler(this::deleteSelectedFrame)
+                        .build()
+        );
+    }
+
+    // ========================================================================
+    // SHORTCUT HANDLER METHODS
+    // ========================================================================
+
+    private void togglePlayback() {
+        if (editingAnimation != null && previewRenderer != null) {
+            previewRenderer.togglePlayback();
+        }
+    }
+
+    private void gotoPreviousFrame() {
+        if (editingAnimation != null && editingAnimation.getFrameCount() > 0) {
+            if (previewRenderer != null) previewRenderer.setPlaying(false);
+            currentPreviewFrame = Math.max(0, currentPreviewFrame - 1);
+            selectedFrameIndex = currentPreviewFrame;
+            previewTimer = 0;
+            if (previewRenderer != null) previewRenderer.setCurrentPreviewFrame(currentPreviewFrame);
+        }
+    }
+
+    private void gotoNextFrame() {
+        if (editingAnimation != null && editingAnimation.getFrameCount() > 0) {
+            if (previewRenderer != null) previewRenderer.setPlaying(false);
+            currentPreviewFrame = Math.min(editingAnimation.getFrameCount() - 1, currentPreviewFrame + 1);
+            selectedFrameIndex = currentPreviewFrame;
+            previewTimer = 0;
+            if (previewRenderer != null) previewRenderer.setCurrentPreviewFrame(currentPreviewFrame);
+        }
+    }
+
+    private void gotoFirstFrame() {
+        if (editingAnimation != null && editingAnimation.getFrameCount() > 0) {
+            if (previewRenderer != null) previewRenderer.setPlaying(false);
+            currentPreviewFrame = 0;
+            selectedFrameIndex = 0;
+            previewTimer = 0;
+            if (previewRenderer != null) previewRenderer.setCurrentPreviewFrame(0);
+        }
+    }
+
+    private void gotoLastFrame() {
+        if (editingAnimation != null && editingAnimation.getFrameCount() > 0) {
+            if (previewRenderer != null) previewRenderer.setPlaying(false);
+            currentPreviewFrame = editingAnimation.getFrameCount() - 1;
+            selectedFrameIndex = currentPreviewFrame;
+            previewTimer = 0;
+            if (previewRenderer != null) previewRenderer.setCurrentPreviewFrame(currentPreviewFrame);
+        }
+    }
+
     // ========================================================================
     // STATE
     // ========================================================================
 
-    // Panel visibility
-    private boolean open = true;
+    // NOTE: open/toggle/isOpen inherited from EditorPanel
 
     // Animation list
     private final List<AnimationEntry> animations = new ArrayList<>();
@@ -186,22 +335,6 @@ public class AnimationEditorPanel {
         refresh();
     }
 
-    // ========================================================================
-    // VISIBILITY
-    // ========================================================================
-
-    public boolean isOpen() {
-        return open;
-    }
-
-    public void setOpen(boolean open) {
-        this.open = open;
-    }
-
-    public void toggle() {
-        this.open = !this.open;
-    }
-
     public void refresh() {
         long now = System.currentTimeMillis();
         if (now - lastRefreshTime < REFRESH_COOLDOWN_MS) {
@@ -232,8 +365,9 @@ public class AnimationEditorPanel {
     // MAIN RENDER
     // ========================================================================
 
+    @Override
     public void render() {
-        if (!open) {
+        if (!isOpen()) {
             return;
         }
 
@@ -247,16 +381,15 @@ public class AnimationEditorPanel {
         }
 
         int flags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
-        ImGui.begin("Animation Editor", flags);
+        boolean visible = ImGui.begin("Animation Editor", flags);
+        setContentVisible(visible);
+        setFocused(ImGui.isWindowFocused(imgui.flag.ImGuiFocusedFlags.RootAndChildWindows));
 
-        // Handle keyboard shortcuts when window is focused
-        if (ImGui.isWindowFocused(imgui.flag.ImGuiFocusedFlags.RootAndChildWindows)) {
-            processKeyboardShortcuts();
+        if (visible) {
+            renderToolbar();
+            ImGui.separator();
+            renderMainContent();
         }
-
-        renderToolbar();
-        ImGui.separator();
-        renderMainContent();
 
         ImGui.end();
 
@@ -293,96 +426,6 @@ public class AnimationEditorPanel {
 
         // Sprite picker popup
         spritePicker.render();
-    }
-
-    // ========================================================================
-    // KEYBOARD SHORTCUTS
-    // ========================================================================
-
-    private void processKeyboardShortcuts() {
-        if (showNewDialog || showDeleteConfirmDialog || showUnsavedChangesDialog || ImGui.getIO().getWantTextInput()) {
-            return;
-        }
-
-        boolean ctrl = ImGui.isKeyDown(ImGuiKey.LeftCtrl) || ImGui.isKeyDown(ImGuiKey.RightCtrl);
-        boolean shift = ImGui.isKeyDown(ImGuiKey.LeftShift) || ImGui.isKeyDown(ImGuiKey.RightShift);
-
-        // Ctrl+S: Save
-        if (ctrl && ImGui.isKeyPressed(ImGuiKey.S, false)) {
-            if (selectedEntry != null && hasUnsavedChanges) {
-                saveCurrentAnimation();
-            }
-        }
-
-        // Ctrl+N: New animation
-        if (ctrl && ImGui.isKeyPressed(ImGuiKey.N, false)) {
-            openNewDialog();
-        }
-
-        // Ctrl+Z: Undo, Ctrl+Shift+Z: Redo
-        if (ctrl && ImGui.isKeyPressed(ImGuiKey.Z, false)) {
-            if (shift) {
-                redo();
-            } else {
-                undo();
-            }
-        }
-
-        // Ctrl+Y: Redo (alternative)
-        if (ctrl && ImGui.isKeyPressed(ImGuiKey.Y, false)) {
-            redo();
-        }
-
-        // Space: Play/Pause
-        if (ImGui.isKeyPressed(ImGuiKey.Space) && editingAnimation != null && previewRenderer != null) {
-            previewRenderer.togglePlayback();
-        }
-
-        // Left Arrow: Previous frame
-        if (ImGui.isKeyPressed(ImGuiKey.LeftArrow) && editingAnimation != null && editingAnimation.getFrameCount() > 0) {
-            if (previewRenderer != null) previewRenderer.setPlaying(false);
-            currentPreviewFrame = Math.max(0, currentPreviewFrame - 1);
-            selectedFrameIndex = currentPreviewFrame;
-            previewTimer = 0;
-            if (previewRenderer != null) previewRenderer.setCurrentPreviewFrame(currentPreviewFrame);
-        }
-
-        // Right Arrow: Next frame
-        if (ImGui.isKeyPressed(ImGuiKey.RightArrow) && editingAnimation != null && editingAnimation.getFrameCount() > 0) {
-            if (previewRenderer != null) previewRenderer.setPlaying(false);
-            currentPreviewFrame = Math.min(editingAnimation.getFrameCount() - 1, currentPreviewFrame + 1);
-            selectedFrameIndex = currentPreviewFrame;
-            previewTimer = 0;
-            if (previewRenderer != null) previewRenderer.setCurrentPreviewFrame(currentPreviewFrame);
-        }
-
-        // Home: First frame
-        if (ImGui.isKeyPressed(ImGuiKey.Home) && editingAnimation != null && editingAnimation.getFrameCount() > 0) {
-            if (previewRenderer != null) previewRenderer.setPlaying(false);
-            currentPreviewFrame = 0;
-            selectedFrameIndex = 0;
-            previewTimer = 0;
-            if (previewRenderer != null) previewRenderer.setCurrentPreviewFrame(0);
-        }
-
-        // End: Last frame
-        if (ImGui.isKeyPressed(ImGuiKey.End) && editingAnimation != null && editingAnimation.getFrameCount() > 0) {
-            if (previewRenderer != null) previewRenderer.setPlaying(false);
-            currentPreviewFrame = editingAnimation.getFrameCount() - 1;
-            selectedFrameIndex = currentPreviewFrame;
-            previewTimer = 0;
-            if (previewRenderer != null) previewRenderer.setCurrentPreviewFrame(currentPreviewFrame);
-        }
-
-        // Delete: Delete selected frame
-        if (ImGui.isKeyPressed(ImGuiKey.Delete) && selectedFrameIndex >= 0) {
-            deleteSelectedFrame();
-        }
-
-        // F5: Refresh
-        if (ImGui.isKeyPressed(ImGuiKey.F5)) {
-            needsRefresh = true;
-        }
     }
 
     // ========================================================================

@@ -278,11 +278,28 @@ public class EditorApplication {
         // Register defaults with the keyboard layout
         EditorShortcuts.registerDefaults(shortcutRegistry, layout);
 
+        // Register panel-provided shortcuts (panels are already created by uiController.init())
+        for (com.pocket.rpg.editor.panels.EditorPanel panel : com.pocket.rpg.editor.panels.EditorPanel.getAllPanels()) {
+            java.util.List<com.pocket.rpg.editor.shortcut.ShortcutAction> shortcuts = panel.provideShortcuts(layout);
+            if (!shortcuts.isEmpty()) {
+                shortcutRegistry.registerAll(shortcuts.toArray(com.pocket.rpg.editor.shortcut.ShortcutAction[]::new));
+            }
+        }
+
         // Apply any custom bindings from config
         shortcutRegistry.applyConfigBindings();
 
         // Generate complete config file with both QWERTY and AZERTY layouts
-        shortcutRegistry.generateCompleteConfig(EditorShortcuts::getDefaultBindings);
+        shortcutRegistry.generateCompleteConfig(configLayout -> {
+            java.util.Map<String, com.pocket.rpg.editor.shortcut.ShortcutBinding> bindings = new java.util.LinkedHashMap<>();
+            bindings.putAll(EditorShortcuts.getDefaultBindings(configLayout));
+            for (com.pocket.rpg.editor.panels.EditorPanel panel : com.pocket.rpg.editor.panels.EditorPanel.getAllPanels()) {
+                for (com.pocket.rpg.editor.shortcut.ShortcutAction action : panel.provideShortcuts(configLayout)) {
+                    bindings.put(action.getId(), action.getDefaultBinding());
+                }
+            }
+            return bindings;
+        });
 
         // Create shortcut handlers implementation
         EditorShortcutHandlersImpl handlers = new EditorShortcutHandlersImpl(
@@ -295,7 +312,6 @@ public class EditorApplication {
         handlers.setConfigurationPanel(uiController.getConfigurationPanel());
         handlers.setTilesetPalettePanel(uiController.getTilesetPalette());
         handlers.setCollisionPanel(uiController.getCollisionPanel());
-        handlers.setAnimatorEditorPanel(uiController.getAnimatorEditorPanel());
 
         // Bind handlers to shortcuts
         EditorShortcuts.bindHandlers(shortcutRegistry, handlers);

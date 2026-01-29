@@ -219,6 +219,18 @@ public class EditorUIController {
             inspectorPanel.clearAnimatorSelection();
         });
 
+        // Clear animator inspectors and graph selection when selection changes away from animator types
+        EditorEventBus.get().subscribe(SelectionChangedEvent.class, event -> {
+            boolean wasAnimator = event.previousType() == EditorSelectionManager.SelectionType.ANIMATOR_STATE
+                    || event.previousType() == EditorSelectionManager.SelectionType.ANIMATOR_TRANSITION;
+            boolean isAnimator = event.selectionType() == EditorSelectionManager.SelectionType.ANIMATOR_STATE
+                    || event.selectionType() == EditorSelectionManager.SelectionType.ANIMATOR_TRANSITION;
+            if (wasAnimator && !isAnimator) {
+                inspectorPanel.clearAnimatorSelection();
+                animatorEditorPanel.clearGraphSelection();
+            }
+        });
+
         // Wire up collision type selection to switch to brush tool (if not in fill/rectangle)
         collisionPanel.setActiveToolSupplier(() -> context.getToolManager().getActiveTool());
         collisionPanel.setOnSwitchToBrushTool(() ->
@@ -243,6 +255,7 @@ public class EditorUIController {
 
         animatorEditorPanel = new AnimatorEditorPanel();
         animatorEditorPanel.initialize();
+        animatorEditorPanel.setSelectionManager(context.getSelectionManager());
 
         consolePanel = new ConsolePanel();
         consolePanel.initPanel(context.getConfig());

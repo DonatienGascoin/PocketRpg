@@ -101,16 +101,6 @@ public class InspectorPanel extends EditorPanel {
      * Renders the appropriate inspector based on current selection.
      */
     private void renderCurrentInspector(boolean shouldShowAsset) {
-        // Animator inspectors take highest priority
-        if (animatorStateInspector.hasSelection()) {
-            animatorStateInspector.render();
-            return;
-        }
-        if (animatorTransitionInspector.hasSelection()) {
-            animatorTransitionInspector.render();
-            return;
-        }
-
         // Check if a trigger is selected (takes priority when collision layer is active)
         if (triggerInspector.hasSelection() && selectionManager != null && selectionManager.isCollisionLayerSelected()) {
             triggerInspector.render();
@@ -122,6 +112,10 @@ public class InspectorPanel extends EditorPanel {
             tilemapInspector.render();
         } else if (selectionManager.isCollisionLayerSelected()) {
             collisionInspector.render();
+        } else if (selectionManager.isAnimatorStateSelected()) {
+            animatorStateInspector.render();
+        } else if (selectionManager.isAnimatorTransitionSelected()) {
+            animatorTransitionInspector.render();
         } else if (shouldShowAsset) {
             assetInspector.setAsset(
                 selectionManager.getSelectedAssetPath(),

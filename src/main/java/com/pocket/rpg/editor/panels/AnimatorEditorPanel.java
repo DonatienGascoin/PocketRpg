@@ -112,6 +112,9 @@ public class AnimatorEditorPanel extends EditorPanel {
     // Status callback
     private java.util.function.Consumer<String> statusCallback;
 
+    // Selection manager
+    private com.pocket.rpg.editor.EditorSelectionManager selectionManager;
+
     // ========================================================================
     // ENTRY CLASS
     // ========================================================================
@@ -276,6 +279,9 @@ public class AnimatorEditorPanel extends EditorPanel {
     // ========================================================================
 
     private void publishStateSelected(AnimatorState state) {
+        if (selectionManager != null) {
+            selectionManager.selectAnimatorState(state, editingController, this::onInspectorModified);
+        }
         EditorEventBus.get().publish(new AnimatorStateSelectedEvent(
             state,
             editingController,
@@ -284,6 +290,9 @@ public class AnimatorEditorPanel extends EditorPanel {
     }
 
     private void publishTransitionSelected(AnimatorTransition transition) {
+        if (selectionManager != null) {
+            selectionManager.selectAnimatorTransition(transition, editingController, this::onInspectorModified);
+        }
         EditorEventBus.get().publish(new AnimatorTransitionSelectedEvent(
             transition,
             editingController,
@@ -292,6 +301,9 @@ public class AnimatorEditorPanel extends EditorPanel {
     }
 
     private void clearInspectorSelection() {
+        if (selectionManager != null && (selectionManager.isAnimatorStateSelected() || selectionManager.isAnimatorTransitionSelected())) {
+            selectionManager.clearSelection();
+        }
         EditorEventBus.get().publish(new AnimatorSelectionClearedEvent());
     }
 
@@ -1113,6 +1125,23 @@ public class AnimatorEditorPanel extends EditorPanel {
 
     public void setStatusCallback(java.util.function.Consumer<String> callback) {
         this.statusCallback = callback;
+    }
+
+    public void setSelectionManager(com.pocket.rpg.editor.EditorSelectionManager selectionManager) {
+        this.selectionManager = selectionManager;
+    }
+
+    /**
+     * Clears the panel's internal selection state and the graph editor's ImNodes selection.
+     * Called when an external selection (e.g. entity in hierarchy) takes over,
+     * so that re-clicking the same node will fire the selection callback again.
+     */
+    public void clearGraphSelection() {
+        selectedStateIndex = -1;
+        selectedTransitionIndex = -1;
+        if (graphEditor != null) {
+            graphEditor.clearSelection();
+        }
     }
 
     public void selectControllerByPath(String path) {

@@ -4,11 +4,11 @@
   "frames": [
     {
       "sprite": "spritesheets/player.spritesheet#48",
-      "duration": 0.5
+      "duration": 0.19999999
     },
     {
       "sprite": "spritesheets/player.spritesheet#49",
-      "duration": 0.5
+      "duration": 0.2
     }
   ]
 }

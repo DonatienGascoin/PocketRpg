@@ -37,6 +37,7 @@ class AnimatorStateMachineTest {
         // Parameters
         controller.addParameter(new AnimatorParameter("isMoving", false));
         controller.addParameter(AnimatorParameter.trigger("attackTrigger"));
+        controller.addParameter(new AnimatorParameter("direction", Direction.DOWN));
 
         // Transitions
         AnimatorTransition idleToWalk = new AnimatorTransition("idle", "walk", TransitionType.INSTANT);
@@ -65,7 +66,7 @@ class AnimatorStateMachineTest {
     void testInitialState() {
         assertEquals("idle", stateMachine.getCurrentState());
         assertNull(stateMachine.getPreviousState());
-        assertEquals(Direction.DOWN, stateMachine.getCurrentDirection());
+        assertEquals(Direction.DOWN, stateMachine.getDirection("direction"));
     }
 
     @Test
@@ -156,18 +157,18 @@ class AnimatorStateMachineTest {
 
     @Test
     void testSetDirection() {
-        assertEquals(Direction.DOWN, stateMachine.getCurrentDirection());
+        assertEquals(Direction.DOWN, stateMachine.getDirection("direction"));
 
-        stateMachine.setDirection(Direction.UP);
+        stateMachine.setDirection("direction", Direction.UP);
 
-        assertEquals(Direction.UP, stateMachine.getCurrentDirection());
+        assertEquals(Direction.UP, stateMachine.getDirection("direction"));
     }
 
     @Test
     void testReset() {
         stateMachine.setBool("isMoving", true);
         stateMachine.update(0.016f);
-        stateMachine.setDirection(Direction.LEFT);
+        stateMachine.setDirection("direction", Direction.LEFT);
 
         stateMachine.reset();
 

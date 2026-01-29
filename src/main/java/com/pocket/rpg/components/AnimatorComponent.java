@@ -134,29 +134,20 @@ public class AnimatorComponent extends Component {
     }
 
     /**
-     * Sets the facing direction.
-     * Directional states will update their animation accordingly.
+     * Sets a direction parameter value by name.
      */
-    public void setDirection(Direction direction) {
+    public void setDirection(String name, Direction direction) {
         if (stateMachine != null) {
-            stateMachine.setDirection(direction);
+            stateMachine.setDirection(name, direction);
         }
     }
 
     /**
-     * Gets the current facing direction from the direction parameter.
-     * Returns DOWN if no direction parameter is defined or no state machine.
+     * Gets a direction parameter value by name.
+     * Returns DOWN if the parameter doesn't exist or no state machine.
      */
-    public Direction getDirection() {
-        return stateMachine != null ? stateMachine.getCurrentDirection() : Direction.DOWN;
-    }
-
-    /**
-     * Checks if this animator has a direction parameter defined.
-     */
-    public boolean hasDirectionParameter() {
-        return controller != null && controller.getParameters().stream()
-            .anyMatch(p -> p.getType() == com.pocket.rpg.animation.animator.ParameterType.DIRECTION);
+    public Direction getDirection(String name) {
+        return stateMachine != null ? stateMachine.getDirection(name) : Direction.DOWN;
     }
 
     /**

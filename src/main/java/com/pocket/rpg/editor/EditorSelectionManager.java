@@ -1,5 +1,8 @@
 package com.pocket.rpg.editor;
 
+import com.pocket.rpg.animation.animator.AnimatorController;
+import com.pocket.rpg.animation.animator.AnimatorState;
+import com.pocket.rpg.animation.animator.AnimatorTransition;
 import com.pocket.rpg.editor.events.EditorEventBus;
 import com.pocket.rpg.editor.events.SelectionChangedEvent;
 import com.pocket.rpg.editor.scene.EditorGameObject;
@@ -24,7 +27,9 @@ public class EditorSelectionManager {
         TILEMAP_LAYER,
         COLLISION_LAYER,
         CAMERA,
-        ASSET
+        ASSET,
+        ANIMATOR_STATE,
+        ANIMATOR_TRANSITION
     }
 
     @Getter
@@ -39,6 +44,19 @@ public class EditorSelectionManager {
 
     @Getter
     private Class<?> selectedAssetType = null;
+
+    // Animator selection
+    @Getter
+    private AnimatorState selectedAnimatorState = null;
+
+    @Getter
+    private AnimatorTransition selectedAnimatorTransition = null;
+
+    @Getter
+    private AnimatorController selectedAnimatorController = null;
+
+    @Getter
+    private Runnable animatorOnModified = null;
 
     @Setter
     private EditorScene scene;
@@ -56,6 +74,7 @@ public class EditorSelectionManager {
         }
         selectedLayerIndex = -1;  // Clear layer selection
         clearAssetSelection();
+        clearAnimatorSelection();
         setSelectionType(SelectionType.ENTITY);
     }
 
@@ -68,6 +87,7 @@ public class EditorSelectionManager {
         }
         selectedLayerIndex = -1;  // Clear layer selection
         clearAssetSelection();
+        clearAnimatorSelection();
         setSelectionType(entities.isEmpty() ? SelectionType.NONE : SelectionType.ENTITY);
     }
 
@@ -82,6 +102,7 @@ public class EditorSelectionManager {
             } else {
                 selectedLayerIndex = -1;  // Clear layer selection
                 clearAssetSelection();
+                clearAnimatorSelection();
                 setSelectionType(SelectionType.ENTITY);
             }
         }
@@ -94,6 +115,7 @@ public class EditorSelectionManager {
         clearEntitySelection();
         selectedLayerIndex = -1;
         clearAssetSelection();
+        clearAnimatorSelection();
         setSelectionType(SelectionType.CAMERA);
     }
 
@@ -108,6 +130,7 @@ public class EditorSelectionManager {
             scene.setActiveLayer(layerIndex);
         }
         clearAssetSelection();
+        clearAnimatorSelection();
         setSelectionType(SelectionType.TILEMAP_LAYER);
     }
 
@@ -118,6 +141,7 @@ public class EditorSelectionManager {
         clearEntitySelection();
         selectedLayerIndex = -1;
         clearAssetSelection();
+        clearAnimatorSelection();
         setSelectionType(SelectionType.COLLISION_LAYER);
     }
 
@@ -127,6 +151,7 @@ public class EditorSelectionManager {
     public void selectAsset(String path, Class<?> type) {
         clearEntitySelection();
         selectedLayerIndex = -1;
+        clearAnimatorSelection();
         this.selectedAssetPath = path;
         this.selectedAssetType = type;
         setSelectionType(SelectionType.ASSET);
@@ -139,7 +164,36 @@ public class EditorSelectionManager {
         clearEntitySelection();
         selectedLayerIndex = -1;
         clearAssetSelection();
+        clearAnimatorSelection();
         setSelectionType(SelectionType.NONE);
+    }
+
+    /**
+     * Selects an animator state.
+     */
+    public void selectAnimatorState(AnimatorState state, AnimatorController controller, Runnable onModified) {
+        clearEntitySelection();
+        selectedLayerIndex = -1;
+        clearAssetSelection();
+        this.selectedAnimatorState = state;
+        this.selectedAnimatorTransition = null;
+        this.selectedAnimatorController = controller;
+        this.animatorOnModified = onModified;
+        setSelectionType(SelectionType.ANIMATOR_STATE);
+    }
+
+    /**
+     * Selects an animator transition.
+     */
+    public void selectAnimatorTransition(AnimatorTransition transition, AnimatorController controller, Runnable onModified) {
+        clearEntitySelection();
+        selectedLayerIndex = -1;
+        clearAssetSelection();
+        this.selectedAnimatorState = null;
+        this.selectedAnimatorTransition = transition;
+        this.selectedAnimatorController = controller;
+        this.animatorOnModified = onModified;
+        setSelectionType(SelectionType.ANIMATOR_TRANSITION);
     }
 
     // ========================================================================
@@ -206,6 +260,20 @@ public class EditorSelectionManager {
         return selectionType == SelectionType.ASSET && selectedAssetPath != null;
     }
 
+    /**
+     * Returns true if an animator state is selected.
+     */
+    public boolean isAnimatorStateSelected() {
+        return selectionType == SelectionType.ANIMATOR_STATE && selectedAnimatorState != null;
+    }
+
+    /**
+     * Returns true if an animator transition is selected.
+     */
+    public boolean isAnimatorTransitionSelected() {
+        return selectionType == SelectionType.ANIMATOR_TRANSITION && selectedAnimatorTransition != null;
+    }
+
     // ========================================================================
     // PRIVATE HELPERS
     // ========================================================================
@@ -228,6 +296,13 @@ public class EditorSelectionManager {
     private void clearAssetSelection() {
         selectedAssetPath = null;
         selectedAssetType = null;
+    }
+
+    private void clearAnimatorSelection() {
+        selectedAnimatorState = null;
+        selectedAnimatorTransition = null;
+        selectedAnimatorController = null;
+        animatorOnModified = null;
     }
 
     private void publishSelectionEvent(SelectionType previousType) {

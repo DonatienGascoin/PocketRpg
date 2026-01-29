@@ -38,9 +38,6 @@ public class AnimatorStateMachine {
     // Track if we need to update the animation due to direction change
     private Direction lastAppliedDirection;
 
-    // Cached name of the direction parameter (first one found, or null)
-    private String directionParameterName;
-
     // ========================================================================
     // CONSTRUCTORS
     // ========================================================================
@@ -49,12 +46,9 @@ public class AnimatorStateMachine {
         this.controller = controller;
         this.player = player;
 
-        // Initialize parameter values to defaults and find direction parameter
+        // Initialize parameter values to defaults
         for (AnimatorParameter param : controller.getParameters()) {
             parameterValues.put(param.getName(), param.getDefaultValue());
-            if (param.getType() == ParameterType.DIRECTION && directionParameterName == null) {
-                directionParameterName = param.getName();
-            }
         }
 
         // Enter default state
@@ -78,28 +72,37 @@ public class AnimatorStateMachine {
             return false;
         }
 
+        boolean animationChanged = false;
+
         // Check for pending transition completion
         if (pendingTransition != null) {
             if (canCompletePendingTransition()) {
+                String before = currentState;
                 executeTransition(pendingTransition);
                 pendingTransition = null;
+                animationChanged = !Objects.equals(before, currentState);
             }
         } else {
             // Evaluate automatic transitions
+            String before = currentState;
             evaluateTransitions();
+            animationChanged = !Objects.equals(before, currentState);
         }
 
         // Check for direction change in directional states
         AnimatorState state = controller.getState(currentState);
         if (state != null && state.getType() == StateType.DIRECTIONAL) {
-            Direction currentDir = getCurrentDirection();
+            Direction currentDir = getDirectionForState(state);
             if (lastAppliedDirection != currentDir) {
                 applyStateAnimation(state);
+                animationChanged = true;
             }
         }
 
         // Update animation playback
-        return player.update(deltaTime);
+        boolean frameChanged = player.update(deltaTime);
+
+        return animationChanged || frameChanged;
     }
 
     /**
@@ -250,12 +253,41 @@ public class AnimatorStateMachine {
      * Applies the animation for the current state and direction.
      */
     private void applyStateAnimation(AnimatorState state) {
-        Direction dir = getCurrentDirection();
+        Direction dir = getDirectionForState(state);
         Animation anim = state.loadAnimation(dir);
         if (anim != null) {
             player.setAnimation(anim);
         }
         lastAppliedDirection = dir;
+    }
+
+    /**
+     * Resolves the current direction for a given state.
+     * Uses the state's configured direction parameter, falling back to DOWN.
+     */
+    private Direction getDirectionForState(AnimatorState state) {
+        if (state == null) return Direction.DOWN;
+
+        // Use the state's explicit direction parameter if set
+        String paramName = state.getDirectionParameter();
+
+        // Fallback: find the first direction parameter in the controller
+        if (paramName == null) {
+            for (AnimatorParameter param : controller.getParameters()) {
+                if (param.getType() == ParameterType.DIRECTION) {
+                    paramName = param.getName();
+                    break;
+                }
+            }
+        }
+
+        if (paramName != null) {
+            Object value = parameterValues.get(paramName);
+            if (value instanceof Direction d) {
+                return d;
+            }
+        }
+        return Direction.DOWN;
     }
 
     // ========================================================================
@@ -281,39 +313,22 @@ public class AnimatorStateMachine {
     }
 
     /**
-     * Sets the direction parameter value.
-     * Requires a direction-type parameter to be defined in the controller.
+     * Sets a direction parameter value by name.
      */
-    public void setDirection(Direction direction) {
-        if (directionParameterName != null) {
-            parameterValues.put(directionParameterName, direction);
+    public void setDirection(String name, Direction direction) {
+        AnimatorParameter param = controller.getParameter(name);
+        if (param != null && param.getType() == ParameterType.DIRECTION) {
+            parameterValues.put(name, direction);
         }
     }
 
     /**
-     * Gets the current direction from the direction parameter.
-     * If the current state has an explicit direction parameter set, uses that.
-     * Otherwise, uses the first direction parameter found.
-     * Returns DOWN if no direction parameter is defined.
+     * Gets a direction parameter value by name.
+     * Returns DOWN if the parameter doesn't exist or isn't a direction.
      */
-    public Direction getCurrentDirection() {
-        // Check if current state has explicit direction parameter
-        AnimatorState state = currentState != null ? controller.getState(currentState) : null;
-        if (state != null && state.getDirectionParameter() != null) {
-            Object value = parameterValues.get(state.getDirectionParameter());
-            if (value instanceof Direction) {
-                return (Direction) value;
-            }
-        }
-
-        // Fallback to first direction parameter
-        if (directionParameterName != null) {
-            Object value = parameterValues.get(directionParameterName);
-            if (value instanceof Direction) {
-                return (Direction) value;
-            }
-        }
-        return Direction.DOWN;
+    public Direction getDirection(String name) {
+        Object value = parameterValues.get(name);
+        return value instanceof Direction d ? d : Direction.DOWN;
     }
 
     /**

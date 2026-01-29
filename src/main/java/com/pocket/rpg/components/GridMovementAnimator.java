@@ -1,6 +1,8 @@
 package com.pocket.rpg.components;
 
 import com.pocket.rpg.collision.Direction;
+import lombok.Getter;
+import lombok.Setter;
 
 /**
  * Middleware component that bridges GridMovement to AnimatorComponent.
@@ -31,26 +33,24 @@ public class GridMovementAnimator extends Component {
     // CONFIGURATION
     // ========================================================================
 
-    /**
-     * Parameter name for moving state (default: "isMoving").
-     */
+    @Getter
+    @Setter
     private String movingParam = "isMoving";
 
-    /**
-     * Parameter name for sliding state (default: "isSliding").
-     * Set to null or empty to disable.
-     */
+    @Getter
+    @Setter
     private String slidingParam = "isSliding";
 
-    /**
-     * Trigger name for jump start (default: null = disabled).
-     * Set to a trigger name to fire when jumping starts.
-     */
+    @Getter
+    @Setter
     private String jumpTrigger = null;
 
-    /**
-     * Whether to sync direction from GridMovement to animator.
-     */
+    @Getter
+    @Setter
+    private String directionParam = "direction";
+
+    @Getter
+    @Setter
     private boolean syncDirection = true;
 
     // ========================================================================
@@ -124,77 +124,14 @@ public class GridMovementAnimator extends Component {
         }
 
         // Sync direction
-        if (syncDirection) {
+        if (syncDirection && directionParam != null && !directionParam.isEmpty()) {
             Direction direction = gridMovement.getFacingDirection();
             if (direction != lastDirection) {
-                animator.setDirection(direction);
+                animator.setDirection(directionParam, direction);
                 lastDirection = direction;
             }
         }
     }
-
-    // ========================================================================
-    // CONFIGURATION API
-    // ========================================================================
-
-    /**
-     * Sets the parameter name for moving state.
-     */
-    public void setMovingParam(String name) {
-        this.movingParam = name;
-    }
-
-    /**
-     * Gets the parameter name for moving state.
-     */
-    public String getMovingParam() {
-        return movingParam;
-    }
-
-    /**
-     * Sets the parameter name for sliding state.
-     * Set to null or empty to disable.
-     */
-    public void setSlidingParam(String name) {
-        this.slidingParam = name;
-    }
-
-    /**
-     * Gets the parameter name for sliding state.
-     */
-    public String getSlidingParam() {
-        return slidingParam;
-    }
-
-    /**
-     * Sets the trigger name for jump start.
-     * Set to null or empty to disable.
-     */
-    public void setJumpTrigger(String name) {
-        this.jumpTrigger = name;
-    }
-
-    /**
-     * Gets the trigger name for jump start.
-     */
-    public String getJumpTrigger() {
-        return jumpTrigger;
-    }
-
-    /**
-     * Sets whether to sync direction from GridMovement to animator.
-     */
-    public void setSyncDirection(boolean sync) {
-        this.syncDirection = sync;
-    }
-
-    /**
-     * Gets whether direction syncing is enabled.
-     */
-    public boolean isSyncDirection() {
-        return syncDirection;
-    }
-
     // ========================================================================
     // MANUAL CONTROL
     // ========================================================================
@@ -213,8 +150,8 @@ public class GridMovementAnimator extends Component {
             animator.setBool(slidingParam, gridMovement.isSliding());
         }
 
-        if (syncDirection) {
-            animator.setDirection(gridMovement.getFacingDirection());
+        if (syncDirection && directionParam != null && !directionParam.isEmpty()) {
+            animator.setDirection(directionParam, gridMovement.getFacingDirection());
             lastDirection = gridMovement.getFacingDirection();
         }
 

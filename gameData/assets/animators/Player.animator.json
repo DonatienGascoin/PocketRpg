@@ -1,34 +1,62 @@
 {
-  "name": "Player",
+  "name": "new_controller",
   "defaultState": "idle",
-  "parameters": [],
+  "parameters": [
+    {
+      "name": "direction",
+      "type": "direction",
+      "default": "DOWN"
+    },
+    {
+      "name": "isMoving",
+      "type": "bool",
+      "default": false
+    }
+  ],
   "states": [
     {
       "name": "idle",
-      "type": "simple",
-      "animation": ""
+      "type": "directional",
+      "animations": {
+        "UP": "animations/player_idle_up.anim.json",
+        "DOWN": "animations/player_idle_down.anim.json",
+        "LEFT": "animations/player_idle_left.anim.json",
+        "RIGHT": "animations/player_idle_right.anim.json"
+      }
     },
     {
       "name": "move",
-      "type": "simple",
-      "animation": ""
+      "type": "directional",
+      "animations": {
+        "UP": "animations/player_move_up.anim.json",
+        "DOWN": "animations/player_move_down.anim.json",
+        "LEFT": "animations/player_move_left.anim.json",
+        "RIGHT": "animations/player_move_right.anim.json"
+      }
     }
   ],
   "transitions": [
     {
       "from": "idle",
-      "to": "idle",
-      "type": "INSTANT"
-    },
-    {
-      "from": "idle",
       "to": "move",
-      "type": "INSTANT"
+      "type": "INSTANT",
+      "conditions": [
+        {
+          "parameter": "isMoving",
+          "value": true
+        }
+      ]
     },
     {
       "from": "move",
       "to": "idle",
-      "type": "INSTANT"
+      "type": "INSTANT",
+      "conditions": [
+        {
+          "parameter": "isMoving",
+          "value": false
+        }
+      ]
     }
   ]
 }

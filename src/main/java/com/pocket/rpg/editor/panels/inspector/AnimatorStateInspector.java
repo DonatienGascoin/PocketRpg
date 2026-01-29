@@ -176,10 +176,12 @@ public class AnimatorStateInspector {
             }
         }
 
-        // Auto-select first if not set
+        // Auto-select first for display if not explicitly set.
+        // The runtime state machine handles null by falling back to the first
+        // direction parameter, so this is only a display convenience — don't
+        // mark the controller as modified.
         if (currentParam == null && !dirParams.isEmpty()) {
-            state.setDirectionParameter(dirParams.get(0));
-            notifyModified();
+            selectedIdx = 0;
         }
 
         String[] paramNames = dirParams.toArray(new String[0]);

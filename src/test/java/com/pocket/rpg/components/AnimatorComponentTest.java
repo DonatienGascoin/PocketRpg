@@ -32,6 +32,7 @@ class AnimatorComponentTest {
 
         controller.addParameter(new AnimatorParameter("isMoving", false));
         controller.addParameter(AnimatorParameter.trigger("attackTrigger"));
+        controller.addParameter(new AnimatorParameter("direction", Direction.DOWN));
 
         AnimatorTransition idleToWalk = new AnimatorTransition("idle", "walk", TransitionType.INSTANT);
         idleToWalk.addCondition(new TransitionCondition("isMoving", true));
@@ -71,11 +72,11 @@ class AnimatorComponentTest {
     void testSetDirection() {
         simulateStart();
 
-        assertEquals(Direction.DOWN, component.getDirection());
+        assertEquals(Direction.DOWN, component.getDirection("direction"));
 
-        component.setDirection(Direction.UP);
+        component.setDirection("direction", Direction.UP);
 
-        assertEquals(Direction.UP, component.getDirection());
+        assertEquals(Direction.UP, component.getDirection("direction"));
     }
 
     @Test
@@ -278,7 +279,7 @@ class AnimatorComponentTest {
 
         // These should not throw
         emptyComponent.setBool("test", true);
-        emptyComponent.setDirection(Direction.UP);
+        emptyComponent.setDirection("direction", Direction.UP);
         emptyComponent.setTrigger("test");
         emptyComponent.resetTrigger("test");
         emptyComponent.forceState("state");
@@ -287,7 +288,7 @@ class AnimatorComponentTest {
 
         // These should return safe defaults
         assertFalse(emptyComponent.getBool("test"));
-        assertEquals(Direction.DOWN, emptyComponent.getDirection());
+        assertEquals(Direction.DOWN, emptyComponent.getDirection("direction"));
         assertNull(emptyComponent.getParameterValue("test"));
         assertNull(emptyComponent.getCurrentState());
         assertNull(emptyComponent.getPreviousState());

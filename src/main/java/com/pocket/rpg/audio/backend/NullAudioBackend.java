@@ -66,6 +66,11 @@ public class NullAudioBackend implements AudioBackend {
     }
 
     @Override
+    public boolean isSourcePaused(int sourceId) {
+        return false;
+    }
+
+    @Override
     public void setSourceVolume(int sourceId, float volume) {
         // No-op
     }

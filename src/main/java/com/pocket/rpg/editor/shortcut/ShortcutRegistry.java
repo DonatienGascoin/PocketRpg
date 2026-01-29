@@ -25,6 +25,9 @@ public class ShortcutRegistry {
     // Lookup: binding -> list of actions (for conflict detection and processing)
     private final Map<ShortcutBinding, List<ShortcutAction>> bindingToActions = new HashMap<>();
 
+    // Sorted bindings for processing (more modifiers first, so Ctrl+S is checked before S)
+    private List<Map.Entry<ShortcutBinding, List<ShortcutAction>>> sortedBindings = List.of();
+
     // Config persistence
     private ShortcutConfig config;
     private String configPath;
@@ -32,6 +35,10 @@ public class ShortcutRegistry {
 
     // Prevent duplicate firing in same frame
     private long lastProcessedFrame = -1;
+
+    // Keys consumed by a modifier shortcut, suppressed until fully released.
+    // Prevents e.g. Ctrl+S from also triggering S when Ctrl is released first.
+    private final Set<Integer> consumedKeys = new HashSet<>();
 
     // Play mode state (updated via event bus)
     private boolean playModeActive = false;
@@ -212,6 +219,14 @@ public class ShortcutRegistry {
                 bindingToActions.computeIfAbsent(binding, k -> new ArrayList<>()).add(action);
             }
         }
+
+        // Sort bindings by modifier count descending so more specific shortcuts
+        // (e.g. Ctrl+S) are checked before less specific ones (e.g. S)
+        sortedBindings = new ArrayList<>(bindingToActions.entrySet());
+        sortedBindings.sort((a, b) -> Integer.compare(
+                b.getKey().getModifierCount(),
+                a.getKey().getModifierCount()
+        ));
     }
 
     // ========================================================================
@@ -242,8 +257,16 @@ public class ShortcutRegistry {
             return false;
         }
 
-        for (Map.Entry<ShortcutBinding, List<ShortcutAction>> entry : bindingToActions.entrySet()) {
+        // Release consumed keys that are no longer held
+        consumedKeys.removeIf(key -> !ImGui.isKeyDown(key));
+
+        for (Map.Entry<ShortcutBinding, List<ShortcutAction>> entry : sortedBindings) {
             ShortcutBinding binding = entry.getKey();
+
+            // Skip keys consumed by a previous modifier shortcut
+            if (consumedKeys.contains(binding.getKey())) {
+                continue;
+            }
 
             if (binding.isPressed()) {
                 ShortcutAction matched = findBestMatch(entry.getValue(), context);
@@ -251,6 +274,13 @@ public class ShortcutRegistry {
                 if (matched != null) {
                     matched.execute();
                     lastProcessedFrame = currentFrame;
+
+                    // If this shortcut uses modifiers, consume the base key
+                    // so releasing the modifier won't trigger the plain key shortcut
+                    if (binding.getModifierCount() > 0) {
+                        consumedKeys.add(binding.getKey());
+                    }
+
                     return true;
                 }
             }
@@ -467,6 +497,28 @@ public class ShortcutRegistry {
     public String getBindingDisplay(String actionId) {
         ShortcutBinding binding = getBinding(actionId);
         return binding != null ? binding.getDisplayString() : "";
+    }
+
+    /**
+     * Checks if a shortcut action's binding is currently held down.
+     * Uses exact modifier matching, so holding Ctrl+S won't report the plain S action as held.
+     *
+     * @param actionId The action ID to check
+     * @param context  The current shortcut context (for scope/applicability checks)
+     * @return true if the action's binding is held and the action is applicable
+     */
+    public boolean isActionHeld(String actionId, ShortcutContext context) {
+        ShortcutAction action = actions.get(actionId);
+        if (action == null) {
+            return false;
+        }
+
+        if (!action.isApplicable(context)) {
+            return false;
+        }
+
+        ShortcutBinding binding = getBinding(actionId);
+        return binding != null && binding.isHeld();
     }
 
     /**

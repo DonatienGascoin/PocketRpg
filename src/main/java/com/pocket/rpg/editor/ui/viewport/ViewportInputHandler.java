@@ -2,6 +2,9 @@ package com.pocket.rpg.editor.ui.viewport;
 
 import com.pocket.rpg.editor.camera.EditorCamera;
 import com.pocket.rpg.editor.core.EditorConfig;
+import com.pocket.rpg.editor.shortcut.EditorShortcuts;
+import com.pocket.rpg.editor.shortcut.ShortcutContext;
+import com.pocket.rpg.editor.shortcut.ShortcutRegistry;
 import com.pocket.rpg.editor.tools.*;
 import imgui.ImGui;
 import imgui.ImVec2;
@@ -47,11 +50,17 @@ public class ViewportInputHandler {
             float dt = ImGui.getIO().getDeltaTime();
             float moveX = 0, moveY = 0;
 
-            // WASD
-            if (ImGui.isKeyDown(ImGuiKey.W)) moveY = 1;
-            if (ImGui.isKeyDown(ImGuiKey.S)) moveY = -1;
-            if (ImGui.isKeyDown(ImGuiKey.A)) moveX = -1;
-            if (ImGui.isKeyDown(ImGuiKey.D)) moveX = 1;
+            // WASD via shortcut registry (respects modifier state, so Ctrl+S won't pan)
+            ShortcutRegistry registry = ShortcutRegistry.getInstance();
+            ShortcutContext context = ShortcutContext.builder()
+                    .popupOpen(ImGui.isPopupOpen("", imgui.flag.ImGuiPopupFlags.AnyPopup))
+                    .textInputActive(ImGui.getIO().getWantTextInput())
+                    .panelFocused(EditorShortcuts.PanelIds.SCENE_VIEW)
+                    .build();
+            if (registry.isActionHeld(EditorShortcuts.CAMERA_PAN_UP, context)) moveY = 1;
+            if (registry.isActionHeld(EditorShortcuts.CAMERA_PAN_DOWN, context)) moveY = -1;
+            if (registry.isActionHeld(EditorShortcuts.CAMERA_PAN_LEFT, context)) moveX = -1;
+            if (registry.isActionHeld(EditorShortcuts.CAMERA_PAN_RIGHT, context)) moveX = 1;
 
             // Arrow keys (if ImGui nav isn't using them)
             if (!ImGui.getIO().getWantCaptureKeyboard()) {

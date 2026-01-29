@@ -122,6 +122,7 @@ public class DefaultAudioContext implements AudioContext {
     public void pauseAll() {
         if (initialized) {
             engine.pauseAll();
+            musicPlayer.pause();
         }
     }
 
@@ -129,6 +130,7 @@ public class DefaultAudioContext implements AudioContext {
     public void resumeAll() {
         if (initialized) {
             engine.resumeAll();
+            musicPlayer.resume();
         }
     }
 

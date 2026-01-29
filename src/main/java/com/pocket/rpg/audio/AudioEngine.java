@@ -86,6 +86,14 @@ public class AudioEngine {
     }
 
     /**
+     * Remove a handle from active source tracking.
+     * Use this when a handle is managed externally (e.g. by MusicPlayer).
+     */
+    public void removeFromTracking(AudioHandle handle) {
+        activeSources.removeIf(source -> source.handle == handle);
+    }
+
+    /**
      * Stop all sounds on a channel.
      */
     public void stopChannel(AudioChannel channel) {
@@ -191,8 +199,11 @@ public class AudioEngine {
         Iterator<ActiveSource> it = activeSources.iterator();
         while (it.hasNext()) {
             ActiveSource source = it.next();
-            if (!source.handle.isValid() || !source.handle.isPlaying()) {
-                // Delete the OpenAL source
+            if (!source.handle.isValid()) {
+                backend.deleteSource(source.handle.getSourceId());
+                source.handle.invalidate();
+                it.remove();
+            } else if (!source.handle.isPlaying() && !backend.isSourcePaused(source.handle.getSourceId())) {
                 backend.deleteSource(source.handle.getSourceId());
                 source.handle.invalidate();
                 it.remove();

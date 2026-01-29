@@ -219,6 +219,7 @@ public class PlayModeController {
     public void pause() {
         if (state != PlayState.PLAYING) return;
         state = PlayState.PAUSED;
+        Audio.pauseAll();
         EditorEventBus.get().publish(new PlayModePausedEvent());
         showMessage("Paused");
     }
@@ -226,6 +227,7 @@ public class PlayModeController {
     public void resume() {
         if (state != PlayState.PAUSED) return;
         state = PlayState.PLAYING;
+        Audio.resumeAll();
         EditorEventBus.get().publish(new PlayModeStartedEvent());
         showMessage("Resumed");
     }

@@ -83,6 +83,12 @@ public final class EditorShortcuts {
     public static final String ENTITY_DELETE = "editor.entity.delete";
     public static final String ENTITY_CANCEL = "editor.entity.cancel";
 
+    // Camera pan actions (held keys)
+    public static final String CAMERA_PAN_UP = "editor.camera.panUp";
+    public static final String CAMERA_PAN_DOWN = "editor.camera.panDown";
+    public static final String CAMERA_PAN_LEFT = "editor.camera.panLeft";
+    public static final String CAMERA_PAN_RIGHT = "editor.camera.panRight";
+
     // Play mode
     public static final String PLAY_TOGGLE = "editor.play.toggle";
     public static final String PLAY_STOP = "editor.play.stop";
@@ -141,6 +147,7 @@ public final class EditorShortcuts {
         registerTransformToolShortcuts(registry);
         registerBrushShortcuts(registry);
         registerZLevelShortcuts(registry);
+        registerCameraPanShortcuts(registry);
         registerPlayShortcuts(registry);
         registerConfigurationShortcuts(registry);
         registerAnimatorShortcuts(registry, layout);
@@ -532,6 +539,42 @@ public final class EditorShortcuts {
         );
     }
 
+    private static void registerCameraPanShortcuts(ShortcutRegistry registry) {
+        registry.registerAll(
+                ShortcutAction.builder()
+                        .id(CAMERA_PAN_UP)
+                        .displayName("Camera Pan Up")
+                        .defaultBinding(ShortcutBinding.key(ImGuiKey.W))
+                        .panelFocused(PanelIds.SCENE_VIEW)
+                        .handler(() -> {})
+                        .build(),
+
+                ShortcutAction.builder()
+                        .id(CAMERA_PAN_DOWN)
+                        .displayName("Camera Pan Down")
+                        .defaultBinding(ShortcutBinding.key(ImGuiKey.S))
+                        .panelFocused(PanelIds.SCENE_VIEW)
+                        .handler(() -> {})
+                        .build(),
+
+                ShortcutAction.builder()
+                        .id(CAMERA_PAN_LEFT)
+                        .displayName("Camera Pan Left")
+                        .defaultBinding(ShortcutBinding.key(ImGuiKey.A))
+                        .panelFocused(PanelIds.SCENE_VIEW)
+                        .handler(() -> {})
+                        .build(),
+
+                ShortcutAction.builder()
+                        .id(CAMERA_PAN_RIGHT)
+                        .displayName("Camera Pan Right")
+                        .defaultBinding(ShortcutBinding.key(ImGuiKey.D))
+                        .panelFocused(PanelIds.SCENE_VIEW)
+                        .handler(() -> {})
+                        .build()
+        );
+    }
+
     private static void registerPlayShortcuts(ShortcutRegistry registry) {
         registry.registerAll(
                 ShortcutAction.builder()
@@ -701,6 +744,12 @@ public final class EditorShortcuts {
         // Z-level shortcuts
         bindings.put(Z_LEVEL_INCREASE, ShortcutBinding.key(ImGuiKey.RightBracket));
         bindings.put(Z_LEVEL_DECREASE, ShortcutBinding.key(ImGuiKey.LeftBracket));
+
+        // Camera pan shortcuts
+        bindings.put(CAMERA_PAN_UP, ShortcutBinding.key(ImGuiKey.W));
+        bindings.put(CAMERA_PAN_DOWN, ShortcutBinding.key(ImGuiKey.S));
+        bindings.put(CAMERA_PAN_LEFT, ShortcutBinding.key(ImGuiKey.A));
+        bindings.put(CAMERA_PAN_RIGHT, ShortcutBinding.key(ImGuiKey.D));
 
         // Play shortcuts
         bindings.put(PLAY_TOGGLE, ShortcutBinding.ctrl(ImGuiKey.P));

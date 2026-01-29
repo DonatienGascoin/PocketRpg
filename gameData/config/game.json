@@ -31,5 +31,6 @@
     "type": "WIPE_CIRCLE_IN",
     "wipeDirection": "LEFT"
   },
-  "uiButtonHoverTint": 0.1
+  "uiButtonHoverTint": 0.1,
+  "uiButtonPressedTint": 0.2
 }

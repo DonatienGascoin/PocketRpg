@@ -88,6 +88,14 @@ public interface AudioBackend {
     boolean isSourcePlaying(int sourceId);
 
     /**
+     * Check if a source is currently paused.
+     *
+     * @param sourceId Source ID to check
+     * @return true if paused
+     */
+    boolean isSourcePaused(int sourceId);
+
+    /**
      * Set source volume (gain).
      *
      * @param sourceId Source ID

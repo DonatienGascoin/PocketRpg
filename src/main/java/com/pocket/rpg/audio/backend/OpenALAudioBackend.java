@@ -146,6 +146,11 @@ public class OpenALAudioBackend implements AudioBackend {
     }
 
     @Override
+    public boolean isSourcePaused(int sourceId) {
+        return alGetSourcei(sourceId, AL_SOURCE_STATE) == AL_PAUSED;
+    }
+
+    @Override
     public void setSourceVolume(int sourceId, float volume) {
         alSourcef(sourceId, AL_GAIN, volume);
     }

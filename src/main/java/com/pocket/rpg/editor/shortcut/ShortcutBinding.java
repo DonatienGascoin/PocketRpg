@@ -86,6 +86,35 @@ public class ShortcutBinding {
     }
 
     /**
+     * Checks if this binding is currently held down.
+     * Like {@link #isPressed()} but checks continuous key state, not just initial press.
+     * Verifies exact modifier state (no extra modifiers pressed).
+     */
+    public boolean isHeld() {
+        if (!ImGui.isKeyDown(key)) {
+            return false;
+        }
+
+        boolean ctrlDown = ImGui.isKeyDown(ImGuiKey.LeftCtrl) || ImGui.isKeyDown(ImGuiKey.RightCtrl);
+        boolean shiftDown = ImGui.isKeyDown(ImGuiKey.LeftShift) || ImGui.isKeyDown(ImGuiKey.RightShift);
+        boolean altDown = ImGui.isKeyDown(ImGuiKey.LeftAlt) || ImGui.isKeyDown(ImGuiKey.RightAlt);
+
+        return ctrlDown == ctrl && shiftDown == shift && altDown == alt;
+    }
+
+    /**
+     * Returns the number of modifiers in this binding.
+     * Used to prioritize more specific shortcuts over less specific ones.
+     */
+    public int getModifierCount() {
+        int count = 0;
+        if (ctrl) count++;
+        if (shift) count++;
+        if (alt) count++;
+        return count;
+    }
+
+    /**
      * Checks if modifiers match (for detecting conflicts).
      */
     public boolean modifiersMatch(ShortcutBinding other) {

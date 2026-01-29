@@ -34,6 +34,10 @@ public class MusicTrack {
                 .channel(AudioChannel.MUSIC)
                 .loop(true)
                 .volume(volume));
+        // Remove from engine tracking - MusicPlayer manages this handle
+        if (handle != null) {
+            engine.removeFromTracking(handle);
+        }
     }
 
     /**

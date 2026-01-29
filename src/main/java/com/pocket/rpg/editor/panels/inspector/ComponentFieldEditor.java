@@ -7,6 +7,8 @@ import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.ui.fields.FieldEditorContext;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
 import com.pocket.rpg.editor.ui.fields.ReflectionFieldEditor;
+import com.pocket.rpg.editor.undo.UndoManager;
+import com.pocket.rpg.editor.undo.commands.ResetFieldOverrideCommand;
 import com.pocket.rpg.serialization.ComponentMeta;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import com.pocket.rpg.serialization.FieldMeta;
@@ -63,9 +65,8 @@ public class ComponentFieldEditor {
             if (isOverridden) {
                 ImGui.sameLine();
                 if (ImGui.smallButton(MaterialIcons.Undo + "##reset")) {
-                    entity.resetFieldToDefault(componentType, fieldName);
-                    Object defaultValue = entity.getFieldDefault(componentType, fieldName);
-                    ComponentReflectionUtils.setFieldValue(component, fieldName, defaultValue);
+                    UndoManager.getInstance().execute(
+                            new ResetFieldOverrideCommand(entity, component, componentType, fieldName));
                     if (scene != null) scene.markDirty();
                     changed = true;
                 }

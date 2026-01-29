@@ -52,6 +52,7 @@ public class EditorGameObject implements Renderable {
      * Structure: componentType -> (fieldName -> value)
      * Transform overrides (position/rotation/scale) go here too.
      */
+    @Getter
     private Map<String, Map<String, Object>> componentOverrides;
 
     @Getter
@@ -782,10 +783,9 @@ public class EditorGameObject implements Renderable {
         if (overrides != null) {
             overrides.remove(fieldName);
             if (overrides.isEmpty()) {
-                if (componentOverrides.remove(componentType) != null) {
-                    invalidateComponentCache();
-                }
+                componentOverrides.remove(componentType);
             }
+            invalidateComponentCache();
         }
     }
 
@@ -807,6 +807,7 @@ public class EditorGameObject implements Renderable {
 
     public void resetAllOverrides() {
         componentOverrides.clear();
+        invalidateComponentCache();
     }
 
     public int getOverrideCount() {

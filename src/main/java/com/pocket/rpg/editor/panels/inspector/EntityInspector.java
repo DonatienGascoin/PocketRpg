@@ -159,7 +159,7 @@ public class EntityInspector {
                 ImGui.textDisabled(overrideCount + " override(s)");
                 ImGui.sameLine();
                 if (ImGui.smallButton("Reset All")) {
-                    entity.resetAllOverrides();
+                    UndoManager.getInstance().execute(new ResetAllOverridesCommand(entity));
                     scene.markDirty();
                 }
             }

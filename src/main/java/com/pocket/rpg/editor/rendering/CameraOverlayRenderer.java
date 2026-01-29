@@ -84,8 +84,8 @@ public class CameraOverlayRenderer {
         float x2 = viewportX + bottomRight.x;
         float y2 = viewportY + bottomRight.y;
 
-        // Dashed cyan rectangle
-        int boundsColor = ImGui.colorConvertFloat4ToU32(0.0f, 0.8f, 0.8f, 0.8f);
+        // Dashed bright red rectangle
+        int boundsColor = ImGui.colorConvertFloat4ToU32(1.0f, 0.15f, 0.15f, 1.0f);
 
         // Draw dashed lines
         float dashLength = 10f;
@@ -127,9 +127,9 @@ public class CameraOverlayRenderer {
         float x2 = viewportX + bottomRight.x;
         float y2 = viewportY + bottomRight.y;
 
-        // Orange rectangle
-        int previewColor = ImGui.colorConvertFloat4ToU32(1.0f, 0.6f, 0.2f, 0.7f);
-        drawList.addRect(x1, y1, x2, y2, previewColor, 0, 0, 2.0f);
+        // Bright red rectangle (matches bounds and crosshair color)
+        int previewColor = ImGui.colorConvertFloat4ToU32(1.0f, 0.15f, 0.15f, 1.0f);
+        drawList.addRect(x1, y1, x2, y2, previewColor, 0, 0, 3.0f);
 
         // Label at bottom
         drawList.addText(x1 + 4, y2 - 18, previewColor, "Game View");
@@ -161,7 +161,7 @@ public class CameraOverlayRenderer {
                 float sy = y1 + ny * pos;
                 float ex = x1 + nx * endPos;
                 float ey = y1 + ny * endPos;
-                drawList.addLine(sx, sy, ex, ey, color, 2.0f);
+                drawList.addLine(sx, sy, ex, ey, color, 3.0f);
             }
 
             pos = endPos;

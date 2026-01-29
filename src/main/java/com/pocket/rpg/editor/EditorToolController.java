@@ -6,11 +6,14 @@ import com.pocket.rpg.editor.events.StatusMessageEvent;
 import com.pocket.rpg.editor.events.TilesPickedEvent;
 import com.pocket.rpg.editor.panels.CollisionPanel;
 import com.pocket.rpg.editor.scene.EditorScene;
+import com.pocket.rpg.editor.events.SelectionChangedEvent;
+import com.pocket.rpg.editor.tools.CameraTool;
 import com.pocket.rpg.editor.tools.CollisionBrushTool;
 import com.pocket.rpg.editor.tools.CollisionEraserTool;
 import com.pocket.rpg.editor.tools.CollisionFillTool;
 import com.pocket.rpg.editor.tools.CollisionRectangleTool;
 import com.pocket.rpg.editor.tools.CollisionPickerTool;
+import com.pocket.rpg.editor.tools.EditorTool;
 import com.pocket.rpg.editor.tools.MoveTool;
 import com.pocket.rpg.editor.tools.RotateTool;
 import com.pocket.rpg.editor.tools.ScaleTool;
@@ -58,6 +61,12 @@ public class EditorToolController {
     @Getter private MoveTool moveTool;
     @Getter private RotateTool rotateTool;
     @Getter private ScaleTool scaleTool;
+
+    // Camera tool
+    @Getter private CameraTool cameraTool;
+
+    // Tool to restore when camera is deselected
+    private EditorTool previousTool;
 
     // Reference to collision panel for type display
     @Setter private CollisionPanel collisionPanel;
@@ -131,6 +140,13 @@ public class EditorToolController {
         scaleTool.setSelectionManager(context.getSelectionManager());
         toolManager.registerTool(scaleTool);
 
+        // Camera tool
+        cameraTool = new CameraTool();
+        cameraTool.setScene(scene);
+        cameraTool.setCamera(context.getCamera());
+        cameraTool.setSelectionManager(context.getSelectionManager());
+        toolManager.registerTool(cameraTool);
+
         // Setup callbacks
         setupCallbacks();
     }
@@ -160,6 +176,9 @@ public class EditorToolController {
         moveTool.setScene(scene);
         rotateTool.setScene(scene);
         scaleTool.setScene(scene);
+
+        // Camera tool
+        cameraTool.setScene(scene);
 
         // Sync z-levels
         syncCollisionZLevels();
@@ -205,6 +224,21 @@ public class EditorToolController {
         // Switch to transform tool when entity is selected via SelectionTool
         selectionTool.setOnSwitchToTransformTool(toolName -> {
             toolManager.setActiveTool(toolName);
+        });
+
+        // Auto-activate camera tool when camera is selected
+        EditorEventBus.get().subscribe(SelectionChangedEvent.class, event -> {
+            if (event.selectionType() == EditorSelectionManager.SelectionType.CAMERA) {
+                previousTool = toolManager.getActiveTool();
+                toolManager.setActiveTool(cameraTool);
+            } else if (event.previousType() == EditorSelectionManager.SelectionType.CAMERA) {
+                if (previousTool != null && previousTool != cameraTool) {
+                    toolManager.setActiveTool(previousTool);
+                } else {
+                    toolManager.setActiveTool(selectionTool);
+                }
+                previousTool = null;
+            }
         });
     }
 

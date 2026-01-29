@@ -140,7 +140,7 @@ public class SpriteBatch {
      * <p>
      * This ensures a single code path for vertex generation regardless of input type.
      */
-    private record RenderableQuad(
+    record RenderableQuad(
             int textureId,
             float x, float y,                          // World position
             float width, float height,                 // Size in world units
@@ -155,6 +155,15 @@ public class SpriteBatch {
     // ========================================================================
     // CONSTRUCTOR & INITIALIZATION
     // ========================================================================
+
+    /**
+     * Package-private constructor for testing sort logic without OpenGL context.
+     */
+    SpriteBatch(SortingStrategy sortingStrategy) {
+        this.maxBatchSize = 0;
+        this.vertexBuffer = null;
+        this.sortingStrategy = sortingStrategy;
+    }
 
     public SpriteBatch(RenderingConfig config) {
         this.maxBatchSize = config.getMaxBatchSize();
@@ -470,10 +479,10 @@ public class SpriteBatch {
     /**
      * Sorts quads according to the current sorting strategy.
      */
-    private void sortQuads(List<RenderableQuad> quads) {
+    void sortQuads(List<RenderableQuad> quads) {
         switch (sortingStrategy) {
             case TEXTURE_PRIORITY:
-                // Z-index → Texture → Y-position
+                // Z-index → Texture → Y-position (descending: higher Y = behind)
                 quads.sort((a, b) -> {
                     int zCompare = Float.compare(a.zIndex(), b.zIndex());
                     if (zCompare != 0) return zCompare;
@@ -481,17 +490,17 @@ public class SpriteBatch {
                     int texCompare = Integer.compare(a.textureId(), b.textureId());
                     if (texCompare != 0) return texCompare;
 
-                    return Float.compare(a.yPosition(), b.yPosition());
+                    return Float.compare(b.yPosition(), a.yPosition());
                 });
                 break;
 
             case DEPTH_PRIORITY:
-                // Z-index → Y-position → Texture
+                // Z-index → Y-position (descending) → Texture
                 quads.sort((a, b) -> {
                     int zCompare = Float.compare(a.zIndex(), b.zIndex());
                     if (zCompare != 0) return zCompare;
 
-                    int yCompare = Float.compare(a.yPosition(), b.yPosition());
+                    int yCompare = Float.compare(b.yPosition(), a.yPosition());
                     if (yCompare != 0) return yCompare;
 
                     return Integer.compare(a.textureId(), b.textureId());
@@ -499,7 +508,7 @@ public class SpriteBatch {
                 break;
 
             case BALANCED:
-                // Z-index → Texture (group nearby Y) → Y-position
+                // Z-index → Texture (group nearby Y) → Y-position (descending)
                 quads.sort((a, b) -> {
                     int zCompare = Float.compare(a.zIndex(), b.zIndex());
                     if (zCompare != 0) return zCompare;
@@ -507,12 +516,12 @@ public class SpriteBatch {
                     // Group sprites within 4 world units Y-distance by texture
                     float yDiff = Math.abs(a.yPosition() - b.yPosition());
                     if (yDiff > 4f) {
-                        return Float.compare(a.yPosition(), b.yPosition());
+                        return Float.compare(b.yPosition(), a.yPosition());
                     }
 
                     int texCompare = Integer.compare(a.textureId(), b.textureId());
                     if (texCompare != 0) return texCompare;
-                    return Float.compare(a.yPosition(), b.yPosition());
+                    return Float.compare(b.yPosition(), a.yPosition());
                 });
                 break;
         }

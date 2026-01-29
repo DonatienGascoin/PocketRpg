@@ -604,6 +604,18 @@ public class EditorScene {
             for (int i = 0; i < oldSiblings.size(); i++) {
                 oldSiblings.get(i).setOrder(i);
             }
+        } else {
+            // Reindex old root siblings (entity was at root level)
+            List<EditorGameObject> oldRoots = new ArrayList<>();
+            for (EditorGameObject e : entities) {
+                if (e != entity && (e.getParentId() == null || e.getParentId().isEmpty())) {
+                    oldRoots.add(e);
+                }
+            }
+            oldRoots.sort(Comparator.comparingInt(EditorGameObject::getOrder));
+            for (int i = 0; i < oldRoots.size(); i++) {
+                oldRoots.get(i).setOrder(i);
+            }
         }
         
         // Clear transient parent first

@@ -29,8 +29,12 @@ public class RemoveComponentCommand implements EditorCommand {
 
     @Override
     public void undo() {
-        // Re-add at original position if possible
-        entity.addComponent(component);
+        // Re-add at original position
+        if (originalIndex >= 0 && originalIndex <= entity.getComponents().size()) {
+            entity.getComponents().add(originalIndex, component);
+        } else {
+            entity.addComponent(component);
+        }
     }
 
     @Override

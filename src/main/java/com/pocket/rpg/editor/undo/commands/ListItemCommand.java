@@ -23,7 +23,7 @@ public class ListItemCommand implements EditorCommand {
     private final Operation operation;
     private final int index;
     private final Object oldValue;
-    private final Object newValue;
+    private Object newValue;
     private final EditorGameObject entity;
 
     public ListItemCommand(Component component, String fieldName,
@@ -89,8 +89,8 @@ public class ListItemCommand implements EditorCommand {
 
     @Override
     public void mergeWith(EditorCommand other) {
-        // For merging, we keep our oldValue and take the other's newValue
-        // But since newValue is final, we need to create a new command
-        // Actually, let's just not merge for now to keep it simple
+        if (other instanceof ListItemCommand cmd) {
+            this.newValue = cmd.newValue;
+        }
     }
 }

@@ -10,7 +10,7 @@ import org.joml.Vector4f;
  * Camera configuration for a scene.
  * <p>
  * Defines the initial camera state when the scene loads at runtime,
- * including position, zoom level, follow behavior, and bounds.
+ * including position, zoom level, and bounds.
  */
 public class SceneCameraSettings {
 
@@ -21,20 +21,6 @@ public class SceneCameraSettings {
     private final Vector2f position = new Vector2f(0, 0);
 
     // Note: Orthographic size is now controlled globally via RenderingConfig
-
-    /**
-     * Whether the camera should follow a target entity.
-     */
-    @Getter
-    @Setter
-    private boolean followPlayer = true;
-
-    /**
-     * Name of the entity to follow (if followPlayer is true).
-     */
-    @Getter
-    @Setter
-    private String followTargetName = "Player";
 
     /**
      * Whether camera movement should be clamped to bounds.
@@ -71,8 +57,6 @@ public class SceneCameraSettings {
         SceneData.CameraData data = new SceneData.CameraData(
                 position.x, position.y, 0, 0
         );
-        data.setFollowPlayer(followPlayer);
-        data.setFollowTargetName(followTargetName);
         data.setUseBounds(useBounds);
         data.setBounds(new float[]{bounds.x, bounds.y, bounds.z, bounds.w});
         return data;
@@ -92,12 +76,6 @@ public class SceneCameraSettings {
         }
 
         // Note: orthographicSize from data is ignored - now controlled via RenderingConfig
-        followPlayer = data.isFollowPlayer();
-
-        String target = data.getFollowTargetName();
-        if (target != null) {
-            followTargetName = target;
-        }
 
         useBounds = data.isUseBounds();
 
@@ -112,17 +90,14 @@ public class SceneCameraSettings {
      */
     public void reset() {
         position.set(0, 0);
-        followPlayer = true;
-        followTargetName = "Player";
         useBounds = false;
         bounds.set(0, 0, 20, 15);
     }
 
     @Override
     public String toString() {
-        return String.format("SceneCameraSettings[pos=(%.1f,%.1f), follow=%s, bounds=%s]",
+        return String.format("SceneCameraSettings[pos=(%.1f,%.1f), bounds=%s]",
                 position.x, position.y,
-                followPlayer ? followTargetName : "none",
                 useBounds ? String.format("(%.1f,%.1f,%.1f,%.1f)", bounds.x, bounds.y, bounds.z, bounds.w) : "none");
     }
 }

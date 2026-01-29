@@ -22,8 +22,17 @@ import org.joml.Vector4f;
 public class UIButton extends UIComponent {
 
     // ========================================
+    // Transition Mode
+    // ========================================
+
+    public enum TransitionMode { COLOR_TINT, SPRITE_SWAP }
+
+    // ========================================
     // Visual Properties
     // ========================================
+
+    @Getter @Setter
+    private TransitionMode transitionMode = TransitionMode.COLOR_TINT;
 
     @Getter @Setter
     private Sprite sprite;
@@ -35,6 +44,18 @@ public class UIButton extends UIComponent {
     // null = use GameConfig default
     @Getter @Setter
     private Float hoverTint = null;
+
+    // Pressed tint: how much darker on press (0.2 = 20% darker)
+    // null = use GameConfig default
+    @Getter @Setter
+    private Float pressedTint = null;
+
+    // Sprites for SPRITE_SWAP mode
+    @Getter @Setter
+    private Sprite hoveredSprite;
+
+    @Getter @Setter
+    private Sprite pressedSprite;
 
     // ========================================
     // Callbacks
@@ -120,6 +141,20 @@ public class UIButton extends UIComponent {
     }
 
     /**
+     * Gets the effective pressed tint value.
+     * Uses button override if set, otherwise GameConfig default.
+     */
+    public float getEffectivePressedTint() {
+        if (pressedTint != null) {
+            return pressedTint;
+        }
+        if (config != null) {
+            return config.getUiButtonPressedTint();
+        }
+        return 0.2f;  // Fallback default
+    }
+
+    /**
      * Returns true if automatic hover tint should be applied.
      * False if user has set custom hover/exit callbacks.
      */
@@ -179,29 +214,71 @@ public class UIButton extends UIComponent {
         RenderBounds bounds = computeRenderBounds();
         if (bounds == null) return;
 
-        // Calculate render color with hover tint
+        switch (transitionMode) {
+            case COLOR_TINT -> renderColorTint(backend, bounds);
+            case SPRITE_SWAP -> renderSpriteSwap(backend, bounds);
+        }
+    }
+
+    private void renderColorTint(UIRendererBackend backend, RenderBounds bounds) {
         Vector4f renderColor = new Vector4f(color);
-        if (hovered && useAutoHoverTint()) {
-            float tint = getEffectiveHoverTint();
-            renderColor.x *= (1f - tint);
-            renderColor.y *= (1f - tint);
-            renderColor.z *= (1f - tint);
+        if (useAutoHoverTint()) {
+            if (pressed) {
+                float tint = getEffectivePressedTint();
+                renderColor.x *= (1f - tint);
+                renderColor.y *= (1f - tint);
+                renderColor.z *= (1f - tint);
+            } else if (hovered) {
+                float tint = getEffectiveHoverTint();
+                renderColor.x *= (1f - tint);
+                renderColor.y *= (1f - tint);
+                renderColor.z *= (1f - tint);
+            }
         }
 
         if (sprite != null) {
-            if (bounds.rotation() != 0) {
-                backend.drawSprite(bounds.x(), bounds.y(), bounds.width(), bounds.height(),
-                                   bounds.rotation(), bounds.pivotX(), bounds.pivotY(), sprite, renderColor);
-            } else {
-                backend.drawSprite(bounds.x(), bounds.y(), bounds.width(), bounds.height(), sprite, renderColor);
-            }
+            drawSprite(backend, bounds, sprite, renderColor);
         } else {
-            if (bounds.rotation() != 0) {
-                backend.drawQuad(bounds.x(), bounds.y(), bounds.width(), bounds.height(),
-                                 bounds.rotation(), bounds.pivotX(), bounds.pivotY(), renderColor);
-            } else {
-                backend.drawQuad(bounds.x(), bounds.y(), bounds.width(), bounds.height(), renderColor);
-            }
+            drawQuad(backend, bounds, renderColor);
+        }
+    }
+
+    private void renderSpriteSwap(UIRendererBackend backend, RenderBounds bounds) {
+        // Select active sprite: pressed > hovered > normal, with null fallback
+        Sprite activeSprite;
+        if (pressed && pressedSprite != null) {
+            activeSprite = pressedSprite;
+        } else if (hovered && hoveredSprite != null) {
+            activeSprite = hoveredSprite;
+        } else {
+            activeSprite = sprite;
+        }
+
+        // Apply color as multiplicative tint
+        Vector4f renderColor = new Vector4f(color);
+
+        if (activeSprite != null) {
+            drawSprite(backend, bounds, activeSprite, renderColor);
+        } else {
+            drawQuad(backend, bounds, renderColor);
+        }
+    }
+
+    private void drawSprite(UIRendererBackend backend, RenderBounds bounds, Sprite s, Vector4f tint) {
+        if (bounds.rotation() != 0) {
+            backend.drawSprite(bounds.x(), bounds.y(), bounds.width(), bounds.height(),
+                               bounds.rotation(), bounds.pivotX(), bounds.pivotY(), s, tint);
+        } else {
+            backend.drawSprite(bounds.x(), bounds.y(), bounds.width(), bounds.height(), s, tint);
+        }
+    }
+
+    private void drawQuad(UIRendererBackend backend, RenderBounds bounds, Vector4f tint) {
+        if (bounds.rotation() != 0) {
+            backend.drawQuad(bounds.x(), bounds.y(), bounds.width(), bounds.height(),
+                             bounds.rotation(), bounds.pivotX(), bounds.pivotY(), tint);
+        } else {
+            backend.drawQuad(bounds.x(), bounds.y(), bounds.width(), bounds.height(), tint);
         }
     }
 

@@ -5,7 +5,6 @@ import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.SceneCameraSettings;
 import com.pocket.rpg.editor.utils.IconUtils;
 import imgui.ImGui;
-import imgui.type.ImString;
 import lombok.Setter;
 
 /**
@@ -17,11 +16,10 @@ public class CameraInspector {
     private EditorScene scene;
 
     private final float[] floatBuffer = new float[4];
-    private final ImString stringBuffer = new ImString(256);
 
     public void render() {
         ImGui.text(IconUtils.getCameraIcon() + " Scene Camera");
-        
+
         // FIX: Add reset button
         ImGui.sameLine(ImGui.getContentRegionMaxX() - 80);
         if (ImGui.smallButton(MaterialIcons.Undo + " Reset")) {
@@ -30,7 +28,7 @@ public class CameraInspector {
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("Reset camera to game config defaults");
         }
-        
+
         ImGui.separator();
 
         SceneCameraSettings cam = scene.getCameraSettings();
@@ -43,23 +41,6 @@ public class CameraInspector {
         }
 
         // Note: Orthographic size is controlled globally via RenderingConfig
-
-        ImGui.separator();
-        ImGui.text("Follow Target");
-
-        boolean followPlayer = cam.isFollowPlayer();
-        if (ImGui.checkbox("Follow Player", followPlayer)) {
-            cam.setFollowPlayer(!followPlayer);
-            scene.markDirty();
-        }
-
-        if (cam.isFollowPlayer()) {
-            stringBuffer.set(cam.getFollowTargetName());
-            if (ImGui.inputText("Target Name", stringBuffer)) {
-                cam.setFollowTargetName(stringBuffer.get());
-                scene.markDirty();
-            }
-        }
 
         ImGui.separator();
         ImGui.text("Camera Bounds");
@@ -97,8 +78,6 @@ public class CameraInspector {
 
         // Reset to defaults (ortho size is controlled via RenderingConfig)
         cam.setPosition(0, 0);
-        cam.setFollowPlayer(false);
-        cam.setFollowTargetName("");
         cam.setUseBounds(false);
         cam.setBounds(0, 0, 100, 100);
 

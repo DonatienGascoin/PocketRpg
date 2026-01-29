@@ -209,6 +209,14 @@ public class SceneManager {
             scene.getCamera().setOrthographicSize(orthoSize);
         }
 
+        // Apply camera bounds
+        if (cameraData.isUseBounds()) {
+            float[] bounds = cameraData.getBounds();
+            if (bounds != null && bounds.length >= 4) {
+                scene.getCamera().setBounds(bounds[0], bounds[1], bounds[2], bounds[3]);
+            }
+        }
+
         System.out.println("Applied camera data: orthoSize=" + orthoSize);
     }
 

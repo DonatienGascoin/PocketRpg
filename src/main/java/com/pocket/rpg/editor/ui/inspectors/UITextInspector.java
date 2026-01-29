@@ -42,9 +42,7 @@ public class UITextInspector extends CustomComponentInspector<UIText> {
         boolean changed = false;
 
         // === UI KEY ===
-        changed |= FieldEditors.drawString("UI Key", component, "uiKey");
-
-        ImGui.spacing();
+        changed |= UIKeyField.draw(component);
 
         // === CONTENT SECTION ===
         ImGui.text(MaterialIcons.TextFields + " Content");

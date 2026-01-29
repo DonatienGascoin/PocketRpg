@@ -25,9 +25,7 @@ public class UIImageInspector extends CustomComponentInspector<UIImage> {
         boolean changed = false;
 
         // === UI KEY ===
-        changed |= FieldEditors.drawString("UI Key", component, "uiKey");
-
-        ImGui.spacing();
+        changed |= UIKeyField.draw(component);
 
         // Sprite
         ImGui.text(MaterialIcons.Image + " Sprite");

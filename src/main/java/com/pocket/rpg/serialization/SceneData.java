@@ -266,16 +266,6 @@ public class SceneData {
         private float orthographicSize = 15f;
 
         /**
-         * Whether camera should follow a target entity.
-         */
-        private boolean followPlayer = true;
-
-        /**
-         * Name of the entity to follow.
-         */
-        private String followTargetName = "Player";
-
-        /**
          * Whether to clamp camera to bounds.
          */
         private boolean useBounds = false;
@@ -291,17 +281,6 @@ public class SceneData {
         public CameraData(float x, float y, float z, float orthographicSize) {
             this.position = new float[]{x, y, z};
             this.orthographicSize = orthographicSize;
-        }
-
-        public CameraData(float x, float y, float z, float orthographicSize,
-                          boolean followPlayer, String followTargetName,
-                          boolean useBounds, float[] bounds) {
-            this.position = new float[]{x, y, z};
-            this.orthographicSize = orthographicSize;
-            this.followPlayer = followPlayer;
-            this.followTargetName = followTargetName;
-            this.useBounds = useBounds;
-            this.bounds = bounds != null ? bounds : new float[]{0, 0, 0, 0};
         }
     }
 }

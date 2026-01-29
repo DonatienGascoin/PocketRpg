@@ -25,95 +25,23 @@ public class UIButtonInspector extends CustomComponentInspector<UIButton> {
         boolean changed = false;
 
         // === UI KEY ===
-        changed |= FieldEditors.drawString("UI Key", component, "uiKey");
+        changed |= UIKeyField.draw(component);
 
-        ImGui.spacing();
-
-        // === APPEARANCE SECTION ===
-        ImGui.text(MaterialIcons.Palette + " Appearance");
+        // === TRANSITION SECTION ===
+        ImGui.text(MaterialIcons.SwapHoriz + " Transition");
         ImGui.separator();
 
-        // Sprite
         ImGui.spacing();
-        changed |= FieldEditors.drawAsset("Sprite", component, "sprite", Sprite.class, entity);
+        changed |= FieldEditors.drawEnum("Mode", component, "transitionMode", UIButton.TransitionMode.class);
 
-        // Reset size to sprite size button
-        Object spriteObj = ComponentReflectionUtils.getFieldValue(component, "sprite");
-        if (spriteObj instanceof Sprite sprite && sprite.getTexture() != null) {
-            ImGui.sameLine();
-            if (ImGui.smallButton(MaterialIcons.OpenInFull + "##resetSize")) {
-                changed |= resetSizeToSprite(sprite);
-            }
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(String.format("Reset size to sprite dimensions (%dx%d)",
-                        (int) sprite.getWidth(), (int) sprite.getHeight()));
-            }
-        }
+        UIButton.TransitionMode mode = component.getTransitionMode();
+        if (mode == null) mode = UIButton.TransitionMode.COLOR_TINT;
 
-        // Color
         ImGui.spacing();
-        ImGui.text("Color");
-        ImGui.sameLine(130);
-        changed |= FieldEditors.drawColor("##color", component, "color");
 
-        // Alpha slider
-        Vector4f color = FieldEditors.getVector4f(component, "color");
-        float[] alphaBuf = {color.w};
-        ImGui.text("Alpha");
-        ImGui.sameLine(130);
-        ImGui.setNextItemWidth(-1);
-        // TODO: Refactor to use FieldEditors for @Required support and undo
-        if (ImGui.sliderFloat("##alpha", alphaBuf, 0f, 1f)) {
-            color.w = alphaBuf[0];
-            ComponentReflectionUtils.setFieldValue(component, "color", color);
-            changed = true;
-        }
-
-        // === HOVER SECTION ===
-        ImGui.spacing();
-        ImGui.spacing();
-        ImGui.text(MaterialIcons.TouchApp + " Hover Effect");
-        ImGui.separator();
-
-        // Hover tint
-        ImGui.spacing();
-        Object hoverTintObj = ComponentReflectionUtils.getFieldValue(component, "hoverTint");
-        boolean hasCustomTint = hoverTintObj != null;
-
-        // Checkbox to enable custom tint
-        // TODO: Refactor to use FieldEditors for @Required support and undo
-        if (ImGui.checkbox("Custom Hover Tint", hasCustomTint)) {
-            if (hasCustomTint) {
-                ComponentReflectionUtils.setFieldValue(component, "hoverTint", null);
-            } else {
-                ComponentReflectionUtils.setFieldValue(component, "hoverTint", 0.1f);
-            }
-            changed = true;
-            hasCustomTint = !hasCustomTint;
-        }
-
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("When disabled, uses GameConfig default.\nWhen enabled, uses custom value.");
-        }
-
-        if (hasCustomTint) {
-            float tint = hoverTintObj instanceof Number n ? n.floatValue() : 0.1f;
-            float[] tintBuf = {tint};
-
-            ImGui.text("Darken Amount");
-            ImGui.sameLine(130);
-            ImGui.setNextItemWidth(-1);
-            // TODO: Refactor to use FieldEditors for @Required support and undo
-            if (ImGui.sliderFloat("##hoverTint", tintBuf, 0f, 0.5f, "%.2f")) {
-                ComponentReflectionUtils.setFieldValue(component, "hoverTint", tintBuf[0]);
-                changed = true;
-            }
-
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("0 = no change, 0.5 = 50% darker on hover");
-            }
-        } else {
-            ImGui.textDisabled("Using GameConfig default");
+        switch (mode) {
+            case COLOR_TINT -> changed |= drawColorTintFields();
+            case SPRITE_SWAP -> changed |= drawSpriteSwapFields();
         }
 
         // === INFO SECTION ===
@@ -124,6 +52,173 @@ public class UIButtonInspector extends CustomComponentInspector<UIButton> {
         ImGui.separator();
         ImGui.textWrapped("onClick, onHover, onExit callbacks are set via code at runtime.");
         ImGui.popStyleColor();
+
+        return changed;
+    }
+
+    // ========================================
+    // COLOR_TINT mode fields
+    // ========================================
+
+    private boolean drawColorTintFields() {
+        boolean changed = false;
+
+        // Sprite
+        changed |= FieldEditors.drawAsset("Sprite", component, "sprite", Sprite.class, entity);
+        changed |= drawResetSizeButton("sprite");
+
+        // === TINTS ===
+        ImGui.spacing();
+        changed |= drawCustomTintsCheckbox();
+
+        // Color
+        ImGui.spacing();
+        ImGui.spacing();
+        ImGui.text("Color");
+        ImGui.sameLine(130);
+        changed |= FieldEditors.drawColor("##color", component, "color");
+
+        // Alpha
+        changed |= drawAlphaSlider();
+
+        return changed;
+    }
+
+    // ========================================
+    // SPRITE_SWAP mode fields
+    // ========================================
+
+    private boolean drawSpriteSwapFields() {
+        boolean changed = false;
+
+        // Normal Sprite
+        changed |= FieldEditors.drawAsset("Normal Sprite", component, "sprite", Sprite.class, entity);
+        changed |= drawResetSizeButton("sprite");
+
+        // Hovered Sprite
+        ImGui.spacing();
+        changed |= FieldEditors.drawAsset("Hovered Sprite", component, "hoveredSprite", Sprite.class, entity);
+
+        // Pressed Sprite
+        ImGui.spacing();
+        changed |= FieldEditors.drawAsset("Pressed Sprite", component, "pressedSprite", Sprite.class, entity);
+
+        // Tint Color
+        ImGui.spacing();
+        ImGui.text("Tint Color");
+        ImGui.sameLine(130);
+        changed |= FieldEditors.drawColor("##color", component, "color");
+
+        // Alpha
+        changed |= drawAlphaSlider();
+
+        return changed;
+    }
+
+    // ========================================
+    // Shared helpers
+    // ========================================
+
+    private boolean drawAlphaSlider() {
+        Vector4f color = FieldEditors.getVector4f(component, "color");
+        float[] alphaBuf = {color.w};
+        ImGui.text("Alpha");
+        ImGui.sameLine(130);
+        ImGui.setNextItemWidth(-1);
+        // TODO: Refactor to use FieldEditors for @Required support and undo
+        if (ImGui.sliderFloat("##alpha", alphaBuf, 0f, 1f)) {
+            color.w = alphaBuf[0];
+            ComponentReflectionUtils.setFieldValue(component, "color", color);
+            return true;
+        }
+        return false;
+    }
+
+    private boolean drawTintSlider(String label, String fieldName, Object currentValue) {
+        float tint = currentValue instanceof Number n ? n.floatValue() : 0.1f;
+        float[] tintBuf = {tint};
+
+        ImGui.text(label);
+        ImGui.sameLine(130);
+        ImGui.setNextItemWidth(-1);
+        // TODO: Refactor to use FieldEditors for @Required support and undo
+        if (ImGui.sliderFloat("##" + fieldName, tintBuf, 0f, 0.5f, "%.2f")) {
+            ComponentReflectionUtils.setFieldValue(component, fieldName, tintBuf[0]);
+            return true;
+        }
+
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("0 = no change, 0.5 = 50% darker");
+        }
+        return false;
+    }
+
+    private void drawTintSliderReadOnly(String label, String fieldName, float value) {
+        float[] tintBuf = {value};
+
+        ImGui.text(label);
+        ImGui.sameLine(130);
+        ImGui.setNextItemWidth(-1);
+        ImGui.sliderFloat("##" + fieldName, tintBuf, 0f, 0.5f, "%.2f");
+    }
+
+    private boolean drawResetSizeButton(String fieldName) {
+        Object spriteObj = ComponentReflectionUtils.getFieldValue(component, fieldName);
+        if (spriteObj instanceof Sprite sprite && sprite.getTexture() != null) {
+            ImGui.sameLine();
+            if (ImGui.smallButton(MaterialIcons.OpenInFull + "##resetSize_" + fieldName)) {
+                return resetSizeToSprite(sprite);
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip(String.format("Reset size to sprite dimensions (%dx%d)",
+                        (int) sprite.getWidth(), (int) sprite.getHeight()));
+            }
+        }
+        return false;
+    }
+
+    private boolean drawCustomTintsCheckbox() {
+        boolean changed = false;
+
+        Object hoverTintObj = ComponentReflectionUtils.getFieldValue(component, "hoverTint");
+        Object pressedTintObj = ComponentReflectionUtils.getFieldValue(component, "pressedTint");
+        boolean hasCustomTints = hoverTintObj != null || pressedTintObj != null;
+
+        // TODO: Refactor to use FieldEditors for @Required support and undo
+        if (ImGui.checkbox("Custom Tints", hasCustomTints)) {
+            if (hasCustomTints) {
+                // Disable: set both to null (use GameConfig defaults)
+                ComponentReflectionUtils.setFieldValue(component, "hoverTint", null);
+                ComponentReflectionUtils.setFieldValue(component, "pressedTint", null);
+            } else {
+                // Enable: set both to current effective values
+                ComponentReflectionUtils.setFieldValue(component, "hoverTint",
+                        component.getEffectiveHoverTint());
+                ComponentReflectionUtils.setFieldValue(component, "pressedTint",
+                        component.getEffectivePressedTint());
+            }
+            changed = true;
+            hasCustomTints = !hasCustomTints;
+        }
+
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("When disabled, uses GameConfig defaults.\nWhen enabled, uses custom values.");
+        }
+
+        if (hasCustomTints) {
+            // Re-read after potential toggle
+            hoverTintObj = ComponentReflectionUtils.getFieldValue(component, "hoverTint");
+            pressedTintObj = ComponentReflectionUtils.getFieldValue(component, "pressedTint");
+
+            changed |= drawTintSlider("Hover Darken", "hoverTint", hoverTintObj);
+            changed |= drawTintSlider("Pressed Darken", "pressedTint", pressedTintObj);
+        } else {
+            // Show sliders disabled with effective (config default) values
+            ImGui.beginDisabled();
+            drawTintSliderReadOnly("Hover Darken", "hoverTint", component.getEffectiveHoverTint());
+            drawTintSliderReadOnly("Pressed Darken", "pressedTint", component.getEffectivePressedTint());
+            ImGui.endDisabled();
+        }
 
         return changed;
     }

@@ -32,9 +32,7 @@ public class UIPanelInspector extends CustomComponentInspector<UIPanel> {
         boolean changed = false;
 
         // === UI KEY ===
-        changed |= FieldEditors.drawString("UI Key", component, "uiKey");
-
-        ImGui.spacing();
+        changed |= UIKeyField.draw(component);
 
         // Background Color
         ImGui.text(MaterialIcons.FormatColorFill + " Background Color");

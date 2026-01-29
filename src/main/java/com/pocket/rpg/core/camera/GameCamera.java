@@ -73,6 +73,70 @@ public class GameCamera implements RenderCamera {
     private float zoom = 1f;
 
     // ======================================================================
+    // BOUNDS CLAMPING
+    // ======================================================================
+
+    private boolean useBounds = false;
+    private float boundsMinX, boundsMinY, boundsMaxX, boundsMaxY;
+
+    /**
+     * Enables camera bounds clamping. When enabled, the camera position
+     * will be clamped so the visible area stays within the specified bounds.
+     */
+    public void setBounds(float minX, float minY, float maxX, float maxY) {
+        this.useBounds = true;
+        this.boundsMinX = minX;
+        this.boundsMinY = minY;
+        this.boundsMaxX = maxX;
+        this.boundsMaxY = maxY;
+    }
+
+    /**
+     * Returns whether bounds clamping is active.
+     */
+    public boolean hasBounds() {
+        return useBounds;
+    }
+
+    /**
+     * Disables camera bounds clamping.
+     */
+    public void clearBounds() {
+        this.useBounds = false;
+    }
+
+    private void clampToBounds() {
+        if (!useBounds) return;
+
+        // Inset bounds by camera's visible half-dimensions so the
+        // visible area never extends beyond the configured bounds
+        float aspectRatio = (float) viewport.getGameWidth() / viewport.getGameHeight();
+        float halfHeight = orthographicSize / zoom;
+        float halfWidth = halfHeight * aspectRatio;
+
+        float minX = boundsMinX + halfWidth;
+        float maxX = boundsMaxX - halfWidth;
+        float minY = boundsMinY + halfHeight;
+        float maxY = boundsMaxY - halfHeight;
+
+        // If bounds are smaller than the camera view, center the camera
+        if (minX > maxX) {
+            float cx = (boundsMinX + boundsMaxX) * 0.5f;
+            minX = cx;
+            maxX = cx;
+        }
+        if (minY > maxY) {
+            float cy = (boundsMinY + boundsMaxY) * 0.5f;
+            minY = cy;
+            maxY = cy;
+        }
+
+        float x = Math.max(minX, Math.min(maxX, position.x));
+        float y = Math.max(minY, Math.min(maxY, position.y));
+        position.set(x, y, position.z);
+    }
+
+    // ======================================================================
     // ORTHOGRAPHIC PROJECTION
     // ======================================================================
 
@@ -215,16 +279,19 @@ public class GameCamera implements RenderCamera {
 
     public void setPosition(Vector3f pos) {
         this.position.set(pos);
+        clampToBounds();
         markViewDirty();
     }
 
     public void setPosition(float x, float y) {
         this.position.set(x, y, 0);
+        clampToBounds();
         markViewDirty();
     }
 
     public void setPosition(float x, float y, float z) {
         this.position.set(x, y, z);
+        clampToBounds();
         markViewDirty();
     }
 
@@ -234,11 +301,13 @@ public class GameCamera implements RenderCamera {
 
     public void translate(float dx, float dy) {
         this.position.add(dx, dy, 0);
+        clampToBounds();
         markViewDirty();
     }
 
     public void translate(float dx, float dy, float dz) {
         this.position.add(dx, dy, dz);
+        clampToBounds();
         markViewDirty();
     }
 

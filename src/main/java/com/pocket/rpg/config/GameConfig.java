@@ -143,6 +143,17 @@ public class GameConfig {
     private float uiButtonHoverTint = 0.1f;
 
     /**
+     * Default pressed tint for UI buttons.
+     * When a button is pressed and no custom pressedTint is set,
+     * the button color is darkened by this factor.
+     * <p>
+     * 0.0 = no darkening
+     * 0.2 = 20% darker (default)
+     * 1.0 = completely black
+     */
+    private float uiButtonPressedTint = 0.2f;
+
+    /**
      * Gets the effective pillarbox aspect ratio.
      * If set to 0, calculates from game resolution.
      */

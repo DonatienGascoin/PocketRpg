@@ -276,6 +276,9 @@ public class TrackTimelineRenderer {
                 ctx.setResizingFrameIndex(index);
                 ctx.setResizeStartX(mousePos.x);
                 ctx.setResizeStartDuration(frame.duration());
+                // Auto-select the frame being resized
+                ctx.setSelectedFrameIndex(index);
+                ctx.setCurrentPreviewFrame(index);
             }
         }
 
@@ -404,7 +407,9 @@ public class TrackTimelineRenderer {
 
             ImVec2 mousePos = ImGui.getMousePos();
             float delta = (mousePos.x - ctx.getResizeStartX()) / pixelsPerSecond;
-            float newDuration = Math.max(MIN_FRAME_DURATION, ctx.getResizeStartDuration() + delta);
+            float rawDuration = ctx.getResizeStartDuration() + delta;
+            // Snap to 0.1s steps
+            float newDuration = Math.max(MIN_FRAME_DURATION, Math.round(rawDuration * 10f) / 10f);
 
             AnimationFrame oldFrame = ctx.getFrame(ctx.getResizingFrameIndex());
             ctx.getAnimation().setFrame(ctx.getResizingFrameIndex(),

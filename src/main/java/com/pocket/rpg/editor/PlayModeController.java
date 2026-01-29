@@ -180,7 +180,9 @@ public class PlayModeController {
             transitionManager = new TransitionManager(
                     sceneManager,
                     pipeline.getOverlayRenderer(),
-                    gameConfig.getDefaultTransitionConfig()
+                    gameConfig.getDefaultTransitionConfig(),
+                    gameConfig.getTransitions(),
+                    gameConfig.getDefaultTransitionName()
             );
             pipeline.setTransitionManager(transitionManager);
 
@@ -239,16 +241,10 @@ public class PlayModeController {
 
         cleanup();
 
-        // Restore editor scene from snapshot
-        if (snapshot != null) {
-            try {
-                EditorScene restored = EditorSceneSerializer.fromSceneData(snapshot, snapshotFilePath);
-                context.setCurrentScene(restored);
-            } catch (Exception e) {
-                System.err.println("Failed to restore editor scene: " + e.getMessage());
-                context.setCurrentScene(new EditorScene());
-            }
-        }
+        // No need to restore editor scene from snapshot:
+        // Play mode uses a separate RuntimeScene and the editor update loop
+        // is skipped while playing (EditorApplication returns early).
+        // Keeping the original EditorScene preserves dirty flag and undo history.
 
         snapshot = null;
         snapshotFilePath = null;

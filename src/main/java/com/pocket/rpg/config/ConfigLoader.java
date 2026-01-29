@@ -61,11 +61,29 @@ public class ConfigLoader {
     }
 
     /**
+     * Load a single config type and return it. Skips if already loaded.
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> T loadSingleConfig(ConfigType type) {
+        for (ConfigFile configFile : configFiles) {
+            if (configFile.type == type) {
+                if (configFile.configInstance == null) {
+                    configFile.configInstance = loadConfigFile(configFile.filePath, configFile.clazz, configFile.defaultConfig);
+                }
+                return (T) configFile.configInstance;
+            }
+        }
+        throw new IllegalArgumentException("Unknown config type: " + type);
+    }
+
+    /**
      * Load all configurations from their respective JSON files.
      */
     public static void loadAllConfigs() {
         for (ConfigFile configFile : configFiles) {
-            configFile.configInstance = loadConfigFile(configFile.filePath, configFile.clazz, configFile.defaultConfig);
+            if (configFile.configInstance == null) {
+                configFile.configInstance = loadConfigFile(configFile.filePath, configFile.clazz, configFile.defaultConfig);
+            }
         }
     }
 

@@ -27,10 +27,43 @@
       "z": 0.0,
       "w": 1.0
     },
-    "transitionText": "",
-    "type": "WIPE_CIRCLE_IN",
-    "wipeDirection": "LEFT"
+    "transitionName": ""
   },
+  "transitions": [
+    {
+      "name": "CircleIn",
+      "lumaSprite": "sprites/transitions/circle_in.png"
+    },
+    {
+      "name": "CircleOut",
+      "lumaSprite": "sprites/transitions/circle_out.png"
+    },
+    {
+      "name": "Diagonal",
+      "lumaSprite": "sprites/transitions/diagonal.png"
+    },
+    {
+      "name": "Diamond",
+      "lumaSprite": "sprites/transitions/diamond.png"
+    },
+    {
+      "name": "WipeLeft",
+      "lumaSprite": "sprites/transitions/wipe_left.png"
+    },
+    {
+      "name": "WipeRight",
+      "lumaSprite": "sprites/transitions/wipe_right.png"
+    },
+    {
+      "name": "WipeUp",
+      "lumaSprite": "sprites/transitions/wipe_up.png"
+    },
+    {
+      "name": "WipeDown",
+      "lumaSprite": "sprites/transitions/wipe_down.png"
+    }
+  ],
+  "defaultTransitionName": "Random",
   "uiButtonHoverTint": 0.1,
   "uiButtonPressedTint": 0.2
 }

@@ -11,6 +11,9 @@ public class MockOverlayRenderer implements OverlayRenderer {
 
     private int drawCallCount = 0;
     private Vector4f lastDrawnColor = null;
+    private int lumaWipeCallCount = 0;
+    private float lastLumaCutoff = 0;
+    private int lastLumaTextureId = 0;
 
     @Override
     public void init() {
@@ -24,28 +27,12 @@ public class MockOverlayRenderer implements OverlayRenderer {
     }
 
     @Override
-    public void drawWipeLeft(Vector4f color, float progress) {
-
-    }
-
-    @Override
-    public void drawWipeRight(Vector4f color, float progress) {
-
-    }
-
-    @Override
-    public void drawWipeUp(Vector4f color, float progress) {
-
-    }
-
-    @Override
-    public void drawWipeDown(Vector4f color, float progress) {
-
-    }
-
-    @Override
-    public void drawCircleWipe(Vector4f color, float progress, boolean expanding) {
-
+    public void drawLumaWipe(Vector4f color, float cutoff, int textureId) {
+        drawCallCount++;
+        lumaWipeCallCount++;
+        lastDrawnColor = new Vector4f(color);
+        lastLumaCutoff = cutoff;
+        lastLumaTextureId = textureId;
     }
 
     @Override
@@ -64,7 +51,7 @@ public class MockOverlayRenderer implements OverlayRenderer {
     }
 
     /**
-     * Gets the number of times drawFullscreenQuad was called.
+     * Gets the number of times any draw method was called.
      */
     public int getDrawCallCount() {
         return drawCallCount;
@@ -78,10 +65,34 @@ public class MockOverlayRenderer implements OverlayRenderer {
     }
 
     /**
+     * Gets the number of times drawLumaWipe was called.
+     */
+    public int getLumaWipeCallCount() {
+        return lumaWipeCallCount;
+    }
+
+    /**
+     * Gets the last luma cutoff value.
+     */
+    public float getLastLumaCutoff() {
+        return lastLumaCutoff;
+    }
+
+    /**
+     * Gets the last luma texture ID.
+     */
+    public int getLastLumaTextureId() {
+        return lastLumaTextureId;
+    }
+
+    /**
      * Resets the mock state.
      */
     public void reset() {
         drawCallCount = 0;
         lastDrawnColor = null;
+        lumaWipeCallCount = 0;
+        lastLumaCutoff = 0;
+        lastLumaTextureId = 0;
     }
 }

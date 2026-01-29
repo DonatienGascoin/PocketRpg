@@ -2,7 +2,9 @@ package com.pocket.rpg.editor.ui.inspectors;
 
 import com.pocket.rpg.components.interaction.SpawnPoint;
 import com.pocket.rpg.components.interaction.WarpZone;
-import com.pocket.rpg.config.TransitionConfig;
+import com.pocket.rpg.config.ConfigLoader;
+import com.pocket.rpg.config.GameConfig;
+import com.pocket.rpg.config.TransitionEntry;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.ui.fields.FieldEditorContext;
@@ -132,8 +134,8 @@ public class WarpZoneInspector extends CustomComponentInspector<WarpZone> {
                 });
                 if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
 
-                // Transition type
-                changed.set(changed.get() | FieldEditors.drawEnum("Type", component, "transitionType", TransitionConfig.TransitionType.class));
+                // Transition name dropdown
+                drawTransitionNameDropdown(changed);
             }
         }
 
@@ -144,6 +146,62 @@ public class WarpZoneInspector extends CustomComponentInspector<WarpZone> {
         drawDestinationPreview();
 
         return changed.get();
+    }
+
+    /**
+     * Draws a transition name dropdown for the WarpZone.
+     * Options: "(default)" + all entries from GameConfig + "Random".
+     */
+    private void drawTransitionNameDropdown(AtomicBoolean changed) {
+        GameConfig gameConfig = ConfigLoader.getConfig(ConfigLoader.ConfigType.GAME);
+        List<TransitionEntry> entries = gameConfig.getTransitions();
+
+        String currentName = component.getTransitionName();
+        String display;
+        if (currentName == null || currentName.isEmpty()) {
+            display = "(default)";
+        } else {
+            display = currentName;
+        }
+
+        FieldEditors.inspectorRow("Transition", () -> {
+            ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+            if (ImGui.beginCombo("##transitionName", display)) {
+                // Default option (empty name = use global default)
+                boolean isDefault = currentName == null || currentName.isEmpty();
+                if (ImGui.selectable("(default)", isDefault)) {
+                    component.setTransitionName("");
+                    changed.set(true);
+                }
+
+                // Random option
+                boolean isRandom = "Random".equals(currentName);
+                if (ImGui.selectable("Random", isRandom)) {
+                    component.setTransitionName("Random");
+                    changed.set(true);
+                }
+
+                if (!entries.isEmpty()) {
+                    ImGui.separator();
+                }
+
+                // Named entries
+                for (TransitionEntry entry : entries) {
+                    String name = entry.getName();
+                    if (name == null || name.isEmpty()) continue;
+                    boolean isSelected = name.equals(currentName);
+                    if (ImGui.selectable(name, isSelected)) {
+                        component.setTransitionName(name);
+                        changed.set(true);
+                    }
+                }
+
+                ImGui.endCombo();
+            }
+        });
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("Transition pattern to use. (default) uses the global setting.");
+        }
     }
 
     private boolean drawSceneDropdown() {

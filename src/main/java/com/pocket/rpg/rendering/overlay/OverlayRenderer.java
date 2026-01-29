@@ -2,18 +2,17 @@ package com.pocket.rpg.rendering.overlay;
 
 import com.pocket.rpg.rendering.resources.Shader;
 import lombok.Getter;
-import org.joml.Vector2f;
 import org.joml.Vector4f;
 
 import static org.lwjgl.opengl.GL33.*;
 
 /**
  * OpenGL implementation of OverlayRenderer.
- * Uses shader-based clipping for optimal performance.
+ * Uses shader-based rendering for optimal performance.
  * <p>
  * Features:
- * - Zero VBO updates for wipes (shader-based clipping)
- * - True circular wipes with fragment shader
+ * - Fullscreen color overlay
+ * - Luma wipe transitions using grayscale textures
  * - No per-frame allocations
  * <p>
  * Performance: Single fullscreen quad, all effects done in shader.
@@ -26,14 +25,13 @@ public class OverlayRenderer implements com.pocket.rpg.rendering.core.OverlayRen
     @Getter
     private boolean initialized = false;
 
-    // Screen size for circle calculations
-    private int screenWidth = 1920;  // Default, will be updated
+    // Screen size (kept for potential future use)
+    private int screenWidth = 1920;
     private int screenHeight = 1080;
 
     // Shape types (must match shader)
     private static final int SHAPE_FULLSCREEN = 0;
-    private static final int SHAPE_RECTANGLE = 1;
-    private static final int SHAPE_CIRCLE = 2;
+    private static final int SHAPE_LUMA = 3;
 
     @Override
     public void init() {
@@ -42,7 +40,7 @@ public class OverlayRenderer implements com.pocket.rpg.rendering.core.OverlayRen
             return;
         }
 
-        // Create shader with clipping support
+        // Create shader with luma wipe support
         shader = new Shader("gameData/assets/shaders/overlayQuad.glsl");
         shader.compileAndLink();
 
@@ -54,7 +52,7 @@ public class OverlayRenderer implements com.pocket.rpg.rendering.core.OverlayRen
     }
 
     /**
-     * Updates screen size for circle calculations.
+     * Updates screen size.
      * Call this when window resizes.
      *
      * @param width  screen width in pixels
@@ -88,129 +86,32 @@ public class OverlayRenderer implements com.pocket.rpg.rendering.core.OverlayRen
         shader.detach();
     }
 
-    // ======================================================================
-    // WIPE EFFECTS - Shader-based clipping (no VBO updates!)
-    // ======================================================================
-
     @Override
-    public void drawWipeLeft(Vector4f color, float progress) {
-        progress = clampProgress(progress);
-        if (progress <= 0.0f) return;
-
-        // Clip bounds: (minX, minY, maxX, maxY) in [0, 1]
-        drawRectangleClip(color, 0.0f, 0.0f, progress, 1.0f);
-    }
-
-    @Override
-    public void drawWipeRight(Vector4f color, float progress) {
-        progress = clampProgress(progress);
-        if (progress <= 0.0f) return;
-
-        drawRectangleClip(color, 1.0f - progress, 0.0f, 1.0f, 1.0f);
-    }
-
-    @Override
-    public void drawWipeUp(Vector4f color, float progress) {
-        progress = clampProgress(progress);
-        if (progress <= 0.0f) return;
-
-        drawRectangleClip(color, 0.0f, 0.0f, 1.0f, progress);
-    }
-
-    @Override
-    public void drawWipeDown(Vector4f color, float progress) {
-        progress = clampProgress(progress);
-        if (progress <= 0.0f) return;
-
-        drawRectangleClip(color, 0.0f, 1.0f - progress, 1.0f, 1.0f);
-    }
-
-    @Override
-    public void drawCircleWipe(Vector4f color, float progress, boolean expanding) {
-        progress = clampProgress(progress);
-        if (progress <= 0.0f) return;
-
-        // Calculate maximum radius to cover entire screen (diagonal)
-        float maxRadius = (float) Math.sqrt(
-                screenWidth * screenWidth + screenHeight * screenHeight
-        ) / 2.0f;
-
-        float radius = maxRadius * progress;
-        float centerX = 0.5f;  // Center in normalized [0, 1] space
-        float centerY = 0.5f;
-
-        if (expanding) {
-            // Circle grows from center
-            drawCircle(color, centerX, centerY, radius, false);
-        } else {
-            // Draw everything except the circle (inverse)
-            drawCircle(color, centerX, centerY, radius, true);
-        }
-    }
-
-    /**
-     * Draws with rectangle clipping (shader-based, no VBO update).
-     *
-     * @param color RGBA color
-     * @param minX  Left edge in normalized [0, 1]
-     * @param minY  Top edge in normalized [0, 1]
-     * @param maxX  Right edge in normalized [0, 1]
-     * @param maxY  Bottom edge in normalized [0, 1]
-     */
-    private void drawRectangleClip(Vector4f color, float minX, float minY, float maxX, float maxY) {
+    public void drawLumaWipe(Vector4f color, float cutoff, int textureId) {
         if (!initialized) {
             System.err.println("ERROR: OpenGLOverlayRenderer not initialized");
             return;
         }
 
         shader.use();
+
+        // Bind the luma texture to texture slot 0
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, textureId);
+
+        shader.uploadInt("uLumaTexture", 0);
+        shader.uploadFloat("uCutoff", cutoff);
         shader.uploadVec4f("uColor", color);
-        shader.uploadInt("uShapeType", SHAPE_RECTANGLE);
-        shader.uploadVec4f("uClipBounds", new Vector4f(minX, minY, maxX, maxY));
+        shader.uploadInt("uShapeType", SHAPE_LUMA);
 
         glBindVertexArray(vao);
         glDrawArrays(GL_TRIANGLES, 0, 6);
         glBindVertexArray(0);
 
-        shader.detach();
-    }
-
-    /**
-     * Draws a circle (shader-based).
-     *
-     * @param color   RGBA color
-     * @param centerX Center X in normalized [0, 1]
-     * @param centerY Center Y in normalized [0, 1]
-     * @param radius  Radius in pixels
-     * @param inverse If true, draw everything EXCEPT the circle
-     */
-    private void drawCircle(Vector4f color, float centerX, float centerY, float radius, boolean inverse) {
-        if (!initialized) {
-            System.err.println("ERROR: OpenGLOverlayRenderer not initialized");
-            return;
-        }
-
-        shader.use();
-        shader.uploadVec4f("uColor", color);
-        shader.uploadInt("uShapeType", SHAPE_CIRCLE);
-
-        // Upload circle data: (centerX, centerY, radius)
-        shader.uploadVec3f("uCircleData", new org.joml.Vector3f(centerX, centerY, radius));
-        shader.uploadVec2f("uScreenSize", new Vector2f(screenWidth, screenHeight));
-        shader.uploadBoolean("uInverseCircle", inverse);
-
-        glBindVertexArray(vao);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-        glBindVertexArray(0);
+        // Unbind texture
+        glBindTexture(GL_TEXTURE_2D, 0);
 
         shader.detach();
-    }
-
-    /**
-     * Clamps progress to [0, 1] range.
-     */
-    private float clampProgress(float progress) {
-        return Math.max(0.0f, Math.min(1.0f, progress));
     }
 
     /**

@@ -131,6 +131,20 @@ public class GameConfig {
             .build();
 
     /**
+     * Named list of available luma transition patterns.
+     * Each entry maps a name to a grayscale sprite used as a wipe pattern.
+     */
+    @Builder.Default
+    private List<TransitionEntry> transitions = new ArrayList<>();
+
+    /**
+     * Default transition name used when no specific transition is requested.
+     * Empty string means plain fade, "Random" means pick randomly from the transitions list.
+     */
+    @Builder.Default
+    private String defaultTransitionName = "";
+
+    /**
      * Default hover tint for UI buttons.
      * When a button is hovered and no custom onHover callback is set,
      * the button color is darkened by this factor.

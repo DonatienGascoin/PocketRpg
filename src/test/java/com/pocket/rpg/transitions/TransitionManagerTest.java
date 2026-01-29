@@ -291,20 +291,19 @@ class TransitionManagerTest {
     }
 
     @Test
-    @DisplayName("Transition with FADE_WITH_TEXT type works")
-    void testFadeWithTextTransition() {
-        TransitionConfig textConfig = TransitionConfig.builder()
+    @DisplayName("Transition with named transition creates fade when not found")
+    void testNamedTransitionFallsBackToFade() {
+        TransitionConfig namedConfig = TransitionConfig.builder()
                 .fadeOutDuration(1.0f)
                 .fadeInDuration(1.0f)
-                .transitionText("Loading...")
-                .type(TransitionConfig.TransitionType.FADE_WITH_TEXT)
+                .transitionName("NonExistent")
                 .build();
 
-        transitionManager.startTransition("TestScene", textConfig);
+        transitionManager.startTransition("TestScene", namedConfig);
 
         assertTrue(transitionManager.isTransitioning());
 
-        // Update and verify it progresses
+        // Update and verify it progresses (falls back to fade)
         transitionManager.update(0.5f);
         assertTrue(transitionManager.getProgress() > 0.0f);
     }

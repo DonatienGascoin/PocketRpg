@@ -1,9 +1,15 @@
 package com.pocket.rpg.scenes.transitions;
 
 import com.pocket.rpg.config.TransitionConfig;
+import com.pocket.rpg.config.TransitionEntry;
 import com.pocket.rpg.rendering.core.OverlayRenderer;
+import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.scenes.SceneManager;
 import lombok.Getter;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Manages scene transitions.
@@ -43,6 +49,8 @@ public class TransitionManager {
     private final SceneManager sceneManager;
     private final OverlayRenderer overlayRenderer;
     private final TransitionConfig defaultConfig;
+    private final List<TransitionEntry> transitionEntries;
+    private final String defaultTransitionName;
 
     /**
      * Creates a transition manager.
@@ -54,6 +62,23 @@ public class TransitionManager {
     public TransitionManager(SceneManager sceneManager,
                              OverlayRenderer overlayRenderer,
                              TransitionConfig defaultConfig) {
+        this(sceneManager, overlayRenderer, defaultConfig, new ArrayList<>(), "");
+    }
+
+    /**
+     * Creates a transition manager with named transition entries.
+     *
+     * @param sceneManager          the scene manager to control
+     * @param overlayRenderer       the overlay renderer for drawing transition effects
+     * @param defaultConfig         the default transition configuration
+     * @param transitionEntries     the available named luma transitions
+     * @param defaultTransitionName the default transition name to use when config has no name set
+     */
+    public TransitionManager(SceneManager sceneManager,
+                             OverlayRenderer overlayRenderer,
+                             TransitionConfig defaultConfig,
+                             List<TransitionEntry> transitionEntries,
+                             String defaultTransitionName) {
         if (sceneManager == null) {
             throw new IllegalArgumentException("SceneManager cannot be null");
         }
@@ -67,6 +92,8 @@ public class TransitionManager {
         this.sceneManager = sceneManager;
         this.overlayRenderer = overlayRenderer;
         this.defaultConfig = new TransitionConfig(defaultConfig); // Defensive copy
+        this.transitionEntries = transitionEntries != null ? transitionEntries : new ArrayList<>();
+        this.defaultTransitionName = defaultTransitionName != null ? defaultTransitionName : "";
 
         // Validate default config
         this.defaultConfig.validate();
@@ -317,6 +344,8 @@ public class TransitionManager {
 
     /**
      * Creates a transition based on configuration.
+     * If the config specifies a transition name, resolves it to a luma texture.
+     * Otherwise, falls back to a plain FadeTransition.
      *
      * @param config transition configuration
      * @return the created transition
@@ -324,18 +353,48 @@ public class TransitionManager {
     private ISceneTransition createTransition(TransitionConfig config) {
         config.validate();
 
-        return switch (config.getType()) {
-            case FADE -> new FadeTransition(config);
-            case FADE_WITH_TEXT -> new FadeWithTextTransition(config);
+        // If config has no transition name, fall back to the global default
+        String name = config.getTransitionName();
+        if (name == null || name.isEmpty()) {
+            name = defaultTransitionName;
+        }
+        TransitionEntry entry = resolveTransition(name);
+        if (entry != null && entry.getLumaSprite() != null) {
+            int textureId = entry.getLumaSprite().getTexture().getTextureId();
+            return new LumaTransition(config, textureId);
+        }
 
-            // Wipe transitions
-            case WIPE_LEFT -> new WipeTransition(config, WipeTransition.WipeDirection.LEFT);
-            case WIPE_RIGHT -> new WipeTransition(config, WipeTransition.WipeDirection.RIGHT);
-            case WIPE_UP -> new WipeTransition(config, WipeTransition.WipeDirection.UP);
-            case WIPE_DOWN -> new WipeTransition(config, WipeTransition.WipeDirection.DOWN);
-            case WIPE_CIRCLE_IN -> new WipeTransition(config, WipeTransition.WipeDirection.CIRCLE_IN);
-            case WIPE_CIRCLE_OUT -> new WipeTransition(config, WipeTransition.WipeDirection.CIRCLE_OUT);
-        };
+        // Fallback: plain fade
+        return new FadeTransition(config);
+    }
+
+    /**
+     * Resolves a transition name to a TransitionEntry.
+     *
+     * @param name the transition name (empty = null, "Random" = random from list, otherwise lookup by name)
+     * @return the resolved TransitionEntry, or null for plain fade
+     */
+    private TransitionEntry resolveTransition(String name) {
+        if (name == null || name.isEmpty()) {
+            return null;
+        }
+
+        if ("Random".equalsIgnoreCase(name)) {
+            if (transitionEntries.isEmpty()) {
+                return null;
+            }
+            int index = ThreadLocalRandom.current().nextInt(transitionEntries.size());
+            return transitionEntries.get(index);
+        }
+
+        for (TransitionEntry entry : transitionEntries) {
+            if (name.equals(entry.getName())) {
+                return entry;
+            }
+        }
+
+        System.err.println("Transition not found: " + name + ", falling back to fade");
+        return null;
     }
 
     /**

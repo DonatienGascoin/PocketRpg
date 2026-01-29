@@ -387,13 +387,21 @@ public class GameViewPanel {
         ImGui.sameLine();
         ImGui.text("Type:");
         ImGui.sameLine();
-        ImGui.setNextItemWidth(100);
-        TransitionConfig.TransitionType[] types = TransitionConfig.TransitionType.values();
-        String[] typeNames = new String[types.length];
-        for (int i = 0; i < types.length; i++) {
-            typeNames[i] = types[i].name().replace("_", " ");
+        ImGui.setNextItemWidth(120);
+        // Build transition name list: (Fade), Random, then named entries
+        List<String> transitionNames = new ArrayList<>();
+        transitionNames.add("(Fade)");
+        transitionNames.add("Random");
+        for (var entry : gameConfig.getTransitions()) {
+            if (entry.getName() != null && !entry.getName().isEmpty()) {
+                transitionNames.add(entry.getName());
+            }
         }
-        ImGui.combo("##TransitionType", selectedTransitionIndex, typeNames);
+        String[] nameArray = transitionNames.toArray(new String[0]);
+        if (selectedTransitionIndex.get() >= nameArray.length) {
+            selectedTransitionIndex.set(0);
+        }
+        ImGui.combo("##TransitionType", selectedTransitionIndex, nameArray);
 
         ImGui.sameLine();
 
@@ -409,12 +417,14 @@ public class GameViewPanel {
 
         if (ImGui.button(MaterialIcons.PlayArrow + " Go")) {
             String targetScene = cachedScenes.get(selectedSceneIndex.get());
-            TransitionConfig.TransitionType type = types[selectedTransitionIndex.get()];
+            // Map dropdown index to transition name: 0=(Fade)="", 1=Random, 2+=named
+            String selectedName = selectedTransitionIndex.get() == 0 ? ""
+                    : nameArray[selectedTransitionIndex.get()];
 
             // Use fade durations from game config
             TransitionConfig defaultConfig = gameConfig.getDefaultTransitionConfig();
             TransitionConfig config = TransitionConfig.builder()
-                    .type(type)
+                    .transitionName(selectedName)
                     .fadeOutDuration(defaultConfig.getFadeOutDuration())
                     .fadeInDuration(defaultConfig.getFadeInDuration())
                     .fadeColor(defaultConfig.getFadeColor())

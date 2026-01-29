@@ -268,7 +268,7 @@
       "id": "26ca5e33",
       "name": "Chest",
       "active": true,
-      "order": 2,
+      "order": 1,
       "components": [
         {
           "type": "com.pocket.rpg.components.Transform",
@@ -512,7 +512,7 @@
       "id": "031706b5",
       "name": "Player",
       "active": true,
-      "order": 3,
+      "order": 2,
       "components": [
         {
           "type": "com.pocket.rpg.components.Transform",
@@ -623,7 +623,7 @@
       "id": "000e8f54",
       "name": "Door",
       "active": true,
-      "order": 4,
+      "order": 3,
       "components": [
         {
           "type": "com.pocket.rpg.components.Transform",
@@ -666,14 +666,14 @@
       "id": "13e1bdc7",
       "name": "SpawnPoint",
       "active": true,
-      "order": 5,
+      "order": 4,
       "components": [
         {
           "type": "com.pocket.rpg.components.Transform",
           "properties": {
             "localPosition": {
-              "x": -14.8125,
-              "y": 3.3125,
+              "x": 3.625,
+              "y": -2.25,
               "z": 0.0
             },
             "localRotation": {
@@ -707,7 +707,7 @@
       "id": "0655fdee",
       "name": "Warp",
       "active": true,
-      "order": 6,
+      "order": 5,
       "components": [
         {
           "type": "com.pocket.rpg.components.Transform",
@@ -739,7 +739,7 @@
             "overrideTransitionDefaults": false,
             "fadeOutDuration": 5.0,
             "fadeInDuration": 5.0,
-            "transitionType": "FADE"
+            "transitionName": ""
           }
         },
         {

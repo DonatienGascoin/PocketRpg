@@ -106,11 +106,12 @@ public class WarpZone extends Component implements GizmoDrawable {
     private float fadeInDuration = 0.3f;
 
     /**
-     * Type of transition effect (only used if overrideTransitionDefaults is true).
+     * Name of the transition to use (only used if overrideTransitionDefaults is true).
+     * Empty string means "use default from config".
      */
     @Getter
     @Setter
-    private TransitionConfig.TransitionType transitionType = TransitionConfig.TransitionType.FADE;
+    private String transitionName = "";
 
     // ========================================================================
     // LIFECYCLE
@@ -206,7 +207,7 @@ public class WarpZone extends Component implements GizmoDrawable {
         return TransitionConfig.builder()
                 .fadeOutDuration(fadeOutDuration)
                 .fadeInDuration(fadeInDuration)
-                .type(transitionType)
+                .transitionName(transitionName)
                 .build();
     }
 

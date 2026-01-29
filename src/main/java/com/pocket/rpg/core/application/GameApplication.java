@@ -204,7 +204,9 @@ public class GameApplication {
         transitionManager = new TransitionManager(
                 sceneManager,
                 pipeline.getOverlayRenderer(),
-                config.getGame().getDefaultTransitionConfig()
+                config.getGame().getDefaultTransitionConfig(),
+                config.getGame().getTransitions(),
+                config.getGame().getDefaultTransitionName()
         );
         pipeline.setTransitionManager(transitionManager);
 

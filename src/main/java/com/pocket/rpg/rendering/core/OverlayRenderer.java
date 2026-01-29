@@ -7,7 +7,7 @@ import org.joml.Vector4f;
  * Platform-agnostic abstraction for screen-space effects.
  * <p>
  * Used for:
- * - Transition effects (fades, wipes)
+ * - Transition effects (fades, luma wipes)
  * - Screen overlays
  * - Fullscreen effects
  */
@@ -28,48 +28,17 @@ public interface OverlayRenderer {
     void drawFullscreenQuad(Vector4f color);
 
     /**
-     * Draws a wipe effect from left to right.
+     * Draws a luma wipe effect using a grayscale texture as a wipe pattern.
+     * Pixels where the luma value is less than the cutoff are drawn with the given color.
      *
-     * @param color    color of the wipe overlay
-     * @param progress wipe progress (0.0 = nothing, 1.0 = full screen)
+     * @param color     RGBA color of the overlay
+     * @param cutoff    cutoff threshold (0.0 = nothing drawn, 1.0 = fully drawn)
+     * @param textureId OpenGL texture ID of the grayscale luma texture
      */
-    void drawWipeLeft(Vector4f color, float progress);
+    void drawLumaWipe(Vector4f color, float cutoff, int textureId);
 
     /**
-     * Draws a wipe effect from right to left.
-     *
-     * @param color    color of the wipe overlay
-     * @param progress wipe progress (0.0 = nothing, 1.0 = full screen)
-     */
-    void drawWipeRight(Vector4f color, float progress);
-
-    /**
-     * Draws a wipe effect from top to bottom.
-     *
-     * @param color    color of the wipe overlay
-     * @param progress wipe progress (0.0 = nothing, 1.0 = full screen)
-     */
-    void drawWipeUp(Vector4f color, float progress);
-
-    /**
-     * Draws a wipe effect from bottom to top.
-     *
-     * @param color    color of the wipe overlay
-     * @param progress wipe progress (0.0 = nothing, 1.0 = full screen)
-     */
-    void drawWipeDown(Vector4f color, float progress);
-
-    /**
-     * Draws a circular wipe effect.
-     *
-     * @param color     color of the wipe overlay
-     * @param progress  wipe progress (0.0 = nothing, 1.0 = full screen)
-     * @param expanding true for expanding circle, false for contracting
-     */
-    void drawCircleWipe(Vector4f color, float progress, boolean expanding);
-
-    /**
-     * Updates the screen size for accurate circle rendering.
+     * Updates the screen size for accurate rendering calculations.
      * Should be called when the window is resized.
      *
      * @param width  screen width in pixels

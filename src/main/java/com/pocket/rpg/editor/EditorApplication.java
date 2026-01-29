@@ -121,16 +121,18 @@ public class EditorApplication {
         // Initialize PostEffectRegistry before loading configs (needed for deserialization)
         PostEffectRegistry.initialize();
 
-        // Load configuration
+        // Load editor config first (no GL calls needed) to create the window
+        EditorConfig config = ConfigLoader.loadSingleConfig(ConfigLoader.ConfigType.EDITOR);
+
+        // Create window (establishes OpenGL context - must happen before loading configs with asset references)
+        EditorWindow window = new EditorWindow(config);
+        window.init();
+
+        // Now load remaining configs (may trigger GL calls via SpriteReference deserialization)
         ConfigLoader.loadAllConfigs();
-        EditorConfig config = ConfigLoader.getConfig(ConfigLoader.ConfigType.EDITOR);
         RenderingConfig renderingConfig = ConfigLoader.getConfig(ConfigLoader.ConfigType.RENDERING);
         GameConfig gameConfig = ConfigLoader.getConfig(ConfigLoader.ConfigType.GAME);
         InputConfig inputConfig = ConfigLoader.getConfig(ConfigLoader.ConfigType.INPUT);
-
-        // Create window
-        EditorWindow window = new EditorWindow(config);
-        window.init();
 
         // Initialize ImGui
         imGuiLayer = new ImGuiLayer();

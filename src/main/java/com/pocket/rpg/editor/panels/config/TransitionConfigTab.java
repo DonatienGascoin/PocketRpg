@@ -1,12 +1,24 @@
 package com.pocket.rpg.editor.panels.config;
 
 import com.pocket.rpg.config.ConfigLoader;
+import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.config.TransitionConfig;
+import com.pocket.rpg.config.TransitionEntry;
 import com.pocket.rpg.editor.EditorContext;
+import com.pocket.rpg.editor.core.MaterialIcons;
+import com.pocket.rpg.editor.panels.AssetPickerPopup;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
-import com.pocket.rpg.scenes.transitions.WipeTransition;
+import com.pocket.rpg.editor.ui.fields.FieldEditorUtils;
+import com.pocket.rpg.editor.ui.fields.PrimitiveEditors;
+import com.pocket.rpg.editor.undo.UndoManager;
+import com.pocket.rpg.editor.undo.commands.ConfigListCommand;
+import com.pocket.rpg.editor.undo.commands.SetterUndoCommand;
+import com.pocket.rpg.rendering.resources.Sprite;
+import com.pocket.rpg.resources.Assets;
 import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;
+
+import java.util.List;
 
 /**
  * Configuration tab for transition settings.
@@ -16,6 +28,7 @@ public class TransitionConfigTab implements ConfigTab {
 
     private final EditorContext context;
     private final Runnable markDirty;
+    private final AssetPickerPopup assetPicker = new AssetPickerPopup();
 
     public TransitionConfigTab(EditorContext context, Runnable markDirty) {
         this.context = context;
@@ -46,9 +59,12 @@ public class TransitionConfigTab implements ConfigTab {
         config.setFadeOutDuration(defaults.getFadeOutDuration());
         config.setFadeInDuration(defaults.getFadeInDuration());
         config.getFadeColor().set(defaults.getFadeColor());
-        config.setTransitionText(defaults.getTransitionText());
-        config.setType(defaults.getType());
-        config.setWipeDirection(defaults.getWipeDirection());
+        config.setTransitionName(defaults.getTransitionName());
+
+        // Reset game config transition fields
+        GameConfig gameConfig = context.getGameConfig();
+        gameConfig.getTransitions().clear();
+        gameConfig.setDefaultTransitionName("");
     }
 
     @Override
@@ -56,6 +72,7 @@ public class TransitionConfigTab implements ConfigTab {
         ImGui.pushID("TransitionTab");
 
         TransitionConfig config = context.getGameConfig().getDefaultTransitionConfig();
+        GameConfig gameConfig = context.getGameConfig();
 
         // Timing section
         if (ImGui.collapsingHeader("Timing", ImGuiTreeNodeFlags.DefaultOpen)) {
@@ -85,34 +102,32 @@ public class TransitionConfigTab implements ConfigTab {
                     v -> { config.getFadeColor().set(v); markDirty.run(); });
             tooltip("Color of the transition overlay");
 
-            FieldEditors.drawString("Transition Text", "transitionText",
-                    config::getTransitionText,
-                    v -> { config.setTransitionText(v); markDirty.run(); });
-            tooltip("Optional text shown during transition");
+            ImGui.unindent();
+        }
+
+        // Default transition name section
+        if (ImGui.collapsingHeader("Default Transition", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
+
+            drawTransitionNameDropdown("Default Transition", "defaultTransition",
+                    gameConfig.getDefaultTransitionName(),
+                    name -> {
+                        String oldName = gameConfig.getDefaultTransitionName();
+                        UndoManager.getInstance().execute(new SetterUndoCommand<>(
+                                v -> { gameConfig.setDefaultTransitionName(v); markDirty.run(); },
+                                oldName, name, "Change default transition"));
+                    },
+                    gameConfig.getTransitions(), true);
+            tooltip("Default transition used when no specific transition is requested");
 
             ImGui.unindent();
         }
 
-        // Type section
-        if (ImGui.collapsingHeader("Type", ImGuiTreeNodeFlags.DefaultOpen)) {
+        // Transition entries list
+        if (ImGui.collapsingHeader("Transition Patterns", ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
 
-            FieldEditors.drawEnum("Transition Type", "transitionType",
-                    config::getType,
-                    v -> { config.setType(v); markDirty.run(); },
-                    TransitionConfig.TransitionType.class);
-            tooltip("Type of transition animation");
-
-            ImGui.textDisabled(getTypeDescription(config.getType()));
-
-            if (isWipeType(config.getType())) {
-                ImGui.spacing();
-                FieldEditors.drawEnum("Wipe Direction", "wipeDirection",
-                        config::getWipeDirection,
-                        v -> { config.setWipeDirection(v); markDirty.run(); },
-                        WipeTransition.WipeDirection.class);
-                tooltip("Direction of the wipe animation");
-            }
+            drawTransitionEntries(gameConfig);
 
             ImGui.unindent();
         }
@@ -121,25 +136,163 @@ public class TransitionConfigTab implements ConfigTab {
         ImGui.spacing();
         ImGui.separator();
         ImGui.textDisabled(String.format("Total duration: %.2f seconds", config.getTotalDuration()));
+        ImGui.textDisabled(String.format("Transitions defined: %d", gameConfig.getTransitions().size()));
+
+        // Render asset picker popup (local instance for this tab)
+        assetPicker.render();
 
         ImGui.popID();
     }
 
-    private String getTypeDescription(TransitionConfig.TransitionType type) {
-        return switch (type) {
-            case FADE -> "Simple fade to color and back";
-            case FADE_WITH_TEXT -> "Fade with text overlay";
-            case WIPE_LEFT -> "Wipe from left to right";
-            case WIPE_RIGHT -> "Wipe from right to left";
-            case WIPE_UP -> "Wipe from top to bottom";
-            case WIPE_DOWN -> "Wipe from bottom to top";
-            case WIPE_CIRCLE_IN -> "Circle expanding from center";
-            case WIPE_CIRCLE_OUT -> "Circle contracting to center";
-        };
+    /**
+     * Draws a dropdown for selecting a transition name.
+     *
+     * @param label         display label
+     * @param key           unique ImGui key
+     * @param currentName   current selected name
+     * @param setter        callback when selection changes
+     * @param entries       available transition entries
+     * @param includeFade   whether to include the "(Fade)" option
+     */
+    private void drawTransitionNameDropdown(String label, String key, String currentName,
+                                             java.util.function.Consumer<String> setter,
+                                             List<TransitionEntry> entries,
+                                             boolean includeFade) {
+        String display;
+        if (currentName == null || currentName.isEmpty()) {
+            display = "(Fade)";
+        } else {
+            display = currentName;
+        }
+
+        FieldEditors.inspectorRow(label, () -> {
+            ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+            if (ImGui.beginCombo("##" + key, display)) {
+                // Fade option (empty name)
+                if (includeFade) {
+                    boolean isFade = currentName == null || currentName.isEmpty();
+                    if (ImGui.selectable("(Fade)", isFade)) {
+                        setter.accept("");
+                    }
+                }
+
+                // Random option
+                boolean isRandom = "Random".equals(currentName);
+                if (ImGui.selectable("Random", isRandom)) {
+                    setter.accept("Random");
+                }
+
+                if (!entries.isEmpty()) {
+                    ImGui.separator();
+                }
+
+                // Named entries
+                for (TransitionEntry entry : entries) {
+                    String name = entry.getName();
+                    if (name == null || name.isEmpty()) continue;
+                    boolean isSelected = name.equals(currentName);
+                    if (ImGui.selectable(name, isSelected)) {
+                        setter.accept(name);
+                    }
+                }
+
+                ImGui.endCombo();
+            }
+        });
     }
 
-    private boolean isWipeType(TransitionConfig.TransitionType type) {
-        return type.name().startsWith("WIPE_");
+    /**
+     * Draws the list of transition entries matching the ListEditor visual style.
+     * Header with count + add button, each entry shows index, name, sprite, and remove button.
+     */
+    private void drawTransitionEntries(GameConfig gameConfig) {
+        List<TransitionEntry> entries = gameConfig.getTransitions();
+        int count = entries.size();
+        String headerLabel = "Entries (" + count + ")";
+
+        ImGui.pushID("transitionEntries");
+
+        int flags = ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.AllowOverlap;
+        boolean isOpen = ImGui.treeNodeEx(headerLabel, flags);
+
+        // Add button on same line as header
+        ImGui.sameLine(ImGui.getContentRegionAvailX() - 20);
+        if (ImGui.smallButton(MaterialIcons.Add + "##addEntry")) {
+            UndoManager.getInstance().execute(
+                    ConfigListCommand.add(entries, new TransitionEntry("", null), "transition entry", markDirty));
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("Add transition entry");
+        }
+
+        if (isOpen) {
+            if (entries.isEmpty()) {
+                ImGui.textDisabled("Empty");
+            } else {
+                int removeIndex = -1;
+
+                for (int i = 0; i < entries.size(); i++) {
+                    TransitionEntry entry = entries.get(i);
+                    ImGui.pushID(i);
+
+                    // Name field
+                    ImGui.alignTextToFramePadding();
+                    ImGui.text(String.valueOf(i));
+                    ImGui.sameLine();
+
+                    String stateKey = "transEntry_name_" + i;
+                    ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() - 30);
+                    PrimitiveEditors.drawString("##name", stateKey,
+                            entry::getName,
+                            v -> { entry.setName(v); markDirty.run(); });
+
+                    // Remove button on same line
+                    ImGui.sameLine();
+                    if (ImGui.smallButton(MaterialIcons.Close + "##rem")) {
+                        removeIndex = i;
+                    }
+                    if (ImGui.isItemHovered()) {
+                        ImGui.setTooltip("Remove entry");
+                    }
+
+                    // Sprite field on next line, indented under the name
+                    float indent = ImGui.calcTextSize("0").x + ImGui.getStyle().getItemSpacingX();
+                    ImGui.indent(indent);
+                    FieldEditorUtils.inspectorRow("Sprite", () -> {
+                        if (ImGui.smallButton("...##sprite")) {
+                            Sprite oldSprite = entry.getLumaSprite();
+                            String currentPath = oldSprite != null
+                                    ? Assets.getPathForResource(oldSprite) : null;
+                            assetPicker.open(Sprite.class, currentPath, asset -> {
+                                UndoManager.getInstance().execute(new SetterUndoCommand<>(
+                                        v -> { entry.setLumaSprite(v); markDirty.run(); },
+                                        oldSprite, (Sprite) asset, "Change luma sprite"));
+                            });
+                        }
+                        ImGui.sameLine();
+                        Sprite sprite = entry.getLumaSprite();
+                        if (sprite != null) {
+                            ImGui.textColored(0.6f, 0.9f, 0.6f, 1.0f, sprite.getName());
+                        } else {
+                            ImGui.textDisabled("(none)");
+                        }
+                    });
+                    ImGui.unindent(indent);
+
+                    ImGui.popID();
+                }
+
+                // Process removal after iteration (with undo support)
+                if (removeIndex >= 0) {
+                    UndoManager.getInstance().execute(
+                            ConfigListCommand.remove(entries, removeIndex, "transition entry", markDirty));
+                }
+            }
+
+            ImGui.treePop();
+        }
+
+        ImGui.popID();
     }
 
     private void tooltip(String text) {

@@ -1,6 +1,5 @@
 package com.pocket.rpg.config;
 
-import com.pocket.rpg.scenes.transitions.WipeTransition;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -9,7 +8,7 @@ import org.joml.Vector4f;
 
 /**
  * Configuration for scene transitions.
- * Defines how scenes transition from one to another (fade effects, wipes, durations, colors, etc.)
+ * Defines how scenes transition from one to another (fade effects, luma wipes, durations, colors).
  */
 @Data
 @Builder
@@ -37,74 +36,12 @@ public class TransitionConfig {
     private Vector4f fadeColor = new Vector4f(0, 0, 0, 1);
 
     /**
-     * Optional text to display during transition.
-     * Empty string means no text is displayed.
+     * Name of the transition to use from the GameConfig transitions list.
+     * Empty string means plain fade (no luma texture).
+     * "Random" means pick a random transition from the list.
      */
     @Builder.Default
-    private String transitionText = "";
-
-    /**
-     * Type of transition to perform.
-     */
-    @Builder.Default
-    private TransitionType type = TransitionType.FADE;
-
-    /**
-     * Direction for wipe transitions.
-     * Only used when type is one of the WIPE_* types.
-     */
-    @Builder.Default
-    private WipeTransition.WipeDirection wipeDirection = WipeTransition.WipeDirection.LEFT;
-
-    /**
-     * Types of transitions available.
-     */
-    public enum TransitionType {
-        /**
-         * Simple fade to color and back.
-         */
-        FADE,
-
-        /**
-         * Fade with text overlay (e.g., "Loading...").
-         */
-        FADE_WITH_TEXT,
-
-        /**
-         * Wipe from left to right (Pokemon style).
-         */
-        WIPE_LEFT,
-
-        /**
-         * Wipe from right to left.
-         */
-        WIPE_RIGHT,
-
-        /**
-         * Wipe from top to bottom.
-         */
-        WIPE_UP,
-
-        /**
-         * Wipe from bottom to top.
-         */
-        WIPE_DOWN,
-
-        /**
-         * Circle expanding from center.
-         */
-        WIPE_CIRCLE_IN,
-
-        /**
-         * Circle contracting to center.
-         */
-        WIPE_CIRCLE_OUT
-
-        // Future expansion:
-        // SLIDE_LEFT,
-        // SLIDE_RIGHT,
-        // CROSSFADE
-    }
+    private String transitionName = "";
 
     /**
      * Copy constructor for creating defensive copies.
@@ -115,9 +52,7 @@ public class TransitionConfig {
         this.fadeOutDuration = other.fadeOutDuration;
         this.fadeInDuration = other.fadeInDuration;
         this.fadeColor = new Vector4f(other.fadeColor);
-        this.transitionText = other.transitionText;
-        this.type = other.type;
-        this.wipeDirection = other.wipeDirection;
+        this.transitionName = other.transitionName;
     }
 
     /**
@@ -143,12 +78,6 @@ public class TransitionConfig {
         }
         if (fadeColor == null) {
             throw new IllegalArgumentException("fadeColor cannot be null");
-        }
-        if (type == null) {
-            throw new IllegalArgumentException("type cannot be null");
-        }
-        if (wipeDirection == null) {
-            throw new IllegalArgumentException("wipeDirection cannot be null");
         }
     }
 }

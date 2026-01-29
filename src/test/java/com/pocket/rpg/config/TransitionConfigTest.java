@@ -1,6 +1,5 @@
 package com.pocket.rpg.config;
 
-import com.pocket.rpg.scenes.transitions.WipeTransition;
 import org.joml.Vector4f;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
@@ -26,8 +25,7 @@ class TransitionConfigTest {
         assertEquals(0, config.getFadeColor().y);
         assertEquals(0, config.getFadeColor().z);
         assertEquals(1, config.getFadeColor().w);
-        assertEquals("", config.getTransitionText());
-        assertEquals(TransitionConfig.TransitionType.FADE, config.getType());
+        assertEquals("", config.getTransitionName());
     }
 
     @Test
@@ -38,15 +36,13 @@ class TransitionConfigTest {
                 .fadeOutDuration(1.0f)
                 .fadeInDuration(2.0f)
                 .fadeColor(customColor)
-                .transitionText("Loading...")
-                .type(TransitionConfig.TransitionType.FADE_WITH_TEXT)
+                .transitionName("Circle Out")
                 .build();
 
         assertEquals(1.0f, config.getFadeOutDuration());
         assertEquals(2.0f, config.getFadeInDuration());
         assertEquals(customColor, config.getFadeColor());
-        assertEquals("Loading...", config.getTransitionText());
-        assertEquals(TransitionConfig.TransitionType.FADE_WITH_TEXT, config.getType());
+        assertEquals("Circle Out", config.getTransitionName());
     }
 
     @Test
@@ -57,8 +53,7 @@ class TransitionConfigTest {
                 .fadeOutDuration(1.0f)
                 .fadeInDuration(2.0f)
                 .fadeColor(originalColor)
-                .transitionText("Original")
-                .type(TransitionConfig.TransitionType.FADE_WITH_TEXT)
+                .transitionName("Wipe Left")
                 .build();
 
         TransitionConfig copy = new TransitionConfig(original);
@@ -66,8 +61,7 @@ class TransitionConfigTest {
         // Values should be equal
         assertEquals(original.getFadeOutDuration(), copy.getFadeOutDuration());
         assertEquals(original.getFadeInDuration(), copy.getFadeInDuration());
-        assertEquals(original.getTransitionText(), copy.getTransitionText());
-        assertEquals(original.getType(), copy.getType());
+        assertEquals(original.getTransitionName(), copy.getTransitionName());
 
         // Color values should be equal
         assertEquals(original.getFadeColor().x, copy.getFadeColor().x);
@@ -105,7 +99,6 @@ class TransitionConfigTest {
                 .fadeOutDuration(0.5f)
                 .fadeInDuration(0.5f)
                 .fadeColor(new Vector4f(0, 0, 0, 1))
-                .type(TransitionConfig.TransitionType.FADE)
                 .build();
 
         assertDoesNotThrow(config::validate);
@@ -165,20 +158,6 @@ class TransitionConfigTest {
     }
 
     @Test
-    @DisplayName("validate rejects null type")
-    void testValidateRejectsNullType() {
-        TransitionConfig config = TransitionConfig.builder()
-                .type(null)
-                .build();
-
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
-                config::validate
-        );
-        assertTrue(exception.getMessage().contains("type"));
-    }
-
-    @Test
     @DisplayName("No-args constructor creates valid instance")
     void testNoArgsConstructor() {
         TransitionConfig config = new TransitionConfig();
@@ -196,47 +175,34 @@ class TransitionConfigTest {
                 1.0f,
                 2.0f,
                 color,
-                "Loading",
-                TransitionConfig.TransitionType.FADE_WITH_TEXT,
-                WipeTransition.WipeDirection.LEFT
+                "Circle Out"
         );
 
         assertEquals(1.0f, config.getFadeOutDuration());
         assertEquals(2.0f, config.getFadeInDuration());
         assertEquals(color, config.getFadeColor());
-        assertEquals("Loading", config.getTransitionText());
-        assertEquals(TransitionConfig.TransitionType.FADE_WITH_TEXT, config.getType());
+        assertEquals("Circle Out", config.getTransitionName());
     }
 
     @Test
-    @DisplayName("Different transition types are distinct")
-    void testTransitionTypes() {
-        assertNotEquals(
-                TransitionConfig.TransitionType.FADE,
-                TransitionConfig.TransitionType.FADE_WITH_TEXT
-        );
-    }
-
-    @Test
-    @DisplayName("Empty transition text is valid")
-    void testEmptyTransitionText() {
+    @DisplayName("Empty transition name is valid (means plain fade)")
+    void testEmptyTransitionName() {
         TransitionConfig config = TransitionConfig.builder()
-                .transitionText("")
+                .transitionName("")
                 .build();
 
         assertDoesNotThrow(config::validate);
-        assertEquals("", config.getTransitionText());
+        assertEquals("", config.getTransitionName());
     }
 
     @Test
-    @DisplayName("Null transition text is allowed by builder")
-    void testNullTransitionText() {
+    @DisplayName("Random transition name is valid")
+    void testRandomTransitionName() {
         TransitionConfig config = TransitionConfig.builder()
-                .transitionText(null)
+                .transitionName("Random")
                 .build();
 
-        // Null is allowed - the implementation should handle it gracefully
-        // This test just verifies no exception is thrown during creation
         assertDoesNotThrow(config::validate);
+        assertEquals("Random", config.getTransitionName());
     }
 }

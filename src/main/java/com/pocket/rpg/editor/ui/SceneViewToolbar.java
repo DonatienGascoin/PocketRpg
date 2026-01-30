@@ -45,19 +45,19 @@ public class SceneViewToolbar {
     };
 
     private static final ToolDef[] TILEMAP_TOOLS = {
-            new ToolDef("Brush", MaterialIcons.Brush, "B"),
-            new ToolDef("Eraser", MaterialIcons.Delete, "E"),
-            new ToolDef("Fill", MaterialIcons.FormatColorFill, "F"),
-            new ToolDef("Rectangle", MaterialIcons.CropSquare, "R"),
-            new ToolDef("Picker", MaterialIcons.Colorize, "I"),
+            new ToolDef("Brush", MaterialIcons.Brush, "1"),
+            new ToolDef("Eraser", MaterialIcons.Delete, "2"),
+            new ToolDef("Fill", MaterialIcons.FormatColorFill, "3"),
+            new ToolDef("Rectangle", MaterialIcons.CropSquare, "4"),
+            new ToolDef("Picker", MaterialIcons.Colorize, "5"),
     };
 
     private static final ToolDef[] COLLISION_TOOLS = {
-            new ToolDef("Collision Brush", MaterialIcons.Brush, "C"),
-            new ToolDef("Collision Eraser", MaterialIcons.Delete, "X"),
-            new ToolDef("Collision Fill", MaterialIcons.FormatColorFill, "G"),
-            new ToolDef("Collision Rectangle", MaterialIcons.CropSquare, "H"),
-            new ToolDef("Collision Picker", MaterialIcons.Colorize, "V"),
+            new ToolDef("Collision Brush", MaterialIcons.Brush, "1"),
+            new ToolDef("Collision Eraser", MaterialIcons.Delete, "2"),
+            new ToolDef("Collision Fill", MaterialIcons.FormatColorFill, "3"),
+            new ToolDef("Collision Rectangle", MaterialIcons.CropSquare, "4"),
+            new ToolDef("Collision Picker", MaterialIcons.Colorize, "5"),
     };
 
     @Getter

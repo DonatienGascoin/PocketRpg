@@ -43,24 +43,18 @@ public final class EditorShortcuts {
     public static final String VIEW_ZOOM_OUT = "editor.view.zoomOut";
     public static final String VIEW_ZOOM_RESET = "editor.view.zoomReset";
     public static final String VIEW_TOGGLE_GRID = "editor.view.toggleGrid";
+    public static final String VIEW_FOCUS_SELECTED = "editor.view.focusSelected";
 
     // Panel toggle actions
     public static final String PANEL_TILESET_TOGGLE = "editor.panel.tilesetToggle";
     public static final String PANEL_COLLISION_TOGGLE = "editor.panel.collisionToggle";
 
-    // Tilemap tool actions
-    public static final String TOOL_TILE_BRUSH = "editor.tool.tileBrush";
-    public static final String TOOL_TILE_ERASER = "editor.tool.tileEraser";
-    public static final String TOOL_TILE_FILL = "editor.tool.tileFill";
-    public static final String TOOL_TILE_RECTANGLE = "editor.tool.tileRectangle";
-    public static final String TOOL_TILE_PICKER = "editor.tool.tilePicker";
-
-    // Collision tool actions
-    public static final String TOOL_COLLISION_BRUSH = "editor.tool.collisionBrush";
-    public static final String TOOL_COLLISION_ERASER = "editor.tool.collisionEraser";
-    public static final String TOOL_COLLISION_FILL = "editor.tool.collisionFill";
-    public static final String TOOL_COLLISION_RECTANGLE = "editor.tool.collisionRectangle";
-    public static final String TOOL_COLLISION_PICKER = "editor.tool.collisionPicker";
+    // Paint tool actions (context-dependent: tilemap when tilemap layer selected, collision when collision layer selected)
+    public static final String TOOL_BRUSH = "editor.tool.brush";
+    public static final String TOOL_ERASER = "editor.tool.eraser";
+    public static final String TOOL_FILL = "editor.tool.fill";
+    public static final String TOOL_RECTANGLE = "editor.tool.rectangle";
+    public static final String TOOL_PICKER = "editor.tool.picker";
 
     // Entity tool actions
     public static final String TOOL_SELECTION = "editor.tool.selection";
@@ -140,8 +134,7 @@ public final class EditorShortcuts {
         registerEditShortcuts(registry, layout);
         registerViewShortcuts(registry);
         registerPanelShortcuts(registry);
-        registerTilemapToolShortcuts(registry);
-        registerCollisionToolShortcuts(registry);
+        registerPaintToolShortcuts(registry);
         registerEntityToolShortcuts(registry);
         registerTransformToolShortcuts(registry);
         registerBrushShortcuts(registry);
@@ -320,6 +313,14 @@ public final class EditorShortcuts {
                         .defaultBinding(ShortcutBinding.ctrl(ImGuiKey.G))
                         .global()
                         .handler(() -> {})
+                        .build(),
+
+                ShortcutAction.builder()
+                        .id(VIEW_FOCUS_SELECTED)
+                        .displayName("Focus Selected")
+                        .defaultBinding(ShortcutBinding.key(ImGuiKey.F))
+                        .global()
+                        .handler(() -> {})
                         .build()
         );
     }
@@ -344,88 +345,46 @@ public final class EditorShortcuts {
         );
     }
 
-    private static void registerTilemapToolShortcuts(ShortcutRegistry registry) {
+    private static void registerPaintToolShortcuts(ShortcutRegistry registry) {
+        // Paint tools use keys 1-5, context-dependent:
+        // tilemap layer selected → tilemap tools, collision layer selected → collision tools
         registry.registerAll(
                 ShortcutAction.builder()
-                        .id(TOOL_TILE_BRUSH)
-                        .displayName("Tile Brush")
-                        .defaultBinding(ShortcutBinding.key(ImGuiKey.B))
+                        .id(TOOL_BRUSH)
+                        .displayName("Brush")
+                        .defaultBinding(ShortcutBinding.key(ImGuiKey._1))
                         .global()
                         .handler(() -> {})
                         .build(),
 
                 ShortcutAction.builder()
-                        .id(TOOL_TILE_ERASER)
-                        .displayName("Tile Eraser")
-                        .defaultBinding(ShortcutBinding.key(ImGuiKey.E))
+                        .id(TOOL_ERASER)
+                        .displayName("Eraser")
+                        .defaultBinding(ShortcutBinding.key(ImGuiKey._2))
                         .global()
                         .handler(() -> {})
                         .build(),
 
                 ShortcutAction.builder()
-                        .id(TOOL_TILE_FILL)
-                        .displayName("Tile Fill")
-                        .defaultBinding(ShortcutBinding.key(ImGuiKey.F))
+                        .id(TOOL_FILL)
+                        .displayName("Fill")
+                        .defaultBinding(ShortcutBinding.key(ImGuiKey._3))
                         .global()
                         .handler(() -> {})
                         .build(),
 
                 ShortcutAction.builder()
-                        .id(TOOL_TILE_RECTANGLE)
-                        .displayName("Tile Rectangle")
-                        .defaultBinding(ShortcutBinding.key(ImGuiKey.R))
+                        .id(TOOL_RECTANGLE)
+                        .displayName("Rectangle")
+                        .defaultBinding(ShortcutBinding.key(ImGuiKey._4))
                         .global()
                         .handler(() -> {})
                         .build(),
 
                 ShortcutAction.builder()
-                        .id(TOOL_TILE_PICKER)
-                        .displayName("Tile Picker")
-                        .defaultBinding(ShortcutBinding.key(ImGuiKey.I))
-                        .global()
-                        .handler(() -> {})
-                        .build()
-        );
-    }
-
-    private static void registerCollisionToolShortcuts(ShortcutRegistry registry) {
-        registry.registerAll(
-                ShortcutAction.builder()
-                        .id(TOOL_COLLISION_BRUSH)
-                        .displayName("Collision Brush")
-                        .defaultBinding(ShortcutBinding.key(ImGuiKey.C))
-                        .global()
-                        .handler(() -> {})
-                        .build(),
-
-                ShortcutAction.builder()
-                        .id(TOOL_COLLISION_ERASER)
-                        .displayName("Collision Eraser")
-                        .defaultBinding(ShortcutBinding.key(ImGuiKey.X))
-                        .global()
-                        .handler(() -> {})
-                        .build(),
-
-                ShortcutAction.builder()
-                        .id(TOOL_COLLISION_FILL)
-                        .displayName("Collision Fill")
-                        .defaultBinding(ShortcutBinding.key(ImGuiKey.G))
-                        .global()
-                        .handler(() -> {})
-                        .build(),
-
-                ShortcutAction.builder()
-                        .id(TOOL_COLLISION_RECTANGLE)
-                        .displayName("Collision Rectangle")
-                        .defaultBinding(ShortcutBinding.key(ImGuiKey.H))
-                        .global()
-                        .handler(() -> {})
-                        .build(),
-
-                ShortcutAction.builder()
-                        .id(TOOL_COLLISION_PICKER)
-                        .displayName("Collision Picker")
-                        .defaultBinding(ShortcutBinding.key(ImGuiKey.V))
+                        .id(TOOL_PICKER)
+                        .displayName("Picker")
+                        .defaultBinding(ShortcutBinding.key(ImGuiKey._5))
                         .global()
                         .handler(() -> {})
                         .build()
@@ -669,24 +628,18 @@ public final class EditorShortcuts {
         bindings.put(VIEW_ZOOM_OUT, ShortcutBinding.ctrl(ImGuiKey.Minus));
         bindings.put(VIEW_ZOOM_RESET, ShortcutBinding.ctrl(ImGuiKey._0));
         bindings.put(VIEW_TOGGLE_GRID, ShortcutBinding.ctrl(ImGuiKey.G));
+        bindings.put(VIEW_FOCUS_SELECTED, ShortcutBinding.key(ImGuiKey.F));
 
         // Panel toggle shortcuts (same for all layouts)
         bindings.put(PANEL_TILESET_TOGGLE, ShortcutBinding.key(ImGuiKey.F1));
         bindings.put(PANEL_COLLISION_TOGGLE, ShortcutBinding.key(ImGuiKey.F2));
 
-        // Tilemap tool shortcuts
-        bindings.put(TOOL_TILE_BRUSH, ShortcutBinding.key(ImGuiKey.B));
-        bindings.put(TOOL_TILE_ERASER, ShortcutBinding.key(ImGuiKey.E));
-        bindings.put(TOOL_TILE_FILL, ShortcutBinding.key(ImGuiKey.F));
-        bindings.put(TOOL_TILE_RECTANGLE, ShortcutBinding.key(ImGuiKey.R));
-        bindings.put(TOOL_TILE_PICKER, ShortcutBinding.key(ImGuiKey.I));
-
-        // Collision tool shortcuts
-        bindings.put(TOOL_COLLISION_BRUSH, ShortcutBinding.key(ImGuiKey.C));
-        bindings.put(TOOL_COLLISION_ERASER, ShortcutBinding.key(ImGuiKey.X));
-        bindings.put(TOOL_COLLISION_FILL, ShortcutBinding.key(ImGuiKey.G));
-        bindings.put(TOOL_COLLISION_RECTANGLE, ShortcutBinding.key(ImGuiKey.H));
-        bindings.put(TOOL_COLLISION_PICKER, ShortcutBinding.key(ImGuiKey.V));
+        // Paint tool shortcuts (context-dependent: tilemap or collision based on layer selection)
+        bindings.put(TOOL_BRUSH, ShortcutBinding.key(ImGuiKey._1));
+        bindings.put(TOOL_ERASER, ShortcutBinding.key(ImGuiKey._2));
+        bindings.put(TOOL_FILL, ShortcutBinding.key(ImGuiKey._3));
+        bindings.put(TOOL_RECTANGLE, ShortcutBinding.key(ImGuiKey._4));
+        bindings.put(TOOL_PICKER, ShortcutBinding.key(ImGuiKey._5));
 
         // Entity tool shortcuts
         bindings.put(TOOL_SELECTION, ShortcutBinding.key(ImGuiKey.V));
@@ -760,24 +713,18 @@ public final class EditorShortcuts {
         registry.bindHandler(VIEW_ZOOM_OUT, handlers::onZoomOut);
         registry.bindHandler(VIEW_ZOOM_RESET, handlers::onZoomReset);
         registry.bindHandler(VIEW_TOGGLE_GRID, handlers::onToggleGrid);
+        registry.bindHandler(VIEW_FOCUS_SELECTED, handlers::onFocusSelected);
 
         // Panel toggles
         registry.bindHandler(PANEL_TILESET_TOGGLE, handlers::onPanelTilesetToggle);
         registry.bindHandler(PANEL_COLLISION_TOGGLE, handlers::onPanelCollisionToggle);
 
-        // Tilemap tools
-        registry.bindHandler(TOOL_TILE_BRUSH, handlers::onToolTileBrush);
-        registry.bindHandler(TOOL_TILE_ERASER, handlers::onToolTileEraser);
-        registry.bindHandler(TOOL_TILE_FILL, handlers::onToolTileFill);
-        registry.bindHandler(TOOL_TILE_RECTANGLE, handlers::onToolTileRectangle);
-        registry.bindHandler(TOOL_TILE_PICKER, handlers::onToolTilePicker);
-
-        // Collision tools
-        registry.bindHandler(TOOL_COLLISION_BRUSH, handlers::onToolCollisionBrush);
-        registry.bindHandler(TOOL_COLLISION_ERASER, handlers::onToolCollisionEraser);
-        registry.bindHandler(TOOL_COLLISION_FILL, handlers::onToolCollisionFill);
-        registry.bindHandler(TOOL_COLLISION_RECTANGLE, handlers::onToolCollisionRectangle);
-        registry.bindHandler(TOOL_COLLISION_PICKER, handlers::onToolCollisionPicker);
+        // Paint tools (context-dependent: tilemap or collision)
+        registry.bindHandler(TOOL_BRUSH, handlers::onToolBrush);
+        registry.bindHandler(TOOL_ERASER, handlers::onToolEraser);
+        registry.bindHandler(TOOL_FILL, handlers::onToolFill);
+        registry.bindHandler(TOOL_RECTANGLE, handlers::onToolRectangle);
+        registry.bindHandler(TOOL_PICKER, handlers::onToolPicker);
 
         // Entity tools
         registry.bindHandler(TOOL_SELECTION, handlers::onToolSelection);

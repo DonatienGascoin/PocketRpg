@@ -8,8 +8,12 @@ import com.pocket.rpg.collision.MovementModifier;
 import com.pocket.rpg.collision.TileEntityMap;
 import com.pocket.rpg.collision.trigger.TriggerSystem;
 import com.pocket.rpg.components.interaction.TriggerZone;
+import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.editor.gizmos.GizmoColors;
+import com.pocket.rpg.editor.gizmos.GizmoContext;
 import lombok.Getter;
 import lombok.Setter;
+import org.joml.Vector2f;
 import org.joml.Vector3f;
 
 import java.util.List;
@@ -43,6 +47,17 @@ import java.util.List;
  */
 @ComponentMeta(category = "Physics")
 public class GridMovement extends Component {
+
+    // ========================================================================
+    // ANCHOR MODE
+    // ========================================================================
+
+    /**
+     * Controls how the grid anchor is determined.
+     * AUTO: derived from sibling SpriteRenderer pivot.
+     * MANUAL: uses the manually specified anchor value.
+     */
+    public enum AnchorMode { AUTO, MANUAL }
 
     // ========================================================================
     // CONFIGURATION
@@ -79,39 +94,39 @@ public class GridMovement extends Component {
     @Setter
     private int zLevel = 0;
 
+    /**
+     * Anchor mode: AUTO detects from sibling SpriteRenderer, MANUAL uses manualAnchor.
+     */
+    @Getter
+    @Setter
+    private AnchorMode anchorMode = AnchorMode.AUTO;
+
+    /**
+     * Manual anchor position within the tile (0,0 = bottom-left, 1,1 = top-right).
+     * Only used when anchorMode is MANUAL.
+     */
+    @Getter
+    @Setter
+    private Vector2f manualAnchor = new Vector2f(0.5f, 0.5f);
+
     // ========================================================================
-    // STATE
+    // RUNTIME STATE (transient - derived on start or during movement)
     // ========================================================================
 
-    /**
-     * Current grid X position (tile coordinates).
-     */
     @Getter
-    private int gridX = 0;
+    private transient int gridX = 0;
 
-    /**
-     * Current grid Y position (tile coordinates).
-     */
     @Getter
-    private int gridY = 0;
+    private transient int gridY = 0;
 
-    /**
-     * True while moving between tiles.
-     */
     @Getter
-    private boolean isMoving = false;
+    private transient boolean isMoving = false;
 
-    /**
-     * True while sliding on ice (will auto-continue after movement completes).
-     */
     @Getter
-    private boolean isSliding = false;
+    private transient boolean isSliding = false;
 
-    /**
-     * Current movement modifier (affects speed/behavior).
-     */
     @Getter
-    private MovementModifier currentModifier = MovementModifier.NORMAL;
+    private transient MovementModifier currentModifier = MovementModifier.NORMAL;
 
     /**
      * Current facing direction.
@@ -120,10 +135,10 @@ public class GridMovement extends Component {
     @Setter
     private Direction facingDirection = Direction.DOWN;
 
-    // Internal movement state
-    private final Vector3f startPos = new Vector3f();
-    private final Vector3f targetPos = new Vector3f();
-    private float moveProgress = 0f;
+    // Internal movement animation state
+    private transient final Vector3f startPos = new Vector3f();
+    private transient final Vector3f targetPos = new Vector3f();
+    private transient float moveProgress = 0f;
 
     // ========================================================================
     // CONSTRUCTORS
@@ -145,11 +160,53 @@ public class GridMovement extends Component {
     }
 
     // ========================================================================
+    // ANCHOR
+    // ========================================================================
+
+    /**
+     * Returns the effective anchor point for grid snapping.
+     * In AUTO mode, reads from sibling SpriteRenderer pivot.
+     * In MANUAL mode, returns the manual anchor value.
+     * Fallback: (0.5, 0.5) = tile center.
+     */
+    public Vector2f getEffectiveAnchor() {
+        if (anchorMode == AnchorMode.MANUAL) {
+            return manualAnchor;
+        }
+        // AUTO: look for sibling SpriteRenderer
+        if (gameObject != null) {
+            SpriteRenderer sr = gameObject.getComponent(SpriteRenderer.class);
+            if (sr != null) {
+                return new Vector2f(sr.getEffectiveOriginX(), sr.getEffectiveOriginY());
+            }
+        }
+        return new Vector2f(0.5f, 0.5f);
+    }
+
+    /**
+     * Returns the anchor for editor/gizmo context where gameObject is null.
+     * In MANUAL mode returns the manual anchor; otherwise returns default center.
+     */
+    public Vector2f getEditorAnchor() {
+        if (anchorMode == AnchorMode.MANUAL) {
+            return manualAnchor;
+        }
+        return new Vector2f(0.5f, 0.5f);
+    }
+
+    // ========================================================================
     // LIFECYCLE
     // ========================================================================
 
     @Override
     protected void onStart() {
+        // Derive grid position from the transform position
+        Vector3f pos = gameObject.getTransform().getPosition();
+        Vector2f anchor = getEffectiveAnchor();
+        gridX = Math.round((pos.x - tileSize * anchor.x) / tileSize);
+        gridY = Math.round((pos.y - tileSize * anchor.y) / tileSize);
+        snapToGrid();
+
         // Register with entity occupancy map
         CollisionSystem collisionSystem = getCollisionSystem();
         if (collisionSystem != null) {
@@ -196,8 +253,9 @@ public class GridMovement extends Component {
     private void snapToGrid() {
         if (gameObject == null) return;
 
-        float worldX = gridX * tileSize + tileSize * 0.5f; // Center of tile
-        float worldY = gridY * tileSize + tileSize * 0.5f;
+        Vector2f anchor = getEffectiveAnchor();
+        float worldX = gridX * tileSize + tileSize * anchor.x;
+        float worldY = gridY * tileSize + tileSize * anchor.y;
 
         Vector3f pos = gameObject.getTransform().getPosition();
         gameObject.getTransform().setPosition(worldX, worldY, pos.z);
@@ -330,9 +388,10 @@ public class GridMovement extends Component {
         startPos.set(gameObject.getTransform().getPosition());
 
         // Calculate target world position
+        Vector2f anchor = getEffectiveAnchor();
         targetPos.set(
-                targetX * tileSize + tileSize * 0.5f,
-                targetY * tileSize + tileSize * 0.5f,
+                targetX * tileSize + tileSize * anchor.x,
+                targetY * tileSize + tileSize * anchor.y,
                 startPos.z
         );
 
@@ -543,6 +602,48 @@ public class GridMovement extends Component {
      */
     public boolean isJumping() {
         return isMoving && currentModifier == MovementModifier.JUMP;
+    }
+
+    // ========================================================================
+    // GIZMOS
+    // ========================================================================
+
+    @Override
+    public void onDrawGizmosSelected(GizmoContext ctx) {
+        Transform t = ctx.getTransform();
+        if (t == null) return;
+
+        float posX = t.getPosition().x;
+        float posY = t.getPosition().y;
+
+        // Derive grid position from the transform (gridX/gridY are transient
+        // and won't be populated in editor mode)
+        Vector2f anchor = getEditorAnchor();
+        int gx = Math.round((posX - tileSize * anchor.x) / tileSize);
+        int gy = Math.round((posY - tileSize * anchor.y) / tileSize);
+
+        // Draw filled tile highlight at the grid position
+        ctx.setColor(GizmoColors.TILE);
+        ctx.drawTileHighlight(gx, gy, tileSize);
+
+        // Draw tile outline
+        ctx.setColor(GizmoColors.TILE_BORDER);
+        ctx.setThickness(2.0f);
+        ctx.drawTileOutline(gx, gy, tileSize);
+
+        // Draw crosshair at actual transform position so misalignment is visible
+        ctx.setColor(GizmoColors.POSITION);
+        float crossSize = ctx.getHandleSize(8);
+        ctx.drawCrossHair(posX, posY, crossSize);
+
+        // Draw grid coordinate label
+        float tileCenterX = gx * tileSize + tileSize * 0.5f;
+        float tileCenterY = gy * tileSize + tileSize * 0.5f;
+        ctx.setColor(GizmoColors.WHITE);
+        ctx.drawText(tileCenterX, tileCenterY + tileSize * 0.5f,
+                String.format("grid(%d, %d)", gx, gy), -20, -14);
+
+        ctx.setThickness(1.0f);
     }
 
     @Override

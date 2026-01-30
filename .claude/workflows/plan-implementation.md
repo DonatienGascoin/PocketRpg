@@ -66,19 +66,33 @@ cd .worktrees/<feature-name> && mvn compile exec:java -Dexec.mainClass="com.pock
 
 After all phases approved:
 ```bash
-gh pr close <pr-number>
-git checkout main
-git merge <feature-branch>
-git push
+# Rebase onto latest main and merge PR
+cd .worktrees/<feature-name> && git fetch origin main && git rebase origin/main
+cd .worktrees/<feature-name> && git push --force-with-lease
+gh pr merge <pr-number> --merge
+
+# Pull merged changes to main
+git checkout main && git pull origin main
+
+# Full cleanup: worktree, local branch, remote branch, PR
+# IMPORTANT: Remind user to close any running editor/game instance
+# from the worktree before removing it, as open file handles will
+# cause the removal to fail.
 git worktree remove .worktrees/<feature-name>
 git branch -d <feature-branch>
+git push origin --delete <feature-branch>
 ```
+
+> **Note:** `gh pr merge` automatically closes the PR. If abandoning a PR
+> without merging, close it explicitly with `gh pr close <pr-number>`.
 
 ### Rollback (If Needed)
 
 ```bash
 git worktree remove .worktrees/<feature-name> --force
 git branch -D <feature-branch>
+git push origin --delete <feature-branch>
+gh pr close <pr-number>
 ```
 
 ---

@@ -6,6 +6,7 @@ import com.pocket.rpg.editor.EditorToolController;
 import com.pocket.rpg.editor.PlayModeController;
 import com.pocket.rpg.editor.panels.CollisionPanel;
 import com.pocket.rpg.editor.panels.TilesetPalettePanel;
+import com.pocket.rpg.editor.panels.hierarchy.EntityCreationService;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.tools.EditorTool;
@@ -14,7 +15,9 @@ import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.RemoveEntityCommand;
 import com.pocket.rpg.editor.ui.EditorMenuBar;
 import lombok.Setter;
+import org.joml.Vector3f;
 
+import java.util.Set;
 import java.util.function.Consumer;
 
 /**
@@ -40,6 +43,9 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Setter
     private CollisionPanel collisionPanel;
+
+    @Setter
+    private EntityCreationService entityCreationService;
 
     @Setter
     private Consumer<String> messageCallback;
@@ -141,8 +147,24 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onDuplicate() {
-        // TODO: Implement duplicate functionality
-        showMessage("Duplicate (not implemented)");
+        if (entityCreationService == null) {
+            return;
+        }
+        EditorScene scene = context.getCurrentScene();
+        if (scene == null) return;
+
+        Set<EditorGameObject> selected = scene.getSelectedEntities();
+        if (selected.isEmpty()) {
+            showMessage("No entity selected");
+            return;
+        }
+
+        for (EditorGameObject entity : selected) {
+            entityCreationService.duplicateEntity(entity);
+        }
+        showMessage(selected.size() == 1
+                ? "Duplicated: " + selected.iterator().next().getName()
+                : "Duplicated " + selected.size() + " entities");
     }
 
     // ========================================================================
@@ -173,6 +195,34 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
         showMessage("Toggle Grid (not implemented)");
     }
 
+    @Override
+    public void onFocusSelected() {
+        EditorScene scene = context.getCurrentScene();
+        if (scene == null) return;
+
+        Set<EditorGameObject> selected = scene.getSelectedEntities();
+        if (selected.isEmpty()) {
+            return;
+        }
+
+        float sumX = 0, sumY = 0;
+        for (EditorGameObject entity : selected) {
+            Vector3f pos = entity.getPosition();
+            sumX += pos.x;
+            sumY += pos.y;
+        }
+        float centerX = sumX / selected.size();
+        float centerY = sumY / selected.size();
+
+        context.getCamera().centerOn(centerX, centerY);
+
+        if (selected.size() == 1) {
+            showMessage("Focused on " + selected.iterator().next().getName());
+        } else {
+            showMessage("Focused on " + selected.size() + " entities");
+        }
+    }
+
     // ========================================================================
     // PANEL TOGGLE HANDLERS
     // ========================================================================
@@ -194,7 +244,7 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
     }
 
     // ========================================================================
-    // TILEMAP TOOL HANDLERS (only work when Tileset Palette is open)
+    // PAINT TOOL HANDLERS (keys 1-5, context-dependent: tilemap or collision)
     // ========================================================================
 
     private boolean isTilemapLayerSelected() {
@@ -202,90 +252,61 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
         return selectionManager != null && selectionManager.isTilemapLayerSelected();
     }
 
-    @Override
-    public void onToolTileBrush() {
-        if (isTilemapLayerSelected()) {
-            context.getToolManager().setActiveTool(toolController.getBrushTool());
-            showMessage("Tile Brush");
-        }
-    }
-
-    @Override
-    public void onToolTileEraser() {
-        if (isTilemapLayerSelected()) {
-            context.getToolManager().setActiveTool(toolController.getEraserTool());
-            showMessage("Tile Eraser");
-        }
-    }
-
-    @Override
-    public void onToolTileFill() {
-        if (isTilemapLayerSelected()) {
-            context.getToolManager().setActiveTool(toolController.getFillTool());
-            showMessage("Tile Fill");
-        }
-    }
-
-    @Override
-    public void onToolTileRectangle() {
-        if (isTilemapLayerSelected()) {
-            context.getToolManager().setActiveTool(toolController.getRectangleTool());
-            showMessage("Tile Rectangle");
-        }
-    }
-
-    @Override
-    public void onToolTilePicker() {
-        if (isTilemapLayerSelected()) {
-            context.getToolManager().setActiveTool(toolController.getPickerTool());
-            showMessage("Tile Picker");
-        }
-    }
-
-    // ========================================================================
-    // COLLISION TOOL HANDLERS (only work when Collision Panel is open)
-    // ========================================================================
-
     private boolean isCollisionLayerSelected() {
         EditorSelectionManager selectionManager = context.getSelectionManager();
         return selectionManager != null && selectionManager.isCollisionLayerSelected();
     }
 
     @Override
-    public void onToolCollisionBrush() {
-        if (isCollisionLayerSelected()) {
+    public void onToolBrush() {
+        if (isTilemapLayerSelected()) {
+            context.getToolManager().setActiveTool(toolController.getBrushTool());
+            showMessage("Tile Brush");
+        } else if (isCollisionLayerSelected()) {
             context.getToolManager().setActiveTool(toolController.getCollisionBrushTool());
             showMessage("Collision Brush");
         }
     }
 
     @Override
-    public void onToolCollisionEraser() {
-        if (isCollisionLayerSelected()) {
+    public void onToolEraser() {
+        if (isTilemapLayerSelected()) {
+            context.getToolManager().setActiveTool(toolController.getEraserTool());
+            showMessage("Tile Eraser");
+        } else if (isCollisionLayerSelected()) {
             context.getToolManager().setActiveTool(toolController.getCollisionEraserTool());
             showMessage("Collision Eraser");
         }
     }
 
     @Override
-    public void onToolCollisionFill() {
-        if (isCollisionLayerSelected()) {
+    public void onToolFill() {
+        if (isTilemapLayerSelected()) {
+            context.getToolManager().setActiveTool(toolController.getFillTool());
+            showMessage("Tile Fill");
+        } else if (isCollisionLayerSelected()) {
             context.getToolManager().setActiveTool(toolController.getCollisionFillTool());
             showMessage("Collision Fill");
         }
     }
 
     @Override
-    public void onToolCollisionRectangle() {
-        if (isCollisionLayerSelected()) {
+    public void onToolRectangle() {
+        if (isTilemapLayerSelected()) {
+            context.getToolManager().setActiveTool(toolController.getRectangleTool());
+            showMessage("Tile Rectangle");
+        } else if (isCollisionLayerSelected()) {
             context.getToolManager().setActiveTool(toolController.getCollisionRectangleTool());
             showMessage("Collision Rectangle");
         }
     }
 
     @Override
-    public void onToolCollisionPicker() {
-        if (isCollisionLayerSelected()) {
+    public void onToolPicker() {
+        if (isTilemapLayerSelected()) {
+            context.getToolManager().setActiveTool(toolController.getPickerTool());
+            showMessage("Tile Picker");
+        } else if (isCollisionLayerSelected()) {
             context.getToolManager().setActiveTool(toolController.getCollisionPickerTool());
             showMessage("Collision Picker");
         }
@@ -347,38 +368,22 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
     // TRANSFORM TOOL HANDLERS
     // ========================================================================
 
-    /**
-     * Checks if a specialized layer (tilemap or collision) is currently selected.
-     * Transform tools E/R shortcuts should not activate when these layers are selected
-     * (to avoid conflict with Eraser and Rectangle shortcuts).
-     */
-    private boolean isSpecializedLayerSelected() {
-        return isTilemapLayerSelected() || isCollisionLayerSelected();
-    }
-
     @Override
     public void onToolMove() {
-        // Move tool works in all contexts (W key doesn't conflict)
         context.getToolManager().setActiveTool(toolController.getMoveTool());
         showMessage("Move Tool");
     }
 
     @Override
     public void onToolRotate() {
-        // E conflicts with Tile Eraser - only activate when not in tileset/collision mode
-        if (!isSpecializedLayerSelected()) {
-            context.getToolManager().setActiveTool(toolController.getRotateTool());
-            showMessage("Rotate Tool");
-        }
+        context.getToolManager().setActiveTool(toolController.getRotateTool());
+        showMessage("Rotate Tool");
     }
 
     @Override
     public void onToolScale() {
-        // R conflicts with Tile Rectangle - only activate when not in tileset/collision mode
-        if (!isSpecializedLayerSelected()) {
-            context.getToolManager().setActiveTool(toolController.getScaleTool());
-            showMessage("Scale Tool");
-        }
+        context.getToolManager().setActiveTool(toolController.getScaleTool());
+        showMessage("Scale Tool");
     }
 
     // ========================================================================

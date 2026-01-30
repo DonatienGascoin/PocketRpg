@@ -314,6 +314,7 @@ public class EditorApplication {
         handlers.setConfigurationPanel(uiController.getConfigurationPanel());
         handlers.setTilesetPalettePanel(uiController.getTilesetPalette());
         handlers.setCollisionPanel(uiController.getCollisionPanel());
+        handlers.setEntityCreationService(uiController.getHierarchyPanel().getCreationService());
 
         // Bind handlers to shortcuts
         EditorShortcuts.bindHandlers(shortcutRegistry, handlers);

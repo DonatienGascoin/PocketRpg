@@ -26,9 +26,8 @@ public abstract class Component implements GizmoDrawable, GizmoDrawableSelected 
     protected IGameObject owner;
 
     /**
-     * @deprecated Use {@link #owner} via {@link #getOwner()} instead.
+     * Use {@link #owner} via {@link #getOwner()} instead.
      */
-    @Deprecated
     @Getter
     protected GameObject gameObject;
 

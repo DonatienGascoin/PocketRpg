@@ -25,6 +25,7 @@ import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiMouseButton;
 import imgui.flag.ImGuiTreeNodeFlags;
+import lombok.Getter;
 import lombok.Setter;
 
 import java.util.Comparator;
@@ -46,6 +47,7 @@ public class HierarchyPanel extends EditorPanel {
 
     private final HierarchySelectionHandler selectionHandler = new HierarchySelectionHandler();
     private final HierarchyDragDropHandler dragDropHandler = new HierarchyDragDropHandler();
+    @Getter
     private final EntityCreationService creationService = new EntityCreationService();
     private final HierarchyTreeRenderer treeRenderer = new HierarchyTreeRenderer();
 

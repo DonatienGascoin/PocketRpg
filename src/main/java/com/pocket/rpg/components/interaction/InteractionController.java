@@ -54,7 +54,21 @@ public class InteractionController extends Component {
     // Runtime state
     private transient TileEntityMap tileEntityMap;
     private transient GridMovement gridMovement;
+    /**
+     * -- GETTER --
+     *  Gets the current interaction target, if any.
+     *
+     * @return The Interactable currently in range, or null
+     */
+    @Getter
     private transient Interactable currentTarget;
+    /**
+     * -- GETTER --
+     *  Gets the GameObject of the current target.
+     *
+     * @return The target's GameObject, or null
+     */
+    @Getter
     private transient GameObject currentTargetObject;
 
     @Override
@@ -67,24 +81,6 @@ public class InteractionController extends Component {
     public void update(float deltaTime) {
         updateCurrentTarget();
         handleInput();
-    }
-
-    /**
-     * Gets the current interaction target, if any.
-     *
-     * @return The Interactable currently in range, or null
-     */
-    public Interactable getCurrentTarget() {
-        return currentTarget;
-    }
-
-    /**
-     * Gets the GameObject of the current target.
-     *
-     * @return The target's GameObject, or null
-     */
-    public GameObject getCurrentTargetObject() {
-        return currentTargetObject;
     }
 
     /**

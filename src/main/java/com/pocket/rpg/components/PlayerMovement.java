@@ -33,7 +33,7 @@ public class PlayerMovement extends Component {
 
     @Override
     protected void onStart() {
-        movement.setGridPosition((int)getTransform().getPosition().x, (int)getTransform().getPosition().y);
+        // Grid position is now derived from the transform by GridMovement.onStart()
     }
 
     @Override

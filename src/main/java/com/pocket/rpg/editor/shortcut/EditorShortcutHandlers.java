@@ -37,6 +37,7 @@ public interface EditorShortcutHandlers {
     void onZoomOut();
     void onZoomReset();
     void onToggleGrid();
+    void onFocusSelected();
 
     // ========================================================================
     // PANEL TOGGLES
@@ -46,24 +47,14 @@ public interface EditorShortcutHandlers {
     void onPanelCollisionToggle();
 
     // ========================================================================
-    // TILEMAP TOOLS
+    // PAINT TOOLS (context-dependent: tilemap or collision)
     // ========================================================================
 
-    void onToolTileBrush();
-    void onToolTileEraser();
-    void onToolTileFill();
-    void onToolTileRectangle();
-    void onToolTilePicker();
-
-    // ========================================================================
-    // COLLISION TOOLS
-    // ========================================================================
-
-    void onToolCollisionBrush();
-    void onToolCollisionEraser();
-    void onToolCollisionFill();
-    void onToolCollisionRectangle();
-    void onToolCollisionPicker();
+    void onToolBrush();
+    void onToolEraser();
+    void onToolFill();
+    void onToolRectangle();
+    void onToolPicker();
 
     // ========================================================================
     // ENTITY TOOLS

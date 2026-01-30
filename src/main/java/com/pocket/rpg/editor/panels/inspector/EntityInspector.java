@@ -1,6 +1,7 @@
 package com.pocket.rpg.editor.panels.inspector;
 
 import com.pocket.rpg.components.Component;
+import com.pocket.rpg.core.IGameObject;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.ComponentBrowserPopup;
 import com.pocket.rpg.editor.panels.SavePrefabPopup;
@@ -95,6 +96,47 @@ public class EntityInspector {
         renderComponentList(entity);
         componentBrowserPopup.render();
         savePrefabPopup.render();
+    }
+
+    /**
+     * Renders inspector for a runtime game object during play mode.
+     * Read-only header, editable component fields (changes are temporary).
+     */
+    public void renderRuntime(IGameObject gameObject) {
+        // Header (read-only)
+        ImGui.text(MaterialIcons.ViewInAr);
+        ImGui.sameLine();
+        ImGui.text(gameObject.getName());
+        ImGui.sameLine();
+        if (gameObject.isEnabled()) {
+            ImGui.textColored(0.4f, 0.8f, 0.4f, 1f, "(enabled)");
+        } else {
+            ImGui.textColored(0.8f, 0.4f, 0.4f, 1f, "(disabled)");
+        }
+
+        ImGui.separator();
+
+        // Render components
+        List<Component> components = gameObject.getAllComponents();
+        if (components.isEmpty()) {
+            ImGui.spacing();
+            ImGui.textDisabled("No components");
+            ImGui.spacing();
+        } else {
+            for (int i = 0; i < components.size(); i++) {
+                Component comp = components.get(i);
+                ImGui.pushID(i);
+                String label = comp.getClass().getSimpleName();
+                boolean open = ImGui.collapsingHeader(label, ImGuiTreeNodeFlags.DefaultOpen);
+                if (open) {
+                    fieldEditor.renderRuntimeComponentFields(comp);
+                }
+                ImGui.popID();
+            }
+        }
+
+        ImGui.separator();
+        ImGui.textDisabled("Changes reset when play mode stops");
     }
 
     public void renderDeleteConfirmationPopup() {

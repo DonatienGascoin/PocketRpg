@@ -694,6 +694,10 @@ public class EditorUIController {
                 playModeController,
                 context.getGameConfig()
         );
+
+        // Wire play mode controller to panels for runtime hierarchy/inspector
+        hierarchyPanel.setPlayModeController(controller);
+        inspectorPanel.setPlayModeController(controller);
     }
 
     /**

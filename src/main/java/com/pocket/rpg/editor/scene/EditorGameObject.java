@@ -3,6 +3,7 @@ package com.pocket.rpg.editor.scene;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.editor.panels.hierarchy.HierarchyItem;
 import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.prefab.Prefab;
 import com.pocket.rpg.prefab.PrefabRegistry;
@@ -29,7 +30,7 @@ import java.util.*;
  * Position, rotation, and scale are stored in the Transform component,
  * not as separate fields.
  */
-public class EditorGameObject implements Renderable {
+public class EditorGameObject implements Renderable, HierarchyItem {
 
     @Getter
     @Setter
@@ -405,12 +406,27 @@ public class EditorGameObject implements Renderable {
             if (components == null) {
                 components = new ArrayList<>();
             }
+            ensureOwnerSet(components);
             return components;
         } else {
             if (cachedMergedComponents == null) {
                 cachedMergedComponents = getMergedComponents();
             }
             return cachedMergedComponents;
+        }
+    }
+
+    /**
+     * Ensures all components in the list have their owner set to this entity.
+     * Only sets owner on components that have no owner yet (null).
+     * Components temporarily reassigned to a wrapper GameObject (e.g. by
+     * {@link com.pocket.rpg.editor.rendering.EditorUIBridge}) are left alone.
+     */
+    private void ensureOwnerSet(List<Component> comps) {
+        for (Component comp : comps) {
+            if (comp.getOwner() == null) {
+                comp.setOwner(this);
+            }
         }
     }
 
@@ -474,6 +490,7 @@ public class EditorGameObject implements Renderable {
             result.add(0, transform);
         }
 
+        ensureOwnerSet(result);
         return result;
     }
 
@@ -538,6 +555,8 @@ public class EditorGameObject implements Renderable {
                     "Cannot add components to prefab instance. Convert to scratch entity first.");
         }
 
+        component.setOwner(this);
+
         // Allow UITransform to replace Transform
         if (component instanceof UITransform) {
             // Remove existing plain Transform if present (UITransform takes precedence)
@@ -574,6 +593,45 @@ public class EditorGameObject implements Renderable {
         return null;
     }
 
+    /**
+     * Gets all components of the specified type.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T extends Component> List<T> getComponents(Class<T> type) {
+        List<T> result = new ArrayList<>();
+        for (Component comp : getComponents()) {
+            if (type.isInstance(comp)) {
+                result.add((T) comp);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Gets all components (IGameObject interface method).
+     */
+    @Override
+    public List<Component> getAllComponents() {
+        return getComponents();
+    }
+
+    /**
+     * Editor entities are always considered enabled.
+     */
+    @Override
+    public boolean isEnabled() {
+        return true;
+    }
+
+    /**
+     * Returns children for hierarchy display.
+     */
+    @Override
+    public List<? extends HierarchyItem> getHierarchyChildren() {
+        return getChildren();
+    }
+
     public Component getComponentByType(String simpleName) {
         for (Component comp : getComponents()) {
             if (comp.getClass().getSimpleName().equals(simpleName)) {
@@ -583,9 +641,9 @@ public class EditorGameObject implements Renderable {
         return null;
     }
 
-    @SuppressWarnings("unchecked")
-    public boolean hasComponent(Class<?> clazz) {
-        return getComponent((Class<? extends Component>) clazz) != null;
+    @Override
+    public boolean hasComponent(Class<? extends Component> type) {
+        return getComponent(type) != null;
     }
 
     // ========================================================================

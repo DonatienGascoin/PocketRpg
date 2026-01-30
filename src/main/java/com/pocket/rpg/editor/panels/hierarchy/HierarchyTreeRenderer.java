@@ -1,10 +1,12 @@
 package com.pocket.rpg.editor.panels.hierarchy;
 
+import com.pocket.rpg.editor.PlayModeSelectionManager;
 import com.pocket.rpg.editor.assets.HierarchyDropTarget;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.SavePrefabPopup;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
+import com.pocket.rpg.editor.scene.RuntimeGameObjectAdapter;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.BulkDeleteCommand;
 import com.pocket.rpg.editor.undo.commands.RemoveEntityCommand;
@@ -230,5 +232,51 @@ public class HierarchyTreeRenderer {
             return scene.getRootEntities().size();
         }
         return parent.getChildren().size();
+    }
+
+    // ========================================================================
+    // PLAY MODE HIERARCHY
+    // ========================================================================
+
+    /**
+     * Renders a HierarchyItem tree for play mode display.
+     * Read-only — no drag-drop, no context menu, no rename.
+     */
+    public void renderHierarchyItemTree(HierarchyItem item, PlayModeSelectionManager selMgr) {
+        int flags = ImGuiTreeNodeFlags.SpanAvailWidth | ImGuiTreeNodeFlags.OpenOnArrow;
+
+        boolean hasChildren = item.hasHierarchyChildren();
+        if (!hasChildren) {
+            flags |= ImGuiTreeNodeFlags.Leaf | ImGuiTreeNodeFlags.NoTreePushOnOpen;
+        }
+
+        // Selection highlight
+        if (item instanceof RuntimeGameObjectAdapter adapter && selMgr != null) {
+            if (selMgr.isSelected(adapter.getGameObject())) {
+                flags |= ImGuiTreeNodeFlags.Selected;
+            }
+        }
+
+        String icon = item.isEnabled()
+                ? IconUtils.getScratchEntityIcon()
+                : MaterialIcons.VisibilityOff;
+        boolean open = ImGui.treeNodeEx(item.getId(), flags, icon + " " + item.getName());
+
+        // Handle click — select in PlayModeSelectionManager
+        if (ImGui.isItemClicked() && item instanceof RuntimeGameObjectAdapter adapter && selMgr != null) {
+            boolean ctrl = ImGui.isKeyDown(ImGuiKey.LeftCtrl) || ImGui.isKeyDown(ImGuiKey.RightCtrl);
+            if (ctrl) {
+                selMgr.toggleSelection(adapter.getGameObject());
+            } else {
+                selMgr.select(adapter.getGameObject());
+            }
+        }
+
+        if (open && hasChildren) {
+            for (HierarchyItem child : item.getHierarchyChildren()) {
+                renderHierarchyItemTree(child, selMgr);
+            }
+            ImGui.treePop();
+        }
     }
 }

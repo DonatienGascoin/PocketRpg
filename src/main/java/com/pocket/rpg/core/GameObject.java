@@ -18,13 +18,16 @@ import java.util.List;
  *
  * UPDATED: Now supports parent-child hierarchy.
  */
-public class GameObject {
+public class GameObject implements IGameObject {
     @Setter
     @Getter
     private String name;
 
     @Getter
     private boolean enabled = true;
+
+    @Getter
+    private boolean destroyed = false;
 
     @Setter
     @Getter
@@ -40,6 +43,11 @@ public class GameObject {
     private GameObject parent;
 
     private final List<GameObject> children = new ArrayList<>();
+
+    @Override
+    public String getId() {
+        return "go_" + System.identityHashCode(this);
+    }
 
     public GameObject(String name) {
         this.name = name;
@@ -209,7 +217,7 @@ public class GameObject {
     }
 
     private void addComponentInternal(Component component) {
-        component.setGameObject(this);
+        component.setOwner(this);
         components.add(component);
     }
 
@@ -221,7 +229,7 @@ public class GameObject {
 
         if (components.remove(component)) {
             component.destroy();
-            component.setGameObject(null);
+            component.setOwner(null);
 
             if (scene != null) {
                 scene.unregisterCachedComponent(component);
@@ -332,6 +340,8 @@ public class GameObject {
     }
 
     public void destroy() {
+        destroyed = true;
+
         // Destroy children first
         for (GameObject child : new ArrayList<>(children)) {
             child.destroy();

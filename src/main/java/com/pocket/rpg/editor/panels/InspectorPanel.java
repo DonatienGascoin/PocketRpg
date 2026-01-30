@@ -4,14 +4,24 @@ import com.pocket.rpg.animation.animator.AnimatorController;
 import com.pocket.rpg.animation.animator.AnimatorState;
 import com.pocket.rpg.animation.animator.AnimatorTransition;
 import com.pocket.rpg.collision.trigger.TileCoord;
+import com.pocket.rpg.core.GameObject;
+import com.pocket.rpg.core.camera.GameCamera;
 import com.pocket.rpg.editor.EditorSelectionManager;
+import com.pocket.rpg.editor.PlayModeController;
+import com.pocket.rpg.editor.PlayModeSelectionManager;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.inspector.*;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
+import com.pocket.rpg.editor.scene.RuntimeGameObjectAdapter;
 import com.pocket.rpg.editor.ui.fields.ReflectionFieldEditor;
+import com.pocket.rpg.editor.utils.IconUtils;
+import com.pocket.rpg.scenes.Scene;
 import imgui.ImGui;
+import imgui.flag.ImGuiTreeNodeFlags;
 import lombok.Getter;
 import lombok.Setter;
+import org.joml.Vector3f;
 
 import java.util.Set;
 
@@ -22,12 +32,16 @@ import java.util.Set;
 public class InspectorPanel extends EditorPanel {
 
     private static final String PANEL_ID = "inspector";
+    private static final float LABEL_WIDTH = 90f;
 
     @Setter
     private EditorScene scene;
 
     @Setter
     private EditorSelectionManager selectionManager;
+
+    @Setter
+    private PlayModeController playModeController;
 
     private final CameraInspector cameraInspector = new CameraInspector();
     private final TilemapLayersInspector tilemapInspector = new TilemapLayersInspector();
@@ -54,47 +68,128 @@ public class InspectorPanel extends EditorPanel {
     public void render() {
         if (!isOpen()) return;
         if (ImGui.begin("Inspector")) {
-            if (scene == null) {
-                ImGui.textDisabled("No scene loaded");
-                ImGui.end();
-                return;
-            }
-
-            // Update scene references
-            cameraInspector.setScene(scene);
-            tilemapInspector.setScene(scene);
-            collisionInspector.setScene(scene);
-            entityInspector.setScene(scene);
-            multiSelectionInspector.setScene(scene);
-            triggerInspector.setScene(scene);
-
-            // Determine what should be shown
-            boolean shouldShowAsset = selectionManager != null && selectionManager.isAssetSelected();
-
-            // Check if asset inspector has a pending popup that needs to be handled
-            if (assetInspector.hasPendingPopup()) {
-                // Keep showing asset inspector while popup is active
-                assetInspector.render();
-            } else if (wasShowingAssetInspector && !shouldShowAsset) {
-                // Switching away from asset inspector - check for unsaved changes
-                if (assetInspector.checkUnsavedChangesBeforeLeaving()) {
-                    // Has unsaved changes, show popup (will be rendered next frame)
-                    assetInspector.render();
-                } else {
-                    // No unsaved changes, render the new inspector
-                    renderCurrentInspector(shouldShowAsset);
-                }
+            if (isPlayMode()) {
+                renderPlayModeInspector();
             } else {
-                // Normal rendering
-                renderCurrentInspector(shouldShowAsset);
+                renderEditorInspector();
             }
-
-            // Track state for next frame
-            wasShowingAssetInspector = shouldShowAsset || assetInspector.hasPendingPopup();
         }
         ReflectionFieldEditor.renderAssetPicker();
         entityInspector.renderDeleteConfirmationPopup();
         ImGui.end();
+    }
+
+    private boolean isPlayMode() {
+        return playModeController != null && playModeController.isActive();
+    }
+
+    private void renderEditorInspector() {
+        if (scene == null) {
+            ImGui.textDisabled("No scene loaded");
+            return;
+        }
+
+        // Update scene references
+        cameraInspector.setScene(scene);
+        tilemapInspector.setScene(scene);
+        collisionInspector.setScene(scene);
+        entityInspector.setScene(scene);
+        multiSelectionInspector.setScene(scene);
+        triggerInspector.setScene(scene);
+
+        // Determine what should be shown
+        boolean shouldShowAsset = selectionManager != null && selectionManager.isAssetSelected();
+
+        // Check if asset inspector has a pending popup that needs to be handled
+        if (assetInspector.hasPendingPopup()) {
+            // Keep showing asset inspector while popup is active
+            assetInspector.render();
+        } else if (wasShowingAssetInspector && !shouldShowAsset) {
+            // Switching away from asset inspector - check for unsaved changes
+            if (assetInspector.checkUnsavedChangesBeforeLeaving()) {
+                // Has unsaved changes, show popup (will be rendered next frame)
+                assetInspector.render();
+            } else {
+                // No unsaved changes, render the new inspector
+                renderCurrentInspector(shouldShowAsset);
+            }
+        } else {
+            // Normal rendering
+            renderCurrentInspector(shouldShowAsset);
+        }
+
+        // Track state for next frame
+        wasShowingAssetInspector = shouldShowAsset || assetInspector.hasPendingPopup();
+    }
+
+    private void renderPlayModeInspector() {
+        PlayModeSelectionManager selMgr = playModeController.getPlayModeSelectionManager();
+        if (selMgr == null) return;
+
+        // Camera selected — show camera inspector
+        if (selMgr.isCameraSelected()) {
+            renderRuntimeCameraInspector();
+            return;
+        }
+
+        // Entity selection
+        Set<GameObject> selected = selMgr.getSelectedObjects();
+        if (selected.isEmpty()) {
+            ImGui.textDisabled("Select an item in the hierarchy");
+            return;
+        }
+
+        if (selected.size() > 1) {
+            ImGui.text(selected.size() + " objects selected");
+            ImGui.textDisabled("Multi-selection not supported in play mode");
+            return;
+        }
+
+        GameObject obj = selected.iterator().next();
+        entityInspector.renderRuntime(RuntimeGameObjectAdapter.of(obj));
+    }
+
+    private void renderRuntimeCameraInspector() {
+        Scene runtimeScene = playModeController.getRuntimeScene();
+        if (runtimeScene == null) return;
+
+        GameCamera camera = runtimeScene.getCamera();
+        if (camera == null) return;
+
+        ImGui.text(IconUtils.getCameraIcon() + " Scene Camera");
+        ImGui.separator();
+
+        Vector3f pos = camera.getPosition();
+        float[] posBuffer = {pos.x, pos.y};
+        ImGui.text("Position");
+        ImGui.sameLine(LABEL_WIDTH);
+        ImGui.setNextItemWidth(-1);
+        if (ImGui.dragFloat2("##camPos", posBuffer, 0.5f)) {
+            camera.setPosition(posBuffer[0], posBuffer[1]);
+        }
+
+        float[] zoomBuffer = {camera.getZoom()};
+        ImGui.text("Zoom");
+        ImGui.sameLine(LABEL_WIDTH);
+        ImGui.setNextItemWidth(-1);
+        if (ImGui.dragFloat("##camZoom", zoomBuffer, 0.01f, 0.1f, 10f)) {
+            camera.setZoom(zoomBuffer[0]);
+        }
+
+        float[] rotBuffer = {camera.getRotation()};
+        ImGui.text("Rotation");
+        ImGui.sameLine(LABEL_WIDTH);
+        ImGui.setNextItemWidth(-1);
+        if (ImGui.dragFloat("##camRot", rotBuffer, 0.5f)) {
+            camera.setRotation(rotBuffer[0]);
+        }
+
+        if (camera.hasBounds()) {
+            ImGui.textDisabled("Bounds: active");
+        }
+
+        ImGui.separator();
+        ImGui.textDisabled("Changes reset when play mode stops");
     }
 
     /**

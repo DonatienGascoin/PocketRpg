@@ -10,6 +10,7 @@ import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.core.window.ViewportConfig;
 import com.pocket.rpg.editor.rendering.EditorFramebuffer;
 import com.pocket.rpg.editor.scene.EditorScene;
+import com.pocket.rpg.editor.scene.RuntimeGameObjectAdapter;
 import com.pocket.rpg.editor.scene.RuntimeSceneLoader;
 import com.pocket.rpg.editor.serialization.EditorSceneSerializer;
 import com.pocket.rpg.rendering.core.RenderCamera;
@@ -87,6 +88,10 @@ public class PlayModeController {
     private TransitionManager transitionManager;
     private PlayModeInputManager inputManager;
     private UIInputHandler uiInputHandler;
+
+    // Play mode selection (separate from editor selection)
+    @Getter
+    private PlayModeSelectionManager playModeSelectionManager;
 
     // Display area within editor window (set by GameViewPanel each frame)
     private float displayX, displayY, displayWidth, displayHeight;
@@ -203,7 +208,10 @@ public class PlayModeController {
             RuntimeScene runtimeScene = sceneLoader.load(runtimeCopy);
             sceneManager.loadScene(runtimeScene);
 
-            // 13. Switch state
+            // 14. Create play mode selection manager
+            playModeSelectionManager = new PlayModeSelectionManager();
+
+            // 15. Switch state
             state = PlayState.PLAYING;
             EditorEventBus.get().publish(new PlayModeStartedEvent());
 
@@ -261,6 +269,11 @@ public class PlayModeController {
 
     public void update(float deltaTime) {
         if (state != PlayState.PLAYING) return;
+
+        // Prune destroyed objects from selection once per frame
+        if (playModeSelectionManager != null) {
+            playModeSelectionManager.pruneDestroyedObjects();
+        }
 
         // Input always captured
         if (inputManager != null) {
@@ -385,6 +398,12 @@ public class PlayModeController {
             outputFramebuffer = null;
         }
 
+        if (playModeSelectionManager != null) {
+            playModeSelectionManager.clearSelection();
+            playModeSelectionManager = null;
+        }
+        RuntimeGameObjectAdapter.clearCache();
+
         uiInputHandler = null;
         transitionManager = null;
         sceneLoader = null;
@@ -395,6 +414,13 @@ public class PlayModeController {
         if (messageCallback != null) {
             messageCallback.accept(message);
         }
+    }
+
+    /**
+     * Returns the currently running runtime scene, or null if not in play mode.
+     */
+    public Scene getRuntimeScene() {
+        return gameLoop != null ? gameLoop.getSceneManager().getCurrentScene() : null;
     }
 
     public boolean isActive() {

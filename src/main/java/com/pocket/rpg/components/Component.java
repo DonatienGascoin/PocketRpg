@@ -1,10 +1,14 @@
 package com.pocket.rpg.components;
 
 import com.pocket.rpg.core.GameObject;
+import com.pocket.rpg.core.IGameObject;
 import com.pocket.rpg.editor.gizmos.GizmoContext;
 import com.pocket.rpg.editor.gizmos.GizmoDrawable;
 import com.pocket.rpg.editor.gizmos.GizmoDrawableSelected;
 import lombok.Getter;
+
+import java.util.Collections;
+import java.util.List;
 
 /**
  * Base class for all components that can be attached to GameObjects.
@@ -15,6 +19,16 @@ import lombok.Getter;
  */
 public abstract class Component implements GizmoDrawable, GizmoDrawableSelected {
 
+    /**
+     * The owning game object. Works in both runtime and editor contexts.
+     */
+    @Getter
+    protected IGameObject owner;
+
+    /**
+     * @deprecated Use {@link #owner} via {@link #getOwner()} instead.
+     */
+    @Deprecated
     @Getter
     protected GameObject gameObject;
 
@@ -24,7 +38,7 @@ public abstract class Component implements GizmoDrawable, GizmoDrawableSelected 
     protected boolean started = false;
 
     public boolean isEnabled() {
-        return enabled && gameObject != null && gameObject.isEnabled();
+        return enabled && owner != null && owner.isEnabled();
     }
 
     /**
@@ -36,8 +50,8 @@ public abstract class Component implements GizmoDrawable, GizmoDrawableSelected 
 
         this.enabled = enabled;
 
-        // Only trigger callbacks if GameObject is also enabled and component has started
-        if (gameObject != null && gameObject.isEnabled() && started) {
+        // Only trigger callbacks if owner is also enabled and component has started
+        if (owner != null && owner.isEnabled() && started) {
             if (enabled) {
                 onEnable();
             } else {
@@ -47,10 +61,19 @@ public abstract class Component implements GizmoDrawable, GizmoDrawableSelected 
     }
 
     /**
-     * Internal method used by GameObject to set the reference.
+     * Sets the owning game object. Works with both runtime and editor objects.
      */
+    public void setOwner(IGameObject owner) {
+        this.owner = owner;
+        this.gameObject = (owner instanceof GameObject go) ? go : null;
+    }
+
+    /**
+     * @deprecated Use {@link #setOwner(IGameObject)} instead.
+     */
+    @Deprecated
     public void setGameObject(GameObject gameObject) {
-        this.gameObject = gameObject;
+        setOwner(gameObject);
     }
 
     // =======================================================================
@@ -92,7 +115,7 @@ public abstract class Component implements GizmoDrawable, GizmoDrawableSelected 
             started = true;
 
             // Trigger onEnable after start if component is enabled
-            if (enabled && gameObject != null && gameObject.isEnabled()) {
+            if (enabled && owner != null && owner.isEnabled()) {
                 onEnable();
             }
         }
@@ -208,6 +231,21 @@ public abstract class Component implements GizmoDrawable, GizmoDrawableSelected 
     // =======================================================================
 
     protected Transform getTransform() {
-        return gameObject.getTransform();
+        return owner != null ? owner.getTransform() : null;
+    }
+
+    /**
+     * Gets a sibling component of the specified type.
+     * Works in both runtime and editor contexts.
+     */
+    protected <T extends Component> T getComponent(Class<T> type) {
+        return owner != null ? owner.getComponent(type) : null;
+    }
+
+    /**
+     * Gets all sibling components of the specified type.
+     */
+    protected <T extends Component> List<T> getComponents(Class<T> type) {
+        return owner != null ? owner.getComponents(type) : Collections.emptyList();
     }
 }

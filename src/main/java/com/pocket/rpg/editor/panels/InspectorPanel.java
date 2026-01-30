@@ -4,10 +4,14 @@ import com.pocket.rpg.animation.animator.AnimatorController;
 import com.pocket.rpg.animation.animator.AnimatorState;
 import com.pocket.rpg.animation.animator.AnimatorTransition;
 import com.pocket.rpg.collision.trigger.TileCoord;
+import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.editor.EditorSelectionManager;
+import com.pocket.rpg.editor.PlayModeController;
+import com.pocket.rpg.editor.PlayModeSelectionManager;
 import com.pocket.rpg.editor.panels.inspector.*;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
+import com.pocket.rpg.editor.scene.RuntimeGameObjectAdapter;
 import com.pocket.rpg.editor.ui.fields.ReflectionFieldEditor;
 import imgui.ImGui;
 import lombok.Getter;
@@ -28,6 +32,9 @@ public class InspectorPanel extends EditorPanel {
 
     @Setter
     private EditorSelectionManager selectionManager;
+
+    @Setter
+    private PlayModeController playModeController;
 
     private final CameraInspector cameraInspector = new CameraInspector();
     private final TilemapLayersInspector tilemapInspector = new TilemapLayersInspector();
@@ -54,47 +61,81 @@ public class InspectorPanel extends EditorPanel {
     public void render() {
         if (!isOpen()) return;
         if (ImGui.begin("Inspector")) {
-            if (scene == null) {
-                ImGui.textDisabled("No scene loaded");
-                ImGui.end();
-                return;
-            }
-
-            // Update scene references
-            cameraInspector.setScene(scene);
-            tilemapInspector.setScene(scene);
-            collisionInspector.setScene(scene);
-            entityInspector.setScene(scene);
-            multiSelectionInspector.setScene(scene);
-            triggerInspector.setScene(scene);
-
-            // Determine what should be shown
-            boolean shouldShowAsset = selectionManager != null && selectionManager.isAssetSelected();
-
-            // Check if asset inspector has a pending popup that needs to be handled
-            if (assetInspector.hasPendingPopup()) {
-                // Keep showing asset inspector while popup is active
-                assetInspector.render();
-            } else if (wasShowingAssetInspector && !shouldShowAsset) {
-                // Switching away from asset inspector - check for unsaved changes
-                if (assetInspector.checkUnsavedChangesBeforeLeaving()) {
-                    // Has unsaved changes, show popup (will be rendered next frame)
-                    assetInspector.render();
-                } else {
-                    // No unsaved changes, render the new inspector
-                    renderCurrentInspector(shouldShowAsset);
-                }
+            if (isPlayMode()) {
+                renderPlayModeInspector();
             } else {
-                // Normal rendering
-                renderCurrentInspector(shouldShowAsset);
+                renderEditorInspector();
             }
-
-            // Track state for next frame
-            wasShowingAssetInspector = shouldShowAsset || assetInspector.hasPendingPopup();
         }
         ReflectionFieldEditor.renderAssetPicker();
         entityInspector.renderDeleteConfirmationPopup();
         ImGui.end();
+    }
+
+    private boolean isPlayMode() {
+        return playModeController != null && playModeController.isActive();
+    }
+
+    private void renderEditorInspector() {
+        if (scene == null) {
+            ImGui.textDisabled("No scene loaded");
+            return;
+        }
+
+        // Update scene references
+        cameraInspector.setScene(scene);
+        tilemapInspector.setScene(scene);
+        collisionInspector.setScene(scene);
+        entityInspector.setScene(scene);
+        multiSelectionInspector.setScene(scene);
+        triggerInspector.setScene(scene);
+
+        // Determine what should be shown
+        boolean shouldShowAsset = selectionManager != null && selectionManager.isAssetSelected();
+
+        // Check if asset inspector has a pending popup that needs to be handled
+        if (assetInspector.hasPendingPopup()) {
+            // Keep showing asset inspector while popup is active
+            assetInspector.render();
+        } else if (wasShowingAssetInspector && !shouldShowAsset) {
+            // Switching away from asset inspector - check for unsaved changes
+            if (assetInspector.checkUnsavedChangesBeforeLeaving()) {
+                // Has unsaved changes, show popup (will be rendered next frame)
+                assetInspector.render();
+            } else {
+                // No unsaved changes, render the new inspector
+                renderCurrentInspector(shouldShowAsset);
+            }
+        } else {
+            // Normal rendering
+            renderCurrentInspector(shouldShowAsset);
+        }
+
+        // Track state for next frame
+        wasShowingAssetInspector = shouldShowAsset || assetInspector.hasPendingPopup();
+    }
+
+    private void renderPlayModeInspector() {
+        PlayModeSelectionManager selMgr = playModeController.getPlayModeSelectionManager();
+        if (selMgr == null) return;
+
+        // Prune destroyed objects
+        selMgr.pruneDestroyedObjects();
+
+        Set<GameObject> selected = selMgr.getSelectedObjects();
+        if (selected.isEmpty()) {
+            ImGui.textDisabled("Select an entity in the hierarchy");
+            return;
+        }
+
+        if (selected.size() > 1) {
+            ImGui.text(selected.size() + " objects selected");
+            ImGui.textDisabled("Multi-selection not supported in play mode");
+            return;
+        }
+
+        GameObject obj = selected.iterator().next();
+        entityInspector.renderRuntime(RuntimeGameObjectAdapter.of(obj));
     }
 
     /**

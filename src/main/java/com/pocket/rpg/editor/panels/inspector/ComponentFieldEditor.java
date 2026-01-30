@@ -24,6 +24,15 @@ public class ComponentFieldEditor {
     @Setter
     private EditorScene scene;
 
+    /**
+     * Renders component fields for a runtime game object during play mode.
+     * No undo, no prefab overrides — changes are temporary.
+     */
+    public boolean renderRuntimeComponentFields(Component component) {
+        // Use drawComponent with null entity — skips undo and override logic
+        return ReflectionFieldEditor.drawComponent(component, null);
+    }
+
     public boolean renderComponentFields(EditorGameObject entity, Component component, boolean isPrefabInstance) {
         // Ensure scene is available for inspectors that need it
         FieldEditorContext.setCurrentScene(scene);

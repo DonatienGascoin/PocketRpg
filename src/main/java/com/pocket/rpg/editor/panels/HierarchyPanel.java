@@ -1,21 +1,28 @@
 package com.pocket.rpg.editor.panels;
 
+import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.editor.EditorSelectionManager;
+import com.pocket.rpg.editor.PlayModeController;
+import com.pocket.rpg.editor.PlayModeSelectionManager;
 import com.pocket.rpg.editor.assets.HierarchyDropTarget;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.hierarchy.EntityCreationService;
 import com.pocket.rpg.editor.panels.hierarchy.HierarchyDragDropHandler;
+import com.pocket.rpg.editor.panels.hierarchy.HierarchyItem;
 import com.pocket.rpg.editor.panels.hierarchy.HierarchySelectionHandler;
 import com.pocket.rpg.editor.panels.hierarchy.HierarchyTreeRenderer;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
+import com.pocket.rpg.editor.scene.RuntimeGameObjectAdapter;
 import com.pocket.rpg.editor.scene.UIEntityFactory;
 import com.pocket.rpg.editor.tools.EditorTool;
 import com.pocket.rpg.editor.tools.ToolManager;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.BulkDeleteCommand;
 import com.pocket.rpg.editor.utils.IconUtils;
+import com.pocket.rpg.scenes.Scene;
 import imgui.ImGui;
+import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiMouseButton;
 import lombok.Setter;
 
@@ -32,6 +39,9 @@ public class HierarchyPanel extends EditorPanel {
 
     @Setter
     private EditorScene scene;
+
+    @Setter
+    private PlayModeController playModeController;
 
     private final HierarchySelectionHandler selectionHandler = new HierarchySelectionHandler();
     private final HierarchyDragDropHandler dragDropHandler = new HierarchyDragDropHandler();
@@ -110,48 +120,106 @@ public class HierarchyPanel extends EditorPanel {
         if (!isOpen()) return;
 
         if (ImGui.begin("Hierarchy")) {
-            if (scene == null) {
-                ImGui.textDisabled("No scene loaded");
-                ImGui.end();
-                return;
-            }
-
-            // Update scene references
-            selectionHandler.setScene(scene);
-            dragDropHandler.setScene(scene);
-            creationService.setScene(scene);
-            treeRenderer.setScene(scene);
-
-            ImGui.text(IconUtils.getSceneIcon() + " " + scene.getName());
-            ImGui.sameLine(ImGui.getContentRegionMaxX() - 15);
-            if (ImGui.smallButton(MaterialIcons.Add)) {
-                ImGui.openPopup("CreateEntity_Popup");
-            }
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("Add...");
-            }
-
-            ImGui.separator();
-
-            renderCameraItem();
-            renderTilemapLayersItem();
-            renderCollisionMapItem();
-
-            ImGui.separator();
-
-            renderEntitiesSection();
-            renderEntityCreationMenu();
-
-            // Detect click on empty space to deselect all
-            if (ImGui.isMouseClicked(ImGuiMouseButton.Left)
-                    && ImGui.isWindowHovered()
-                    && !ImGui.isAnyItemHovered()) {
-                selectionHandler.clearSelection();
+            if (isPlayMode()) {
+                renderPlayModeHeader();
+                renderRuntimeHierarchy();
+            } else {
+                renderEditorHierarchy();
             }
         }
         ImGui.end();
 
-        dragDropHandler.resetDropTarget();
+        if (!isPlayMode()) {
+            dragDropHandler.resetDropTarget();
+        }
+    }
+
+    private boolean isPlayMode() {
+        return playModeController != null && playModeController.isActive();
+    }
+
+    private void renderEditorHierarchy() {
+        if (scene == null) {
+            ImGui.textDisabled("No scene loaded");
+            return;
+        }
+
+        // Update scene references
+        selectionHandler.setScene(scene);
+        dragDropHandler.setScene(scene);
+        creationService.setScene(scene);
+        treeRenderer.setScene(scene);
+
+        ImGui.text(IconUtils.getSceneIcon() + " " + scene.getName());
+        ImGui.sameLine(ImGui.getContentRegionMaxX() - 15);
+        if (ImGui.smallButton(MaterialIcons.Add)) {
+            ImGui.openPopup("CreateEntity_Popup");
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("Add...");
+        }
+
+        ImGui.separator();
+
+        renderCameraItem();
+        renderTilemapLayersItem();
+        renderCollisionMapItem();
+
+        ImGui.separator();
+
+        renderEntitiesSection();
+        renderEntityCreationMenu();
+
+        // Detect click on empty space to deselect all
+        if (ImGui.isMouseClicked(ImGuiMouseButton.Left)
+                && ImGui.isWindowHovered()
+                && !ImGui.isAnyItemHovered()) {
+            selectionHandler.clearSelection();
+        }
+    }
+
+    private void renderPlayModeHeader() {
+        ImGui.pushStyleColor(ImGuiCol.Text, 1f, 0.6f, 0.2f, 1f);
+        ImGui.text(MaterialIcons.PlayArrow + " PLAY MODE");
+        ImGui.popStyleColor();
+        ImGui.separator();
+    }
+
+    private void renderRuntimeHierarchy() {
+        Scene runtimeScene = playModeController.getRuntimeScene();
+        if (runtimeScene == null) {
+            ImGui.textDisabled("No runtime scene");
+            return;
+        }
+
+        // Prune destroyed objects from selection
+        PlayModeSelectionManager selMgr = playModeController.getPlayModeSelectionManager();
+        if (selMgr != null) {
+            selMgr.pruneDestroyedObjects();
+        }
+
+        List<GameObject> allObjects = runtimeScene.getGameObjects();
+        List<GameObject> rootObjects = allObjects.stream()
+                .filter(obj -> obj.getParent() == null)
+                .toList();
+
+        if (rootObjects.isEmpty()) {
+            ImGui.textDisabled("No entities");
+        } else {
+            for (GameObject obj : rootObjects) {
+                HierarchyItem adapter = RuntimeGameObjectAdapter.of(obj);
+                treeRenderer.renderHierarchyItemTree(adapter, selMgr);
+            }
+        }
+
+        // Detect click on empty space to deselect all
+        if (ImGui.isMouseClicked(ImGuiMouseButton.Left)
+                && ImGui.isWindowHovered()
+                && !ImGui.isAnyItemHovered()) {
+            if (selMgr != null) {
+                selMgr.clearSelection();
+            }
+        }
     }
 
     private void renderCameraItem() {

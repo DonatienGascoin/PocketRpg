@@ -7,10 +7,14 @@ import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.ui.fields.EnumEditor;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
 import com.pocket.rpg.editor.ui.fields.PrimitiveEditors;
+import com.pocket.rpg.editor.undo.UndoManager;
+import com.pocket.rpg.editor.undo.commands.SetComponentFieldCommand;
+import com.pocket.rpg.editor.undo.commands.UITransformDragCommand;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import imgui.ImGui;
 import imgui.type.ImInt;
+import org.joml.Vector2f;
 import org.joml.Vector4f;
 
 /**
@@ -20,6 +24,9 @@ import org.joml.Vector4f;
 @InspectorFor(UIImage.class)
 public class UIImageInspector extends CustomComponentInspector<UIImage> {
 
+    // Undo tracking for continuous alpha slider edits
+    private Vector4f alphaEditStartColor;
+
     @Override
     public boolean draw() {
         boolean changed = false;
@@ -28,8 +35,7 @@ public class UIImageInspector extends CustomComponentInspector<UIImage> {
         changed |= UIKeyField.draw(component);
 
         // Sprite
-        ImGui.text(MaterialIcons.Image + " Sprite");
-        changed |= FieldEditors.drawAsset("sprite", component, "sprite", Sprite.class, entity);
+        changed |= FieldEditors.drawAsset(MaterialIcons.Image + " Sprite", component, "sprite", Sprite.class, entity);
 
         // Reset size to sprite size button
         Object spriteObj = ComponentReflectionUtils.getFieldValue(component, "sprite");
@@ -47,19 +53,36 @@ public class UIImageInspector extends CustomComponentInspector<UIImage> {
         ImGui.spacing();
 
         // Color (tint)
-        ImGui.text(MaterialIcons.Palette + " Tint Color");
-        changed |= FieldEditors.drawColor("color", component, "color");
+        changed |= FieldEditors.drawColor(MaterialIcons.Palette + " Tint", component, "color");
 
-        // Quick alpha slider
+        // Alpha slider
         ImGui.spacing();
         Vector4f color = FieldEditors.getVector4f(component, "color");
+        // Capture original alpha BEFORE slider mutates the value
+        float originalAlpha = color.w;
         float[] alphaBuf = {color.w};
+        ImGui.text("Alpha");
+        ImGui.sameLine(130);
         ImGui.setNextItemWidth(-1);
-        // TODO: Refactor to use FieldEditors for @Required support and undo
-        if (ImGui.sliderFloat("Alpha", alphaBuf, 0f, 1f)) {
+        if (ImGui.sliderFloat("##alpha", alphaBuf, 0f, 1f)) {
             color.w = alphaBuf[0];
             ComponentReflectionUtils.setFieldValue(component, "color", color);
             changed = true;
+        }
+        if (ImGui.isItemActivated()) {
+            // Use originalAlpha captured before slider, not the already-mutated color
+            Vector4f startColor = new Vector4f(color);
+            startColor.w = originalAlpha;
+            alphaEditStartColor = startColor;
+        }
+        if (ImGui.isItemDeactivatedAfterEdit() && alphaEditStartColor != null) {
+            Vector4f newColor = new Vector4f(FieldEditors.getVector4f(component, "color"));
+            if (entity != null) {
+                UndoManager.getInstance().push(
+                        new SetComponentFieldCommand(component, "color", alphaEditStartColor, newColor, entity)
+                );
+            }
+            alphaEditStartColor = null;
         }
 
         ImGui.spacing();
@@ -176,8 +199,14 @@ public class UIImageInspector extends CustomComponentInspector<UIImage> {
         ImGui.sameLine();
         ImGui.setNextItemWidth(-1);
         if (ImGui.combo("##fillOrigin", selected, originNames)) {
+            UIImage.FillOrigin oldOrigin = currentOrigin;
             UIImage.FillOrigin newOrigin = validOrigins[selected.get()];
             component.setFillOrigin(newOrigin);
+            if (entity != null) {
+                UndoManager.getInstance().push(
+                        new SetComponentFieldCommand(component, "fillOrigin", oldOrigin, newOrigin, entity)
+                );
+            }
             changed = true;
         }
         ImGui.popID();
@@ -226,11 +255,27 @@ public class UIImageInspector extends CustomComponentInspector<UIImage> {
     private boolean resetSizeToSprite(Sprite sprite) {
         if (entity == null) return false;
 
-        Component transform = entity.getComponent(UITransform.class);
-        if (transform == null) return false;
+        Component transformComp = entity.getComponent(UITransform.class);
+        if (!(transformComp instanceof UITransform uiTransform)) return false;
 
-        ComponentReflectionUtils.setFieldValue(transform, "width", sprite.getWidth());
-        ComponentReflectionUtils.setFieldValue(transform, "height", sprite.getHeight());
+        float oldWidth = FieldEditors.getFloat(transformComp, "width", 100);
+        float oldHeight = FieldEditors.getFloat(transformComp, "height", 100);
+        float newWidth = sprite.getWidth();
+        float newHeight = sprite.getHeight();
+
+        Vector2f offset = new Vector2f(uiTransform.getOffset());
+        Vector2f anchor = new Vector2f(uiTransform.getAnchor());
+        Vector2f pivot = new Vector2f(uiTransform.getPivot());
+
+        ComponentReflectionUtils.setFieldValue(transformComp, "width", newWidth);
+        ComponentReflectionUtils.setFieldValue(transformComp, "height", newHeight);
+
+        UndoManager.getInstance().push(
+                UITransformDragCommand.resize(entity, transformComp,
+                        offset, oldWidth, oldHeight,
+                        offset, newWidth, newHeight,
+                        anchor, pivot)
+        );
         return true;
     }
 }

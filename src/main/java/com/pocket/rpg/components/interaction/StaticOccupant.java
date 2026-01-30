@@ -49,7 +49,7 @@ import java.util.List;
  * statue.addComponent(occupant);
  * </pre>
  */
-@ComponentMeta(category = "Interaction")
+@ComponentMeta(category = "Physics")
 public class StaticOccupant extends Component implements BlockingComponent, GizmoDrawableSelected {
 
     /**

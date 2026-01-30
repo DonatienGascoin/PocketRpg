@@ -8,6 +8,7 @@ import com.pocket.rpg.editor.ui.fields.FieldEditors;
 import com.pocket.rpg.editor.ui.layout.EditorFields;
 import com.pocket.rpg.editor.ui.layout.EditorLayout;
 import com.pocket.rpg.editor.undo.UndoManager;
+import com.pocket.rpg.editor.undo.commands.CompoundCommand;
 import com.pocket.rpg.editor.undo.commands.SetterUndoCommand;
 import com.pocket.rpg.editor.undo.commands.UITransformDragCommand;
 import com.pocket.rpg.rendering.resources.Sprite;
@@ -118,7 +119,9 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
         ChildState(EditorGameObject entity, Component transform) {
             this.entity = entity;
             this.transform = transform;
-            this.oldOffset = new Vector2f(FieldEditors.getVector2f(transform, "offset"));
+            this.oldOffset = transform instanceof UITransform ut
+                    ? new Vector2f(ut.getOffset())
+                    : new Vector2f();
             this.oldWidth = FieldEditors.getFloat(transform, "width", 100);
             this.oldHeight = FieldEditors.getFloat(transform, "height", 100);
         }
@@ -259,11 +262,25 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
         }
 
         if (ImGui.button(MaterialIcons.Link + (allMatchParent ? " MATCHING PARENT" : " MATCH PARENT"), buttonWidth, 0)) {
+            // Capture old values
+            UITransform.StretchMode oldStretch = component.getStretchMode();
+            boolean oldRotation = component.isMatchParentRotation();
+            boolean oldScale = component.isMatchParentScale();
+
             // Toggle all match parent options
             boolean newState = !anyMatchParent;
-            component.setStretchMode(newState ? UITransform.StretchMode.MATCH_PARENT : UITransform.StretchMode.NONE);
+            UITransform.StretchMode newStretch = newState ? UITransform.StretchMode.MATCH_PARENT : UITransform.StretchMode.NONE;
+            component.setStretchMode(newStretch);
             component.setMatchParentRotation(newState);
             component.setMatchParentScale(newState);
+
+            UndoManager.getInstance().push(
+                    new CompoundCommand("Toggle Match Parent",
+                            new SetterUndoCommand<>(component::setStretchMode, oldStretch, newStretch, "Change Stretch Mode"),
+                            new SetterUndoCommand<>(component::setMatchParentRotation, oldRotation, newState, "Change Match Rotation"),
+                            new SetterUndoCommand<>(component::setMatchParentScale, oldScale, newState, "Change Match Scale")
+                    )
+            );
             changed = true;
         }
 
@@ -320,8 +337,13 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
         if (hasParentUITransform) {
             ImGui.sameLine();
             changed |= drawMatchParentToggle("size", component.isMatchingParent(), () -> {
-                component.setStretchMode(component.isMatchingParent() ?
-                        UITransform.StretchMode.NONE : UITransform.StretchMode.MATCH_PARENT);
+                UITransform.StretchMode oldMode = component.getStretchMode();
+                UITransform.StretchMode newMode = component.isMatchingParent() ?
+                        UITransform.StretchMode.NONE : UITransform.StretchMode.MATCH_PARENT;
+                component.setStretchMode(newMode);
+                UndoManager.getInstance().push(
+                        new SetterUndoCommand<>(component::setStretchMode, oldMode, newMode, "Toggle Match Parent Size")
+                );
             });
         }
 
@@ -394,15 +416,38 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
                     float oldWidth = FieldEditors.getFloat(component, "width", 100);
                     float oldHeight = FieldEditors.getFloat(component, "height", 100);
 
+                    // Capture old anchor/pivot before changes
+                    Vector2f oldAnchor = new Vector2f(component.getAnchor());
+                    Vector2f oldPivot = new Vector2f(component.getPivot());
+
                     // Size change with undo support
                     startSizeEdit();
                     applySizeChange(oldWidth, oldHeight, parentWidth, parentHeight);
                     component.setOffset(0, 0);
                     commitSizeEdit();
 
-                    // Set anchor and pivot to top-left directly (no undo for these)
+                    // Set anchor and pivot to top-left with undo
+                    Vector2f newAnchor = new Vector2f(0, 0);
+                    Vector2f newPivot = new Vector2f(0, 0);
                     component.setAnchor(0, 0);
                     component.setPivot(0, 0);
+
+                    if (!oldAnchor.equals(newAnchor)) {
+                        UndoManager.getInstance().push(
+                                new SetterUndoCommand<>(
+                                        v -> component.setAnchor(v.x, v.y),
+                                        oldAnchor, newAnchor, "Set Anchor"
+                                )
+                        );
+                    }
+                    if (!oldPivot.equals(newPivot)) {
+                        UndoManager.getInstance().push(
+                                new SetterUndoCommand<>(
+                                        v -> component.setPivot(v.x, v.y),
+                                        oldPivot, newPivot, "Set Pivot"
+                                )
+                        );
+                    }
                     changed = true;
                 }
                 if (ImGui.isItemHovered()) {
@@ -516,7 +561,12 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
         if (hasParentUITransform) {
             ImGui.sameLine();
             changed |= drawMatchParentToggle("##rotation", t.isMatchParentRotation(), () -> {
-                t.setMatchParentRotation(!t.isMatchParentRotation());
+                boolean oldValue = t.isMatchParentRotation();
+                boolean newValue = !oldValue;
+                t.setMatchParentRotation(newValue);
+                UndoManager.getInstance().push(
+                        new SetterUndoCommand<>(t::setMatchParentRotation, oldValue, newValue, "Toggle Match Parent Rotation")
+                );
             });
         }
 
@@ -563,7 +613,12 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
         if (hasParentUITransform) {
             ImGui.sameLine();
             changed |= drawMatchParentToggle("scale", t.isMatchParentScale(), () -> {
-                t.setMatchParentScale(!t.isMatchParentScale());
+                boolean oldValue = t.isMatchParentScale();
+                boolean newValue = !oldValue;
+                t.setMatchParentScale(newValue);
+                UndoManager.getInstance().push(
+                        new SetterUndoCommand<>(t::setMatchParentScale, oldValue, newValue, "Toggle Match Parent Scale")
+                );
             });
         }
 
@@ -660,7 +715,7 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
         isEditingSize = true;
         editStartWidth = FieldEditors.getFloat(component, "width", 100);
         editStartHeight = FieldEditors.getFloat(component, "height", 100);
-        editStartOffset = new Vector2f(FieldEditors.getVector2f(component, "offset"));
+        editStartOffset = new Vector2f(component.getOffset());
 
         // Capture child states
         editStartChildStates = new ArrayList<>();
@@ -716,9 +771,9 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
 
         float newWidth = FieldEditors.getFloat(component, "width", 100);
         float newHeight = FieldEditors.getFloat(component, "height", 100);
-        Vector2f newOffset = FieldEditors.getVector2f(component, "offset");
-        Vector2f anchor = FieldEditors.getVector2f(component, "anchor");
-        Vector2f pivot = FieldEditors.getVector2f(component, "pivot");
+        Vector2f newOffset = new Vector2f(component.getOffset());
+        Vector2f anchor = new Vector2f(component.getAnchor());
+        Vector2f pivot = new Vector2f(component.getPivot());
 
         // Check if anything changed
         boolean hasChanges = (editStartWidth != newWidth || editStartHeight != newHeight);
@@ -735,7 +790,9 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
             // Add child states
             if (editStartChildStates != null) {
                 for (ChildState state : editStartChildStates) {
-                    Vector2f childNewOffset = FieldEditors.getVector2f(state.transform, "offset");
+                    Vector2f childNewOffset = state.transform instanceof UITransform childUt
+                            ? new Vector2f(childUt.getOffset())
+                            : new Vector2f();
                     float childNewWidth = FieldEditors.getFloat(state.transform, "width", 100);
                     float childNewHeight = FieldEditors.getFloat(state.transform, "height", 100);
 
@@ -860,11 +917,11 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
      * Creates an undo command for anchor or pivot changes.
      */
     private void createAnchorPivotCommand(String fieldKey, Vector2f oldValue, Vector2f newValue) {
-        Vector2f offset = FieldEditors.getVector2f(component, "offset");
+        Vector2f offset = new Vector2f(component.getOffset());
         float width = FieldEditors.getFloat(component, "width", 100);
         float height = FieldEditors.getFloat(component, "height", 100);
-        Vector2f anchor = FieldEditors.getVector2f(component, "anchor");
-        Vector2f pivot = FieldEditors.getVector2f(component, "pivot");
+        Vector2f anchor = new Vector2f(component.getAnchor());
+        Vector2f pivot = new Vector2f(component.getPivot());
 
         UITransformDragCommand command;
         if (fieldKey.equals("anchor")) {

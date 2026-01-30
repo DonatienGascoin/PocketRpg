@@ -19,6 +19,7 @@ import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.core.window.ViewportConfig;
 import com.pocket.rpg.rendering.core.Renderable;
 import com.pocket.rpg.serialization.ComponentRefResolver;
+import com.pocket.rpg.serialization.UiKeyRefResolver;
 import lombok.Getter;
 
 import java.util.ArrayList;
@@ -212,6 +213,11 @@ public abstract class Scene {
         // Resolve @ComponentRef annotations after hierarchy is established
         for (GameObject go : gameObjects) {
             ComponentRefResolver.resolveReferences(go);
+        }
+
+        // Resolve @UiKeyReference annotations after UIManager keys are registered
+        for (GameObject go : gameObjects) {
+            UiKeyRefResolver.resolveReferences(go);
         }
 
         for (GameObject go : gameObjects) {

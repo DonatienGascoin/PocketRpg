@@ -2,7 +2,10 @@ package com.pocket.rpg.editor.ui.inspectors;
 
 import com.pocket.rpg.components.ui.UIPanel;
 import com.pocket.rpg.editor.core.MaterialIcons;
+import com.pocket.rpg.editor.ui.fields.FieldEditorContext;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
+import com.pocket.rpg.editor.undo.UndoManager;
+import com.pocket.rpg.editor.undo.commands.SetComponentFieldCommand;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import imgui.ImGui;
 import org.joml.Vector4f;
@@ -27,6 +30,9 @@ public class UIPanelInspector extends CustomComponentInspector<UIPanel> {
             "Dark", "Black", "Blue", "Darker", "White", "Overlay"
     };
 
+    // Undo tracking for continuous alpha slider edits
+    private Vector4f alphaEditStartColor;
+
     @Override
     public boolean draw() {
         boolean changed = false;
@@ -46,13 +52,24 @@ public class UIPanelInspector extends CustomComponentInspector<UIPanel> {
 
         final boolean[] alphaChanged = {false};
         FieldEditors.inspectorRow("Alpha", () -> {
-            // TODO: Refactor to use FieldEditors for @Required support and undo
             alphaChanged[0] = ImGui.sliderFloat("##alpha", alphaBuf, 0f, 1f);
         });
+        if (ImGui.isItemActivated()) {
+            alphaEditStartColor = new Vector4f(color);
+        }
         if (alphaChanged[0]) {
             color.w = alphaBuf[0];
             ComponentReflectionUtils.setFieldValue(component, "color", color);
             changed = true;
+        }
+        if (ImGui.isItemDeactivatedAfterEdit() && alphaEditStartColor != null) {
+            Vector4f newColor = new Vector4f(FieldEditors.getVector4f(component, "color"));
+            if (entity != null) {
+                UndoManager.getInstance().push(
+                        new SetComponentFieldCommand(component, "color", alphaEditStartColor, newColor, entity)
+                );
+            }
+            alphaEditStartColor = null;
         }
 
         // Color presets
@@ -68,8 +85,14 @@ public class UIPanelInspector extends CustomComponentInspector<UIPanel> {
 
             // Color button
             if (ImGui.colorButton("##preset", preset)) {
-                ComponentReflectionUtils.setFieldValue(component, "color",
-                        new Vector4f(preset[0], preset[1], preset[2], preset[3]));
+                Vector4f oldColor = new Vector4f(FieldEditors.getVector4f(component, "color"));
+                Vector4f newColor = new Vector4f(preset[0], preset[1], preset[2], preset[3]);
+                ComponentReflectionUtils.setFieldValue(component, "color", newColor);
+                if (entity != null) {
+                    UndoManager.getInstance().push(
+                            new SetComponentFieldCommand(component, "color", oldColor, newColor, entity)
+                    );
+                }
                 changed = true;
             }
 

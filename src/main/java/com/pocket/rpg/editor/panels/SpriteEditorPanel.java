@@ -839,6 +839,10 @@ public class SpriteEditorPanel implements
             // Save to file
             AssetMetadata.save(texturePath, metadata);
 
+            // Apply metadata to the cached in-memory Sprite so existing references
+            // (e.g., UIImage components) pick up the changes immediately
+            applySavedMetadataToSprite();
+
             // Update original for future revert
             originalMetadata = copyMetadata(metadata);
             hasUnsavedChanges = false;
@@ -851,6 +855,32 @@ public class SpriteEditorPanel implements
         } catch (IOException e) {
             System.err.println("[SpriteEditorPanel] Failed to save: " + e.getMessage());
             showStatus("Failed to save: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Applies saved metadata to the cached in-memory Sprite.
+     * This ensures components referencing the sprite (e.g., UIImage) see updated
+     * pivot and 9-slice data without requiring a full reload.
+     */
+    private void applySavedMetadataToSprite() {
+        Sprite sprite = Assets.load(texturePath, Sprite.class);
+        if (sprite == null) return;
+
+        if (metadata.isSingle()) {
+            // Apply pivot
+            if (metadata.hasPivot()) {
+                sprite.setPivot(metadata.pivotX, metadata.pivotY);
+            }
+            // Apply 9-slice data
+            sprite.setNineSliceData(metadata.nineSlice != null ? metadata.nineSlice.copy() : null);
+        } else {
+            // For multiple mode, grid sprites are lazily created from metadata,
+            // so we clear the grid cache to force re-generation with updated data
+            SpriteGrid grid = Assets.getSpriteGrid(sprite);
+            if (grid != null) {
+                grid.clearCache();
+            }
         }
     }
 

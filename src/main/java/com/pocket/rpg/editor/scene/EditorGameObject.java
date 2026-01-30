@@ -496,56 +496,20 @@ public class EditorGameObject implements Renderable, HierarchyItem {
 
     /**
      * Clones a component by instantiating a new one and copying field values.
+     * Uses ComponentReflectionUtils to handle @UiKeyReference fields transparently.
      */
     private Component cloneComponent(Component source) {
-        ComponentMeta meta = ComponentRegistry.getByClassName(source.getClass().getName());
-        if (meta == null) {
-            return null;
-        }
-
-        Component clone = ComponentRegistry.instantiateByClassName(source.getClass().getName());
-        if (clone == null) {
-            return null;
-        }
-
-        for (FieldMeta fieldMeta : meta.fields()) {
-            try {
-                Field field = fieldMeta.field();
-                field.setAccessible(true);
-                Object value = field.get(source);
-                field.set(clone, value);
-            } catch (IllegalAccessException e) {
-                System.err.println("Failed to clone field " + fieldMeta.name() + ": " + e.getMessage());
-            }
-        }
-
-        return clone;
+        return ComponentReflectionUtils.cloneComponent(source);
     }
 
     /**
      * Applies field overrides to a component via reflection.
      */
     private void applyOverrides(Component component, Map<String, Object> overrides) {
-        ComponentMeta meta = ComponentRegistry.getByClassName(component.getClass().getName());
-        if (meta == null) {
-            return;
-        }
-
         for (Map.Entry<String, Object> entry : overrides.entrySet()) {
             String fieldName = entry.getKey();
             Object value = entry.getValue();
-
-            FieldMeta fieldMeta = findFieldMeta(meta, fieldName);
-            if (fieldMeta != null) {
-                try {
-                    Field field = fieldMeta.field();
-                    field.setAccessible(true);
-                    Object converted = SerializationUtils.fromSerializable(value, fieldMeta.type());
-                    field.set(component, converted);
-                } catch (Exception e) {
-                    System.err.println("Failed to apply override for " + fieldName + ": " + e.getMessage());
-                }
-            }
+            ComponentReflectionUtils.setFieldValue(component, fieldName, value);
         }
     }
 
@@ -685,37 +649,11 @@ public class EditorGameObject implements Renderable, HierarchyItem {
     }
 
     private Object getFieldFromComponent(Component component, String fieldName) {
-        ComponentMeta meta = ComponentRegistry.getByClassName(component.getClass().getName());
-        if (meta == null) return null;
-
-        FieldMeta fieldMeta = findFieldMeta(meta, fieldName);
-        if (fieldMeta == null) return null;
-
-        try {
-            Field field = fieldMeta.field();
-            field.setAccessible(true);
-            return field.get(component);
-        } catch (IllegalAccessException e) {
-            System.err.println("Failed to read field " + fieldName + ": " + e.getMessage());
-            return null;
-        }
+        return ComponentReflectionUtils.getFieldValue(component, fieldName);
     }
 
     private void setFieldOnComponent(Component component, String fieldName, Object value) {
-        ComponentMeta meta = ComponentRegistry.getByClassName(component.getClass().getName());
-        if (meta == null) return;
-
-        FieldMeta fieldMeta = findFieldMeta(meta, fieldName);
-        if (fieldMeta == null) return;
-
-        try {
-            Field field = fieldMeta.field();
-            field.setAccessible(true);
-            Object converted = SerializationUtils.fromSerializable(value, fieldMeta.type());
-            field.set(component, converted);
-        } catch (Exception e) {
-            System.err.println("Failed to set field " + fieldName + ": " + e.getMessage());
-        }
+        ComponentReflectionUtils.setFieldValue(component, fieldName, value);
     }
 
     private FieldMeta findFieldMeta(ComponentMeta meta, String fieldName) {

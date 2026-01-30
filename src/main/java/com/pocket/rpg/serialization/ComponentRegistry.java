@@ -4,6 +4,8 @@ import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ComponentRef;
 import com.pocket.rpg.components.HideInInspector;
 import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.components.UiKeyReference;
+import com.pocket.rpg.components.ui.UIComponent;
 import org.reflections.Reflections;
 import org.reflections.scanners.Scanners;
 import org.reflections.util.ClasspathHelper;
@@ -282,7 +284,8 @@ public class ComponentRegistry {
 
         List<FieldMeta> fields = new ArrayList<>();
         List<ComponentRefMeta> references = new ArrayList<>();
-        collectFields(clazz, fields, references);
+        List<UiKeyRefMeta> uiKeyRefs = new ArrayList<>();
+        collectFields(clazz, fields, references, uiKeyRefs);
 
         return new ComponentMeta(
                 className,
@@ -291,23 +294,42 @@ public class ComponentRegistry {
                 clazz,
                 fields,
                 references,
+                uiKeyRefs,
                 hasNoArgConstructor
         );
     }
 
     private static void collectFields(Class<?> clazz, List<FieldMeta> fields,
-                                      List<ComponentRefMeta> references) {
+                                      List<ComponentRefMeta> references,
+                                      List<UiKeyRefMeta> uiKeyRefs) {
         if (clazz == null || clazz == Component.class || clazz == Object.class) {
             return;
         }
 
-        collectFields(clazz.getSuperclass(), fields, references);
+        collectFields(clazz.getSuperclass(), fields, references, uiKeyRefs);
 
         for (Field field : clazz.getDeclaredFields()) {
             if (Modifier.isStatic(field.getModifiers())) {
                 continue;
             }
+
             if (Modifier.isTransient(field.getModifiers())) {
+                continue;
+            }
+
+            // Check for @UiKeyReference on non-transient UIComponent fields
+            UiKeyReference uiKeyAnnotation = field.getAnnotation(UiKeyReference.class);
+            if (uiKeyAnnotation != null && UIComponent.class.isAssignableFrom(field.getType())) {
+                @SuppressWarnings("unchecked")
+                Class<? extends UIComponent> compType = (Class<? extends UIComponent>) field.getType();
+                uiKeyRefs.add(new UiKeyRefMeta(
+                        field,
+                        compType,
+                        uiKeyAnnotation.required()
+                ));
+                // Add to fields list with String.class as the type override so the serializer
+                // treats this UIComponent field as a plain String (the uiKey value)
+                fields.add(new FieldMeta(field.getName(), String.class, field, ""));
                 continue;
             }
             String name = field.getName();

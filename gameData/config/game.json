@@ -19,7 +19,7 @@
   "enablePillarBox": false,
   "pillarboxAspectRatio": 0.0,
   "defaultTransitionConfig": {
-    "fadeOutDuration": 0.5,
+    "fadeOutDuration": 1.0,
     "fadeInDuration": 0.5,
     "fadeColor": {
       "x": 0.0,

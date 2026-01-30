@@ -166,6 +166,11 @@ public class RuntimeSceneLoader {
             }
         }
 
+        // Phase 5: Resolve @UiKeyReference after UIManager keys are registered (Phase 4)
+        for (GameObject go : gameObjectsById.values()) {
+            UiKeyRefResolver.resolveReferences(go);
+        }
+
         System.out.println("Loaded " + scene.getGameObjects().size() + " root GameObjects");
     }
 

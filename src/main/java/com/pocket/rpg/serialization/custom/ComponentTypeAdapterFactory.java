@@ -15,6 +15,8 @@ import com.pocket.rpg.resources.SpriteReference;
 import com.pocket.rpg.serialization.ComponentMeta;
 import com.pocket.rpg.serialization.ComponentRegistry;
 import com.pocket.rpg.serialization.FieldMeta;
+import com.pocket.rpg.serialization.UiKeyRefMeta;
+import com.pocket.rpg.serialization.UiKeyRefResolver;
 
 import java.io.*;
 import java.lang.reflect.Field;
@@ -132,6 +134,17 @@ public class ComponentTypeAdapterFactory implements TypeAdapterFactory {
                 field.setAccessible(true);
 
                 try {
+                    // @UiKeyReference fields: write the pending key string, not the field value
+                    UiKeyRefMeta uiKeyRef = findUiKeyRef(meta, fieldMeta.name());
+                    if (uiKeyRef != null) {
+                        String key = UiKeyRefResolver.getPendingKey(component, fieldMeta.name());
+                        if (key != null && !key.isEmpty()) {
+                            out.name(fieldMeta.name());
+                            out.value(key);
+                        }
+                        continue;
+                    }
+
                     Object value = field.get(component);
                     if (value == null) {
                         continue;
@@ -232,6 +245,17 @@ public class ComponentTypeAdapterFactory implements TypeAdapterFactory {
             field.setAccessible(true);
 
             try {
+                // @UiKeyReference fields: read the JSON string and store as pending key
+                UiKeyRefMeta uiKeyRef = findUiKeyRef(meta, fieldMeta.name());
+                if (uiKeyRef != null) {
+                    if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isString()) {
+                        String key = element.getAsString();
+                        UiKeyRefResolver.storePendingKey(component, fieldMeta.name(), key);
+                    }
+                    // Leave the UIComponent field null — resolver fills it at runtime
+                    continue;
+                }
+
                 Object value;
                 // Special handling for List fields with known element type
                 if (fieldMeta.isList() && element.isJsonArray()) {
@@ -344,6 +368,18 @@ public class ComponentTypeAdapterFactory implements TypeAdapterFactory {
             System.err.println("Failed to load asset: " + path + " as " + type.getSimpleName() + ": " + e.getMessage());
             return null;
         }
+    }
+
+    /**
+     * Finds the UiKeyRefMeta for a field name, or null if the field is not a @UiKeyReference.
+     */
+    private static UiKeyRefMeta findUiKeyRef(ComponentMeta meta, String fieldName) {
+        for (UiKeyRefMeta ref : meta.uiKeyRefs()) {
+            if (ref.fieldName().equals(fieldName)) {
+                return ref;
+            }
+        }
+        return null;
     }
 
     // ========================================================================

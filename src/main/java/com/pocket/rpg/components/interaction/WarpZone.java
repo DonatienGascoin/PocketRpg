@@ -82,7 +82,7 @@ public class WarpZone extends Component implements GizmoDrawable {
      */
     @Getter
     @Setter
-    private boolean useFade = false;
+    private boolean useFade = true;
 
     /**
      * If true, use custom transition settings instead of defaults from rendering config.

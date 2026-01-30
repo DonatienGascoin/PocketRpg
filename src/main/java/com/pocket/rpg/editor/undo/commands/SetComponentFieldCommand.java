@@ -15,6 +15,7 @@ public class SetComponentFieldCommand implements EditorCommand {
     private final Object oldValue;
     private final EditorGameObject entity;
     private Object newValue;
+    private Runnable afterApply;
 
     public SetComponentFieldCommand(Component component, String fieldName,
                                     Object oldValue, Object newValue,
@@ -26,16 +27,27 @@ public class SetComponentFieldCommand implements EditorCommand {
         this.entity = entity;
     }
 
+    /**
+     * Sets a callback to run after both execute() and undo().
+     * Useful for triggering side effects like layout recalculation.
+     */
+    public SetComponentFieldCommand withAfterApply(Runnable afterApply) {
+        this.afterApply = afterApply;
+        return this;
+    }
+
     @Override
     public void execute() {
         ComponentReflectionUtils.setFieldValue(component, fieldName, newValue);
         syncOverride(newValue);
+        if (afterApply != null) afterApply.run();
     }
 
     @Override
     public void undo() {
         ComponentReflectionUtils.setFieldValue(component, fieldName, oldValue);
         syncOverride(oldValue);
+        if (afterApply != null) afterApply.run();
     }
 
     @Override

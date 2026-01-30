@@ -3,7 +3,7 @@ package com.pocket.rpg.editor.scene;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.components.Transform;
-import com.pocket.rpg.core.IGameObject;
+import com.pocket.rpg.editor.panels.hierarchy.HierarchyItem;
 import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.prefab.Prefab;
 import com.pocket.rpg.prefab.PrefabRegistry;
@@ -30,7 +30,7 @@ import java.util.*;
  * Position, rotation, and scale are stored in the Transform component,
  * not as separate fields.
  */
-public class EditorGameObject implements Renderable, IGameObject {
+public class EditorGameObject implements Renderable, HierarchyItem {
 
     @Getter
     @Setter
@@ -619,6 +619,14 @@ public class EditorGameObject implements Renderable, IGameObject {
     @Override
     public boolean isEnabled() {
         return true;
+    }
+
+    /**
+     * Returns children for hierarchy display.
+     */
+    @Override
+    public List<? extends HierarchyItem> getHierarchyChildren() {
+        return getChildren();
     }
 
     public Component getComponentByType(String simpleName) {

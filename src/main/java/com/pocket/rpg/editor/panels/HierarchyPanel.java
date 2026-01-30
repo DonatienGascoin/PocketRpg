@@ -194,9 +194,6 @@ public class HierarchyPanel extends EditorPanel {
         }
 
         PlayModeSelectionManager selMgr = playModeController.getPlayModeSelectionManager();
-        if (selMgr != null) {
-            selMgr.pruneDestroyedObjects();
-        }
 
         // Camera item
         renderRuntimeCameraItem(selMgr);

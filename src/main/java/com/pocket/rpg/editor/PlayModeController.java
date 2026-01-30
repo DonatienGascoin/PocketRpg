@@ -270,6 +270,11 @@ public class PlayModeController {
     public void update(float deltaTime) {
         if (state != PlayState.PLAYING) return;
 
+        // Prune destroyed objects from selection once per frame
+        if (playModeSelectionManager != null) {
+            playModeSelectionManager.pruneDestroyedObjects();
+        }
+
         // Input always captured
         if (inputManager != null) {
             inputManager.update(deltaTime);

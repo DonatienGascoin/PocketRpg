@@ -89,6 +89,11 @@ public interface IGameObject {
 
     /**
      * Returns true if this is a runtime game object (in a running scene).
+     * <p>
+     * The default uses {@code instanceof GameObject}, which is correct for
+     * {@code GameObject} and {@code EditorGameObject} but <b>not</b> for
+     * wrappers/adapters around runtime objects (e.g. {@code RuntimeGameObjectAdapter}).
+     * Such implementations must override this method to return {@code true}.
      */
     default boolean isRuntime() {
         return this instanceof GameObject;

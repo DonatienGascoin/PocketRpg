@@ -32,6 +32,7 @@ import java.util.Set;
 public class InspectorPanel extends EditorPanel {
 
     private static final String PANEL_ID = "inspector";
+    private static final float LABEL_WIDTH = 90f;
 
     @Setter
     private EditorScene scene;
@@ -125,8 +126,6 @@ public class InspectorPanel extends EditorPanel {
         PlayModeSelectionManager selMgr = playModeController.getPlayModeSelectionManager();
         if (selMgr == null) return;
 
-        selMgr.pruneDestroyedObjects();
-
         // Camera selected — show camera inspector
         if (selMgr.isCameraSelected()) {
             renderRuntimeCameraInspector();
@@ -163,7 +162,7 @@ public class InspectorPanel extends EditorPanel {
         Vector3f pos = camera.getPosition();
         float[] posBuffer = {pos.x, pos.y};
         ImGui.text("Position");
-        ImGui.sameLine(90);
+        ImGui.sameLine(LABEL_WIDTH);
         ImGui.setNextItemWidth(-1);
         if (ImGui.dragFloat2("##camPos", posBuffer, 0.5f)) {
             camera.setPosition(posBuffer[0], posBuffer[1]);
@@ -171,7 +170,7 @@ public class InspectorPanel extends EditorPanel {
 
         float[] zoomBuffer = {camera.getZoom()};
         ImGui.text("Zoom");
-        ImGui.sameLine(90);
+        ImGui.sameLine(LABEL_WIDTH);
         ImGui.setNextItemWidth(-1);
         if (ImGui.dragFloat("##camZoom", zoomBuffer, 0.01f, 0.1f, 10f)) {
             camera.setZoom(zoomBuffer[0]);
@@ -179,7 +178,7 @@ public class InspectorPanel extends EditorPanel {
 
         float[] rotBuffer = {camera.getRotation()};
         ImGui.text("Rotation");
-        ImGui.sameLine(90);
+        ImGui.sameLine(LABEL_WIDTH);
         ImGui.setNextItemWidth(-1);
         if (ImGui.dragFloat("##camRot", rotBuffer, 0.5f)) {
             camera.setRotation(rotBuffer[0]);

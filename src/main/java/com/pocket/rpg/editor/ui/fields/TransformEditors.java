@@ -62,7 +62,9 @@ public final class TransformEditors {
     /**
      * Draws position editor with XY fields, override styling, reset button, and undo.
      *
-     * @param entity The editor entity, or null for runtime (no undo/overrides)
+     * @param entity The editor entity, or null for runtime (no undo/overrides).
+     *               When null, reads the Transform from {@link FieldEditorContext#getComponent()},
+     *               which must be set by the caller (e.g. {@code ReflectionFieldEditor.drawComponent}).
      */
     public static boolean drawPosition(String label, EditorGameObject entity) {
         // Support runtime: read from entity or from the FieldEditorContext component
@@ -167,7 +169,9 @@ public final class TransformEditors {
     /**
      * Draws rotation editor with Z field (2D), override styling, reset button, and undo.
      *
-     * @param entity The editor entity, or null for runtime (no undo/overrides)
+     * @param entity The editor entity, or null for runtime (no undo/overrides).
+     *               When null, reads the Transform from {@link FieldEditorContext#getComponent()},
+     *               which must be set by the caller (e.g. {@code ReflectionFieldEditor.drawComponent}).
      */
     public static boolean drawRotation(String label, EditorGameObject entity) {
         Vector3f rot;
@@ -260,7 +264,9 @@ public final class TransformEditors {
     /**
      * Draws scale editor with XY fields, override styling, reset button, and undo.
      *
-     * @param entity The editor entity, or null for runtime (no undo/overrides)
+     * @param entity The editor entity, or null for runtime (no undo/overrides).
+     *               When null, reads the Transform from {@link FieldEditorContext#getComponent()},
+     *               which must be set by the caller (e.g. {@code ReflectionFieldEditor.drawComponent}).
      */
     public static boolean drawScale(String label, EditorGameObject entity) {
         Vector3f scale;

@@ -25,50 +25,13 @@
               "x": 1.0,
               "y": 1.0,
               "z": 1.0
-            },
-            "worldPosition": {
-              "x": 0.0,
-              "y": 0.0,
-              "z": 0.0
-            },
-            "worldRotation": {
-              "x": 0.0,
-              "y": 0.0,
-              "z": 0.0
-            },
-            "worldScale": {
-              "x": 1.0,
-              "y": 1.0,
-              "z": 1.0
-            },
-            "worldMatrix": {
-              "properties": 18,
-              "m00": 1.0,
-              "m01": 0.0,
-              "m02": 0.0,
-              "m03": 0.0,
-              "m10": 0.0,
-              "m11": 1.0,
-              "m12": 0.0,
-              "m13": 0.0,
-              "m20": 0.0,
-              "m21": 0.0,
-              "m22": 1.0,
-              "m23": 0.0,
-              "m30": 0.0,
-              "m31": 0.0,
-              "m32": 0.0,
-              "m33": 1.0
-            },
-            "worldDirty": false
+            }
           }
         },
         {
           "type": "com.pocket.rpg.components.ui.UICanvas",
           "properties": {
             "raycastTarget": true,
-            "canvasCacheDirty": true,
-            "transformCacheDirty": true,
             "renderMode": "SCREEN_SPACE_OVERLAY",
             "sortOrder": 0,
             "planeDistance": 100.0
@@ -84,7 +47,7 @@
       "order": 0,
       "components": [
         {
-          "type": "com.pocket.rpg.components.Transform",
+          "type": "com.pocket.rpg.components.ui.UITransform",
           "properties": {
             "localPosition": {
               "x": 0.0,
@@ -101,77 +64,27 @@
               "y": 1.0,
               "z": 1.0
             },
-            "worldPosition": {
-              "x": 0.0,
-              "y": 0.0,
-              "z": 0.0
-            },
-            "worldRotation": {
-              "x": 0.0,
-              "y": 0.0,
-              "z": 0.0
-            },
-            "worldScale": {
-              "x": 1.0,
-              "y": 1.0,
-              "z": 1.0
-            },
-            "worldMatrix": {
-              "properties": 18,
-              "m00": 1.0,
-              "m01": 0.0,
-              "m02": 0.0,
-              "m03": 0.0,
-              "m10": 0.0,
-              "m11": 1.0,
-              "m12": 0.0,
-              "m13": 0.0,
-              "m20": 0.0,
-              "m21": 0.0,
-              "m22": 1.0,
-              "m23": 0.0,
-              "m30": 0.0,
-              "m31": 0.0,
-              "m32": 0.0,
-              "m33": 1.0
-            },
-            "worldDirty": false
-          }
-        },
-        {
-          "type": "com.pocket.rpg.components.ui.UITransform",
-          "properties": {
             "anchor": {
-              "x": 0.0,
-              "y": 0.0
-            },
-            "offset": {
-              "x": 10.0,
-              "y": 10.0
+              "x": 0.5,
+              "y": 0.5
             },
             "pivot": {
-              "x": 0.0,
-              "y": 0.0
+              "x": 0.5,
+              "y": 0.5
             },
             "width": 200.0,
             "height": 30.0,
-            "calculatedPosition": {
-              "x": 0.0,
-              "y": 0.0
-            },
-            "positionDirty": true,
-            "screenWidth": 0.0,
-            "screenHeight": 0.0
+            "stretchMode": "NONE",
+            "matchParentRotation": false,
+            "matchParentScale": false
           }
         },
         {
           "type": "com.pocket.rpg.components.ui.UIText",
           "properties": {
             "raycastTarget": true,
-            "canvasCacheDirty": true,
-            "transformCacheDirty": true,
-            "fontPath": "fonts/zelda.ttf",
-            "fontSize": 30,
+            "fontPath": "fonts/Pokemon-Red.ttf",
+            "fontSize": 23,
             "text": "New Text",
             "color": {
               "x": 1.0,
@@ -183,9 +96,8 @@
             "verticalAlignment": "TOP",
             "wordWrap": false,
             "autoFit": false,
-            "minScale": 0.5,
-            "maxScale": 1.0,
-            "maintainAspectRatio": true,
+            "minFontSize": 8,
+            "maxFontSize": 72,
             "shadow": false,
             "shadowColor": {
               "x": 0.0,
@@ -196,12 +108,7 @@
             "shadowOffset": {
               "x": 2.0,
               "y": 2.0
-            },
-            "naturalWidth": 0.0,
-            "naturalHeight": 0.0,
-            "computedScaleX": 1.0,
-            "computedScaleY": 1.0,
-            "layoutDirty": true
+            }
           }
         }
       ]
@@ -229,42 +136,7 @@
               "x": 1.0,
               "y": 1.0,
               "z": 1.0
-            },
-            "worldPosition": {
-              "x": 0.0,
-              "y": 0.0,
-              "z": 0.0
-            },
-            "worldRotation": {
-              "x": 0.0,
-              "y": 0.0,
-              "z": 0.0
-            },
-            "worldScale": {
-              "x": 1.0,
-              "y": 1.0,
-              "z": 1.0
-            },
-            "worldMatrix": {
-              "properties": 18,
-              "m00": 1.0,
-              "m01": 0.0,
-              "m02": 0.0,
-              "m03": 0.0,
-              "m10": 0.0,
-              "m11": 1.0,
-              "m12": 0.0,
-              "m13": 0.0,
-              "m20": 0.0,
-              "m21": 0.0,
-              "m22": 1.0,
-              "m23": 0.0,
-              "m30": 0.0,
-              "m31": 0.0,
-              "m32": 0.0,
-              "m33": 1.0
-            },
-            "worldDirty": false
+            }
           }
         },
         {
@@ -277,9 +149,6 @@
               "z": 1.0,
               "w": 1.0
             },
-            "useSpritePivot": true,
-            "originX": 0.5,
-            "originY": 0.0,
             "zIndex": 0
           }
         }
@@ -292,9 +161,7 @@
       0.0,
       0.0
     ],
-    "orthographicSize": 15.0,
-    "followPlayer": true,
-    "followTargetName": "Player",
+    "orthographicSize": 0.0,
     "useBounds": false,
     "bounds": [
       0.0,

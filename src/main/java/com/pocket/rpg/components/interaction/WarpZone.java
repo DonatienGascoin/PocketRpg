@@ -238,6 +238,11 @@ public class WarpZone extends Component implements GizmoDrawable {
             Audio.playOneShot(arrivalSound);
         }
 
+        // Apply camera bounds from spawn point
+        if (player.getScene() != null && player.getScene().getCamera() != null) {
+            spawn.applyCameraBounds(player.getScene().getCamera());
+        }
+
         System.out.println("[WarpZone] Warped player to grid: (" + targetGridX + ", " + targetGridY + ")");
     }
 

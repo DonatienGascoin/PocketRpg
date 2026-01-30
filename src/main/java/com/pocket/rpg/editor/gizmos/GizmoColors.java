@@ -177,6 +177,20 @@ public final class GizmoColors {
     public static final int TRIGGER_BORDER = ImGui.colorConvertFloat4ToU32(1.0f, 0.8f, 0.2f, 0.8f);
 
     // ========================================================================
+    // CAMERA BOUNDS ZONES
+    // ========================================================================
+
+    /**
+     * Camera bounds zone outline (red, matching camera bounds style).
+     */
+    public static final int CAMERA_BOUNDS_ZONE = ImGui.colorConvertFloat4ToU32(1.0f, 0.15f, 0.15f, 1.0f);
+
+    /**
+     * Camera bounds zone handle (brighter red).
+     */
+    public static final int CAMERA_BOUNDS_ZONE_HANDLE = ImGui.colorConvertFloat4ToU32(1.0f, 0.4f, 0.4f, 0.9f);
+
+    // ========================================================================
     // UTILITY
     // ========================================================================
 

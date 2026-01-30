@@ -4,9 +4,12 @@ import com.pocket.rpg.audio.clips.AudioClip;
 import com.pocket.rpg.collision.Direction;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ComponentMeta;
+import com.pocket.rpg.core.GameObject;
+import com.pocket.rpg.core.camera.GameCamera;
 import com.pocket.rpg.editor.gizmos.GizmoColors;
 import com.pocket.rpg.editor.gizmos.GizmoContext;
 import com.pocket.rpg.editor.gizmos.GizmoDrawable;
+import com.pocket.rpg.save.SaveManager;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector3f;
@@ -58,6 +61,15 @@ public class SpawnPoint extends Component implements GizmoDrawable {
     private AudioClip arrivalSound;
 
     /**
+     * Optional camera bounds zone ID to activate when arriving at this spawn point.
+     * Must match a {@link CameraBoundsZone#getBoundsId()} in the scene.
+     * Leave empty for no camera bounds change.
+     */
+    @Getter
+    @Setter
+    private String cameraBoundsId = "";
+
+    /**
      * Gets the world position of this spawn point.
      */
     public Vector3f getSpawnPosition() {
@@ -73,6 +85,33 @@ public class SpawnPoint extends Component implements GizmoDrawable {
 
     public int getTileY() {
         return (int) Math.floor(getTransform().getPosition().y);
+    }
+
+    /**
+     * Applies the camera bounds zone referenced by {@link #cameraBoundsId} to the given camera.
+     * If cameraBoundsId is empty, does nothing.
+     * Also persists the active bounds ID via SaveManager for save/load support.
+     *
+     * @param camera the game camera to apply bounds to
+     */
+    public void applyCameraBounds(GameCamera camera) {
+        if (cameraBoundsId == null || cameraBoundsId.isEmpty()) {
+            return;
+        }
+        if (gameObject == null || gameObject.getScene() == null) {
+            return;
+        }
+
+        for (GameObject obj : gameObject.getScene().getGameObjects()) {
+            CameraBoundsZone zone = obj.getComponent(CameraBoundsZone.class);
+            if (zone != null && cameraBoundsId.equals(zone.getBoundsId())) {
+                zone.applyBounds(camera);
+                SaveManager.setGlobal("camera", "activeBoundsId", cameraBoundsId);
+                return;
+            }
+        }
+
+        System.err.println("[SpawnPoint] CameraBoundsZone not found: " + cameraBoundsId);
     }
 
     // ========================================================================

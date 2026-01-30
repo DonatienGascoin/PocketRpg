@@ -4,13 +4,12 @@ import com.pocket.rpg.serialization.SceneData;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector2f;
-import org.joml.Vector4f;
 
 /**
  * Camera configuration for a scene.
  * <p>
  * Defines the initial camera state when the scene loads at runtime,
- * including position, zoom level, and bounds.
+ * including position and initial bounds zone reference.
  */
 public class SceneCameraSettings {
 
@@ -23,30 +22,18 @@ public class SceneCameraSettings {
     // Note: Orthographic size is now controlled globally via RenderingConfig
 
     /**
-     * Whether camera movement should be clamped to bounds.
+     * ID of the CameraBoundsZone to activate on fresh scene load.
+     * Leave empty for no bounds.
      */
     @Getter
     @Setter
-    private boolean useBounds = false;
-
-    /**
-     * Camera bounds (minX, minY, maxX, maxY).
-     */
-    @Getter
-    private final Vector4f bounds = new Vector4f(0, 0, 20, 15);
+    private String initialBoundsId = "";
 
     /**
      * Sets the camera position.
      */
     public void setPosition(float x, float y) {
         position.set(x, y);
-    }
-
-    /**
-     * Sets the camera bounds.
-     */
-    public void setBounds(float minX, float minY, float maxX, float maxY) {
-        bounds.set(minX, minY, maxX, maxY);
     }
 
     /**
@@ -57,8 +44,7 @@ public class SceneCameraSettings {
         SceneData.CameraData data = new SceneData.CameraData(
                 position.x, position.y, 0, 0
         );
-        data.setUseBounds(useBounds);
-        data.setBounds(new float[]{bounds.x, bounds.y, bounds.z, bounds.w});
+        data.setInitialBoundsId(initialBoundsId);
         return data;
     }
 
@@ -77,12 +63,9 @@ public class SceneCameraSettings {
 
         // Note: orthographicSize from data is ignored - now controlled via RenderingConfig
 
-        useBounds = data.isUseBounds();
-
-        float[] b = data.getBounds();
-        if (b != null && b.length >= 4) {
-            bounds.set(b[0], b[1], b[2], b[3]);
-        }
+        // Load initialBoundsId (new field)
+        String boundsId = data.getInitialBoundsId();
+        initialBoundsId = boundsId != null ? boundsId : "";
     }
 
     /**
@@ -90,14 +73,13 @@ public class SceneCameraSettings {
      */
     public void reset() {
         position.set(0, 0);
-        useBounds = false;
-        bounds.set(0, 0, 20, 15);
+        initialBoundsId = "";
     }
 
     @Override
     public String toString() {
-        return String.format("SceneCameraSettings[pos=(%.1f,%.1f), bounds=%s]",
+        return String.format("SceneCameraSettings[pos=(%.1f,%.1f), initialBoundsId=%s]",
                 position.x, position.y,
-                useBounds ? String.format("(%.1f,%.1f,%.1f,%.1f)", bounds.x, bounds.y, bounds.z, bounds.w) : "none");
+                initialBoundsId.isEmpty() ? "none" : initialBoundsId);
     }
 }

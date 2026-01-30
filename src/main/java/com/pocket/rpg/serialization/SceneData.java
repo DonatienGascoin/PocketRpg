@@ -266,13 +266,14 @@ public class SceneData {
         private float orthographicSize = 15f;
 
         /**
-         * Whether to clamp camera to bounds.
+         * ID of the CameraBoundsZone to activate on fresh scene load.
+         * Replaces the old useBounds/bounds fields.
          */
-        private boolean useBounds = false;
+        private String initialBoundsId = "";
 
-        /**
-         * Camera bounds [minX, minY, maxX, maxY].
-         */
+        // Legacy fields kept for backwards compatibility when loading old scenes.
+        // They are read by Gson but ignored by SceneManager — users add zones manually.
+        private boolean useBounds = false;
         private float[] bounds = {0, 0, 0, 0};
 
         public CameraData() {

@@ -1,9 +1,12 @@
 package com.pocket.rpg.scenes;
 
+import com.pocket.rpg.components.interaction.CameraBoundsZone;
 import com.pocket.rpg.config.RenderingConfig;
+import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.core.camera.GameCamera;
 import com.pocket.rpg.core.window.ViewportConfig;
 import com.pocket.rpg.editor.scene.RuntimeSceneLoader;
+import com.pocket.rpg.save.SaveManager;
 import com.pocket.rpg.serialization.SceneData;
 import lombok.Getter;
 import lombok.NonNull;
@@ -209,15 +212,32 @@ public class SceneManager {
             scene.getCamera().setOrthographicSize(orthoSize);
         }
 
-        // Apply camera bounds
-        if (cameraData.isUseBounds()) {
-            float[] bounds = cameraData.getBounds();
-            if (bounds != null && bounds.length >= 4) {
-                scene.getCamera().setBounds(bounds[0], bounds[1], bounds[2], bounds[3]);
-            }
+        // Apply camera bounds via CameraBoundsZone lookup
+        // Priority: saved state > scene default (initialBoundsId)
+        String boundsId = SaveManager.getGlobal("camera", "activeBoundsId", "");
+        if (boundsId.isEmpty()) {
+            boundsId = cameraData.getInitialBoundsId();
+        }
+        if (boundsId != null && !boundsId.isEmpty()) {
+            applyCameraBoundsZone(scene, boundsId);
         }
 
         System.out.println("Applied camera data: orthoSize=" + orthoSize);
+    }
+
+    /**
+     * Searches the scene for a CameraBoundsZone with the given boundsId and applies it.
+     */
+    private void applyCameraBoundsZone(Scene scene, String boundsId) {
+        for (GameObject obj : scene.getGameObjects()) {
+            CameraBoundsZone zone = obj.getComponent(CameraBoundsZone.class);
+            if (zone != null && boundsId.equals(zone.getBoundsId())) {
+                zone.applyBounds(scene.getCamera());
+                System.out.println("Applied camera bounds zone: " + boundsId);
+                return;
+            }
+        }
+        System.err.println("CameraBoundsZone not found: " + boundsId);
     }
 
     // ========================================================================

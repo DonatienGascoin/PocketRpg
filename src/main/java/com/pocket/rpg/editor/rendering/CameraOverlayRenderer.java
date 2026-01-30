@@ -8,7 +8,6 @@ import imgui.ImDrawList;
 import imgui.ImGui;
 import lombok.Setter;
 import org.joml.Vector2f;
-import org.joml.Vector4f;
 
 /**
  * Renders camera-related overlays in the editor viewport.
@@ -17,8 +16,6 @@ public class CameraOverlayRenderer {
 
     @Setter
     private HierarchyPanel hierarchyPanel;
-    @Setter
-    private boolean showBounds = true;
 
     @Setter
     private boolean showGameView = true;
@@ -55,49 +52,12 @@ public class CameraOverlayRenderer {
         drawList.pushClipRect(viewportX, viewportY,
                 viewportX + viewportWidth, viewportY + viewportHeight, true);
 
-        // Render bounds if enabled
-        if (showBounds && camSettings.isUseBounds()) {
-            renderCameraBounds(drawList, camera, camSettings);
-        }
-
         // Show game view preview rectangle
         if (showGameView) {
             renderGameViewPreview(drawList, camera, camSettings);
         }
 
         drawList.popClipRect();
-    }
-
-    /**
-     * Renders dashed rectangle showing camera bounds.
-     */
-    private void renderCameraBounds(ImDrawList drawList, EditorCamera camera,
-                                    SceneCameraSettings camSettings) {
-        Vector4f bounds = camSettings.getBounds();
-
-        // Convert world bounds to screen (bounds = minX, minY, maxX, maxY)
-        Vector2f topLeft = camera.worldToScreen(bounds.x, bounds.w);     // minX, maxY
-        Vector2f bottomRight = camera.worldToScreen(bounds.z, bounds.y); // maxX, minY
-
-        float x1 = viewportX + topLeft.x;
-        float y1 = viewportY + topLeft.y;
-        float x2 = viewportX + bottomRight.x;
-        float y2 = viewportY + bottomRight.y;
-
-        // Dashed bright red rectangle
-        int boundsColor = ImGui.colorConvertFloat4ToU32(1.0f, 0.15f, 0.15f, 1.0f);
-
-        // Draw dashed lines
-        float dashLength = 10f;
-        float gapLength = 5f;
-
-        drawDashedLine(drawList, x1, y1, x2, y1, boundsColor, dashLength, gapLength); // Top
-        drawDashedLine(drawList, x2, y1, x2, y2, boundsColor, dashLength, gapLength); // Right
-        drawDashedLine(drawList, x2, y2, x1, y2, boundsColor, dashLength, gapLength); // Bottom
-        drawDashedLine(drawList, x1, y2, x1, y1, boundsColor, dashLength, gapLength); // Left
-
-        // Label
-        drawList.addText(x1 + 4, y1 + 4, boundsColor, "Camera Bounds");
     }
 
     /**
@@ -127,45 +87,11 @@ public class CameraOverlayRenderer {
         float x2 = viewportX + bottomRight.x;
         float y2 = viewportY + bottomRight.y;
 
-        // Bright red rectangle (matches bounds and crosshair color)
+        // Bright red rectangle (matches crosshair color)
         int previewColor = ImGui.colorConvertFloat4ToU32(1.0f, 0.15f, 0.15f, 1.0f);
         drawList.addRect(x1, y1, x2, y2, previewColor, 0, 0, 3.0f);
 
         // Label at bottom
         drawList.addText(x1 + 4, y2 - 18, previewColor, "Game View");
-    }
-
-    /**
-     * Draws a dashed line between two points.
-     */
-    private void drawDashedLine(ImDrawList drawList, float x1, float y1, float x2, float y2,
-                                int color, float dashLength, float gapLength) {
-        float dx = x2 - x1;
-        float dy = y2 - y1;
-        float length = (float) Math.sqrt(dx * dx + dy * dy);
-
-        if (length < 0.001f) return;
-
-        float nx = dx / length;
-        float ny = dy / length;
-
-        float pos = 0;
-        boolean drawing = true;
-
-        while (pos < length) {
-            float segmentLength = drawing ? dashLength : gapLength;
-            float endPos = Math.min(pos + segmentLength, length);
-
-            if (drawing) {
-                float sx = x1 + nx * pos;
-                float sy = y1 + ny * pos;
-                float ex = x1 + nx * endPos;
-                float ey = y1 + ny * endPos;
-                drawList.addLine(sx, sy, ex, ey, color, 3.0f);
-            }
-
-            pos = endPos;
-            drawing = !drawing;
-        }
     }
 }

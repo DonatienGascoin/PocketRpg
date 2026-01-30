@@ -1,12 +1,16 @@
 package com.pocket.rpg.editor;
 
+import com.pocket.rpg.components.interaction.CameraBoundsZone;
 import com.pocket.rpg.editor.events.CollisionTypePickedEvent;
 import com.pocket.rpg.editor.events.EditorEventBus;
 import com.pocket.rpg.editor.events.StatusMessageEvent;
 import com.pocket.rpg.editor.events.TilesPickedEvent;
+import com.pocket.rpg.editor.events.ToggleBoundsZoneToolEvent;
 import com.pocket.rpg.editor.panels.CollisionPanel;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.events.SelectionChangedEvent;
+import com.pocket.rpg.editor.tools.BoundsZoneTool;
 import com.pocket.rpg.editor.tools.CameraTool;
 import com.pocket.rpg.editor.tools.CollisionBrushTool;
 import com.pocket.rpg.editor.tools.CollisionEraserTool;
@@ -65,8 +69,14 @@ public class EditorToolController {
     // Camera tool
     @Getter private CameraTool cameraTool;
 
+    // Bounds zone tool
+    @Getter private BoundsZoneTool boundsZoneTool;
+
     // Tool to restore when camera is deselected
     private EditorTool previousTool;
+
+    // Tool to restore when bounds zone entity is deselected
+    private EditorTool previousToolBeforeBoundsZone;
 
     // Reference to collision panel for type display
     @Setter private CollisionPanel collisionPanel;
@@ -147,6 +157,13 @@ public class EditorToolController {
         cameraTool.setSelectionManager(context.getSelectionManager());
         toolManager.registerTool(cameraTool);
 
+        // Bounds zone tool
+        boundsZoneTool = new BoundsZoneTool();
+        boundsZoneTool.setScene(scene);
+        boundsZoneTool.setCamera(context.getCamera());
+        boundsZoneTool.setSelectionManager(context.getSelectionManager());
+        toolManager.registerTool(boundsZoneTool);
+
         // Setup callbacks
         setupCallbacks();
     }
@@ -179,6 +196,9 @@ public class EditorToolController {
 
         // Camera tool
         cameraTool.setScene(scene);
+
+        // Bounds zone tool
+        boundsZoneTool.setScene(scene);
 
         // Sync z-levels
         syncCollisionZLevels();
@@ -222,8 +242,26 @@ public class EditorToolController {
         });
 
         // Switch to transform tool when entity is selected via SelectionTool
+        // Skip if BoundsZoneTool was just activated by the SelectionChangedEvent
         selectionTool.setOnSwitchToTransformTool(toolName -> {
-            toolManager.setActiveTool(toolName);
+            if (toolManager.getActiveTool() != boundsZoneTool) {
+                toolManager.setActiveTool(toolName);
+            }
+        });
+
+        // Toggle bounds zone tool from inspector button
+        EditorEventBus.get().subscribe(ToggleBoundsZoneToolEvent.class, event -> {
+            if (event.activate()) {
+                previousToolBeforeBoundsZone = toolManager.getActiveTool();
+                toolManager.setActiveTool(boundsZoneTool);
+            } else {
+                if (previousToolBeforeBoundsZone != null && previousToolBeforeBoundsZone != boundsZoneTool) {
+                    toolManager.setActiveTool(previousToolBeforeBoundsZone);
+                } else {
+                    toolManager.setActiveTool(selectionTool);
+                }
+                previousToolBeforeBoundsZone = null;
+            }
         });
 
         // Auto-activate camera tool when camera is selected
@@ -238,6 +276,35 @@ public class EditorToolController {
                     toolManager.setActiveTool(selectionTool);
                 }
                 previousTool = null;
+            }
+
+            // Auto-activate bounds zone tool when a CameraBoundsZone entity is selected
+            if (event.selectionType() == EditorSelectionManager.SelectionType.ENTITY) {
+                EditorSelectionManager sm = context.getSelectionManager();
+                if (sm != null && sm.hasEntitySelection()) {
+                    EditorGameObject selected = sm.getFirstSelectedEntity();
+                    if (selected != null && selected.getComponent(CameraBoundsZone.class) != null) {
+                        previousToolBeforeBoundsZone = toolManager.getActiveTool();
+                        toolManager.setActiveTool(boundsZoneTool);
+                    } else if (toolManager.getActiveTool() == boundsZoneTool) {
+                        // Deselected a bounds zone entity, restore previous tool
+                        if (previousToolBeforeBoundsZone != null && previousToolBeforeBoundsZone != boundsZoneTool) {
+                            toolManager.setActiveTool(previousToolBeforeBoundsZone);
+                        } else {
+                            toolManager.setActiveTool(selectionTool);
+                        }
+                        previousToolBeforeBoundsZone = null;
+                    }
+                }
+            } else if (event.previousType() == EditorSelectionManager.SelectionType.ENTITY
+                    && toolManager.getActiveTool() == boundsZoneTool) {
+                // Selection changed away from entity, restore previous tool
+                if (previousToolBeforeBoundsZone != null && previousToolBeforeBoundsZone != boundsZoneTool) {
+                    toolManager.setActiveTool(previousToolBeforeBoundsZone);
+                } else {
+                    toolManager.setActiveTool(selectionTool);
+                }
+                previousToolBeforeBoundsZone = null;
             }
         });
     }

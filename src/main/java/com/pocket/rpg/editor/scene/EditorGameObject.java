@@ -406,12 +406,24 @@ public class EditorGameObject implements Renderable, IGameObject {
             if (components == null) {
                 components = new ArrayList<>();
             }
+            ensureOwnerSet(components);
             return components;
         } else {
             if (cachedMergedComponents == null) {
                 cachedMergedComponents = getMergedComponents();
             }
             return cachedMergedComponents;
+        }
+    }
+
+    /**
+     * Ensures all components in the list have their owner set to this entity.
+     */
+    private void ensureOwnerSet(List<Component> comps) {
+        for (Component comp : comps) {
+            if (comp.getOwner() != this) {
+                comp.setOwner(this);
+            }
         }
     }
 
@@ -475,6 +487,7 @@ public class EditorGameObject implements Renderable, IGameObject {
             result.add(0, transform);
         }
 
+        ensureOwnerSet(result);
         return result;
     }
 
@@ -538,6 +551,8 @@ public class EditorGameObject implements Renderable, IGameObject {
             throw new IllegalStateException(
                     "Cannot add components to prefab instance. Convert to scratch entity first.");
         }
+
+        component.setOwner(this);
 
         // Allow UITransform to replace Transform
         if (component instanceof UITransform) {

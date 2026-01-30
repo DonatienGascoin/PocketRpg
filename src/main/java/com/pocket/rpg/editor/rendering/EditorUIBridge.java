@@ -151,7 +151,7 @@ public class EditorUIBridge {
             removeAutoCreatedTransform(wrapper);
 
             // Reassign UITransform to wrapper
-            uiTransform.setGameObject(wrapper);
+            uiTransform.setOwner(wrapper);
             addComponentToWrapper(wrapper, uiTransform);
 
             // Update wrapper's transform reference to point to UITransform
@@ -170,7 +170,7 @@ public class EditorUIBridge {
         for (Component comp : entity.getComponents()) {
             if (comp instanceof UIComponent uiComp) {
                 // Temporarily reassign the component to the wrapper
-                comp.setGameObject(wrapper);
+                comp.setOwner(wrapper);
                 // Force enable - wrappers bypass onStart() lifecycle
                 uiComp.setEnabled(true);
                 // Add to wrapper's component list

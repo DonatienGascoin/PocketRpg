@@ -217,7 +217,7 @@ public class GameObject implements IGameObject {
     }
 
     private void addComponentInternal(Component component) {
-        component.setGameObject(this);
+        component.setOwner(this);
         components.add(component);
     }
 
@@ -229,7 +229,7 @@ public class GameObject implements IGameObject {
 
         if (components.remove(component)) {
             component.destroy();
-            component.setGameObject(null);
+            component.setOwner(null);
 
             if (scene != null) {
                 scene.unregisterCachedComponent(component);

@@ -418,10 +418,13 @@ public class EditorGameObject implements Renderable, HierarchyItem {
 
     /**
      * Ensures all components in the list have their owner set to this entity.
+     * Only sets owner on components that have no owner yet (null).
+     * Components temporarily reassigned to a wrapper GameObject (e.g. by
+     * {@link com.pocket.rpg.editor.rendering.EditorUIBridge}) are left alone.
      */
     private void ensureOwnerSet(List<Component> comps) {
         for (Component comp : comps) {
-            if (comp.getOwner() != this) {
+            if (comp.getOwner() == null) {
                 comp.setOwner(this);
             }
         }

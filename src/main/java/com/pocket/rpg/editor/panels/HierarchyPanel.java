@@ -24,6 +24,7 @@ import com.pocket.rpg.scenes.Scene;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiMouseButton;
+import imgui.flag.ImGuiTreeNodeFlags;
 import lombok.Setter;
 
 import java.util.Comparator;
@@ -192,12 +193,17 @@ public class HierarchyPanel extends EditorPanel {
             return;
         }
 
-        // Prune destroyed objects from selection
         PlayModeSelectionManager selMgr = playModeController.getPlayModeSelectionManager();
         if (selMgr != null) {
             selMgr.pruneDestroyedObjects();
         }
 
+        // Camera item
+        renderRuntimeCameraItem(selMgr);
+
+        ImGui.separator();
+
+        // Entities
         List<GameObject> allObjects = runtimeScene.getGameObjects();
         List<GameObject> rootObjects = allObjects.stream()
                 .filter(obj -> obj.getParent() == null)
@@ -212,13 +218,29 @@ public class HierarchyPanel extends EditorPanel {
             }
         }
 
-        // Detect click on empty space to deselect all
+        // Click empty space to deselect
         if (ImGui.isMouseClicked(ImGuiMouseButton.Left)
                 && ImGui.isWindowHovered()
                 && !ImGui.isAnyItemHovered()) {
             if (selMgr != null) {
                 selMgr.clearSelection();
             }
+        }
+    }
+
+    private void renderRuntimeCameraItem(PlayModeSelectionManager selMgr) {
+        int flags = ImGuiTreeNodeFlags.Leaf
+                | ImGuiTreeNodeFlags.NoTreePushOnOpen
+                | ImGuiTreeNodeFlags.SpanAvailWidth;
+        if (selMgr != null && selMgr.isCameraSelected()) {
+            flags |= ImGuiTreeNodeFlags.Selected;
+        }
+
+        ImGui.treeNodeEx("##runtimeCamera", flags,
+                IconUtils.getCameraIcon() + " Scene Camera");
+
+        if (ImGui.isItemClicked() && selMgr != null) {
+            selMgr.selectCamera();
         }
     }
 

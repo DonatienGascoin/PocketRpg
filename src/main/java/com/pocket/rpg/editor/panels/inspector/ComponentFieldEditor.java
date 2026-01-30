@@ -27,9 +27,10 @@ public class ComponentFieldEditor {
     /**
      * Renders component fields for a runtime game object during play mode.
      * No undo, no prefab overrides — changes are temporary.
+     * Custom editors are used when available (for consistent look),
+     * but receive null entity so they skip undo/override logic.
      */
     public boolean renderRuntimeComponentFields(Component component) {
-        // Use drawComponent with null entity — skips undo and override logic
         return ReflectionFieldEditor.drawComponent(component, null);
     }
 

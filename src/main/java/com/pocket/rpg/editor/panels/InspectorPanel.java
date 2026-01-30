@@ -5,17 +5,23 @@ import com.pocket.rpg.animation.animator.AnimatorState;
 import com.pocket.rpg.animation.animator.AnimatorTransition;
 import com.pocket.rpg.collision.trigger.TileCoord;
 import com.pocket.rpg.core.GameObject;
+import com.pocket.rpg.core.camera.GameCamera;
 import com.pocket.rpg.editor.EditorSelectionManager;
 import com.pocket.rpg.editor.PlayModeController;
 import com.pocket.rpg.editor.PlayModeSelectionManager;
+import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.inspector.*;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.RuntimeGameObjectAdapter;
 import com.pocket.rpg.editor.ui.fields.ReflectionFieldEditor;
+import com.pocket.rpg.editor.utils.IconUtils;
+import com.pocket.rpg.scenes.Scene;
 import imgui.ImGui;
+import imgui.flag.ImGuiTreeNodeFlags;
 import lombok.Getter;
 import lombok.Setter;
+import org.joml.Vector3f;
 
 import java.util.Set;
 
@@ -119,12 +125,18 @@ public class InspectorPanel extends EditorPanel {
         PlayModeSelectionManager selMgr = playModeController.getPlayModeSelectionManager();
         if (selMgr == null) return;
 
-        // Prune destroyed objects
         selMgr.pruneDestroyedObjects();
 
+        // Camera selected — show camera inspector
+        if (selMgr.isCameraSelected()) {
+            renderRuntimeCameraInspector();
+            return;
+        }
+
+        // Entity selection
         Set<GameObject> selected = selMgr.getSelectedObjects();
         if (selected.isEmpty()) {
-            ImGui.textDisabled("Select an entity in the hierarchy");
+            ImGui.textDisabled("Select an item in the hierarchy");
             return;
         }
 
@@ -136,6 +148,49 @@ public class InspectorPanel extends EditorPanel {
 
         GameObject obj = selected.iterator().next();
         entityInspector.renderRuntime(RuntimeGameObjectAdapter.of(obj));
+    }
+
+    private void renderRuntimeCameraInspector() {
+        Scene runtimeScene = playModeController.getRuntimeScene();
+        if (runtimeScene == null) return;
+
+        GameCamera camera = runtimeScene.getCamera();
+        if (camera == null) return;
+
+        ImGui.text(IconUtils.getCameraIcon() + " Scene Camera");
+        ImGui.separator();
+
+        Vector3f pos = camera.getPosition();
+        float[] posBuffer = {pos.x, pos.y};
+        ImGui.text("Position");
+        ImGui.sameLine(90);
+        ImGui.setNextItemWidth(-1);
+        if (ImGui.dragFloat2("##camPos", posBuffer, 0.5f)) {
+            camera.setPosition(posBuffer[0], posBuffer[1]);
+        }
+
+        float[] zoomBuffer = {camera.getZoom()};
+        ImGui.text("Zoom");
+        ImGui.sameLine(90);
+        ImGui.setNextItemWidth(-1);
+        if (ImGui.dragFloat("##camZoom", zoomBuffer, 0.01f, 0.1f, 10f)) {
+            camera.setZoom(zoomBuffer[0]);
+        }
+
+        float[] rotBuffer = {camera.getRotation()};
+        ImGui.text("Rotation");
+        ImGui.sameLine(90);
+        ImGui.setNextItemWidth(-1);
+        if (ImGui.dragFloat("##camRot", rotBuffer, 0.5f)) {
+            camera.setRotation(rotBuffer[0]);
+        }
+
+        if (camera.hasBounds()) {
+            ImGui.textDisabled("Bounds: active");
+        }
+
+        ImGui.separator();
+        ImGui.textDisabled("Changes reset when play mode stops");
     }
 
     /**

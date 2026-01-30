@@ -15,15 +15,25 @@ public class PlayModeSelectionManager {
     @Getter
     private final Set<GameObject> selectedObjects = new LinkedHashSet<>();
 
+    @Getter
+    private boolean cameraSelected = false;
+
     public void select(GameObject obj) {
+        cameraSelected = false;
         selectedObjects.clear();
         if (obj != null) {
             selectedObjects.add(obj);
         }
     }
 
+    public void selectCamera() {
+        selectedObjects.clear();
+        cameraSelected = true;
+    }
+
     public void toggleSelection(GameObject obj) {
         if (obj == null) return;
+        cameraSelected = false;
         if (!selectedObjects.remove(obj)) {
             selectedObjects.add(obj);
         }
@@ -31,6 +41,7 @@ public class PlayModeSelectionManager {
 
     public void clearSelection() {
         selectedObjects.clear();
+        cameraSelected = false;
     }
 
     public GameObject getSingleSelected() {

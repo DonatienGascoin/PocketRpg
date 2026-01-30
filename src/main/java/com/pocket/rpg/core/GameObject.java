@@ -46,7 +46,7 @@ public class GameObject implements IGameObject {
 
     @Override
     public String getId() {
-        return name != null ? name : ("obj_" + System.identityHashCode(this));
+        return "go_" + System.identityHashCode(this);
     }
 
     public GameObject(String name) {

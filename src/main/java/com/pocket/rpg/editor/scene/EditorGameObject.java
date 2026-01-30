@@ -3,6 +3,7 @@ package com.pocket.rpg.editor.scene;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.core.IGameObject;
 import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.prefab.Prefab;
 import com.pocket.rpg.prefab.PrefabRegistry;
@@ -29,7 +30,7 @@ import java.util.*;
  * Position, rotation, and scale are stored in the Transform component,
  * not as separate fields.
  */
-public class EditorGameObject implements Renderable {
+public class EditorGameObject implements Renderable, IGameObject {
 
     @Getter
     @Setter
@@ -574,6 +575,37 @@ public class EditorGameObject implements Renderable {
         return null;
     }
 
+    /**
+     * Gets all components of the specified type.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T extends Component> List<T> getComponents(Class<T> type) {
+        List<T> result = new ArrayList<>();
+        for (Component comp : getComponents()) {
+            if (type.isInstance(comp)) {
+                result.add((T) comp);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Gets all components (IGameObject interface method).
+     */
+    @Override
+    public List<Component> getAllComponents() {
+        return getComponents();
+    }
+
+    /**
+     * Editor entities are always considered enabled.
+     */
+    @Override
+    public boolean isEnabled() {
+        return true;
+    }
+
     public Component getComponentByType(String simpleName) {
         for (Component comp : getComponents()) {
             if (comp.getClass().getSimpleName().equals(simpleName)) {
@@ -583,9 +615,9 @@ public class EditorGameObject implements Renderable {
         return null;
     }
 
-    @SuppressWarnings("unchecked")
-    public boolean hasComponent(Class<?> clazz) {
-        return getComponent((Class<? extends Component>) clazz) != null;
+    @Override
+    public boolean hasComponent(Class<? extends Component> type) {
+        return getComponent(type) != null;
     }
 
     // ========================================================================

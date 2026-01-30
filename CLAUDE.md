@@ -22,8 +22,12 @@ PocketRpg is a 2D game engine with a scene editor, built in Java 25. Uses LWJGL 
 |----------|---------|
 | `.claude/workflows/` | How to design and implement plans |
 | `.claude/reference/` | Architecture, pitfalls, how-to guides |
-| `Documents/Plans/` | Implementation plans |
+| `Documents/Plans/active/` | Implementation plans in progress |
+| `Documents/Plans/finished/` | Completed implementation plans |
+| `Documents/Design/` | Design explorations and architecture docs |
 | `Documents/Encyclopedia/` | User guides for editor features |
+| `Documents/Reviews/` | Code reviews and analysis |
+| `Documents/Roadmap/` | Future features and integration notes |
 
 ## Before Writing Code
 

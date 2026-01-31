@@ -26,6 +26,7 @@ public final class FieldEditorUtils {
 
     private static float nextFieldWidth = -1;           // -1 means "use default"
     private static Runnable nextMiddleContent = null;   // null means "no middle content"
+    private static String nextTooltip = null;           // null means "no custom tooltip"
 
     private FieldEditorUtils() {}
 
@@ -50,6 +51,15 @@ public final class FieldEditorUtils {
         nextMiddleContent = content;
     }
 
+    /**
+     * Sets a tooltip for the next field label.
+     * Shown when the user hovers over the label, replacing the default truncation tooltip.
+     * Consumed after the next inspectorRow() call.
+     */
+    public static void setNextTooltip(String tooltip) {
+        nextTooltip = tooltip;
+    }
+
     private static float consumeNextFieldWidth() {
         float width = nextFieldWidth;
         nextFieldWidth = -1;
@@ -60,6 +70,12 @@ public final class FieldEditorUtils {
         Runnable content = nextMiddleContent;
         nextMiddleContent = null;
         return content;
+    }
+
+    private static String consumeNextTooltip() {
+        String tooltip = nextTooltip;
+        nextTooltip = null;
+        return tooltip;
     }
 
     /**
@@ -82,14 +98,18 @@ public final class FieldEditorUtils {
      * Reserves space for reset button when override context is active.
      */
     public static void inspectorRow(String label, Runnable field) {
+        String tooltip = consumeNextTooltip();
+
         if (!label.startsWith("##")) {
             var currentPos = ImGui.getCursorPosX();
             float textWidth = ImGui.calcTextSize(label).x;
 
             ImGui.text(label);
 
-            if (textWidth > LABEL_WIDTH) {
-                if (ImGui.isItemHovered()) {
+            if (ImGui.isItemHovered()) {
+                if (tooltip != null) {
+                    ImGui.setTooltip(tooltip);
+                } else if (textWidth > LABEL_WIDTH) {
                     ImGui.setTooltip(label);
                 }
             }

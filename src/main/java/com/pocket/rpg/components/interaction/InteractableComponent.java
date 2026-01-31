@@ -1,14 +1,18 @@
 package com.pocket.rpg.components.interaction;
 
+import com.pocket.rpg.collision.Direction;
 import com.pocket.rpg.collision.TileEntityMap;
 import com.pocket.rpg.collision.trigger.TileCoord;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ComponentRef;
 import com.pocket.rpg.components.RequiredComponent;
+import com.pocket.rpg.components.Tooltip;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.editor.gizmos.GizmoColors;
 import com.pocket.rpg.editor.gizmos.GizmoContext;
 import com.pocket.rpg.editor.gizmos.GizmoDrawable;
+import lombok.Getter;
+import lombok.Setter;
 import org.joml.Vector3f;
 
 /**
@@ -74,6 +78,20 @@ public abstract class InteractableComponent extends Component implements Interac
     protected transient GizmoShape gizmoShape = GizmoShape.DIAMOND;
 
     // ========================================================================
+    // INTERACTION CONFIGURATION — serialized, editable in inspector
+    // ========================================================================
+
+    /**
+     * The direction the player must approach from to interact.
+     * For example, DOWN means the player must be below the object.
+     * Set to null to allow interaction from any direction.
+     */
+    @Getter
+    @Setter
+    @Tooltip("Direction the player must be relative to this object to interact. E.g. DOWN = player must be below.")
+    private Direction interactFrom = Direction.DOWN;
+
+    // ========================================================================
     // RUNTIME STATE — not serialized
     // ========================================================================
 
@@ -122,7 +140,22 @@ public abstract class InteractableComponent extends Component implements Interac
 
     @Override
     public boolean canInteract(GameObject player) {
-        return true;
+        if (interactFrom == null) {
+            return true;
+        }
+
+        Vector3f objectPos = getTransform().getPosition();
+        int objectX = (int) Math.floor(objectPos.x);
+        int objectY = (int) Math.floor(objectPos.y);
+
+        Vector3f playerPos = player.getTransform().getPosition();
+        int playerX = (int) Math.floor(playerPos.x);
+        int playerY = (int) Math.floor(playerPos.y);
+
+        // Player must be on the tile the object faces toward
+        int expectedX = objectX + interactFrom.dx;
+        int expectedY = objectY + interactFrom.dy;
+        return playerX == expectedX && playerY == expectedY;
     }
 
     @Override
@@ -140,18 +173,21 @@ public abstract class InteractableComponent extends Component implements Interac
         float baseX = (float) Math.floor(pos.x);
         float baseY = (float) Math.floor(pos.y);
 
+        // Find TriggerZone via owner (works in both editor and runtime)
+        TriggerZone tz = triggerZone != null ? triggerZone : getComponent(TriggerZone.class);
+
         // Compute center of the TriggerZone area
         float centerX;
         float centerY;
-        if (triggerZone != null) {
-            centerX = baseX + triggerZone.getOffsetX() + triggerZone.getWidth() / 2.0f;
-            centerY = baseY + triggerZone.getOffsetY() + triggerZone.getHeight() / 2.0f;
+        if (tz != null) {
+            centerX = baseX + tz.getOffsetX() + tz.getWidth() / 2.0f;
+            centerY = baseY + tz.getOffsetY() + tz.getHeight() / 2.0f;
         } else {
             centerX = baseX + 0.5f;
             centerY = baseY + 0.5f;
         }
 
-        float size = ctx.getHandleSize(12);
+        float size = 0.25f; // Fixed world-space size (quarter tile)
 
         ctx.setColor(gizmoColor);
         ctx.setThickness(2.0f);
@@ -163,9 +199,6 @@ public abstract class InteractableComponent extends Component implements Interac
             case CROSS -> ctx.drawCrossHair(centerX, centerY, size);
         }
 
-        // Draw component name label below the icon
-        ctx.setColor(GizmoColors.fromRGBA(1.0f, 1.0f, 1.0f, 0.8f));
-        ctx.drawText(centerX, centerY, getClass().getSimpleName(), 0, 12);
     }
 
     // ========================================================================

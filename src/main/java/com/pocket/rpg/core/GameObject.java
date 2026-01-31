@@ -226,23 +226,27 @@ public class GameObject implements IGameObject {
     }
 
     /**
-     * Adds any components declared by @RequiredComponent on the given class,
-     * if they are not already present on this GameObject.
+     * Adds any components declared by @RequiredComponent on the given class
+     * or its superclasses, if they are not already present on this GameObject.
      */
     private void addRequiredComponents(Class<?> componentClass) {
-        RequiredComponent[] requirements = componentClass.getAnnotationsByType(RequiredComponent.class);
-        for (RequiredComponent req : requirements) {
-            Class<? extends Component> requiredType = req.value();
-            if (getComponent(requiredType) != null) {
-                continue;
+        Class<?> clazz = componentClass;
+        while (clazz != null && clazz != Component.class && clazz != Object.class) {
+            RequiredComponent[] requirements = clazz.getDeclaredAnnotationsByType(RequiredComponent.class);
+            for (RequiredComponent req : requirements) {
+                Class<? extends Component> requiredType = req.value();
+                if (getComponent(requiredType) != null) {
+                    continue;
+                }
+                try {
+                    Component dependency = requiredType.getDeclaredConstructor().newInstance();
+                    addComponent(dependency);
+                } catch (Exception e) {
+                    System.err.println("[RequiredComponent] Failed to auto-add " +
+                            requiredType.getSimpleName() + ": " + e.getMessage());
+                }
             }
-            try {
-                Component dependency = requiredType.getDeclaredConstructor().newInstance();
-                addComponent(dependency);
-            } catch (Exception e) {
-                System.err.println("[RequiredComponent] Failed to auto-add " +
-                        requiredType.getSimpleName() + ": " + e.getMessage());
-            }
+            clazz = clazz.getSuperclass();
         }
     }
 

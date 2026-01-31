@@ -276,16 +276,20 @@ public class ComponentRegistry {
      * so they can be auto-instantiated at runtime.
      */
     private static void validateRequiredComponents(Class<? extends Component> clazz) {
-        RequiredComponent[] requirements = clazz.getAnnotationsByType(RequiredComponent.class);
-        for (RequiredComponent req : requirements) {
-            Class<? extends Component> target = req.value();
-            try {
-                target.getDeclaredConstructor();
-            } catch (NoSuchMethodException e) {
-                System.err.println("  WARNING: " + clazz.getSimpleName() +
-                        " declares @RequiredComponent(" + target.getSimpleName() +
-                        ") but " + target.getSimpleName() + " has no no-arg constructor");
+        Class<?> current = clazz;
+        while (current != null && current != Component.class && current != Object.class) {
+            RequiredComponent[] requirements = current.getDeclaredAnnotationsByType(RequiredComponent.class);
+            for (RequiredComponent req : requirements) {
+                Class<? extends Component> target = req.value();
+                try {
+                    target.getDeclaredConstructor();
+                } catch (NoSuchMethodException e) {
+                    System.err.println("  WARNING: " + clazz.getSimpleName() +
+                            " declares @RequiredComponent(" + target.getSimpleName() +
+                            ") but " + target.getSimpleName() + " has no no-arg constructor");
+                }
             }
+            current = current.getSuperclass();
         }
     }
 

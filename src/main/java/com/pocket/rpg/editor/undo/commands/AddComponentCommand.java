@@ -72,20 +72,24 @@ public class AddComponentCommand implements EditorCommand {
     }
 
     private void addRequiredComponents(Class<?> componentClass) {
-        RequiredComponent[] requirements = componentClass.getAnnotationsByType(RequiredComponent.class);
-        for (RequiredComponent req : requirements) {
-            Class<? extends Component> requiredType = req.value();
-            if (entity.hasComponent(requiredType)) {
-                continue;
+        Class<?> clazz = componentClass;
+        while (clazz != null && clazz != Component.class && clazz != Object.class) {
+            RequiredComponent[] requirements = clazz.getDeclaredAnnotationsByType(RequiredComponent.class);
+            for (RequiredComponent req : requirements) {
+                Class<? extends Component> requiredType = req.value();
+                if (entity.hasComponent(requiredType)) {
+                    continue;
+                }
+                try {
+                    Component dependency = requiredType.getDeclaredConstructor().newInstance();
+                    entity.addComponent(dependency);
+                    autoAdded.add(dependency);
+                } catch (Exception e) {
+                    System.err.println("[RequiredComponent] Failed to auto-add " +
+                            requiredType.getSimpleName() + ": " + e.getMessage());
+                }
             }
-            try {
-                Component dependency = requiredType.getDeclaredConstructor().newInstance();
-                entity.addComponent(dependency);
-                autoAdded.add(dependency);
-            } catch (Exception e) {
-                System.err.println("[RequiredComponent] Failed to auto-add " +
-                        requiredType.getSimpleName() + ": " + e.getMessage());
-            }
+            clazz = clazz.getSuperclass();
         }
     }
 }

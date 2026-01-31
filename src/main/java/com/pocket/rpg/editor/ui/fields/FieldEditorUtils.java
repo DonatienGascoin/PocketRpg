@@ -5,6 +5,7 @@ import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import imgui.ImGui;
+import imgui.ImVec2;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
@@ -103,13 +104,26 @@ public final class FieldEditorUtils {
         if (!label.startsWith("##")) {
             var currentPos = ImGui.getCursorPosX();
             float textWidth = ImGui.calcTextSize(label).x;
+            boolean truncated = textWidth > LABEL_WIDTH;
 
-            ImGui.text(label);
+            // Clip the label text so it doesn't bleed into the field area
+            if (truncated) {
+                ImVec2 cursorScreen = ImGui.getCursorScreenPos();
+                float lineHeight = ImGui.getTextLineHeight();
+                ImGui.pushClipRect(cursorScreen.x, cursorScreen.y,
+                        cursorScreen.x + LABEL_WIDTH, cursorScreen.y + lineHeight, true);
+                ImGui.text(label);
+                ImGui.popClipRect();
+            } else {
+                ImGui.text(label);
+            }
 
             if (ImGui.isItemHovered()) {
-                if (tooltip != null) {
+                if (tooltip != null && truncated) {
+                    ImGui.setTooltip(label + "\n\n" + tooltip);
+                } else if (tooltip != null) {
                     ImGui.setTooltip(tooltip);
-                } else if (textWidth > LABEL_WIDTH) {
+                } else if (truncated) {
                     ImGui.setTooltip(label);
                 }
             }

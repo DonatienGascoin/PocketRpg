@@ -15,6 +15,9 @@ import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector3f;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Abstract base class for interactable components.
  * <p>
@@ -82,14 +85,24 @@ public abstract class InteractableComponent extends Component implements Interac
     // ========================================================================
 
     /**
-     * The direction the player must approach from to interact.
-     * For example, DOWN means the player must be below the object.
-     * Set to null to allow interaction from any direction.
+     * Whether directional interaction is enforced.
+     * When true, the player can only interact from the directions listed in {@link #interactFrom}.
+     * When false, the player can interact from any direction.
      */
     @Getter
     @Setter
-    @Tooltip("Direction the player must be relative to this object to interact. E.g. DOWN = player must be below.")
-    private Direction interactFrom = Direction.DOWN;
+    @Tooltip("When enabled, the player can only interact from the specified directions")
+    private boolean directionalInteraction = true;
+
+    /**
+     * The directions the player can approach from to interact.
+     * For example, DOWN means the player must be below the object.
+     * Only used when {@link #directionalInteraction} is true.
+     */
+    @Getter
+    @Setter
+    @Tooltip("Directions the player must be relative to this object to interact. E.g. DOWN = player must be below.")
+    private List<Direction> interactFrom = new ArrayList<>(List.of(Direction.DOWN));
 
     // ========================================================================
     // RUNTIME STATE — not serialized
@@ -140,7 +153,7 @@ public abstract class InteractableComponent extends Component implements Interac
 
     @Override
     public boolean canInteract(GameObject player) {
-        if (interactFrom == null) {
+        if (!directionalInteraction || interactFrom == null || interactFrom.isEmpty()) {
             return true;
         }
 
@@ -152,10 +165,15 @@ public abstract class InteractableComponent extends Component implements Interac
         int playerX = (int) Math.floor(playerPos.x);
         int playerY = (int) Math.floor(playerPos.y);
 
-        // Player must be on the tile the object faces toward
-        int expectedX = objectX + interactFrom.dx;
-        int expectedY = objectY + interactFrom.dy;
-        return playerX == expectedX && playerY == expectedY;
+        // Player must be on one of the allowed tiles
+        for (Direction dir : interactFrom) {
+            int expectedX = objectX + dir.dx;
+            int expectedY = objectY + dir.dy;
+            if (playerX == expectedX && playerY == expectedY) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
@@ -199,6 +217,22 @@ public abstract class InteractableComponent extends Component implements Interac
             case CROSS -> ctx.drawCrossHair(centerX, centerY, size);
         }
 
+        // Draw interaction direction arrows in neighbour tiles
+        if (directionalInteraction && interactFrom != null) {
+            ctx.setColor(gizmoColor);
+            ctx.setThickness(2.0f);
+            float arrowSize = 0.15f;
+            for (Direction dir : interactFrom) {
+                // Arrow starts in the neighbour tile and points toward the interactable
+                float neighborCenterX = centerX + dir.dx;
+                float neighborCenterY = centerY + dir.dy;
+                float arrowEndX = neighborCenterX - dir.dx * 0.3f;
+                float arrowEndY = neighborCenterY - dir.dy * 0.3f;
+                float arrowStartX = neighborCenterX + dir.dx * 0.3f;
+                float arrowStartY = neighborCenterY + dir.dy * 0.3f;
+                ctx.drawArrow(arrowStartX, arrowStartY, arrowEndX, arrowEndY, arrowSize);
+            }
+        }
     }
 
     // ========================================================================

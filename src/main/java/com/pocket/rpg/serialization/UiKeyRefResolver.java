@@ -66,6 +66,15 @@ public class UiKeyRefResolver {
         return pendingKeys.getOrDefault(makeKey(component, fieldName), "");
     }
 
+    /**
+     * Clears all pending keys.
+     * Called during scene destruction to prevent stale entries
+     * when the same scene is reloaded (e.g., play mode restart).
+     */
+    public static void clearPendingKeys() {
+        pendingKeys.clear();
+    }
+
     private static String makeKey(Component component, String fieldName) {
         return System.identityHashCode(component) + "." + fieldName;
     }

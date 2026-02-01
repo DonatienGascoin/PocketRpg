@@ -7,11 +7,15 @@ import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.logging.Log;
 import com.pocket.rpg.logging.Logger;
 import com.pocket.rpg.editor.camera.EditorCamera;
+import com.pocket.rpg.editor.events.EditorEventBus;
+import com.pocket.rpg.editor.events.RegistriesRefreshRequestEvent;
+import com.pocket.rpg.editor.scene.RuntimeGameObjectAdapter;
 import com.pocket.rpg.editor.shortcut.EditorShortcutHandlersImpl;
 import com.pocket.rpg.editor.shortcut.EditorShortcuts;
 import com.pocket.rpg.editor.shortcut.KeyboardLayout;
 import com.pocket.rpg.editor.shortcut.ShortcutRegistry;
 import com.pocket.rpg.editor.ui.inspectors.CustomComponentEditorRegistry;
+import com.pocket.rpg.editor.utils.SceneUtils;
 import com.pocket.rpg.rendering.postfx.PostEffectRegistry;
 import com.pocket.rpg.serialization.ComponentRegistry;
 import com.pocket.rpg.editor.core.EditorConfig;
@@ -148,6 +152,15 @@ public class EditorApplication {
         TilesetRegistry.getInstance().scanAndLoad();
         PrefabRegistry.initialize();
         CustomComponentEditorRegistry.initBuiltInEditors();
+
+        // Subscribe to registry refresh events (centralized to avoid double-subscribe)
+        EditorEventBus.get().subscribe(RegistriesRefreshRequestEvent.class, event -> {
+            ComponentRegistry.reinitialize();
+            PostEffectRegistry.reinitialize();
+            CustomComponentEditorRegistry.reinitialize();
+            RuntimeGameObjectAdapter.clearCache();
+            SceneUtils.clearCache();
+        });
 
         // Create camera
         EditorCamera camera = new EditorCamera(config);

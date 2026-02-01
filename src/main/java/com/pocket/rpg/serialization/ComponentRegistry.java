@@ -109,6 +109,25 @@ public class ComponentRegistry {
     }
 
     /**
+     * Clears all cached component metadata and re-scans the classpath.
+     * <p>
+     * Must only be called from the main thread.
+     * <p>
+     * On a standard JVM (without DCEVM), this only discovers NEW classes.
+     * Modified classes remain loaded with their old definitions. With DCEVM,
+     * structural changes are applied by the JVM before this re-scan.
+     */
+    public static void reinitialize() {
+        bySimpleName.clear();
+        byFullName.clear();
+        allComponents.clear();
+        categories.clear();
+        initialized = false;
+        initialize();
+        System.out.println("ComponentRegistry reinitialized: " + allComponents.size() + " components");
+    }
+
+    /**
      * Gets all registered components.
      */
     public static List<ComponentMeta> getAll() {

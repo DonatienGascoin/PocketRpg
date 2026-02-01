@@ -3,6 +3,7 @@ package com.pocket.rpg.editor.gizmos;
 import com.pocket.rpg.components.Transform;
 import com.pocket.rpg.editor.camera.EditorCamera;
 import imgui.ImDrawList;
+import imgui.ImGui;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector2f;
@@ -432,6 +433,25 @@ public class GizmoContext {
     public void drawText(float x, float y, String text, float screenOffsetX, float screenOffsetY) {
         Vector2f screen = worldToScreen(x, y);
         drawList.addText(screen.x + screenOffsetX, screen.y + screenOffsetY, currentColor, text);
+    }
+
+    /**
+     * Draws text at a world position with a font size that scales with zoom.
+     * The text grows and shrinks with the world, like other world-space gizmos.
+     *
+     * @param x              World X
+     * @param y              World Y
+     * @param text           Text to draw
+     * @param worldFontSize  Base font size in world units
+     * @param screenOffsetY  Screen-space Y offset (for positioning below icons)
+     */
+    public void drawTextScaled(float x, float y, String text, float worldFontSize, float screenOffsetY) {
+        int fontSize = (int) worldSizeToScreen(worldFontSize);
+        if (fontSize < 4) return; // Too small to read
+        if (fontSize > 64) fontSize = 64; // Clamp to avoid huge text
+
+        Vector2f screen = worldToScreen(x, y);
+        drawList.addText(ImGui.getFont(), fontSize, screen.x, screen.y + screenOffsetY, currentColor, text);
     }
 
     // ========================================================================

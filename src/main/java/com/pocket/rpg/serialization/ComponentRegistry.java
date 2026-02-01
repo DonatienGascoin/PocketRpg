@@ -3,6 +3,7 @@ package com.pocket.rpg.serialization;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ComponentRef;
 import com.pocket.rpg.components.HideInInspector;
+import com.pocket.rpg.components.RequiredComponent;
 import com.pocket.rpg.components.Transform;
 import com.pocket.rpg.components.UiKeyReference;
 import com.pocket.rpg.components.ui.UIComponent;
@@ -66,6 +67,8 @@ public class ComponentRegistry {
 
                     System.out.println("  Registered: " + meta.simpleName() +
                             " [" + categoryName + "] (" + meta.fields().size() + " fields)");
+
+                    validateRequiredComponents(clazz);
                 } catch (Exception e) {
                     System.err.println("  Skipped: " + clazz.getSimpleName() + " - " + e.getMessage());
                 }
@@ -266,6 +269,28 @@ public class ComponentRegistry {
             return metaAnnotation.category().toLowerCase();
         }
         return "other";
+    }
+
+    /**
+     * Validates that all @RequiredComponent targets have a no-arg constructor
+     * so they can be auto-instantiated at runtime.
+     */
+    private static void validateRequiredComponents(Class<? extends Component> clazz) {
+        Class<?> current = clazz;
+        while (current != null && current != Component.class && current != Object.class) {
+            RequiredComponent[] requirements = current.getDeclaredAnnotationsByType(RequiredComponent.class);
+            for (RequiredComponent req : requirements) {
+                Class<? extends Component> target = req.value();
+                try {
+                    target.getDeclaredConstructor();
+                } catch (NoSuchMethodException e) {
+                    System.err.println("  WARNING: " + clazz.getSimpleName() +
+                            " declares @RequiredComponent(" + target.getSimpleName() +
+                            ") but " + target.getSimpleName() + " has no no-arg constructor");
+                }
+            }
+            current = current.getSuperclass();
+        }
     }
 
     private static ComponentMeta buildMeta(Class<? extends Component> clazz) {

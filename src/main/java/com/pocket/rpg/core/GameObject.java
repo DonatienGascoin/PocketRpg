@@ -1,6 +1,7 @@
 package com.pocket.rpg.core;
 
 import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.RequiredComponent;
 import com.pocket.rpg.components.Transform;
 import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.scenes.Scene;
@@ -203,6 +204,9 @@ public class GameObject implements IGameObject {
             return component;
         }
 
+        // Auto-add required components before adding the main component
+        addRequiredComponents(component.getClass());
+
         addComponentInternal(component);
 
         if (scene != null) {
@@ -219,6 +223,31 @@ public class GameObject implements IGameObject {
     private void addComponentInternal(Component component) {
         component.setOwner(this);
         components.add(component);
+    }
+
+    /**
+     * Adds any components declared by @RequiredComponent on the given class
+     * or its superclasses, if they are not already present on this GameObject.
+     */
+    private void addRequiredComponents(Class<?> componentClass) {
+        Class<?> clazz = componentClass;
+        while (clazz != null && clazz != Component.class && clazz != Object.class) {
+            RequiredComponent[] requirements = clazz.getDeclaredAnnotationsByType(RequiredComponent.class);
+            for (RequiredComponent req : requirements) {
+                Class<? extends Component> requiredType = req.value();
+                if (getComponent(requiredType) != null) {
+                    continue;
+                }
+                try {
+                    Component dependency = requiredType.getDeclaredConstructor().newInstance();
+                    addComponent(dependency);
+                } catch (Exception e) {
+                    System.err.println("[RequiredComponent] Failed to auto-add " +
+                            requiredType.getSimpleName() + ": " + e.getMessage());
+                }
+            }
+            clazz = clazz.getSuperclass();
+        }
     }
 
     public void removeComponent(Component component) {

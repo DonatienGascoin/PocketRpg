@@ -2,6 +2,7 @@ package com.pocket.rpg.editor.ui.fields;
 
 import com.pocket.rpg.audio.clips.AudioClip;
 import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.Tooltip;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.undo.UndoManager;
@@ -95,6 +96,12 @@ public class ReflectionFieldEditor {
 
         boolean wasActive = ImGui.isAnyItemActive();
         boolean fieldChanged = false;
+
+        // Set tooltip from @Tooltip annotation if present
+        Tooltip tooltipAnnotation = meta.field().getAnnotation(Tooltip.class);
+        if (tooltipAnnotation != null) {
+            FieldEditorUtils.setNextTooltip(tooltipAnnotation.value());
+        }
 
         // Begin row highlight for missing required fields
         boolean requiredHighlight = FieldEditorContext.beginRequiredRowHighlight(fieldName);

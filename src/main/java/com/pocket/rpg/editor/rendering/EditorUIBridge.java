@@ -2,6 +2,7 @@ package com.pocket.rpg.editor.rendering;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.components.ui.LayoutGroup;
 import com.pocket.rpg.components.ui.UICanvas;
 import com.pocket.rpg.components.ui.UIComponent;
 import com.pocket.rpg.components.ui.UITransform;
@@ -36,9 +37,10 @@ public class EditorUIBridge {
     // Track which scene we built wrappers for
     private EditorScene lastScene;
     private int lastHierarchyVersion = -1;
+    private int lastComponentCount = -1;
 
     /**
-     * Gets UICanvas list, rebuilding wrappers only when hierarchy changed.
+     * Gets UICanvas list, rebuilding wrappers when hierarchy or components changed.
      *
      * @param scene The editor scene to collect canvases from
      * @return List of UICanvas components (cached when possible)
@@ -47,16 +49,31 @@ public class EditorUIBridge {
         if (scene == null) return List.of();
 
         // Check if we need to rebuild
+        int currentComponentCount = countTotalComponents(scene);
         boolean needsRebuild = (scene != lastScene)
-                || (scene.getHierarchyVersion() != lastHierarchyVersion);
+                || (scene.getHierarchyVersion() != lastHierarchyVersion)
+                || (currentComponentCount != lastComponentCount);
 
         if (needsRebuild) {
             rebuildWrappers(scene);
             lastScene = scene;
             lastHierarchyVersion = scene.getHierarchyVersion();
+            lastComponentCount = currentComponentCount;
         }
 
         return cachedCanvases;
+    }
+
+    /**
+     * Counts total components across all entities for change detection.
+     * Detects component additions/removals that don't trigger hierarchy version change.
+     */
+    private int countTotalComponents(EditorScene scene) {
+        int count = 0;
+        for (EditorGameObject entity : scene.getEntities()) {
+            count += entity.getComponents().size();
+        }
+        return count;
     }
 
     /**
@@ -125,7 +142,7 @@ public class EditorUIBridge {
      */
     private boolean hasUIComponents(EditorGameObject entity) {
         for (Component comp : entity.getComponents()) {
-            if (comp instanceof UIComponent) {
+            if (comp instanceof UIComponent || comp instanceof UITransform || comp instanceof LayoutGroup) {
                 return true;
             }
         }
@@ -166,7 +183,7 @@ public class EditorUIBridge {
             }
         }
 
-        // Add UI components to wrapper
+        // Add UI components and LayoutGroup to wrapper
         for (Component comp : entity.getComponents()) {
             if (comp instanceof UIComponent uiComp) {
                 // Temporarily reassign the component to the wrapper
@@ -174,6 +191,11 @@ public class EditorUIBridge {
                 // Force enable - wrappers bypass onStart() lifecycle
                 uiComp.setEnabled(true);
                 // Add to wrapper's component list
+                addComponentToWrapper(wrapper, comp);
+            } else if (comp instanceof LayoutGroup) {
+                // LayoutGroup extends Component (not UIComponent) but needs to be
+                // on the wrapper for UIRenderer to find it via getComponent()
+                comp.setOwner(wrapper);
                 addComponentToWrapper(wrapper, comp);
             }
         }

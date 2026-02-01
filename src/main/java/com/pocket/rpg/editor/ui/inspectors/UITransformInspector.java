@@ -1,6 +1,8 @@
 package com.pocket.rpg.editor.ui.inspectors;
 
 import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.ui.LayoutGroup;
+import com.pocket.rpg.components.ui.UIGridLayoutGroup;
 import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
@@ -15,6 +17,7 @@ import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiHoveredFlags;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector2f;
@@ -135,6 +138,10 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
         Vector2f pivot = FieldEditors.getVector2f(component, "pivot");
         boolean isMatchingParentSize = component.isMatchingParent();
 
+        // Detect parent layout group
+        LayoutGroup parentLayout = getParentLayoutGroup();
+        boolean hasParentLayout = parentLayout != null;
+
         // Always use side-by-side layout for anchor/pivot
         float halfWidth = ImGui.getContentRegionAvailX() / 2 - 10;
 
@@ -143,6 +150,8 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
         ImGui.text(MaterialIcons.Anchor + " Anchor (" + anchor.x + " / " + anchor.y + ")");
         if (isMatchingParentSize) {
             ImGui.textDisabled("Ignored (Match Parent)");
+        } else if (hasParentLayout) {
+            ImGui.textDisabled("Managed by parent layout");
         } else {
             changed |= drawPresetGrid("anchor", component, anchor, entity);
         }
@@ -177,6 +186,9 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
         if (isMatchingParentSize) {
             ImGui.sameLine();
             ImGui.textDisabled("Ignored (Match Parent)");
+        } else if (hasParentLayout) {
+            ImGui.sameLine();
+            ImGui.textDisabled("Managed by parent layout");
         } else {
             ImGui.sameLine();
             if (ImGui.smallButton("R##offset")) {
@@ -216,7 +228,9 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
 
 
         // Section: Size (with cascading resize)
-        changed |= drawSizeSection(hasParentUITransform);
+        boolean layoutControlsWidth = hasParentLayout && isWidthControlledByLayout(parentLayout);
+        boolean layoutControlsHeight = hasParentLayout && isHeightControlledByLayout(parentLayout);
+        changed |= drawSizeSection(hasParentUITransform, hasParentLayout, layoutControlsWidth, layoutControlsHeight);
 
 //        ImGui.spacing();
 //        ImGui.separator();
@@ -229,6 +243,8 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
 
         // Master "MATCH PARENT" toggle button (only if parent has UITransform)
         if (hasParentUITransform) {
+            if (hasParentLayout) ImGui.beginDisabled();
+
             boolean anyMatchParent = component.isMatchingParent() ||
                     component.isMatchParentRotation() ||
                     component.isMatchParentScale();
@@ -238,6 +254,11 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
 
             float buttonWidth = ImGui.getContentRegionAvailX();
             changed |= drawMasterMatchParentButton(component, anyMatchParent, allMatchParent, buttonWidth);
+            if (hasParentLayout && ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) {
+                ImGui.setTooltip("Managed by parent layout");
+            }
+
+            if (hasParentLayout) ImGui.endDisabled();
             ImGui.spacing();
         }
 
@@ -329,10 +350,16 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
     /**
      * Draws the size section with cascading resize support.
      */
-    private boolean drawSizeSection(boolean hasParentUITransform) {
+    private boolean drawSizeSection(boolean hasParentUITransform, boolean hasParentLayout,
+                                     boolean layoutControlsWidth, boolean layoutControlsHeight) {
         boolean changed = false;
+        boolean layoutControlsBothAxes = layoutControlsWidth && layoutControlsHeight;
 
         ImGui.text(MaterialIcons.FitScreen + " Size");
+
+        // Disable size buttons when parent has a layout group
+        if (hasParentLayout) ImGui.beginDisabled();
+
         // Match Parent toggle button [M] (only if parent has UITransform)
         if (hasParentUITransform) {
             ImGui.sameLine();
@@ -360,15 +387,30 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
                     lastHeight = FieldEditors.getFloat(component, "height", 100);
                 }
             }
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(lockAspectRatio ? "Aspect ratio locked" : "Lock aspect ratio");
+            if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) {
+                if (hasParentLayout) {
+                    ImGui.setTooltip("Size managed by parent layout");
+                } else {
+                    ImGui.setTooltip(lockAspectRatio ? "Aspect ratio locked" : "Lock aspect ratio");
+                }
             }
         }
+
+        if (hasParentLayout) ImGui.endDisabled();
 
         // If matching parent, show info text instead of editable fields
         if (isMatchingParent) {
             ImGui.sameLine();
             ImGui.textDisabled("Matching parent (" +
+                    (int) component.getEffectiveWidth() + "x" +
+                    (int) component.getEffectiveHeight() + ")");
+            return changed;
+        }
+
+        // If layout controls both axes, show info text instead of editable fields
+        if (layoutControlsBothAxes) {
+            ImGui.sameLine();
+            ImGui.textDisabled("Parent layout (" +
                     (int) component.getEffectiveWidth() + "x" +
                     (int) component.getEffectiveHeight() + ")");
             return changed;
@@ -460,11 +502,16 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
 
         ImGui.sameLine();
 
-        // Width field
+        float labelWidth = ImGui.calcTextSize("W").x;
+
+        // Width field (or disabled info if layout-controlled)
+        if (layoutControlsWidth) {
+            EditorLayout.beforeWidget();
+            ImGui.textDisabled("W: " + (int) component.getEffectiveWidth() + " (layout)");
+        } else {
         EditorLayout.beforeWidget();
         ImGui.text("W");
         ImGui.sameLine();
-        float labelWidth = ImGui.calcTextSize("W").x;
         ImGui.setNextItemWidth(EditorLayout.calculateWidgetWidth(labelWidth));
         float[] widthBuf = {width};
 
@@ -493,9 +540,14 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
         if (ImGui.isItemDeactivatedAfterEdit()) {
             commitSizeEdit();
         }
+        } // end width else
 
 
-        // Height field
+        // Height field (or disabled info if layout-controlled)
+        if (layoutControlsHeight) {
+            EditorLayout.beforeWidget();
+            ImGui.textDisabled("H: " + (int) component.getEffectiveHeight() + " (layout)");
+        } else {
         EditorLayout.beforeWidget();
         ImGui.text("H");
         ImGui.sameLine();
@@ -528,6 +580,7 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
         if (ImGui.isItemDeactivatedAfterEdit()) {
             commitSizeEdit();
         }
+        } // end height else
 
         EditorLayout.endHorizontal();
 
@@ -990,5 +1043,29 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
         }
         Component parentComp = parentEntity.getComponent(UITransform.class);
         return parentComp instanceof UITransform ? (UITransform) parentComp : null;
+    }
+
+    /**
+     * Checks if the parent entity has a LayoutGroup component.
+     *
+     * @return the parent's LayoutGroup, or null if none
+     */
+    private LayoutGroup getParentLayoutGroup() {
+        EditorGameObject parentEntity = entity.getParent();
+        if (parentEntity == null) return null;
+        for (Component comp : parentEntity.getComponents()) {
+            if (comp instanceof LayoutGroup lg) return lg;
+        }
+        return null;
+    }
+
+    private boolean isWidthControlledByLayout(LayoutGroup layout) {
+        if (layout instanceof UIGridLayoutGroup) return true;
+        return layout.isChildForceExpandWidth();
+    }
+
+    private boolean isHeightControlledByLayout(LayoutGroup layout) {
+        if (layout instanceof UIGridLayoutGroup) return true;
+        return layout.isChildForceExpandHeight();
     }
 }

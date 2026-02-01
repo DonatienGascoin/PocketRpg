@@ -117,22 +117,39 @@ public class UITransform extends Transform {
         /** Use explicit width/height values */
         NONE,
         /** Stretch to fill parent bounds (like Unity's stretch anchor) */
-        MATCH_PARENT
+        MATCH_PARENT,
+        /** Stretch width to match parent, keep explicit height */
+        MATCH_PARENT_WIDTH,
+        /** Stretch height to match parent, keep explicit width */
+        MATCH_PARENT_HEIGHT
     }
 
     @Getter
     private StretchMode stretchMode = StretchMode.NONE;
 
     /**
-     * Sets the stretch mode. When set to MATCH_PARENT, also resets anchor, pivot, and offset
-     * to (0,0) so the element fills the parent from top-left.
+     * Sets the stretch mode. Resets anchor, pivot, and offset on the matching axis/axes
+     * so the element fills the parent appropriately.
      */
     public void setStretchMode(StretchMode stretchMode) {
         this.stretchMode = stretchMode;
-        if (stretchMode == StretchMode.MATCH_PARENT) {
-            anchor.set(0, 0);
-            pivot.set(0, 0);
-            localPosition.set(0, 0, localPosition.z);
+        switch (stretchMode) {
+            case MATCH_PARENT -> {
+                anchor.set(0, 0);
+                pivot.set(0, 0);
+                localPosition.set(0, 0, localPosition.z);
+            }
+            case MATCH_PARENT_WIDTH -> {
+                anchor.x = 0;
+                pivot.x = 0;
+                localPosition.x = 0;
+            }
+            case MATCH_PARENT_HEIGHT -> {
+                anchor.y = 0;
+                pivot.y = 0;
+                localPosition.y = 0;
+            }
+            case NONE -> { /* no reset */ }
         }
         markDirty();
     }
@@ -277,6 +294,16 @@ public class UITransform extends Transform {
             if (parentTransform != null) {
                 return parentTransform.getPivot();
             }
+        } else if (stretchMode == StretchMode.MATCH_PARENT_WIDTH) {
+            UITransform parentTransform = getParentUITransform();
+            if (parentTransform != null) {
+                return new Vector2f(parentTransform.getPivot().x, pivot.y);
+            }
+        } else if (stretchMode == StretchMode.MATCH_PARENT_HEIGHT) {
+            UITransform parentTransform = getParentUITransform();
+            if (parentTransform != null) {
+                return new Vector2f(pivot.x, parentTransform.getPivot().y);
+            }
         }
         return pivot;
     }
@@ -303,7 +330,7 @@ public class UITransform extends Transform {
      * @return Effective width in pixels
      */
     public float getEffectiveWidth() {
-        if (stretchMode == StretchMode.MATCH_PARENT) {
+        if (stretchMode == StretchMode.MATCH_PARENT || stretchMode == StretchMode.MATCH_PARENT_WIDTH) {
             return getParentWidth();
         }
         return width;
@@ -316,19 +343,33 @@ public class UITransform extends Transform {
      * @return Effective height in pixels
      */
     public float getEffectiveHeight() {
-        if (stretchMode == StretchMode.MATCH_PARENT) {
+        if (stretchMode == StretchMode.MATCH_PARENT || stretchMode == StretchMode.MATCH_PARENT_HEIGHT) {
             return getParentHeight();
         }
         return height;
     }
 
     /**
-     * Checks if this transform is in match parent mode.
+     * Checks if this transform is in any match parent mode.
      *
-     * @return true if stretchMode is MATCH_PARENT
+     * @return true if stretchMode is not NONE
      */
     public boolean isMatchingParent() {
-        return stretchMode == StretchMode.MATCH_PARENT;
+        return stretchMode != StretchMode.NONE;
+    }
+
+    /**
+     * Checks if width is matching parent (MATCH_PARENT or MATCH_PARENT_WIDTH).
+     */
+    public boolean isMatchingParentWidth() {
+        return stretchMode == StretchMode.MATCH_PARENT || stretchMode == StretchMode.MATCH_PARENT_WIDTH;
+    }
+
+    /**
+     * Checks if height is matching parent (MATCH_PARENT or MATCH_PARENT_HEIGHT).
+     */
+    public boolean isMatchingParentHeight() {
+        return stretchMode == StretchMode.MATCH_PARENT || stretchMode == StretchMode.MATCH_PARENT_HEIGHT;
     }
 
     // ========================================================================

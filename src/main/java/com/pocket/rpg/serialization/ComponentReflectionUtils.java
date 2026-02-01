@@ -37,13 +37,18 @@ public final class ComponentReflectionUtils {
 
         for (FieldMeta fm : meta.fields()) {
             if (fm.name().equals(fieldName)) {
+                Field field = fm.field();
+                boolean wasAccessible = field.canAccess(component);
                 try {
-                    Field field = fm.field();
                     field.setAccessible(true);
                     return field.get(component);
                 } catch (IllegalAccessException e) {
                     System.err.println("Failed to read field " + fieldName + ": " + e.getMessage());
                     return null;
+                } finally {
+                    if (!wasAccessible) {
+                        field.setAccessible(false);
+                    }
                 }
             }
         }
@@ -77,8 +82,9 @@ public final class ComponentReflectionUtils {
 
         for (FieldMeta fm : meta.fields()) {
             if (fm.name().equals(fieldName)) {
+                Field field = fm.field();
+                boolean wasAccessible = field.canAccess(component);
                 try {
-                    Field field = fm.field();
                     field.setAccessible(true);
                     Object converted = SerializationUtils.fromSerializable(value, fm.type());
                     field.set(component, converted);
@@ -86,6 +92,10 @@ public final class ComponentReflectionUtils {
                 } catch (Exception e) {
                     System.err.println("Failed to set field " + fieldName + ": " + e.getMessage());
                     return false;
+                } finally {
+                    if (!wasAccessible) {
+                        field.setAccessible(false);
+                    }
                 }
             }
         }
@@ -310,13 +320,20 @@ public final class ComponentReflectionUtils {
                 return false;
             }
 
-            field.setAccessible(true);
-            Object value = field.get(component);
+            boolean wasAccessible = field.canAccess(component);
+            try {
+                field.setAccessible(true);
+                Object value = field.get(component);
 
-            if (value == null) return true;
-            if (value instanceof String s && s.isEmpty()) return true;
+                if (value == null) return true;
+                if (value instanceof String s && s.isEmpty()) return true;
 
-            return false;
+                return false;
+            } finally {
+                if (!wasAccessible) {
+                    field.setAccessible(false);
+                }
+            }
         } catch (Exception e) {
             return false;
         }

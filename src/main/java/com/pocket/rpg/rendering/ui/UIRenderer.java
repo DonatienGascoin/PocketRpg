@@ -1,5 +1,6 @@
 package com.pocket.rpg.rendering.ui;
 
+import com.pocket.rpg.components.ui.LayoutGroup;
 import com.pocket.rpg.components.ui.UICanvas;
 import com.pocket.rpg.components.ui.UIComponent;
 import com.pocket.rpg.components.ui.UIImage;
@@ -265,6 +266,12 @@ public class UIRenderer implements UIRendererBackend {
             childParentY = screenPos.y;
             childParentWidth = transform.getEffectiveWidth();  // Use effective for match parent
             childParentHeight = transform.getEffectiveHeight();
+        }
+
+        // Apply layout group before rendering children
+        LayoutGroup layoutGroup = root.getComponent(LayoutGroup.class);
+        if (layoutGroup != null && layoutGroup.isEnabled()) {
+            layoutGroup.applyLayout();
         }
 
         // Render children

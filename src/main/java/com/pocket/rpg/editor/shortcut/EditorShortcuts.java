@@ -26,6 +26,7 @@ public final class EditorShortcuts {
     public static final String FILE_SAVE = "editor.file.save";
     public static final String FILE_SAVE_AS = "editor.file.saveAs";
     public static final String FILE_CONFIGURATION = "editor.file.configuration";
+    public static final String FILE_RELOAD = "editor.file.reloadScene";
 
     // Edit actions
     public static final String EDIT_UNDO = "editor.edit.undo";
@@ -183,6 +184,14 @@ public final class EditorShortcuts {
                         .id(FILE_CONFIGURATION)
                         .displayName("Configuration")
                         .defaultBinding(null)
+                        .global()
+                        .handler(() -> {})
+                        .build(),
+
+                ShortcutAction.builder()
+                        .id(FILE_RELOAD)
+                        .displayName("Reload Scene")
+                        .defaultBinding(ShortcutBinding.ctrlShift(ImGuiKey.R))
                         .global()
                         .handler(() -> {})
                         .build()
@@ -605,6 +614,7 @@ public final class EditorShortcuts {
         bindings.put(FILE_SAVE, ShortcutBinding.ctrl(ImGuiKey.S));
         bindings.put(FILE_SAVE_AS, ShortcutBinding.ctrlShift(ImGuiKey.S));
         bindings.put(FILE_CONFIGURATION, null);
+        bindings.put(FILE_RELOAD, ShortcutBinding.ctrlShift(ImGuiKey.R));
 
         // Edit shortcuts (Undo/Redo differ by layout)
         if (layout == KeyboardLayout.AZERTY) {
@@ -696,6 +706,7 @@ public final class EditorShortcuts {
         registry.bindHandler(FILE_SAVE, handlers::onSaveScene);
         registry.bindHandler(FILE_SAVE_AS, handlers::onSaveSceneAs);
         registry.bindHandler(FILE_CONFIGURATION, handlers::onOpenConfiguration);
+        registry.bindHandler(FILE_RELOAD, handlers::onReloadScene);
 
         // Edit
         registry.bindHandler(EDIT_UNDO, handlers::onUndo);

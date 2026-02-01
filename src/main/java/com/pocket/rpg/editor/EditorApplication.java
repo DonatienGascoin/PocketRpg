@@ -291,6 +291,7 @@ public class EditorApplication {
 
         // Create scene controller
         sceneController = new EditorSceneController(context);
+        sceneController.setPlayModeController(playModeController);
 
         // Wire menu bar actions
         uiController.getMenuBar().setOnNewScene(sceneController::newScene);
@@ -298,6 +299,7 @@ public class EditorApplication {
         uiController.getMenuBar().setOnSaveScene(sceneController::saveScene);
         uiController.getMenuBar().setOnSaveSceneAs(sceneController::saveSceneAs);
         uiController.getMenuBar().setOnExit(this::requestExit);
+        uiController.getMenuBar().setOnReloadScene(sceneController::reloadScene);
 
         // Wire recent scenes
         updateMenuRecentScenes();
@@ -353,6 +355,7 @@ public class EditorApplication {
         );
         handlers.setPlayModeController(playModeController);
         handlers.setPrefabEditController(prefabEditController);
+        handlers.setSceneController(sceneController);
         handlers.setMessageCallback(uiController.getStatusBar()::showMessage);
         handlers.setConfigurationPanel(uiController.getConfigurationPanel());
         handlers.setTilesetPalettePanel(uiController.getTilesetPalette());

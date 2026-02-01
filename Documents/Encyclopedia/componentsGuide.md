@@ -35,6 +35,8 @@
 | Reference another component | Add `@ComponentRef` to a transient field |
 | Reference a UI element by key | Add `@UiKeyReference` to a non-transient UIComponent field |
 | Mark field as required | Add `@Required` annotation |
+| Auto-add dependency | Add `@RequiredComponent(Type.class)` on the class |
+| Add inspector tooltip | Add `@Tooltip("description")` on a field |
 
 ---
 
@@ -308,6 +310,61 @@ If the saved key no longer exists in the scene, it appears as `"KeyName (missing
 
 ---
 
+### @RequiredComponent
+
+**Target:** Class (on Component subclasses)
+**Package:** `com.pocket.rpg.components`
+
+Declares that this component requires another component on the same GameObject. When the component is added (in both editor and runtime), the required component is automatically added if not already present.
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `value` | `Class<? extends Component>` | — | The required component class |
+
+```java
+@RequiredComponent(TriggerZone.class)
+public abstract class InteractableComponent extends Component {
+    // TriggerZone is auto-added when any subclass is added to a GameObject
+}
+```
+
+The annotation is `@Repeatable` — you can declare multiple requirements:
+
+```java
+@RequiredComponent(TriggerZone.class)
+@RequiredComponent(SpriteRenderer.class)
+public class MyComponent extends Component { ... }
+```
+
+**Editor behavior:**
+- Adding a component auto-adds its requirements (tracked for undo — undoing removes both)
+- The remove button is greyed out on required components, with a tooltip showing the dependent (e.g., "Required by Sign")
+
+**Runtime behavior:**
+- `GameObject.addComponent()` adds missing requirements before starting the component
+
+**Requirements:**
+- Target component must have a public no-arg constructor (validated at startup)
+- Works with inheritance: `@RequiredComponent` on a base class applies to all subclasses
+
+---
+
+### @Tooltip
+
+**Target:** Field
+**Package:** `com.pocket.rpg.components`
+
+Adds a tooltip to a field's label in the inspector. Shown when the user hovers over the label. If the label is truncated (too long for the label column), the tooltip shows both the full label name and the description.
+
+```java
+public class Sign extends InteractableComponent {
+    @Tooltip("The message shown when the player reads this sign")
+    private String message = "Hello, world!";
+}
+```
+
+---
+
 ### Annotation Summary Table
 
 | Annotation | Target | Serialized? | Editor Effect | Runtime Effect |
@@ -317,6 +374,8 @@ If the saved key no longer exists in the scene, it appears as `"KeyName (missing
 | `@Required` | Field | Yes | Red highlight when empty | None |
 | `@ComponentRef` | Field | No (transient) | Status indicator | Auto-resolved from hierarchy |
 | `@UiKeyReference` | Field | Yes (as string key) | Dropdown | Auto-resolved from UIManager |
+| `@RequiredComponent` | Class | N/A | Auto-adds dependency; blocks removal | Auto-adds dependency |
+| `@Tooltip` | Field | N/A | Hover tooltip on label | None |
 
 ---
 
@@ -491,6 +550,9 @@ Keyboard navigation:
 | UI key dropdown is empty | No UI components with matching type have a `uiKey` set in the scene |
 | UI key shows "(missing)" | The key was set but the UI component no longer exists or its key changed |
 | @Required field not highlighting | Field must be null or empty string; 0 doesn't trigger for numbers |
+| @RequiredComponent not auto-adding | Ensure the target class has a public no-arg constructor; check console for warnings at startup |
+| Can't remove a component | It may be required by another component — hover the greyed-out button to see which |
+| @Tooltip not showing | Ensure annotation is on the field, not the getter; check that `@Tooltip` is imported from `com.pocket.rpg.components` |
 
 ---
 
@@ -564,3 +626,4 @@ public class DamageZone extends Component {
 - [Asset Loader Guide](assetLoaderGuide.md) — Loading sprites, textures, audio
 - [UI Designer Guide](uiDesignerGuide.md) — Creating UI elements with uiKey
 - [Inspector Panel Guide](inspectorPanelGuide.md) — General inspector usage
+- [Interactable System Guide](interactableSystemGuide.md) — Building interactable objects (Sign, Chest, etc.)

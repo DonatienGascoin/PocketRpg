@@ -37,9 +37,10 @@ public class EditorUIBridge {
     // Track which scene we built wrappers for
     private EditorScene lastScene;
     private int lastHierarchyVersion = -1;
+    private int lastComponentCount = -1;
 
     /**
-     * Gets UICanvas list, rebuilding wrappers only when hierarchy changed.
+     * Gets UICanvas list, rebuilding wrappers when hierarchy or components changed.
      *
      * @param scene The editor scene to collect canvases from
      * @return List of UICanvas components (cached when possible)
@@ -48,16 +49,31 @@ public class EditorUIBridge {
         if (scene == null) return List.of();
 
         // Check if we need to rebuild
+        int currentComponentCount = countTotalComponents(scene);
         boolean needsRebuild = (scene != lastScene)
-                || (scene.getHierarchyVersion() != lastHierarchyVersion);
+                || (scene.getHierarchyVersion() != lastHierarchyVersion)
+                || (currentComponentCount != lastComponentCount);
 
         if (needsRebuild) {
             rebuildWrappers(scene);
             lastScene = scene;
             lastHierarchyVersion = scene.getHierarchyVersion();
+            lastComponentCount = currentComponentCount;
         }
 
         return cachedCanvases;
+    }
+
+    /**
+     * Counts total components across all entities for change detection.
+     * Detects component additions/removals that don't trigger hierarchy version change.
+     */
+    private int countTotalComponents(EditorScene scene) {
+        int count = 0;
+        for (EditorGameObject entity : scene.getEntities()) {
+            count += entity.getComponents().size();
+        }
+        return count;
     }
 
     /**

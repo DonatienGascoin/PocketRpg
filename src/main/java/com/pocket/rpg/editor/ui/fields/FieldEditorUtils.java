@@ -86,12 +86,13 @@ public final class FieldEditorUtils {
             var currentPos = ImGui.getCursorPosX();
             float textWidth = ImGui.calcTextSize(label).x;
 
-            ImGui.text(label);
-
             if (textWidth > LABEL_WIDTH) {
+                ImGui.text(truncateLabel(label, LABEL_WIDTH));
                 if (ImGui.isItemHovered()) {
                     ImGui.setTooltip(label);
                 }
+            } else {
+                ImGui.text(label);
             }
 
             ImGui.sameLine(currentPos + LABEL_WIDTH);
@@ -114,6 +115,22 @@ public final class FieldEditorUtils {
         }
 
         field.run();
+    }
+
+    /**
+     * Truncates a label to fit within maxWidth, appending ".." if truncated.
+     */
+    private static String truncateLabel(String label, float maxWidth) {
+        String ellipsis = "..";
+        float ellipsisWidth = ImGui.calcTextSize(ellipsis).x;
+        float targetWidth = maxWidth - ellipsisWidth;
+
+        for (int i = label.length() - 1; i > 0; i--) {
+            if (ImGui.calcTextSize(label.substring(0, i)).x <= targetWidth) {
+                return label.substring(0, i) + ellipsis;
+            }
+        }
+        return ellipsis;
     }
 
     // ========================================================================

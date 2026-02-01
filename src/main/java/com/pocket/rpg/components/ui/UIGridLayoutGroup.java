@@ -16,7 +16,8 @@ import java.util.List;
  * Properties:
  * <ul>
  *   <li>cellWidth, cellHeight - size of each grid cell in pixels</li>
- *   <li>spacingX, spacingY - gap between cells</li>
+ *   <li>spacing (inherited) - gap between cells in both axes</li>
+ *   <li>padding (inherited) - insets from edges</li>
  *   <li>startCorner - which corner the grid fills from</li>
  *   <li>startAxis - whether to fill horizontally or vertically first</li>
  *   <li>constraint - how columns/rows are determined</li>
@@ -58,12 +59,6 @@ public class UIGridLayoutGroup extends LayoutGroup {
     private float cellHeight = 64;
 
     @Getter @Setter
-    private float spacingX = 4;
-
-    @Getter @Setter
-    private float spacingY = 4;
-
-    @Getter @Setter
     private Corner startCorner = Corner.UPPER_LEFT;
 
     @Getter @Setter
@@ -89,7 +84,6 @@ public class UIGridLayoutGroup extends LayoutGroup {
 
         float availableWidth = ownTransform.getEffectiveWidth() - paddingLeft - paddingRight;
         float availableHeight = ownTransform.getEffectiveHeight() - paddingTop - paddingBottom;
-
         // Calculate columns and rows
         int columns, rows;
         switch (constraint) {
@@ -102,7 +96,7 @@ public class UIGridLayoutGroup extends LayoutGroup {
                 columns = (int) Math.ceil((double) children.size() / rows);
             }
             default -> { // FLEXIBLE
-                columns = Math.max(1, (int) ((availableWidth + spacingX) / (cellWidth + spacingX)));
+                columns = Math.max(1, (int) ((availableWidth + spacing) / (cellWidth + spacing)));
                 rows = (int) Math.ceil((double) children.size() / columns);
             }
         }
@@ -125,8 +119,8 @@ public class UIGridLayoutGroup extends LayoutGroup {
                 row = rows - 1 - row;
             }
 
-            float x = paddingLeft + col * (cellWidth + spacingX);
-            float y = paddingTop + row * (cellHeight + spacingY);
+            float x = paddingLeft + col * (cellWidth + spacing);
+            float y = paddingTop + row * (cellHeight + spacing);
 
             UITransform ct = children.get(i).getComponent(UITransform.class);
             ct.setAnchor(0, 0);

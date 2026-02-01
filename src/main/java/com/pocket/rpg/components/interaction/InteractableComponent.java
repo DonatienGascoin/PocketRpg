@@ -10,7 +10,6 @@ import com.pocket.rpg.components.Tooltip;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.editor.gizmos.GizmoColors;
 import com.pocket.rpg.editor.gizmos.GizmoContext;
-import com.pocket.rpg.editor.gizmos.GizmoDrawable;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector3f;
@@ -54,7 +53,7 @@ import java.util.List;
  * </pre>
  */
 @RequiredComponent(TriggerZone.class)
-public abstract class InteractableComponent extends Component implements Interactable, GizmoDrawable {
+public abstract class InteractableComponent extends Component implements Interactable {
 
     /**
      * Shapes available for gizmo icons.

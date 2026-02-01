@@ -1,6 +1,7 @@
 package com.pocket.rpg.editor.panels.inspector;
 
 import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.RequiredComponent;
 import com.pocket.rpg.core.IGameObject;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.ComponentBrowserPopup;
@@ -232,11 +233,22 @@ public class EntityInspector {
                 boolean open = ImGui.collapsingHeader(label, ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.AllowOverlap);
 
                 if (!isPrefab) {
+                    String dependent = findDependentComponent(entity, comp);
                     ImGui.sameLine(ImGui.getContentRegionAvailX() - 20);
-                    ImGui.pushStyleColor(ImGuiCol.Button, 0.5f, 0.2f, 0.2f, 1f);
-                    if (ImGui.smallButton(MaterialIcons.Close + "##remove")) toRemove = comp;
-                    ImGui.popStyleColor();
-                    if (ImGui.isItemHovered()) ImGui.setTooltip("Remove component");
+                    if (dependent != null) {
+                        ImGui.pushStyleColor(ImGuiCol.Button, 0.3f, 0.3f, 0.3f, 0.5f);
+                        ImGui.pushStyleColor(ImGuiCol.Text, 0.5f, 0.5f, 0.5f, 0.5f);
+                        ImGui.smallButton(MaterialIcons.Close + "##remove");
+                        ImGui.popStyleColor(2);
+                        if (ImGui.isItemHovered()) {
+                            ImGui.setTooltip("Required by " + dependent);
+                        }
+                    } else {
+                        ImGui.pushStyleColor(ImGuiCol.Button, 0.5f, 0.2f, 0.2f, 1f);
+                        if (ImGui.smallButton(MaterialIcons.Close + "##remove")) toRemove = comp;
+                        ImGui.popStyleColor();
+                        if (ImGui.isItemHovered()) ImGui.setTooltip("Remove component");
+                    }
                 }
 
                 if (open) {
@@ -266,5 +278,27 @@ public class EntityInspector {
                 });
             }
         }
+    }
+
+    /**
+     * Returns the name of a component on this entity that requires the given component
+     * via @RequiredComponent, or null if no such dependency exists.
+     */
+    private String findDependentComponent(EditorGameObject entity, Component target) {
+        Class<?> targetType = target.getClass();
+        for (Component comp : entity.getComponents()) {
+            if (comp == target) continue;
+            Class<?> clazz = comp.getClass();
+            while (clazz != null && clazz != Component.class && clazz != Object.class) {
+                RequiredComponent[] requirements = clazz.getDeclaredAnnotationsByType(RequiredComponent.class);
+                for (RequiredComponent req : requirements) {
+                    if (req.value().isAssignableFrom(targetType)) {
+                        return comp.getClass().getSimpleName();
+                    }
+                }
+                clazz = clazz.getSuperclass();
+            }
+        }
+        return null;
     }
 }

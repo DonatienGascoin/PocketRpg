@@ -80,9 +80,9 @@ public class UITextInspector extends CustomComponentInspector<UIText> {
         }
         if (ImGui.isItemDeactivatedAfterEdit() && textEditStartValue != null) {
             String newText = ComponentReflectionUtils.getString(component, "text", "");
-            if (entity != null) {
+            if (editorEntity() != null) {
                 UndoManager.getInstance().push(
-                        new SetComponentFieldCommand(component, "text", textEditStartValue, newText, entity)
+                        new SetComponentFieldCommand(component, "text", textEditStartValue, newText, editorEntity())
                                 .withAfterApply(component::markLayoutDirty)
                 );
             }
@@ -119,9 +119,9 @@ public class UITextInspector extends CustomComponentInspector<UIText> {
             Object oldValue = ComponentReflectionUtils.getFieldValue(component, "horizontalAlignment");
             setEnumValue("horizontalAlignment", H_ALIGNMENTS[hSelected.get()]);
             Object newValue = ComponentReflectionUtils.getFieldValue(component, "horizontalAlignment");
-            if (entity != null) {
+            if (editorEntity() != null) {
                 UndoManager.getInstance().push(
-                        new SetComponentFieldCommand(component, "horizontalAlignment", oldValue, newValue, entity)
+                        new SetComponentFieldCommand(component, "horizontalAlignment", oldValue, newValue, editorEntity())
                                 .withAfterApply(component::markLayoutDirty)
                 );
             }
@@ -155,9 +155,9 @@ public class UITextInspector extends CustomComponentInspector<UIText> {
             Object oldValue = ComponentReflectionUtils.getFieldValue(component, "verticalAlignment");
             setEnumValue("verticalAlignment", V_ALIGNMENTS[vSelected.get()]);
             Object newValue = ComponentReflectionUtils.getFieldValue(component, "verticalAlignment");
-            if (entity != null) {
+            if (editorEntity() != null) {
                 UndoManager.getInstance().push(
-                        new SetComponentFieldCommand(component, "verticalAlignment", oldValue, newValue, entity)
+                        new SetComponentFieldCommand(component, "verticalAlignment", oldValue, newValue, editorEntity())
                                 .withAfterApply(component::markLayoutDirty)
                 );
             }
@@ -186,9 +186,9 @@ public class UITextInspector extends CustomComponentInspector<UIText> {
             boolean newValue = !wordWrap;
             ComponentReflectionUtils.setFieldValue(component, "wordWrap", newValue);
             component.markLayoutDirty();
-            if (entity != null) {
+            if (editorEntity() != null) {
                 UndoManager.getInstance().push(
-                        new SetComponentFieldCommand(component, "wordWrap", oldValue, newValue, entity)
+                        new SetComponentFieldCommand(component, "wordWrap", oldValue, newValue, editorEntity())
                                 .withAfterApply(component::markLayoutDirty)
                 );
             }
@@ -208,9 +208,9 @@ public class UITextInspector extends CustomComponentInspector<UIText> {
             boolean newValue = !autoFit;
             ComponentReflectionUtils.setFieldValue(component, "autoFit", newValue);
             component.markLayoutDirty();
-            if (entity != null) {
+            if (editorEntity() != null) {
                 UndoManager.getInstance().push(
-                        new SetComponentFieldCommand(component, "autoFit", oldValue, newValue, entity)
+                        new SetComponentFieldCommand(component, "autoFit", oldValue, newValue, editorEntity())
                                 .withAfterApply(component::markLayoutDirty)
                 );
             }
@@ -238,9 +238,9 @@ public class UITextInspector extends CustomComponentInspector<UIText> {
             if (ImGui.isItemActivated()) {
                 minFontSizeEditStart = component.getMinFontSize();
             }
-            if (ImGui.isItemDeactivatedAfterEdit() && entity != null) {
+            if (ImGui.isItemDeactivatedAfterEdit() && editorEntity() != null) {
                 UndoManager.getInstance().push(
-                        new SetComponentFieldCommand(component, "minFontSize", minFontSizeEditStart, component.getMinFontSize(), entity)
+                        new SetComponentFieldCommand(component, "minFontSize", minFontSizeEditStart, component.getMinFontSize(), editorEntity())
                                 .withAfterApply(component::markLayoutDirty)
                 );
             }
@@ -258,9 +258,9 @@ public class UITextInspector extends CustomComponentInspector<UIText> {
             if (ImGui.isItemActivated()) {
                 maxFontSizeEditStart = component.getMaxFontSize();
             }
-            if (ImGui.isItemDeactivatedAfterEdit() && entity != null) {
+            if (ImGui.isItemDeactivatedAfterEdit() && editorEntity() != null) {
                 UndoManager.getInstance().push(
-                        new SetComponentFieldCommand(component, "maxFontSize", maxFontSizeEditStart, component.getMaxFontSize(), entity)
+                        new SetComponentFieldCommand(component, "maxFontSize", maxFontSizeEditStart, component.getMaxFontSize(), editorEntity())
                                 .withAfterApply(component::markLayoutDirty)
                 );
             }
@@ -281,9 +281,9 @@ public class UITextInspector extends CustomComponentInspector<UIText> {
             boolean newValue = !shadow;
             ComponentReflectionUtils.setFieldValue(component, "shadow", newValue);
             component.markLayoutDirty();
-            if (entity != null) {
+            if (editorEntity() != null) {
                 UndoManager.getInstance().push(
-                        new SetComponentFieldCommand(component, "shadow", oldValue, newValue, entity)
+                        new SetComponentFieldCommand(component, "shadow", oldValue, newValue, editorEntity())
                                 .withAfterApply(component::markLayoutDirty)
                 );
             }
@@ -334,9 +334,9 @@ public class UITextInspector extends CustomComponentInspector<UIText> {
         Object oldValue = ComponentReflectionUtils.getFieldValue(component, fieldName);
         setEnumValue(fieldName, enumName);
         Object newValue = ComponentReflectionUtils.getFieldValue(component, fieldName);
-        if (entity != null && !java.util.Objects.equals(oldValue, newValue)) {
+        if (editorEntity() != null && !java.util.Objects.equals(oldValue, newValue)) {
             UndoManager.getInstance().push(
-                    new SetComponentFieldCommand(component, fieldName, oldValue, newValue, entity)
+                    new SetComponentFieldCommand(component, fieldName, oldValue, newValue, editorEntity())
                             .withAfterApply(component::markLayoutDirty)
             );
         }
@@ -356,11 +356,11 @@ public class UITextInspector extends CustomComponentInspector<UIText> {
         ComponentReflectionUtils.setFieldValue(component, "shadowOffset", newOffset);
         ComponentReflectionUtils.setFieldValue(component, "shadowColor", newColor);
 
-        if (entity != null) {
+        if (editorEntity() != null) {
             UndoManager.getInstance().push(
                     new CompoundCommand("Shadow Preset",
-                            new SetComponentFieldCommand(component, "shadowOffset", oldOffsetCopy, new Vector2f(newOffset), entity),
-                            new SetComponentFieldCommand(component, "shadowColor", oldColorCopy, new Vector4f(newColor), entity)
+                            new SetComponentFieldCommand(component, "shadowOffset", oldOffsetCopy, new Vector2f(newOffset), editorEntity()),
+                            new SetComponentFieldCommand(component, "shadowColor", oldColorCopy, new Vector4f(newColor), editorEntity())
                     )
             );
         }
@@ -523,9 +523,9 @@ public class UITextInspector extends CustomComponentInspector<UIText> {
             if (ImGui.isItemActivated()) {
                 fontSizeEditStart = component.getFontSize();
             }
-            if (ImGui.isItemDeactivatedAfterEdit() && entity != null) {
+            if (ImGui.isItemDeactivatedAfterEdit() && editorEntity() != null) {
                 UndoManager.getInstance().push(
-                        new SetComponentFieldCommand(component, "fontSize", fontSizeEditStart, component.getFontSize(), entity)
+                        new SetComponentFieldCommand(component, "fontSize", fontSizeEditStart, component.getFontSize(), editorEntity())
                                 .withAfterApply(component::markLayoutDirty)
                 );
             }

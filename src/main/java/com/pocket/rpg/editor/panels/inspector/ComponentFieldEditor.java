@@ -2,6 +2,7 @@ package com.pocket.rpg.editor.panels.inspector;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.editor.core.MaterialIcons;
+import com.pocket.rpg.editor.panels.hierarchy.HierarchyItem;
 import com.pocket.rpg.editor.scene.DirtyTracker;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
@@ -45,11 +46,11 @@ public class ComponentFieldEditor {
     /**
      * Renders component fields for a runtime game object during play mode.
      * No undo, no prefab overrides — changes are temporary.
-     * Custom editors are used when available (for consistent look),
-     * but receive null entity so they skip undo/override logic.
+     * Custom editors receive the HierarchyItem for scene graph queries,
+     * but undo/override logic is skipped (entity is not an EditorGameObject).
      */
-    public boolean renderRuntimeComponentFields(Component component) {
-        return ReflectionFieldEditor.drawComponent(component, null);
+    public boolean renderRuntimeComponentFields(Component component, HierarchyItem entity) {
+        return ReflectionFieldEditor.drawComponent(component, entity);
     }
 
     public boolean renderComponentFields(EditorGameObject entity, Component component, boolean isPrefabInstance) {

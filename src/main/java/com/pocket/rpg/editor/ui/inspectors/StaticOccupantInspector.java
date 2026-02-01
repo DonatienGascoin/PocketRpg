@@ -127,12 +127,12 @@ public class StaticOccupantInspector extends CustomComponentInspector<StaticOccu
     private void drawAbsoluteTilesPreview() {
         ImGui.textDisabled("Blocked Tiles (computed):");
 
-        if (entity == null) {
+        if (editorEntity() == null) {
             ImGui.textDisabled("  (no entity)");
             return;
         }
 
-        Vector3f pos = entity.getPosition();
+        Vector3f pos = editorEntity().getPosition();
         int baseX = (int) Math.floor(pos.x) + component.getOffsetX();
         int baseY = (int) Math.floor(pos.y) + component.getOffsetY();
         int w = component.getWidth();

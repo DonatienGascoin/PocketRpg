@@ -2,9 +2,12 @@ package com.pocket.rpg.editor.ui.inspectors;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ui.LayoutGroup;
+import com.pocket.rpg.components.ui.UIButton;
 import com.pocket.rpg.components.ui.UIGridLayoutGroup;
+import com.pocket.rpg.components.ui.UIImage;
 import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.editor.core.MaterialIcons;
+import com.pocket.rpg.editor.panels.hierarchy.HierarchyItem;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
 import com.pocket.rpg.editor.ui.layout.EditorFields;
@@ -115,13 +118,15 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
      * Stores a child's transform state for undo.
      */
     private static class ChildState {
-        final EditorGameObject entity;
+        // May be a RuntimeGameObjectAdapter in play mode; only used for undo
+        // when it is an EditorGameObject.
+        final HierarchyItem entity;
         final Component transform;
         final Vector2f oldOffset;
         final float oldWidth;
         final float oldHeight;
 
-        ChildState(EditorGameObject entity, Component transform) {
+        ChildState(HierarchyItem entity, Component transform) {
             this.entity = entity;
             this.transform = transform;
             this.oldOffset = transform instanceof UITransform ut
@@ -181,7 +186,7 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
         // component is already typed as UITransform (via bind)
 
         // Check if we have a parent with UITransform
-        EditorGameObject parentEntity = entity != null ? entity.getParent() : null;
+        HierarchyItem parentEntity = entity.getHierarchyParent();
         boolean hasParentUITransform = parentEntity != null &&
                 parentEntity.getComponent(UITransform.class) != null;
 
@@ -432,8 +437,8 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
 
         // Match parent size button — on header line
         if (hasParentUITransform) {
-            EditorGameObject parentEntity = entity.getParent();
-            Component parentTransform = parentEntity.getComponent(UITransform.class);
+            HierarchyItem matchParent = entity.getHierarchyParent();
+            Component parentTransform = matchParent != null ? matchParent.getComponent(UITransform.class) : null;
             if (parentTransform != null) {
                 ImGui.sameLine();
                 if (ImGui.smallButton(MaterialIcons.OpenInFull + "##matchParent")) {
@@ -919,18 +924,16 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
         editStartHeight = FieldEditors.getFloat(component, "height", 100);
         editStartOffset = new Vector2f(component.getOffset());
 
-        // Capture child states (editor mode only — entity is null in play mode)
+        // Capture child states for cascading resize
         editStartChildStates = new ArrayList<>();
-        if (entity != null) {
-            captureChildStates(entity, editStartChildStates);
-        }
+        captureChildStates(entity, editStartChildStates);
     }
 
     /**
      * Recursively captures child transform states.
      */
-    private void captureChildStates(EditorGameObject parent, List<ChildState> states) {
-        for (EditorGameObject child : parent.getChildren()) {
+    private void captureChildStates(HierarchyItem parent, List<ChildState> states) {
+        for (HierarchyItem child : parent.getHierarchyChildren()) {
             Component childTransform = child.getComponent(UITransform.class);
             if (childTransform != null) {
                 states.add(new ChildState(child, childTransform));
@@ -982,18 +985,20 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
         // Check if anything changed
         boolean hasChanges = (editStartWidth != newWidth || editStartHeight != newHeight);
 
-        if (hasChanges && entity != null) {
-            // Create undo command (editor mode only — entity is null in play mode)
+        if (hasChanges && editorEntity() != null) {
+            // Create undo command
             UITransformDragCommand command = UITransformDragCommand.resize(
-                    entity, component,
+                    editorEntity(), component,
                     editStartOffset, editStartWidth, editStartHeight,
                     newOffset, newWidth, newHeight,
                     anchor, pivot
             );
 
-            // Add child states
+            // Add child states (only EditorGameObject children get undo tracking)
             if (editStartChildStates != null) {
                 for (ChildState state : editStartChildStates) {
+                    if (!(state.entity instanceof EditorGameObject childEgo)) continue;
+
                     Vector2f childNewOffset = state.transform instanceof UITransform childUt
                             ? new Vector2f(childUt.getOffset())
                             : new Vector2f();
@@ -1002,7 +1007,7 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
 
                     UITransformDragCommand.ChildTransformState childState =
                             new UITransformDragCommand.ChildTransformState(
-                                    state.entity, state.transform,
+                                    childEgo, state.transform,
                                     state.oldOffset, state.oldWidth, state.oldHeight
                             );
                     childState.setNewValues(childNewOffset, childNewWidth, childNewHeight);
@@ -1024,7 +1029,7 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
      * Draws a 3x3 preset grid for anchor or pivot.
      */
     private boolean drawPresetGrid(String fieldKey, Component component, Vector2f current,
-                                   EditorGameObject entity) {
+                                   HierarchyItem entity) {
         boolean changed = false;
 
         float buttonSize = 24;
@@ -1121,8 +1126,7 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
      * Creates an undo command for anchor or pivot changes.
      */
     private void createAnchorPivotCommand(String fieldKey, Vector2f oldValue, Vector2f newValue) {
-        // Skip undo in play mode (entity is null)
-        if (entity == null) return;
+        if (editorEntity() == null) return;
 
         Vector2f offset = new Vector2f(component.getOffset());
         float width = FieldEditors.getFloat(component, "width", 100);
@@ -1133,14 +1137,14 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
         UITransformDragCommand command;
         if (fieldKey.equals("anchor")) {
             command = UITransformDragCommand.anchor(
-                    entity, component,
+                    editorEntity(), component,
                     oldValue, offset,
                     newValue, offset,
                     width, height, pivot
             );
         } else {
             command = UITransformDragCommand.pivot(
-                    entity, component,
+                    editorEntity(), component,
                     oldValue, offset,
                     newValue, offset,
                     width, height, anchor
@@ -1161,14 +1165,14 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
         Object spriteObj = null;
 
         // Check UIImage
-        Component imageComp = entity.getComponentByType("com.pocket.rpg.components.ui.UIImage");
+        Component imageComp = entity.getComponent(UIImage.class);
         if (imageComp != null) {
             spriteObj = ComponentReflectionUtils.getFieldValue(imageComp, "sprite");
         }
 
         // Check UIButton
         if (spriteObj == null) {
-            Component buttonComp = entity.getComponentByType("com.pocket.rpg.components.ui.UIButton");
+            Component buttonComp = entity.getComponent(UIButton.class);
             if (buttonComp != null) {
                 spriteObj = ComponentReflectionUtils.getFieldValue(buttonComp, "sprite");
             }
@@ -1192,8 +1196,7 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
      * @return The parent's UITransform, or null if no parent or parent has no UITransform
      */
     private UITransform getParentUITransform() {
-        if (entity == null) return null;
-        EditorGameObject parentEntity = entity.getParent();
+        HierarchyItem parentEntity = entity.getHierarchyParent();
         if (parentEntity == null) {
             return null;
         }
@@ -1207,10 +1210,9 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
      * @return the parent's LayoutGroup, or null if none
      */
     private LayoutGroup getParentLayoutGroup() {
-        if (entity == null) return null;
-        EditorGameObject parentEntity = entity.getParent();
+        HierarchyItem parentEntity = entity.getHierarchyParent();
         if (parentEntity == null) return null;
-        for (Component comp : parentEntity.getComponents()) {
+        for (Component comp : parentEntity.getAllComponents()) {
             if (comp instanceof LayoutGroup lg) return lg;
         }
         return null;

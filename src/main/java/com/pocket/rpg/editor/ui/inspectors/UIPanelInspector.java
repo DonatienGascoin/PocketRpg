@@ -64,9 +64,9 @@ public class UIPanelInspector extends CustomComponentInspector<UIPanel> {
         }
         if (ImGui.isItemDeactivatedAfterEdit() && alphaEditStartColor != null) {
             Vector4f newColor = new Vector4f(FieldEditors.getVector4f(component, "color"));
-            if (entity != null) {
+            if (editorEntity() != null) {
                 UndoManager.getInstance().push(
-                        new SetComponentFieldCommand(component, "color", alphaEditStartColor, newColor, entity)
+                        new SetComponentFieldCommand(component, "color", alphaEditStartColor, newColor, editorEntity())
                 );
             }
             alphaEditStartColor = null;
@@ -88,9 +88,9 @@ public class UIPanelInspector extends CustomComponentInspector<UIPanel> {
                 Vector4f oldColor = new Vector4f(FieldEditors.getVector4f(component, "color"));
                 Vector4f newColor = new Vector4f(preset[0], preset[1], preset[2], preset[3]);
                 ComponentReflectionUtils.setFieldValue(component, "color", newColor);
-                if (entity != null) {
+                if (editorEntity() != null) {
                     UndoManager.getInstance().push(
-                            new SetComponentFieldCommand(component, "color", oldColor, newColor, entity)
+                            new SetComponentFieldCommand(component, "color", oldColor, newColor, editorEntity())
                     );
                 }
                 changed = true;

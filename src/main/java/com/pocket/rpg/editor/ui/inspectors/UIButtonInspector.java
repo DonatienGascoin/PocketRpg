@@ -77,7 +77,7 @@ public class UIButtonInspector extends CustomComponentInspector<UIButton> {
         boolean changed = false;
 
         // Sprite
-        changed |= FieldEditors.drawAsset("Sprite", component, "sprite", Sprite.class, entity);
+        changed |= FieldEditors.drawAsset("Sprite", component, "sprite", Sprite.class, editorEntity());
         changed |= drawResetSizeButton("sprite");
 
         // === TINTS ===
@@ -116,16 +116,16 @@ public class UIButtonInspector extends CustomComponentInspector<UIButton> {
         boolean changed = false;
 
         // Normal Sprite
-        changed |= FieldEditors.drawAsset("Normal Sprite", component, "sprite", Sprite.class, entity);
+        changed |= FieldEditors.drawAsset("Normal Sprite", component, "sprite", Sprite.class, editorEntity());
         changed |= drawResetSizeButton("sprite");
 
         // Hovered Sprite
         ImGui.spacing();
-        changed |= FieldEditors.drawAsset("Hovered Sprite", component, "hoveredSprite", Sprite.class, entity);
+        changed |= FieldEditors.drawAsset("Hovered Sprite", component, "hoveredSprite", Sprite.class, editorEntity());
 
         // Pressed Sprite
         ImGui.spacing();
-        changed |= FieldEditors.drawAsset("Pressed Sprite", component, "pressedSprite", Sprite.class, entity);
+        changed |= FieldEditors.drawAsset("Pressed Sprite", component, "pressedSprite", Sprite.class, editorEntity());
 
         // Tint Color
         ImGui.spacing();
@@ -162,9 +162,9 @@ public class UIButtonInspector extends CustomComponentInspector<UIButton> {
                 }
 
                 ComponentReflectionUtils.setFieldValue(component, fieldName, newValue);
-                if (entity != null) {
+                if (editorEntity() != null) {
                     UndoManager.getInstance().push(
-                            new SetComponentFieldCommand(component, fieldName, oldValue, newValue, entity)
+                            new SetComponentFieldCommand(component, fieldName, oldValue, newValue, editorEntity())
                     );
                 }
                 enabledRef[0] = !enabledRef[0];
@@ -193,11 +193,11 @@ public class UIButtonInspector extends CustomComponentInspector<UIButton> {
                 changed = true;
             }
 
-            if (ImGui.isItemDeactivatedAfterEdit() && entity != null) {
+            if (ImGui.isItemDeactivatedAfterEdit() && editorEntity() != null) {
                 Vector4f startValue = "hoveredColor".equals(fieldName) ? hoveredColorEditStart : pressedColorEditStart;
                 if (startValue != null) {
                     UndoManager.getInstance().push(
-                            new SetComponentFieldCommand(component, fieldName, startValue, new Vector4f(colorVal), entity)
+                            new SetComponentFieldCommand(component, fieldName, startValue, new Vector4f(colorVal), editorEntity())
                     );
                 }
                 if ("hoveredColor".equals(fieldName)) hoveredColorEditStart = null;
@@ -231,9 +231,9 @@ public class UIButtonInspector extends CustomComponentInspector<UIButton> {
         }
         if (ImGui.isItemDeactivatedAfterEdit() && alphaEditStartColor != null) {
             Vector4f newColor = new Vector4f(FieldEditors.getVector4f(component, "color"));
-            if (entity != null) {
+            if (editorEntity() != null) {
                 UndoManager.getInstance().push(
-                        new SetComponentFieldCommand(component, "color", alphaEditStartColor, newColor, entity)
+                        new SetComponentFieldCommand(component, "color", alphaEditStartColor, newColor, editorEntity())
                 );
             }
             alphaEditStartColor = null;
@@ -259,11 +259,11 @@ public class UIButtonInspector extends CustomComponentInspector<UIButton> {
         if (tintChanged) {
             ComponentReflectionUtils.setFieldValue(component, fieldName, tintBuf[0]);
         }
-        if (ImGui.isItemDeactivatedAfterEdit() && entity != null) {
+        if (ImGui.isItemDeactivatedAfterEdit() && editorEntity() != null) {
             Float startValue = "hoverTint".equals(fieldName) ? hoverTintEditStart : pressedTintEditStart;
             if (startValue != null) {
                 UndoManager.getInstance().push(
-                        new SetComponentFieldCommand(component, fieldName, startValue, tintBuf[0], entity)
+                        new SetComponentFieldCommand(component, fieldName, startValue, tintBuf[0], editorEntity())
                 );
             }
             if ("hoverTint".equals(fieldName)) hoverTintEditStart = null;
@@ -326,11 +326,11 @@ public class UIButtonInspector extends CustomComponentInspector<UIButton> {
             ComponentReflectionUtils.setFieldValue(component, "hoverTint", newHoverTint);
             ComponentReflectionUtils.setFieldValue(component, "pressedTint", newPressedTint);
 
-            if (entity != null) {
+            if (editorEntity() != null) {
                 UndoManager.getInstance().push(
                         new CompoundCommand("Toggle Custom Tints",
-                                new SetComponentFieldCommand(component, "hoverTint", oldHoverTint, newHoverTint, entity),
-                                new SetComponentFieldCommand(component, "pressedTint", oldPressedTint, newPressedTint, entity)
+                                new SetComponentFieldCommand(component, "hoverTint", oldHoverTint, newHoverTint, editorEntity()),
+                                new SetComponentFieldCommand(component, "pressedTint", oldPressedTint, newPressedTint, editorEntity())
                         )
                 );
             }
@@ -361,7 +361,7 @@ public class UIButtonInspector extends CustomComponentInspector<UIButton> {
     }
 
     private boolean resetSizeToSprite(Sprite sprite) {
-        if (entity == null) return false;
+        if (editorEntity() == null) return false;
 
         Component transformComp = entity.getComponent(UITransform.class);
         if (!(transformComp instanceof UITransform uiTransform)) return false;
@@ -379,7 +379,7 @@ public class UIButtonInspector extends CustomComponentInspector<UIButton> {
         ComponentReflectionUtils.setFieldValue(transformComp, "height", newHeight);
 
         UndoManager.getInstance().push(
-                UITransformDragCommand.resize(entity, transformComp,
+                UITransformDragCommand.resize(editorEntity(), transformComp,
                         offset, oldWidth, oldHeight,
                         offset, newWidth, newHeight,
                         anchor, pivot)

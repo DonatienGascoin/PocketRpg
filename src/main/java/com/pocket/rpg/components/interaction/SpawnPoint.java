@@ -140,23 +140,15 @@ public class SpawnPoint extends Component implements GizmoDrawable {
         // Draw spawn marker (diamond shape) at tile center
         float centerX = tileX + 0.5f;
         float centerY = tileY + 0.5f;
-        float size = ctx.getHandleSize(10);
+        float size = 0.25f; // Fixed world-space size (quarter tile)
 
         // Blue diamond outline
         ctx.setColor(GizmoColors.fromRGBA(0.3f, 0.6f, 1.0f, 0.9f));
         ctx.setThickness(2.0f);
         ctx.drawDiamond(centerX, centerY, size);
 
-        // Draw facing direction arrow
-        float arrowSize = size * 0.8f;
-        float arrowX = centerX + (facingDirection != null ? facingDirection.dx * size * 1.5f : 0);
-        float arrowY = centerY + (facingDirection != null ? facingDirection.dy * size * 1.5f : 0);
-
-        ctx.setColor(GizmoColors.fromRGBA(1.0f, 1.0f, 1.0f, 0.6f));
-        ctx.drawArrow(centerX, centerY, arrowX, arrowY, arrowSize * 0.3f);
-
         // Draw spawn ID label
         ctx.setColor(GizmoColors.WHITE);
-        ctx.drawText(centerX, centerY, spawnId, 5, -15);
+        ctx.drawText(centerX, centerY + size + 0.05f, spawnId);
     }
 }

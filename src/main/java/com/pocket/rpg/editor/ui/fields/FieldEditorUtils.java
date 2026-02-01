@@ -5,6 +5,7 @@ import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import imgui.ImGui;
+import imgui.ImVec2;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
@@ -26,6 +27,7 @@ public final class FieldEditorUtils {
 
     private static float nextFieldWidth = -1;           // -1 means "use default"
     private static Runnable nextMiddleContent = null;   // null means "no middle content"
+    private static String nextTooltip = null;           // null means "no custom tooltip"
 
     private FieldEditorUtils() {}
 
@@ -50,6 +52,15 @@ public final class FieldEditorUtils {
         nextMiddleContent = content;
     }
 
+    /**
+     * Sets a tooltip for the next field label.
+     * Shown when the user hovers over the label, replacing the default truncation tooltip.
+     * Consumed after the next inspectorRow() call.
+     */
+    public static void setNextTooltip(String tooltip) {
+        nextTooltip = tooltip;
+    }
+
     private static float consumeNextFieldWidth() {
         float width = nextFieldWidth;
         nextFieldWidth = -1;
@@ -60,6 +71,12 @@ public final class FieldEditorUtils {
         Runnable content = nextMiddleContent;
         nextMiddleContent = null;
         return content;
+    }
+
+    private static String consumeNextTooltip() {
+        String tooltip = nextTooltip;
+        nextTooltip = null;
+        return tooltip;
     }
 
     /**
@@ -82,17 +99,33 @@ public final class FieldEditorUtils {
      * Reserves space for reset button when override context is active.
      */
     public static void inspectorRow(String label, Runnable field) {
+        String tooltip = consumeNextTooltip();
+
         if (!label.startsWith("##")) {
             var currentPos = ImGui.getCursorPosX();
             float textWidth = ImGui.calcTextSize(label).x;
+            boolean truncated = textWidth > LABEL_WIDTH;
 
-            if (textWidth > LABEL_WIDTH) {
-                ImGui.text(truncateLabel(label, LABEL_WIDTH));
-                if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip(label);
-                }
+            // Clip the label text so it doesn't bleed into the field area
+            if (truncated) {
+                ImVec2 cursorScreen = ImGui.getCursorScreenPos();
+                float lineHeight = ImGui.getTextLineHeight();
+                ImGui.pushClipRect(cursorScreen.x, cursorScreen.y,
+                        cursorScreen.x + LABEL_WIDTH, cursorScreen.y + lineHeight, true);
+                ImGui.text(label);
+                ImGui.popClipRect();
             } else {
                 ImGui.text(label);
+            }
+
+            if (ImGui.isItemHovered()) {
+                if (tooltip != null && truncated) {
+                    ImGui.setTooltip(label + "\n\n" + tooltip);
+                } else if (tooltip != null) {
+                    ImGui.setTooltip(tooltip);
+                } else if (truncated) {
+                    ImGui.setTooltip(label);
+                }
             }
 
             ImGui.sameLine(currentPos + LABEL_WIDTH);
@@ -115,22 +148,6 @@ public final class FieldEditorUtils {
         }
 
         field.run();
-    }
-
-    /**
-     * Truncates a label to fit within maxWidth, appending ".." if truncated.
-     */
-    private static String truncateLabel(String label, float maxWidth) {
-        String ellipsis = "..";
-        float ellipsisWidth = ImGui.calcTextSize(ellipsis).x;
-        float targetWidth = maxWidth - ellipsisWidth;
-
-        for (int i = label.length() - 1; i > 0; i--) {
-            if (ImGui.calcTextSize(label.substring(0, i)).x <= targetWidth) {
-                return label.substring(0, i) + ellipsis;
-            }
-        }
-        return ellipsis;
     }
 
     // ========================================================================

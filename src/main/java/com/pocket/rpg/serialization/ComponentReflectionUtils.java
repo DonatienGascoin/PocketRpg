@@ -29,6 +29,12 @@ public final class ComponentReflectionUtils {
             return null;
         }
 
+        // @UiKeyReference fields: return the pending key string, not the UIComponent field value
+        if (isUiKeyRefField(meta, fieldName)) {
+            String key = UiKeyRefResolver.getPendingKey(component, fieldName);
+            return key.isEmpty() ? null : key;
+        }
+
         for (FieldMeta fm : meta.fields()) {
             if (fm.name().equals(fieldName)) {
                 Field field = fm.field();
@@ -65,6 +71,13 @@ public final class ComponentReflectionUtils {
         ComponentMeta meta = ComponentRegistry.getByClassName(component.getClass().getName());
         if (meta == null) {
             return false;
+        }
+
+        // @UiKeyReference fields: store the key string in the pending map, not on the UIComponent field
+        if (isUiKeyRefField(meta, fieldName)) {
+            String key = value instanceof String s ? s : (value != null ? value.toString() : "");
+            UiKeyRefResolver.storePendingKey(component, fieldName, key);
+            return true;
         }
 
         for (FieldMeta fm : meta.fields()) {
@@ -324,6 +337,18 @@ public final class ComponentReflectionUtils {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    /**
+     * Checks if a field is a @UiKeyReference field on a component.
+     */
+    private static boolean isUiKeyRefField(ComponentMeta meta, String fieldName) {
+        for (UiKeyRefMeta ref : meta.uiKeyRefs()) {
+            if (ref.fieldName().equals(fieldName)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

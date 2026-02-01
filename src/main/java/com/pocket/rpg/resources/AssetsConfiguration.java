@@ -8,7 +8,7 @@ public class AssetsConfiguration {
 
     private final AssetContext context;
     private String assetRoot = "assets/";
-    private Integer cacheSize = 1000;
+    private Integer cacheSize = 5000;
     private ErrorMode errorMode = ErrorMode.THROW_EXCEPTION;
     private Boolean enableStatistics = false;
 

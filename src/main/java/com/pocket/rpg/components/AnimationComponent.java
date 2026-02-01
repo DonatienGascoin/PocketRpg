@@ -16,7 +16,7 @@ import lombok.Setter;
  * <p>
  * Internally uses {@link AnimationPlayer} for playback logic.
  */
-@ComponentMeta(category = "Rendering")
+@ComponentMeta(category = "Animation")
 public class AnimationComponent extends Component {
 
     // ========================================================================

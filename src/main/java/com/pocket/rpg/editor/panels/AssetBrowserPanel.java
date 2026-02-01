@@ -363,7 +363,9 @@ public class AssetBrowserPanel extends EditorPanel {
         String filter = searchFilter.get().trim();
         boolean isSearching = !filter.isEmpty();
 
-        int itemCount = isSearching ? countFilteredAssets(filter) : currentAssets.size();
+        int folderCount = (!isSearching && currentFolder != null) ? currentFolder.getChildren().size() : 0;
+        int assetCount = isSearching ? countFilteredAssets(filter) : currentAssets.size();
+        int itemCount = folderCount + assetCount;
         String infoText = itemCount + " item" + (itemCount != 1 ? "s" : "");
         if (isSearching) {
             infoText += " (searching all)";
@@ -435,39 +437,65 @@ public class AssetBrowserPanel extends EditorPanel {
         // Determine which assets to show
         List<AssetEntry> assetsToShow = isSearching ? allAssets : currentAssets;
 
+        // Collect subfolders (only when not searching)
+        List<FolderNode> subfolders = List.of();
+        if (!isSearching && currentFolder != null && !currentFolder.getChildren().isEmpty()) {
+            subfolders = new ArrayList<>(currentFolder.getChildren());
+            subfolders.sort(Comparator.comparing(FolderNode::getName));
+        }
+
         // List view when zoom is 0
         if (zoomLevel == 0) {
-            renderAssetList(assetsToShow, filter, isSearching);
+            renderAssetList(subfolders, assetsToShow, filter, isSearching);
             return;
         }
 
-        // Grid view
+        // Grid view - folders and assets in one flow
         float thumbnailSize = BASE_THUMBNAIL_SIZE * zoomLevel;
-        float windowWidth = ImGui.getContentRegionAvailX();
-        int columns = Math.max(1, (int) ((windowWidth) / (thumbnailSize + THUMBNAIL_PADDING)));
+        boolean firstInRow = true;
 
-        int column = 0;
+        // Subfolders first
+        for (FolderNode child : subfolders) {
+            if (!firstInRow) {
+                ImGui.sameLine();
+                if (ImGui.getContentRegionAvailX() < thumbnailSize) {
+                    ImGui.newLine();
+                }
+            }
+            renderFolderGridItem(child, thumbnailSize);
+            firstInRow = false;
+        }
+
+        // Then assets
         for (AssetEntry entry : assetsToShow) {
             if (isSearching && !entry.filename.toLowerCase().contains(filter)) {
                 continue;
             }
 
-            if (column > 0) {
+            if (!firstInRow) {
                 ImGui.sameLine();
+                if (ImGui.getContentRegionAvailX() < thumbnailSize) {
+                    ImGui.newLine();
+                }
             }
 
             renderAssetItem(entry, thumbnailSize);
+            firstInRow = false;
 
             if (expandedSpritesheets.contains(entry.path)) {
-                column = 0;
+                firstInRow = true;
                 renderSpritesheetChildren(entry, thumbnailSize);
-            } else {
-                column = (column + 1) % columns;
             }
         }
     }
 
-    private void renderAssetList(List<AssetEntry> assets, String filter, boolean isSearching) {
+    private void renderAssetList(List<FolderNode> subfolders, List<AssetEntry> assets, String filter, boolean isSearching) {
+        // Subfolders first
+        for (FolderNode child : subfolders) {
+            renderFolderListItem(child);
+        }
+
+        // Then assets
         for (AssetEntry entry : assets) {
             if (isSearching && !entry.filename.toLowerCase().contains(filter)) {
                 continue;
@@ -479,6 +507,63 @@ public class AssetBrowserPanel extends EditorPanel {
                 renderSpritesheetListChildren(entry);
             }
         }
+    }
+
+    private void renderFolderGridItem(FolderNode child, float thumbnailSize) {
+        String childPath = currentPath.isEmpty() ? child.getName() : currentPath + "/" + child.getName();
+        ImGui.pushID("folder_" + child.getName());
+        ImGui.beginGroup();
+
+        // Folder icon button
+        ImGui.pushFont(EditorFonts.getIconFont(thumbnailSize));
+        if (ImGui.button(MaterialIcons.Folder, thumbnailSize, thumbnailSize)) {
+            navigateTo(child, childPath);
+        }
+        ImGui.popFont();
+
+        // Folder name below
+        int maxLabelChars = Math.max(6, (int)(thumbnailSize / 6));
+        String displayName = truncateFilename(child.getName(), maxLabelChars);
+        float textWidth = ImGui.calcTextSize(displayName).x;
+        float offset = (thumbnailSize - textWidth) / 2f;
+        if (offset > 0) {
+            ImGui.setCursorPosX(ImGui.getCursorPosX() + offset);
+        }
+        ImGui.text(displayName);
+
+        ImGui.endGroup();
+
+        // Double-click to navigate
+        if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(0)) {
+            navigateTo(child, childPath);
+        }
+
+        // Tooltip
+        if (ImGui.isItemHovered()) {
+            ImGui.beginTooltip();
+            ImGui.text(child.getName());
+            ImGui.textDisabled("Folder");
+            ImGui.endTooltip();
+        }
+
+        ImGui.popID();
+    }
+
+    private void renderFolderListItem(FolderNode child) {
+        String childPath = currentPath.isEmpty() ? child.getName() : currentPath + "/" + child.getName();
+
+        ImGui.pushID("folder_" + child.getName());
+        if (ImGui.selectable(MaterialIcons.Folder + "  " + child.getName(), false, ImGuiSelectableFlags.SpanAllColumns)) {
+            navigateTo(child, childPath);
+        }
+
+        if (ImGui.isItemHovered()) {
+            ImGui.beginTooltip();
+            ImGui.text(child.getName());
+            ImGui.textDisabled("Folder");
+            ImGui.endTooltip();
+        }
+        ImGui.popID();
     }
 
     private void renderAssetListItem(AssetEntry entry) {
@@ -645,9 +730,11 @@ public class AssetBrowserPanel extends EditorPanel {
             int texId = thumbnailCache.getTextureId(entry.path, preview);
             float[] uv = thumbnailCache.getUVCoords(entry.path);
 
-            // Flip V for OpenGL
+            // Remove frame padding so imageButton matches button total size
+            ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 0, 0);
             clicked = ImGui.imageButton(entry.path, texId, thumbnailSize, thumbnailSize,
                     uv[0], uv[3], uv[2], uv[1]);
+            ImGui.popStyleVar();
         } else {
             // Fallback: icon-only button with appropriately sized font
             String icon = getIconForType(entry.type);
@@ -795,13 +882,14 @@ public class AssetBrowserPanel extends EditorPanel {
         // Render child sprites in indented grid
         ImGui.indent(20);
 
-        float windowWidth = ImGui.getContentRegionAvailX();
-        int columns = Math.max(1, (int) (windowWidth / (childSize + THUMBNAIL_PADDING)));
-
         int totalSprites = grid.getTotalSprites();
         for (int i = 0; i < totalSprites; i++) {
-            if (i > 0 && i % columns != 0) {
+            if (i > 0) {
                 ImGui.sameLine();
+                // If placing on the same line would overflow, wrap to next row
+                if (ImGui.getContentRegionAvailX() < childSize) {
+                    ImGui.newLine();
+                }
             }
 
             renderSpritesheetSprite(entry, grid, i, childSize);
@@ -824,12 +912,14 @@ public class AssetBrowserPanel extends EditorPanel {
         int texId = thumbnailCache.getTextureId(sheetEntry.path, index, sprite);
         float[] uv = thumbnailCache.getUVCoords(sheetEntry.path, index);
 
-        // Flip V for OpenGL
+        // Remove frame padding so imageButton matches button total size
+        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 0, 0);
         if (ImGui.imageButton(spriteId, texId, size, size,
                 uv[0], uv[3], uv[2], uv[1])) {
             // Selected this sprite
             selectedAsset = sheetEntry; // Keep sheet selected
         }
+        ImGui.popStyleVar();
 
         // Drag source - use unified path format with #index
         if (ImGui.beginDragDropSource(ImGuiDragDropFlags.SourceAllowNullID)) {

@@ -16,7 +16,7 @@ import lombok.Setter;
  * <p>
  * Requires a SpriteRenderer component on the same GameObject.
  */
-@ComponentMeta(category = "Rendering")
+@ComponentMeta(category = "Animation")
 public class AnimatorComponent extends Component {
 
     // ========================================================================

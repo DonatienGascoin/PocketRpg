@@ -88,6 +88,14 @@ public class GridMovement extends Component {
     private float tileSize = 1.0f;
 
     /**
+     * Duration in seconds the character pauses after turning to face a new direction
+     * before walking. Set to 0 to disable the turn delay.
+     */
+    @Getter
+    @Setter
+    private float turnDelay = 0.1f;
+
+    /**
      * Z-level for collision checking (default 0 = ground level).
      */
     @Getter
@@ -134,6 +142,9 @@ public class GridMovement extends Component {
     @Getter
     @Setter
     private Direction facingDirection = Direction.DOWN;
+
+    /** Time remaining on the turn delay before movement is accepted. */
+    private transient float turnTimer = 0f;
 
     // Internal movement animation state
     private transient final Vector3f startPos = new Vector3f();
@@ -277,8 +288,17 @@ public class GridMovement extends Component {
             return false;
         }
 
-        // Update facing direction
-        facingDirection = direction;
+        // If facing a different direction, turn to face it first without moving
+        if (facingDirection != direction) {
+            facingDirection = direction;
+            turnTimer = turnDelay;
+            return false;
+        }
+
+        // Still in turn delay — don't move yet
+        if (turnTimer > 0f) {
+            return false;
+        }
 
         int targetX = gridX + direction.dx;
         int targetY = gridY + direction.dy;
@@ -409,6 +429,11 @@ public class GridMovement extends Component {
 
     @Override
     public void update(float deltaTime) {
+        // Tick down the turn delay timer
+        if (turnTimer > 0f) {
+            turnTimer -= deltaTime;
+        }
+
         if (!isMoving || gameObject == null) {
             return;
         }

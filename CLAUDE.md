@@ -60,6 +60,10 @@ When modifying core systems, update corresponding reference files:
 | `editor/ui/fields/` | `field-editors.md` |
 | Component lifecycle | `common-pitfalls.md` |
 
+## GitHub PR Comments
+
+When replying to PR review comments via `gh api`, always prefix the message body with `Claude:` so reviewers can distinguish automated replies from human ones.
+
 ## Encyclopedia
 
 After completing a feature, check if `Documents/Encyclopedia/` needs a new/updated guide. **Always ask user before creating or updating encyclopedia files.**

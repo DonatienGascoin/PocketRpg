@@ -3,7 +3,10 @@ package com.pocket.rpg.serialization;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ComponentRef;
 import com.pocket.rpg.components.HideInInspector;
+import com.pocket.rpg.components.RequiredComponent;
 import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.components.UiKeyReference;
+import com.pocket.rpg.components.ui.UIComponent;
 import org.reflections.Reflections;
 import org.reflections.scanners.Scanners;
 import org.reflections.util.ClasspathHelper;
@@ -64,6 +67,8 @@ public class ComponentRegistry {
 
                     System.out.println("  Registered: " + meta.simpleName() +
                             " [" + categoryName + "] (" + meta.fields().size() + " fields)");
+
+                    validateRequiredComponents(clazz);
                 } catch (Exception e) {
                     System.err.println("  Skipped: " + clazz.getSimpleName() + " - " + e.getMessage());
                 }
@@ -266,6 +271,28 @@ public class ComponentRegistry {
         return "other";
     }
 
+    /**
+     * Validates that all @RequiredComponent targets have a no-arg constructor
+     * so they can be auto-instantiated at runtime.
+     */
+    private static void validateRequiredComponents(Class<? extends Component> clazz) {
+        Class<?> current = clazz;
+        while (current != null && current != Component.class && current != Object.class) {
+            RequiredComponent[] requirements = current.getDeclaredAnnotationsByType(RequiredComponent.class);
+            for (RequiredComponent req : requirements) {
+                Class<? extends Component> target = req.value();
+                try {
+                    target.getDeclaredConstructor();
+                } catch (NoSuchMethodException e) {
+                    System.err.println("  WARNING: " + clazz.getSimpleName() +
+                            " declares @RequiredComponent(" + target.getSimpleName() +
+                            ") but " + target.getSimpleName() + " has no no-arg constructor");
+                }
+            }
+            current = current.getSuperclass();
+        }
+    }
+
     private static ComponentMeta buildMeta(Class<? extends Component> clazz) {
         String className = clazz.getName();
         String simpleName = clazz.getSimpleName();
@@ -282,7 +309,8 @@ public class ComponentRegistry {
 
         List<FieldMeta> fields = new ArrayList<>();
         List<ComponentRefMeta> references = new ArrayList<>();
-        collectFields(clazz, fields, references);
+        List<UiKeyRefMeta> uiKeyRefs = new ArrayList<>();
+        collectFields(clazz, fields, references, uiKeyRefs);
 
         return new ComponentMeta(
                 className,
@@ -291,23 +319,42 @@ public class ComponentRegistry {
                 clazz,
                 fields,
                 references,
+                uiKeyRefs,
                 hasNoArgConstructor
         );
     }
 
     private static void collectFields(Class<?> clazz, List<FieldMeta> fields,
-                                      List<ComponentRefMeta> references) {
+                                      List<ComponentRefMeta> references,
+                                      List<UiKeyRefMeta> uiKeyRefs) {
         if (clazz == null || clazz == Component.class || clazz == Object.class) {
             return;
         }
 
-        collectFields(clazz.getSuperclass(), fields, references);
+        collectFields(clazz.getSuperclass(), fields, references, uiKeyRefs);
 
         for (Field field : clazz.getDeclaredFields()) {
             if (Modifier.isStatic(field.getModifiers())) {
                 continue;
             }
+
             if (Modifier.isTransient(field.getModifiers())) {
+                continue;
+            }
+
+            // Check for @UiKeyReference on non-transient UIComponent fields
+            UiKeyReference uiKeyAnnotation = field.getAnnotation(UiKeyReference.class);
+            if (uiKeyAnnotation != null && UIComponent.class.isAssignableFrom(field.getType())) {
+                @SuppressWarnings("unchecked")
+                Class<? extends UIComponent> compType = (Class<? extends UIComponent>) field.getType();
+                uiKeyRefs.add(new UiKeyRefMeta(
+                        field,
+                        compType,
+                        uiKeyAnnotation.required()
+                ));
+                // Add to fields list with String.class as the type override so the serializer
+                // treats this UIComponent field as a plain String (the uiKey value)
+                fields.add(new FieldMeta(field.getName(), String.class, field, ""));
                 continue;
             }
             String name = field.getName();

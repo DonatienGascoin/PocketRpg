@@ -15,6 +15,7 @@ public record ComponentMeta(
         Class<? extends Component> componentClass,
         List<FieldMeta> fields,             // Serializable fields
         List<ComponentRefMeta> references,  // @ComponentRef fields (not serialized)
+        List<UiKeyRefMeta> uiKeyRefs,       // @UiKeyReference fields (not serialized, resolved via UIManager)
         boolean hasNoArgConstructor         // Can we instantiate it?
 ) {
     /**

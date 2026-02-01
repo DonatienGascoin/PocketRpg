@@ -106,7 +106,7 @@ public class PostProcessor {
         }
 
         initialized = true;
-        System.out.println("PostProcessor initialized with " + effects.size() + " effects");
+        // TODO System.out.println("PostProcessor initialized with " + effects.size() + " effects");
     }
 
     /**
@@ -377,7 +377,7 @@ public class PostProcessor {
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-        System.out.println("FBOs created at game resolution: " + gameWidth + "x" + gameHeight);
+        // TODO System.out.println("FBOs created at game resolution: " + gameWidth + "x" + gameHeight);
     }
 
     private int createFBOTexture(int texWidth, int texHeight) {
@@ -451,6 +451,6 @@ public class PostProcessor {
         }
 
         initialized = false;
-        System.out.println("PostProcessor destroyed");
+        // TODO aSystem.out.println("PostProcessor destroyed");
     }
 }

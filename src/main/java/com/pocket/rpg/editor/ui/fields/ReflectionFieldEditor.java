@@ -2,6 +2,7 @@ package com.pocket.rpg.editor.ui.fields;
 
 import com.pocket.rpg.audio.clips.AudioClip;
 import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.Tooltip;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.undo.UndoManager;
@@ -12,6 +13,7 @@ import com.pocket.rpg.serialization.ComponentMeta;
 import com.pocket.rpg.serialization.ComponentRefMeta;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import com.pocket.rpg.serialization.FieldMeta;
+import com.pocket.rpg.serialization.UiKeyRefMeta;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import org.joml.Vector2f;
@@ -95,8 +97,24 @@ public class ReflectionFieldEditor {
         boolean wasActive = ImGui.isAnyItemActive();
         boolean fieldChanged = false;
 
+        // Set tooltip from @Tooltip annotation if present
+        Tooltip tooltipAnnotation = meta.field().getAnnotation(Tooltip.class);
+        if (tooltipAnnotation != null) {
+            FieldEditorUtils.setNextTooltip(tooltipAnnotation.value());
+        }
+
         // Begin row highlight for missing required fields
         boolean requiredHighlight = FieldEditorContext.beginRequiredRowHighlight(fieldName);
+
+        // @UiKeyReference fields — intercept before type dispatch
+        UiKeyRefMeta uiKeyRef = findUiKeyRefForField(component, fieldName);
+        if (uiKeyRef != null) {
+            fieldChanged = UiKeyReferenceEditor.draw(label, component, fieldName, uiKeyRef);
+
+            // End row highlight
+            FieldEditorContext.endRequiredRowHighlight(requiredHighlight);
+            return fieldChanged;
+        }
 
         // PRIMITIVES
         if (type == int.class || type == Integer.class) {
@@ -168,6 +186,22 @@ public class ReflectionFieldEditor {
         }
 
         return fieldChanged;
+    }
+
+    /**
+     * Checks if a field is a @UiKeyReference field on this component.
+     */
+    private static UiKeyRefMeta findUiKeyRefForField(Component component, String fieldName) {
+        ComponentMeta meta = ComponentReflectionUtils.getMeta(component);
+        if (meta == null || meta.uiKeyRefs().isEmpty()) {
+            return null;
+        }
+        for (UiKeyRefMeta ref : meta.uiKeyRefs()) {
+            if (ref.fieldName().equals(fieldName)) {
+                return ref;
+            }
+        }
+        return null;
     }
 
     private static Object cloneValue(Object value) {

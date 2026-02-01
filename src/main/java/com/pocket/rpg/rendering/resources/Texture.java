@@ -86,6 +86,13 @@ public class Texture {
         glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0,
                 format, GL_UNSIGNED_BYTE, imageData);
 
+        // For single-channel textures, replicate R into G and B so they
+        // display as grayscale instead of red
+        if (channels == 1) {
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, GL_RED);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_RED);
+        }
+
         // Free image data
         stbi_image_free(imageData);
 

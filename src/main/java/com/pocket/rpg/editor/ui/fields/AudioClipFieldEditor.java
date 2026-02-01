@@ -53,6 +53,8 @@ public final class AudioClipFieldEditor {
                                 )
                         );
                         FieldEditorContext.markFieldOverridden(fieldName, selectedAsset);
+                        var scene = FieldEditorContext.getCurrentScene();
+                        if (scene != null) scene.markDirty();
                     });
                 }
 
@@ -107,6 +109,8 @@ public final class AudioClipFieldEditor {
                         UndoManager.getInstance().execute(
                                 new SetterUndoCommand<>(setter, oldValue, typedAsset, "Change " + label)
                         );
+                        var scene = FieldEditorContext.getCurrentScene();
+                        if (scene != null) scene.markDirty();
                     });
                 }
 

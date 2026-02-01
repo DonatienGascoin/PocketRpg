@@ -100,6 +100,12 @@ public class AnimationPreviewRenderer {
      * Starts playback.
      */
     public void play() {
+        // Reset to start if a non-looping animation has finished
+        if (animation != null && !animation.isLooping()
+                && currentPreviewFrame >= animation.getFrameCount() - 1) {
+            currentPreviewFrame = 0;
+            previewTimer = 0f;
+        }
         isPlaying = true;
     }
 
@@ -116,7 +122,11 @@ public class AnimationPreviewRenderer {
      * Toggles playback state.
      */
     public void togglePlayback() {
-        isPlaying = !isPlaying;
+        if (!isPlaying) {
+            play();
+        } else {
+            isPlaying = false;
+        }
     }
 
     /**

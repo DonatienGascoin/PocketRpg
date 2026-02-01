@@ -54,6 +54,8 @@ public final class AssetEditor {
                                 )
                         );
                         FieldEditorContext.markFieldOverridden(assetPickerFieldName, selectedAsset);
+                        var scene = FieldEditorContext.getCurrentScene();
+                        if (scene != null) scene.markDirty();
                     });
                 }
 
@@ -118,6 +120,8 @@ public final class AssetEditor {
                         UndoManager.getInstance().execute(
                                 new SetterUndoCommand<>(setter, oldValue, typedAsset, "Change " + label)
                         );
+                        var scene = FieldEditorContext.getCurrentScene();
+                        if (scene != null) scene.markDirty();
                     });
                 }
 

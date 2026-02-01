@@ -68,6 +68,21 @@ public final class Audio {
     }
 
     /**
+     * Set the audio context directly, without calling lifecycle methods.
+     * Used by GameEngine to manage context lifecycle explicitly.
+     */
+    public static void setContext(AudioContext newContext) {
+        context = newContext;
+    }
+
+    /**
+     * Get the current audio context.
+     */
+    public static AudioContext getContext() {
+        return context;
+    }
+
+    /**
      * Check if audio is initialized.
      */
     public static boolean isInitialized() {

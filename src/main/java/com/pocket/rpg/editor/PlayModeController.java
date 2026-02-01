@@ -1,6 +1,8 @@
 package com.pocket.rpg.editor;
 
 import com.pocket.rpg.audio.Audio;
+import com.pocket.rpg.audio.AudioContext;
+import com.pocket.rpg.audio.EditorSharedAudioContext;
 import com.pocket.rpg.audio.music.MusicManager;
 import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.config.InputConfig;
@@ -68,6 +70,9 @@ public class PlayModeController {
     private GameEngine engine;
     private PlayModeInputManager inputManager;
 
+    // Saved editor audio context (restored after play mode)
+    private AudioContext editorAudioContext;
+
     // Play mode selection (separate from editor selection)
     @Getter
     private PlayModeSelectionManager playModeSelectionManager;
@@ -121,29 +126,31 @@ public class PlayModeController {
             snapshot = Serializer.deepCopy(tempData, SceneData.class);
             snapshotFilePath = editorScene.getFilePath();
 
-            // 2. Initialize input (swaps GLFW callbacks, sets Input context)
+            // 2. Save editor's audio context (restored in cleanup)
+            editorAudioContext = Audio.getContext();
+
+            // 3. Initialize input (sets up GLFW callbacks, creates DefaultInputContext)
             long windowHandle = context.getWindow().getWindowHandle();
             inputManager = new PlayModeInputManager(windowHandle, inputConfig);
             inputManager.init();
 
-            // 3. Create engine
-            // - timeContext provided → GameEngine initializes Time for play mode
-            // - audioContext null → editor's Audio context stays as-is
-            // - inputContext null → PlayModeInputManager already set up Input
+            // 4. Create engine with all 3 contexts
             engine = GameEngine.builder()
                     .gameConfig(gameConfig)
                     .renderingConfig(renderingConfig)
                     .window(context.getWindow())
                     .platformFactory(new GLFWPlatformFactory())
                     .timeContext(new DefaultTimeContext())
+                    .audioContext(new EditorSharedAudioContext(editorAudioContext))
+                    .inputContext(inputManager.getInputContext())
                     .build();
             engine.init();
 
-            // 4. Create output framebuffer
+            // 5. Create output framebuffer
             outputFramebuffer = new EditorFramebuffer(gameConfig.getGameWidth(), gameConfig.getGameHeight());
             outputFramebuffer.init();
 
-            // 5. Configure scene loading and load from snapshot
+            // 6. Configure scene loading and load from snapshot
             RuntimeSceneLoader sceneLoader = new RuntimeSceneLoader();
             engine.getSceneManager().setSceneLoader(sceneLoader, "gameData/scenes/");
             MusicManager.initialize(engine.getSceneManager(), Assets.getContext());
@@ -152,10 +159,10 @@ public class PlayModeController {
             RuntimeScene runtimeScene = sceneLoader.load(runtimeCopy);
             engine.getSceneManager().loadScene(runtimeScene);
 
-            // 6. Create play mode selection manager
+            // 7. Create play mode selection manager
             playModeSelectionManager = new PlayModeSelectionManager();
 
-            // 7. Switch state
+            // 8. Switch state
             state = PlayState.PLAYING;
             EditorEventBus.get().publish(new PlayModeStartedEvent());
 
@@ -289,8 +296,14 @@ public class PlayModeController {
         }
 
         if (engine != null) {
-            engine.destroy();
+            engine.destroy();  // nulls Audio and Input singletons
             engine = null;
+        }
+
+        // Restore editor's audio context
+        if (editorAudioContext != null) {
+            Audio.setContext(editorAudioContext);
+            editorAudioContext = null;
         }
 
         if (outputFramebuffer != null) {

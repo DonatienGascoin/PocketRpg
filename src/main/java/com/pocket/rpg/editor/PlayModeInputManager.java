@@ -3,7 +3,6 @@ package com.pocket.rpg.editor;
 import com.pocket.rpg.config.InputConfig;
 import com.pocket.rpg.platform.glfw.GLFWInputBackend;
 import com.pocket.rpg.input.DefaultInputContext;
-import com.pocket.rpg.input.Input;
 import com.pocket.rpg.input.InputBackend;
 import com.pocket.rpg.input.KeyCode;
 import com.pocket.rpg.input.events.InputEventBus;
@@ -83,15 +82,6 @@ public class PlayModeInputManager {
 
         // Create input context
         inputContext = new DefaultInputContext(inputConfig, keyListener, mouseListener, gamepadListener);
-
-        // Initialize Input service locator
-        if (Input.hasContext()) {
-            // Input already initialized - just swap context
-            Input.setContext(inputContext);
-            System.out.println("Input context swapped for Play Mode");
-        } else {
-            Input.initialize(inputContext);
-        }
 
         // Set up GLFW callbacks (save previous to restore later)
         setupCallbacks();
@@ -213,12 +203,7 @@ public class PlayModeInputManager {
         if (mouseListener != null) mouseListener.clear();
         if (gamepadListener != null) gamepadListener.clear();
 
-        // Don't destroy Input entirely - just clear context
-        // The editor might still need input after play mode stops
-        if (inputContext != null) {
-            inputContext.destroy();
-        }
-
+        // Don't destroy inputContext — GameEngine handles that via Input singleton
         eventBus = null;
         keyListener = null;
         mouseListener = null;

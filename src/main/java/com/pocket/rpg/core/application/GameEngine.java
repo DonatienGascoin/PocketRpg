@@ -31,10 +31,9 @@ import lombok.Getter;
  * Creates and wires: ViewportConfig, PostProcessor, RenderPipeline,
  * SceneManager, TransitionManager, GameLoop, UIInputHandler, PerformanceMonitor.
  * <p>
- * Optionally initializes static context singletons (Time, Audio, Input) when
- * the corresponding context is provided via the builder. If a context is null,
- * the caller is responsible for initializing that singleton before calling
- * {@link #init()}.
+ * All three context singletons (Time, Audio, Input) are required. GameEngine
+ * sets each singleton via {@code setContext()} in {@link #init()} and clears
+ * them in {@link #destroy()}, calling context lifecycle methods directly.
  * <p>
  * GameEngine does NOT manage:
  * <ul>
@@ -54,9 +53,8 @@ public class GameEngine {
     private final AbstractWindow window;
     private final PlatformFactory platformFactory;
 
-    // === Optional contexts ===
-    // When provided, GameEngine initializes/destroys the corresponding singleton.
-    // When null, the caller manages that singleton externally.
+    // === Required contexts ===
+    // GameEngine always sets the singleton and manages lifecycle.
     private final TimeContext timeContext;
     private final AudioContext audioContext;
     private final InputContext inputContext;
@@ -72,19 +70,17 @@ public class GameEngine {
     @Getter private PerformanceMonitor performanceMonitor;
 
     /**
-     * Creates all subsystems and initializes any provided context singletons.
+     * Creates all subsystems and initializes context singletons.
      */
     public void init() {
-        // Initialize context singletons (only if provided)
-        if (timeContext != null) {
-            Time.initialize(timeContext);
-        }
-        if (audioContext != null) {
-            Audio.initialize(audioContext);
-        }
-        if (inputContext != null) {
-            Input.initialize(inputContext);
-        }
+        // Initialize context singletons via setContext + direct lifecycle calls
+        Time.setContext(timeContext);
+        timeContext.init();
+
+        Audio.setContext(audioContext);
+        audioContext.initialize();
+
+        Input.setContext(inputContext);
 
         // 1. Viewport config
         viewportConfig = new ViewportConfig(gameConfig);
@@ -176,20 +172,18 @@ public class GameEngine {
     }
 
     /**
-     * Destroys all owned subsystems and any context singletons that were
-     * provided at construction.
+     * Destroys all owned subsystems and context singletons.
      */
     public void destroy() {
         if (gameLoop != null) {
             gameLoop.destroy();
         }
 
-        if (inputContext != null) {
-            Input.destroy();
-        }
-        if (audioContext != null) {
-            Audio.destroy();
-        }
+        inputContext.destroy();
+        Input.setContext(null);
+
+        audioContext.destroy();
+        Audio.setContext(null);
 
         if (pipeline != null) {
             pipeline.destroy();

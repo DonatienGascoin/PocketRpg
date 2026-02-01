@@ -147,8 +147,9 @@ public class RenderPipeline {
                 postProcessor.setClearColor(params.getClearColor());
                 postProcessor.beginCapture();
                 sceneRenderer.render(params.getRenderables(), params.getCamera());
-                // Apply effects and blit to target
-                postProcessor.endCaptureAndApplyEffects(target);
+                // Apply effects and blit to target (null for screen = use scaling blit path)
+                RenderTarget blitTarget = target.isOffscreen() ? target : null;
+                postProcessor.endCaptureAndApplyEffects(blitTarget);
             } else {
                 // Render scene directly to target
                 sceneRenderer.render(params.getRenderables(), params.getCamera());
@@ -299,12 +300,13 @@ public class RenderPipeline {
     // ========================================================================
 
     /**
-     * @return true if post-processor is available and has effects enabled
+     * @return true if post-processor is available and needs post-processing
+     *         (effects, scaling, or pillarbox)
      */
     public boolean hasPostProcessingEffects() {
         if (postProcessor == null) return false;
         if (!postProcessor.isEnabled()) return false;
-        return !postProcessor.getEffects().isEmpty();
+        return postProcessor.needsPostProcessing();
     }
 
     /**

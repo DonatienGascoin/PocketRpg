@@ -1,6 +1,7 @@
 package com.pocket.rpg.platform;
 
 import com.pocket.rpg.config.GameConfig;
+import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.core.window.AbstractWindow;
 import com.pocket.rpg.input.InputBackend;
 import com.pocket.rpg.input.events.InputEventBus;
@@ -29,7 +30,7 @@ public interface PlatformFactory {
     /**
      * Create a post-processor for this platform.
      */
-    PostProcessor createPostProcessor(GameConfig config);
+    PostProcessor createPostProcessor(RenderingConfig config, int gameWidth, int gameHeight);
 
     /**
      * Get the platform name (for logging/debugging).

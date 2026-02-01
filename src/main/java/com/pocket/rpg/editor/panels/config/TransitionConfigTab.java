@@ -1,7 +1,7 @@
 package com.pocket.rpg.editor.panels.config;
 
 import com.pocket.rpg.config.ConfigLoader;
-import com.pocket.rpg.config.GameConfig;
+import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.config.TransitionConfig;
 import com.pocket.rpg.config.TransitionEntry;
 import com.pocket.rpg.editor.EditorContext;
@@ -42,8 +42,8 @@ public class TransitionConfigTab implements ConfigTab {
 
     @Override
     public void save() {
-        // TransitionConfig is part of GameConfig, so save that
-        ConfigLoader.saveConfigToFile(context.getGameConfig(), ConfigLoader.ConfigType.GAME);
+        // TransitionConfig is now part of RenderingConfig
+        ConfigLoader.saveConfigToFile(context.getRenderingConfig(), ConfigLoader.ConfigType.RENDERING);
     }
 
     @Override
@@ -53,7 +53,8 @@ public class TransitionConfigTab implements ConfigTab {
 
     @Override
     public void resetToDefaults() {
-        TransitionConfig config = context.getGameConfig().getDefaultTransitionConfig();
+        RenderingConfig renderingConfig = context.getRenderingConfig();
+        TransitionConfig config = renderingConfig.getDefaultTransitionConfig();
         TransitionConfig defaults = new TransitionConfig();
 
         config.setFadeOutDuration(defaults.getFadeOutDuration());
@@ -61,18 +62,17 @@ public class TransitionConfigTab implements ConfigTab {
         config.getFadeColor().set(defaults.getFadeColor());
         config.setTransitionName(defaults.getTransitionName());
 
-        // Reset game config transition fields
-        GameConfig gameConfig = context.getGameConfig();
-        gameConfig.getTransitions().clear();
-        gameConfig.setDefaultTransitionName("");
+        // Reset rendering config transition fields
+        renderingConfig.getTransitions().clear();
+        renderingConfig.setDefaultTransitionName("");
     }
 
     @Override
     public void renderContent() {
         ImGui.pushID("TransitionTab");
 
-        TransitionConfig config = context.getGameConfig().getDefaultTransitionConfig();
-        GameConfig gameConfig = context.getGameConfig();
+        RenderingConfig renderingConfig = context.getRenderingConfig();
+        TransitionConfig config = renderingConfig.getDefaultTransitionConfig();
 
         // Timing section
         if (ImGui.collapsingHeader("Timing", ImGuiTreeNodeFlags.DefaultOpen)) {
@@ -110,14 +110,14 @@ public class TransitionConfigTab implements ConfigTab {
             ImGui.indent();
 
             drawTransitionNameDropdown("Default Transition", "defaultTransition",
-                    gameConfig.getDefaultTransitionName(),
+                    renderingConfig.getDefaultTransitionName(),
                     name -> {
-                        String oldName = gameConfig.getDefaultTransitionName();
+                        String oldName = renderingConfig.getDefaultTransitionName();
                         UndoManager.getInstance().execute(new SetterUndoCommand<>(
-                                v -> { gameConfig.setDefaultTransitionName(v); markDirty.run(); },
+                                v -> { renderingConfig.setDefaultTransitionName(v); markDirty.run(); },
                                 oldName, name, "Change default transition"));
                     },
-                    gameConfig.getTransitions(), true);
+                    renderingConfig.getTransitions(), true);
             tooltip("Default transition used when no specific transition is requested");
 
             ImGui.unindent();
@@ -127,7 +127,7 @@ public class TransitionConfigTab implements ConfigTab {
         if (ImGui.collapsingHeader("Transition Patterns", ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
 
-            drawTransitionEntries(gameConfig);
+            drawTransitionEntries(renderingConfig);
 
             ImGui.unindent();
         }
@@ -136,7 +136,7 @@ public class TransitionConfigTab implements ConfigTab {
         ImGui.spacing();
         ImGui.separator();
         ImGui.textDisabled(String.format("Total duration: %.2f seconds", config.getTotalDuration()));
-        ImGui.textDisabled(String.format("Transitions defined: %d", gameConfig.getTransitions().size()));
+        ImGui.textDisabled(String.format("Transitions defined: %d", renderingConfig.getTransitions().size()));
 
         // Render asset picker popup (local instance for this tab)
         assetPicker.render();
@@ -205,8 +205,8 @@ public class TransitionConfigTab implements ConfigTab {
      * Draws the list of transition entries matching the ListEditor visual style.
      * Header with count + add button, each entry shows index, name, sprite, and remove button.
      */
-    private void drawTransitionEntries(GameConfig gameConfig) {
-        List<TransitionEntry> entries = gameConfig.getTransitions();
+    private void drawTransitionEntries(RenderingConfig renderingConfig) {
+        List<TransitionEntry> entries = renderingConfig.getTransitions();
         int count = entries.size();
         String headerLabel = "Entries (" + count + ")";
 

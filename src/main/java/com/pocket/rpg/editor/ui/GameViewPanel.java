@@ -392,7 +392,7 @@ public class GameViewPanel {
         List<String> transitionNames = new ArrayList<>();
         transitionNames.add("(Fade)");
         transitionNames.add("Random");
-        for (var entry : gameConfig.getTransitions()) {
+        for (var entry : renderingConfig.getTransitions()) {
             if (entry.getName() != null && !entry.getName().isEmpty()) {
                 transitionNames.add(entry.getName());
             }
@@ -422,7 +422,7 @@ public class GameViewPanel {
                     : nameArray[selectedTransitionIndex.get()];
 
             // Use fade durations from game config
-            TransitionConfig defaultConfig = gameConfig.getDefaultTransitionConfig();
+            TransitionConfig defaultConfig = renderingConfig.getDefaultTransitionConfig();
             TransitionConfig config = TransitionConfig.builder()
                     .transitionName(selectedName)
                     .fadeOutDuration(defaultConfig.getFadeOutDuration())
@@ -504,7 +504,7 @@ public class GameViewPanel {
      * Used to detect when effects have changed (added, removed, or properties modified).
      */
     private String computeEffectsHash() {
-        List<PostEffect> effects = gameConfig.getPostProcessingEffects();
+        List<PostEffect> effects = renderingConfig.getPostProcessingEffects();
         if (effects == null || effects.isEmpty()) {
             return "empty";
         }
@@ -540,9 +540,10 @@ public class GameViewPanel {
         }
 
         // Create new one if effects are configured
-        List<PostEffect> effects = gameConfig.getPostProcessingEffects();
+        List<PostEffect> effects = renderingConfig.getPostProcessingEffects();
         if (effects != null && !effects.isEmpty()) {
-            previewPostProcessor = new PostProcessor(gameConfig);
+            previewPostProcessor = new PostProcessor(renderingConfig,
+                    gameConfig.getGameWidth(), gameConfig.getGameHeight());
             previewPostProcessor.init(context.getWindow());
             previewPostProcessor.setEnabled(postFxEnabled); // Respect toggle state
             previewPipeline.setPostProcessor(previewPostProcessor);

@@ -371,9 +371,6 @@ public class EditorApplication {
     private void update() {
         float deltaTime = ImGui.getIO().getDeltaTime();
 
-        // Update audio system (music crossfades, sound updates)
-        Audio.update(deltaTime);
-
         // Handle Escape key to stop play mode (edge-triggered)
         if (playModeController.isActive()) {
             boolean escapePressed = isEscapePressed();

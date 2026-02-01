@@ -163,31 +163,27 @@ public class PlayModeController {
             outputFramebuffer = new EditorFramebuffer(width, height);
             outputFramebuffer.init();
 
-            // 6. Create post-processor if effects are configured
-            if (gameConfig.getPostProcessingEffects() != null &&
-                    !gameConfig.getPostProcessingEffects().isEmpty()) {
-                postProcessor = new PostProcessor(gameConfig);
-                postProcessor.init(context.getWindow());
-            }
+            // 6. Create post-processor (always — handles scaling + runtime effects)
+            postProcessor = new PostProcessor(renderingConfig,
+                    gameConfig.getGameWidth(), gameConfig.getGameHeight());
+            postProcessor.init(context.getWindow());
 
             // 7. Create render pipeline
             pipeline = new RenderPipeline(viewportConfig, renderingConfig);
-            if (postProcessor != null) {
-                pipeline.setPostProcessor(postProcessor);
-            }
+            pipeline.setPostProcessor(postProcessor);
             pipeline.init();
 
             // 8. Create SceneManager with loader
             SceneManager sceneManager = new SceneManager(viewportConfig, renderingConfig);
             sceneManager.setSceneLoader(sceneLoader, "gameData/scenes/");
 
-            // 9. Create TransitionManager
+            // 9. Create TransitionManager (transitions now in RenderingConfig)
             transitionManager = new TransitionManager(
                     sceneManager,
                     pipeline.getOverlayRenderer(),
-                    gameConfig.getDefaultTransitionConfig(),
-                    gameConfig.getTransitions(),
-                    gameConfig.getDefaultTransitionName()
+                    renderingConfig.getDefaultTransitionConfig(),
+                    renderingConfig.getTransitions(),
+                    renderingConfig.getDefaultTransitionName()
             );
             pipeline.setTransitionManager(transitionManager);
 
@@ -343,7 +339,7 @@ public class PlayModeController {
                 .clearColor(renderingConfig.getClearColor())
                 .renderScene(true)
                 .renderUI(true)
-                .renderPostFx(postProcessor != null)
+                .renderPostFx(pipeline.hasPostProcessingEffects())
                 .renderOverlay(true)
                 .build();
 

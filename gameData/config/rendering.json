@@ -10,5 +10,63 @@
     "w": 1.0
   },
   "pixelsPerUnit": 16.0,
-  "defaultOrthographicSize": 7.5
+  "defaultOrthographicSize": 7.5,
+  "scalingMode": "MAINTAIN_ASPECT_RATIO",
+  "enablePillarBox": false,
+  "pillarboxAspectRatio": 0.0,
+  "postProcessingEffects": [
+    {
+      "type": "VignetteEffect",
+      "params": {
+        "vignetteIntensity": 1.0,
+        "vignetteStrength": 0.75
+      }
+    }
+  ],
+  "defaultTransitionConfig": {
+    "fadeOutDuration": 1.0,
+    "fadeInDuration": 0.5,
+    "fadeColor": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0,
+      "w": 1.0
+    },
+    "transitionName": ""
+  },
+  "transitions": [
+    {
+      "name": "CircleIn",
+      "lumaSprite": "sprites/transitions/circle_in.png"
+    },
+    {
+      "name": "CircleOut",
+      "lumaSprite": "sprites/transitions/circle_out.png"
+    },
+    {
+      "name": "Diagonal",
+      "lumaSprite": "sprites/transitions/diagonal.png"
+    },
+    {
+      "name": "Diamond",
+      "lumaSprite": "sprites/transitions/diamond.png"
+    },
+    {
+      "name": "WipeLeft",
+      "lumaSprite": "sprites/transitions/wipe_left.png"
+    },
+    {
+      "name": "WipeRight",
+      "lumaSprite": "sprites/transitions/wipe_right.png"
+    },
+    {
+      "name": "WipeUp",
+      "lumaSprite": "sprites/transitions/wipe_up.png"
+    },
+    {
+      "name": "WipeDown",
+      "lumaSprite": "sprites/transitions/wipe_down.png"
+    }
+  ],
+  "defaultTransitionName": "Random"
 }

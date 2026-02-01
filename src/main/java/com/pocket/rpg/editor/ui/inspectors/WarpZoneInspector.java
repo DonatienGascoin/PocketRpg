@@ -3,7 +3,7 @@ package com.pocket.rpg.editor.ui.inspectors;
 import com.pocket.rpg.components.interaction.SpawnPoint;
 import com.pocket.rpg.components.interaction.WarpZone;
 import com.pocket.rpg.config.ConfigLoader;
-import com.pocket.rpg.config.GameConfig;
+import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.config.TransitionEntry;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
@@ -153,8 +153,8 @@ public class WarpZoneInspector extends CustomComponentInspector<WarpZone> {
      * Options: "(default)" + all entries from GameConfig + "Random".
      */
     private void drawTransitionNameDropdown(AtomicBoolean changed) {
-        GameConfig gameConfig = ConfigLoader.getConfig(ConfigLoader.ConfigType.GAME);
-        List<TransitionEntry> entries = gameConfig.getTransitions();
+        RenderingConfig renderingConfig = ConfigLoader.getConfig(ConfigLoader.ConfigType.RENDERING);
+        List<TransitionEntry> entries = renderingConfig.getTransitions();
 
         String currentName = component.getTransitionName();
         String display;

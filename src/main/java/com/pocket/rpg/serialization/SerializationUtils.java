@@ -164,6 +164,11 @@ public final class SerializationUtils {
     private static Sprite toSprite(Object value) {
         if (value instanceof Sprite s) return s;
         if (value instanceof String path) {
+            // Strip "ClassName:" prefix if present (serialized asset format)
+            int colonIdx = path.indexOf(':');
+            if (colonIdx > 0 && path.substring(0, colonIdx).contains(".")) {
+                path = path.substring(colonIdx + 1);
+            }
             return SpriteReference.fromPath(path);
         }
         return null;
@@ -172,6 +177,11 @@ public final class SerializationUtils {
     private static Object loadAsset(String path, Class<?> type) {
         if (path == null || path.isEmpty()) {
             return null;
+        }
+        // Strip "ClassName:" prefix if present (serialized asset format)
+        int colonIdx = path.indexOf(':');
+        if (colonIdx > 0 && path.substring(0, colonIdx).contains(".")) {
+            path = path.substring(colonIdx + 1);
         }
         try {
             return Assets.load(path, type);

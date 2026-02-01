@@ -8,6 +8,7 @@ import com.pocket.rpg.editor.ui.fields.FieldEditors;
 import com.pocket.rpg.editor.ui.layout.EditorFields;
 import com.pocket.rpg.editor.ui.layout.EditorLayout;
 import com.pocket.rpg.editor.undo.UndoManager;
+import com.pocket.rpg.editor.undo.commands.CompoundCommand;
 import com.pocket.rpg.editor.undo.commands.SetterUndoCommand;
 import com.pocket.rpg.editor.undo.commands.UITransformDragCommand;
 import com.pocket.rpg.rendering.resources.Sprite;
@@ -272,11 +273,25 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
         }
 
         if (ImGui.button(MaterialIcons.Link + (allMatchParent ? " MATCHING PARENT" : " MATCH PARENT"), buttonWidth, 0)) {
+            // Capture old values
+            UITransform.StretchMode oldStretch = component.getStretchMode();
+            boolean oldRotation = component.isMatchParentRotation();
+            boolean oldScale = component.isMatchParentScale();
+
             // Toggle all match parent options
             boolean newState = !anyMatchParent;
-            component.setStretchMode(newState ? UITransform.StretchMode.MATCH_PARENT : UITransform.StretchMode.NONE);
+            UITransform.StretchMode newStretch = newState ? UITransform.StretchMode.MATCH_PARENT : UITransform.StretchMode.NONE;
+            component.setStretchMode(newStretch);
             component.setMatchParentRotation(newState);
             component.setMatchParentScale(newState);
+
+            UndoManager.getInstance().push(
+                    new CompoundCommand("Toggle Match Parent",
+                            new SetterUndoCommand<>(component::setStretchMode, oldStretch, newStretch, "Change Stretch Mode"),
+                            new SetterUndoCommand<>(component::setMatchParentRotation, oldRotation, newState, "Change Match Rotation"),
+                            new SetterUndoCommand<>(component::setMatchParentScale, oldScale, newState, "Change Match Scale")
+                    )
+            );
             changed = true;
         }
 

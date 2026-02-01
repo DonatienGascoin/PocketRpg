@@ -2,6 +2,7 @@ package com.pocket.rpg.editor.rendering;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.components.ui.LayoutGroup;
 import com.pocket.rpg.components.ui.UICanvas;
 import com.pocket.rpg.components.ui.UIComponent;
 import com.pocket.rpg.components.ui.UITransform;
@@ -125,7 +126,7 @@ public class EditorUIBridge {
      */
     private boolean hasUIComponents(EditorGameObject entity) {
         for (Component comp : entity.getComponents()) {
-            if (comp instanceof UIComponent) {
+            if (comp instanceof UIComponent || comp instanceof UITransform || comp instanceof LayoutGroup) {
                 return true;
             }
         }
@@ -166,7 +167,7 @@ public class EditorUIBridge {
             }
         }
 
-        // Add UI components to wrapper
+        // Add UI components and LayoutGroup to wrapper
         for (Component comp : entity.getComponents()) {
             if (comp instanceof UIComponent uiComp) {
                 // Temporarily reassign the component to the wrapper
@@ -174,6 +175,11 @@ public class EditorUIBridge {
                 // Force enable - wrappers bypass onStart() lifecycle
                 uiComp.setEnabled(true);
                 // Add to wrapper's component list
+                addComponentToWrapper(wrapper, comp);
+            } else if (comp instanceof LayoutGroup) {
+                // LayoutGroup extends Component (not UIComponent) but needs to be
+                // on the wrapper for UIRenderer to find it via getComponent()
+                comp.setOwner(wrapper);
                 addComponentToWrapper(wrapper, comp);
             }
         }

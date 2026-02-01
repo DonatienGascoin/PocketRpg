@@ -1,5 +1,5 @@
 {
-  "keyboardLayout": "QWERTY",
+  "keyboardLayout": "AZERTY",
   "qwertyBindings": {
     "editor.tool.selection": ":V",
     "editor.tool.rotate": ":E",

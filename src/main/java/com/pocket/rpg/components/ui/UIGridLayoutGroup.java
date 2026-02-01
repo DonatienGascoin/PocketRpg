@@ -97,8 +97,22 @@ public class UIGridLayoutGroup extends LayoutGroup {
             }
             default -> { // FLEXIBLE
                 columns = Math.max(1, (int) ((availableWidth + spacing) / (cellWidth + spacing)));
+                // Don't create more columns than children
+                columns = Math.min(columns, children.size());
                 rows = (int) Math.ceil((double) children.size() / columns);
             }
+        }
+
+        // Calculate actual cell size (expand to fill if force-expand is on)
+        float actualCellWidth = cellWidth;
+        float actualCellHeight = cellHeight;
+        if (childForceExpandWidth && columns > 0) {
+            float totalSpacing = spacing * Math.max(0, columns - 1);
+            actualCellWidth = (availableWidth - totalSpacing) / columns;
+        }
+        if (childForceExpandHeight && rows > 0) {
+            float totalSpacing = spacing * Math.max(0, rows - 1);
+            actualCellHeight = (availableHeight - totalSpacing) / rows;
         }
 
         for (int i = 0; i < children.size(); i++) {
@@ -119,14 +133,14 @@ public class UIGridLayoutGroup extends LayoutGroup {
                 row = rows - 1 - row;
             }
 
-            float x = paddingLeft + col * (cellWidth + spacing);
-            float y = paddingTop + row * (cellHeight + spacing);
+            float x = paddingLeft + col * (actualCellWidth + spacing);
+            float y = paddingTop + row * (actualCellHeight + spacing);
 
             UITransform ct = children.get(i).getComponent(UITransform.class);
             ct.setAnchor(0, 0);
             ct.setOffset(x, y);
-            ct.setWidth(cellWidth);
-            ct.setHeight(cellHeight);
+            ct.setWidth(actualCellWidth);
+            ct.setHeight(actualCellHeight);
         }
     }
 }

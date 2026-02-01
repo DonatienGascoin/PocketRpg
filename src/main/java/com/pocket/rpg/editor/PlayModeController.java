@@ -2,31 +2,21 @@ package com.pocket.rpg.editor;
 
 import com.pocket.rpg.audio.Audio;
 import com.pocket.rpg.audio.music.MusicManager;
-import com.pocket.rpg.components.Component;
-import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.config.InputConfig;
 import com.pocket.rpg.config.RenderingConfig;
-import com.pocket.rpg.core.window.ViewportConfig;
+import com.pocket.rpg.core.application.GameEngine;
 import com.pocket.rpg.editor.rendering.EditorFramebuffer;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.RuntimeGameObjectAdapter;
 import com.pocket.rpg.editor.scene.RuntimeSceneLoader;
 import com.pocket.rpg.editor.serialization.EditorSceneSerializer;
-import com.pocket.rpg.rendering.core.RenderCamera;
-import com.pocket.rpg.rendering.core.Renderable;
-import com.pocket.rpg.rendering.pipeline.RenderParams;
-import com.pocket.rpg.rendering.pipeline.RenderPipeline;
 import com.pocket.rpg.rendering.postfx.PostProcessor;
 import com.pocket.rpg.rendering.targets.FramebufferTarget;
-import com.pocket.rpg.core.application.GameLoop;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.scenes.RuntimeScene;
 import com.pocket.rpg.scenes.Scene;
-import com.pocket.rpg.scenes.SceneManager;
-import com.pocket.rpg.scenes.transitions.SceneTransition;
 import com.pocket.rpg.scenes.transitions.TransitionManager;
-import com.pocket.rpg.serialization.GameObjectData;
 import com.pocket.rpg.serialization.SceneData;
 import com.pocket.rpg.serialization.Serializer;
 import com.pocket.rpg.editor.events.EditorEventBus;
@@ -35,7 +25,9 @@ import com.pocket.rpg.editor.events.PlayModeStartedEvent;
 import com.pocket.rpg.editor.events.PlayModeStoppedEvent;
 import com.pocket.rpg.editor.events.SceneWillChangeEvent;
 import com.pocket.rpg.input.Input;
-import com.pocket.rpg.ui.UIInputHandler;
+import com.pocket.rpg.platform.glfw.GLFWPlatformFactory;
+import com.pocket.rpg.time.DefaultTimeContext;
+import com.pocket.rpg.time.Time;
 import lombok.Getter;
 
 import java.io.File;
@@ -46,20 +38,11 @@ import java.util.function.Consumer;
 /**
  * Controls Play Mode lifecycle in the Scene Editor.
  * <p>
- * Uses {@link GameLoop} for update coordination, ensuring scene
- * is frozen during transitions.
- * <p>
- * Uses {@link RenderPipeline} because Play Mode simulates the actual
- * game runtime, which requires:
- * <ul>
- *   <li>Post-processing effects (blur, vignette, etc.)</li>
- *   <li>UI canvas rendering</li>
- *   <li>Transition overlays</li>
- *   <li>Game camera (not editor camera)</li>
- * </ul>
+ * Uses {@link GameEngine} to manage all game subsystems (pipeline, scene manager,
+ * game loop, transitions, etc.). Play mode shares the editor's Audio context
+ * and initializes its own Time context.
  *
- * @see GameLoop
- * @see RenderPipeline
+ * @see GameEngine
  */
 public class PlayModeController {
 
@@ -82,12 +65,8 @@ public class PlayModeController {
     private String snapshotFilePath;
 
     // Runtime systems
-    private ViewportConfig viewportConfig;
-    private RuntimeSceneLoader sceneLoader;
-    private GameLoop gameLoop;
-    private TransitionManager transitionManager;
+    private GameEngine engine;
     private PlayModeInputManager inputManager;
-    private UIInputHandler uiInputHandler;
 
     // Play mode selection (separate from editor selection)
     @Getter
@@ -96,11 +75,8 @@ public class PlayModeController {
     // Display area within editor window (set by GameViewPanel each frame)
     private float displayX, displayY, displayWidth, displayHeight;
 
-    // Rendering
-    private RenderPipeline pipeline;
+    // Rendering (play mode renders to framebuffer, not screen)
     private EditorFramebuffer outputFramebuffer;
-    @Getter
-    private PostProcessor postProcessor;
 
     private Consumer<String> messageCallback;
 
@@ -141,73 +117,45 @@ public class PlayModeController {
 
         try {
             // 1. Snapshot editor scene (deep copy via JSON serialization)
-            // This ensures runtime cannot corrupt the snapshot
             SceneData tempData = EditorSceneSerializer.toSceneData(editorScene);
             snapshot = Serializer.deepCopy(tempData, SceneData.class);
             snapshotFilePath = editorScene.getFilePath();
 
-            // 2. Create viewport config
-            viewportConfig = new ViewportConfig(gameConfig);
-
-            // 3. Create scene loader
-            sceneLoader = new RuntimeSceneLoader();
-
-            // 4. Initialize input
+            // 2. Initialize input (swaps GLFW callbacks, sets Input context)
             long windowHandle = context.getWindow().getWindowHandle();
             inputManager = new PlayModeInputManager(windowHandle, inputConfig);
             inputManager.init();
 
-            // 5. Create output framebuffer
-            int width = gameConfig.getGameWidth();
-            int height = gameConfig.getGameHeight();
-            outputFramebuffer = new EditorFramebuffer(width, height);
+            // 3. Create engine
+            // - timeContext provided → GameEngine initializes Time for play mode
+            // - audioContext null → editor's Audio context stays as-is
+            // - inputContext null → PlayModeInputManager already set up Input
+            engine = GameEngine.builder()
+                    .gameConfig(gameConfig)
+                    .renderingConfig(renderingConfig)
+                    .window(context.getWindow())
+                    .platformFactory(new GLFWPlatformFactory())
+                    .timeContext(new DefaultTimeContext())
+                    .build();
+            engine.init();
+
+            // 4. Create output framebuffer
+            outputFramebuffer = new EditorFramebuffer(gameConfig.getGameWidth(), gameConfig.getGameHeight());
             outputFramebuffer.init();
 
-            // 6. Create post-processor (always — handles scaling + runtime effects)
-            postProcessor = new PostProcessor(renderingConfig,
-                    gameConfig.getGameWidth(), gameConfig.getGameHeight());
-            postProcessor.init(context.getWindow());
+            // 5. Configure scene loading and load from snapshot
+            RuntimeSceneLoader sceneLoader = new RuntimeSceneLoader();
+            engine.getSceneManager().setSceneLoader(sceneLoader, "gameData/scenes/");
+            MusicManager.initialize(engine.getSceneManager(), Assets.getContext());
 
-            // 7. Create render pipeline
-            pipeline = new RenderPipeline(viewportConfig, renderingConfig);
-            pipeline.setPostProcessor(postProcessor);
-            pipeline.init();
-
-            // 8. Create SceneManager with loader
-            SceneManager sceneManager = new SceneManager(viewportConfig, renderingConfig);
-            sceneManager.setSceneLoader(sceneLoader, "gameData/scenes/");
-
-            // 9. Create TransitionManager (transitions now in RenderingConfig)
-            transitionManager = new TransitionManager(
-                    sceneManager,
-                    pipeline.getOverlayRenderer(),
-                    renderingConfig.getDefaultTransitionConfig(),
-                    renderingConfig.getTransitions(),
-                    renderingConfig.getDefaultTransitionName()
-            );
-            pipeline.setTransitionManager(transitionManager);
-
-            // 10. Initialize SceneTransition static API
-            SceneTransition.forceInitialize(transitionManager);
-
-            // 11. Create GameLoop
-            gameLoop = new GameLoop(sceneManager, transitionManager);
-
-            // 12. Create UI input handler
-            uiInputHandler = new UIInputHandler(gameConfig);
-
-            // 12. Initialize MusicManager for scene-based music
-            MusicManager.initialize(sceneManager, Assets.getContext());
-
-            // 13. Load initial scene from a copy (keeps snapshot pristine for restore)
             SceneData runtimeCopy = Serializer.deepCopy(snapshot, SceneData.class);
             RuntimeScene runtimeScene = sceneLoader.load(runtimeCopy);
-            sceneManager.loadScene(runtimeScene);
+            engine.getSceneManager().loadScene(runtimeScene);
 
-            // 14. Create play mode selection manager
+            // 6. Create play mode selection manager
             playModeSelectionManager = new PlayModeSelectionManager();
 
-            // 15. Switch state
+            // 7. Switch state
             state = PlayState.PLAYING;
             EditorEventBus.get().publish(new PlayModeStartedEvent());
 
@@ -245,11 +193,6 @@ public class PlayModeController {
 
         cleanup();
 
-        // No need to restore editor scene from snapshot:
-        // Play mode uses a separate RuntimeScene and the editor update loop
-        // is skipped while playing (EditorApplication returns early).
-        // Keeping the original EditorScene preserves dirty flag and undo history.
-
         snapshot = null;
         snapshotFilePath = null;
         state = PlayState.STOPPED;
@@ -271,22 +214,17 @@ public class PlayModeController {
             playModeSelectionManager.pruneDestroyedObjects();
         }
 
-        // Input always captured
+        // Update input (axis smoothing, gamepad polling)
         if (inputManager != null) {
-            inputManager.update(deltaTime);
+            inputManager.update(Time.deltaTime());
         }
 
         // UI input (hover, clicks) - convert editor window mouse to game coordinates
         updateUIInput();
 
-        // GameLoop handles transition freeze
-        if (gameLoop != null) {
-            gameLoop.update(deltaTime);
-        }
-
-        // End frame for input
-        if (inputManager != null) {
-            inputManager.endFrame();
+        // Update game logic (GameLoop handles transition freeze)
+        if (engine != null) {
+            engine.update();
         }
     }
 
@@ -303,7 +241,7 @@ public class PlayModeController {
     }
 
     private void updateUIInput() {
-        if (uiInputHandler == null || gameLoop == null) return;
+        if (engine == null) return;
         if (displayWidth <= 0 || displayHeight <= 0) return;
 
         // Convert editor window mouse position to game coordinates
@@ -311,40 +249,16 @@ public class PlayModeController {
         float gameMouseX = (mousePos.x - displayX) / displayWidth * gameConfig.getGameWidth();
         float gameMouseY = (mousePos.y - displayY) / displayHeight * gameConfig.getGameHeight();
 
-        Scene currentScene = gameLoop.getSceneManager().getCurrentScene();
-        if (currentScene != null) {
-            uiInputHandler.update(currentScene.getUICanvases(), gameMouseX, gameMouseY);
-        }
+        engine.updateUIInput(gameMouseX, gameMouseY);
     }
 
     public void render() {
         if (state == PlayState.STOPPED) return;
-        if (pipeline == null || outputFramebuffer == null || gameLoop == null) return;
+        if (engine == null || outputFramebuffer == null) return;
 
-        Scene scene = gameLoop.getSceneManager().getCurrentScene();
-        if (scene == null) return;
-
-        // Get renderables and camera from scene
-        List<Renderable> renderables = scene.getRenderers();
-        RenderCamera camera = scene.getCamera();
-
-        // Create target
         FramebufferTarget target = new FramebufferTarget(outputFramebuffer);
-
-        // Build params with full pipeline
-        RenderParams params = RenderParams.builder()
-                .renderables(renderables)
-                .camera(camera)
-                .uiCanvases(scene.getUICanvases())
-                .clearColor(renderingConfig.getClearColor())
-                .renderScene(true)
-                .renderUI(true)
-                .renderPostFx(pipeline.hasPostProcessingEffects())
-                .renderOverlay(true)
-                .build();
-
-        // Execute pipeline
-        pipeline.execute(target, params);
+        engine.render(target);
+        engine.endFrame();
     }
 
     public int getOutputTexture() {
@@ -374,19 +288,9 @@ public class PlayModeController {
             inputManager = null;
         }
 
-        if (gameLoop != null) {
-            gameLoop.destroy();
-            gameLoop = null;
-        }
-
-        if (pipeline != null) {
-            pipeline.destroy();
-            pipeline = null;
-        }
-
-        if (postProcessor != null) {
-            postProcessor.destroy();
-            postProcessor = null;
+        if (engine != null) {
+            engine.destroy();
+            engine = null;
         }
 
         if (outputFramebuffer != null) {
@@ -399,11 +303,6 @@ public class PlayModeController {
             playModeSelectionManager = null;
         }
         RuntimeGameObjectAdapter.clearCache();
-
-        uiInputHandler = null;
-        transitionManager = null;
-        sceneLoader = null;
-        viewportConfig = null;
     }
 
     private void showMessage(String message) {
@@ -416,7 +315,7 @@ public class PlayModeController {
      * Returns the currently running runtime scene, or null if not in play mode.
      */
     public Scene getRuntimeScene() {
-        return gameLoop != null ? gameLoop.getSceneManager().getCurrentScene() : null;
+        return engine != null ? engine.getSceneManager().getCurrentScene() : null;
     }
 
     public boolean isActive() {
@@ -449,7 +348,6 @@ public class PlayModeController {
             if (files != null) {
                 for (File file : files) {
                     String name = file.getName();
-                    // Remove .scene extension
                     scenes.add(name.substring(0, name.length() - 6));
                 }
             }
@@ -464,6 +362,15 @@ public class PlayModeController {
      * @return the transition manager, or null if not in play mode
      */
     public TransitionManager getTransitionManager() {
-        return transitionManager;
+        return engine != null ? engine.getTransitionManager() : null;
+    }
+
+    /**
+     * Gets the post processor (only available during play mode).
+     *
+     * @return the post processor, or null if not in play mode
+     */
+    public PostProcessor getPostProcessor() {
+        return engine != null ? engine.getPostProcessor() : null;
     }
 }

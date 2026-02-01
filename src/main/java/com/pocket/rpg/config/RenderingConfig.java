@@ -2,6 +2,8 @@ package com.pocket.rpg.config;
 
 import com.pocket.rpg.core.camera.GameCamera;
 import com.pocket.rpg.rendering.batch.SpriteBatch;
+import com.pocket.rpg.rendering.postfx.PostEffect;
+import com.pocket.rpg.rendering.postfx.PostProcessor;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.rendering.stats.ConsoleStatisticsReporter;
 import lombok.AllArgsConstructor;
@@ -9,6 +11,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.joml.Vector4f;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Configuration for the rendering system.
@@ -242,5 +247,117 @@ public class RenderingConfig {
         }
         // Auto-calculate for pixel-perfect rendering
         return gameHeight / (2f * pixelsPerUnit);
+    }
+
+    // ========================================================================
+    // SCALING (moved from GameConfig — these are rendering concerns)
+    // ========================================================================
+
+    /**
+     * Scaling mode when pillarbox is disabled.
+     * MAINTAIN_ASPECT_RATIO: Keeps aspect ratio with black bars (like pillarbox)
+     * STRETCH: Stretches image to fill window (may distort)
+     */
+    @Builder.Default
+    private PostProcessor.ScalingMode scalingMode = PostProcessor.ScalingMode.MAINTAIN_ASPECT_RATIO;
+
+    /**
+     * Whether to enable pillarboxing/letterboxing for aspect ratio preservation.
+     */
+    @Builder.Default
+    private boolean enablePillarBox = false;
+
+    /**
+     * Target aspect ratio for pillarbox (e.g., 16/9 = 1.777, 4/3 = 1.333).
+     * Only used if enablePillarbox is true. Set to 0 for auto-calculation from game resolution.
+     */
+    @Builder.Default
+    private float pillarboxAspectRatio = 0f;
+
+    // ========================================================================
+    // POST-PROCESSING (moved from GameConfig — requires GL context for deserialization)
+    // ========================================================================
+
+    /**
+     * Post-processing effects applied to the rendered scene.
+     * Effects are applied in order (first to last).
+     *
+     * <p>Example effect combinations:
+     * <pre>
+     * // Retro CRT Style
+     * new ScanlinesEffect(0.3f, 300.0f),
+     * new DesaturationEffect(0.7f),
+     * new ChromaticAberrationEffect(0.003f),
+     * new VignetteEffect(1.0f, 0.5f)
+     *
+     * // Dramatic Combat
+     * new MotionBlurEffect(1.0f, 0.0f, 0.03f, 10),
+     * new ChromaticAberrationEffect(0.008f),
+     * new DisplacementEffect(0.01f, 0.002f, 0.0f)
+     *
+     * // Magical/Ethereal Scene
+     * new BloomEffect(0.7f, 2.0f),
+     * new ColorGradingEffect(0.8f, 0.9f, 1.0f, 0.3f), // Slight blue tint
+     * new VignetteEffect(1.2f, 0.4f)
+     *
+     * // Low Health Warning
+     * new ColorGradingEffect(1.0f, 0.3f, 0.3f, 0.5f), // Red tint
+     * new DesaturationEffect(0.3f),
+     * new VignetteEffect(1.5f, 0.8f)
+     *
+     * // Cel-Shaded/Comic Style
+     * new EdgeDetectionEffect(0.15f, 0.0f, 0.0f, 0.0f),
+     * new DesaturationEffect(0.2f)
+     *
+     * // General Purpose Effects
+     * new BlurEffect(2.0f),
+     * new BloomEffect(0.8f, 2f),
+     * new ChromaticAberrationEffect(0.02f),
+     * new FilmGrainEffect(0.2f),
+     * new PixelationEffect(0.005f),
+     * new RadialBlurEffect(0.5f, 0.5f, 0.03f, 10),
+     * new DisplacementEffect(0.005f)
+     * </pre>
+     */
+    @Builder.Default
+    private List<PostEffect> postProcessingEffects = new ArrayList<>();
+
+    // ========================================================================
+    // TRANSITIONS (moved from GameConfig — TransitionEntry.lumaSprite requires GL)
+    // ========================================================================
+
+    /**
+     * Configuration for transition between scenes.
+     */
+    @Builder.Default
+    private TransitionConfig defaultTransitionConfig = TransitionConfig.builder()
+            .fadeOutDuration(0.5f)
+            .fadeInDuration(0.5f)
+            .fadeColor(new Vector4f(0, 0, 0, 1))
+            .build();
+
+    /**
+     * Named list of available luma transition patterns.
+     * Each entry maps a name to a grayscale sprite used as a wipe pattern.
+     */
+    @Builder.Default
+    private List<TransitionEntry> transitions = new ArrayList<>();
+
+    /**
+     * Default transition name used when no specific transition is requested.
+     * Empty string means plain fade, "Random" means pick randomly from the transitions list.
+     */
+    @Builder.Default
+    private String defaultTransitionName = "";
+
+    /**
+     * Gets the effective pillarbox aspect ratio.
+     * If set to 0, calculates from the given game resolution.
+     */
+    public float getEffectivePillarboxAspectRatio(int gameWidth, int gameHeight) {
+        if (pillarboxAspectRatio > 0) {
+            return pillarboxAspectRatio;
+        }
+        return (float) gameWidth / gameHeight;
     }
 }

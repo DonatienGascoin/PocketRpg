@@ -1,7 +1,9 @@
 package com.pocket.rpg.core.application;
 
+import com.pocket.rpg.audio.Audio;
 import com.pocket.rpg.scenes.SceneManager;
 import com.pocket.rpg.scenes.transitions.TransitionManager;
+import com.pocket.rpg.time.Time;
 import lombok.Getter;
 
 /**
@@ -63,6 +65,11 @@ public class GameLoop {
      * @param deltaTime Time since last frame in seconds
      */
     public void update(float deltaTime) {
+        // Audio uses unscaled time — music/SFX should play at real speed regardless of time scale.
+        // Fall back to deltaTime when Time is not initialized (editor uses ImGui's delta directly).
+        float audioDt = Time.isInitialized() ? Time.unscaledDeltaTime() : deltaTime;
+        Audio.update(audioDt);
+
         if (transitionManager != null && transitionManager.isTransitioning()) {
             transitionManager.update(deltaTime);
 

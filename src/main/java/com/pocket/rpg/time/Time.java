@@ -36,6 +36,13 @@ public class Time {
     }
 
     /**
+     * Returns true if the time system has been initialized.
+     */
+    public static boolean isInitialized() {
+        return context != null;
+    }
+
+    /**
      * Get the current context (for advanced usage).
      */
     public static TimeContext getContext() {

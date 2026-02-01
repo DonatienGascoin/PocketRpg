@@ -1,15 +1,9 @@
 package com.pocket.rpg.config;
 
-import com.pocket.rpg.rendering.postfx.PostEffect;
-import com.pocket.rpg.rendering.postfx.PostProcessor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.joml.Vector4f;
-
-import java.util.ArrayList;
-import java.util.List;
 
 @Data
 @Builder
@@ -56,95 +50,6 @@ public class GameConfig {
     private boolean vsync = false;
 
     /**
-     * Post-processing effects applied to the rendered scene.
-     * Effects are applied in order (first to last).
-     *
-     * <p>Example effect combinations:
-     * <pre>
-     * // Retro CRT Style
-     * new ScanlinesEffect(0.3f, 300.0f),
-     * new DesaturationEffect(0.7f),
-     * new ChromaticAberrationEffect(0.003f),
-     * new VignetteEffect(1.0f, 0.5f)
-     *
-     * // Dramatic Combat
-     * new MotionBlurEffect(1.0f, 0.0f, 0.03f, 10),
-     * new ChromaticAberrationEffect(0.008f),
-     * new DisplacementEffect(0.01f, 0.002f, 0.0f)
-     *
-     * // Magical/Ethereal Scene
-     * new BloomEffect(0.7f, 2.0f),
-     * new ColorGradingEffect(0.8f, 0.9f, 1.0f, 0.3f), // Slight blue tint
-     * new VignetteEffect(1.2f, 0.4f)
-     *
-     * // Low Health Warning
-     * new ColorGradingEffect(1.0f, 0.3f, 0.3f, 0.5f), // Red tint
-     * new DesaturationEffect(0.3f),
-     * new VignetteEffect(1.5f, 0.8f)
-     *
-     * // Cel-Shaded/Comic Style
-     * new EdgeDetectionEffect(0.15f, 0.0f, 0.0f, 0.0f),
-     * new DesaturationEffect(0.2f)
-     *
-     * // General Purpose Effects
-     * new BlurEffect(2.0f),
-     * new BloomEffect(0.8f, 2f),
-     * new ChromaticAberrationEffect(0.02f),
-     * new FilmGrainEffect(0.2f),
-     * new PixelationEffect(0.005f),
-     * new RadialBlurEffect(0.5f, 0.5f, 0.03f, 10),
-     * new DisplacementEffect(0.005f)
-     * </pre>
-     */
-    @Builder.Default
-    private List<PostEffect> postProcessingEffects = new ArrayList<>();
-
-    /**
-     * Scaling mode when pillarbox is disabled.
-     * MAINTAIN_ASPECT_RATIO: Keeps aspect ratio with black bars (like pillarbox)
-     * STRETCH: Stretches image to fill window (may distort)
-     */
-    @Builder.Default
-    private PostProcessor.ScalingMode scalingMode = PostProcessor.ScalingMode.MAINTAIN_ASPECT_RATIO;
-
-    /**
-     * Whether to enable pillarboxing/letterboxing for aspect ratio preservation.
-     */
-    @Builder.Default
-    private boolean enablePillarBox = false;
-
-    /**
-     * Target aspect ratio for pillarbox (e.g., 16/9 = 1.777, 4/3 = 1.333).
-     * Only used if enablePillarbox is true. Set to 0 for auto-calculation from game resolution.
-     */
-    @Builder.Default
-    private float pillarboxAspectRatio = 0f; // 0 means auto-calculate from gameWidth/gameHeight
-
-    /**
-     * Configuration for transition between scene
-     */
-    @Builder.Default
-    private TransitionConfig defaultTransitionConfig = TransitionConfig.builder()
-            .fadeOutDuration(0.5f)
-            .fadeInDuration(0.5f)
-            .fadeColor(new Vector4f(0, 0, 0, 1))
-            .build();
-
-    /**
-     * Named list of available luma transition patterns.
-     * Each entry maps a name to a grayscale sprite used as a wipe pattern.
-     */
-    @Builder.Default
-    private List<TransitionEntry> transitions = new ArrayList<>();
-
-    /**
-     * Default transition name used when no specific transition is requested.
-     * Empty string means plain fade, "Random" means pick randomly from the transitions list.
-     */
-    @Builder.Default
-    private String defaultTransitionName = "";
-
-    /**
      * Default hover tint for UI buttons.
      * When a button is hovered and no custom onHover callback is set,
      * the button color is darkened by this factor.
@@ -168,13 +73,9 @@ public class GameConfig {
     private float uiButtonPressedTint = 0.2f;
 
     /**
-     * Gets the effective pillarbox aspect ratio.
-     * If set to 0, calculates from game resolution.
+     * The scene to load when the game starts.
+     * Must match a scene file name (without .scene extension) in gameData/scenes/.
      */
-    public float getEffectivePillarboxAspectRatio() {
-        if (pillarboxAspectRatio > 0) {
-            return pillarboxAspectRatio;
-        }
-        return (float) gameWidth / gameHeight;
-    }
+    @Builder.Default
+    private String startScene = "";
 }

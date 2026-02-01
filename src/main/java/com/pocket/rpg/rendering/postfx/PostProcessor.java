@@ -1,12 +1,10 @@
 package com.pocket.rpg.rendering.postfx;
 
-import com.pocket.rpg.config.GameConfig;
+import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.core.window.AbstractWindow;
 import com.pocket.rpg.rendering.core.RenderTarget;
 import com.pocket.rpg.rendering.resources.Shader;
 import lombok.Getter;
-import lombok.Setter;
-
 import lombok.Setter;
 import org.joml.Vector4f;
 
@@ -61,23 +59,23 @@ public class PostProcessor {
     private Vector4f clearColor = new Vector4f(0, 0, 0, 1);
 
     /**
-     * FIX: Creates a post processor with fixed game resolution.
+     * Creates a post processor with fixed game resolution and rendering config.
      */
-    public PostProcessor(GameConfig config) {
-        if (config.getGameWidth() <= 0 || config.getGameHeight() <= 0) {
+    public PostProcessor(RenderingConfig config, int gameWidth, int gameHeight) {
+        if (gameWidth <= 0 || gameHeight <= 0) {
             throw new IllegalArgumentException("Game resolution must be positive: " +
-                    config.getGameWidth() + "x" + config.getGameHeight());
+                    gameWidth + "x" + gameHeight);
         }
 
-        this.gameWidth = config.getGameWidth();
-        this.gameHeight = config.getGameHeight();
+        this.gameWidth = gameWidth;
+        this.gameHeight = gameHeight;
 
         System.out.println("PostProcessor using game resolution: " + gameWidth + "x" + gameHeight);
 
         this.effects.addAll(config.getPostProcessingEffects());
 
         if (config.isEnablePillarBox()) {
-            enablePillarBox(config.getEffectivePillarboxAspectRatio());
+            enablePillarBox(config.getEffectivePillarboxAspectRatio(gameWidth, gameHeight));
         } else {
             scalingMode = config.getScalingMode();
         }
@@ -209,7 +207,7 @@ public class PostProcessor {
         endCaptureAndApplyEffects(null);
     }
 
-    private boolean needsPostProcessing() {
+    public boolean needsPostProcessing() {
         return !effects.isEmpty() || pillarBox != null || scalingMode == ScalingMode.MAINTAIN_ASPECT_RATIO;
     }
 

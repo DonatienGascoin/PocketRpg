@@ -1,6 +1,11 @@
 package com.pocket.rpg.core.application;
 
+import com.pocket.rpg.audio.music.MusicManager;
+import com.pocket.rpg.config.ConfigLoader;
 import com.pocket.rpg.config.EngineConfiguration;
+import com.pocket.rpg.config.GameConfig;
+import com.pocket.rpg.config.InputConfig;
+import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.core.window.AbstractWindow;
 import com.pocket.rpg.core.window.ViewportConfig;
 import com.pocket.rpg.editor.scene.RuntimeSceneLoader;
@@ -16,6 +21,7 @@ import com.pocket.rpg.platform.PlatformFactory;
 import com.pocket.rpg.platform.glfw.GLFWPlatformFactory;
 import com.pocket.rpg.rendering.pipeline.RenderParams;
 import com.pocket.rpg.rendering.pipeline.RenderPipeline;
+import com.pocket.rpg.rendering.postfx.PostEffectRegistry;
 import com.pocket.rpg.rendering.postfx.PostProcessing;
 import com.pocket.rpg.rendering.postfx.PostProcessor;
 import com.pocket.rpg.rendering.targets.ScreenTarget;
@@ -25,10 +31,12 @@ import com.pocket.rpg.audio.DefaultAudioContext;
 import com.pocket.rpg.audio.backend.OpenALAudioBackend;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.resources.ErrorMode;
+import com.pocket.rpg.save.SaveManager;
 import com.pocket.rpg.scenes.Scene;
 import com.pocket.rpg.scenes.SceneManager;
 import com.pocket.rpg.scenes.transitions.SceneTransition;
 import com.pocket.rpg.scenes.transitions.TransitionManager;
+import com.pocket.rpg.serialization.ComponentRegistry;
 import com.pocket.rpg.serialization.Serializer;
 import com.pocket.rpg.time.DefaultTimeContext;
 import com.pocket.rpg.time.Time;
@@ -83,6 +91,7 @@ public class GameApplication {
     // ========================================================================
 
     private void init() {
+        // 1. Asset system + serializer + audio (no GL needed)
         Assets.initialize();
         Assets.configure()
                 .setAssetRoot("gameData/assets/")
@@ -92,17 +101,37 @@ public class GameApplication {
         initAudio();
         System.out.println(LogUtils.buildBox("Application starting"));
 
-        config = EngineConfiguration.load();
+        // 2. PostEffectRegistry — class scanning, no GL
+        PostEffectRegistry.initialize();
+
+        // 3. Load GL-safe configs BEFORE window creation
+        GameConfig gameConfig = ConfigLoader.loadSingleConfig(ConfigLoader.ConfigType.GAME);
+        InputConfig inputConfig = ConfigLoader.loadSingleConfig(ConfigLoader.ConfigType.INPUT);
 
         inputEventBus = new InputEventBus();
         TimeContext timeContext = new DefaultTimeContext();
         Time.initialize(timeContext);
 
+        // 4. Create window — establishes GL context
         platformFactory = selectPlatform();
         System.out.println("Using platform: " + platformFactory.getPlatformName());
 
+        InputBackend inputBackend = platformFactory.createInputBackend();
+        window = platformFactory.createWindow(gameConfig, inputBackend, inputEventBus);
+        window.init();
+
+        // 5. ComponentRegistry — class scanning
+        ComponentRegistry.initialize();
+
+        // 6. Load rendering config AFTER GL context (has sprite references)
+        RenderingConfig renderingConfig = ConfigLoader.loadSingleConfig(ConfigLoader.ConfigType.RENDERING);
+
+        // 7. Build composite config
+        config = EngineConfiguration.from(gameConfig, inputConfig, renderingConfig);
+
+        // 8. Create remaining systems
         createViewportConfig();
-        createPlatformSystems();
+        createPostProcessor();
         setupInputSystem();
         createUIInputHandler();
         createRenderPipeline();
@@ -137,15 +166,11 @@ public class GameApplication {
         inputEventBus.addResizeListener(viewportConfig::setWindowSize);
     }
 
-    private void createPlatformSystems() {
-        System.out.println("Initializing platform systems...");
+    private void createPostProcessor() {
+        System.out.println("Initializing post-processor...");
 
-        InputBackend inputBackend = platformFactory.createInputBackend();
-
-        window = platformFactory.createWindow(config.getGame(), inputBackend, inputEventBus);
-        window.init();
-
-        postProcessor = platformFactory.createPostProcessor(config.getGame());
+        postProcessor = platformFactory.createPostProcessor(
+                config.getRendering(), config.getGame().getGameWidth(), config.getGame().getGameHeight());
         postProcessor.init(window);
         PostProcessing.initialize(postProcessor);
 
@@ -188,7 +213,7 @@ public class GameApplication {
     }
 
     /**
-     * Creates game systems: SceneManager, TransitionManager, GameLoop.
+     * Creates game systems: SceneManager, TransitionManager, GameLoop, SaveManager, MusicManager.
      */
     private void createGameSystems() {
         System.out.println("Creating game systems...");
@@ -200,13 +225,14 @@ public class GameApplication {
         RuntimeSceneLoader sceneLoader = new RuntimeSceneLoader();
         sceneManager.setSceneLoader(sceneLoader, "gameData/scenes/");
 
-        // Create TransitionManager
+        // Create TransitionManager (transitions now in RenderingConfig)
+        RenderingConfig renderingConfig = config.getRendering();
         transitionManager = new TransitionManager(
                 sceneManager,
                 pipeline.getOverlayRenderer(),
-                config.getGame().getDefaultTransitionConfig(),
-                config.getGame().getTransitions(),
-                config.getGame().getDefaultTransitionName()
+                renderingConfig.getDefaultTransitionConfig(),
+                renderingConfig.getTransitions(),
+                renderingConfig.getDefaultTransitionName()
         );
         pipeline.setTransitionManager(transitionManager);
 
@@ -223,8 +249,17 @@ public class GameApplication {
         // Create GameLoop
         gameLoop = new GameLoop(sceneManager, transitionManager);
 
-        // Load initial scene
-        sceneManager.loadScene("Demo");
+        // Initialize SaveManager and MusicManager
+        SaveManager.initialize(sceneManager);
+        MusicManager.initialize(sceneManager, Assets.getContext());
+
+        // Load configurable start scene
+        String startScene = config.getGame().getStartScene();
+        if (startScene == null || startScene.isBlank()) {
+            throw new IllegalStateException(
+                    "No start scene configured in game.json (set 'startScene' field)");
+        }
+        sceneManager.loadScene(startScene);
 
         System.out.println("Game systems initialized");
     }

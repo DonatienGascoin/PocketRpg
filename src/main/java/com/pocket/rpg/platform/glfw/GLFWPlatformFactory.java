@@ -1,6 +1,7 @@
 package com.pocket.rpg.platform.glfw;
 
 import com.pocket.rpg.config.GameConfig;
+import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.core.window.AbstractWindow;
 import com.pocket.rpg.platform.PlatformFactory;
 import com.pocket.rpg.input.InputBackend;
@@ -29,8 +30,8 @@ public class GLFWPlatformFactory implements PlatformFactory {
     }
 
     @Override
-    public PostProcessor createPostProcessor(GameConfig config) {
-        return new PostProcessor(config);
+    public PostProcessor createPostProcessor(RenderingConfig config, int gameWidth, int gameHeight) {
+        return new PostProcessor(config, gameWidth, gameHeight);
     }
 
     @Override

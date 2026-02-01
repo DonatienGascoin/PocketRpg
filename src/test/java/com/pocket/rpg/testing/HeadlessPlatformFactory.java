@@ -1,6 +1,7 @@
 package com.pocket.rpg.testing;
 
 import com.pocket.rpg.config.GameConfig;
+import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.core.window.AbstractWindow;
 import com.pocket.rpg.platform.PlatformFactory;
 import com.pocket.rpg.input.InputBackend;
@@ -32,7 +33,7 @@ public class HeadlessPlatformFactory implements PlatformFactory {
     }
 
     @Override
-    public PostProcessor createPostProcessor(GameConfig config) {
+    public PostProcessor createPostProcessor(RenderingConfig config, int gameWidth, int gameHeight) {
         return new NoOpPostProcessor();
     }
 
@@ -139,7 +140,7 @@ class MockInputBackend implements InputBackend {
 
 class NoOpPostProcessor extends PostProcessor {
     public NoOpPostProcessor() {
-        super(GameConfig.builder().build());
+        super(RenderingConfig.builder().build(), 640, 480);
     }
 
     @Override

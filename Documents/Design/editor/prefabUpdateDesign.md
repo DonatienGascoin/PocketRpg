@@ -36,11 +36,17 @@ Prefab creation is currently a one-shot operation. Once exported via `SavePrefab
 
 ### 1. Prefab Edit Mode
 
-The editor gains a third visualization mode alongside Scene and Play: **Prefab Edit Mode**. This reuses the existing `SceneViewport` (grid, pan, scroll, camera) and `InspectorPanel` (with a new inspectable type) rather than introducing a separate window.
+The editor gains a third visualization mode alongside Scene and Play: **Prefab Edit Mode**. No new panels or windows are created. The existing `SceneViewport`, `InspectorPanel`, and `SceneViewToolbar` remain the same panels — they just render different content depending on whether prefab edit mode is active, exactly like they already do for play mode.
 
-#### Mode architecture
+#### How existing panels change behavior
 
-Following the `PlayModeController` pattern, a new `PrefabEditController` manages the mode lifecycle:
+- **`SceneViewport`**: Already switches rendering between scene content and play mode overlay. Prefab edit adds a third branch: when active, the viewport renders only the working entity instead of the full scene. Same grid, same camera, same panel.
+- **`InspectorPanel`**: Already routes to different rendering logic based on what's selected (entity, tilemap, camera, asset, animator). When prefab edit is active, it routes to a `PrefabInspector` rendering delegate instead. Same panel, different content.
+- **`SceneViewToolbar`**: Disables tool buttons and play controls, shows a mode indicator. Same toolbar.
+
+#### Mode controller
+
+Following the `PlayModeController` pattern, a new `PrefabEditController` manages the mode lifecycle. It is not a UI component — it holds the editing state and the working entity, and other panels query it to decide what to render.
 
 ```
 EditorApplication
@@ -451,7 +457,7 @@ This is the core complexity. When a prefab changes, existing instances in scenes
 
 #### 6d. Component Type Renamed / Replaced
 
-If a component is removed and a different one added, this is effectively 5b + 5a combined. The old overrides become orphaned, the new component appears with defaults. No special handling needed.
+If a component is removed and a different one added, this is effectively 6b + 6a combined. The old overrides become orphaned, the new component appears with defaults. No special handling needed.
 
 #### 6e. Summary Table
 
@@ -480,61 +486,7 @@ if (scene != null) {
 
 Scenes that are not currently loaded don't need invalidation -- they'll rebuild caches when loaded.
 
-### 8. "Apply Overrides to Prefab" Workflow
-
-A secondary workflow for updating field defaults without entering prefab edit mode. Available on prefab instances in the regular scene inspector.
-
-#### Use case
-
-A user has placed a prefab instance, tweaked field values (creating overrides), and wants to "push" those values back into the prefab definition so all instances get them.
-
-#### Entry point
-
-Inspector button on a prefab instance: **"Apply Overrides to Prefab"** (only for JSON prefabs).
-
-#### Behavior
-
-1. For each overridden field on the instance, update the corresponding default value in the prefab definition
-2. Remove the override from the instance (it now matches the new default)
-3. Save the prefab to disk
-4. Invalidate caches on all instances
-
-This does **not** add or remove components -- it only updates default values. For structural changes, enter prefab edit mode.
-
-### 9. "Update Prefab from Entity" (Structural Re-export)
-
-For cases where the user wants to completely redefine a prefab from a scratch entity.
-
-#### Entry point
-
-Hierarchy context menu on a **scratch entity**: **"Save as Prefab"** (existing) -- but now, if the entered ID matches an existing JSON prefab, instead of blocking with "already exists", show a confirmation dialog:
-
-```
-+------------------------------------------------------+
-|  Update Existing Prefab?                             |
-+------------------------------------------------------+
-|  A prefab with ID "chest" already exists.            |
-|                                                      |
-|  This will replace the prefab definition with the    |
-|  components from this entity.                        |
-|                                                      |
-|  Changes:                                            |
-|  + ChestInteraction (new component)                  |
-|  ~ SpriteRenderer (2 fields differ)                  |
-|  - OldComponent (will be removed)                    |
-|                                                      |
-|  Overrides on removed components will become          |
-|  orphaned but won't cause errors.                    |
-|                                                      |
-|  [Update Prefab]  [Save as New]  [Cancel]            |
-+------------------------------------------------------+
-```
-
-**"Update Prefab"**: Replaces the prefab definition entirely with the entity's current components. Same propagation logic as section 5.
-
-**"Save as New"**: Opens a new ID field so the user can create a separate prefab (current behavior).
-
-### 10. Runtime Impact
+### 8. Runtime Impact
 
 `Prefab.instantiate()` and `RuntimeSceneLoader` need **no changes**. They already:
 1. Read components from the prefab definition
@@ -544,7 +496,7 @@ Hierarchy context menu on a **scratch entity**: **"Save as Prefab"** (existing) 
 
 The only consideration: if a scene was saved with an old prefab version and loaded with a new one, the orphaned overrides in the scene JSON are simply never matched. This is safe.
 
-### 11. Implementation Components
+### 9. Implementation Components
 
 #### New classes
 
@@ -563,15 +515,14 @@ The only consideration: if a scene was saved with an old prefab version and load
 | `SceneViewport` | When prefab edit active, render only the working entity + colored border overlay |
 | `SceneViewToolbar` | Disable tool buttons and play controls during prefab edit. Show mode indicator |
 | `UndoManager` | Add `stash()` / `restore()` methods to save and restore undo/redo stacks |
-| `SavePrefabPopup` | Allow overwriting existing JSON prefabs with confirmation dialog |
-| `PrefabRegistry` | Add `updateJsonPrefab(JsonPrefab)` that handles re-registration without throwing |
-| `EntityInspector` | Add "Edit Prefab" button in `renderPrefabInfo()`, "Apply Overrides to Prefab" button |
+| `PrefabRegistry` | Add `saveJsonPrefab(JsonPrefab)` that persists and re-registers without throwing |
+| `EntityInspector` | Add "Edit Prefab" button in `renderPrefabInfo()` |
 | `JsonPrefabLoader` | Add "Edit Prefab" to right-click context menu in Asset Browser |
 | `EditorGameObject` | Add `getOrphanedOverrides()` method for optional UI display |
 | `EditorApplication` | Wire `PrefabEditController` into the application lifecycle, pass to panels |
 | `EditorShortcutHandlersImpl` | Block Ctrl+S during prefab edit mode, show toast instead |
 
-### 12. Undo System Detail
+### 10. Undo System Detail
 
 Scene undo history must not be accessible during prefab edit mode. The scene is invisible while editing a prefab, so undoing scene operations would be confusing and potentially destructive. The undo stacks are stashed on entry and restored on exit, meaning Ctrl+Z/Y only ever operates on prefab edits.
 
@@ -642,7 +593,7 @@ public void restore(UndoSnapshot snapshot) {
 }
 ```
 
-### 13. Edge Cases
+### 11. Edge Cases
 
 **Duplicate component types:** The current system identifies components by their fully-qualified class name. If a prefab has two components of the same type, overrides are ambiguous. The Prefab Editor should warn if duplicate types are added.
 
@@ -658,7 +609,7 @@ public void restore(UndoSnapshot snapshot) {
 
 **Closing the editor during prefab edit:** Triggers the unsaved changes popup if dirty (see section 5). On Save: prefab is saved, then editor closes. On Discard: prefab changes are lost, editor closes. On Cancel: close is aborted, stay in prefab edit mode.
 
-### 14. Alternative Considered: Editing Prefab In-Scene
+### 12. Alternative Considered: Editing Prefab In-Scene
 
 Instead of a dedicated mode, we could allow adding/removing components on prefab instances directly in the regular inspector, storing structural changes as instance-level overrides (e.g. `"__addedComponents": [...]`, `"__removedComponents": [...]`).
 

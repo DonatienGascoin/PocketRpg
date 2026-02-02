@@ -39,6 +39,7 @@ public class TransitionManager {
     private State state = State.IDLE;
     private ISceneTransition currentTransition;
     private String targetSceneName;
+    private String targetSpawnId;
     /**
      * -- GETTER --
      *  Gets the scene manager.
@@ -107,7 +108,30 @@ public class TransitionManager {
      * @throws IllegalStateException if a transition is already in progress
      */
     public void startTransition(String sceneName) {
-        startTransition(sceneName, defaultConfig);
+        startTransition(sceneName, (String) null);
+    }
+
+    /**
+     * Starts a transition to the specified scene with a spawn point.
+     *
+     * @param sceneName name of the scene to transition to
+     * @param spawnId   spawn point ID in the target scene (may be null)
+     * @throws IllegalStateException if a transition is already in progress
+     */
+    public void startTransition(String sceneName, String spawnId) {
+        startTransitionInternal(sceneName, spawnId, defaultConfig);
+    }
+
+    /**
+     * Starts a transition to the specified scene with a spawn point and custom config.
+     *
+     * @param sceneName name of the scene to transition to
+     * @param spawnId   spawn point ID in the target scene (may be null)
+     * @param config    the transition configuration to use
+     * @throws IllegalStateException if a transition is already in progress
+     */
+    public void startTransition(String sceneName, String spawnId, TransitionConfig config) {
+        startTransitionInternal(sceneName, spawnId, config);
     }
 
     /**
@@ -118,6 +142,14 @@ public class TransitionManager {
      * @throws IllegalStateException if a transition is already in progress
      */
     public void startTransition(String sceneName, TransitionConfig config) {
+        startTransitionInternal(sceneName, null, config);
+    }
+
+    /**
+     * Internal: starts a transition after validating state.
+     * SpawnId is only set if validation passes, preventing stale values.
+     */
+    private void startTransitionInternal(String sceneName, String spawnId, TransitionConfig config) {
         if (state != State.IDLE) {
             System.out.println(
                     "Cannot start transition while another is in progress. " +
@@ -135,6 +167,7 @@ public class TransitionManager {
         }
 
         this.targetSceneName = sceneName;
+        this.targetSpawnId = spawnId;
         this.currentTransition = createTransition(config);
         this.currentTransition.reset();
         this.state = State.FADING_OUT;
@@ -331,7 +364,11 @@ public class TransitionManager {
             if (targetSceneName != null) {
                 // Scene transition: load the target scene
                 System.out.println("Switching to scene: " + targetSceneName);
-                sceneManager.loadScene(targetSceneName);
+                if (targetSpawnId != null && !targetSpawnId.isEmpty()) {
+                    sceneManager.loadScene(targetSceneName, targetSpawnId);
+                } else {
+                    sceneManager.loadScene(targetSceneName);
+                }
             } else if (midpointCallback != null) {
                 // Fade effect: execute the callback
                 System.out.println("Executing fade effect callback");
@@ -351,6 +388,7 @@ public class TransitionManager {
         state = State.IDLE;
         currentTransition = null;
         targetSceneName = null;
+        targetSpawnId = null;
         midpointCallback = null;
     }
 
@@ -420,6 +458,8 @@ public class TransitionManager {
             state = State.IDLE;
             currentTransition = null;
             targetSceneName = null;
+            targetSpawnId = null;
+            midpointCallback = null;
         }
     }
 }

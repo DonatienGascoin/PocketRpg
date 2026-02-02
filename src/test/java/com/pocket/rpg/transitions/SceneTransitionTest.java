@@ -134,7 +134,7 @@ class SceneTransitionTest {
         SceneTransition.initialize(transitionManager);
 
         assertThrows(IllegalArgumentException.class, () ->
-                SceneTransition.loadScene("TestScene", null));
+                SceneTransition.loadScene("TestScene", (TransitionConfig) null));
     }
 
     @Test

@@ -150,6 +150,10 @@ public class TriggerZone extends Component implements GizmoDrawable {
      * @param entity The entity that entered
      */
     public void onEntityEnter(GameObject entity) {
+        System.out.println("[TriggerZone] onEntityEnter: entity=" + entity.getName()
+                + " on " + (gameObject != null ? gameObject.getName() : "?")
+                + " playerOnly=" + playerOnly + " isPlayer=" + isPlayer(entity)
+                + " oneShot=" + oneShot + " triggered=" + triggered);
         if (oneShot && triggered) return;
         if (playerOnly && !isPlayer(entity)) return;
 

@@ -3,8 +3,8 @@
   "name": "Test",
   "gameObjects": [
     {
-      "id": "af3ee687",
-      "name": "UI Canvas",
+      "id": "433b89ae",
+      "name": "Layer 0",
       "active": true,
       "order": 0,
       "components": [
@@ -29,25 +29,19 @@
           }
         },
         {
-          "type": "com.pocket.rpg.components.ui.UICanvas",
-          "properties": {
-            "raycastTarget": true,
-            "renderMode": "SCREEN_SPACE_OVERLAY",
-            "sortOrder": 0,
-            "planeDistance": 100.0
-          }
+          "type": "com.pocket.rpg.components.TilemapRenderer",
+          "properties": "P4AAAP////4AAAABAAdGcmFtZV82ABtzcHJpdGVzL091dGRvb3JzX21pc2MucG5nIzYAAAAAAAQAAAAAAAAAAAAAAG4AAAAAAAAAAQAAAAAAAgAAAAAAAwAAAAAABAAAAAAABQAAAAAABgAAAAAABwAAAAAACAAAAAAACQAAAAAACgAAAAABAAAAAAABAQAAAAABAgAAAAABAwAAAAABBAAAAAABBQAAAAABBgAAAAABBwAAAAABCAAAAAABCQAAAAABCgAAAAACAAAAAAACAQAAAAACAgAAAAACAwAAAAACBAAAAAACBQAAAAACBgAAAAACBwAAAAACCAAAAAACCQAAAAACCgAAAAADAAAAAAADAQAAAAADAgAAAAADAwAAAAADBAAAAAADBQAAAAADBgAAAAADBwAAAAADCAAAAAADCQAAAAADCgAAAAAEAAAAAAAEAQAAAAAEAgAAAAAEAwAAAAAEBAAAAAAEBQAAAAAEBgAAAAAEBwAAAAAECAAAAAAECQAAAAAECgAAAAAFAAAAAAAFAQAAAAAFAgAAAAAFAwAAAAAFBAAAAAAFBQAAAAAFBgAAAAAFBwAAAAAFCAAAAAAFCQAAAAAFCgAAAAAGAAAAAAAGAQAAAAAGAgAAAAAGAwAAAAAGBAAAAAAGBQAAAAAGBgAAAAAGBwAAAAAGCAAAAAAGCQAAAAAGCgAAAAAHAAAAAAAHAQAAAAAHAgAAAAAHAwAAAAAHBAAAAAAHBQAAAAAHBgAAAAAHBwAAAAAHCAAAAAAHCQAAAAAHCgAAAAAIAAAAAAAIAQAAAAAIAgAAAAAIAwAAAAAIBAAAAAAIBQAAAAAIBgAAAAAIBwAAAAAICAAAAAAICQAAAAAICgAAAAAJAAAAAAAJAQAAAAAJAgAAAAAJAwAAAAAJBAAAAAAJBQAAAAAJBgAAAAAJBwAAAAAJCAAAAAAJCQAAAAAJCgAAAAD/////AAAAAAAAALAQAAAAAAAQAQAAAAAQAgAAAAAQAwAAAAAQBAAAAAAQBQAAAAAQBgAAAAAQBwAAAAAQCAAAAAAQCQAAAAAQCgAAAAARAAAAAAARAQAAAAARAgAAAAARAwAAAAARBAAAAAARBQAAAAARBgAAAAARBwAAAAARCAAAAAARCQAAAAARCgAAAAASAAAAAAASAQAAAAASAgAAAAASAwAAAAASBAAAAAASBQAAAAASBgAAAAASBwAAAAASCAAAAAASCQAAAAASCgAAAAATAAAAAAATAQAAAAATAgAAAAATAwAAAAATBAAAAAATBQAAAAATBgAAAAATBwAAAAATCAAAAAATCQAAAAATCgAAAAAUAAAAAAAUAQAAAAAUAgAAAAAUAwAAAAAUBAAAAAAUBQAAAAAUBgAAAAAUBwAAAAAUCAAAAAAUCQAAAAAUCgAAAAAVAAAAAAAVAQAAAAAVAgAAAAAVAwAAAAAVBAAAAAAVBQAAAAAVBgAAAAAVBwAAAAAVCAAAAAAVCQAAAAAVCgAAAAAWAAAAAAAWAQAAAAAWAgAAAAAWAwAAAAAWBAAAAAAWBQAAAAAWBgAAAAAWBwAAAAAWCAAAAAAWCQAAAAAWCgAAAAAXAAAAAAAXAQAAAAAXAgAAAAAXAwAAAAAXBAAAAAAXBQAAAAAXBgAAAAAXBwAAAAAXCAAAAAAXCQAAAAAXCgAAAAAYAAAAAAAYAQAAAAAYAgAAAAAYAwAAAAAYBAAAAAAYBQAAAAAYBgAAAAAYBwAAAAAYCAAAAAAYCQAAAAAYCgAAAAAZAAAAAAAZAQAAAAAZAgAAAAAZAwAAAAAZBAAAAAAZBQAAAAAZBgAAAAAZBwAAAAAZCAAAAAAZCQAAAAAZCgAAAAAaAAAAAAAaAQAAAAAaAgAAAAAaAwAAAAAaBAAAAAAaBQAAAAAaBgAAAAAaBwAAAAAaCAAAAAAaCQAAAAAaCgAAAAAbAAAAAAAbAQAAAAAbAgAAAAAbAwAAAAAbBAAAAAAbBQAAAAAbBgAAAAAbBwAAAAAbCAAAAAAbCQAAAAAbCgAAAAAcAAAAAAAcAQAAAAAcAgAAAAAcAwAAAAAcBAAAAAAcBQAAAAAcBgAAAAAcBwAAAAAcCAAAAAAcCQAAAAAcCgAAAAAdAAAAAAAdAQAAAAAdAgAAAAAdAwAAAAAdBAAAAAAdBQAAAAAdBgAAAAAdBwAAAAAdCAAAAAAdCQAAAAAdCgAAAAAeAAAAAAAeAQAAAAAeAgAAAAAeAwAAAAAeBAAAAAAeBQAAAAAeBgAAAAAeBwAAAAAeCAAAAAAeCQAAAAAeCgAAAAAfAAAAAAAfAQAAAAAfAgAAAAAfAwAAAAAfBAAAAAAfBQAAAAAfBgAAAAAfBwAAAAAfCAAAAAAfCQAAAAAfCgAAAAAAAAAA/////wAAAGQAFgAAAAAAFwAAAAAAGAAAAAAAGQAAAAAAGgAAAAAAGwAAAAAAHAAAAAAAHQAAAAAAHgAAAAAAHwAAAAABFgAAAAABFwAAAAABGAAAAAABGQAAAAABGgAAAAABGwAAAAABHAAAAAABHQAAAAABHgAAAAABHwAAAAACFgAAAAACFwAAAAACGAAAAAACGQAAAAACGgAAAAACGwAAAAACHAAAAAACHQAAAAACHgAAAAACHwAAAAADFgAAAAADFwAAAAADGAAAAAADGQAAAAADGgAAAAADGwAAAAADHAAAAAADHQAAAAADHgAAAAADHwAAAAAEFgAAAAAEFwAAAAAEGAAAAAAEGQAAAAAEGgAAAAAEGwAAAAAEHAAAAAAEHQAAAAAEHgAAAAAEHwAAAAAFFgAAAAAFFwAAAAAFGAAAAAAFGQAAAAAFGgAAAAAFGwAAAAAFHAAAAAAFHQAAAAAFHgAAAAAFHwAAAAAGFgAAAAAGFwAAAAAGGAAAAAAGGQAAAAAGGgAAAAAGGwAAAAAGHAAAAAAGHQAAAAAGHgAAAAAGHwAAAAAHFgAAAAAHFwAAAAAHGAAAAAAHGQAAAAAHGgAAAAAHGwAAAAAHHAAAAAAHHQAAAAAHHgAAAAAHHwAAAAAIFgAAAAAIFwAAAAAIGAAAAAAIGQAAAAAIGgAAAAAIGwAAAAAIHAAAAAAIHQAAAAAIHgAAAAAIHwAAAAAJFgAAAAAJFwAAAAAJGAAAAAAJGQAAAAAJGgAAAAAJGwAAAAAJHAAAAAAJHQAAAAAJHgAAAAAJHwAAAAD//////////wAAAKAQFgAAAAAQFwAAAAAQGAAAAAAQGQAAAAAQGgAAAAAQGwAAAAAQHAAAAAAQHQAAAAAQHgAAAAAQHwAAAAARFgAAAAARFwAAAAARGAAAAAARGQAAAAARGgAAAAARGwAAAAARHAAAAAARHQAAAAARHgAAAAARHwAAAAASFgAAAAASFwAAAAASGAAAAAASGQAAAAASGgAAAAASGwAAAAASHAAAAAASHQAAAAASHgAAAAASHwAAAAATFgAAAAATFwAAAAATGAAAAAATGQAAAAATGgAAAAATGwAAAAATHAAAAAATHQAAAAATHgAAAAATHwAAAAAUFgAAAAAUFwAAAAAUGAAAAAAUGQAAAAAUGgAAAAAUGwAAAAAUHAAAAAAUHQAAAAAUHgAAAAAUHwAAAAAVFgAAAAAVFwAAAAAVGAAAAAAVGQAAAAAVGgAAAAAVGwAAAAAVHAAAAAAVHQAAAAAVHgAAAAAVHwAAAAAWFgAAAAAWFwAAAAAWGAAAAAAWGQAAAAAWGgAAAAAWGwAAAAAWHAAAAAAWHQAAAAAWHgAAAAAWHwAAAAAXFgAAAAAXFwAAAAAXGAAAAAAXGQAAAAAXGgAAAAAXGwAAAAAXHAAAAAAXHQAAAAAXHgAAAAAXHwAAAAAYFgAAAAAYFwAAAAAYGAAAAAAYGQAAAAAYGgAAAAAYGwAAAAAYHAAAAAAYHQAAAAAYHgAAAAAYHwAAAAAZFgAAAAAZFwAAAAAZGAAAAAAZGQAAAAAZGgAAAAAZGwAAAAAZHAAAAAAZHQAAAAAZHgAAAAAZHwAAAAAaFgAAAAAaFwAAAAAaGAAAAAAaGQAAAAAaGgAAAAAaGwAAAAAaHAAAAAAaHQAAAAAaHgAAAAAaHwAAAAAbFgAAAAAbFwAAAAAbGAAAAAAbGQAAAAAbGgAAAAAbGwAAAAAbHAAAAAAbHQAAAAAbHgAAAAAbHwAAAAAcFgAAAAAcFwAAAAAcGAAAAAAcGQAAAAAcGgAAAAAcGwAAAAAcHAAAAAAcHQAAAAAcHgAAAAAcHwAAAAAdFgAAAAAdFwAAAAAdGAAAAAAdGQAAAAAdGgAAAAAdGwAAAAAdHAAAAAAdHQAAAAAdHgAAAAAdHwAAAAAeFgAAAAAeFwAAAAAeGAAAAAAeGQAAAAAeGgAAAAAeGwAAAAAeHAAAAAAeHQAAAAAeHgAAAAAeHwAAAAAfFgAAAAAfFwAAAAAfGAAAAAAfGQAAAAAfGgAAAAAfGwAAAAAfHAAAAAAfHQAAAAAfHgAAAAAfHwAAAAA="
         }
       ]
     },
     {
-      "id": "55b6bcd3",
-      "name": "Text",
+      "id": "db99dc08",
+      "name": "Layer 1",
       "active": true,
-      "parentId": "af3ee687",
       "order": 0,
       "components": [
         {
-          "type": "com.pocket.rpg.components.ui.UITransform",
+          "type": "com.pocket.rpg.components.Transform",
           "properties": {
             "localPosition": {
               "x": 0.0,
@@ -63,59 +57,54 @@
               "x": 1.0,
               "y": 1.0,
               "z": 1.0
-            },
-            "anchor": {
-              "x": 0.5,
-              "y": 0.5
-            },
-            "pivot": {
-              "x": 0.5,
-              "y": 0.5
-            },
-            "width": 200.0,
-            "height": 30.0,
-            "stretchMode": "NONE",
-            "matchParentRotation": false,
-            "matchParentScale": false
+            }
           }
         },
         {
-          "type": "com.pocket.rpg.components.ui.UIText",
+          "type": "com.pocket.rpg.components.TilemapRenderer",
+          "properties": "P4AAAP////8AAAAGAAhGcmFtZV8xOQAcc3ByaXRlcy9PdXRkb29yc19taXNjLnBuZyMxOQAAAAhGcmFtZV81NAAcc3ByaXRlcy9PdXRkb29yc19taXNjLnBuZyM1NAAAAAhGcmFtZV8zNQAcc3ByaXRlcy9PdXRkb29yc19taXNjLnBuZyMzNQAAAAhGcmFtZV8yNQAcc3ByaXRlcy9PdXRkb29yc19taXNjLnBuZyMyNQAAAAhGcmFtZV8xNgAcc3ByaXRlcy9PdXRkb29yc19taXNjLnBuZyMxNgAAAAhGcmFtZV8yMAAcc3ByaXRlcy9PdXRkb29yc19taXNjLnBuZyMyMAAAAAAABAAAAAAAAAAAAAAABAABAAAAAAEEAAAAAQMBAAAAAgMDAAAAAAAAAAD/////AAAAAgEdAAAAAgEfAAAAAf//////////AAAABBUeAAAAAxkeAAAABBscAAAAAB0fAAAABf////8AAAAAAAAADRUDAAAABBcAAAAAARkCAAAAAxwAAAAABRwBAAAABRwCAAAABRwDAAAABR0EAAAABR4AAAAABR4BAAAABR4CAAAABR4DAAAABR8GAAAABA=="
+        }
+      ]
+    },
+    {
+      "id": "db67a1cb",
+      "name": "SpawnPoint_FromDemoScene",
+      "active": true,
+      "order": 0,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.Transform",
           "properties": {
-            "raycastTarget": true,
-            "fontPath": "fonts/Pokemon-Red.ttf",
-            "fontSize": 23,
-            "text": "New Text",
-            "color": {
-              "x": 1.0,
-              "y": 1.0,
-              "z": 1.0,
-              "w": 1.0
+            "localPosition": {
+              "x": -2.5445852,
+              "y": 3.4457927,
+              "z": 0.0
             },
-            "horizontalAlignment": "LEFT",
-            "verticalAlignment": "TOP",
-            "wordWrap": false,
-            "autoFit": false,
-            "minFontSize": 8,
-            "maxFontSize": 72,
-            "shadow": false,
-            "shadowColor": {
+            "localRotation": {
               "x": 0.0,
               "y": 0.0,
-              "z": 0.0,
-              "w": 0.5
+              "z": 0.0
             },
-            "shadowOffset": {
-              "x": 2.0,
-              "y": 2.0
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
             }
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.interaction.SpawnPoint",
+          "properties": {
+            "spawnId": "SP_DemoScene",
+            "facingDirection": "DOWN",
+            "cameraBoundsId": ""
           }
         }
       ]
     },
     {
-      "id": "24d6dfc1",
-      "name": "Entity_3",
+      "id": "9264ad87",
+      "name": "Warp_ToDemoScene",
       "active": true,
       "order": 1,
       "components": [
@@ -123,7 +112,7 @@
           "type": "com.pocket.rpg.components.Transform",
           "properties": {
             "localPosition": {
-              "x": 0.0,
+              "x": -2.703622,
               "y": 0.0,
               "z": 0.0
             },
@@ -140,16 +129,28 @@
           }
         },
         {
-          "type": "com.pocket.rpg.components.SpriteRenderer",
+          "type": "com.pocket.rpg.components.interaction.WarpZone",
           "properties": {
-            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sheet_spacing.png",
-            "tintColor": {
-              "x": 1.0,
-              "y": 1.0,
-              "z": 1.0,
-              "w": 1.0
-            },
-            "zIndex": 0
+            "targetScene": "DemoScene",
+            "targetSpawnId": "SP_FromTest",
+            "showDestinationLabel": true,
+            "useFade": true,
+            "overrideTransitionDefaults": false,
+            "fadeOutDuration": 0.3,
+            "fadeInDuration": 0.3,
+            "transitionName": ""
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.interaction.TriggerZone",
+          "properties": {
+            "offsetX": 0,
+            "offsetY": 0,
+            "width": 1,
+            "height": 1,
+            "oneShot": false,
+            "playerOnly": true,
+            "elevation": 0
           }
         }
       ]
@@ -162,13 +163,14 @@
       0.0
     ],
     "orthographicSize": 0.0,
+    "initialBoundsId": "",
     "useBounds": false,
     "bounds": [
       0.0,
       0.0,
-      20.0,
-      15.0
+      0.0,
+      0.0
     ]
   },
-  "collisionData": "AAAAAA=="
+  "collisionData": "AAAAAQAAAAAAAAAC//////////8AAAABHR8AAAAB/////wAAAAAAAAAJHAAAAAABHAEAAAABHAIAAAABHAMAAAABHQQAAAABHgAAAAABHgEAAAABHgIAAAABHgMAAAAB"
 }

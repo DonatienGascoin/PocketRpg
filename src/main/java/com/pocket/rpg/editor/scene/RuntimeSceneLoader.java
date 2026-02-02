@@ -3,6 +3,7 @@ package com.pocket.rpg.editor.scene;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.TilemapRenderer;
 import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.components.core.PersistentEntity;
 import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.prefab.Prefab;
@@ -76,13 +77,13 @@ public class RuntimeSceneLoader {
 
     /**
      * Loads a RuntimeScene from a file path.
-     * Uses LoadOptions.raw() to bypass asset root prepending.
+     * Uses LoadOptions.rawUncached() to bypass asset root prepending and avoid cached stale state.
      *
      * @param scenePath Path to .scene file (e.g., "gameData/scenes/Test.scene")
      * @return Uninitialized RuntimeScene
      */
     public RuntimeScene loadFromPath(String scenePath) {
-        SceneData data = Assets.load(scenePath, LoadOptions.raw());
+        SceneData data = Assets.load(scenePath, LoadOptions.rawUncached());
         if (data == null) {
             throw new RuntimeException("Failed to load scene from path: " + scenePath);
         }
@@ -254,23 +255,22 @@ public class RuntimeSceneLoader {
         GameObject gameObject = new GameObject(name);
         gameObject.setEnabled(goData.isActive());
 
-        // Add all components (cloned to protect snapshot)
+        // Clone all components so cached SceneData is never mutated by runtime
         List<Component> components = goData.getComponents();
         if (components != null) {
             for (Component comp : components) {
                 if (comp == null) continue;
 
-                // UITransform replaces Transform - add it as component (preserves all UI fields)
-                if (comp instanceof UITransform) {
-                    gameObject.addComponent(comp);  // Will replace auto-created Transform
-                }
                 // Plain Transform - copy values to existing Transform
-                else if (comp instanceof Transform t) {
+                if (comp instanceof Transform t && !(comp instanceof UITransform)) {
                     gameObject.getTransform().setPosition(new Vector3f(t.getPosition()));
                     gameObject.getTransform().setRotation(new Vector3f(t.getRotation()));
                     gameObject.getTransform().setScale(new Vector3f(t.getScale()));
                 } else {
-                    gameObject.addComponent(comp);
+                    Component clone = ComponentReflectionUtils.cloneComponent(comp);
+                    if (clone != null) {
+                        gameObject.addComponent(clone);
+                    }
                 }
             }
         }
@@ -310,6 +310,12 @@ public class RuntimeSceneLoader {
                 gameObject.setName(instanceName);
             }
             gameObject.setEnabled(goData.isActive());
+
+            // Set sourcePrefabId on PersistentEntity for snapshot restoration
+            PersistentEntity pe = gameObject.getComponent(PersistentEntity.class);
+            if (pe != null && (pe.getSourcePrefabId() == null || pe.getSourcePrefabId().isEmpty())) {
+                pe.setSourcePrefabId(prefabId);
+            }
         } else {
             System.err.println("prefab.instantiate() returned null for " + prefabId);
         }

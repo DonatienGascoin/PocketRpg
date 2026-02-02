@@ -71,6 +71,12 @@ public class GameObjectData {
      */
     private int order;
 
+    /**
+     * Child entity snapshots (used by PersistentEntitySnapshot only).
+     * Scene files use flat lists with parentId references instead.
+     */
+    private List<GameObjectData> children;
+
     // ========================================================================
     // PREFAB INSTANCE (when prefabId is set)
     // ========================================================================

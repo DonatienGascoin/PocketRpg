@@ -84,6 +84,18 @@ public class SceneTransition {
     }
 
     /**
+     * Loads a scene with the default transition, targeting a spawn point.
+     *
+     * @param sceneName name of the scene to load
+     * @param spawnId   spawn point ID in the target scene
+     * @throws IllegalStateException if not initialized
+     */
+    public static void loadScene(String sceneName, String spawnId) {
+        checkInitialized();
+        instance.startTransition(sceneName, spawnId);
+    }
+
+    /**
      * Loads a scene with a custom transition.
      *
      * @param sceneName name of the scene to load
@@ -100,6 +112,23 @@ public class SceneTransition {
     }
 
     /**
+     * Loads a scene with a custom transition, targeting a spawn point.
+     *
+     * @param sceneName name of the scene to load
+     * @param spawnId   spawn point ID in the target scene
+     * @param config    transition configuration
+     * @throws IllegalStateException    if not initialized
+     * @throws IllegalArgumentException if config is null
+     */
+    public static void loadScene(String sceneName, String spawnId, TransitionConfig config) {
+        checkInitialized();
+        if (config == null) {
+            throw new IllegalArgumentException("TransitionConfig cannot be null");
+        }
+        instance.startTransition(sceneName, spawnId, config);
+    }
+
+    /**
      * Loads a scene instantly without any transition.
      * Useful for quick scene changes where visual transition isn't needed.
      *
@@ -109,6 +138,18 @@ public class SceneTransition {
     public static void loadSceneInstant(String sceneName) {
         checkInitialized();
         instance.getSceneManager().loadScene(sceneName);
+    }
+
+    /**
+     * Loads a scene instantly without any transition, targeting a spawn point.
+     *
+     * @param sceneName name of the scene to load
+     * @param spawnId   spawn point ID in the target scene
+     * @throws IllegalStateException if not initialized
+     */
+    public static void loadSceneInstant(String sceneName, String spawnId) {
+        checkInitialized();
+        instance.getSceneManager().loadScene(sceneName, spawnId);
     }
 
     /**

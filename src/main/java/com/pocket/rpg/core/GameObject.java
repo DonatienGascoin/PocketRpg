@@ -4,6 +4,7 @@ import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.RequiredComponent;
 import com.pocket.rpg.components.Transform;
 import com.pocket.rpg.components.ui.UITransform;
+import com.pocket.rpg.logging.Log;
 import com.pocket.rpg.scenes.Scene;
 import lombok.Getter;
 import lombok.Setter;
@@ -341,7 +342,11 @@ public class GameObject implements IGameObject {
                     component.start();
                 }
                 if (component.isEnabled()) {
-                    component.update(deltaTime);
+                    try {
+                        component.update(deltaTime);
+                    } catch (Exception e) {
+                        Log.error(component.logTag(), "update() failed", e);
+                    }
                 }
             }
         }
@@ -358,7 +363,11 @@ public class GameObject implements IGameObject {
         List<Component> snapshot = new ArrayList<>(components);
         for (Component component : snapshot) {
             if (component.isEnabled()) {
-                component.lateUpdate(deltaTime);
+                try {
+                    component.lateUpdate(deltaTime);
+                } catch (Exception e) {
+                    Log.error(component.logTag(), "lateUpdate() failed", e);
+                }
             }
         }
 

@@ -17,6 +17,7 @@ public class MockSceneManager extends SceneManager {
 
     private final Map<String, Scene> registeredScenes = new HashMap<>();
     private final List<String> loadedScenes = new ArrayList<>();
+    private final List<String> loadedSpawnIds = new ArrayList<>();
     private Scene currentScene;
 
     public MockSceneManager() {
@@ -29,6 +30,22 @@ public class MockSceneManager extends SceneManager {
     @Override
     public void loadScene(String sceneName) {
         loadedScenes.add(sceneName);
+        loadedSpawnIds.add(null);
+
+        // Create or retrieve mock scene
+        Scene scene = registeredScenes.get(sceneName);
+        if (scene == null) {
+            scene = new MockScene(sceneName);
+            registeredScenes.put(sceneName, scene);
+        }
+
+        currentScene = scene;
+    }
+
+    @Override
+    public void loadScene(String sceneName, String spawnId) {
+        loadedScenes.add(sceneName);
+        loadedSpawnIds.add(spawnId);
 
         // Create or retrieve mock scene
         Scene scene = registeredScenes.get(sceneName);
@@ -88,10 +105,18 @@ public class MockSceneManager extends SceneManager {
     }
 
     /**
+     * Gets the spawn ID for the most recent loadScene call.
+     */
+    public String getLastSpawnId() {
+        return loadedSpawnIds.isEmpty() ? null : loadedSpawnIds.get(loadedSpawnIds.size() - 1);
+    }
+
+    /**
      * Resets the mock state.
      */
     public void reset() {
         loadedScenes.clear();
+        loadedSpawnIds.clear();
         currentScene = null;
     }
 

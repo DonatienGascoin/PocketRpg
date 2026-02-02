@@ -504,9 +504,15 @@ public class GridMovement extends Component {
         TileEntityMap tileEntityMap = getTileEntityMap();
         if (tileEntityMap != null) {
             List<TriggerZone> triggers = tileEntityMap.get(gridX, gridY, zLevel, TriggerZone.class);
+            if (!triggers.isEmpty()) {
+                System.out.println("[GridMovement] Found " + triggers.size()
+                        + " TriggerZone(s) at (" + gridX + "," + gridY + ",z=" + zLevel + ")");
+            }
             for (TriggerZone trigger : triggers) {
                 trigger.onEntityEnter(gameObject);
             }
+        } else {
+            System.out.println("[GridMovement] WARNING: TileEntityMap is null at (" + gridX + "," + gridY + ")");
         }
 
         // Handle ice sliding - continue sliding if we entered via slide

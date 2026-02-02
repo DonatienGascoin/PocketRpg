@@ -5,6 +5,7 @@ import com.pocket.rpg.core.IGameObject;
 import com.pocket.rpg.editor.gizmos.GizmoContext;
 import com.pocket.rpg.editor.gizmos.GizmoDrawable;
 import com.pocket.rpg.editor.gizmos.GizmoDrawableSelected;
+import com.pocket.rpg.logging.Log;
 import lombok.Getter;
 
 import java.util.Collections;
@@ -51,10 +52,14 @@ public abstract class Component implements GizmoDrawable, GizmoDrawableSelected 
 
         // Only trigger callbacks if owner is also enabled and component has started
         if (owner != null && owner.isEnabled() && started) {
-            if (enabled) {
-                onEnable();
-            } else {
-                onDisable();
+            try {
+                if (enabled) {
+                    onEnable();
+                } else {
+                    onDisable();
+                }
+            } catch (Exception e) {
+                Log.error(logTag(), enabled ? "onEnable() failed" : "onDisable() failed", e);
             }
         }
     }
@@ -85,7 +90,11 @@ public abstract class Component implements GizmoDrawable, GizmoDrawableSelected 
      */
     public void triggerEnable() {
         if (started && enabled) {
-            onEnable();
+            try {
+                onEnable();
+            } catch (Exception e) {
+                Log.error(logTag(), "onEnable() failed", e);
+            }
         }
     }
 
@@ -95,7 +104,11 @@ public abstract class Component implements GizmoDrawable, GizmoDrawableSelected 
      */
     public void triggerDisable() {
         if (started && enabled) {
-            onDisable();
+            try {
+                onDisable();
+            } catch (Exception e) {
+                Log.error(logTag(), "onDisable() failed", e);
+            }
         }
     }
 
@@ -110,12 +123,20 @@ public abstract class Component implements GizmoDrawable, GizmoDrawableSelected 
      */
     public final void start() {
         if (!started) {
-            onStart();
+            try {
+                onStart();
+            } catch (Exception e) {
+                Log.error(logTag(), "onStart() failed", e);
+            }
             started = true;
 
             // Trigger onEnable after start if component is enabled
             if (enabled && owner != null && owner.isEnabled()) {
-                onEnable();
+                try {
+                    onEnable();
+                } catch (Exception e) {
+                    Log.error(logTag(), "onEnable() failed after start", e);
+                }
             }
         }
     }
@@ -126,9 +147,17 @@ public abstract class Component implements GizmoDrawable, GizmoDrawableSelected 
      */
     public final void destroy() {
         if (enabled && started) {
-            onDisable();
+            try {
+                onDisable();
+            } catch (Exception e) {
+                Log.error(logTag(), "onDisable() failed during destroy", e);
+            }
         }
-        onDestroy();
+        try {
+            onDestroy();
+        } catch (Exception e) {
+            Log.error(logTag(), "onDestroy() failed", e);
+        }
     }
 
     // =======================================================================
@@ -228,6 +257,15 @@ public abstract class Component implements GizmoDrawable, GizmoDrawableSelected 
     // =======================================================================
     // Helper Methods
     // =======================================================================
+
+    /**
+     * Returns a log tag identifying this component and its owner for error messages.
+     * Format: "ClassName(OwnerName)" or "ClassName(?)" if no owner.
+     */
+    public String logTag() {
+        String ownerName = owner != null ? owner.getName() : "?";
+        return getClass().getSimpleName() + "(" + ownerName + ")";
+    }
 
     protected Transform getTransform() {
         return owner != null ? owner.getTransform() : null;

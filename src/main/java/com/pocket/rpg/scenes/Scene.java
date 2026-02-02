@@ -116,15 +116,32 @@ public abstract class Scene {
             return null;
         }
 
-        // Search GameObjects for SpawnPoint components
+        // Search GameObjects for SpawnPoint components (recursively)
         for (GameObject obj : gameObjects) {
-            SpawnPoint spawn = obj.getComponent(SpawnPoint.class);
-            if (spawn != null && spawnId.equals(spawn.getSpawnId())) {
-                var pos = obj.getTransform().getPosition();
-                int x = (int) Math.floor(pos.x);
-                int y = (int) Math.floor(pos.y);
-                int z = 0; // Default elevation - SpawnPoint could add elevation field if needed
-                return new TileCoord(x, y, z);
+            TileCoord found = findSpawnPointRecursive(obj, spawnId);
+            if (found != null) {
+                return found;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Recursively searches for a spawn point by ID.
+     */
+    private TileCoord findSpawnPointRecursive(GameObject obj, String spawnId) {
+        SpawnPoint spawn = obj.getComponent(SpawnPoint.class);
+        if (spawn != null && spawnId.equals(spawn.getSpawnId())) {
+            var pos = obj.getTransform().getPosition();
+            int x = (int) Math.floor(pos.x);
+            int y = (int) Math.floor(pos.y);
+            int z = 0; // Default elevation - SpawnPoint could add elevation field if needed
+            return new TileCoord(x, y, z);
+        }
+        for (GameObject child : obj.getChildren()) {
+            TileCoord found = findSpawnPointRecursive(child, spawnId);
+            if (found != null) {
+                return found;
             }
         }
         return null;
@@ -136,7 +153,7 @@ public abstract class Scene {
      * @param entity  The entity to teleport
      * @param spawnId The spawn point ID
      */
-    protected void teleportToSpawn(GameObject entity, String spawnId) {
+    public void teleportToSpawn(GameObject entity, String spawnId) {
         TileCoord spawnCoord = findSpawnPoint(spawnId);
         if (spawnCoord == null) {
             System.err.println("[Scene] Spawn point not found: " + spawnId);
@@ -179,12 +196,8 @@ public abstract class Scene {
             return;
         }
 
-        // Store spawn point for target scene (SceneManager can pass this to the loaded scene)
-        // For now, just load the scene - spawn point support requires SceneManager changes
         System.out.println("[Scene] Loading scene '" + sceneName + "' with spawn point '" + targetSpawn + "'");
-        SceneTransition.loadScene(sceneName);
-
-        // TODO: Pass targetSpawn to SceneManager so the target scene can teleport player on load
+        SceneTransition.loadScene(sceneName, targetSpawn);
     }
 
     // ===========================================
@@ -297,6 +310,7 @@ public abstract class Scene {
         registerCachedComponents(obj);
 
         if (initialized) {
+            ComponentRefResolver.resolveReferences(obj);
             obj.start();
         }
     }

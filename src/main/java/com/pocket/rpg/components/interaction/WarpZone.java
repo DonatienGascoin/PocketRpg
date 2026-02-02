@@ -130,14 +130,9 @@ public class WarpZone extends Component implements GizmoDrawable {
 
     /**
      * Called when an entity enters the trigger zone.
+     * The TriggerZone's playerOnly flag already filters non-player entities.
      */
     private void onTriggerEnter(GameObject entity, TriggerZone trigger) {
-        // Only warp player
-        String name = entity.getName();
-        if (name == null || !name.contains("Player")) {
-            return;
-        }
-
         executeWarp(entity);
     }
 
@@ -260,21 +255,15 @@ public class WarpZone extends Component implements GizmoDrawable {
             Audio.playOneShot(warpOutSound);
         }
 
-        // TODO: Store spawn ID so the new scene can position the player at targetSpawnId
-        // Options:
-        // 1. Store in static/shared location for the new scene to read
-        // 2. Pass through SceneManager.loadScene(sceneName, spawnId)
-        // 3. Use an event system
-
         if (!useFade) {
             // Instant scene change, no transition
-            SceneTransition.loadSceneInstant(targetScene);
+            SceneTransition.loadSceneInstant(targetScene, targetSpawnId);
         } else if (overrideTransitionDefaults) {
             // Custom transition settings
-            SceneTransition.loadScene(targetScene, buildTransitionConfig());
+            SceneTransition.loadScene(targetScene, targetSpawnId, buildTransitionConfig());
         } else {
             // Default transition from rendering config
-            SceneTransition.loadScene(targetScene);
+            SceneTransition.loadScene(targetScene, targetSpawnId);
         }
 
         System.out.println("[WarpZone] Loading scene: " + targetScene);

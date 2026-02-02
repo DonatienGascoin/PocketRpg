@@ -112,7 +112,7 @@ class TransitionManagerTest {
     @DisplayName("startTransition rejects null config")
     void testStartTransitionRejectsNullConfig() {
         assertThrows(IllegalArgumentException.class, () ->
-                transitionManager.startTransition("TestScene", null));
+                transitionManager.startTransition("TestScene", (TransitionConfig) null));
     }
 
     @Test

@@ -108,7 +108,7 @@ Two entry points:
 
 #### Exiting the mode
 
-Two ways out: **Save** or **Cancel**.
+Two ways out: **Save** or **Revert**.
 
 On exit (either path):
 ```
@@ -124,10 +124,10 @@ On **Save** (before the above):
 1. Read the workingEntity's current component list
 2. Deep-clone each component into the JsonPrefab
 3. Persist to disk via PrefabRegistry.saveJsonPrefab()
-4. Invalidate all instance caches in the current scene (section 5)
+4. Invalidate all instance caches in the current scene (section 6)
 ```
 
-On **Cancel**: nothing extra -- the working copy is simply discarded.
+On **Revert**: nothing extra -- the working copy is simply discarded.
 
 ### 2. Scene Viewport in Prefab Edit Mode
 
@@ -179,12 +179,16 @@ if (prefabEditController != null && prefabEditController.isActive()) {
 
 #### PrefabInspector (new class)
 
-A new inspector class: `PrefabInspector`, following the same pattern as `EntityInspector`. It renders:
+A new inspector class: `PrefabInspector`, following the same pattern as `EntityInspector`. The inspector window title itself changes to `"Inspector - Prefab"` (or the ImGui window title stays "Inspector" but a prominent header occupies the top of the panel). The header uses a distinct background color (e.g. teal/blue bar) so the user can never confuse it with the normal entity inspector.
+
+It renders:
 
 ```
 +------------------------------------------------------+
-|  EDITING PREFAB                                      |
-|  [chest] "Treasure Chest"                            |
+| ┌──────────────────────────────────────────────────┐ |
+| │  PREFAB MODE                                     │ |
+| │  Editing: "Treasure Chest" (chest)               │ |
+| └──────────────────────────────────────────────────┘ |
 +------------------------------------------------------+
 |  Display Name: [Treasure Chest    ]                  |
 |  Category:     [Interactables     ]                  |
@@ -205,10 +209,34 @@ A new inspector class: `PrefabInspector`, following the same pattern as `EntityI
 +------------------------------------------------------+
 |                                                      |
 |  +-------------------------------------------------+ |
-|  |          SAVE PREFAB          |    Cancel        | |
+|  |          SAVE PREFAB          (green when dirty) | |
+|  +-------------------------------------------------+ |
+|  |  Reset to Saved  |       (only when dirty)       | |
+|  +-------------------------------------------------+ |
+|  |  Revert & Exit   |                               | |
 |  +-------------------------------------------------+ |
 |                                                      |
 +------------------------------------------------------+
+```
+
+The header block is rendered with a colored background spanning the full width:
+
+```java
+// Prefab mode header
+ImDrawList drawList = ImGui.getWindowDrawList();
+float startX = ImGui.getCursorScreenPosX();
+float startY = ImGui.getCursorScreenPosY();
+float width = ImGui.getContentRegionAvailX();
+float headerHeight = ImGui.getTextLineHeightWithSpacing() * 2 + 8;
+
+int headerColor = ImGui.colorConvertFloat4ToU32(0.15f, 0.4f, 0.5f, 1f);
+drawList.addRectFilled(startX, startY, startX + width, startY + headerHeight, headerColor, 4f);
+
+ImGui.setCursorPosY(ImGui.getCursorPosY() + 4);
+ImGui.text("  PREFAB MODE");
+ImGui.text("  Editing: \"" + targetPrefab.getDisplayName() + "\" (" + targetPrefab.getId() + ")");
+ImGui.setCursorPosY(ImGui.getCursorPosY() + 4);
+ImGui.separator();
 ```
 
 #### What the PrefabInspector reuses
@@ -237,8 +265,8 @@ Design:
 - **No keyboard shortcut** -- save is manual only. Ctrl+S continues to save the scene, not the prefab.
 
 Below the save button:
-- **Reset button**: Restores the working entity to the currently saved prefab state (the on-disk version). This discards all edits made since entering prefab edit mode (or since the last save within the session). Undo history is cleared on reset since the working entity jumps back to a known state.
-- **Cancel button**: Exits prefab edit mode without saving. Equivalent to reset + exit.
+- **Reset to Saved button**: Restores the working entity to the currently saved prefab state (the on-disk version). This discards all edits made since entering prefab edit mode (or since the last save within the session). Undo history is cleared on reset since the working entity jumps back to a known state. Only visible when dirty.
+- **Revert & Exit button**: Exits prefab edit mode, discarding unsaved changes. Always visible. If dirty, triggers the unsaved changes popup first (see section 5).
 
 ```java
 // Bottom of PrefabInspector.render():
@@ -264,16 +292,17 @@ ImGui.popStyleColor(3);
 
 ImGui.spacing();
 
-// Reset to saved state
+// Reset to saved state (only when dirty)
 if (dirty) {
     if (ImGui.button(MaterialIcons.Undo + " Reset to Saved", -1, 0)) {
         prefabEditController.resetToSaved();
     }
+    ImGui.spacing();
 }
 
-// Cancel (exit without saving)
-if (ImGui.button("Cancel", -1, 0)) {
-    prefabEditController.cancel();
+// Revert & Exit
+if (ImGui.button(MaterialIcons.Close + " Revert & Exit", -1, 0)) {
+    prefabEditController.requestExit();  // Shows confirmation if dirty
 }
 ```
 
@@ -300,11 +329,93 @@ The `SceneViewToolbar` needs to react to prefab edit mode:
 - **Mode indicator**: Show "Editing: {prefab displayName}" in the toolbar, possibly with the prefab's preview sprite as a small icon
 - **Grid toggle, gizmo toggle**: Still functional (useful for positioning)
 
-### 5. Impact on Existing Instances
+### 5. Interaction Guards (Unsaved Changes Protection)
+
+During prefab edit mode, many editor actions could disrupt the editing session. Any action that would leave prefab edit mode or change what the inspector shows must be guarded when there are unsaved changes.
+
+#### The confirmation popup
+
+When an action would exit prefab mode while `dirty == true`, a modal popup appears:
+
+```
++------------------------------------------------------+
+|  Unsaved Prefab Changes                              |
++------------------------------------------------------+
+|  You have unsaved changes to prefab                  |
+|  "Treasure Chest" (chest).                           |
+|                                                      |
+|  [Save & Continue]  [Discard]  [Cancel]              |
++------------------------------------------------------+
+```
+
+The three buttons:
+- **Save & Continue**: Save the prefab to disk, then proceed with the interrupted action (exit mode, select entity, etc.)
+- **Discard**: Throw away changes and proceed with the interrupted action
+- **Cancel**: Abort the interrupted action, stay in prefab edit mode with changes intact
+
+The popup stores a `Runnable pendingAction` -- the action that triggered it. On Save or Discard, `pendingAction.run()` is called after the appropriate cleanup. On Cancel, `pendingAction` is discarded.
+
+#### What triggers the guard
+
+Every path that would change the inspector content or exit prefab mode must go through `PrefabEditController.requestExit(Runnable afterExit)` (or a guard check). The table below lists all such paths:
+
+| Trigger | Source | Guard behavior |
+|---|---|---|
+| **Entity selection** | `HierarchySelectionHandler.selectEntity()` | Show popup. On Save/Discard: exit prefab mode, then select the entity. On Cancel: selection does not change. |
+| **Camera selection** | `HierarchySelectionHandler.selectCamera()` | Same as entity selection. |
+| **Tilemap layer selection** | `HierarchySelectionHandler.selectTilemapLayers()` | Same as entity selection. |
+| **Collision layer selection** | `HierarchySelectionHandler.selectCollisionMap()` | Same as entity selection. |
+| **Animator state/transition selection** | `AnimatorEditorPanel` callbacks → `selectionManager.selectAnimatorState/Transition()` | Show popup. On Save/Discard: exit prefab mode, then select animator item. On Cancel: animator selection does not change. |
+| **Asset selection** | `AssetBrowserPanel` → `selectionManager.selectAsset()` | Same pattern. |
+| **Revert & Exit button** | `PrefabInspector` | Show popup (unless clean, in which case exit immediately). |
+| **Ctrl+S (scene save)** | `EditorShortcuts.FILE_SAVE` | **Blocked entirely** during prefab edit mode (see below). |
+| **Scene change** | `SceneWillChangeEvent` | Show popup. On Save/Discard: exit prefab mode, proceed with scene change. On Cancel: abort scene change. |
+| **Editor close** | Window close event | Show popup. On Save/Discard: exit prefab mode, proceed with close. On Cancel: abort close. |
+| **Play mode start** | Play button | Show popup. On Save/Discard: exit prefab mode, then start play mode. On Cancel: stay in prefab mode. |
+
+#### Implementation: guarding selection changes
+
+The cleanest approach is to intercept at the `EditorSelectionManager` level. When prefab edit mode is active and dirty, selection changes are deferred:
+
+```java
+// In EditorSelectionManager:
+public void selectEntity(EditorGameObject entity) {
+    if (prefabEditController != null && prefabEditController.isActiveAndDirty()) {
+        prefabEditController.requestExit(() -> selectEntityInternal(entity));
+        return;
+    }
+    selectEntityInternal(entity);
+}
+```
+
+This pattern applies to all `select*()` methods on `EditorSelectionManager`. When prefab mode is active but clean (no unsaved changes), the selection proceeds directly -- it exits prefab mode and selects the new item without a popup.
+
+For the animator panel, the same guard applies through `selectAnimatorState()` and `selectAnimatorTransition()` on the selection manager.
+
+#### Ctrl+S is blocked in prefab mode
+
+Ctrl+S saves the scene, but during prefab edit mode the scene is invisible and conceptually "frozen". Allowing scene save would be confusing (the user can't see what they're saving). The shortcut handler should no-op and optionally show a toast: "Scene save disabled during prefab editing. Use Save Prefab to save changes."
+
+```java
+// In EditorShortcutHandlersImpl.onSaveScene():
+public void onSaveScene() {
+    if (prefabEditController.isActive()) {
+        showMessage("Scene save disabled during prefab editing");
+        return;
+    }
+    menuBar.triggerSaveScene();
+}
+```
+
+#### When clean (no unsaved changes)
+
+If `dirty == false`, all the guarded actions proceed immediately. Prefab edit mode exits silently and the requested action (select entity, open animator, etc.) completes. No popup is shown.
+
+### 6. Impact on Existing Instances
 
 This is the core complexity. When a prefab changes, existing instances in scenes need to respond correctly. The design follows a principle: **instances are resilient to prefab changes without requiring manual migration**.
 
-#### 5a. Component Added to Prefab
+#### 6a. Component Added to Prefab
 
 **What happens:** The new component appears on all instances automatically.
 
@@ -312,7 +423,7 @@ This is the core complexity. When a prefab changes, existing instances in scenes
 
 **Action required:** Call `invalidateComponentCache()` on all loaded instances so `getMergedComponents()` re-runs.
 
-#### 5b. Component Removed from Prefab
+#### 6b. Component Removed from Prefab
 
 **What happens:** The component disappears from all instances. Overrides for that component type become **orphaned**.
 
@@ -330,7 +441,7 @@ This is the core complexity. When a prefab changes, existing instances in scenes
 
 **Recommendation:** Option A (lazy cleanup) for the initial implementation. Optionally add a "Clean orphaned overrides" utility later. If desired, a warning badge could appear in the inspector showing "X orphaned overrides" with a button to clear them.
 
-#### 5c. Default Field Value Changed on Existing Component
+#### 6c. Default Field Value Changed on Existing Component
 
 **What happens:** Instances that have **not** overridden that field will see the new default. Instances that **have** overridden the field keep their override.
 
@@ -338,11 +449,11 @@ This is the core complexity. When a prefab changes, existing instances in scenes
 
 **Subtlety:** If an instance previously overrode a field to match the old default (e.g., override `zIndex=5` when default was `5`), `isFieldOverridden()` compares current override value to current default. After the default changes to `10`, the instance's `zIndex=5` override now genuinely differs and will be shown as overridden. This is correct behavior.
 
-#### 5d. Component Type Renamed / Replaced
+#### 6d. Component Type Renamed / Replaced
 
 If a component is removed and a different one added, this is effectively 5b + 5a combined. The old overrides become orphaned, the new component appears with defaults. No special handling needed.
 
-#### 5e. Summary Table
+#### 6e. Summary Table
 
 | Prefab Change | Instance Effect | Override Impact |
 |---|---|---|
@@ -351,7 +462,7 @@ If a component is removed and a different one added, this is effectively 5b + 5a
 | Default value changed | Non-overridden fields update | Overridden fields unchanged |
 | Component reordered | Display order changes | No impact on overrides |
 
-### 6. Cache Invalidation
+### 7. Cache Invalidation
 
 When a prefab is updated, all `EditorGameObject` instances of that prefab need their cached merged components invalidated.
 
@@ -369,7 +480,7 @@ if (scene != null) {
 
 Scenes that are not currently loaded don't need invalidation -- they'll rebuild caches when loaded.
 
-### 7. "Apply Overrides to Prefab" Workflow
+### 8. "Apply Overrides to Prefab" Workflow
 
 A secondary workflow for updating field defaults without entering prefab edit mode. Available on prefab instances in the regular scene inspector.
 
@@ -390,7 +501,7 @@ Inspector button on a prefab instance: **"Apply Overrides to Prefab"** (only for
 
 This does **not** add or remove components -- it only updates default values. For structural changes, enter prefab edit mode.
 
-### 8. "Update Prefab from Entity" (Structural Re-export)
+### 9. "Update Prefab from Entity" (Structural Re-export)
 
 For cases where the user wants to completely redefine a prefab from a scratch entity.
 
@@ -423,17 +534,17 @@ Hierarchy context menu on a **scratch entity**: **"Save as Prefab"** (existing) 
 
 **"Save as New"**: Opens a new ID field so the user can create a separate prefab (current behavior).
 
-### 9. Runtime Impact
+### 10. Runtime Impact
 
 `Prefab.instantiate()` and `RuntimeSceneLoader` need **no changes**. They already:
 1. Read components from the prefab definition
 2. Clone each one
 3. Apply overrides from `GameObjectData.componentOverrides`
-4. Skip override entries that don't match any component (the orphaned overrides from 5b are naturally ignored because the loop iterates prefab components, not override keys)
+4. Skip override entries that don't match any component (the orphaned overrides from 6b are naturally ignored because the loop iterates prefab components, not override keys)
 
 The only consideration: if a scene was saved with an old prefab version and loaded with a new one, the orphaned overrides in the scene JSON are simply never matched. This is safe.
 
-### 10. Implementation Components
+### 11. Implementation Components
 
 #### New classes
 
@@ -448,6 +559,7 @@ The only consideration: if a scene was saved with an old prefab version and load
 | Class | Change |
 |---|---|
 | `InspectorPanel` | Add `PrefabEditController` reference. When active, delegate to `PrefabInspector` instead of selection-based routing |
+| `EditorSelectionManager` | Guard all `select*()` methods: when prefab edit mode is active, defer through `PrefabEditController.requestExit()` |
 | `SceneViewport` | When prefab edit active, render only the working entity + colored border overlay |
 | `SceneViewToolbar` | Disable tool buttons and play controls during prefab edit. Show mode indicator |
 | `UndoManager` | Add `stash()` / `restore()` methods to save and restore undo/redo stacks |
@@ -457,8 +569,9 @@ The only consideration: if a scene was saved with an old prefab version and load
 | `JsonPrefabLoader` | Add "Edit Prefab" to right-click context menu in Asset Browser |
 | `EditorGameObject` | Add `getOrphanedOverrides()` method for optional UI display |
 | `EditorApplication` | Wire `PrefabEditController` into the application lifecycle, pass to panels |
+| `EditorShortcutHandlersImpl` | Block Ctrl+S during prefab edit mode, show toast instead |
 
-### 11. Undo System Detail
+### 12. Undo System Detail
 
 Scene undo history must not be accessible during prefab edit mode. The scene is invisible while editing a prefab, so undoing scene operations would be confusing and potentially destructive. The undo stacks are stashed on entry and restored on exit, meaning Ctrl+Z/Y only ever operates on prefab edits.
 
@@ -529,7 +642,7 @@ public void restore(UndoSnapshot snapshot) {
 }
 ```
 
-### 12. Edge Cases
+### 13. Edge Cases
 
 **Duplicate component types:** The current system identifies components by their fully-qualified class name. If a prefab has two components of the same type, overrides are ambiguous. The Prefab Editor should warn if duplicate types are added.
 
@@ -541,11 +654,11 @@ public void restore(UndoSnapshot snapshot) {
 
 **Prefab file deleted externally:** Already handled -- `EditorGameObject.isPrefabValid()` returns false and a broken-link sprite is shown.
 
-**Ctrl+S during prefab edit:** Ctrl+S should save the **scene**, not the prefab. The prefab is only saved via the explicit Save Prefab button. This avoids accidental prefab saves when the user reflexively hits Ctrl+S. The scene save should work normally even during prefab edit mode (the working entity is not part of the scene).
+**Ctrl+S during prefab edit:** Blocked entirely (see section 5). The scene is invisible and not editable during prefab mode, so saving it would be confusing. A toast message informs the user.
 
-**Closing the editor during prefab edit:** Treat as cancel. The prefab is not saved. If the scene has unsaved changes, the normal "unsaved changes" dialog appears for the scene only.
+**Closing the editor during prefab edit:** Triggers the unsaved changes popup if dirty (see section 5). On Save: prefab is saved, then editor closes. On Discard: prefab changes are lost, editor closes. On Cancel: close is aborted, stay in prefab edit mode.
 
-### 13. Alternative Considered: Editing Prefab In-Scene
+### 14. Alternative Considered: Editing Prefab In-Scene
 
 Instead of a dedicated mode, we could allow adding/removing components on prefab instances directly in the regular inspector, storing structural changes as instance-level overrides (e.g. `"__addedComponents": [...]`, `"__removedComponents": [...]`).
 

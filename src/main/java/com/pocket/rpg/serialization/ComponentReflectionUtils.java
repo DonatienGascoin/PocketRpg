@@ -2,7 +2,12 @@ package com.pocket.rpg.serialization;
 
 import com.pocket.rpg.components.Component;
 
+import java.lang.reflect.Array;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Utility for reading/writing Component fields via reflection.
@@ -205,8 +210,10 @@ public final class ComponentReflectionUtils {
 
     /**
      * Creates a deep copy of a value if it's a known mutable type.
+     * Recursively copies Lists, Maps, arrays, and JOML vector types.
+     * Immutable types (String, Number, Enum, asset references) are returned as-is.
      */
-    private static Object deepCopyValue(Object value) {
+    public static Object deepCopyValue(Object value) {
         if (value == null) {
             return null;
         }
@@ -220,6 +227,39 @@ public final class ComponentReflectionUtils {
         }
         if (value instanceof org.joml.Vector4f v) {
             return new org.joml.Vector4f(v);
+        }
+
+        // List - deep copy elements
+        if (value instanceof List<?> list) {
+            List<Object> copy = new ArrayList<>(list.size());
+            for (Object element : list) {
+                copy.add(deepCopyValue(element));
+            }
+            return copy;
+        }
+
+        // Map - deep copy keys and values
+        if (value instanceof Map<?, ?> map) {
+            Map<Object, Object> copy = new LinkedHashMap<>(map.size());
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                copy.put(deepCopyValue(entry.getKey()), deepCopyValue(entry.getValue()));
+            }
+            return copy;
+        }
+
+        // Arrays
+        if (value.getClass().isArray()) {
+            int length = Array.getLength(value);
+            Class<?> componentType = value.getClass().getComponentType();
+            Object copy = Array.newInstance(componentType, length);
+            if (componentType.isPrimitive()) {
+                System.arraycopy(value, 0, copy, 0, length);
+            } else {
+                for (int i = 0; i < length; i++) {
+                    Array.set(copy, i, deepCopyValue(Array.get(value, i)));
+                }
+            }
+            return copy;
         }
 
         // Immutable types - return as-is

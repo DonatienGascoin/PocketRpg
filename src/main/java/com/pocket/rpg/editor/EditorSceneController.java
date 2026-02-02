@@ -41,7 +41,11 @@ public class EditorSceneController {
      */
     public void newScene() {
         // Notify subscribers before scene changes (e.g., stop play mode)
-        EditorEventBus.get().publish(new SceneWillChangeEvent());
+        SceneWillChangeEvent event = new SceneWillChangeEvent();
+        EditorEventBus.get().publish(event);
+        if (event.isCancelled()) {
+            return;
+        }
 
         System.out.println("Creating new scene...");
 
@@ -69,7 +73,11 @@ public class EditorSceneController {
      */
     public void openScene(String path) {
         // Notify subscribers before scene changes (e.g., stop play mode)
-        EditorEventBus.get().publish(new SceneWillChangeEvent());
+        SceneWillChangeEvent event = new SceneWillChangeEvent();
+        EditorEventBus.get().publish(event);
+        if (event.isCancelled()) {
+            return;
+        }
 
         System.out.println("Opening scene: " + path);
 

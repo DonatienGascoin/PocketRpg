@@ -138,6 +138,37 @@ public class PrefabRegistry {
     }
 
     /**
+     * Saves a JSON prefab to disk using its sourcePath.
+     * Requires that the prefab was previously loaded or saved (sourcePath must be set).
+     *
+     * @param prefab The prefab to save
+     * @throws IllegalStateException if sourcePath is not set
+     */
+    public void saveJsonPrefab(JsonPrefab prefab) {
+        String sourcePath = prefab.getSourcePath();
+        if (sourcePath == null || sourcePath.isEmpty()) {
+            throw new IllegalStateException("Cannot save prefab without sourcePath: " + prefab.getId());
+        }
+
+        // sourcePath may be full path (gameData/assets/prefabs/x.prefab.json) or relative (prefabs/x.prefab.json)
+        // Strip asset root prefix if present, then use standard persist (which adds it back)
+        String relativePath = sourcePath;
+        String assetRoot = "gameData/assets/";
+        if (relativePath.startsWith(assetRoot)) {
+            relativePath = relativePath.substring(assetRoot.length());
+        }
+
+        try {
+            // Use standard persist (no raw()) which handles asset root correctly
+            Assets.persist(prefab, relativePath);
+            prefabs.put(prefab.getId(), prefab);
+            System.out.println("Saved JSON prefab: " + prefab.getId() + " to " + relativePath);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to save prefab: " + e.getMessage(), e);
+        }
+    }
+
+    /**
      * Checks if a prefab is a JSON prefab (vs Java prefab).
      */
     public boolean isJsonPrefab(String id) {

@@ -28,6 +28,7 @@ public class EditorUIController {
     private final EditorContext context;
     private final EditorToolController toolController;
     private PlayModeController playModeController;
+    private PrefabEditController prefabEditController;
 
     @Getter
     private SceneViewport sceneViewport;
@@ -89,9 +90,16 @@ public class EditorUIController {
     // Flag to focus Game panel on next frame (after window exists)
     private boolean requestGameFocus = false;
 
+    // Prefab edit mode state (for disabling play controls)
+    private boolean prefabEditActive = false;
+
     public EditorUIController(EditorContext context, EditorToolController toolController) {
         this.context = context;
         this.toolController = toolController;
+
+        // Subscribe to prefab edit events for play control disabling
+        EditorEventBus.get().subscribe(PrefabEditStartedEvent.class, e -> prefabEditActive = true);
+        EditorEventBus.get().subscribe(PrefabEditStoppedEvent.class, e -> prefabEditActive = false);
     }
 
     public void init() {
@@ -164,7 +172,7 @@ public class EditorUIController {
         assetBrowserPanel.initPanel(context.getConfig());
         assetBrowserPanel.initialize();
         assetBrowserPanel.setSpriteEditorPanel(spriteEditorPanel);
-        assetBrowserPanel.setSelectionManager(context.getSelectionManager());
+        assetBrowserPanel.setSelectionManager(context.getSelectionGuard());
 
         hierarchyPanel = new HierarchyPanel();
         hierarchyPanel.initPanel(context.getConfig());
@@ -172,7 +180,7 @@ public class EditorUIController {
         hierarchyPanel.setToolManager(context.getToolManager());
         hierarchyPanel.setSelectionTool(toolController.getSelectionTool());
         hierarchyPanel.setBrushTool(toolController.getBrushTool());
-        hierarchyPanel.setSelectionManager(context.getSelectionManager());
+        hierarchyPanel.setSelectionManager(context.getSelectionGuard());
         hierarchyPanel.setUiFactory(new UIEntityFactory(context.getGameConfig()));
         hierarchyPanel.setUiController(this);
         hierarchyPanel.init();
@@ -258,7 +266,7 @@ public class EditorUIController {
 
         animatorEditorPanel = new AnimatorEditorPanel();
         animatorEditorPanel.initialize();
-        animatorEditorPanel.setSelectionManager(context.getSelectionManager());
+        animatorEditorPanel.setSelectionManager(context.getSelectionGuard());
 
         consolePanel = new ConsolePanel();
         consolePanel.initPanel(context.getConfig());
@@ -338,6 +346,9 @@ public class EditorUIController {
     }
 
     private void renderCameraOverlay() {
+        // Skip camera overlay during prefab edit mode
+        if (prefabEditController != null && prefabEditController.isActive()) return;
+
         EditorScene scene = context.getCurrentScene();
         if (scene == null) return;
 
@@ -435,13 +446,14 @@ public class EditorUIController {
         float centerX = (menuBarWidth - totalWidth) / 2;
         ImGui.setCursorPosX(centerX);
 
-        // Play button - active styling when playing, disabled when already playing
+        // Play button - active styling when playing, disabled when already playing or editing prefab
+        boolean playDisabled = isPlaying || prefabEditActive;
         if (isPlaying) {
             ImGui.pushStyleColor(ImGuiCol.Button, 0.2f, 0.5f, 0.2f, 1f);
             ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.2f, 0.5f, 0.2f, 1f);
             ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.2f, 0.5f, 0.2f, 1f);
         }
-        if (isPlaying) {
+        if (playDisabled) {
             ImGui.beginDisabled();
         }
         if (ImGui.button(MaterialIcons.PlayArrow + "##PlayMenu")) {
@@ -452,12 +464,15 @@ public class EditorUIController {
                 requestGameFocus = true;
             }
         }
-        if (isPlaying) {
+        if (playDisabled) {
             ImGui.endDisabled();
+        }
+        if (isPlaying) {
             ImGui.popStyleColor(3);
         }
         if (ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled)) {
-            ImGui.setTooltip(isPlaying ? "Playing" : (isPaused ? "Resume" : "Play"));
+            String tooltip = isPlaying ? "Playing" : (prefabEditActive ? "Exit prefab edit to play" : (isPaused ? "Resume" : "Play"));
+            ImGui.setTooltip(tooltip);
         }
 
         ImGui.sameLine(0, spacing);
@@ -596,6 +611,29 @@ public class EditorUIController {
     }
 
     private void renderSceneInfo() {
+        // During prefab edit, show prefab name and dirty state instead of scene
+        if (prefabEditActive && prefabEditController != null) {
+            com.pocket.rpg.prefab.JsonPrefab prefab = prefabEditController.getTargetPrefab();
+            String title = "Prefab: " + (prefab != null ? prefab.getDisplayName() : "Unknown");
+            boolean prefabDirty = prefabEditController.isDirty();
+            if (prefabDirty) {
+                title += " *";
+            }
+
+            float availableWidth = ImGui.getContentRegionAvailX();
+            float textWidth = ImGui.calcTextSize(title).x;
+            float padding = 20;
+            ImGui.setCursorPosX(ImGui.getCursorPosX() + availableWidth - textWidth - padding);
+
+            if (prefabDirty) {
+                ImGui.textColored(0.0f, 0.8f, 0.8f, 1.0f, title);  // Teal for prefab
+            } else {
+                ImGui.textDisabled(title);
+            }
+            return;
+        }
+
+        // Normal scene info
         EditorScene scene = context.getCurrentScene();
         if (scene == null) return;
 
@@ -614,6 +652,11 @@ public class EditorUIController {
     }
 
     private void renderCollisionOverlay() {
+        // Skip collision overlay during prefab edit mode
+        if (prefabEditController != null && prefabEditController.isActive()) {
+            return;
+        }
+
         EditorScene scene = context.getCurrentScene();
         if (scene == null) {
             return;
@@ -698,6 +741,48 @@ public class EditorUIController {
         // Wire play mode controller to panels for runtime hierarchy/inspector
         hierarchyPanel.setPlayModeController(controller);
         inspectorPanel.setPlayModeController(controller);
+    }
+
+    public void setPrefabEditController(PrefabEditController controller) {
+        this.prefabEditController = controller;
+        inspectorPanel.setPrefabEditController(controller);
+        hierarchyPanel.setPrefabEditController(controller);
+        statusBar.setPrefabEditController(controller);
+
+        // Wire display name and working scene to viewport and toolbar
+        com.pocket.rpg.editor.events.EditorEventBus.get().subscribe(
+                com.pocket.rpg.editor.events.PrefabEditStartedEvent.class, e -> {
+                    String name = controller.getTargetPrefab() != null
+                            ? controller.getTargetPrefab().getDisplayName() : "";
+                    sceneViewport.setPrefabEditDisplayName(name);
+                    sceneToolbar.setPrefabEditDisplayName(name);
+                    // Pass working scene to viewport for gizmos
+                    sceneViewport.setPrefabEditScene(controller.getWorkingScene());
+                });
+
+        com.pocket.rpg.editor.events.EditorEventBus.get().subscribe(
+                com.pocket.rpg.editor.events.PrefabEditStoppedEvent.class, e -> {
+                    sceneViewport.setPrefabEditScene(null);
+                });
+
+        // Register asset browser handler for prefab double-click
+        assetBrowserPanel.registerPanelHandler(
+                EditorPanelType.PREFAB_EDITOR,
+                path -> {
+                    // Block prefab editing during play mode
+                    if (playModeController != null &&
+                            playModeController.getState() != PlayModeController.PlayState.STOPPED) {
+                        statusBar.showMessage("Cannot edit prefabs during play mode");
+                        return;
+                    }
+
+                    com.pocket.rpg.prefab.JsonPrefab prefab = com.pocket.rpg.resources.Assets.load(
+                            path, com.pocket.rpg.prefab.JsonPrefab.class);
+                    if (prefab != null) {
+                        com.pocket.rpg.editor.events.EditorEventBus.get().publish(
+                                new com.pocket.rpg.editor.events.RequestPrefabEditEvent(prefab));
+                    }
+                });
     }
 
     /**

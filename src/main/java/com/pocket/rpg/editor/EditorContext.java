@@ -48,7 +48,13 @@ public class EditorContext {
     private ToolManager toolManager;
 
     @Getter
+    private EditorModeManager modeManager;
+
+    @Getter
     private EditorSelectionManager selectionManager;
+
+    @Getter
+    private SelectionGuard selectionGuard;
 
     @Getter
     private EditorScene currentScene;
@@ -72,7 +78,9 @@ public class EditorContext {
         this.window = window;
         this.camera = camera;
         this.toolManager = new ToolManager();
+        this.modeManager = new EditorModeManager();
         this.selectionManager = new EditorSelectionManager();
+        this.selectionGuard = new SelectionGuard(selectionManager, modeManager);
     }
 
     /**

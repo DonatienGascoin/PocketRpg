@@ -28,7 +28,7 @@ import java.util.stream.Collectors;
  * - Camera settings (SceneCameraSettings)
  * - Multi-selection state
  */
-public class EditorScene {
+public class EditorScene implements DirtyTracker {
 
     /**
      * Default name used when no file path is set.

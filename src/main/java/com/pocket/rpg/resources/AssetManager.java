@@ -782,6 +782,11 @@ public class AssetManager implements AssetContext {
     }
 
     @Override
+    public void unregisterResource(Object resource) {
+        resourcePaths.remove(resource);
+    }
+
+    @Override
     public String toString() {
         return String.format("AssetManager[root=%s, errorMode=%s, %s]",
                 assetRoot, errorMode, cache);

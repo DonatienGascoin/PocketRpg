@@ -1,6 +1,6 @@
 package com.pocket.rpg.editor.panels.hierarchy;
 
-import com.pocket.rpg.editor.EditorSelectionManager;
+import com.pocket.rpg.editor.SelectionGuard;
 import com.pocket.rpg.editor.EditorUIController;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
@@ -14,7 +14,7 @@ import java.util.*;
 
 /**
  * Handles selection logic for the hierarchy panel.
- * Delegates to EditorSelectionManager for state management.
+ * Delegates to SelectionGuard for mode-aware state management.
  */
 public class HierarchySelectionHandler {
 
@@ -22,7 +22,7 @@ public class HierarchySelectionHandler {
     private EditorScene scene;
 
     @Setter
-    private EditorSelectionManager selectionManager;
+    private SelectionGuard selectionManager;
 
     @Setter
     private ToolManager toolManager;
@@ -71,17 +71,17 @@ public class HierarchySelectionHandler {
         }
     }
 
-    // Query methods delegate to selectionManager
+    // Query methods delegate to underlying EditorSelectionManager (read-only, no guard needed)
     public boolean isCameraSelected() {
-        return selectionManager != null && selectionManager.isCameraSelected();
+        return selectionManager != null && selectionManager.getSelectionManager().isCameraSelected();
     }
 
     public boolean isTilemapLayersSelected() {
-        return selectionManager != null && selectionManager.isTilemapLayerSelected();
+        return selectionManager != null && selectionManager.getSelectionManager().isTilemapLayerSelected();
     }
 
     public boolean isCollisionMapSelected() {
-        return selectionManager != null && selectionManager.isCollisionLayerSelected();
+        return selectionManager != null && selectionManager.getSelectionManager().isCollisionLayerSelected();
     }
 
     public void handleEntityClick(EditorGameObject entity) {

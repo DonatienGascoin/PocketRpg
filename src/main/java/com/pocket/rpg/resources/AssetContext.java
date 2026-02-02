@@ -228,6 +228,14 @@ public interface AssetContext {
     void registerResource(Object resource, String path);
 
     /**
+     * Unregisters a resource from path tracking.
+     * The resource remains usable but getPathForResource() will return null.
+     *
+     * @param resource The resource to unregister
+     */
+    void unregisterResource(Object resource);
+
+    /**
      * Checks if a type has a registered loader.
      * @param type Class to check
      * @return true if this type can be loaded through Assets

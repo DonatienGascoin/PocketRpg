@@ -1,12 +1,15 @@
 package com.pocket.rpg.editor.shortcut;
 
 import com.pocket.rpg.editor.EditorContext;
+import com.pocket.rpg.editor.EditorModeManager;
 import com.pocket.rpg.editor.EditorSelectionManager;
 import com.pocket.rpg.editor.EditorToolController;
+import com.pocket.rpg.editor.PrefabEditController;
 import com.pocket.rpg.editor.PlayModeController;
 import com.pocket.rpg.editor.panels.CollisionPanel;
 import com.pocket.rpg.editor.panels.TilesetPalettePanel;
 import com.pocket.rpg.editor.panels.hierarchy.EntityCreationService;
+import com.pocket.rpg.editor.scene.DirtyTracker;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.tools.EditorTool;
@@ -53,6 +56,15 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
     private EntityCreationService entityCreationService;
 
     @Setter
+    private EditorModeManager modeManager;
+
+    @Setter
+    private PrefabEditController prefabEditController;
+
+    @Setter
+    private DirtyTracker activeDirtyTracker;
+
+    @Setter
     private Consumer<String> messageCallback;
 
     public EditorShortcutHandlersImpl(EditorContext context,
@@ -79,6 +91,16 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onSaveScene() {
+        if (modeManager != null && modeManager.isPrefabEditMode()) {
+            if (prefabEditController != null) {
+                prefabEditController.save();
+            }
+            return;
+        }
+        if (modeManager != null && !modeManager.isSceneMode()) {
+            showMessage("Scene save disabled in current mode");
+            return;
+        }
         menuBar.triggerSaveScene();
     }
 
@@ -100,10 +122,12 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onUndo() {
+        if (modeManager != null && modeManager.isPlayMode()) {
+            return;
+        }
         if (UndoManager.getInstance().undo()) {
-            EditorScene scene = context.getCurrentScene();
-            if (scene != null) {
-                scene.markDirty();
+            if (activeDirtyTracker != null) {
+                activeDirtyTracker.markDirty();
             }
             showMessage("Undo");
         }
@@ -111,10 +135,12 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onRedo() {
+        if (modeManager != null && modeManager.isPlayMode()) {
+            return;
+        }
         if (UndoManager.getInstance().redo()) {
-            EditorScene scene = context.getCurrentScene();
-            if (scene != null) {
-                scene.markDirty();
+            if (activeDirtyTracker != null) {
+                activeDirtyTracker.markDirty();
             }
             showMessage("Redo");
         }
@@ -140,7 +166,9 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onDelete() {
-        // Entity delete works anytime (only affects selected entity)
+        if (modeManager != null && !modeManager.isSceneMode()) {
+            return;
+        }
         onEntityDelete();
     }
 
@@ -152,6 +180,9 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onDuplicate() {
+        if (modeManager != null && !modeManager.isSceneMode()) {
+            return;
+        }
         if (entityCreationService == null) {
             return;
         }
@@ -265,8 +296,17 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
         return selectionManager != null && selectionManager.isCollisionLayerSelected();
     }
 
+    /**
+     * Returns true if tools can be used (scene mode or prefab edit mode, but not play mode).
+     */
+    private boolean canUseTools() {
+        if (modeManager == null) return true;
+        return modeManager.isSceneMode() || modeManager.isPrefabEditMode();
+    }
+
     @Override
     public void onToolBrush() {
+        if (!canUseTools()) return;
         if (isTilemapLayerSelected()) {
             context.getToolManager().setActiveTool(toolController.getBrushTool());
             showMessage("Tile Brush");
@@ -278,6 +318,7 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onToolEraser() {
+        if (!canUseTools()) return;
         if (isTilemapLayerSelected()) {
             context.getToolManager().setActiveTool(toolController.getEraserTool());
             showMessage("Tile Eraser");
@@ -289,6 +330,7 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onToolFill() {
+        if (!canUseTools()) return;
         if (isTilemapLayerSelected()) {
             context.getToolManager().setActiveTool(toolController.getFillTool());
             showMessage("Tile Fill");
@@ -300,6 +342,7 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onToolRectangle() {
+        if (!canUseTools()) return;
         if (isTilemapLayerSelected()) {
             context.getToolManager().setActiveTool(toolController.getRectangleTool());
             showMessage("Tile Rectangle");
@@ -311,6 +354,7 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onToolPicker() {
+        if (!canUseTools()) return;
         if (isTilemapLayerSelected()) {
             context.getToolManager().setActiveTool(toolController.getPickerTool());
             showMessage("Tile Picker");
@@ -374,6 +418,9 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onEntityCancel() {
+        if (modeManager != null && modeManager.isPrefabEditMode()) {
+            return; // Escape handled by PrefabEditController in Plan 5
+        }
         // Clear tool selection (brush/fill/rectangle tile selections)
         ToolManager toolManager = context.getToolManager();
         if (toolManager != null) {
@@ -401,18 +448,21 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onToolMove() {
+        if (!canUseTools()) return;
         context.getToolManager().setActiveTool(toolController.getMoveTool());
         showMessage("Move Tool");
     }
 
     @Override
     public void onToolRotate() {
+        if (!canUseTools()) return;
         context.getToolManager().setActiveTool(toolController.getRotateTool());
         showMessage("Rotate Tool");
     }
 
     @Override
     public void onToolScale() {
+        if (!canUseTools()) return;
         context.getToolManager().setActiveTool(toolController.getScaleTool());
         showMessage("Scale Tool");
     }
@@ -509,6 +559,10 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onPlayToggle() {
+        if (modeManager != null && modeManager.isPrefabEditMode()) {
+            showMessage("Exit prefab edit mode before entering play mode");
+            return;
+        }
         if (playModeController == null) {
             showMessage("Play mode not available");
             return;

@@ -126,19 +126,30 @@ OverlayRenderer, PostProcessor. ~90 call sites.
 
 ```java
 public interface BufferBackend {
+    /** Create a new vertex array object (VAO). Returns the VAO handle. */
     int createVertexArray();
+    /** Bind the given VAO as the current vertex array. */
     void bindVertexArray(int vao);
+    /** Delete a previously created VAO, releasing its GPU resources. */
     void deleteVertexArray(int vao);
+    /** Unbind the current VAO (bind 0). */
     void unbindVertexArray();
 
+    /** Create a new buffer object (VBO/EBO). Returns the buffer handle. */
     int createBuffer();
+    /** Bind a buffer to the given target (e.g. {@code GLConstants.ARRAY_BUFFER}). */
     void bindBuffer(int target, int buffer);
+    /** Allocate GPU memory for the bound buffer without uploading data. */
     void bufferData(int target, long sizeBytes, int usage);
+    /** Upload a sub-region of float data into the currently bound buffer. */
     void bufferSubData(int target, long offset, FloatBuffer data);
+    /** Delete a previously created buffer object, releasing its GPU resources. */
     void deleteBuffer(int buffer);
 
+    /** Define the layout of a vertex attribute in the currently bound VBO. */
     void vertexAttribPointer(int index, int size, int type,
                              boolean normalized, int stride, long offset);
+    /** Enable the vertex attribute array at the given index. */
     void enableVertexAttribArray(int index);
 }
 ```
@@ -150,13 +161,20 @@ PostProcessor, all post-effects. ~60 call sites.
 
 ```java
 public interface TextureBackend {
+    /** Create a new texture object. Returns the texture handle. */
     int createTexture();
+    /** Bind a texture to the given target (e.g. {@code GLConstants.TEXTURE_2D}). */
     void bindTexture(int target, int texture);
+    /** Unbind the texture on the given target (bind 0). */
     void unbindTexture(int target);
+    /** Set the active texture unit (0-based index, mapped to GL_TEXTURE0 + unit). */
     void activeTexture(int unit);
+    /** Upload pixel data to the currently bound texture. {@code data} may be null to allocate without uploading. */
     void texImage2D(int target, int level, int internalFormat,
                     int width, int height, int format, int type, ByteBuffer data);
+    /** Set a texture parameter (e.g. min/mag filter, wrap mode). */
     void texParameteri(int target, int pname, int param);
+    /** Delete a previously created texture, releasing its GPU resources. */
     void deleteTexture(int texture);
 }
 ```
@@ -168,18 +186,33 @@ Shader.java with its uniform location cache. ~120 call sites.
 
 ```java
 public interface ShaderBackend {
+    /**
+     * Compile vertex and fragment shaders, link them into a program, and return the program handle.
+     * Handles #ifdef GL_ES preprocessing. Throws on compilation/link failure.
+     */
     int createProgram(String vertexSource, String fragmentSource);
+    /** Bind the given shader program as the active program for subsequent draw calls. */
     void useProgram(int program);
+    /** Delete a shader program, releasing its GPU resources. */
     void deleteProgram(int program);
 
+    /** Query the location of a uniform variable by name. Returns -1 if not found. */
     int getUniformLocation(int program, String name);
+    /** Upload a 4x4 matrix to the given uniform location. */
     void uniformMatrix4fv(int location, boolean transpose, FloatBuffer value);
+    /** Upload a 3x3 matrix to the given uniform location. */
     void uniformMatrix3fv(int location, boolean transpose, FloatBuffer value);
+    /** Upload a single int value (e.g. texture sampler unit). */
     void uniform1i(int location, int value);
+    /** Upload a single float value. */
     void uniform1f(int location, float value);
+    /** Upload a vec2 (two floats). */
     void uniform2f(int location, float x, float y);
+    /** Upload a vec3 (three floats). */
     void uniform3f(int location, float x, float y, float z);
+    /** Upload a vec4 (four floats). */
     void uniform4f(int location, float x, float y, float z, float w);
+    /** Upload an array of int values (e.g. multiple sampler units for texture arrays). */
     void uniform1iv(int location, int[] values);
 }
 ```
@@ -195,17 +228,27 @@ FramebufferTarget, SpritePostEffect. ~80 call sites.
 
 ```java
 public interface FramebufferBackend {
+    /** Create a new framebuffer object (FBO). Returns the FBO handle. */
     int createFramebuffer();
+    /** Bind a framebuffer to the given target (e.g. {@code GLConstants.FRAMEBUFFER}). Bind 0 to restore the default framebuffer. */
     void bindFramebuffer(int target, int fbo);
+    /** Attach a texture as a color or depth target of the currently bound FBO. */
     void framebufferTexture2D(int target, int attachment,
                                int texTarget, int texture, int level);
+    /** Check completeness of the currently bound FBO. Returns GL_FRAMEBUFFER_COMPLETE on success. */
     int checkFramebufferStatus(int target);
+    /** Delete a previously created FBO, releasing its GPU resources. */
     void deleteFramebuffer(int fbo);
 
+    /** Create a new renderbuffer object (RBO). Returns the RBO handle. */
     int createRenderbuffer();
+    /** Bind a renderbuffer as the current renderbuffer target. */
     void bindRenderbuffer(int rbo);
+    /** Allocate storage for the currently bound renderbuffer (e.g. depth buffer). */
     void renderbufferStorage(int internalFormat, int width, int height);
+    /** Attach the currently bound renderbuffer to the given FBO attachment point. */
     void framebufferRenderbuffer(int target, int attachment, int rbo);
+    /** Delete a previously created RBO, releasing its GPU resources. */
     void deleteRenderbuffer(int rbo);
 }
 ```
@@ -217,12 +260,19 @@ Handles blend modes, viewport, clearing. Used everywhere as setup before draw ca
 
 ```java
 public interface StateBackend {
+    /** Enable a GL capability (e.g. {@code GLConstants.BLEND}, {@code GLConstants.DEPTH_TEST}). */
     void enable(int capability);
+    /** Disable a GL capability. */
     void disable(int capability);
+    /** Set the pixel blending function for source and destination factors. */
     void blendFunc(int sfactor, int dfactor);
+    /** Set the viewport rectangle in pixels (lower-left origin). */
     void viewport(int x, int y, int width, int height);
+    /** Set the color used when clearing the color buffer. */
     void clearColor(float r, float g, float b, float a);
+    /** Clear the specified buffers (e.g. {@code GLConstants.COLOR_BUFFER_BIT | GLConstants.DEPTH_BUFFER_BIT}). */
     void clear(int mask);
+    /** Define the scissor rectangle for scissor-test clipping (lower-left origin). */
     void scissor(int x, int y, int width, int height);
 }
 ```
@@ -233,7 +283,9 @@ Simple interface — only two operations used across the entire codebase. ~30 ca
 
 ```java
 public interface DrawBackend {
+    /** Draw primitives from the currently bound VAO's array data. {@code mode} is e.g. {@code GLConstants.TRIANGLES}. */
     void drawArrays(int mode, int first, int count);
+    /** Draw indexed primitives from the currently bound VAO using an element buffer. */
     void drawElements(int mode, int count, int type, long offset);
 }
 ```
@@ -461,21 +513,41 @@ implementations simply return immediately.
 | Android | `context.getAssets().open(path)` | Yes |
 | Web | `fetch(url)` → `ArrayBuffer` | **No** — async only |
 
-### Strategy: Preload-then-run
+### Strategy: Preload-per-scene
 
 Desktop and Android can load synchronously — no change needed.
 
-For web, introduce a preload phase before the game loop starts:
+For web, introduce a preload phase before each scene loads. The scope is **per-scene**,
+not the entire game — only the assets needed by the scene about to load are fetched.
 
-1. Parse the initial scene JSON to discover all referenced assets
-2. Fetch all assets via Fetch API in parallel
-3. Store raw bytes in an in-memory `Map<String, byte[]>` cache
-4. Once all fetches complete, start the game loop
-5. `AssetLoader.load()` reads from the cache — synchronous from the game's perspective
+**Why not preload everything?**
+- The full asset set could be large (all maps, all sprites, all audio)
+- Some assets like `SceneData` are intentionally transient — they're re-read on each
+  scene transition and should not be cached
 
-This keeps the `AssetLoader<T>` interface unchanged. Only the web platform's startup
-sequence differs: it inserts a preload step (with a loading screen/progress bar)
-before calling `GameRunner.init()`.
+**Per-scene preload flow:**
+
+1. Fetch the `SceneData` JSON for the target scene (not cached — always fresh)
+2. Walk the scene JSON to discover referenced cacheable assets (textures, shaders,
+   sprites, audio clips)
+3. Skip assets already in the cache (from a previous scene that shares them)
+4. Fetch missing assets via Fetch API in parallel
+5. Store raw bytes in an in-memory `Map<String, byte[]>` cache
+6. Once all fetches complete, proceed with scene initialization
+7. `AssetLoader.load()` reads from the cache — synchronous from the game's perspective
+
+For the **initial scene**, this preload happens before the game loop starts (with a
+loading screen). For **scene transitions**, it happens during the transition — the game
+can show a loading indicator or transition effect while assets are fetched.
+
+**Cache management:** Cacheable assets (textures, shaders, sprites, audio) persist
+across scene transitions so shared assets aren't re-fetched. `SceneData` and other
+transient reads go through `AssetProvider.readBytes()` without caching — the
+`WebAssetProvider` fetches them on demand (async internally, but the preload phase
+ensures they're ready before the game code asks for them).
+
+This keeps the `AssetLoader<T>` interface unchanged. Only the web platform's scene
+loading sequence differs: it inserts a preload step before the scene initializes.
 
 ### AssetProvider interface
 
@@ -499,6 +571,23 @@ Implementations:
 
 `AssetLoader<T>` implementations receive an `AssetProvider` instead of constructing
 `File` objects directly.
+
+### Asset size and bundling (future optimization)
+
+For the initial implementation, all asset files are served individually from the web
+server — the same files that exist in `gameData/assets/` on desktop. This keeps things
+simple and avoids a build step.
+
+However, for production web builds, individual HTTP requests per asset add latency.
+A future optimization would bundle assets into a single archive (e.g., a `.tar` or
+compressed `.zip`) that the preload phase downloads once and unpacks in memory. This
+would reduce request count and enable better HTTP compression. The `AssetProvider`
+interface is designed to support this — `WebAssetProvider` could read from an unpacked
+archive instead of individual fetch results without any change to callers.
+
+For Android, assets are already bundled inside the APK, so no additional step is needed.
+
+This is not a blocker for the initial architecture.
 
 ---
 
@@ -555,6 +644,104 @@ screen dimensions, shouldClose, focus state.
 
 The `AbstractWindow` contract covers this. `pollEvents()` and `swapBuffers()` are
 no-ops on web and Android (the platform handles these).
+
+### 7.4 Web startup: loading screen and click-to-start gate
+
+On web, the game needs several things before the main loop can run:
+1. Config files must be fetched (`game.json`, `input.json`, `rendering.json`,
+   `audio.json`, `music.json`) — these are loaded synchronously on desktop but
+   are async fetches on web
+2. The initial scene's assets must be preloaded (determined by `GameConfig.startScene`)
+3. The user must interact with the page (browser requirement for audio)
+
+These combine into a single startup flow. Here is an example of how the
+HTML page and TeaVM entry point would work together:
+
+**HTML page (`index.html`):**
+
+```html
+<body>
+    <canvas id="game-canvas" width="960" height="540"></canvas>
+
+    <!-- Overlay shown during loading, hidden once game starts -->
+    <div id="loading-overlay">
+        <div id="loading-text">Loading...</div>
+        <div id="progress-bar-bg">
+            <div id="progress-bar-fill"></div>
+        </div>
+        <button id="start-button" style="display: none;">Click to Start</button>
+    </div>
+
+    <script src="pocketrpg.js"></script>
+</body>
+```
+
+**TeaVM entry point (`WebMain.java`):**
+
+```java
+public class WebMain {
+    public static void main(String[] args) {
+        WebAssetProvider assetProvider = new WebAssetProvider();
+
+        // Phase 1: Fetch config files (same set as desktop: game, input, rendering, audio, music)
+        // game.json and input.json are needed before GL context (window/game size, input bindings).
+        // rendering.json is needed after GL context (contains sprite/post-effect references).
+        // audio.json and music.json are needed before the game loop.
+        assetProvider.preloadPaths(List.of(
+            "config/game.json", "config/input.json", "config/rendering.json",
+            "config/audio.json", "config/music.json"
+        ), configProgress -> {
+            updateProgressBar(configProgress * 0.1); // 0-10%: configs
+        }, () -> {
+            // Phase 2: Parse GameConfig to find the initial scene
+            GameConfig gameConfig = parseConfig(assetProvider.readString("config/game.json"), GameConfig.class);
+            String startScene = gameConfig.getStartScene();
+
+            // Phase 3: Fetch the scene's SceneData (transient, not cached), then preload its assets
+            assetProvider.fetchSceneAndPreload(startScene, assetProgress -> {
+                updateProgressBar(0.1 + assetProgress * 0.9); // 10-100%: scene assets
+            }, () -> {
+                // Phase 4: Everything loaded — show "Click to Start"
+                showStartButton();
+                onStartClicked(() -> {
+                    // Phase 5: User clicked — browser now allows audio
+                    hideLoadingOverlay();
+                    WebAudioBackend audio = new WebAudioBackend();
+                    audio.resumeContext(); // AudioContext.resume() requires user gesture
+
+                    // Phase 6: Initialize and start the game loop
+                    // ConfigLoader reads from assetProvider (already cached), so this is sync
+                    GameRunner runner = new GameRunner(/* backends, assetProvider, audio, ... */);
+                    runner.init();
+                    new WebLoop().run(runner);
+                });
+            });
+        });
+    }
+
+    @JSBody(params = {"progress"}, script =
+        "document.getElementById('progress-bar-fill').style.width = (progress * 100) + '%';")
+    private static native void updateProgressBar(double progress);
+
+    @JSBody(params = {}, script =
+        "document.getElementById('loading-text').textContent = 'Ready!';" +
+        "document.getElementById('start-button').style.display = 'block';")
+    private static native void showStartButton();
+
+    @JSBody(params = {"callback"}, script =
+        "document.getElementById('start-button').addEventListener('click', callback);")
+    private static native void onStartClicked(Runnable callback);
+
+    @JSBody(params = {}, script =
+        "document.getElementById('loading-overlay').style.display = 'none';")
+    private static native void hideLoadingOverlay();
+}
+```
+
+The key idea: the loading screen is plain HTML/CSS that exists on the page before the
+game starts. It shows progress during asset fetch, then reveals a start button. The
+user's click both dismisses the overlay and satisfies the browser's user-gesture
+requirement for `AudioContext.resume()`. Once that's done, the game loop begins.
 
 ---
 

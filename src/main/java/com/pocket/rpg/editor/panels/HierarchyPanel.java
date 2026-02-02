@@ -1,7 +1,9 @@
 package com.pocket.rpg.editor.panels;
 
 import com.pocket.rpg.core.GameObject;
-import com.pocket.rpg.editor.EditorSelectionManager;
+import com.pocket.rpg.editor.EditorModeManager;
+import com.pocket.rpg.editor.PrefabEditController;
+import com.pocket.rpg.editor.SelectionGuard;
 import com.pocket.rpg.editor.PlayModeController;
 import com.pocket.rpg.editor.PlayModeSelectionManager;
 import com.pocket.rpg.editor.assets.HierarchyDropTarget;
@@ -45,6 +47,9 @@ public class HierarchyPanel extends EditorPanel {
     @Setter
     private PlayModeController playModeController;
 
+    @Setter
+    private PrefabEditController prefabEditController;
+
     private final HierarchySelectionHandler selectionHandler = new HierarchySelectionHandler();
     private final HierarchyDragDropHandler dragDropHandler = new HierarchyDragDropHandler();
     @Getter
@@ -67,7 +72,7 @@ public class HierarchyPanel extends EditorPanel {
         selectionHandler.setBrushTool(brushTool);
     }
 
-    public void setSelectionManager(EditorSelectionManager selectionManager) {
+    public void setSelectionManager(SelectionGuard selectionManager) {
         selectionHandler.setSelectionManager(selectionManager);
     }
 
@@ -126,19 +131,25 @@ public class HierarchyPanel extends EditorPanel {
             if (isPlayMode()) {
                 renderPlayModeHeader();
                 renderRuntimeHierarchy();
+            } else if (isPrefabEditMode()) {
+                renderPrefabEditHierarchy();
             } else {
                 renderEditorHierarchy();
             }
         }
         ImGui.end();
 
-        if (!isPlayMode()) {
+        if (!isPlayMode() && !isPrefabEditMode()) {
             dragDropHandler.resetDropTarget();
         }
     }
 
     private boolean isPlayMode() {
         return playModeController != null && playModeController.isActive();
+    }
+
+    private boolean isPrefabEditMode() {
+        return prefabEditController != null && prefabEditController.isActive();
     }
 
     private void renderEditorHierarchy() {
@@ -241,6 +252,97 @@ public class HierarchyPanel extends EditorPanel {
         if (ImGui.isItemClicked() && selMgr != null) {
             selMgr.selectCamera();
         }
+    }
+
+    private void renderPrefabEditHierarchy() {
+        // ===== Fixed Header Section (non-scrollable) =====
+        ImGui.pushStyleColor(ImGuiCol.ChildBg, 0.0f, 0.15f, 0.15f, 1.0f);
+        if (ImGui.beginChild("##prefabControlBar", 0, 140, true)) {
+            // Teal header
+            ImGui.pushStyleColor(ImGuiCol.Text, 0.0f, 0.8f, 0.8f, 1f);
+            ImGui.text(MaterialIcons.Widgets + " PREFAB MODE");
+            ImGui.popStyleColor();
+
+            // Prefab info
+            if (prefabEditController != null) {
+                com.pocket.rpg.prefab.JsonPrefab prefab = prefabEditController.getTargetPrefab();
+                if (prefab != null) {
+                    ImGui.text("Editing: " + prefab.getDisplayName());
+                    ImGui.textDisabled("(" + prefab.getId() + ")");
+                    int instanceCount = countPrefabInstances(prefab.getId());
+                    ImGui.text(instanceCount + " instance" + (instanceCount != 1 ? "s" : "") + " in scene");
+                }
+            }
+
+            ImGui.separator();
+
+            // Buttons
+            float buttonWidth = ImGui.getContentRegionAvailX();
+            boolean isDirty = prefabEditController != null && prefabEditController.isDirty();
+
+            // Save button (green when dirty)
+            if (isDirty) {
+                ImGui.pushStyleColor(ImGuiCol.Button, 0.2f, 0.6f, 0.2f, 1f);
+                ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.3f, 0.7f, 0.3f, 1f);
+            }
+            if (ImGui.button(MaterialIcons.Save + " Save", buttonWidth, 0)) {
+                prefabEditController.save();
+            }
+            if (isDirty) {
+                ImGui.popStyleColor(2);
+            }
+
+            // Save & Exit
+            if (ImGui.button(MaterialIcons.SaveAs + " Save & Exit", buttonWidth, 0)) {
+                prefabEditController.saveAndExit();
+            }
+
+            // Revert all (disabled when clean)
+            if (!isDirty) ImGui.beginDisabled();
+            if (ImGui.button(MaterialIcons.Restore + " Revert all", buttonWidth, 0)) {
+                prefabEditController.resetToSaved();
+            }
+            if (!isDirty) ImGui.endDisabled();
+
+            // Exit
+            if (ImGui.button(MaterialIcons.ExitToApp + " Exit", buttonWidth, 0)) {
+                prefabEditController.requestExit(null);
+            }
+        }
+        ImGui.endChild();
+        ImGui.popStyleColor();
+
+        ImGui.separator();
+
+        // ===== Scrollable Entity Section =====
+        if (ImGui.beginChild("##prefabEntities", 0, 0, false)) {
+            EditorGameObject workingEntity = prefabEditController.getWorkingEntity();
+            if (workingEntity != null) {
+                // Single entity item - always selected in prefab edit mode
+                int flags = ImGuiTreeNodeFlags.Leaf
+                        | ImGuiTreeNodeFlags.NoTreePushOnOpen
+                        | ImGuiTreeNodeFlags.SpanAvailWidth
+                        | ImGuiTreeNodeFlags.Selected;
+
+                String label = IconUtils.getScratchEntityIcon() + " " + workingEntity.getName();
+                ImGui.treeNodeEx("##prefabEntity", flags, label);
+            } else {
+                ImGui.textDisabled("No working entity");
+            }
+        }
+        ImGui.endChild();
+    }
+
+    private int countPrefabInstances(String prefabId) {
+        com.pocket.rpg.editor.scene.EditorScene currentScene = scene;
+        if (currentScene == null) return 0;
+        int count = 0;
+        for (EditorGameObject entity : currentScene.getEntities()) {
+            if (prefabId.equals(entity.getPrefabId())) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private void renderCameraItem() {

@@ -1,9 +1,12 @@
 package com.pocket.rpg.prefab;
 
+import com.pocket.rpg.editor.EditorPanelType;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.rendering.resources.Sprite;
+import com.pocket.rpg.resources.AssetContext;
 import com.pocket.rpg.resources.AssetLoader;
+import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.serialization.Serializer;
 import org.joml.Vector3f;
 
@@ -42,20 +45,26 @@ public class JsonPrefabLoader implements AssetLoader<JsonPrefab> {
 
     @Override
     public void save(JsonPrefab prefab, String path) throws IOException {
-        String jsonContent = Serializer.toPrettyJson(prefab);
+        AssetContext ctx = Assets.getContext();
 
-        Path filePath = Paths.get(path);
+        // Temporarily unregister so serializer doesn't write self-reference
+        ctx.unregisterResource(prefab);
 
-        // Create parent directories if needed
-        Path parent = filePath.getParent();
-        if (parent != null && !Files.exists(parent)) {
-            Files.createDirectories(parent);
+        try {
+            String jsonContent = Serializer.toPrettyJson(prefab);
+
+            Path filePath = Paths.get(path);
+            Path parent = filePath.getParent();
+            if (parent != null && !Files.exists(parent)) {
+                Files.createDirectories(parent);
+            }
+
+            Files.write(filePath, jsonContent.getBytes());
+            prefab.setSourcePath(path);
+        } finally {
+            // Re-register with the save path
+            ctx.registerResource(prefab, path);
         }
-
-        Files.write(filePath, jsonContent.getBytes());
-
-        // Update source path
-        prefab.setSourcePath(path);
     }
 
     @Override
@@ -106,6 +115,11 @@ public class JsonPrefabLoader implements AssetLoader<JsonPrefab> {
             return asset.getPreviewSprite();
         }
         return null;
+    }
+
+    @Override
+    public EditorPanelType getEditorPanelType() {
+        return EditorPanelType.PREFAB_EDITOR;
     }
 
     @Override

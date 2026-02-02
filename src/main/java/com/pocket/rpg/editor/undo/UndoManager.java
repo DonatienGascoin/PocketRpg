@@ -21,6 +21,9 @@ public class UndoManager {
     private final Deque<EditorCommand> undoStack = new ArrayDeque<>();
     private final Deque<EditorCommand> redoStack = new ArrayDeque<>();
 
+    // Scope stack for isolated undo/redo contexts (e.g., prefab edit mode)
+    private final Deque<UndoScope> scopeStack = new ArrayDeque<>();
+
     private int maxHistorySize = 100;
     /**
      * -- SETTER --
@@ -214,4 +217,72 @@ public class UndoManager {
             enabled = wasEnabled;
         }
     }
+
+    // ========================================================================
+    // SCOPED STACKS
+    // ========================================================================
+
+    /**
+     * Pushes a new isolated undo scope.
+     * Current undo/redo state is saved and a fresh scope begins.
+     * Use when entering a sub-editing context (e.g., prefab edit mode).
+     */
+    public void pushScope() {
+        scopeStack.push(new UndoScope(
+                new ArrayDeque<>(undoStack),
+                new ArrayDeque<>(redoStack),
+                lastCommand,
+                lastCommandTime
+        ));
+
+        undoStack.clear();
+        redoStack.clear();
+        lastCommand = null;
+        lastCommandTime = 0;
+    }
+
+    /**
+     * Pops the current scope and restores the previous undo state.
+     * All commands in the current scope are discarded.
+     *
+     * @throws IllegalStateException if no scope has been pushed
+     */
+    public void popScope() {
+        if (scopeStack.isEmpty()) {
+            throw new IllegalStateException("No undo scope to pop");
+        }
+
+        UndoScope scope = scopeStack.pop();
+
+        undoStack.clear();
+        undoStack.addAll(scope.undoStack());
+        redoStack.clear();
+        redoStack.addAll(scope.redoStack());
+        lastCommand = scope.lastCommand();
+        lastCommandTime = scope.lastCommandTime();
+    }
+
+    /**
+     * Returns the current scope nesting depth (0 = root scope).
+     */
+    public int getScopeDepth() {
+        return scopeStack.size();
+    }
+
+    /**
+     * Returns true if currently inside a pushed scope (not the root scope).
+     */
+    public boolean isInScope() {
+        return !scopeStack.isEmpty();
+    }
+
+    /**
+     * Snapshot of undo state for scope isolation.
+     */
+    private record UndoScope(
+            Deque<EditorCommand> undoStack,
+            Deque<EditorCommand> redoStack,
+            EditorCommand lastCommand,
+            long lastCommandTime
+    ) {}
 }

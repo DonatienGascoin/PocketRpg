@@ -7,6 +7,8 @@ import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.events.EditorEventBus;
 import com.pocket.rpg.editor.events.PlayModeStartedEvent;
 import com.pocket.rpg.editor.events.PlayModeStoppedEvent;
+import com.pocket.rpg.editor.events.PrefabEditStartedEvent;
+import com.pocket.rpg.editor.events.PrefabEditStoppedEvent;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.tools.EditorTool;
 import com.pocket.rpg.editor.tools.ToolManager;
@@ -69,6 +71,10 @@ public class SceneViewToolbar {
     private boolean showGizmos = true;
 
     private boolean playModeActive = false;
+    private boolean prefabEditActive = false;
+
+    @Setter
+    private String prefabEditDisplayName = "";
 
     public SceneViewToolbar(EditorContext context, EditorToolController toolController) {
         this.context = context;
@@ -77,6 +83,10 @@ public class SceneViewToolbar {
         // Subscribe to play mode events
         EditorEventBus.get().subscribe(PlayModeStartedEvent.class, e -> playModeActive = true);
         EditorEventBus.get().subscribe(PlayModeStoppedEvent.class, e -> playModeActive = false);
+
+        // Subscribe to prefab edit mode events
+        EditorEventBus.get().subscribe(PrefabEditStartedEvent.class, e -> prefabEditActive = true);
+        EditorEventBus.get().subscribe(PrefabEditStoppedEvent.class, e -> prefabEditActive = false);
     }
 
     private boolean isPlayModeActive() {
@@ -88,8 +98,9 @@ public class SceneViewToolbar {
         ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, 4, 4);
         ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 6, 4);
 
-        boolean playMode = isPlayModeActive();
-        if (playMode) {
+        // Disable tools only during play mode, not prefab edit (prefab edit allows entity manipulation)
+        boolean disabled = isPlayModeActive();
+        if (disabled) {
             ImGui.beginDisabled();
         }
 
@@ -104,8 +115,18 @@ public class SceneViewToolbar {
 
         renderVisibilityToggles();
 
-        if (playMode) {
+        if (disabled) {
             ImGui.endDisabled();
+        }
+
+        // Prefab edit indicator
+        if (prefabEditActive) {
+            ImGui.sameLine();
+            ImGui.text("|");
+            ImGui.sameLine();
+            ImGui.pushStyleColor(ImGuiCol.Text, 0.0f, 0.8f, 0.8f, 1f);
+            ImGui.text(MaterialIcons.Widgets + " " + prefabEditDisplayName);
+            ImGui.popStyleColor();
         }
 
         ImGui.popStyleVar(2);

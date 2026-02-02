@@ -9,6 +9,7 @@ import com.pocket.rpg.core.camera.GameCamera;
 import com.pocket.rpg.editor.EditorSelectionManager;
 import com.pocket.rpg.editor.PlayModeController;
 import com.pocket.rpg.editor.PlayModeSelectionManager;
+import com.pocket.rpg.editor.PrefabEditController;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.inspector.*;
 import com.pocket.rpg.editor.scene.EditorGameObject;
@@ -43,12 +44,17 @@ public class InspectorPanel extends EditorPanel {
     @Setter
     private PlayModeController playModeController;
 
+    @Setter
+    private PrefabEditController prefabEditController;
+
     private final CameraInspector cameraInspector = new CameraInspector();
     private final TilemapLayersInspector tilemapInspector = new TilemapLayersInspector();
     private final CollisionMapInspector collisionInspector = new CollisionMapInspector();
     private final EntityInspector entityInspector = new EntityInspector();
     private final MultiSelectionInspector multiSelectionInspector = new MultiSelectionInspector();
     private final AssetInspector assetInspector = new AssetInspector();
+    private final PrefabInspector prefabInspector = new PrefabInspector(
+            new ComponentFieldEditor(), new ComponentBrowserPopup());
 
     @Getter
     private final TriggerInspector triggerInspector = new TriggerInspector();
@@ -68,7 +74,9 @@ public class InspectorPanel extends EditorPanel {
     public void render() {
         if (!isOpen()) return;
         if (ImGui.begin("Inspector")) {
-            if (isPlayMode()) {
+            if (prefabEditController != null && prefabEditController.isActive()) {
+                prefabInspector.render(prefabEditController);
+            } else if (isPlayMode()) {
                 renderPlayModeInspector();
             } else {
                 renderEditorInspector();

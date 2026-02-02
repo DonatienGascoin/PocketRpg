@@ -1,5 +1,6 @@
 package com.pocket.rpg.editor.ui;
 
+import com.pocket.rpg.editor.PrefabEditController;
 import com.pocket.rpg.editor.camera.EditorCamera;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.events.EditorEventBus;
@@ -29,6 +30,9 @@ public class StatusBar {
 
     @Setter
     private EditorScene currentScene;
+
+    @Setter
+    private PrefabEditController prefabEditController;
 
     // Current message
     private String message = "";
@@ -164,9 +168,15 @@ public class StatusBar {
             rightText.append(MaterialIcons.ZoomIn).append(" ").append(zoomPercent).append("%");
         }
 
-        // Scene dirty indicator
-        if (currentScene != null && currentScene.isDirty()) {
-            rightText.append("  ").append(MaterialIcons.Circle).append(" Modified");
+        // Determine dirty state based on prefab edit mode
+        boolean isPrefabEdit = prefabEditController != null && prefabEditController.isActive();
+        boolean isDirty = isPrefabEdit
+                ? prefabEditController.isDirty()
+                : (currentScene != null && currentScene.isDirty());
+        String dirtyLabel = isPrefabEdit ? "Prefab modified" : "Modified";
+
+        if (isDirty) {
+            rightText.append("  ").append(MaterialIcons.Circle).append(" ").append(dirtyLabel);
         }
 
         if (rightText.length() > 0) {
@@ -177,8 +187,12 @@ public class StatusBar {
 
             ImGui.sameLine(windowWidth - textWidth - 16);
 
-            if (currentScene != null && currentScene.isDirty()) {
-                ImGui.textColored(1.0f, 0.8f, 0.2f, 1.0f, text);
+            if (isDirty) {
+                if (isPrefabEdit) {
+                    ImGui.textColored(0.0f, 0.8f, 0.8f, 1.0f, text);  // Teal for prefab
+                } else {
+                    ImGui.textColored(1.0f, 0.8f, 0.2f, 1.0f, text);  // Yellow for scene
+                }
             } else {
                 ImGui.textDisabled(text);
             }

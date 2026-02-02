@@ -18,6 +18,9 @@ import com.pocket.rpg.editor.core.EditorConfig;
 import com.pocket.rpg.editor.core.EditorWindow;
 import com.pocket.rpg.editor.core.FileDialogs;
 import com.pocket.rpg.editor.core.ImGuiLayer;
+import com.pocket.rpg.editor.events.EditorEventBus;
+import com.pocket.rpg.editor.events.PrefabEditStartedEvent;
+import com.pocket.rpg.editor.events.PrefabEditStoppedEvent;
 import com.pocket.rpg.editor.rendering.EditorSceneRenderer;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.tileset.TilesetRegistry;
@@ -64,6 +67,7 @@ public class EditorApplication {
     private EditorToolController toolController;
     private EditorUIController uiController;
     private PlayModeController playModeController;
+    private PrefabEditController prefabEditController;
 
     // Rendering
     private ImGuiLayer imGuiLayer;
@@ -247,6 +251,31 @@ public class EditorApplication {
         uiController.setPlayModeController(playModeController);
         playModeController.setMessageCallback(uiController.getStatusBar()::showMessage);
 
+        // Create prefab edit controller
+        prefabEditController = new PrefabEditController(context);
+        uiController.setPrefabEditController(prefabEditController);
+
+        // Switch tools and selection manager to working scene when prefab edit starts, restore when it stops
+        EditorEventBus.get().subscribe(PrefabEditStartedEvent.class, e -> {
+            EditorScene workingScene = prefabEditController.getWorkingScene();
+            if (workingScene != null) {
+                toolController.updateSceneReferences(workingScene);
+                // Also switch selection manager to working scene and re-select the entity
+                context.getSelectionManager().setScene(workingScene);
+                var workingEntity = prefabEditController.getWorkingEntity();
+                if (workingEntity != null) {
+                    workingScene.setSelectedEntity(workingEntity);
+                }
+            }
+        });
+        EditorEventBus.get().subscribe(PrefabEditStoppedEvent.class, e -> {
+            EditorScene currentScene = context.getCurrentScene();
+            if (currentScene != null) {
+                toolController.updateSceneReferences(currentScene);
+                context.getSelectionManager().setScene(currentScene);
+            }
+        });
+
         // Create scene controller
         sceneController = new EditorSceneController(context);
 
@@ -310,11 +339,17 @@ public class EditorApplication {
                 uiController.getMenuBar()
         );
         handlers.setPlayModeController(playModeController);
+        handlers.setPrefabEditController(prefabEditController);
         handlers.setMessageCallback(uiController.getStatusBar()::showMessage);
         handlers.setConfigurationPanel(uiController.getConfigurationPanel());
         handlers.setTilesetPalettePanel(uiController.getTilesetPalette());
         handlers.setCollisionPanel(uiController.getCollisionPanel());
         handlers.setEntityCreationService(uiController.getHierarchyPanel().getCreationService());
+        handlers.setModeManager(context.getModeManager());
+        handlers.setActiveDirtyTracker(context.getCurrentScene());
+
+        // Keep activeDirtyTracker in sync when scene changes
+        context.onSceneChanged(scene -> handlers.setActiveDirtyTracker(scene));
 
         // Bind handlers to shortcuts
         EditorShortcuts.bindHandlers(shortcutRegistry, handlers);
@@ -386,7 +421,14 @@ public class EditorApplication {
             return; // Skip editor updates while playing
         }
 
-        escapeWasPressed = isEscapePressed();
+        // Handle Escape key to exit prefab edit mode (edge-triggered)
+        boolean escapePressed = isEscapePressed();
+        if (prefabEditController.isActive() && escapePressed && !escapeWasPressed) {
+            prefabEditController.requestExit(null);
+            escapeWasPressed = true;
+            return;
+        }
+        escapeWasPressed = escapePressed;
 
         // Update scene
         EditorScene scene = context.getCurrentScene();
@@ -420,9 +462,17 @@ public class EditorApplication {
         }
 
         // Render editor scene to framebuffer (only when NOT in play mode)
-        EditorScene scene = context.getCurrentScene();
-        if (sceneRenderer != null && scene != null && !playModeController.isActive()) {
-            sceneRenderer.render(scene, context.getCamera());
+        if (prefabEditController.isActive()) {
+            // In prefab edit mode, render the working scene
+            EditorScene workingScene = prefabEditController.getWorkingScene();
+            if (sceneRenderer != null && workingScene != null) {
+                sceneRenderer.render(workingScene, context.getCamera());
+            }
+        } else {
+            EditorScene scene = context.getCurrentScene();
+            if (sceneRenderer != null && scene != null && !playModeController.isActive()) {
+                sceneRenderer.render(scene, context.getCamera());
+            }
         }
 
         // Disable ImGui keyboard navigation during play mode so arrow keys
@@ -444,6 +494,9 @@ public class EditorApplication {
         uiController.setupDocking();
         uiController.renderUI();
 
+        // Render prefab edit confirmation popup
+        prefabEditController.renderConfirmationPopup();
+
         // Render exit confirmation popup
         renderExitConfirmation();
 
@@ -460,6 +513,16 @@ public class EditorApplication {
      * Request exit - shows confirmation if scene is dirty
      */
     private void requestExit() {
+        // If in prefab edit mode with unsaved changes, exit that first
+        if (prefabEditController.isActive() && prefabEditController.isDirty()) {
+            prefabEditController.requestExit(() -> requestExit());
+            return;
+        }
+        // If still in prefab edit mode (clean), exit immediately
+        if (prefabEditController.isActive()) {
+            prefabEditController.exitEditMode();
+        }
+
         EditorScene scene = context.getCurrentScene();
         if (scene != null && scene.isDirty()) {
             showExitConfirmation = true;

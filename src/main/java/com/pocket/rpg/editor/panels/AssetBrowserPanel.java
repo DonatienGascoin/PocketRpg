@@ -1,7 +1,7 @@
 package com.pocket.rpg.editor.panels;
 
 import com.pocket.rpg.editor.EditorPanelType;
-import com.pocket.rpg.editor.EditorSelectionManager;
+import com.pocket.rpg.editor.SelectionGuard;
 import com.pocket.rpg.editor.assets.AssetDragPayload;
 import com.pocket.rpg.editor.events.AssetChangedEvent;
 import com.pocket.rpg.editor.events.EditorEventBus;
@@ -97,9 +97,9 @@ public class AssetBrowserPanel extends EditorPanel {
     @Setter
     private SpriteEditorPanel spriteEditorPanel;
 
-    // Selection manager for asset selection
+    // Selection guard for mode-aware asset selection
     @Setter
-    private EditorSelectionManager selectionManager;
+    private SelectionGuard selectionManager;
 
     // ========================================================================
     // INITIALIZATION

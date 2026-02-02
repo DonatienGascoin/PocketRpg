@@ -5,6 +5,8 @@ import com.pocket.rpg.editor.camera.EditorCamera;
 import com.pocket.rpg.editor.core.EditorConfig;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.events.EditorEventBus;
+import com.pocket.rpg.editor.events.PrefabEditStartedEvent;
+import com.pocket.rpg.editor.events.PrefabEditStoppedEvent;
 import com.pocket.rpg.editor.events.PlayModeStartedEvent;
 import com.pocket.rpg.editor.events.PlayModeStoppedEvent;
 import com.pocket.rpg.editor.gizmos.GizmoRenderer;
@@ -51,6 +53,13 @@ public class SceneViewport {
     private EditorScene scene;
 
     private boolean playModeActive = false;
+    private boolean prefabEditActive = false;
+
+    @Setter
+    private String prefabEditDisplayName = "";
+
+    @Setter
+    private EditorScene prefabEditScene;
 
     public SceneViewport(EditorCamera camera, EditorConfig config) {
         this.camera = camera;
@@ -60,6 +69,10 @@ public class SceneViewport {
         // Subscribe to play mode events
         EditorEventBus.get().subscribe(PlayModeStartedEvent.class, e -> playModeActive = true);
         EditorEventBus.get().subscribe(PlayModeStoppedEvent.class, e -> playModeActive = false);
+
+        // Subscribe to prefab edit mode events
+        EditorEventBus.get().subscribe(PrefabEditStartedEvent.class, e -> prefabEditActive = true);
+        EditorEventBus.get().subscribe(PrefabEditStoppedEvent.class, e -> prefabEditActive = false);
     }
 
     private boolean isPlayModeActive() {
@@ -155,6 +168,21 @@ public class SceneViewport {
             return;
         }
 
+        // Prefab edit mode — show overlay, allow camera and tool input, skip drop targets
+        if (prefabEditActive) {
+            renderPrefabEditOverlay();
+            updateHoveredTile();
+            gridRenderer.render(camera, viewportX, viewportY, viewportWidth, viewportHeight);
+            coordRenderer.render(camera, viewportX, viewportY, viewportWidth, viewportHeight,
+                    hoveredTileX, hoveredTileY, isHovered);
+            // Allow full input (camera + tools) for entity manipulation
+            if (isHovered || inputHandler.isDraggingCamera()) {
+                inputHandler.handleInput(isHovered, isFocused, viewportX, viewportY,
+                        hoveredTileX, hoveredTileY);
+            }
+            return;
+        }
+
         if (scene != null) {
             SceneViewportDropTarget.handleDropTarget(camera, scene, viewportX, viewportY);
         }
@@ -203,6 +231,30 @@ public class SceneViewport {
         drawList.addText(centerX - textSize.x / 2, centerY + 10, subColor, subMessage);
     }
 
+    private void renderPrefabEditOverlay() {
+        ImDrawList drawList = ImGui.getWindowDrawList();
+
+        // Teal border (3px)
+        int borderColor = ImGui.colorConvertFloat4ToU32(0.0f, 0.7f, 0.7f, 0.9f);
+        drawList.addRect(viewportX, viewportY,
+                viewportX + viewportWidth, viewportY + viewportHeight,
+                borderColor, 0, 0, 3.0f);
+
+        // Label at top
+        String label = MaterialIcons.Widgets + " PREFAB: " + prefabEditDisplayName;
+        ImVec2 textSize = new ImVec2();
+        ImGui.calcTextSize(textSize, label);
+
+        int bgColor = ImGui.colorConvertFloat4ToU32(0.0f, 0.4f, 0.4f, 0.7f);
+        float labelX = viewportX + 5;
+        float labelY = viewportY + 5;
+        drawList.addRectFilled(labelX - 2, labelY - 2,
+                labelX + textSize.x + 4, labelY + textSize.y + 4, bgColor, 3.0f);
+
+        int textColor = ImGui.colorConvertFloat4ToU32(0.8f, 1.0f, 1.0f, 1.0f);
+        drawList.addText(labelX, labelY, textColor, label);
+    }
+
     /**
      * Renders tool overlay and gizmos after the main viewport render.
      */
@@ -211,9 +263,12 @@ public class SceneViewport {
         if (isPlayModeActive()) return;
         if (ImGui.isPopupOpen("", imgui.flag.ImGuiPopupFlags.AnyPopupId)) return;
 
+        // Determine which scene to use for gizmos/tools
+        EditorScene activeScene = prefabEditActive ? prefabEditScene : scene;
+
         // Render gizmos for selected entities
-        if (scene != null) {
-            gizmoRenderer.render(scene, camera, viewportX, viewportY, viewportWidth, viewportHeight);
+        if (activeScene != null) {
+            gizmoRenderer.render(activeScene, camera, viewportX, viewportY, viewportWidth, viewportHeight);
         }
 
         // Render tool overlay
@@ -225,7 +280,8 @@ public class SceneViewport {
             activeTool.renderOverlay(camera, hoveredTileX, hoveredTileY);
         }
 
-        if (scene != null) {
+        // Only render drop overlay in normal scene mode
+        if (!prefabEditActive && scene != null) {
             SceneViewportDropTarget.renderDragOverlay(
                     camera, viewportX, viewportY, viewportWidth, viewportHeight);
         }

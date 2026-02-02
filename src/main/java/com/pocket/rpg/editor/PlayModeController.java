@@ -25,6 +25,8 @@ import com.pocket.rpg.editor.events.EditorEventBus;
 import com.pocket.rpg.editor.events.PlayModePausedEvent;
 import com.pocket.rpg.editor.events.PlayModeStartedEvent;
 import com.pocket.rpg.editor.events.PlayModeStoppedEvent;
+import com.pocket.rpg.editor.events.PrefabEditStartedEvent;
+import com.pocket.rpg.editor.events.PrefabEditStoppedEvent;
 import com.pocket.rpg.editor.events.SceneWillChangeEvent;
 import com.pocket.rpg.input.Input;
 import com.pocket.rpg.platform.glfw.GLFWPlatformFactory;
@@ -85,6 +87,9 @@ public class PlayModeController {
 
     private Consumer<String> messageCallback;
 
+    // Prefab edit mode state (blocks play mode)
+    private boolean prefabEditActive = false;
+
 
     public PlayModeController(EditorContext context, GameConfig gameConfig, InputConfig inputConfig) {
         this.context = context;
@@ -98,6 +103,10 @@ public class PlayModeController {
                 stop();
             }
         });
+
+        // Subscribe to prefab edit events to block play mode
+        EditorEventBus.get().subscribe(PrefabEditStartedEvent.class, e -> prefabEditActive = true);
+        EditorEventBus.get().subscribe(PrefabEditStoppedEvent.class, e -> prefabEditActive = false);
     }
 
     public void setMessageCallback(Consumer<String> callback) {
@@ -111,6 +120,12 @@ public class PlayModeController {
     public void play() {
         if (state != PlayState.STOPPED) {
             showMessage("Already playing");
+            return;
+        }
+
+        // Guard: Cannot start play mode while editing prefab
+        if (prefabEditActive) {
+            showMessage("Cannot start play mode while editing prefab");
             return;
         }
 
@@ -164,6 +179,7 @@ public class PlayModeController {
 
             // 8. Switch state
             state = PlayState.PLAYING;
+            context.getModeManager().setMode(EditorMode.PLAY);
             EditorEventBus.get().publish(new PlayModeStartedEvent());
 
             showMessage("Play mode started");
@@ -203,6 +219,7 @@ public class PlayModeController {
         snapshot = null;
         snapshotFilePath = null;
         state = PlayState.STOPPED;
+        context.getModeManager().setMode(EditorMode.SCENE);
         EditorEventBus.get().publish(new PlayModeStoppedEvent());
 
         showMessage("Play mode stopped");

@@ -116,8 +116,8 @@ public class AnimatorEditorPanel extends EditorPanel {
     // Status callback
     private java.util.function.Consumer<String> statusCallback;
 
-    // Selection manager
-    private com.pocket.rpg.editor.EditorSelectionManager selectionManager;
+    // Selection guard for mode-aware selection
+    private com.pocket.rpg.editor.SelectionGuard selectionManager;
 
     // ========================================================================
     // ENTRY CLASS
@@ -351,7 +351,7 @@ public class AnimatorEditorPanel extends EditorPanel {
     }
 
     private void clearInspectorSelection() {
-        if (selectionManager != null && (selectionManager.isAnimatorStateSelected() || selectionManager.isAnimatorTransitionSelected())) {
+        if (selectionManager != null && (selectionManager.getSelectionManager().isAnimatorStateSelected() || selectionManager.getSelectionManager().isAnimatorTransitionSelected())) {
             selectionManager.clearSelection();
         }
         EditorEventBus.get().publish(new AnimatorSelectionClearedEvent());
@@ -1177,7 +1177,7 @@ public class AnimatorEditorPanel extends EditorPanel {
         this.statusCallback = callback;
     }
 
-    public void setSelectionManager(com.pocket.rpg.editor.EditorSelectionManager selectionManager) {
+    public void setSelectionManager(com.pocket.rpg.editor.SelectionGuard selectionManager) {
         this.selectionManager = selectionManager;
     }
 

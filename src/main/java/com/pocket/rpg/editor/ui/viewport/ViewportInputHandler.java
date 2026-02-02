@@ -131,4 +131,13 @@ public class ViewportInputHandler {
     public boolean isDraggingCamera() {
         return isDraggingCamera;
     }
+
+    /**
+     * Handles only camera controls (pan/zoom), skipping tool input.
+     * Used during prefab edit mode where tool input is blocked.
+     */
+    public void handleCameraInputOnly(boolean isHovered, boolean isFocused,
+                                      float viewportX, float viewportY) {
+        handleCameraInput(isHovered, isFocused, viewportX, viewportY);
+    }
 }

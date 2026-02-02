@@ -2,6 +2,7 @@ package com.pocket.rpg.editor.panels.inspector;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.editor.core.MaterialIcons;
+import com.pocket.rpg.editor.scene.DirtyTracker;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.ui.fields.FieldEditorContext;
@@ -14,15 +15,32 @@ import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import com.pocket.rpg.serialization.FieldMeta;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
-import lombok.Setter;
 
 /**
  * Handles component field editing with prefab override support.
  */
 public class ComponentFieldEditor {
 
-    @Setter
+    private DirtyTracker dirtyTracker;
     private EditorScene scene;
+
+    /**
+     * Sets the dirty tracker and scene for component field editing.
+     * For scene editing, pass the EditorScene as both (it implements DirtyTracker).
+     * For prefab editing, pass a custom DirtyTracker and null scene.
+     */
+    public void setContext(DirtyTracker dirtyTracker, EditorScene scene) {
+        this.dirtyTracker = dirtyTracker;
+        this.scene = scene;
+    }
+
+    /**
+     * Convenience method for scene editing — sets EditorScene as both dirty tracker and scene.
+     */
+    public void setScene(EditorScene scene) {
+        this.dirtyTracker = scene;
+        this.scene = scene;
+    }
 
     /**
      * Renders component fields for a runtime game object during play mode.
@@ -77,7 +95,7 @@ public class ComponentFieldEditor {
                 if (ImGui.smallButton(MaterialIcons.Undo + "##reset")) {
                     UndoManager.getInstance().execute(
                             new ResetFieldOverrideCommand(entity, component, componentType, fieldName));
-                    if (scene != null) scene.markDirty();
+                    if (dirtyTracker != null) dirtyTracker.markDirty();
                     changed = true;
                 }
                 if (ImGui.isItemHovered()) {
@@ -88,7 +106,7 @@ public class ComponentFieldEditor {
             if (fieldChanged) {
                 Object currentValue = ComponentReflectionUtils.getFieldValue(component, fieldName);
                 entity.setFieldValue(componentType, fieldName, currentValue);
-                if (scene != null) scene.markDirty();
+                if (dirtyTracker != null) dirtyTracker.markDirty();
                 changed = true;
             }
 

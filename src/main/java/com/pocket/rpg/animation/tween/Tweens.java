@@ -87,7 +87,7 @@ public class Tweens {
                 endX,
                 duration,
                 Tweens::lerpFloat,
-                x -> transform.getOffset().x = x
+                x -> transform.setOffset(x, transform.getOffset().y)
         ).setTarget(transform);
     }
 
@@ -101,7 +101,7 @@ public class Tweens {
                 endY,
                 duration,
                 Tweens::lerpFloat,
-                y -> transform.getOffset().y = y
+                y -> transform.setOffset(transform.getOffset().x, y)
         ).setTarget(transform);
     }
 
@@ -289,7 +289,13 @@ public class Tweens {
     // ========================================================================
 
     /**
-     * Punch scale effect (quick scale up then back).
+     * Punch scale effect: quickly scales up by {@code punch} then back to original size.
+     * <p>
+     * This is a one-shot effect. The transform returns to its original size when done.
+     *
+     * @param transform The UITransform to animate
+     * @param punch     Scale multiplier added on top of 1.0 (e.g. 0.2 = scale to 1.2x then back)
+     * @param duration  Total duration in seconds (split equally between scale-up and scale-down)
      */
     public static Tween<Float> punchScale(UITransform transform, float punch, float duration) {
         float startWidth = transform.getWidth();
@@ -310,7 +316,13 @@ public class Tweens {
     }
 
     /**
-     * Shake effect (oscillating offset).
+     * Shake effect: oscillates the offset around its current position with decaying intensity.
+     * <p>
+     * This is a one-shot effect. The transform returns to its original offset when done.
+     *
+     * @param transform The UITransform to animate
+     * @param intensity Maximum pixel displacement at the start of the shake
+     * @param duration  Duration in seconds over which the shake decays to zero
      */
     public static Tween<Float> shake(UITransform transform, float intensity, float duration) {
         Vector2f originalOffset = new Vector2f(transform.getOffset());
@@ -331,7 +343,18 @@ public class Tweens {
     }
 
     /**
-     * Slide in from direction.
+     * Slide in from a direction: immediately moves the transform off-screen by {@code distance},
+     * then animates it back to its current position.
+     * <p>
+     * <b>Relative:</b> this captures the current offset as the destination and offsets from it.
+     * Calling this repeatedly will not accumulate — it always returns to where the transform
+     * was when called. However, for toggle patterns (show/hide), prefer {@link #offsetX} or
+     * {@link #offsetY} with fixed absolute positions to avoid drift.
+     *
+     * @param transform The UITransform to animate
+     * @param from      Direction to slide in from (LEFT, RIGHT, TOP, BOTTOM)
+     * @param distance  How far off-screen to start, in pixels
+     * @param duration  Duration in seconds
      */
     public static Tween<Float> slideIn(UITransform transform, Direction from, float distance, float duration) {
         float startX = transform.getOffset().x;
@@ -339,26 +362,36 @@ public class Tweens {
 
         return switch (from) {
             case LEFT -> {
-                transform.getOffset().x = startX - distance;
+                transform.setOffset(startX - distance, startY);
                 yield offsetX(transform, startX, duration);
             }
             case RIGHT -> {
-                transform.getOffset().x = startX + distance;
+                transform.setOffset(startX + distance, startY);
                 yield offsetX(transform, startX, duration);
             }
             case TOP -> {
-                transform.getOffset().y = startY - distance;
+                transform.setOffset(startX, startY - distance);
                 yield offsetY(transform, startY, duration);
             }
             case BOTTOM -> {
-                transform.getOffset().y = startY + distance;
+                transform.setOffset(startX, startY + distance);
                 yield offsetY(transform, startY, duration);
             }
         };
     }
 
     /**
-     * Slide out to direction.
+     * Slide out to a direction: animates the transform away from its current position
+     * by {@code distance} pixels in the given direction.
+     * <p>
+     * <b>Relative:</b> this captures the current offset as the start and moves away from it.
+     * The transform ends up at {@code currentOffset +/- distance}. For toggle patterns
+     * (show/hide), prefer {@link #offsetX} or {@link #offsetY} with fixed absolute positions.
+     *
+     * @param transform The UITransform to animate
+     * @param to        Direction to slide out toward (LEFT, RIGHT, TOP, BOTTOM)
+     * @param distance  How far to move, in pixels
+     * @param duration  Duration in seconds
      */
     public static Tween<Float> slideOut(UITransform transform, Direction to, float distance, float duration) {
         float startX = transform.getOffset().x;

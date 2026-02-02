@@ -138,6 +138,33 @@ public class RuntimeSceneLoader {
             }
         }
 
+        // Phase 2b: Sort children by order field
+        // Build reverse lookup: GameObject -> its data ID
+        Map<GameObject, String> goToId = new HashMap<>();
+        for (Map.Entry<String, GameObject> entry : gameObjectsById.entrySet()) {
+            goToId.put(entry.getValue(), entry.getKey());
+        }
+        for (GameObject go : gameObjectsById.values()) {
+            List<GameObject> children = go.getChildren();
+            if (children.size() > 1) {
+                List<GameObject> sorted = new ArrayList<>(children);
+                sorted.sort((a, b) -> {
+                    GameObjectData dataA = dataById.get(goToId.get(a));
+                    GameObjectData dataB = dataById.get(goToId.get(b));
+                    int orderA = dataA != null ? dataA.getOrder() : 0;
+                    int orderB = dataB != null ? dataB.getOrder() : 0;
+                    return Integer.compare(orderA, orderB);
+                });
+                // Re-parent in sorted order
+                for (GameObject child : sorted) {
+                    child.setParent(null);
+                }
+                for (GameObject child : sorted) {
+                    child.setParent(go);
+                }
+            }
+        }
+
         // Phase 3: Resolve references BEFORE adding to scene
         for (GameObject go : gameObjectsById.values()) {
             ComponentRefResolver.resolveReferences(go);

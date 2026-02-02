@@ -29,11 +29,10 @@ public class RemoveEntityCommand implements EditorCommand {
 
     @Override
     public void execute() {
-        // Collect entity + all descendants before removal (clears parent references)
-        allRemoved.clear();
-        savedParentIds.clear();
-        savedOrders.clear();
-        collectDescendants(entity);
+        // Only snapshot state on first execute; redo reuses saved state
+        if (allRemoved.isEmpty()) {
+            collectDescendants(entity);
+        }
 
         scene.removeEntity(entity);
     }

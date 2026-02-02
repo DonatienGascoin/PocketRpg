@@ -4,6 +4,7 @@ import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ui.UIButton;
 import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.editor.core.MaterialIcons;
+import com.pocket.rpg.editor.ui.fields.FieldEditorUtils;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.CompoundCommand;
@@ -29,6 +30,8 @@ public class UIButtonInspector extends CustomComponentInspector<UIButton> {
     private Vector4f alphaEditStartColor;
     private Float hoverTintEditStart;
     private Float pressedTintEditStart;
+    private Vector4f hoveredColorEditStart;
+    private Vector4f pressedColorEditStart;
 
     @Override
     public boolean draw() {
@@ -91,6 +94,17 @@ public class UIButtonInspector extends CustomComponentInspector<UIButton> {
         // Alpha
         changed |= drawAlphaSlider();
 
+        // === STATE COLOR OVERRIDES ===
+        ImGui.spacing();
+        ImGui.spacing();
+        ImGui.text(MaterialIcons.Palette + " State Colors");
+        ImGui.separator();
+        ImGui.spacing();
+
+        changed |= drawStateColorOverride("Hovered Color", "hoveredColor");
+        ImGui.spacing();
+        changed |= drawStateColorOverride("Pressed Color", "pressedColor");
+
         return changed;
     }
 
@@ -128,6 +142,78 @@ public class UIButtonInspector extends CustomComponentInspector<UIButton> {
     // ========================================
     // Shared helpers
     // ========================================
+
+    private boolean drawStateColorOverride(String label, String fieldName) {
+        boolean changed = false;
+        Object colorObj = ComponentReflectionUtils.getFieldValue(component, fieldName);
+        boolean[] enabledRef = { colorObj != null };
+
+        // Checkbox goes between label and field
+        FieldEditorUtils.setNextMiddleContent(() -> {
+            if (ImGui.checkbox("##enable_" + fieldName, enabledRef[0])) {
+                Vector4f oldValue = enabledRef[0] ? new Vector4f((Vector4f) ComponentReflectionUtils.getFieldValue(component, fieldName)) : null;
+                Vector4f newValue;
+
+                if (enabledRef[0]) {
+                    newValue = null;
+                } else {
+                    newValue = new Vector4f(component.getColor());
+                    newValue.w = Math.max(newValue.w, 0.5f);
+                }
+
+                ComponentReflectionUtils.setFieldValue(component, fieldName, newValue);
+                if (entity != null) {
+                    UndoManager.getInstance().push(
+                            new SetComponentFieldCommand(component, fieldName, oldValue, newValue, entity)
+                    );
+                }
+                enabledRef[0] = !enabledRef[0];
+            }
+        });
+
+        Vector4f colorVal = enabledRef[0] ? (Vector4f) ComponentReflectionUtils.getFieldValue(component, fieldName) : null;
+
+        if (enabledRef[0] && colorVal != null) {
+            float[] colorBuf = {colorVal.x, colorVal.y, colorVal.z, colorVal.w};
+            boolean[] colorChanged = {false};
+
+            FieldEditorUtils.inspectorRow(label, () -> colorChanged[0] = ImGui.colorEdit4("##" + fieldName, colorBuf));
+
+            if (ImGui.isItemActivated()) {
+                if ("hoveredColor".equals(fieldName)) {
+                    hoveredColorEditStart = new Vector4f(colorVal);
+                } else {
+                    pressedColorEditStart = new Vector4f(colorVal);
+                }
+            }
+
+            if (colorChanged[0]) {
+                colorVal.set(colorBuf[0], colorBuf[1], colorBuf[2], colorBuf[3]);
+                ComponentReflectionUtils.setFieldValue(component, fieldName, colorVal);
+                changed = true;
+            }
+
+            if (ImGui.isItemDeactivatedAfterEdit() && entity != null) {
+                Vector4f startValue = "hoveredColor".equals(fieldName) ? hoveredColorEditStart : pressedColorEditStart;
+                if (startValue != null) {
+                    UndoManager.getInstance().push(
+                            new SetComponentFieldCommand(component, fieldName, startValue, new Vector4f(colorVal), entity)
+                    );
+                }
+                if ("hoveredColor".equals(fieldName)) hoveredColorEditStart = null;
+                else pressedColorEditStart = null;
+            }
+        } else {
+            FieldEditorUtils.inspectorRow(label, () -> {
+                ImGui.beginDisabled();
+                float[] dummy = {0, 0, 0, 0};
+                ImGui.colorEdit4("##" + fieldName, dummy);
+                ImGui.endDisabled();
+            });
+        }
+
+        return changed;
+    }
 
     private boolean drawAlphaSlider() {
         Vector4f color = FieldEditors.getVector4f(component, "color");

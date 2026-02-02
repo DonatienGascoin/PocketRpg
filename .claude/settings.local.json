@@ -36,7 +36,11 @@
       "mcp__trello__get_lists",
       "mcp__trello__get_cards_by_list_id",
       "Bash(sort:*)",
-      "Bash(git mv:*)"
+      "Bash(git mv:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh api:*)",
+      "mcp__trello__add_card_to_list",
+      "Bash(gh pr merge:*)"
     ]
   }
 }

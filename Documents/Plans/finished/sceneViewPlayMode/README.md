@@ -2,6 +2,8 @@
 
 How the scene viewport should behave during play mode.
 
+CANCELED: Currently the scene view is disabled for play mode.
+
 ## Documents
 
 - `implementation-plan.md` - Full implementation plan with two options

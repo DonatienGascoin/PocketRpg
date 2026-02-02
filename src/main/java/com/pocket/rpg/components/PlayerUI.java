@@ -1,5 +1,6 @@
 package com.pocket.rpg.components;
 
+import com.pocket.rpg.components.ui.UIImage;
 import com.pocket.rpg.components.ui.UIText;
 import com.pocket.rpg.logging.Log;
 import com.pocket.rpg.logging.Logger;

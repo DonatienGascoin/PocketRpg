@@ -50,6 +50,14 @@ public class UIButton extends UIComponent {
     @Getter @Setter
     private Float pressedTint = null;
 
+    // Optional color overrides for hover/pressed states (full RGBA replacement).
+    // When set, these replace the base color entirely instead of applying tint darkening.
+    @Getter
+    private Vector4f hoveredColor = new Vector4f(0.3f, 0.3f, 0.3f, 0.3f);
+
+    @Getter
+    private Vector4f pressedColor = new Vector4f(0.3f, 0.3f, 0.3f, 0.5f);
+
     // Sprites for SPRITE_SWAP mode
     @Getter @Setter
     private Sprite hoveredSprite;
@@ -112,6 +120,22 @@ public class UIButton extends UIComponent {
 
     public void setAlpha(float alpha) {
         color.w = alpha;
+    }
+
+    public void setHoveredColor(Vector4f hoveredColor) {
+        this.hoveredColor = hoveredColor != null ? new Vector4f(hoveredColor) : null;
+    }
+
+    public void setHoveredColor(float r, float g, float b, float a) {
+        this.hoveredColor = new Vector4f(r, g, b, a);
+    }
+
+    public void setPressedColor(Vector4f pressedColor) {
+        this.pressedColor = pressedColor != null ? new Vector4f(pressedColor) : null;
+    }
+
+    public void setPressedColor(float r, float g, float b, float a) {
+        this.pressedColor = new Vector4f(r, g, b, a);
     }
 
     // ========================================
@@ -223,11 +247,15 @@ public class UIButton extends UIComponent {
     private void renderColorTint(UIRendererBackend backend, RenderBounds bounds) {
         Vector4f renderColor = new Vector4f(color);
         if (useAutoHoverTint()) {
-            if (pressed) {
+            if (pressed && pressedColor != null) {
+                renderColor.set(pressedColor);
+            } else if (pressed) {
                 float tint = getEffectivePressedTint();
                 renderColor.x *= (1f - tint);
                 renderColor.y *= (1f - tint);
                 renderColor.z *= (1f - tint);
+            } else if (hovered && hoveredColor != null) {
+                renderColor.set(hoveredColor);
             } else if (hovered) {
                 float tint = getEffectiveHoverTint();
                 renderColor.x *= (1f - tint);

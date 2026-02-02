@@ -1,5 +1,6 @@
 package com.pocket.rpg.core.application;
 
+import com.pocket.rpg.animation.tween.TweenManager;
 import com.pocket.rpg.audio.Audio;
 import com.pocket.rpg.scenes.SceneManager;
 import com.pocket.rpg.scenes.transitions.TransitionManager;
@@ -69,6 +70,7 @@ public class GameLoop {
         // Fall back to deltaTime when Time is not initialized (editor uses ImGui's delta directly).
         float audioDt = Time.isInitialized() ? Time.unscaledDeltaTime() : deltaTime;
         Audio.update(audioDt);
+        TweenManager.update(deltaTime);
 
         if (transitionManager != null && transitionManager.isTransitioning()) {
             transitionManager.update(deltaTime);

@@ -11,12 +11,17 @@ import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.tools.EditorTool;
 import com.pocket.rpg.editor.tools.ToolManager;
+import com.pocket.rpg.editor.undo.EditorCommand;
 import com.pocket.rpg.editor.undo.UndoManager;
+import com.pocket.rpg.editor.undo.commands.CompoundCommand;
 import com.pocket.rpg.editor.undo.commands.RemoveEntityCommand;
 import com.pocket.rpg.editor.ui.EditorMenuBar;
 import lombok.Setter;
 import org.joml.Vector3f;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
 
@@ -153,17 +158,20 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
         EditorScene scene = context.getCurrentScene();
         if (scene == null) return;
 
-        Set<EditorGameObject> selected = scene.getSelectedEntities();
+        // Snapshot selection to avoid ConcurrentModificationException
+        List<EditorGameObject> selected = new ArrayList<>(scene.getSelectedEntities());
         if (selected.isEmpty()) {
             showMessage("No entity selected");
             return;
         }
 
+        Set<EditorGameObject> copies = new HashSet<>();
         for (EditorGameObject entity : selected) {
-            entityCreationService.duplicateEntity(entity);
+            copies.add(entityCreationService.duplicateEntity(entity));
         }
+        scene.setSelection(copies);
         showMessage(selected.size() == 1
-                ? "Duplicated: " + selected.iterator().next().getName()
+                ? "Duplicated: " + selected.get(0).getName()
                 : "Duplicated " + selected.size() + " entities");
     }
 
@@ -331,14 +339,37 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
     @Override
     public void onEntityDelete() {
         EditorScene scene = context.getCurrentScene();
-        if (scene != null) {
-            EditorGameObject selected = scene.getSelectedEntity();
-            if (selected != null) {
-                String name = selected.getName();
-                UndoManager.getInstance().execute(new RemoveEntityCommand(scene, selected));
-                showMessage("Deleted: " + name);
-            }
+        if (scene == null) return;
+
+        // Snapshot selection to avoid ConcurrentModificationException
+        List<EditorGameObject> selected = new ArrayList<>(scene.getSelectedEntities());
+        if (selected.isEmpty()) return;
+
+        // Filter out children whose parent is also selected (parent removal handles them)
+        Set<EditorGameObject> selectedSet = new HashSet<>(selected);
+        List<EditorGameObject> roots = selected.stream()
+                .filter(e -> !isAncestorSelected(e, selectedSet))
+                .toList();
+
+        if (roots.size() == 1) {
+            UndoManager.getInstance().execute(new RemoveEntityCommand(scene, roots.get(0)));
+            showMessage("Deleted: " + roots.get(0).getName());
+        } else {
+            List<EditorCommand> commands = roots.stream()
+                    .map(e -> (EditorCommand) new RemoveEntityCommand(scene, e))
+                    .toList();
+            UndoManager.getInstance().execute(new CompoundCommand("Delete " + roots.size() + " entities", commands));
+            showMessage("Deleted " + roots.size() + " entities");
         }
+    }
+
+    private boolean isAncestorSelected(EditorGameObject entity, Set<EditorGameObject> selectedSet) {
+        EditorGameObject parent = entity.getParent();
+        while (parent != null) {
+            if (selectedSet.contains(parent)) return true;
+            parent = parent.getParent();
+        }
+        return false;
     }
 
     @Override

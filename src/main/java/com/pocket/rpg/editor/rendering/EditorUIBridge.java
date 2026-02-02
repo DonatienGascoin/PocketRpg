@@ -106,10 +106,12 @@ public class EditorUIBridge {
 
         // First pass: create wrappers for ALL UI entities from flat list
         // (not using getRootEntities + recursion because children may not be linked)
+        Map<String, EditorGameObject> entityById = new HashMap<>();
         for (EditorGameObject entity : scene.getEntities()) {
             if (hasUIComponents(entity)) {
                 GameObject wrapper = createWrapperGameObject(entity);
                 wrapperCache.put(entity.getId(), wrapper);
+                entityById.put(entity.getId(), entity);
             }
         }
 
@@ -123,6 +125,32 @@ public class EditorUIBridge {
                     if (parentWrapper != null) {
                         wrapper.setParent(parentWrapper);
                     }
+                }
+            }
+        }
+
+        // Third pass: sort children by EditorGameObject order field
+        // Build reverse lookup: wrapper -> entity ID
+        Map<GameObject, String> wrapperToId = new HashMap<>();
+        for (Map.Entry<String, GameObject> entry : wrapperCache.entrySet()) {
+            wrapperToId.put(entry.getValue(), entry.getKey());
+        }
+        for (GameObject wrapper : wrapperCache.values()) {
+            List<GameObject> children = wrapper.getChildren();
+            if (children.size() > 1) {
+                List<GameObject> sorted = new ArrayList<>(children);
+                sorted.sort((a, b) -> {
+                    EditorGameObject egoA = entityById.get(wrapperToId.get(a));
+                    EditorGameObject egoB = entityById.get(wrapperToId.get(b));
+                    int orderA = egoA != null ? egoA.getOrder() : 0;
+                    int orderB = egoB != null ? egoB.getOrder() : 0;
+                    return Integer.compare(orderA, orderB);
+                });
+                for (GameObject child : sorted) {
+                    child.setParent(null);
+                }
+                for (GameObject child : sorted) {
+                    child.setParent(wrapper);
                 }
             }
         }

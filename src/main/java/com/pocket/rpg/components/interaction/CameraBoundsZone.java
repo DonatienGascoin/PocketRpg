@@ -32,7 +32,7 @@ import org.joml.Vector3f;
  * </pre>
  */
 @ComponentMeta(category = "Interaction")
-public class CameraBoundsZone extends Component implements GizmoDrawable {
+public class CameraBoundsZone extends Component {
 
     /**
      * Unique identifier for this bounds zone.
@@ -95,12 +95,5 @@ public class CameraBoundsZone extends Component implements GizmoDrawable {
         // Draw boundsId label at top-left corner
         ctx.setColor(ZONE_LABEL_COLOR);
         ctx.drawText(minX, maxY, boundsId.isEmpty() ? "(no id)" : boundsId, 4, -16);
-
-        // Draw center diamond marker
-        float centerX = (minX + maxX) / 2f;
-        float centerY = (minY + maxY) / 2f;
-        float size = ctx.getHandleSize(8);
-        ctx.setColor(ZONE_COLOR);
-        ctx.drawDiamond(centerX, centerY, size);
     }
 }

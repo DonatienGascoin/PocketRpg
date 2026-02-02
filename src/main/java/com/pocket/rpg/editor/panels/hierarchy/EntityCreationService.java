@@ -181,13 +181,42 @@ public class EntityCreationService {
         return count;
     }
 
-    public void duplicateEntity(EditorGameObject original) {
+    /**
+     * Duplicates an entity and all its children.
+     * Does NOT change selection — caller is responsible for that.
+     *
+     * @return the root-level copy
+     */
+    public EditorGameObject duplicateEntity(EditorGameObject original) {
         Vector3f newPos = new Vector3f(original.getPosition()).add(1, 0, 0);
-        EditorGameObject copy;
+        EditorGameObject copy = cloneEntity(original, newPos);
+        copy.setName(original.getName() + "_copy");
 
+        copy.setParent(original.getParent());
+        copy.setOrder(original.getOrder() + 1);
+
+        // Shift siblings after the original
+        shiftSiblingsAfter(original);
+
+        // Collect the copy and all descendant clones for a single undo action
+        List<EditorGameObject> allCopies = new ArrayList<>();
+        allCopies.add(copy);
+        duplicateChildrenRecursive(original, copy, allCopies);
+
+        if (allCopies.size() == 1) {
+            UndoManager.getInstance().execute(new AddEntityCommand(scene, copy));
+        } else {
+            UndoManager.getInstance().execute(new AddEntitiesCommand(scene, allCopies));
+        }
+
+        scene.markDirty();
+        return copy;
+    }
+
+    private EditorGameObject cloneEntity(EditorGameObject original, Vector3f position) {
+        EditorGameObject copy;
         if (original.isScratchEntity()) {
-            copy = new EditorGameObject(original.getName() + "_copy", newPos, false);
-            // Clone all components using reflection
+            copy = new EditorGameObject(original.getName(), position, false);
             for (Component comp : original.getComponents()) {
                 Component compCopy = ComponentReflectionUtils.cloneComponent(comp);
                 if (compCopy != null) {
@@ -195,9 +224,8 @@ public class EntityCreationService {
                 }
             }
         } else {
-            copy = new EditorGameObject(original.getPrefabId(), newPos);
-            copy.setName(original.getName() + "_copy");
-            // Copy overridden field values
+            copy = new EditorGameObject(original.getPrefabId(), position);
+            copy.setName(original.getName());
             for (Component comp : original.getComponents()) {
                 String componentType = comp.getClass().getName();
                 for (String fieldName : original.getOverriddenFields(componentType)) {
@@ -206,17 +234,20 @@ public class EntityCreationService {
                 }
             }
         }
+        return copy;
+    }
 
-        copy.setParent(original.getParent());
-        copy.setOrder(original.getOrder() + 1);
+    private void duplicateChildrenRecursive(EditorGameObject original, EditorGameObject copyParent,
+                                            List<EditorGameObject> allCopies) {
+        for (EditorGameObject child : original.getChildren()) {
+            Vector3f childPos = new Vector3f(child.getPosition());
+            EditorGameObject childCopy = cloneEntity(child, childPos);
+            childCopy.setParent(copyParent);
+            childCopy.setOrder(child.getOrder());
+            allCopies.add(childCopy);
 
-        // Shift siblings after the original
-        shiftSiblingsAfter(original);
-
-        UndoManager.getInstance().execute(new AddEntityCommand(scene, copy));
-
-        selectAndSwitchMode(copy);
-        scene.markDirty();
+            duplicateChildrenRecursive(child, childCopy, allCopies);
+        }
     }
 
     /**

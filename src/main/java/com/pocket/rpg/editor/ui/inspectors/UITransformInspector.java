@@ -177,7 +177,7 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
         // component is already typed as UITransform (via bind)
 
         // Check if we have a parent with UITransform
-        EditorGameObject parentEntity = entity.getParent();
+        EditorGameObject parentEntity = entity != null ? entity.getParent() : null;
         boolean hasParentUITransform = parentEntity != null &&
                 parentEntity.getComponent(UITransform.class) != null;
 
@@ -770,9 +770,11 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
         editStartHeight = FieldEditors.getFloat(component, "height", 100);
         editStartOffset = new Vector2f(component.getOffset());
 
-        // Capture child states
+        // Capture child states (editor mode only — entity is null in play mode)
         editStartChildStates = new ArrayList<>();
-        captureChildStates(entity, editStartChildStates);
+        if (entity != null) {
+            captureChildStates(entity, editStartChildStates);
+        }
     }
 
     /**
@@ -831,8 +833,8 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
         // Check if anything changed
         boolean hasChanges = (editStartWidth != newWidth || editStartHeight != newHeight);
 
-        if (hasChanges) {
-            // Create undo command
+        if (hasChanges && entity != null) {
+            // Create undo command (editor mode only — entity is null in play mode)
             UITransformDragCommand command = UITransformDragCommand.resize(
                     entity, component,
                     editStartOffset, editStartWidth, editStartHeight,
@@ -970,6 +972,9 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
      * Creates an undo command for anchor or pivot changes.
      */
     private void createAnchorPivotCommand(String fieldKey, Vector2f oldValue, Vector2f newValue) {
+        // Skip undo in play mode (entity is null)
+        if (entity == null) return;
+
         Vector2f offset = new Vector2f(component.getOffset());
         float width = FieldEditors.getFloat(component, "width", 100);
         float height = FieldEditors.getFloat(component, "height", 100);
@@ -1003,6 +1008,7 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
      * @return float[2] with {width, height}, or null if no sprite found
      */
     private float[] getSpriteTextureDimensions() {
+        if (entity == null) return null;
         Object spriteObj = null;
 
         // Check UIImage
@@ -1037,6 +1043,7 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
      * @return The parent's UITransform, or null if no parent or parent has no UITransform
      */
     private UITransform getParentUITransform() {
+        if (entity == null) return null;
         EditorGameObject parentEntity = entity.getParent();
         if (parentEntity == null) {
             return null;
@@ -1051,6 +1058,7 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
      * @return the parent's LayoutGroup, or null if none
      */
     private LayoutGroup getParentLayoutGroup() {
+        if (entity == null) return null;
         EditorGameObject parentEntity = entity.getParent();
         if (parentEntity == null) return null;
         for (Component comp : parentEntity.getComponents()) {

@@ -505,8 +505,8 @@ public class EditorApplication {
         // Begin ImGui frame
         imGuiLayer.newFrame();
 
-        // Show compilation modal (blocks shortcuts and mouse while compiling)
-        uiController.renderCompilationModal();
+        // Render UI that must appear before shortcut processing (e.g. modal popups that block input)
+        uiController.renderUIPreShortcuts();
 
         // Process shortcuts (after newFrame, before ImGui windows)
         // Uses panel focus state from the previous frame

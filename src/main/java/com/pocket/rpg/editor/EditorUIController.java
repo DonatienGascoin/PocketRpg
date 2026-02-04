@@ -332,12 +332,20 @@ public class EditorUIController {
     }
 
     /**
+     * Render UI elements that must appear before shortcut processing.
+     * Popups opened here will be visible to {@code ShortcutRegistry.isPopupOpen()} on the same frame,
+     * ensuring shortcuts are blocked while modal dialogs are active.
+     */
+    public void renderUIPreShortcuts() {
+        renderCompilationModal();
+    }
+
+    /**
      * Render compilation modal popup.
-     * Must be called before shortcut processing so the popup blocks shortcuts on the same frame.
      * While open this blocks all mouse interaction (ImGui modal behavior)
      * and all keyboard shortcuts (ShortcutRegistry checks isPopupOpen).
      */
-    public void renderCompilationModal() {
+    private void renderCompilationModal() {
         if (MavenCompiler.isCompiling()) {
             ImGui.openPopup("##compiling");
         }

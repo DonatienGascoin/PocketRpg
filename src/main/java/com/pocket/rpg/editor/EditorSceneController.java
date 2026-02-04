@@ -193,7 +193,7 @@ public class EditorSceneController {
         // 8. Restore editor state (camera, selection, dirty flag)
         stateSnapshot.restore(context, newScene);
 
-        showMessage("Scene reloaded — registries refreshed");
+        showMessage("Scene reloaded - registries refreshed");
     }
 
     /**

@@ -10,11 +10,15 @@ import com.pocket.rpg.editor.camera.EditorCamera;
 import com.pocket.rpg.editor.events.EditorEventBus;
 import com.pocket.rpg.editor.events.RegistriesRefreshRequestEvent;
 import com.pocket.rpg.editor.scene.RuntimeGameObjectAdapter;
+import com.pocket.rpg.editor.core.MainThreadQueue;
+import com.pocket.rpg.editor.core.MavenCompiler;
 import com.pocket.rpg.editor.shortcut.EditorShortcutHandlersImpl;
 import com.pocket.rpg.editor.shortcut.EditorShortcuts;
 import com.pocket.rpg.editor.shortcut.KeyboardLayout;
 import com.pocket.rpg.editor.shortcut.ShortcutRegistry;
 import com.pocket.rpg.editor.ui.inspectors.CustomComponentEditorRegistry;
+import com.pocket.rpg.editor.utils.ImGuiHelper;
+import com.pocket.rpg.editor.utils.ImGuiSpinner;
 import com.pocket.rpg.editor.utils.SceneUtils;
 import com.pocket.rpg.rendering.postfx.PostEffectRegistry;
 import com.pocket.rpg.serialization.ComponentRegistry;
@@ -39,6 +43,7 @@ import com.pocket.rpg.resources.ErrorMode;
 import com.pocket.rpg.serialization.Serializer;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiConfigFlags;
 import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiWindowFlags;
@@ -420,6 +425,7 @@ public class EditorApplication {
     }
 
     private void update() {
+        MainThreadQueue.drain();
         float deltaTime = ImGui.getIO().getDeltaTime();
 
         // Handle Escape key to stop play mode (edge-triggered)
@@ -502,6 +508,9 @@ public class EditorApplication {
         // Begin ImGui frame
         imGuiLayer.newFrame();
 
+        // Show compilation modal (blocks shortcuts and mouse while compiling)
+        renderCompilationModal();
+
         // Process shortcuts (after newFrame, before ImGui windows)
         // Uses panel focus state from the previous frame
         ShortcutRegistry.getInstance().processShortcuts(uiController.buildShortcutContext());
@@ -545,6 +554,48 @@ public class EditorApplication {
             exitRequested = true;
         } else {
             context.requestExit();
+        }
+    }
+
+    /**
+     * Render compilation modal popup.
+     * While open this blocks all mouse interaction (ImGui modal behavior)
+     * and all keyboard shortcuts (ShortcutRegistry checks isPopupOpen).
+     */
+    private void renderCompilationModal() {
+        if (MavenCompiler.isCompiling()) {
+            ImGui.openPopup("##compiling");
+        }
+        // Center the modal on screen (pivot 0.5, 0.5 centers around the given point)
+        float centerX = ImGui.getIO().getDisplaySizeX() * 0.5f;
+        float centerY = ImGui.getIO().getDisplaySizeY() * 0.5f;
+        ImGui.setNextWindowPos(centerX, centerY, ImGuiCond.Always, 0.5f, 0.5f);
+        ImGui.setNextWindowSize(500, 350);
+        if (ImGui.beginPopupModal("##compiling", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoTitleBar)) {
+            ImGui.text("Compiling...");
+            ImGui.spacing();
+
+            // Scrollable log area — reserve space for spinner below
+            float logHeight = ImGui.getContentRegionAvailY() - 40;
+            ImGui.beginChild("##compileLogs", -1, logHeight, true);
+            for (String line : MavenCompiler.getOutputLines()) {
+                ImGui.textWrapped(line);
+            }
+            if (MavenCompiler.isCompiling()) {
+                ImGui.setScrollHereY(1.0f);
+            }
+            ImGui.endChild();
+
+            // Material Design spinner, centered
+            float spinnerRadius = 10;
+            ImGuiHelper.setCursorAlignment(0.5f, spinnerRadius * 2);
+            int spinnerColor = ImGui.colorConvertFloat4ToU32(0.8f, 0.8f, 0.8f, 1.0f);
+            ImGuiSpinner.spinner("##compileSpinner", spinnerRadius, 3, spinnerColor);
+
+            if (!MavenCompiler.isCompiling()) {
+                ImGui.closeCurrentPopup();
+            }
+            ImGui.endPopup();
         }
     }
 

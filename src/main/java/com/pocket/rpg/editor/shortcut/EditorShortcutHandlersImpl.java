@@ -3,6 +3,7 @@ package com.pocket.rpg.editor.shortcut;
 import com.pocket.rpg.editor.EditorContext;
 import com.pocket.rpg.editor.EditorModeManager;
 import com.pocket.rpg.editor.EditorSceneController;
+import com.pocket.rpg.editor.core.MavenCompiler;
 import com.pocket.rpg.editor.EditorSelectionManager;
 import com.pocket.rpg.editor.EditorToolController;
 import com.pocket.rpg.editor.PrefabEditController;
@@ -122,9 +123,19 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Override
     public void onReloadScene() {
-        if (sceneController != null) {
-            sceneController.reloadScene();
-        }
+        if (MavenCompiler.isCompiling()) return;
+        if (sceneController == null) return;
+
+        MavenCompiler.compileAsync(
+                () -> {
+                    showMessage("Compiled, reloading...");
+                    sceneController.reloadScene();
+                },
+                error -> {
+                    System.err.println("Compilation failed: " + error);
+                    showMessage("Compilation failed");
+                }
+        );
     }
 
     // ========================================================================

@@ -6,6 +6,10 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 /**
  * Thread-safe queue for executing tasks on the main (render) thread.
  * Background threads enqueue runnables; the main loop drains them once per frame.
+ *
+ * <p><b>Important:</b> ImGui is single-threaded and may only be called from the main thread.
+ * Any code that touches ImGui state (widgets, windows, draw lists, IO) must be enqueued
+ * here rather than called directly from a background thread.</p>
  */
 public final class MainThreadQueue {
 

@@ -4,6 +4,7 @@ import com.pocket.rpg.config.ConfigLoader;
 import com.pocket.rpg.editor.core.EditorConfig;
 import com.pocket.rpg.editor.events.EditorEventBus;
 import com.pocket.rpg.editor.events.RecentScenesChangedEvent;
+import com.pocket.rpg.editor.events.RegistriesRefreshRequestEvent;
 import com.pocket.rpg.editor.events.SceneWillChangeEvent;
 import com.pocket.rpg.editor.events.StatusMessageEvent;
 import com.pocket.rpg.editor.scene.EditorScene;
@@ -12,6 +13,7 @@ import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.resources.LoadOptions;
 import com.pocket.rpg.serialization.SceneData;
+import lombok.Setter;
 
 /**
  * Handles scene operations: new, open, save.
@@ -21,6 +23,9 @@ import com.pocket.rpg.serialization.SceneData;
 public class EditorSceneController {
 
     private final EditorContext context;
+
+    @Setter
+    private PlayModeController playModeController;
 
     // Callback when recent scenes list changes (legacy - will be migrated to event)
     private Runnable onRecentScenesChanged;
@@ -125,6 +130,70 @@ public class EditorSceneController {
         }
         // Publish event
         EditorEventBus.get().publish(new RecentScenesChangedEvent());
+    }
+
+    /**
+     * Reloads the current scene by refreshing all registries and
+     * rebuilding the scene from its serialized state.
+     * <p>
+     * Preserves camera position, zoom, selection, and dirty flag.
+     * Uses swap-then-destroy: the old scene is only destroyed after the
+     * new scene is successfully built from the snapshot.
+     */
+    public void reloadScene() {
+        EditorScene currentScene = context.getCurrentScene();
+        if (currentScene == null) {
+            showMessage("No scene to reload");
+            return;
+        }
+
+        // Guard: do nothing during play mode.
+        // Shortcuts are suppressed during play mode, but menu bar bypasses shortcuts.
+        if (playModeController != null && playModeController.isActive()) {
+            showMessage("Cannot reload during play mode");
+            return;
+        }
+
+        // 1. Capture editor state
+        EditorStateSnapshot stateSnapshot = EditorStateSnapshot.capture(context);
+
+        // 2. Snapshot scene to SceneData (deep-copies components)
+        SceneData sceneSnapshot = EditorSceneSerializer.toSceneData(currentScene);
+
+        // 3. Publish event so all registries re-scan (OCP: no hard-coded list)
+        EditorEventBus.get().publish(new RegistriesRefreshRequestEvent());
+
+        // 4. Rebuild scene from snapshot
+        EditorScene newScene;
+        try {
+            newScene = EditorSceneSerializer.fromSceneData(sceneSnapshot, stateSnapshot.scenePath());
+        } catch (Exception e) {
+            System.err.println("Scene reload failed: " + e.getMessage());
+            e.printStackTrace();
+            showMessage("Reload failed: " + e.getMessage());
+            // Old scene is still alive — abort reload, no data loss.
+            return;
+        }
+
+        // 5. Success — now safe to tear down the old scene.
+        //    Publish SceneWillChangeEvent for subscribers (play mode, etc.)
+        EditorEventBus.get().publish(new SceneWillChangeEvent());
+        currentScene.destroy();
+        UndoManager.getInstance().clear();
+
+        // 6. Clear selection before swapping scene.
+        //    context.setCurrentScene() does NOT clear selection state (it only
+        //    assigns the scene field via Lombok setter). Without this, the
+        //    selection manager would hold stale entity references.
+        context.getSelectionManager().clearSelection();
+
+        // 7. Swap scene on context (notifies all panels via onSceneChanged)
+        context.setCurrentScene(newScene);
+
+        // 8. Restore editor state (camera, selection, dirty flag)
+        stateSnapshot.restore(context, newScene);
+
+        showMessage("Scene reloaded - registries refreshed");
     }
 
     /**

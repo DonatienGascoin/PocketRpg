@@ -98,6 +98,19 @@ public class PostEffectRegistry {
     }
 
     /**
+     * Clears all cached effect metadata and re-scans the classpath.
+     * <p>
+     * Must only be called from the main thread.
+     */
+    public static void reinitialize() {
+        effects.clear();
+        bySimpleName.clear();
+        initialized = false;
+        initialize();
+        System.out.println("PostEffectRegistry reinitialized: " + effects.size() + " effects");
+    }
+
+    /**
      * Gets all registered effects.
      */
     public static List<PostEffectMeta> getAll() {

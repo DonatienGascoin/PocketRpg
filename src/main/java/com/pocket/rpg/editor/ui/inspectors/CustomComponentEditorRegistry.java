@@ -166,6 +166,17 @@ public class CustomComponentEditorRegistry {
     }
 
     /**
+     * Clears all cached inspectors and re-scans the classpath.
+     * <p>
+     * Must only be called from the main thread.
+     */
+    public static void reinitialize() {
+        clear();
+        scanAndRegisterInspectors();
+        System.out.println("CustomComponentEditorRegistry reinitialized: " + editors.size() + " inspectors");
+    }
+
+    /**
      * Clears all registered editors.
      * Mainly for testing.
      */

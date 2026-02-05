@@ -15,6 +15,7 @@ public interface EditorShortcutHandlers {
     void onSaveScene();
     void onSaveSceneAs();
     void onOpenConfiguration();
+    void onReloadScene();
 
     // ========================================================================
     // EDIT

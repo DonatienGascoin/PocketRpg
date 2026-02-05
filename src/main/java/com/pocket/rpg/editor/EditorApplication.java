@@ -7,11 +7,17 @@ import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.logging.Log;
 import com.pocket.rpg.logging.Logger;
 import com.pocket.rpg.editor.camera.EditorCamera;
+import com.pocket.rpg.editor.events.EditorEventBus;
+import com.pocket.rpg.editor.events.RegistriesRefreshRequestEvent;
+import com.pocket.rpg.editor.scene.RuntimeGameObjectAdapter;
+import com.pocket.rpg.editor.core.MainThreadQueue;
+import com.pocket.rpg.editor.core.MavenCompiler;
 import com.pocket.rpg.editor.shortcut.EditorShortcutHandlersImpl;
 import com.pocket.rpg.editor.shortcut.EditorShortcuts;
 import com.pocket.rpg.editor.shortcut.KeyboardLayout;
 import com.pocket.rpg.editor.shortcut.ShortcutRegistry;
 import com.pocket.rpg.editor.ui.inspectors.CustomComponentEditorRegistry;
+import com.pocket.rpg.editor.utils.SceneUtils;
 import com.pocket.rpg.rendering.postfx.PostEffectRegistry;
 import com.pocket.rpg.serialization.ComponentRegistry;
 import com.pocket.rpg.editor.core.EditorConfig;
@@ -149,6 +155,15 @@ public class EditorApplication {
         PrefabRegistry.initialize();
         CustomComponentEditorRegistry.initBuiltInEditors();
 
+        // Subscribe to registry refresh events (centralized to avoid double-subscribe)
+        EditorEventBus.get().subscribe(RegistriesRefreshRequestEvent.class, event -> {
+            ComponentRegistry.reinitialize();
+            PostEffectRegistry.reinitialize();
+            CustomComponentEditorRegistry.reinitialize();
+            RuntimeGameObjectAdapter.clearCache();
+            SceneUtils.clearCache();
+        });
+
         // Create camera
         EditorCamera camera = new EditorCamera(config);
         camera.setViewportSize(window.getWidth(), window.getHeight());
@@ -278,6 +293,7 @@ public class EditorApplication {
 
         // Create scene controller
         sceneController = new EditorSceneController(context);
+        sceneController.setPlayModeController(playModeController);
 
         // Wire menu bar actions
         uiController.getMenuBar().setOnNewScene(sceneController::newScene);
@@ -285,6 +301,7 @@ public class EditorApplication {
         uiController.getMenuBar().setOnSaveScene(sceneController::saveScene);
         uiController.getMenuBar().setOnSaveSceneAs(sceneController::saveSceneAs);
         uiController.getMenuBar().setOnExit(this::requestExit);
+        uiController.getMenuBar().setOnReloadScene(sceneController::reloadScene);
 
         // Wire recent scenes
         updateMenuRecentScenes();
@@ -340,6 +357,7 @@ public class EditorApplication {
         );
         handlers.setPlayModeController(playModeController);
         handlers.setPrefabEditController(prefabEditController);
+        handlers.setSceneController(sceneController);
         handlers.setMessageCallback(uiController.getStatusBar()::showMessage);
         handlers.setConfigurationPanel(uiController.getConfigurationPanel());
         handlers.setTilesetPalettePanel(uiController.getTilesetPalette());
@@ -404,6 +422,7 @@ public class EditorApplication {
     }
 
     private void update() {
+        MainThreadQueue.drain();
         float deltaTime = ImGui.getIO().getDeltaTime();
 
         // Handle Escape key to stop play mode (edge-triggered)
@@ -485,6 +504,9 @@ public class EditorApplication {
 
         // Begin ImGui frame
         imGuiLayer.newFrame();
+
+        // Render UI that must appear before shortcut processing (e.g. modal popups that block input)
+        uiController.renderUIPreShortcuts();
 
         // Process shortcuts (after newFrame, before ImGui windows)
         // Uses panel focus state from the previous frame

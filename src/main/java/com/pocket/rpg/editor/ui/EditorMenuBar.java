@@ -28,6 +28,7 @@ public class EditorMenuBar {
     private Runnable onSaveScene;
     private Consumer<String> onSaveSceneAs;
     private Runnable onExit;
+    private Runnable onReloadScene;
     private Runnable onOpenSpriteEditor;
     private Runnable onToggleGizmos;
     private boolean gizmosEnabled = true;
@@ -113,6 +114,12 @@ public class EditorMenuBar {
 
             if (ImGui.menuItem("Save As...", getShortcutLabel(EditorShortcuts.FILE_SAVE_AS))) {
                 handleSaveAs();
+            }
+
+            ImGui.separator();
+
+            if (ImGui.menuItem("Reload Scene", getShortcutLabel(EditorShortcuts.FILE_RELOAD), false, currentScene != null)) {
+                if (onReloadScene != null) onReloadScene.run();
             }
 
             ImGui.separator();
@@ -646,6 +653,10 @@ public class EditorMenuBar {
 
     public void setOnExit(Runnable callback) {
         this.onExit = callback;
+    }
+
+    public void setOnReloadScene(Runnable callback) {
+        this.onReloadScene = callback;
     }
 
     public void setRecentFiles(String[] files) {

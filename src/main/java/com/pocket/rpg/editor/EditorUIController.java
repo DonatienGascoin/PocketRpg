@@ -12,9 +12,13 @@ import com.pocket.rpg.editor.rendering.CollisionOverlayRenderer;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.UIEntityFactory;
 import com.pocket.rpg.editor.core.MaterialIcons;
+import com.pocket.rpg.editor.core.MavenCompiler;
 import com.pocket.rpg.editor.ui.*;
+import com.pocket.rpg.editor.utils.ImGuiHelper;
+import com.pocket.rpg.editor.utils.ImGuiSpinner;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiDockNodeFlags;
 import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiWindowFlags;
@@ -325,6 +329,57 @@ public class EditorUIController {
         ImGui.dockSpace(dockspaceId, 0, 0, ImGuiDockNodeFlags.PassthruCentralNode);
 
         ImGui.end();
+    }
+
+    /**
+     * Render UI elements that must appear before shortcut processing.
+     * Popups opened here will be visible to {@code ShortcutRegistry.isPopupOpen()} on the same frame,
+     * ensuring shortcuts are blocked while modal dialogs are active.
+     */
+    public void renderUIPreShortcuts() {
+        renderCompilationModal();
+    }
+
+    /**
+     * Render compilation modal popup.
+     * While open this blocks all mouse interaction (ImGui modal behavior)
+     * and all keyboard shortcuts (ShortcutRegistry checks isPopupOpen).
+     */
+    private void renderCompilationModal() {
+        if (MavenCompiler.isCompiling()) {
+            ImGui.openPopup("##compiling");
+        }
+        // Center the modal on screen (pivot 0.5, 0.5 centers around the given point)
+        float centerX = ImGui.getIO().getDisplaySizeX() * 0.5f;
+        float centerY = ImGui.getIO().getDisplaySizeY() * 0.5f;
+        ImGui.setNextWindowPos(centerX, centerY, ImGuiCond.Always, 0.5f, 0.5f);
+        ImGui.setNextWindowSize(500, 350);
+        if (ImGui.beginPopupModal("##compiling", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoTitleBar)) {
+            ImGui.text("Compiling...");
+            ImGui.spacing();
+
+            // Scrollable log area — reserve space for spinner below
+            float logHeight = ImGui.getContentRegionAvailY() - 40;
+            ImGui.beginChild("##compileLogs", -1, logHeight, true);
+            for (String line : MavenCompiler.getOutputLines()) {
+                ImGui.textWrapped(line);
+            }
+            if (MavenCompiler.isCompiling()) {
+                ImGui.setScrollHereY(1.0f);
+            }
+            ImGui.endChild();
+
+            // Material Design spinner, centered
+            float spinnerRadius = 10;
+            ImGuiHelper.setCursorAlignment(0.5f, spinnerRadius * 2);
+            int spinnerColor = ImGui.colorConvertFloat4ToU32(0.8f, 0.8f, 0.8f, 1.0f);
+            ImGuiSpinner.spinner("##compileSpinner", spinnerRadius, 3, spinnerColor);
+
+            if (!MavenCompiler.isCompiling()) {
+                ImGui.closeCurrentPopup();
+            }
+            ImGui.endPopup();
+        }
     }
 
     /**

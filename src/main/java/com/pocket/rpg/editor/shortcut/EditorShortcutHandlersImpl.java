@@ -2,6 +2,8 @@ package com.pocket.rpg.editor.shortcut;
 
 import com.pocket.rpg.editor.EditorContext;
 import com.pocket.rpg.editor.EditorModeManager;
+import com.pocket.rpg.editor.EditorSceneController;
+import com.pocket.rpg.editor.core.MavenCompiler;
 import com.pocket.rpg.editor.EditorSelectionManager;
 import com.pocket.rpg.editor.EditorToolController;
 import com.pocket.rpg.editor.PrefabEditController;
@@ -44,6 +46,9 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
 
     @Setter
     private PlayModeController playModeController;
+
+    @Setter
+    private EditorSceneController sceneController;
 
     // Panels needed for toggle shortcuts (not for tool visibility)
     @Setter
@@ -114,6 +119,23 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
         if (configurationPanel != null) {
             configurationPanel.toggle();
         }
+    }
+
+    @Override
+    public void onReloadScene() {
+        if (MavenCompiler.isCompiling()) return;
+        if (sceneController == null) return;
+
+        MavenCompiler.compileAsync(
+                () -> {
+                    showMessage("Compiled, reloading...");
+                    sceneController.reloadScene();
+                },
+                error -> {
+                    System.err.println("Compilation failed: " + error);
+                    showMessage("Compilation failed");
+                }
+        );
     }
 
     // ========================================================================

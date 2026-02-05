@@ -51,12 +51,26 @@ public class HierarchyTreeRenderer {
     private String nameBeforeRename = null;  // For undo support
     private final SavePrefabPopup savePrefabPopup = new SavePrefabPopup();
 
+    // Cache entity rects from previous frame for right-click pre-selection
+    private final java.util.Map<String, float[]> entityRectCache = new java.util.HashMap<>();
+
     public void renderEntityTree(EditorGameObject entity) {
-        boolean isSelected = scene.isSelected(entity);
         boolean isRenaming = entity == renamingItem;
         boolean hasChildren = entity.hasChildren();
 
         ImGui.pushID(entity.getId());
+
+        // Check if this entity will be right-clicked this frame
+        // We need to select it BEFORE rendering so the Selected flag is correct
+        boolean willBeRightClicked = !isRenaming
+                && ImGui.isMouseClicked(ImGuiMouseButton.Right)
+                && isMouseOverEntityArea(entity);
+
+        if (willBeRightClicked && !scene.isSelected(entity)) {
+            selectionHandler.handleEntityClick(entity);
+        }
+
+        boolean isSelected = scene.isSelected(entity);
 
         int flags = ImGuiTreeNodeFlags.SpanAvailWidth | ImGuiTreeNodeFlags.OpenOnArrow;
         if (isSelected) flags |= ImGuiTreeNodeFlags.Selected;
@@ -68,32 +82,49 @@ public class HierarchyTreeRenderer {
             ImGui.pushStyleColor(ImGuiCol.Header, 0.3f, 0.5f, 0.8f, 0.5f);
         }
 
+        // Determine the label - empty when renaming (we'll draw inline input after)
+        String label;
         if (isRenaming) {
-            renderRenameField(entity);
+            // Just show icon, name will be replaced by input field
+            label = IconUtils.getIconForEntity(entity) + " ";
         } else {
-            String label = IconUtils.getIconForEntity(entity) + " " + entity.getName();
-            boolean nodeOpen = ImGui.treeNodeEx("##entity_" + entity.getId(), flags, label);
+            label = IconUtils.getIconForEntity(entity) + " " + entity.getName();
+        }
 
+        boolean nodeOpen = ImGui.treeNodeEx("##entity_" + entity.getId(), flags, label);
+
+        // Render inline rename field on same line as tree node
+        if (isRenaming) {
+            ImGui.sameLine();
+            renderRenameField(entity);
+        }
+
+        // Cache this entity's rect for next frame's right-click pre-selection
+        entityRectCache.put(entity.getId(), new float[]{
+                ImGui.getItemRectMinX(), ImGui.getItemRectMinY(),
+                ImGui.getItemRectMaxX(), ImGui.getItemRectMaxY()
+        });
+
+        if (!isRenaming) {
             handleEntityInteraction(entity);
             dragDropHandler.handleDragSource(entity);
             dragDropHandler.handleDropTarget(entity);
+            renderEntityContextMenu(entity);
+        }
 
-            if (hasChildren && nodeOpen) {
-                List<EditorGameObject> children = new ArrayList<>(entity.getChildren());
-                children.sort(Comparator.comparingInt(EditorGameObject::getOrder));
+        // Always render children if node is open
+        if (hasChildren && nodeOpen) {
+            List<EditorGameObject> children = new ArrayList<>(entity.getChildren());
+            children.sort(Comparator.comparingInt(EditorGameObject::getOrder));
 
-                for (int i = 0; i < children.size(); i++) {
-                    EditorGameObject child = children.get(i);
-                    dragDropHandler.renderDropZone(entity, i, child);
-                    renderEntityTree(child);
-                }
-
-                dragDropHandler.renderDropZone(entity, children.size(), null);
-                ImGui.treePop();
+            for (int i = 0; i < children.size(); i++) {
+                EditorGameObject child = children.get(i);
+                dragDropHandler.renderDropZone(entity, i, child);
+                renderEntityTree(child);
             }
 
-            renderEntityContextMenu(entity);
-            renderEntityTooltip(entity);
+            dragDropHandler.renderDropZone(entity, children.size(), null);
+            ImGui.treePop();
         }
 
         if (isDropTarget) {
@@ -106,7 +137,8 @@ public class HierarchyTreeRenderer {
     }
 
     private void renderRenameField(EditorGameObject entity) {
-        ImGui.setNextItemWidth(150);
+        // Use remaining width for the input field
+        ImGui.setNextItemWidth(-1);
         ImGui.setKeyboardFocusHere();
 
         int inputFlags = ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll;
@@ -121,6 +153,7 @@ public class HierarchyTreeRenderer {
             nameBeforeRename = null;
         }
 
+        // Cancel on escape
         if (ImGui.isKeyPressed(ImGuiKey.Escape)) {
             renamingItem = null;
             nameBeforeRename = null;
@@ -131,6 +164,9 @@ public class HierarchyTreeRenderer {
         if (ImGui.isItemClicked(ImGuiMouseButton.Left)) {
             selectionHandler.handleEntityClick(entity);
         }
+
+        // Note: Right-click selection is handled earlier via pre-selection
+        // to ensure the entity appears selected before the context menu opens
 
         if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(0)) {
             renamingItem = entity;
@@ -143,6 +179,10 @@ public class HierarchyTreeRenderer {
         if (ImGui.beginPopupContextItem("entity_ctx_" + entity.getId())) {
             Set<EditorGameObject> selected = scene.getSelectedEntities();
             boolean multiSelect = selected.size() > 1;
+
+            // Create options (entity is already selected via right-click)
+            renderCreateMenuItems();
+            ImGui.separator();
 
             if (multiSelect) {
                 ImGui.text(selected.size() + " entities selected");
@@ -201,29 +241,52 @@ public class HierarchyTreeRenderer {
         savePrefabPopup.render();
     }
 
-    private void renderEntityTooltip(EditorGameObject entity) {
-        if (ImGui.isItemHovered()) {
-            ImGui.beginTooltip();
-            if (entity.isScratchEntity()) {
-                ImGui.text("Scratch Entity");
-                int compCount = entity.getComponents().size();
-                ImGui.textDisabled(compCount + " component" + (compCount != 1 ? "s" : ""));
-            } else {
-                Prefab prefab = entity.getPrefab();
-                if (prefab != null) {
-                    ImGui.text(prefab.getDisplayName());
-                } else {
-                    ImGui.textColored(1f, 0.5f, 0.2f, 1f, "Missing prefab: " + entity.getPrefabId());
+    /**
+     * Renders the shared create entity menu items.
+     * Creates as child of the currently selected entity.
+     */
+    private void renderCreateMenuItems() {
+        if (ImGui.menuItem(IconUtils.getScratchEntityIcon() + " New Child Entity")) {
+            creationService.createEmptyEntity();
+        }
+
+        if (ImGui.beginMenu(MaterialIcons.Widgets + " Create UI Child")) {
+            // Canvas
+            if (ImGui.menuItem(IconUtils.getUICanvasIcon() + " Canvas")) {
+                creationService.createUIElement("Canvas");
+            }
+            ImGui.separator();
+
+            // Basic elements
+            if (ImGui.menuItem(IconUtils.getUIPanelIcon() + " Panel")) {
+                creationService.createUIElement("Panel");
+            }
+            if (ImGui.menuItem(IconUtils.getUIImageIcon() + " Image")) {
+                creationService.createUIElement("Image");
+            }
+            if (ImGui.menuItem(IconUtils.getUIButtonIcon() + " Button")) {
+                creationService.createUIElement("Button");
+            }
+            if (ImGui.menuItem(IconUtils.getUITextIcon() + " Text")) {
+                creationService.createUIElement("Text");
+            }
+            ImGui.separator();
+
+            // Layout submenu
+            if (ImGui.beginMenu(MaterialIcons.ViewModule + " Layout")) {
+                if (ImGui.menuItem(IconUtils.getUIHorizontalLayoutIcon() + " Horizontal Layout")) {
+                    creationService.createUIElement("HorizontalLayout");
                 }
+                if (ImGui.menuItem(IconUtils.getUIVerticalLayoutIcon() + " Vertical Layout")) {
+                    creationService.createUIElement("VerticalLayout");
+                }
+                if (ImGui.menuItem(IconUtils.getUIGridLayoutIcon() + " Grid Layout")) {
+                    creationService.createUIElement("GridLayout");
+                }
+                ImGui.endMenu();
             }
-            Vector3f pos = entity.getPosition();
-            ImGui.textDisabled(String.format("Position: (%.1f, %.1f)", pos.x, pos.y));
 
-            if (entity.hasChildren()) {
-                ImGui.textDisabled(entity.getChildren().size() + " children");
-            }
-
-            ImGui.endTooltip();
+            ImGui.endMenu();
         }
     }
 
@@ -232,6 +295,21 @@ public class HierarchyTreeRenderer {
             return scene.getRootEntities().size();
         }
         return parent.getChildren().size();
+    }
+
+    /**
+     * Checks if the mouse is over the entity's cached rect from the previous frame.
+     * Used for right-click pre-selection so the entity appears selected immediately.
+     */
+    private boolean isMouseOverEntityArea(EditorGameObject entity) {
+        float[] rect = entityRectCache.get(entity.getId());
+        if (rect == null) return false;
+
+        float mouseX = ImGui.getMousePosX();
+        float mouseY = ImGui.getMousePosY();
+
+        return mouseX >= rect[0] && mouseX <= rect[2]
+                && mouseY >= rect[1] && mouseY <= rect[3];
     }
 
     // ========================================================================

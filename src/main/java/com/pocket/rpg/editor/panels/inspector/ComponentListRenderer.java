@@ -2,6 +2,8 @@ package com.pocket.rpg.editor.panels.inspector;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.RequiredComponent;
+import com.pocket.rpg.components.core.Transform;
+import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.ComponentBrowserPopup;
 import com.pocket.rpg.editor.scene.DirtyTracker;
@@ -9,6 +11,8 @@ import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.AddComponentCommand;
 import com.pocket.rpg.editor.undo.commands.RemoveComponentCommand;
+import com.pocket.rpg.editor.undo.commands.SwapTransformCommand;
+import com.pocket.rpg.editor.utils.TransformSwapHelper;
 import com.pocket.rpg.serialization.ComponentRegistry;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
@@ -63,9 +67,30 @@ public class ComponentListRenderer {
                 boolean open = ImGui.collapsingHeader(label, ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.AllowOverlap);
 
                 if (allowStructuralChanges) {
+                    boolean isTransform = comp instanceof Transform;
                     String dependent = findDependentComponent(entity, comp);
-                    ImGui.sameLine(ImGui.getContentRegionAvailX() - 20);
-                    if (dependent != null) {
+
+                    // Calculate button positions
+                    float removeButtonX = ImGui.getContentRegionAvailX() - 20;
+                    float swapButtonX = removeButtonX - 25;
+
+                    // Render swap button for Transform components
+                    if (isTransform) {
+                        renderTransformSwapButton(entity, comp, swapButtonX, dirtyTracker);
+                    }
+
+                    // Render remove button
+                    ImGui.sameLine(removeButtonX);
+                    if (isTransform) {
+                        // Transform cannot be removed
+                        ImGui.pushStyleColor(ImGuiCol.Button, 0.3f, 0.3f, 0.3f, 0.5f);
+                        ImGui.pushStyleColor(ImGuiCol.Text, 0.5f, 0.5f, 0.5f, 0.5f);
+                        ImGui.smallButton(MaterialIcons.Close + "##remove");
+                        ImGui.popStyleColor(2);
+                        if (ImGui.isItemHovered()) {
+                            ImGui.setTooltip("Transform cannot be removed");
+                        }
+                    } else if (dependent != null) {
                         ImGui.pushStyleColor(ImGuiCol.Button, 0.3f, 0.3f, 0.3f, 0.5f);
                         ImGui.pushStyleColor(ImGuiCol.Text, 0.5f, 0.5f, 0.5f, 0.5f);
                         ImGui.smallButton(MaterialIcons.Close + "##remove");
@@ -115,6 +140,60 @@ public class ComponentListRenderer {
      */
     public void renderPopup() {
         componentBrowserPopup.render();
+    }
+
+    /**
+     * Renders the transform swap button (Transform <-> UITransform).
+     * Button is red when the transform is problematic (wrong type for context).
+     */
+    private void renderTransformSwapButton(EditorGameObject entity, Component comp,
+                                           float buttonX, DirtyTracker dirtyTracker) {
+        boolean isUITransform = comp instanceof UITransform;
+        boolean isProblematic = TransformSwapHelper.hasProblematicTransform(entity);
+        boolean toUITransform = !isUITransform;
+
+        // Check if swap is allowed
+        boolean canSwap = TransformSwapHelper.canSwapTransform(entity, toUITransform);
+
+        ImGui.sameLine(buttonX);
+
+        if (!canSwap) {
+            // Cannot swap - grayed out button
+            ImGui.pushStyleColor(ImGuiCol.Button, 0.3f, 0.3f, 0.3f, 0.5f);
+            ImGui.pushStyleColor(ImGuiCol.Text, 0.5f, 0.5f, 0.5f, 0.5f);
+            ImGui.smallButton(MaterialIcons.SwapHoriz + "##swap");
+            ImGui.popStyleColor(2);
+            if (ImGui.isItemHovered()) {
+                if (TransformSwapHelper.hasUIComponentsRequiringUITransform(entity)) {
+                    ImGui.setTooltip("Cannot swap: UI components require UITransform");
+                } else {
+                    ImGui.setTooltip("Cannot swap transform type");
+                }
+            }
+        } else if (isProblematic) {
+            // Problematic transform - red button to indicate swap is recommended
+            ImGui.pushStyleColor(ImGuiCol.Button, 0.7f, 0.2f, 0.2f, 1f);
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.8f, 0.3f, 0.3f, 1f);
+            if (ImGui.smallButton(MaterialIcons.SwapHoriz + "##swap")) {
+                UndoManager.getInstance().execute(new SwapTransformCommand(entity, toUITransform));
+                dirtyTracker.markDirty();
+            }
+            ImGui.popStyleColor(2);
+            if (ImGui.isItemHovered()) {
+                String targetType = toUITransform ? "UITransform" : "Transform";
+                ImGui.setTooltip("Swap to " + targetType + " (Recommended!)");
+            }
+        } else {
+            // Normal state - regular button
+            if (ImGui.smallButton(MaterialIcons.SwapHoriz + "##swap")) {
+                UndoManager.getInstance().execute(new SwapTransformCommand(entity, toUITransform));
+                dirtyTracker.markDirty();
+            }
+            if (ImGui.isItemHovered()) {
+                String targetType = toUITransform ? "UITransform" : "Transform";
+                ImGui.setTooltip("Swap to " + targetType);
+            }
+        }
     }
 
     /**

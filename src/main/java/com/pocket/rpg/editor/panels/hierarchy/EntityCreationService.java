@@ -37,7 +37,16 @@ public class EntityCreationService {
         String name = "Entity_" + (count + 1);
 
         EditorGameObject entity = new EditorGameObject(name, position, false);
-        entity.setOrder(getNextRootOrder());
+
+        // Parent under selected entity if any
+        EditorGameObject selected = scene.getSelectedEntity();
+        if (selected != null) {
+            entity.setParent(selected);
+            entity.setOrder(selected.getChildren().size());
+        } else {
+            entity.setOrder(getNextRootOrder());
+        }
+
         UndoManager.getInstance().execute(new AddEntityCommand(scene, entity));
 
         selectAndSwitchMode(entity);

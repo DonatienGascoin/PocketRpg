@@ -2,10 +2,13 @@ package com.pocket.rpg.editor.scene;
 
 import com.pocket.rpg.components.ui.UIButton;
 import com.pocket.rpg.components.ui.UICanvas;
+import com.pocket.rpg.components.ui.UIGridLayoutGroup;
+import com.pocket.rpg.components.ui.UIHorizontalLayoutGroup;
 import com.pocket.rpg.components.ui.UIImage;
 import com.pocket.rpg.components.ui.UIPanel;
 import com.pocket.rpg.components.ui.UIText;
 import com.pocket.rpg.components.ui.UITransform;
+import com.pocket.rpg.components.ui.UIVerticalLayoutGroup;
 import com.pocket.rpg.config.GameConfig;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
@@ -37,6 +40,9 @@ public class UIEntityFactory {
             case "Image" -> createImage(name);
             case "Button" -> createButton(name);
             case "Text" -> createText(name);
+            case "HorizontalLayout" -> createHorizontalLayout(name);
+            case "VerticalLayout" -> createVerticalLayout(name);
+            case "GridLayout" -> createGridLayout(name);
             default -> null;
         };
     }
@@ -168,6 +174,81 @@ public class UIEntityFactory {
         // text.setFontSize(16f); // TODO: Does not exists, font size is from font asset. To add ?
         text.setColor(new Vector4f(1f, 1f, 1f, 1f));
         entity.addComponent(text);
+
+        return entity;
+    }
+
+    /**
+     * Creates a UIHorizontalLayoutGroup entity.
+     * Horizontal layout arranges children left-to-right.
+     */
+    public EditorGameObject createHorizontalLayout(String name) {
+        EditorGameObject entity = new EditorGameObject(
+                name != null ? name : "Horizontal Layout",
+                new Vector3f(0, 0, 0),
+                false
+        );
+
+        UITransform transform = new UITransform();
+        transform.setWidth(200f);
+        transform.setHeight(100f);
+        transform.setAnchor(new Vector2f(0, 0));
+        transform.setOffset(new Vector2f(10, 10));
+        transform.setPivot(new Vector2f(0, 0));
+        entity.addComponent(transform);
+
+        UIHorizontalLayoutGroup layout = new UIHorizontalLayoutGroup();
+        entity.addComponent(layout);
+
+        return entity;
+    }
+
+    /**
+     * Creates a UIVerticalLayoutGroup entity.
+     * Vertical layout arranges children top-to-bottom.
+     */
+    public EditorGameObject createVerticalLayout(String name) {
+        EditorGameObject entity = new EditorGameObject(
+                name != null ? name : "Vertical Layout",
+                new Vector3f(0, 0, 0),
+                false
+        );
+
+        UITransform transform = new UITransform();
+        transform.setWidth(100f);
+        transform.setHeight(200f);
+        transform.setAnchor(new Vector2f(0, 0));
+        transform.setOffset(new Vector2f(10, 10));
+        transform.setPivot(new Vector2f(0, 0));
+        entity.addComponent(transform);
+
+        UIVerticalLayoutGroup layout = new UIVerticalLayoutGroup();
+        entity.addComponent(layout);
+
+        return entity;
+    }
+
+    /**
+     * Creates a UIGridLayoutGroup entity.
+     * Grid layout arranges children in a grid pattern.
+     */
+    public EditorGameObject createGridLayout(String name) {
+        EditorGameObject entity = new EditorGameObject(
+                name != null ? name : "Grid Layout",
+                new Vector3f(0, 0, 0),
+                false
+        );
+
+        UITransform transform = new UITransform();
+        transform.setWidth(200f);
+        transform.setHeight(200f);
+        transform.setAnchor(new Vector2f(0, 0));
+        transform.setOffset(new Vector2f(10, 10));
+        transform.setPivot(new Vector2f(0, 0));
+        entity.addComponent(transform);
+
+        UIGridLayoutGroup layout = new UIGridLayoutGroup();
+        entity.addComponent(layout);
 
         return entity;
     }

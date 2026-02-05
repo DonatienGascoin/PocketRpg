@@ -26,6 +26,7 @@ import com.pocket.rpg.scenes.Scene;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiMouseButton;
+import imgui.flag.ImGuiPopupFlags;
 import imgui.flag.ImGuiTreeNodeFlags;
 import lombok.Getter;
 import lombok.Setter;
@@ -418,41 +419,29 @@ public class HierarchyPanel extends EditorPanel {
 
     private void renderEntityCreationMenu() {
         if (ImGui.beginPopup("CreateEntity_Popup")) {
-            if (ImGui.menuItem(IconUtils.getScratchEntityIcon() + " New Entity")) {
-                creationService.createEmptyEntity();
-            }
-
-            if (ImGui.beginMenu(MaterialIcons.Widgets + " Create UI")) {
-                if (ImGui.menuItem(IconUtils.getUICanvasIcon() + " Canvas")) {
-                    creationService.createUIElement("Canvas");
-                }
-                ImGui.separator();
-                if (ImGui.menuItem(IconUtils.getUIPanelIcon() + " Panel")) {
-                    creationService.createUIElement("Panel");
-                }
-                if (ImGui.menuItem(IconUtils.getUIImageIcon() + " Image")) {
-                    creationService.createUIElement("Image");
-                }
-                if (ImGui.menuItem(IconUtils.getUIButtonIcon() + " Button")) {
-                    creationService.createUIElement("Button");
-                }
-                if (ImGui.menuItem(IconUtils.getUITextIcon() + " Text")) {
-                    creationService.createUIElement("Text");
-                }
-                ImGui.endMenu();
-            }
-
+            renderCreateEntityMenuItems();
             ImGui.endPopup();
         }
     }
 
     private void renderMultiSelectionContextMenu() {
-        if (ImGui.beginPopupContextWindow("hierarchy_ctx", ImGuiMouseButton.Right)) {
+        // NoOpenOverItems prevents this from overriding entity-specific context menus
+        int popupFlags = ImGuiPopupFlags.MouseButtonRight | ImGuiPopupFlags.NoOpenOverItems;
+        if (ImGui.beginPopupContextWindow("hierarchy_ctx", popupFlags)) {
             Set<EditorGameObject> selected = scene.getSelectedEntities();
 
+            // Always show create options (creates as child if entity selected)
+            renderCreateEntityMenuItems();
+
+            // Selection-specific actions
             if (!selected.isEmpty()) {
-                ImGui.text(selected.size() + " selected");
                 ImGui.separator();
+
+                if (selected.size() == 1) {
+                    ImGui.text("1 selected");
+                } else {
+                    ImGui.text(selected.size() + " selected");
+                }
 
                 if (ImGui.menuItem(MaterialIcons.Delete + " Delete Selected")) {
                     UndoManager.getInstance().execute(new BulkDeleteCommand(scene, selected));
@@ -461,33 +450,58 @@ public class HierarchyPanel extends EditorPanel {
                 if (ImGui.menuItem(MaterialIcons.Cancel + " Clear Selection")) {
                     scene.clearSelection();
                 }
-            } else {
-                if (ImGui.menuItem(IconUtils.getScratchEntityIcon() + " New Entity")) {
-                    creationService.createEmptyEntity();
-                }
-
-                if (ImGui.beginMenu(MaterialIcons.Widgets + " Create UI")) {
-                    if (ImGui.menuItem(IconUtils.getUICanvasIcon() + " Canvas")) {
-                        creationService.createUIElement("Canvas");
-                    }
-                    ImGui.separator();
-                    if (ImGui.menuItem(IconUtils.getUIPanelIcon() + " Panel")) {
-                        creationService.createUIElement("Panel");
-                    }
-                    if (ImGui.menuItem(IconUtils.getUIImageIcon() + " Image")) {
-                        creationService.createUIElement("Image");
-                    }
-                    if (ImGui.menuItem(IconUtils.getUIButtonIcon() + " Button")) {
-                        creationService.createUIElement("Button");
-                    }
-                    if (ImGui.menuItem(IconUtils.getUITextIcon() + " Text")) {
-                        creationService.createUIElement("Text");
-                    }
-                    ImGui.endMenu();
-                }
             }
 
             ImGui.endPopup();
+        }
+    }
+
+    /**
+     * Renders the shared create entity menu items.
+     * Used by both the Add button popup and the context menu.
+     */
+    private void renderCreateEntityMenuItems() {
+        if (ImGui.menuItem(IconUtils.getScratchEntityIcon() + " New Entity")) {
+            creationService.createEmptyEntity();
+        }
+
+        if (ImGui.beginMenu(MaterialIcons.Widgets + " Create UI")) {
+            // Canvas
+            if (ImGui.menuItem(IconUtils.getUICanvasIcon() + " Canvas")) {
+                creationService.createUIElement("Canvas");
+            }
+            ImGui.separator();
+
+            // Basic elements
+            if (ImGui.menuItem(IconUtils.getUIPanelIcon() + " Panel")) {
+                creationService.createUIElement("Panel");
+            }
+            if (ImGui.menuItem(IconUtils.getUIImageIcon() + " Image")) {
+                creationService.createUIElement("Image");
+            }
+            if (ImGui.menuItem(IconUtils.getUIButtonIcon() + " Button")) {
+                creationService.createUIElement("Button");
+            }
+            if (ImGui.menuItem(IconUtils.getUITextIcon() + " Text")) {
+                creationService.createUIElement("Text");
+            }
+            ImGui.separator();
+
+            // Layout submenu
+            if (ImGui.beginMenu(MaterialIcons.ViewModule + " Layout")) {
+                if (ImGui.menuItem(IconUtils.getUIHorizontalLayoutIcon() + " Horizontal Layout")) {
+                    creationService.createUIElement("HorizontalLayout");
+                }
+                if (ImGui.menuItem(IconUtils.getUIVerticalLayoutIcon() + " Vertical Layout")) {
+                    creationService.createUIElement("VerticalLayout");
+                }
+                if (ImGui.menuItem(IconUtils.getUIGridLayoutIcon() + " Grid Layout")) {
+                    creationService.createUIElement("GridLayout");
+                }
+                ImGui.endMenu();
+            }
+
+            ImGui.endMenu();
         }
     }
 }

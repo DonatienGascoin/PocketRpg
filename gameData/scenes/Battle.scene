@@ -891,7 +891,7 @@
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
-              "w": 1.0
+              "w": 0.0
             },
             "imageType": "SIMPLE",
             "fillCenter": true,
@@ -953,7 +953,7 @@
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
-              "w": 1.0
+              "w": 0.0
             },
             "imageType": "SIMPLE",
             "fillCenter": true,
@@ -1015,7 +1015,7 @@
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
-              "w": 1.0
+              "w": 0.0
             },
             "imageType": "SIMPLE",
             "fillCenter": true,
@@ -1137,7 +1137,7 @@
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
-              "w": 1.0
+              "w": 0.0
             },
             "imageType": "SIMPLE",
             "fillCenter": true,
@@ -1199,7 +1199,7 @@
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
-              "w": 1.0
+              "w": 0.0
             },
             "imageType": "SIMPLE",
             "fillCenter": true,
@@ -1261,7 +1261,7 @@
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
-              "w": 1.0
+              "w": 0.0
             },
             "imageType": "SIMPLE",
             "fillCenter": true,
@@ -1313,6 +1313,12 @@
             "matchParentRotation": false,
             "matchParentScale": false
           }
+        },
+        {
+          "type": "com.pocket.rpg.components.ui.AlphaGroup",
+          "properties": {
+            "alpha": 0.0
+          }
         }
       ]
     },
@@ -1359,7 +1365,7 @@
         {
           "type": "com.pocket.rpg.components.ui.AlphaGroup",
           "properties": {
-            "alpha": 0.7
+            "alpha": 0.0
           }
         }
       ]
@@ -1473,7 +1479,7 @@
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
-              "w": 1.0
+              "w": 0.0
             },
             "imageType": "SIMPLE",
             "fillCenter": true,
@@ -1535,7 +1541,7 @@
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
-              "w": 1.0
+              "w": 0.0
             },
             "imageType": "SIMPLE",
             "fillCenter": true,
@@ -1597,7 +1603,7 @@
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
-              "w": 1.0
+              "w": 0.0
             },
             "imageType": "SIMPLE",
             "fillCenter": true,
@@ -1719,7 +1725,7 @@
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
-              "w": 1.0
+              "w": 0.0
             },
             "imageType": "SIMPLE",
             "fillCenter": true,
@@ -1781,7 +1787,7 @@
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
-              "w": 1.0
+              "w": 0.0
             },
             "imageType": "SIMPLE",
             "fillCenter": true,
@@ -1843,7 +1849,7 @@
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
-              "w": 1.0
+              "w": 0.0
             },
             "imageType": "SIMPLE",
             "fillCenter": true,
@@ -1852,6 +1858,346 @@
             "fillAmount": 1.0,
             "fillClockwise": true,
             "pixelsPerUnit": 100.0
+          }
+        }
+      ]
+    },
+    {
+      "id": "c5e6a6d6",
+      "name": "Button1",
+      "active": true,
+      "parentId": "93086d39",
+      "order": 0,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.ui.UITransform",
+          "properties": {
+            "localPosition": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            },
+            "anchor": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "pivot": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "width": 250.0,
+            "height": 50.0,
+            "stretchMode": "NONE",
+            "matchParentRotation": false,
+            "matchParentScale": false
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.ui.UIButton",
+          "properties": {
+            "raycastTarget": true,
+            "transitionMode": "COLOR_TINT",
+            "color": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0,
+              "w": 1.0
+            },
+            "hoverTint": 0.8,
+            "hoveredColor": {
+              "x": 0.3,
+              "y": 0.3,
+              "z": 0.3,
+              "w": 0.3
+            },
+            "pressedColor": {
+              "x": 0.3,
+              "y": 0.3,
+              "z": 0.3,
+              "w": 0.5
+            },
+            "hovered": false,
+            "pressed": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "93086d39",
+      "name": "Entity_33",
+      "active": true,
+      "parentId": "46696ca2",
+      "order": 0,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.ui.UITransform",
+          "properties": {
+            "localPosition": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            },
+            "anchor": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "pivot": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "width": 500.0,
+            "height": 100.0,
+            "stretchMode": "NONE",
+            "matchParentRotation": false,
+            "matchParentScale": false
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.ui.UIGridLayoutGroup",
+          "properties": {
+            "paddingLeft": 0.0,
+            "paddingRight": 0.0,
+            "paddingTop": 0.0,
+            "paddingBottom": 0.0,
+            "spacing": 0.0,
+            "childForceExpandWidth": true,
+            "childForceExpandHeight": true,
+            "cellWidth": 64.0,
+            "cellHeight": 64.0,
+            "startCorner": "UPPER_LEFT",
+            "startAxis": "HORIZONTAL",
+            "constraint": "FIXED_COLUMN_COUNT",
+            "constraintCount": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "2fcb5cc0",
+      "name": "Button1_copy",
+      "active": true,
+      "parentId": "93086d39",
+      "order": 2,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.ui.UITransform",
+          "properties": {
+            "localPosition": {
+              "x": 250.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            },
+            "anchor": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "pivot": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "width": 250.0,
+            "height": 50.0,
+            "stretchMode": "NONE",
+            "matchParentRotation": false,
+            "matchParentScale": false
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.ui.UIButton",
+          "properties": {
+            "raycastTarget": true,
+            "transitionMode": "COLOR_TINT",
+            "color": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0,
+              "w": 1.0
+            },
+            "hoverTint": 0.8,
+            "hoveredColor": {
+              "x": 0.3,
+              "y": 0.3,
+              "z": 0.3,
+              "w": 0.3
+            },
+            "pressedColor": {
+              "x": 0.3,
+              "y": 0.3,
+              "z": 0.3,
+              "w": 0.5
+            },
+            "hovered": false,
+            "pressed": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "861ef80b",
+      "name": "Button1_copy_copy",
+      "active": true,
+      "parentId": "93086d39",
+      "order": 4,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.ui.UITransform",
+          "properties": {
+            "localPosition": {
+              "x": 0.0,
+              "y": 50.0,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            },
+            "anchor": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "pivot": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "width": 250.0,
+            "height": 50.0,
+            "stretchMode": "NONE",
+            "matchParentRotation": false,
+            "matchParentScale": false
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.ui.UIButton",
+          "properties": {
+            "raycastTarget": true,
+            "transitionMode": "COLOR_TINT",
+            "color": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0,
+              "w": 1.0
+            },
+            "hoverTint": 0.8,
+            "hoveredColor": {
+              "x": 0.3,
+              "y": 0.3,
+              "z": 0.3,
+              "w": 0.3
+            },
+            "pressedColor": {
+              "x": 0.3,
+              "y": 0.3,
+              "z": 0.3,
+              "w": 0.5
+            },
+            "hovered": false,
+            "pressed": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "fe819151",
+      "name": "Button1_copy_copy_copy",
+      "active": true,
+      "parentId": "93086d39",
+      "order": 6,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.ui.UITransform",
+          "properties": {
+            "localPosition": {
+              "x": 250.0,
+              "y": 50.0,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            },
+            "anchor": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "pivot": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "width": 250.0,
+            "height": 50.0,
+            "stretchMode": "NONE",
+            "matchParentRotation": false,
+            "matchParentScale": false
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.ui.UIButton",
+          "properties": {
+            "raycastTarget": true,
+            "transitionMode": "COLOR_TINT",
+            "color": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0,
+              "w": 1.0
+            },
+            "hoverTint": 0.8,
+            "hoveredColor": {
+              "x": 0.3,
+              "y": 0.3,
+              "z": 0.3,
+              "w": 0.3
+            },
+            "pressedColor": {
+              "x": 0.3,
+              "y": 0.3,
+              "z": 0.3,
+              "w": 0.5
+            },
+            "hovered": false,
+            "pressed": false
           }
         }
       ]

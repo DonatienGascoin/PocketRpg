@@ -18,6 +18,12 @@ public class IconUtils {
             return getUIImageIcon();
         } else if (entity.hasComponent(UIPanel.class)) {
             return getUIPanelIcon();
+        } else if (entity.hasComponent(UIHorizontalLayoutGroup.class)) {
+            return getUIHorizontalLayoutIcon();
+        } else if (entity.hasComponent(UIVerticalLayoutGroup.class)) {
+            return getUIVerticalLayoutIcon();
+        } else if (entity.hasComponent(UIGridLayoutGroup.class)) {
+            return getUIGridLayoutIcon();
         } else if (entity.hasComponent(UITransform.class)) {
             return getUITransformIcon();
         }
@@ -70,6 +76,18 @@ public class IconUtils {
 
     public static String getUITransformIcon() {
         return MaterialIcons.OpenInFull;
+    }
+
+    public static String getUIHorizontalLayoutIcon() {
+        return MaterialIcons.ViewWeek;
+    }
+
+    public static String getUIVerticalLayoutIcon() {
+        return MaterialIcons.ViewStream;
+    }
+
+    public static String getUIGridLayoutIcon() {
+        return MaterialIcons.GridView;
     }
 
     public static String getMultipleEntitiesIcon() {

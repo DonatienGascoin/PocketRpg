@@ -1,6 +1,11 @@
-package com.pocket.rpg.components;
+package com.pocket.rpg.components.pokemon;
 
 import com.pocket.rpg.collision.Direction;
+import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.ComponentMeta;
+import com.pocket.rpg.components.ComponentRef;
+import com.pocket.rpg.components.HideInInspector;
+import com.pocket.rpg.components.animations.AnimatorComponent;
 import lombok.Getter;
 import lombok.Setter;
 

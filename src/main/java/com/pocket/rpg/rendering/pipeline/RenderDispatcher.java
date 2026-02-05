@@ -1,7 +1,7 @@
 package com.pocket.rpg.rendering.pipeline;
 
-import com.pocket.rpg.components.SpriteRenderer;
-import com.pocket.rpg.components.TilemapRenderer;
+import com.pocket.rpg.components.rendering.SpriteRenderer;
+import com.pocket.rpg.components.rendering.TilemapRenderer;
 import com.pocket.rpg.editor.rendering.TilemapLayerRenderable;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.rendering.resources.Sprite;

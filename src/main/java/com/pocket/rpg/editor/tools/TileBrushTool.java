@@ -1,6 +1,6 @@
 package com.pocket.rpg.editor.tools;
 
-import com.pocket.rpg.components.TilemapRenderer;
+import com.pocket.rpg.components.rendering.TilemapRenderer;
 import com.pocket.rpg.editor.camera.EditorCamera;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.TilemapLayer;

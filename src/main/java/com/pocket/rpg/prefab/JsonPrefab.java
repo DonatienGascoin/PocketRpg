@@ -1,7 +1,7 @@
 package com.pocket.rpg.prefab;
 
 import com.pocket.rpg.components.Component;
-import com.pocket.rpg.components.SpriteRenderer;
+import com.pocket.rpg.components.rendering.SpriteRenderer;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
@@ -26,7 +26,7 @@ import java.util.List;
  *   "previewSpritePath": "sprites/chest.png",
  *   "components": [
  *     {
- *       "type": "com.pocket.rpg.components.SpriteRenderer",
+ *       "type": "com.pocket.rpg.components.rendering.SpriteRenderer",
  *       "properties": {
  *         "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/chest.png",
  *         "zIndex": 10

@@ -340,6 +340,7 @@ Simple binary state - opened or not.
 ```java
 package com.pocket.rpg.components;
 
+import com.pocket.rpg.components.rendering.SpriteRenderer;
 import com.pocket.rpg.save.ISaveable;
 import com.pocket.rpg.serialization.HideInInspector;
 
@@ -430,8 +431,13 @@ public class Chest extends Component implements ISaveable {
     }
 
     // Getters
-    public boolean isOpened() { return opened; }
-    public boolean isLooted() { return looted; }
+    public boolean isOpened() {
+        return opened;
+    }
+
+    public boolean isLooted() {
+        return looted;
+    }
 
     // ========================================================================
     // ISaveable IMPLEMENTATION

@@ -1,7 +1,7 @@
 package com.pocket.rpg.core;
 
 import com.pocket.rpg.components.Component;
-import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.components.core.Transform;
 
 import java.util.List;
 

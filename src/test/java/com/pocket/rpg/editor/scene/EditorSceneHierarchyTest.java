@@ -1110,7 +1110,7 @@ class EditorSceneHierarchyTest {
             // remain does NOT invalidate cache — this is a known issue.
             var e = entity("Scratch");
             // For scratch entities this is a no-op, just verify no crash
-            e.resetFieldToDefault("com.pocket.rpg.components.Transform", "localPosition");
+            e.resetFieldToDefault("com.pocket.rpg.components.core.Transform", "localPosition");
         }
     }
 }

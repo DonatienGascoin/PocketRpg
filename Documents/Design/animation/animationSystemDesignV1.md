@@ -251,8 +251,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.pocket.rpg.animation.Animation;
 import com.pocket.rpg.animation.AnimationFrame;
-import com.pocket.rpg.components.AnimationComponent;
-import com.pocket.rpg.components.SpriteRenderer;
+import com.pocket.rpg.components.animations.AnimationComponent;
+import com.pocket.rpg.components.rendering.SpriteRenderer;
 import com.pocket.rpg.editor.core.FontAwesomeIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.rendering.resources.Sprite;
@@ -270,196 +270,196 @@ import java.nio.file.Paths;
  */
 public class AnimationLoader implements AssetLoader<Animation> {
 
-    private static final String[] EXTENSIONS = {".anim", ".anim.json"};
-    private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
+   private static final String[] EXTENSIONS = {".anim", ".anim.json"};
+   private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
-    private static Animation placeholder;
+   private static Animation placeholder;
 
-    // ========================================================================
-    // LOADING
-    // ========================================================================
+   // ========================================================================
+   // LOADING
+   // ========================================================================
 
-    @Override
-    public Animation load(String path) throws IOException {
-        try {
-            String jsonContent = Files.readString(Paths.get(path));
-            JsonObject json = JsonParser.parseString(jsonContent).getAsJsonObject();
-            return fromJSON(json, path);
-        } catch (Exception e) {
-            throw new IOException("Failed to load animation: " + path, e);
-        }
-    }
+   @Override
+   public Animation load(String path) throws IOException {
+      try {
+         String jsonContent = Files.readString(Paths.get(path));
+         JsonObject json = JsonParser.parseString(jsonContent).getAsJsonObject();
+         return fromJSON(json, path);
+      } catch (Exception e) {
+         throw new IOException("Failed to load animation: " + path, e);
+      }
+   }
 
-    private Animation fromJSON(JsonObject json, String path) throws IOException {
-        Animation anim = new Animation();
+   private Animation fromJSON(JsonObject json, String path) throws IOException {
+      Animation anim = new Animation();
 
-        // Required: name
-        if (!json.has("name") || json.get("name").isJsonNull()) {
-            throw new IOException("Animation missing required field 'name': " + path);
-        }
-        anim.setName(json.get("name").getAsString());
+      // Required: name
+      if (!json.has("name") || json.get("name").isJsonNull()) {
+         throw new IOException("Animation missing required field 'name': " + path);
+      }
+      anim.setName(json.get("name").getAsString());
 
-        // Required: looping
-        if (!json.has("looping")) {
-            throw new IOException("Animation missing required field 'looping': " + path);
-        }
-        anim.setLooping(json.get("looping").getAsBoolean());
+      // Required: looping
+      if (!json.has("looping")) {
+         throw new IOException("Animation missing required field 'looping': " + path);
+      }
+      anim.setLooping(json.get("looping").getAsBoolean());
 
-        // Required: frames (must have at least one)
-        if (!json.has("frames") || !json.get("frames").isJsonArray()) {
-            throw new IOException("Animation missing required field 'frames': " + path);
-        }
+      // Required: frames (must have at least one)
+      if (!json.has("frames") || !json.get("frames").isJsonArray()) {
+         throw new IOException("Animation missing required field 'frames': " + path);
+      }
 
-        JsonArray framesArray = json.getAsJsonArray("frames");
-        if (framesArray.isEmpty()) {
-            throw new IOException("Animation must have at least one frame: " + path);
-        }
+      JsonArray framesArray = json.getAsJsonArray("frames");
+      if (framesArray.isEmpty()) {
+         throw new IOException("Animation must have at least one frame: " + path);
+      }
 
-        for (int i = 0; i < framesArray.size(); i++) {
-            JsonObject frameJson = framesArray.get(i).getAsJsonObject();
+      for (int i = 0; i < framesArray.size(); i++) {
+         JsonObject frameJson = framesArray.get(i).getAsJsonObject();
 
-            // Required: sprite
-            if (!frameJson.has("sprite")) {
-                throw new IOException("Frame " + i + " missing required field 'sprite': " + path);
-            }
-            String spritePath = frameJson.get("sprite").getAsString();
+         // Required: sprite
+         if (!frameJson.has("sprite")) {
+            throw new IOException("Frame " + i + " missing required field 'sprite': " + path);
+         }
+         String spritePath = frameJson.get("sprite").getAsString();
 
-            // Required: duration
-            if (!frameJson.has("duration")) {
-                throw new IOException("Frame " + i + " missing required field 'duration': " + path);
-            }
-            float duration = frameJson.get("duration").getAsFloat();
+         // Required: duration
+         if (!frameJson.has("duration")) {
+            throw new IOException("Frame " + i + " missing required field 'duration': " + path);
+         }
+         float duration = frameJson.get("duration").getAsFloat();
 
-            anim.addFrame(new AnimationFrame(spritePath, duration));
-        }
+         anim.addFrame(new AnimationFrame(spritePath, duration));
+      }
 
-        return anim;
-    }
+      return anim;
+   }
 
-    // ========================================================================
-    // SAVING
-    // ========================================================================
+   // ========================================================================
+   // SAVING
+   // ========================================================================
 
-    @Override
-    public void save(Animation animation, String path) throws IOException {
-        try {
-            JsonObject json = toJSON(animation);
-            String jsonString = gson.toJson(json);
+   @Override
+   public void save(Animation animation, String path) throws IOException {
+      try {
+         JsonObject json = toJSON(animation);
+         String jsonString = gson.toJson(json);
 
-            Path filePath = Paths.get(path);
-            Path parentDir = filePath.getParent();
-            if (parentDir != null && !Files.exists(parentDir)) {
-                Files.createDirectories(parentDir);
-            }
+         Path filePath = Paths.get(path);
+         Path parentDir = filePath.getParent();
+         if (parentDir != null && !Files.exists(parentDir)) {
+            Files.createDirectories(parentDir);
+         }
 
-            Files.writeString(filePath, jsonString);
-        } catch (Exception e) {
-            throw new IOException("Failed to save animation: " + path, e);
-        }
-    }
+         Files.writeString(filePath, jsonString);
+      } catch (Exception e) {
+         throw new IOException("Failed to save animation: " + path, e);
+      }
+   }
 
-    private JsonObject toJSON(Animation anim) {
-        JsonObject json = new JsonObject();
+   private JsonObject toJSON(Animation anim) {
+      JsonObject json = new JsonObject();
 
-        json.addProperty("name", anim.getName());
-        json.addProperty("looping", anim.isLooping());
+      json.addProperty("name", anim.getName());
+      json.addProperty("looping", anim.isLooping());
 
-        JsonArray framesArray = new JsonArray();
-        for (AnimationFrame frame : anim.getFrames()) {
-            JsonObject frameJson = new JsonObject();
-            frameJson.addProperty("sprite", frame.spritePath());
-            frameJson.addProperty("duration", frame.duration());
-            framesArray.add(frameJson);
-        }
-        json.add("frames", framesArray);
+      JsonArray framesArray = new JsonArray();
+      for (AnimationFrame frame : anim.getFrames()) {
+         JsonObject frameJson = new JsonObject();
+         frameJson.addProperty("sprite", frame.spritePath());
+         frameJson.addProperty("duration", frame.duration());
+         framesArray.add(frameJson);
+      }
+      json.add("frames", framesArray);
 
-        return json;
-    }
+      return json;
+   }
 
-    // ========================================================================
-    // ASSET LOADER INTERFACE
-    // ========================================================================
+   // ========================================================================
+   // ASSET LOADER INTERFACE
+   // ========================================================================
 
-    @Override
-    public Animation getPlaceholder() {
-        if (placeholder == null) {
-            placeholder = new Animation("placeholder");
-            placeholder.setLooping(true);
-        }
-        return placeholder;
-    }
+   @Override
+   public Animation getPlaceholder() {
+      if (placeholder == null) {
+         placeholder = new Animation("placeholder");
+         placeholder.setLooping(true);
+      }
+      return placeholder;
+   }
 
-    @Override
-    public String[] getSupportedExtensions() {
-        return EXTENSIONS;
-    }
+   @Override
+   public String[] getSupportedExtensions() {
+      return EXTENSIONS;
+   }
 
-    @Override
-    public boolean supportsHotReload() {
-        return true;
-    }
+   @Override
+   public boolean supportsHotReload() {
+      return true;
+   }
 
-    @Override
-    public Animation reload(Animation existing, String path) throws IOException {
-        existing.invalidateCache();
-        Animation reloaded = load(path);
-        existing.copyFrom(reloaded);
-        return existing;
-    }
+   @Override
+   public Animation reload(Animation existing, String path) throws IOException {
+      existing.invalidateCache();
+      Animation reloaded = load(path);
+      existing.copyFrom(reloaded);
+      return existing;
+   }
 
-    // ========================================================================
-    // EDITOR INTEGRATION
-    // ========================================================================
+   // ========================================================================
+   // EDITOR INTEGRATION
+   // ========================================================================
 
-    @Override
-    public boolean canInstantiate() {
-        return true;
-    }
+   @Override
+   public boolean canInstantiate() {
+      return true;
+   }
 
-    @Override
-    public EditorGameObject instantiate(Animation asset, String assetPath, Vector3f position) {
-        String baseName = asset.getName() != null ? asset.getName() : extractEntityName(assetPath);
+   @Override
+   public EditorGameObject instantiate(Animation asset, String assetPath, Vector3f position) {
+      String baseName = asset.getName() != null ? asset.getName() : extractEntityName(assetPath);
 
-        EditorGameObject entity = new EditorGameObject(baseName, position, false);
+      EditorGameObject entity = new EditorGameObject(baseName, position, false);
 
-        // Add SpriteRenderer with first frame
-        SpriteRenderer spriteRenderer = new SpriteRenderer();
-        if (asset.getFrameCount() > 0) {
-            spriteRenderer.setSprite(asset.getFrameSprite(0));
-        }
-        entity.addComponent(spriteRenderer);
+      // Add SpriteRenderer with first frame
+      SpriteRenderer spriteRenderer = new com.pocket.rpg.components.rendering.SpriteRenderer();
+      if (asset.getFrameCount() > 0) {
+         spriteRenderer.setSprite(asset.getFrameSprite(0));
+      }
+      entity.addComponent(spriteRenderer);
 
-        // Add AnimationComponent
-        AnimationComponent animComponent = new AnimationComponent();
-        animComponent.setAnimation(asset);
-        animComponent.setAutoPlay(true);
-        entity.addComponent(animComponent);
+      // Add AnimationComponent
+      com.pocket.rpg.components.animations.AnimationComponent animComponent = new AnimationComponent();
+      animComponent.setAnimation(asset);
+      animComponent.setAutoPlay(true);
+      entity.addComponent(animComponent);
 
-        return entity;
-    }
+      return entity;
+   }
 
-    @Override
-    public Sprite getPreviewSprite(Animation asset) {
-        if (asset != null && asset.getFrameCount() > 0) {
-            return asset.getFrameSprite(0);
-        }
-        return null;
-    }
+   @Override
+   public Sprite getPreviewSprite(Animation asset) {
+      if (asset != null && asset.getFrameCount() > 0) {
+         return asset.getFrameSprite(0);
+      }
+      return null;
+   }
 
-    @Override
-    public String getIconCodepoint() {
-        return FontAwesomeIcons.Film;
-    }
+   @Override
+   public String getIconCodepoint() {
+      return FontAwesomeIcons.Film;
+   }
 
-    private String extractEntityName(String path) {
-        String name = Paths.get(path).getFileName().toString();
-        for (String ext : EXTENSIONS) {
-            if (name.endsWith(ext)) {
-                return name.substring(0, name.length() - ext.length());
-            }
-        }
-        return name;
-    }
+   private String extractEntityName(String path) {
+      String name = Paths.get(path).getFileName().toString();
+      for (String ext : EXTENSIONS) {
+         if (name.endsWith(ext)) {
+            return name.substring(0, name.length() - ext.length());
+         }
+      }
+      return name;
+   }
 }
 ```
 
@@ -472,6 +472,7 @@ package com.pocket.rpg.components;
 
 import com.pocket.rpg.animation.Animation;
 import com.pocket.rpg.animation.AnimationFrame;
+import com.pocket.rpg.components.rendering.SpriteRenderer;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.serialization.HideInInspector;
 
@@ -485,260 +486,261 @@ import com.pocket.rpg.serialization.HideInInspector;
  */
 public class AnimationComponent extends Component {
 
-    // ========================================================================
-    // SERIALIZED FIELDS
-    // ========================================================================
+   // ========================================================================
+   // SERIALIZED FIELDS
+   // ========================================================================
 
-    /**
-     * The animation asset to play.
-     * Serialized as path string (e.g., "animations/player_walk.anim")
-     * via AssetReferenceTypeAdapterFactory.
-     */
-    private Animation animation;
+   /**
+    * The animation asset to play.
+    * Serialized as path string (e.g., "animations/player_walk.anim")
+    * via AssetReferenceTypeAdapterFactory.
+    */
+   private Animation animation;
 
-    /** Whether to start playing automatically when scene loads */
-    private boolean autoPlay = true;
+   /** Whether to start playing automatically when scene loads */
+   private boolean autoPlay = true;
 
-    /** Playback speed multiplier (1.0 = normal speed) */
-    private float speed = 1.0f;
+   /** Playback speed multiplier (1.0 = normal speed) */
+   private float speed = 1.0f;
 
-    // ========================================================================
-    // RUNTIME STATE (not serialized)
-    // ========================================================================
+   // ========================================================================
+   // RUNTIME STATE (not serialized)
+   // ========================================================================
 
-    @HideInInspector
-    private int currentFrame = 0;
+   @HideInInspector
+   private int currentFrame = 0;
 
-    @HideInInspector
-    private float timer = 0;
+   @HideInInspector
+   private float timer = 0;
 
-    @HideInInspector
-    private AnimationState state = AnimationState.STOPPED;
+   @HideInInspector
+   private AnimationState state = AnimationState.STOPPED;
 
-    // ========================================================================
-    // COMPONENT REFERENCE (auto-resolved, not serialized)
-    // ========================================================================
+   // ========================================================================
+   // COMPONENT REFERENCE (auto-resolved, not serialized)
+   // ========================================================================
 
-    @ComponentRef
-    private SpriteRenderer spriteRenderer;
+   @ComponentRef
+   private SpriteRenderer spriteRenderer;
 
-    // ========================================================================
-    // STATE ENUM
-    // ========================================================================
+   // ========================================================================
+   // STATE ENUM
+   // ========================================================================
 
-    public enum AnimationState {
-        STOPPED,    // No animation, timer at 0
-        PLAYING,    // Advancing frames
-        PAUSED,     // Timer frozen, current frame visible
-        FINISHED    // Non-looping animation completed (stays on last frame)
-    }
+   public enum AnimationState {
+      STOPPED,    // No animation, timer at 0
+      PLAYING,    // Advancing frames
+      PAUSED,     // Timer frozen, current frame visible
+      FINISHED    // Non-looping animation completed (stays on last frame)
+   }
 
-    // ========================================================================
-    // CONSTRUCTORS
-    // ========================================================================
+   // ========================================================================
+   // CONSTRUCTORS
+   // ========================================================================
 
-    public AnimationComponent() {}
+   public AnimationComponent() {
+   }
 
-    public AnimationComponent(Animation animation) {
-        this.animation = animation;
-    }
+   public AnimationComponent(Animation animation) {
+      this.animation = animation;
+   }
 
-    // ========================================================================
-    // LIFECYCLE
-    // ========================================================================
+   // ========================================================================
+   // LIFECYCLE
+   // ========================================================================
 
-    @Override
-    protected void onStart() {
-        if (autoPlay && animation != null && animation.getFrameCount() > 0) {
-            play();
-        }
-    }
+   @Override
+   protected void onStart() {
+      if (autoPlay && animation != null && animation.getFrameCount() > 0) {
+         play();
+      }
+   }
 
-    @Override
-    public void update(float deltaTime) {
-        if (state != AnimationState.PLAYING) return;
-        if (animation == null || animation.getFrameCount() == 0) return;
-        if (spriteRenderer == null) return;
+   @Override
+   public void update(float deltaTime) {
+      if (state != AnimationState.PLAYING) return;
+      if (animation == null || animation.getFrameCount() == 0) return;
+      if (spriteRenderer == null) return;
 
-        // Advance timer
-        timer += deltaTime * speed;
+      // Advance timer
+      timer += deltaTime * speed;
 
-        AnimationFrame frame = animation.getFrame(currentFrame);
+      AnimationFrame frame = animation.getFrame(currentFrame);
 
-        // Check if frame duration exceeded
-        while (timer >= frame.duration()) {
-            timer -= frame.duration();
-            currentFrame++;
+      // Check if frame duration exceeded
+      while (timer >= frame.duration()) {
+         timer -= frame.duration();
+         currentFrame++;
 
-            // Handle end of animation
-            if (currentFrame >= animation.getFrameCount()) {
-                if (animation.isLooping()) {
-                    currentFrame = 0;
-                } else {
-                    currentFrame = animation.getFrameCount() - 1;
-                    state = AnimationState.FINISHED;
-                    return;
-                }
+         // Handle end of animation
+         if (currentFrame >= animation.getFrameCount()) {
+            if (animation.isLooping()) {
+               currentFrame = 0;
+            } else {
+               currentFrame = animation.getFrameCount() - 1;
+               state = AnimationState.FINISHED;
+               return;
             }
+         }
 
-            frame = animation.getFrame(currentFrame);
-        }
+         frame = animation.getFrame(currentFrame);
+      }
 
-        // Update sprite
-        spriteRenderer.setSprite(animation.getFrameSprite(currentFrame));
-    }
+      // Update sprite
+      spriteRenderer.setSprite(animation.getFrameSprite(currentFrame));
+   }
 
-    // ========================================================================
-    // PLAYBACK CONTROL
-    // ========================================================================
+   // ========================================================================
+   // PLAYBACK CONTROL
+   // ========================================================================
 
-    /**
-     * Starts or restarts the animation from the beginning.
-     */
-    public void play() {
-        if (animation == null || animation.getFrameCount() == 0) return;
+   /**
+    * Starts or restarts the animation from the beginning.
+    */
+   public void play() {
+      if (animation == null || animation.getFrameCount() == 0) return;
 
-        currentFrame = 0;
-        timer = 0;
-        state = AnimationState.PLAYING;
+      currentFrame = 0;
+      timer = 0;
+      state = AnimationState.PLAYING;
 
-        // Set initial frame
-        if (spriteRenderer != null) {
-            spriteRenderer.setSprite(animation.getFrameSprite(0));
-        }
-    }
+      // Set initial frame
+      if (spriteRenderer != null) {
+         spriteRenderer.setSprite(animation.getFrameSprite(0));
+      }
+   }
 
-    /**
-     * Plays a different animation.
-     */
-    public void playAnimation(Animation animation) {
-        this.animation = animation;
-        play();
-    }
+   /**
+    * Plays a different animation.
+    */
+   public void playAnimation(Animation animation) {
+      this.animation = animation;
+      play();
+   }
 
-    /**
-     * Plays an animation by path.
-     */
-    public void playAnimation(String path) {
-        if (path == null || path.isBlank()) {
-            stop();
-            return;
-        }
-        this.animation = Assets.load(path, Animation.class);
-        play();
-    }
+   /**
+    * Plays an animation by path.
+    */
+   public void playAnimation(String path) {
+      if (path == null || path.isBlank()) {
+         stop();
+         return;
+      }
+      this.animation = Assets.load(path, Animation.class);
+      play();
+   }
 
-    /**
-     * Pauses playback at current frame.
-     */
-    public void pause() {
-        if (state == AnimationState.PLAYING) {
-            state = AnimationState.PAUSED;
-        }
-    }
+   /**
+    * Pauses playback at current frame.
+    */
+   public void pause() {
+      if (state == AnimationState.PLAYING) {
+         state = AnimationState.PAUSED;
+      }
+   }
 
-    /**
-     * Resumes playback from current position.
-     */
-    public void resume() {
-        if (state == AnimationState.PAUSED) {
-            state = AnimationState.PLAYING;
-        }
-    }
+   /**
+    * Resumes playback from current position.
+    */
+   public void resume() {
+      if (state == AnimationState.PAUSED) {
+         state = AnimationState.PLAYING;
+      }
+   }
 
-    /**
-     * Stops playback and resets to first frame.
-     */
-    public void stop() {
-        currentFrame = 0;
-        timer = 0;
-        state = AnimationState.STOPPED;
+   /**
+    * Stops playback and resets to first frame.
+    */
+   public void stop() {
+      currentFrame = 0;
+      timer = 0;
+      state = AnimationState.STOPPED;
 
-        if (animation != null && animation.getFrameCount() > 0 && spriteRenderer != null) {
-            spriteRenderer.setSprite(animation.getFrameSprite(0));
-        }
-    }
+      if (animation != null && animation.getFrameCount() > 0 && spriteRenderer != null) {
+         spriteRenderer.setSprite(animation.getFrameSprite(0));
+      }
+   }
 
-    /**
-     * Restarts the animation from the beginning.
-     */
-    public void restart() {
-        play();
-    }
+   /**
+    * Restarts the animation from the beginning.
+    */
+   public void restart() {
+      play();
+   }
 
-    // ========================================================================
-    // QUERIES
-    // ========================================================================
+   // ========================================================================
+   // QUERIES
+   // ========================================================================
 
-    public boolean isPlaying() {
-        return state == AnimationState.PLAYING;
-    }
+   public boolean isPlaying() {
+      return state == AnimationState.PLAYING;
+   }
 
-    public boolean isPaused() {
-        return state == AnimationState.PAUSED;
-    }
+   public boolean isPaused() {
+      return state == AnimationState.PAUSED;
+   }
 
-    public boolean isFinished() {
-        return state == AnimationState.FINISHED;
-    }
+   public boolean isFinished() {
+      return state == AnimationState.FINISHED;
+   }
 
-    public AnimationState getState() {
-        return state;
-    }
+   public AnimationState getState() {
+      return state;
+   }
 
-    public Animation getAnimation() {
-        return animation;
-    }
+   public Animation getAnimation() {
+      return animation;
+   }
 
-    public int getCurrentFrameIndex() {
-        return currentFrame;
-    }
+   public int getCurrentFrameIndex() {
+      return currentFrame;
+   }
 
-    public float getTimer() {
-        return timer;
-    }
+   public float getTimer() {
+      return timer;
+   }
 
-    /**
-     * Gets normalized progress (0.0 to 1.0) through the animation.
-     */
-    public float getProgress() {
-        if (animation == null || animation.getFrameCount() == 0) return 0;
+   /**
+    * Gets normalized progress (0.0 to 1.0) through the animation.
+    */
+   public float getProgress() {
+      if (animation == null || animation.getFrameCount() == 0) return 0;
 
-        float totalDuration = animation.getTotalDuration();
-        if (totalDuration <= 0) return 0;
+      float totalDuration = animation.getTotalDuration();
+      if (totalDuration <= 0) return 0;
 
-        float elapsed = 0;
-        for (int i = 0; i < currentFrame; i++) {
-            elapsed += animation.getFrame(i).duration();
-        }
-        elapsed += timer;
+      float elapsed = 0;
+      for (int i = 0; i < currentFrame; i++) {
+         elapsed += animation.getFrame(i).duration();
+      }
+      elapsed += timer;
 
-        return Math.min(1.0f, elapsed / totalDuration);
-    }
+      return Math.min(1.0f, elapsed / totalDuration);
+   }
 
-    // ========================================================================
-    // PROPERTIES
-    // ========================================================================
+   // ========================================================================
+   // PROPERTIES
+   // ========================================================================
 
-    public void setAnimation(Animation animation) {
-        this.animation = animation;
-    }
+   public void setAnimation(Animation animation) {
+      this.animation = animation;
+   }
 
-    public boolean isAutoPlay() {
-        return autoPlay;
-    }
+   public boolean isAutoPlay() {
+      return autoPlay;
+   }
 
-    public void setAutoPlay(boolean autoPlay) {
-        this.autoPlay = autoPlay;
-    }
+   public void setAutoPlay(boolean autoPlay) {
+      this.autoPlay = autoPlay;
+   }
 
-    public float getSpeed() {
-        return speed;
-    }
+   public float getSpeed() {
+      return speed;
+   }
 
-    public void setSpeed(float speed) {
-        this.speed = Math.max(0.01f, speed);
-    }
+   public void setSpeed(float speed) {
+      this.speed = Math.max(0.01f, speed);
+   }
 }
 ```
 
@@ -786,7 +788,7 @@ The `Animation` field is serialized as a path string automatically by `AssetRefe
 
 ```json
 {
-  "type": "com.pocket.rpg.components.AnimationComponent",
+  "type": "com.pocket.rpg.components.animations.AnimationComponent",
   "properties": {
     "animation": "animations/player_walk.anim",
     "autoPlay": true,

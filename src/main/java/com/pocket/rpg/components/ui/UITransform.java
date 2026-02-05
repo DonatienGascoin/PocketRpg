@@ -1,13 +1,12 @@
 package com.pocket.rpg.components.ui;
 
-import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.components.core.Transform;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.ui.AnchorPreset;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Matrix4f;
 import org.joml.Vector2f;
-import org.joml.Vector3f;
 
 /**
  * Transform component for UI elements.

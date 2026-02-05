@@ -156,7 +156,7 @@ public final class ComponentReflectionUtils {
     }
 
     /**
-     * Gets the full class name (e.g., "com.pocket.rpg.components.SpriteRenderer").
+     * Gets the full class name (e.g., "com.pocket.rpg.components.rendering.SpriteRenderer").
      *
      * @param component The component instance
      * @return Full class name

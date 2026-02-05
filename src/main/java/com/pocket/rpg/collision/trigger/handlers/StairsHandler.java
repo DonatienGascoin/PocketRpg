@@ -4,7 +4,7 @@ import com.pocket.rpg.collision.Direction;
 import com.pocket.rpg.collision.trigger.StairsData;
 import com.pocket.rpg.collision.trigger.TriggerContext;
 import com.pocket.rpg.collision.trigger.TriggerHandler;
-import com.pocket.rpg.components.GridMovement;
+import com.pocket.rpg.components.pokemon.GridMovement;
 import com.pocket.rpg.core.GameObject;
 
 /**

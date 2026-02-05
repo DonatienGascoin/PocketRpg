@@ -1,6 +1,6 @@
 package com.pocket.rpg.scenes;
 
-import com.pocket.rpg.components.SpriteRenderer;
+import com.pocket.rpg.components.rendering.SpriteRenderer;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.rendering.resources.SpriteGrid;

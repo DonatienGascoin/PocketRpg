@@ -9,7 +9,7 @@ import java.util.List;
  * Cached at startup for fast lookup during serialization and in the editor.
  */
 public record ComponentMeta(
-        String className,                   // Full class name: "com.pocket.rpg.components.SpriteRenderer"
+        String className,                   // Full class name: "com.pocket.rpg.components.rendering.SpriteRenderer"
         String simpleName,                  // Simple name: "SpriteRenderer"
         String displayName,                 // Display name: "Sprite Renderer"
         Class<? extends Component> componentClass,

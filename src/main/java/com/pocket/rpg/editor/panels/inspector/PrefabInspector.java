@@ -1,6 +1,6 @@
 package com.pocket.rpg.editor.panels.inspector;
 
-import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.components.core.Transform;
 import com.pocket.rpg.editor.PrefabEditController;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.ComponentBrowserPopup;

@@ -1,7 +1,10 @@
-package com.pocket.rpg.components;
+package com.pocket.rpg.components.audio;
 
 import com.pocket.rpg.audio.clips.AudioClip;
 import com.pocket.rpg.audio.music.MusicManager;
+import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.ComponentMeta;
+import com.pocket.rpg.components.HideInInspector;
 import lombok.Getter;
 import lombok.Setter;
 

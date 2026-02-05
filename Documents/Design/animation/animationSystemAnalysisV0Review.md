@@ -179,7 +179,7 @@ public class AnimationComponent extends Component {
 **Scene serialization result:**
 ```json
 {
-  "type": "com.pocket.rpg.components.AnimationComponent",
+  "type": "com.pocket.rpg.components.animations.AnimationComponent",
   "properties": {
     "animationPath": "animations/player_walk.anim",
     "autoPlay": true,

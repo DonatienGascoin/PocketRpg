@@ -1,6 +1,11 @@
 package com.pocket.rpg.prefab.prefabs;
 
 import com.pocket.rpg.components.*;
+import com.pocket.rpg.components.core.Transform;
+import com.pocket.rpg.components.pokemon.GridMovement;
+import com.pocket.rpg.components.pokemon.PlayerCameraFollow;
+import com.pocket.rpg.components.pokemon.PlayerMovement;
+import com.pocket.rpg.components.rendering.SpriteRenderer;
 import com.pocket.rpg.prefab.Prefab;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.rendering.resources.SpriteGrid;

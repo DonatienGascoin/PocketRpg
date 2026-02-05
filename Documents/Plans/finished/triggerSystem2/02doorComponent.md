@@ -21,7 +21,7 @@ import com.pocket.rpg.collision.TileEntityMap;
 import com.pocket.rpg.collision.Direction;
 import com.pocket.rpg.collision.trigger.TileCoord;
 import com.pocket.rpg.components.Component;
-import com.pocket.rpg.components.SpriteRenderer;
+import com.pocket.rpg.components.rendering.SpriteRenderer;
 import com.pocket.rpg.components.audio.AudioSource;
 import com.pocket.rpg.components.inventory.Inventory;
 import com.pocket.rpg.core.GameObject;
@@ -59,25 +59,29 @@ public class Door extends Component implements Interactable {
     /**
      * Whether the door starts locked.
      */
-    @Getter @Setter
+    @Getter
+    @Setter
     private boolean locked = false;
 
     /**
      * Item ID required to unlock (checked in actor's Inventory).
      */
-    @Getter @Setter
+    @Getter
+    @Setter
     private String requiredKey = "";
 
     /**
      * Whether to remove the key from inventory when used.
      */
-    @Getter @Setter
+    @Getter
+    @Setter
     private boolean consumeKey = false;
 
     /**
      * Message shown when player tries locked door without key.
      */
-    @Getter @Setter
+    @Getter
+    @Setter
     private String lockedMessage = "The door is locked.";
 
     // ========================================================================
@@ -87,13 +91,15 @@ public class Door extends Component implements Interactable {
     /**
      * Target scene name (empty = no teleport, just open/close).
      */
-    @Getter @Setter
+    @Getter
+    @Setter
     private String targetScene = "";
 
     /**
      * Spawn point ID in target scene.
      */
-    @Getter @Setter
+    @Getter
+    @Setter
     private String targetSpawnId = "";
 
     // ========================================================================
@@ -103,13 +109,15 @@ public class Door extends Component implements Interactable {
     /**
      * Sprite shown when door is closed.
      */
-    @Getter @Setter
+    @Getter
+    @Setter
     private Sprite closedSprite;
 
     /**
      * Sprite shown when door is open.
      */
-    @Getter @Setter
+    @Getter
+    @Setter
     private Sprite openSprite;
 
     // ========================================================================
@@ -119,25 +127,29 @@ public class Door extends Component implements Interactable {
     /**
      * Sound played when door opens.
      */
-    @Getter @Setter
+    @Getter
+    @Setter
     private AudioClip openSound;
 
     /**
      * Sound played when door closes.
      */
-    @Getter @Setter
+    @Getter
+    @Setter
     private AudioClip closeSound;
 
     /**
      * Sound played when door is unlocked.
      */
-    @Getter @Setter
+    @Getter
+    @Setter
     private AudioClip unlockSound;
 
     /**
      * Sound played when player tries locked door without key.
      */
-    @Getter @Setter
+    @Getter
+    @Setter
     private AudioClip lockedSound;
 
     // ========================================================================
@@ -148,20 +160,23 @@ public class Door extends Component implements Interactable {
      * Tiles to block when door is closed.
      * Coordinates are relative to door position or absolute.
      */
-    @Getter @Setter
+    @Getter
+    @Setter
     private List<TileCoord> blockedTiles = new ArrayList<>();
 
     /**
      * If true, blockedTiles are relative to door position.
      * If false, blockedTiles are absolute world coordinates.
      */
-    @Getter @Setter
+    @Getter
+    @Setter
     private boolean tilesRelative = true;
 
     /**
      * Elevation level for collision blocking.
      */
-    @Getter @Setter
+    @Getter
+    @Setter
     private int elevation = 0;
 
     // ========================================================================
@@ -171,13 +186,15 @@ public class Door extends Component implements Interactable {
     /**
      * Direction player must face to interact (null = any direction).
      */
-    @Getter @Setter
+    @Getter
+    @Setter
     private Direction requiredFacing;
 
     /**
      * Maximum interaction distance.
      */
-    @Getter @Setter
+    @Getter
+    @Setter
     private float interactionRadius = 1.5f;
 
     // ========================================================================
@@ -369,8 +386,8 @@ public class Door extends Component implements Interactable {
         // Same scene teleport
         if (targetScene == null || targetScene.isBlank()) {
             getScene().teleportToSpawn(
-                getScene().findGameObjectWithTag("Player"),
-                targetSpawnId
+                    getScene().findGameObjectWithTag("Player"),
+                    targetSpawnId
             );
         } else {
             // Cross-scene teleport

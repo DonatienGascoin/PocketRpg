@@ -97,6 +97,9 @@ public class EditorUIController {
     // Prefab edit mode state (for disabling play controls)
     private boolean prefabEditActive = false;
 
+    // Stale references popup (shared between scene and prefab controllers)
+    private StaleReferencesPopup staleReferencesPopup;
+
     public EditorUIController(EditorContext context, EditorToolController toolController) {
         this.context = context;
         this.toolController = toolController;
@@ -338,6 +341,15 @@ public class EditorUIController {
      */
     public void renderUIPreShortcuts() {
         renderCompilationModal();
+    }
+
+    /**
+     * Renders the stale references popup. Called after renderUI() from EditorApplication.
+     */
+    public void renderStaleReferencesPopup() {
+        if (staleReferencesPopup != null) {
+            staleReferencesPopup.render();
+        }
     }
 
     /**
@@ -798,6 +810,13 @@ public class EditorUIController {
         inspectorPanel.setPlayModeController(controller);
     }
 
+    /**
+     * Sets the stale references popup for rendering.
+     */
+    public void setStaleReferencesPopup(StaleReferencesPopup popup) {
+        this.staleReferencesPopup = popup;
+    }
+
     public void setPrefabEditController(PrefabEditController controller) {
         this.prefabEditController = controller;
         inspectorPanel.setPrefabEditController(controller);
@@ -830,6 +849,9 @@ public class EditorUIController {
                         statusBar.showMessage("Cannot edit prefabs during play mode");
                         return;
                     }
+
+                    // Reset tracking BEFORE load to capture stale refs from prefab
+                    com.pocket.rpg.serialization.ComponentRegistry.resetFallbackTracking();
 
                     com.pocket.rpg.prefab.JsonPrefab prefab = com.pocket.rpg.resources.Assets.load(
                             path, com.pocket.rpg.prefab.JsonPrefab.class);

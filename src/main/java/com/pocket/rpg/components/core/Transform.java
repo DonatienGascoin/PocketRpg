@@ -1,5 +1,6 @@
-package com.pocket.rpg.components;
+package com.pocket.rpg.components.core;
 
+import com.pocket.rpg.components.Component;
 import com.pocket.rpg.editor.gizmos.GizmoColors;
 import com.pocket.rpg.editor.gizmos.GizmoContext;
 import org.joml.Matrix4f;

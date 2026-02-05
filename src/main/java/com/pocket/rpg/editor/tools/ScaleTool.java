@@ -1,6 +1,6 @@
 package com.pocket.rpg.editor.tools;
 
-import com.pocket.rpg.components.SpriteRenderer;
+import com.pocket.rpg.components.rendering.SpriteRenderer;
 import com.pocket.rpg.editor.EditorSelectionManager;
 import com.pocket.rpg.editor.camera.EditorCamera;
 import com.pocket.rpg.editor.scene.EditorGameObject;

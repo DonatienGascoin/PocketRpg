@@ -1,8 +1,11 @@
-package com.pocket.rpg.components;
+package com.pocket.rpg.components.pokemon;
 
 import com.pocket.rpg.animation.tween.Ease;
 import com.pocket.rpg.animation.tween.TweenManager;
 import com.pocket.rpg.animation.tween.Tweens;
+import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.ComponentMeta;
+import com.pocket.rpg.components.UiKeyReference;
 import com.pocket.rpg.components.ui.UIImage;
 import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.input.Input;

@@ -314,7 +314,7 @@ When GameObject has `AnimationComponent`:
 {
   "components": [
     {
-      "type": "com.pocket.rpg.components.AnimationComponent",
+      "type": "com.pocket.rpg.components.animations.AnimationComponent",
       "fields": {
         "animationPath": "animations/player_walk.anim",
         "autoPlay": true,

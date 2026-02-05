@@ -1,6 +1,6 @@
 package com.pocket.rpg.editor.ui.inspectors;
 
-import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.components.core.Transform;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
 
 /**

@@ -266,7 +266,7 @@ public class EditorApplication {
         uiController.setPlayModeController(playModeController);
         playModeController.setMessageCallback(uiController.getStatusBar()::showMessage);
 
-        // Create prefab edit controller
+        // Create prefab edit controller (staleReferencesPopup wired after sceneController is created)
         prefabEditController = new PrefabEditController(context);
         uiController.setPrefabEditController(prefabEditController);
 
@@ -294,6 +294,10 @@ public class EditorApplication {
         // Create scene controller
         sceneController = new EditorSceneController(context);
         sceneController.setPlayModeController(playModeController);
+
+        // Wire stale references popup to UI controller and prefab edit controller
+        uiController.setStaleReferencesPopup(sceneController.getStaleReferencesPopup());
+        prefabEditController.setStaleReferencesPopup(sceneController.getStaleReferencesPopup());
 
         // Wire menu bar actions
         uiController.getMenuBar().setOnNewScene(sceneController::newScene);
@@ -518,6 +522,9 @@ public class EditorApplication {
 
         // Render prefab edit confirmation popup
         prefabEditController.renderConfirmationPopup();
+
+        // Render stale references popup
+        uiController.renderStaleReferencesPopup();
 
         // Render exit confirmation popup
         renderExitConfirmation();

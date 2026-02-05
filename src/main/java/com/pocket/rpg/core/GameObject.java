@@ -2,7 +2,7 @@ package com.pocket.rpg.core;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.RequiredComponent;
-import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.components.core.Transform;
 import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.logging.Log;
 import com.pocket.rpg.scenes.Scene;

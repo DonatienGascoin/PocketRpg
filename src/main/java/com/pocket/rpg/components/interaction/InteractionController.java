@@ -4,7 +4,7 @@ import com.pocket.rpg.collision.TileEntityMap;
 import com.pocket.rpg.collision.trigger.TileCoord;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ComponentMeta;
-import com.pocket.rpg.components.GridMovement;
+import com.pocket.rpg.components.pokemon.GridMovement;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.input.Input;
 import com.pocket.rpg.input.InputAction;

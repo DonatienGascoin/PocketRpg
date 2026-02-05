@@ -1,10 +1,11 @@
 package com.pocket.rpg.rendering.core;
 
-import com.pocket.rpg.components.TilemapRenderer;
+import com.pocket.rpg.components.rendering.SpriteRenderer;
+import com.pocket.rpg.components.rendering.TilemapRenderer;
 
 /**
  * Interface for components that can be rendered by the rendering pipeline.
- * Implementations include {@link com.pocket.rpg.components.SpriteRenderer} and
+ * Implementations include {@link SpriteRenderer} and
  * {@link TilemapRenderer}.
  *
  * <h2>Rendering Contract</h2>
@@ -17,7 +18,7 @@ import com.pocket.rpg.components.TilemapRenderer;
  * The rendering pipeline sorts all Renderables by zIndex before rendering.
  * For equal zIndex values, order is undefined (stable sort not guaranteed).
  *
- * @see com.pocket.rpg.components.SpriteRenderer
+ * @see SpriteRenderer
  * @see TilemapRenderer
  */
 public interface Renderable {

@@ -5,13 +5,14 @@ import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 import com.pocket.rpg.components.Component;
-import com.pocket.rpg.components.TilemapRenderer;
-import com.pocket.rpg.components.TilemapRenderer.LedgeDirection;
-import com.pocket.rpg.components.TilemapRenderer.Tile;
-import com.pocket.rpg.components.TilemapRenderer.TileChunk;
+import com.pocket.rpg.components.rendering.TilemapRenderer;
+import com.pocket.rpg.components.rendering.TilemapRenderer.LedgeDirection;
+import com.pocket.rpg.components.rendering.TilemapRenderer.Tile;
+import com.pocket.rpg.components.rendering.TilemapRenderer.TileChunk;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.resources.AssetContext;
 import com.pocket.rpg.resources.SpriteReference;
+import com.pocket.rpg.logging.Log;
 import com.pocket.rpg.serialization.ComponentMeta;
 import com.pocket.rpg.serialization.ComponentRegistry;
 import com.pocket.rpg.serialization.FieldMeta;
@@ -100,9 +101,44 @@ public class ComponentTypeAdapterFactory implements TypeAdapterFactory {
                     throw new JsonParseException("Missing 'type' field in component");
                 }
 
+                Class<?> clazz;
                 try {
-                    Class<?> clazz = Class.forName(componentType);
+                    clazz = Class.forName(componentType);
+                } catch (ClassNotFoundException e) {
+                    // Step 1: Check migration map for explicit old->new mapping
+                    String migratedName = ComponentRegistry.getMigration(componentType);
+                    if (migratedName != null) {
+                        try {
+                            clazz = Class.forName(migratedName);
+                            Log.warn("ComponentRegistry", "Component class migrated: " + componentType +
+                                    " -> " + migratedName + " (via migration map)");
+                            ComponentRegistry.recordFallbackResolution(componentType, migratedName);
+                        } catch (ClassNotFoundException e2) {
+                            throw new JsonParseException(
+                                "Migration target not found: " + migratedName +
+                                " (migrated from " + componentType + ")", e2);
+                        }
+                    } else {
+                        // Step 2: Try simple name fallback
+                        String simpleName = componentType.substring(componentType.lastIndexOf('.') + 1);
+                        ComponentMeta meta = ComponentRegistry.getBySimpleName(simpleName);
+                        if (meta == null) {
+                            throw new JsonParseException(
+                                "Unknown component type: " + componentType + "\n" +
+                                "Not found by full name, migration map, or simple name '" + simpleName + "'.\n" +
+                                "If the class was renamed, add a migration to ComponentRegistry's static block:\n" +
+                                "  addMigration(\"" + componentType + "\", \"com.pocket.rpg.components.NewName\");",
+                                e);
+                        }
+                        Log.warn("ComponentRegistry", "Component class moved: " + componentType +
+                                " -> " + meta.className() + " (resolved by simple name)");
+                        ComponentRegistry.recordFallbackResolution(componentType, meta.className());
+                        clazz = meta.componentClass();
+                    }
+                }
 
+                // Deserialize based on component type
+                try {
                     if (TilemapRenderer.class.isAssignableFrom(clazz)) {
                         if (properties.isJsonPrimitive() && properties.getAsJsonPrimitive().isString()) {
                             return (T) readTilemapBinary(properties.getAsString());
@@ -112,8 +148,8 @@ public class ComponentTypeAdapterFactory implements TypeAdapterFactory {
                     } else {
                         return (T) readComponentProperties(properties.getAsJsonObject(), clazz, gson);
                     }
-                } catch (ClassNotFoundException e) {
-                    throw new JsonParseException("Unknown component type: " + componentType, e);
+                } catch (Exception deserializeEx) {
+                    throw new JsonParseException("Failed to deserialize component: " + componentType, deserializeEx);
                 }
             }
         };

@@ -1,5 +1,6 @@
 package com.pocket.rpg.components;
 
+import com.pocket.rpg.components.core.Transform;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.core.IGameObject;
 import com.pocket.rpg.editor.gizmos.GizmoContext;

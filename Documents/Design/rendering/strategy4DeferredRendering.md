@@ -289,7 +289,7 @@ public class GBuffer {
 package com.pocket.rpg.rendering;
 
 import com.pocket.rpg.components.Camera;
-import com.pocket.rpg.components.SpriteRenderer;
+import com.pocket.rpg.components.rendering.SpriteRenderer;
 import com.pocket.rpg.rendering.batch.Renderer;
 import com.pocket.rpg.rendering.resources.Shader;
 

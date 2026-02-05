@@ -1,7 +1,7 @@
 package com.pocket.rpg.resources.loaders;
 
 import com.pocket.rpg.components.Component;
-import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.components.core.Transform;
 import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.resources.AssetLoader;

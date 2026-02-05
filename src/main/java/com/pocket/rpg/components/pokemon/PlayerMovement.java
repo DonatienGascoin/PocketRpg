@@ -1,7 +1,9 @@
-package com.pocket.rpg.components;
+package com.pocket.rpg.components.pokemon;
 
 import com.pocket.rpg.collision.Direction;
-import com.pocket.rpg.collision.MovementModifier;
+import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.ComponentMeta;
+import com.pocket.rpg.components.ComponentRef;
 import com.pocket.rpg.input.Input;
 import com.pocket.rpg.input.KeyCode;
 import lombok.Getter;

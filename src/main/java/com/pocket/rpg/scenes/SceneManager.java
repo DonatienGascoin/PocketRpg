@@ -1,6 +1,6 @@
 package com.pocket.rpg.scenes;
 
-import com.pocket.rpg.components.GridMovement;
+import com.pocket.rpg.components.pokemon.GridMovement;
 import com.pocket.rpg.components.interaction.CameraBoundsZone;
 import com.pocket.rpg.components.interaction.SpawnPoint;
 import com.pocket.rpg.components.core.PersistentEntity;

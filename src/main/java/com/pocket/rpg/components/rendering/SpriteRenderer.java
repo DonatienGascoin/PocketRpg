@@ -1,5 +1,8 @@
-package com.pocket.rpg.components;
+package com.pocket.rpg.components.rendering;
 
+import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.ComponentMeta;
+import com.pocket.rpg.components.core.Transform;
 import com.pocket.rpg.editor.gizmos.GizmoColors;
 import com.pocket.rpg.editor.gizmos.GizmoContext;
 import com.pocket.rpg.rendering.core.Renderable;

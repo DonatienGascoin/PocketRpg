@@ -40,7 +40,6 @@ package com.pocket.rpg.components.interaction;
 
 import com.pocket.rpg.audio.AudioClip;
 import com.pocket.rpg.components.Component;
-import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.components.audio.AudioSource;
 import com.pocket.rpg.components.inventory.Inventory;
 import com.pocket.rpg.components.inventory.ItemStack;
@@ -74,42 +73,52 @@ public class Chest extends Component implements Interactable {
      * Items contained in the chest.
      * Given to player's inventory on open.
      */
-    @Getter @Setter
+    @Getter
+    @Setter
     private List<ItemStack> contents = new ArrayList<>();
 
     // ========================================================================
     // CONFIGURATION - Lock
     // ========================================================================
 
-    @Getter @Setter
+    @Getter
+    @Setter
     private boolean locked = false;
 
-    @Getter @Setter
+    @Getter
+    @Setter
     private String requiredKey = "";
 
-    @Getter @Setter
+    @Getter
+    @Setter
     private boolean consumeKey = false;
 
-    @Getter @Setter
+    @Getter
+    @Setter
     private String lockedMessage = "This chest is locked.";
 
     // ========================================================================
     // CONFIGURATION - Visuals & Audio
     // ========================================================================
 
-    @Getter @Setter
+    @Getter
+    @Setter
     private Sprite closedSprite;
 
-    @Getter @Setter
+    @Getter
+    @Setter
     private Sprite openSprite;
 
-    @Getter @Setter
+    @Getter
+    @Setter
     private AudioClip openSound;
 
-    @Getter @Setter
+    @Getter
+    @Setter
     private AudioClip lockedSound;
 
-    @Getter @Setter
+    @Getter
+    @Setter
     private float interactionRadius = 1.5f;
 
     // ========================================================================
@@ -117,7 +126,7 @@ public class Chest extends Component implements Interactable {
     // ========================================================================
 
     @ComponentRef
-    private SpriteRenderer spriteRenderer;
+    private com.pocket.rpg.components.rendering.SpriteRenderer spriteRenderer;
 
     @ComponentRef
     private AudioSource audioSource;
@@ -248,7 +257,7 @@ package com.pocket.rpg.components.interaction;
 
 import com.pocket.rpg.audio.AudioClip;
 import com.pocket.rpg.components.Component;
-import com.pocket.rpg.components.SpriteRenderer;
+import com.pocket.rpg.components.rendering.SpriteRenderer;
 import com.pocket.rpg.components.audio.AudioSource;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.rendering.resources.Sprite;
@@ -279,32 +288,38 @@ public class Lever extends Component implements Interactable {
     /**
      * Sprites for off/on states.
      */
-    @Getter @Setter
+    @Getter
+    @Setter
     private Sprite offSprite;
 
-    @Getter @Setter
+    @Getter
+    @Setter
     private Sprite onSprite;
 
     /**
      * Sounds for activation.
      */
-    @Getter @Setter
+    @Getter
+    @Setter
     private AudioClip toggleSound;
 
     /**
      * If true, lever can only be activated once.
      */
-    @Getter @Setter
+    @Getter
+    @Setter
     private boolean oneShot = false;
 
     /**
      * Names of GameObjects to trigger when state changes.
      * These objects should have components implementing Triggerable.
      */
-    @Getter @Setter
+    @Getter
+    @Setter
     private List<String> targetNames = new ArrayList<>();
 
-    @Getter @Setter
+    @Getter
+    @Setter
     private float interactionRadius = 1.5f;
 
     // ========================================================================
@@ -519,7 +534,6 @@ import com.pocket.rpg.audio.AudioClip;
 import com.pocket.rpg.collision.TileEntityMap;
 import com.pocket.rpg.collision.trigger.TileCoord;
 import com.pocket.rpg.components.Component;
-import com.pocket.rpg.components.SpriteRenderer;
 import com.pocket.rpg.components.audio.AudioSource;
 import com.pocket.rpg.components.inventory.Inventory;
 import com.pocket.rpg.core.GameObject;
@@ -558,52 +572,63 @@ public class SecretPassage extends Component implements Interactable, Triggerabl
     /**
      * Tiles to block when hidden. Relative to entity position.
      */
-    @Getter @Setter
+    @Getter
+    @Setter
     private List<TileCoord> blockedTiles = new ArrayList<>(List.of(new TileCoord(0, 0, 0)));
 
     /**
      * If true, can be toggled back to hidden state.
      */
-    @Getter @Setter
+    @Getter
+    @Setter
     private boolean toggleable = false;
 
     /**
      * If true, can be revealed by direct interaction.
      * If false, can only be triggered by other objects (levers).
      */
-    @Getter @Setter
+    @Getter
+    @Setter
     private boolean directlyInteractable = true;
 
     // ========================================================================
     // CONFIGURATION - Key Requirement
     // ========================================================================
 
-    @Getter @Setter
+    @Getter
+    @Setter
     private boolean requiresKey = false;
 
-    @Getter @Setter
+    @Getter
+    @Setter
     private String requiredKey = "";
 
-    @Getter @Setter
+    @Getter
+    @Setter
     private boolean consumeKey = false;
 
-    @Getter @Setter
+    @Getter
+    @Setter
     private String lockedMessage = "You need a key.";
 
     // ========================================================================
     // CONFIGURATION - Audio/Visuals
     // ========================================================================
 
-    @Getter @Setter
+    @Getter
+    @Setter
     private AudioClip revealSound;
 
-    @Getter @Setter
+    @Getter
+    @Setter
     private AudioClip hideSound;
 
-    @Getter @Setter
+    @Getter
+    @Setter
     private AudioClip lockedSound;
 
-    @Getter @Setter
+    @Getter
+    @Setter
     private float interactionRadius = 1.5f;
 
     // ========================================================================
@@ -614,7 +639,7 @@ public class SecretPassage extends Component implements Interactable, Triggerabl
     private AudioSource audioSource;
 
     @ComponentRef
-    private SpriteRenderer spriteRenderer;
+    private com.pocket.rpg.components.rendering.SpriteRenderer spriteRenderer;
 
     // ========================================================================
     // RUNTIME STATE
@@ -750,9 +775,9 @@ public class SecretPassage extends Component implements Interactable, Triggerabl
         List<TileCoord> absolute = new ArrayList<>();
         for (TileCoord tile : blockedTiles) {
             absolute.add(new TileCoord(
-                baseX + tile.x(),
-                baseY + tile.y(),
-                tile.elevation()
+                    baseX + tile.x(),
+                    baseY + tile.y(),
+                    tile.elevation()
             ));
         }
         return absolute;

@@ -2,7 +2,7 @@ package com.pocket.rpg.audio.clips;
 
 import com.pocket.rpg.audio.Audio;
 import com.pocket.rpg.audio.backend.AudioBackend;
-import com.pocket.rpg.components.AudioSource;
+import com.pocket.rpg.components.audio.AudioSource;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.resources.AssetLoader;

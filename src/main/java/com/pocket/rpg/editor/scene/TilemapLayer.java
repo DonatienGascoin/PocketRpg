@@ -1,6 +1,6 @@
 package com.pocket.rpg.editor.scene;
 
-import com.pocket.rpg.components.TilemapRenderer;
+import com.pocket.rpg.components.rendering.TilemapRenderer;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.rendering.resources.SpriteGrid;

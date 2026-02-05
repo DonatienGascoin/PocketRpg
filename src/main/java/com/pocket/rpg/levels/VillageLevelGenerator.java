@@ -1,8 +1,8 @@
 package com.pocket.rpg.levels;
 
-import com.pocket.rpg.components.SpriteRenderer;
-import com.pocket.rpg.components.TilemapRenderer;
-import com.pocket.rpg.components.TilemapRenderer.Tile;
+import com.pocket.rpg.components.rendering.SpriteRenderer;
+import com.pocket.rpg.components.rendering.TilemapRenderer;
+import com.pocket.rpg.components.rendering.TilemapRenderer.Tile;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.rendering.resources.Sprite;
 import org.joml.Vector3f;

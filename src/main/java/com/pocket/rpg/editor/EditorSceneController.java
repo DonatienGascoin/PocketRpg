@@ -7,13 +7,19 @@ import com.pocket.rpg.editor.events.RecentScenesChangedEvent;
 import com.pocket.rpg.editor.events.RegistriesRefreshRequestEvent;
 import com.pocket.rpg.editor.events.SceneWillChangeEvent;
 import com.pocket.rpg.editor.events.StatusMessageEvent;
+import com.pocket.rpg.editor.panels.StaleReferencesPopup;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.serialization.EditorSceneSerializer;
 import com.pocket.rpg.editor.undo.UndoManager;
+import com.pocket.rpg.logging.Log;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.resources.LoadOptions;
+import com.pocket.rpg.serialization.ComponentRegistry;
 import com.pocket.rpg.serialization.SceneData;
+import lombok.Getter;
 import lombok.Setter;
+
+import java.util.List;
 
 /**
  * Handles scene operations: new, open, save.
@@ -29,6 +35,9 @@ public class EditorSceneController {
 
     // Callback when recent scenes list changes (legacy - will be migrated to event)
     private Runnable onRecentScenesChanged;
+
+    @Getter
+    private final StaleReferencesPopup staleReferencesPopup = new StaleReferencesPopup();
 
     public EditorSceneController(EditorContext context) {
         this.context = context;
@@ -95,10 +104,16 @@ public class EditorSceneController {
         // Clear undo history (actions from previous scene don't apply)
         UndoManager.getInstance().clear();
 
+        // Reset tracking BEFORE load to capture all refs (scene + nested prefabs)
+        ComponentRegistry.resetFallbackTracking();
+
         try {
             // Load scene data (use raw() to skip asset root - scenes are in gameData/scenes/)
             SceneData sceneData = Assets.load(path, LoadOptions.raw());
             EditorScene loadedScene = EditorSceneSerializer.fromSceneData(sceneData, path);
+
+            // Capture all fallback resolutions (scene + any prefabs loaded during deserialization)
+            List<String> resolutions = ComponentRegistry.getFallbackResolutions();
 
             context.setCurrentScene(loadedScene);
 
@@ -107,6 +122,20 @@ public class EditorSceneController {
 
             // Track as recent scene
             addToRecentScenes(path);
+
+            // Show popup if any stale references were found
+            if (!resolutions.isEmpty()) {
+                Log.warn("EditorSceneController", "Scene has " + resolutions.size() + " stale component reference(s): " + path);
+                staleReferencesPopup.open(resolutions, () -> {
+                    try {
+                        saveScene();
+                        showMessage("Scene saved - stale references updated");
+                    } catch (Exception e) {
+                        showMessage("Save failed: " + e.getMessage());
+                        Log.error("EditorSceneController", "Failed to save scene after stale reference prompt", e);
+                    }
+                });
+            }
 
             showMessage("Opened: " + sceneData.getName());
         } catch (Exception e) {

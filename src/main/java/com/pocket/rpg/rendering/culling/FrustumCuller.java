@@ -1,7 +1,7 @@
 package com.pocket.rpg.rendering.culling;
 
-import com.pocket.rpg.components.SpriteRenderer;
-import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.components.rendering.SpriteRenderer;
+import com.pocket.rpg.components.core.Transform;
 import com.pocket.rpg.rendering.core.RenderCamera;
 import com.pocket.rpg.rendering.resources.Sprite;
 import org.joml.Vector3f;

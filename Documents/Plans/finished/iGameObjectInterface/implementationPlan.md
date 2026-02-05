@@ -28,7 +28,8 @@ This plan merges the `igameobject-interface` and `play-mode-inspection` plans in
 package com.pocket.rpg.core;
 
 import com.pocket.rpg.components.Component;
-import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.components.core.Transform;
+
 import java.util.List;
 
 /**
@@ -40,11 +41,15 @@ import java.util.List;
 public interface IGameObject {
 
     String getName();
+
     String getId();
+
     Transform getTransform();
 
     <T extends Component> T getComponent(Class<T> type);
+
     <T extends Component> List<T> getComponents(Class<T> type);
+
     List<Component> getAllComponents();
 
     default boolean hasComponent(Class<? extends Component> type) {
@@ -258,7 +263,6 @@ Wraps a runtime `GameObject` to implement `HierarchyItem`:
 package com.pocket.rpg.editor.scene;
 
 import com.pocket.rpg.components.Component;
-import com.pocket.rpg.components.Transform;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.editor.panels.hierarchy.HierarchyItem;
 import lombok.Getter;
@@ -288,14 +292,45 @@ public class RuntimeGameObjectAdapter implements HierarchyItem {
     }
 
     // IGameObject delegation
-    @Override public String getName() { return gameObject.getName(); }
-    @Override public String getId() { return "runtime_" + gameObject.getId(); }
-    @Override public Transform getTransform() { return gameObject.getTransform(); }
-    @Override public <T extends Component> T getComponent(Class<T> type) { return gameObject.getComponent(type); }
-    @Override public <T extends Component> List<T> getComponents(Class<T> type) { return gameObject.getComponents(type); }
-    @Override public List<Component> getAllComponents() { return gameObject.getAllComponents(); }
-    @Override public boolean isEnabled() { return gameObject.isEnabled(); }
-    @Override public boolean isRuntime() { return true; }
+    @Override
+    public String getName() {
+        return gameObject.getName();
+    }
+
+    @Override
+    public String getId() {
+        return "runtime_" + gameObject.getId();
+    }
+
+    @Override
+    public com.pocket.rpg.components.core.Transform getTransform() {
+        return gameObject.getTransform();
+    }
+
+    @Override
+    public <T extends Component> T getComponent(Class<T> type) {
+        return gameObject.getComponent(type);
+    }
+
+    @Override
+    public <T extends Component> List<T> getComponents(Class<T> type) {
+        return gameObject.getComponents(type);
+    }
+
+    @Override
+    public List<Component> getAllComponents() {
+        return gameObject.getAllComponents();
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return gameObject.isEnabled();
+    }
+
+    @Override
+    public boolean isRuntime() {
+        return true;
+    }
 
     // HierarchyItem
     @Override

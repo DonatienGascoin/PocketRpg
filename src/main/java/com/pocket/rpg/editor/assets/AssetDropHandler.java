@@ -1,6 +1,6 @@
 package com.pocket.rpg.editor.assets;
 
-import com.pocket.rpg.components.SpriteRenderer;
+import com.pocket.rpg.components.rendering.SpriteRenderer;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.resources.Assets;

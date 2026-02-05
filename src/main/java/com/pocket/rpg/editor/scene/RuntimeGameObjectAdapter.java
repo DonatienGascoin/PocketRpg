@@ -1,7 +1,7 @@
 package com.pocket.rpg.editor.scene;
 
 import com.pocket.rpg.components.Component;
-import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.components.core.Transform;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.editor.panels.hierarchy.HierarchyItem;
 import lombok.Getter;

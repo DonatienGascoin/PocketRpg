@@ -324,7 +324,7 @@ public class ReflectionFieldEditor {
         }
 
         // Check if it's Transform (always present)
-        if (targetTypeName.equals("com.pocket.rpg.components.Transform")) {
+        if (targetTypeName.equals("com.pocket.rpg.components.core.Transform")) {
             return true;
         }
 

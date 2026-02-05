@@ -1,7 +1,7 @@
 package com.pocket.rpg.rendering.batch;
 
-import com.pocket.rpg.components.SpriteRenderer;
-import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.components.rendering.SpriteRenderer;
+import com.pocket.rpg.components.core.Transform;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.rendering.resources.Shader;
 import com.pocket.rpg.rendering.resources.Sprite;

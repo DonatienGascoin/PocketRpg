@@ -490,8 +490,8 @@ public class Renderer {
 package com.pocket.rpg.rendering;
 
 import com.pocket.rpg.components.Camera;
-import com.pocket.rpg.components.SpriteRenderer;
-import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.components.core.Transform;
+import com.pocket.rpg.components.rendering.SpriteRenderer;
 import com.pocket.rpg.rendering.resources.Shader;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.rendering.resources.Texture;
@@ -594,7 +594,7 @@ public class Renderer {
     /**
      * OPTIMIZATION: Frustum culling check.
      */
-    private boolean isVisible(SpriteRenderer spriteRenderer) {
+    private boolean isVisible(com.pocket.rpg.components.rendering.SpriteRenderer spriteRenderer) {
         if (spriteRenderer == null || spriteRenderer.getSprite() == null) {
             return false;
         }

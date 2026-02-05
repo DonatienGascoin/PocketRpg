@@ -1,8 +1,8 @@
 package com.pocket.rpg.editor.serialization;
 
 import com.pocket.rpg.components.Component;
-import com.pocket.rpg.components.TilemapRenderer;
-import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.components.rendering.TilemapRenderer;
+import com.pocket.rpg.components.core.Transform;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;

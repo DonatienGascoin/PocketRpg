@@ -34,7 +34,7 @@ The Font IS loaded and registered, but `getAssetDisplayName()` receives a String
 
 ```json
 {
-  "type": "com.pocket.rpg.components.SpriteRenderer",
+  "type": "com.pocket.rpg.components.rendering.SpriteRenderer",
   "fields": {
     "sprite": "sheet_spacing.png"   // <-- String path
   }

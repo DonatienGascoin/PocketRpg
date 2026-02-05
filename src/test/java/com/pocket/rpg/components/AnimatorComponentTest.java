@@ -7,6 +7,7 @@ import com.pocket.rpg.animation.animator.AnimatorTransition;
 import com.pocket.rpg.animation.animator.TransitionCondition;
 import com.pocket.rpg.animation.animator.TransitionType;
 import com.pocket.rpg.collision.Direction;
+import com.pocket.rpg.components.animations.AnimatorComponent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

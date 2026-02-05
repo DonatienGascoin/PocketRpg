@@ -431,6 +431,8 @@ Wrap the state machine as a component for inspector editing.
 ```java
 package com.pocket.rpg.components;
 
+import com.pocket.rpg.components.animations.AnimationComponent;
+
 /**
  * Component wrapper for AnimationStateMachine.
  * Allows visual editing of states and transitions in the inspector.
@@ -486,8 +488,11 @@ public class AnimationStateMachineComponent extends Component {
     }
 
     // Config records for serialization
-    public record StateConfig(String name, String animationPath) {}
-    public record TransitionConfig(String from, String to, TransitionType type, float duration) {}
+    public record StateConfig(String name, String animationPath) {
+    }
+
+    public record TransitionConfig(String from, String to, TransitionType type, float duration) {
+    }
 }
 ```
 

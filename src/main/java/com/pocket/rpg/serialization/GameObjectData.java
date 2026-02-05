@@ -1,7 +1,7 @@
 package com.pocket.rpg.serialization;
 
 import com.pocket.rpg.components.Component;
-import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.components.core.Transform;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -31,7 +31,7 @@ import java.util.Map;
 @NoArgsConstructor
 public class GameObjectData {
 
-    private static final String TRANSFORM_TYPE = "com.pocket.rpg.components.Transform";
+    private static final String TRANSFORM_TYPE = "com.pocket.rpg.components.core.Transform";
 
     // ========================================================================
     // IDENTITY
@@ -91,7 +91,7 @@ public class GameObjectData {
      * Structure: componentType -> (fieldName -> value)
      * <p>
      * Transform overrides go here too:
-     * "com.pocket.rpg.components.Transform" -> {"localPosition": [x, y, z]}
+     * "com.pocket.rpg.components.core.Transform" -> {"localPosition": [x, y, z]}
      */
     private Map<String, Map<String, Object>> componentOverrides;
 

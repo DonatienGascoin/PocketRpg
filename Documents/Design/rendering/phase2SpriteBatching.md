@@ -316,8 +316,8 @@ glVertexAttribPointer(ATTRIB_COLOR, COLOR_COMPONENTS, GL_FLOAT, false, STRIDE, C
 ```java
 package com.pocket.rpg.rendering;
 
-import com.pocket.rpg.components.SpriteRenderer;
-import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.components.core.Transform;
+import com.pocket.rpg.components.rendering.SpriteRenderer;
 import com.pocket.rpg.rendering.batch.VertexLayout;
 import com.pocket.rpg.rendering.resources.Sprite;
 import org.joml.Vector3f;
@@ -462,7 +462,7 @@ public class SpriteBatch {
     /**
      * Submits a sprite to the batch.
      */
-    public void submit(SpriteRenderer spriteRenderer) {
+    public void submit(com.pocket.rpg.components.rendering.SpriteRenderer spriteRenderer) {
         if (!isBatching) {
             throw new IllegalStateException("Not batching! Call begin() first.");
         }
@@ -649,7 +649,7 @@ public class SpriteBatch {
     /**
      * Adds vertex data for a sprite to the vertex buffer.
      */
-    private void addSpriteVertices(SpriteRenderer spriteRenderer) {
+    private void addSpriteVertices(com.pocket.rpg.components.rendering.SpriteRenderer spriteRenderer) {
         Sprite sprite = spriteRenderer.getSprite();
         Transform transform = spriteRenderer.getGameObject().getTransform();
 
@@ -1167,6 +1167,7 @@ for (SpriteRenderer sr : spriteRenderers) {
 package com.pocket.rpg.scenes;
 
 import com.pocket.rpg.components.*;
+import com.pocket.rpg.components.rendering.SpriteRenderer;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.rendering.batch.BatchRenderer;
 
@@ -1399,7 +1400,7 @@ public class GameObject {
 package com.pocket.rpg.rendering;
 
 import com.pocket.rpg.components.Camera;
-import com.pocket.rpg.components.SpriteRenderer;
+import com.pocket.rpg.components.rendering.SpriteRenderer;
 import com.pocket.rpg.rendering.batch.Renderer;
 import com.pocket.rpg.rendering.batch.SpriteBatch;
 import com.pocket.rpg.rendering.resources.Shader;

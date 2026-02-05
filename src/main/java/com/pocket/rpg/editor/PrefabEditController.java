@@ -1,14 +1,17 @@
 package com.pocket.rpg.editor;
 
 import com.pocket.rpg.components.Component;
-import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.components.core.Transform;
 import com.pocket.rpg.editor.events.*;
+import com.pocket.rpg.editor.panels.StaleReferencesPopup;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.undo.UndoManager;
+import com.pocket.rpg.logging.Log;
 import com.pocket.rpg.prefab.JsonPrefab;
 import com.pocket.rpg.prefab.PrefabRegistry;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
+import com.pocket.rpg.serialization.ComponentRegistry;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiWindowFlags;
@@ -63,6 +66,10 @@ public class PrefabEditController {
     @Setter
     private java.util.function.Consumer<com.pocket.rpg.editor.scene.DirtyTracker> dirtyTrackerSetter;
 
+    // Stale references popup (shared with scene controller)
+    @Setter
+    private StaleReferencesPopup staleReferencesPopup;
+
     public PrefabEditController(EditorContext context) {
         this.context = context;
 
@@ -97,6 +104,9 @@ public class PrefabEditController {
         if (state == State.EDITING) return;
 
         this.targetPrefab = prefab;
+
+        // Capture fallback resolutions from the prefab load (reset happened in asset browser handler)
+        List<String> resolutions = ComponentRegistry.getFallbackResolutions();
 
         // Push undo scope for isolation
         UndoManager.getInstance().pushScope();
@@ -134,6 +144,21 @@ public class PrefabEditController {
         context.getSelectionGuard().getSelectionManager().selectEntity(workingEntity);
 
         EditorEventBus.get().publish(new PrefabEditStartedEvent());
+
+        // Show popup if any stale references were found
+        if (!resolutions.isEmpty() && staleReferencesPopup != null) {
+            Log.warn("PrefabEditController", "Prefab has " + resolutions.size() + " stale component reference(s)");
+            staleReferencesPopup.open(resolutions, () -> {
+                try {
+                    save();
+                    // Show status message via event bus
+                    EditorEventBus.get().publish(new StatusMessageEvent("Prefab saved - stale references updated"));
+                } catch (Exception e) {
+                    Log.error("PrefabEditController", "Failed to save prefab after stale reference prompt", e);
+                    EditorEventBus.get().publish(new StatusMessageEvent("Save failed: " + e.getMessage()));
+                }
+            });
+        }
     }
 
     public void save() {

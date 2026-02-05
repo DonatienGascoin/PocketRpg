@@ -13,7 +13,7 @@ Prefab creation is currently a one-shot operation. Once exported via `SavePrefab
 **Key constraints in current code:**
 - `EditorGameObject.addComponent()` throws `IllegalStateException` for prefab instances
 - `EditorGameObject.removeComponent()` operates on the `components` list, which is empty for prefab instances
-- `componentOverrides` is keyed by fully-qualified component type name (e.g. `com.pocket.rpg.components.SpriteRenderer`). There is no concept of "added components" or "removed components" at the instance level
+- `componentOverrides` is keyed by fully-qualified component type name (e.g. `com.pocket.rpg.components.rendering.SpriteRenderer`). There is no concept of "added components" or "removed components" at the instance level
 - `SavePrefabPopup.trySave()` rejects duplicate IDs (`PrefabRegistry.hasPrefab(id)`)
 
 ## Goals

@@ -1,5 +1,6 @@
-package com.pocket.rpg.components;
+package com.pocket.rpg.components.rendering;
 
+import com.pocket.rpg.components.Component;
 import com.pocket.rpg.config.ConfigLoader;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.rendering.core.Renderable;

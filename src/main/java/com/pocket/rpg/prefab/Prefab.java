@@ -1,7 +1,7 @@
 package com.pocket.rpg.prefab;
 
 import com.pocket.rpg.components.Component;
-import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.components.core.Transform;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.serialization.ComponentMeta;

@@ -1,5 +1,6 @@
 package com.pocket.rpg.components;
 
+import com.pocket.rpg.components.pokemon.GridMovementAnimator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

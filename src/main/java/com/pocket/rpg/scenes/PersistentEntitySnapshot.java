@@ -1,7 +1,7 @@
 package com.pocket.rpg.scenes;
 
 import com.pocket.rpg.components.Component;
-import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.components.core.Transform;
 import com.pocket.rpg.components.core.PersistentEntity;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.prefab.Prefab;

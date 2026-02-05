@@ -2,7 +2,7 @@ package com.pocket.rpg.editor.tools;
 
 import com.pocket.rpg.collision.CollisionType;
 import com.pocket.rpg.collision.trigger.TileCoord;
-import com.pocket.rpg.components.SpriteRenderer;
+import com.pocket.rpg.components.rendering.SpriteRenderer;
 import com.pocket.rpg.editor.EditorSelectionManager;
 import com.pocket.rpg.editor.camera.EditorCamera;
 import com.pocket.rpg.editor.events.EditorEventBus;

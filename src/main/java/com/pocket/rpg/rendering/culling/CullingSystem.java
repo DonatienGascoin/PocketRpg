@@ -1,7 +1,7 @@
 package com.pocket.rpg.rendering.culling;
 
-import com.pocket.rpg.components.SpriteRenderer;
-import com.pocket.rpg.components.TilemapRenderer;
+import com.pocket.rpg.components.rendering.SpriteRenderer;
+import com.pocket.rpg.components.rendering.TilemapRenderer;
 import com.pocket.rpg.rendering.core.RenderCamera;
 import lombok.Getter;
 

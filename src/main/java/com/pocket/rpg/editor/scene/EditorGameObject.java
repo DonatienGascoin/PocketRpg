@@ -1,8 +1,8 @@
 package com.pocket.rpg.editor.scene;
 
 import com.pocket.rpg.components.Component;
-import com.pocket.rpg.components.SpriteRenderer;
-import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.components.rendering.SpriteRenderer;
+import com.pocket.rpg.components.core.Transform;
 import com.pocket.rpg.editor.panels.hierarchy.HierarchyItem;
 import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.prefab.Prefab;
@@ -17,7 +17,6 @@ import org.joml.Vector2f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 
-import java.lang.reflect.Field;
 import java.util.*;
 
 /**

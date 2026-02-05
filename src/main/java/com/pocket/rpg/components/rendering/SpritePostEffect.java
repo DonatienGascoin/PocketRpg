@@ -1,5 +1,8 @@
-package com.pocket.rpg.components;
+package com.pocket.rpg.components.rendering;
 
+import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.ComponentMeta;
+import com.pocket.rpg.components.core.Transform;
 import com.pocket.rpg.rendering.postfx.PostEffect;
 import com.pocket.rpg.rendering.resources.Shader;
 import com.pocket.rpg.rendering.batch.Renderer;

@@ -1,7 +1,6 @@
 package com.pocket.rpg.editor.undo.commands;
 
-import com.pocket.rpg.components.Component;
-import com.pocket.rpg.components.SpriteRenderer;
+import com.pocket.rpg.components.rendering.SpriteRenderer;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Nested;

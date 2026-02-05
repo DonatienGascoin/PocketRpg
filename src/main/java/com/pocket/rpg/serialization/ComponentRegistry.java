@@ -4,13 +4,14 @@ import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ComponentRef;
 import com.pocket.rpg.components.HideInInspector;
 import com.pocket.rpg.components.RequiredComponent;
-import com.pocket.rpg.components.Transform;
 import com.pocket.rpg.components.UiKeyReference;
 import com.pocket.rpg.components.ui.UIComponent;
 import org.reflections.Reflections;
 import org.reflections.scanners.Scanners;
 import org.reflections.util.ClasspathHelper;
 import org.reflections.util.ConfigurationBuilder;
+
+import com.pocket.rpg.logging.Log;
 
 import java.lang.reflect.*;
 import java.util.*;
@@ -29,6 +30,64 @@ public class ComponentRegistry {
     private static Map<String, ComponentCategory> categories = new LinkedHashMap<>();
     private static boolean initialized = false;
 
+    // ========================================================================
+    // MIGRATION MAP - for renamed/moved component classes
+    // ========================================================================
+
+    private static final Map<String, String> migrationMap = new HashMap<>();
+
+    // Register legacy migrations here when refactoring components.
+    // These run before initialize() due to static block ordering.
+    static {
+        // Example: addMigration("com.pocket.rpg.old.OldComponent", "com.pocket.rpg.components.NewComponent");
+    }
+
+    private static void addMigration(String oldClassName, String newClassName) {
+        migrationMap.put(oldClassName, newClassName);
+    }
+
+    /**
+     * Looks up a migration mapping for the given old class name.
+     * @return The new class name, or null if no migration exists
+     */
+    public static String getMigration(String oldClassName) {
+        return migrationMap.get(oldClassName);
+    }
+
+    // ========================================================================
+    // FALLBACK RESOLUTION TRACKING
+    // ========================================================================
+
+    /**
+     * Tracks fallback resolutions during deserialization.
+     * Uses Set to deduplicate (e.g., 50 entities with same stale Transform → 1 entry).
+     *
+     * <p><b>Threading:</b> Assumes scene loading is single-threaded (main thread).
+     * If background loading is ever added, this would need synchronization.
+     */
+    private static final ThreadLocal<Set<String>> fallbackResolutions =
+        ThreadLocal.withInitial(LinkedHashSet::new);  // Preserves insertion order
+
+    /** Called by ComponentTypeAdapterFactory when fallback resolution is used. */
+    public static void recordFallbackResolution(String oldName, String newName) {
+        fallbackResolutions.get().add(oldName + "|" + newName);
+    }
+
+    /** Call before deserializing a scene to reset tracking state. */
+    public static void resetFallbackTracking() {
+        fallbackResolutions.get().clear();
+    }
+
+    /** Get the list of fallback resolutions (empty if none). Returns a copy. */
+    public static List<String> getFallbackResolutions() {
+        return new ArrayList<>(fallbackResolutions.get());
+    }
+
+    /** Check if any fallback resolution was used. */
+    public static boolean wasFallbackUsed() {
+        return !fallbackResolutions.get().isEmpty();
+    }
+
     /**
      * Initializes the registry by scanning the components package.
      * Call once at startup.
@@ -39,6 +98,13 @@ public class ComponentRegistry {
         }
 
         System.out.println("ComponentRegistry: Scanning for components...");
+
+        // Log any registered migrations
+        if (!migrationMap.isEmpty()) {
+            Log.info("ComponentRegistry", migrationMap.size() + " migration(s) registered");
+            migrationMap.forEach((old, newName) ->
+                Log.info("ComponentRegistry", "  " + old + " -> " + newName));
+        }
 
         try {
             List<Class<? extends Component>> classes = scanComponentClasses();
@@ -53,6 +119,14 @@ public class ComponentRegistry {
 
                 try {
                     ComponentMeta meta = buildMeta(clazz);
+
+                    // Check for duplicate simple names (simple name fallback won't work for these)
+                    ComponentMeta existing = bySimpleName.get(meta.simpleName());
+                    if (existing != null && !existing.className().equals(meta.className())) {
+                        Log.error("ComponentRegistry", "Duplicate component simple name '" + meta.simpleName() +
+                                "': " + existing.className() + " and " + meta.className() +
+                                " — simple name fallback will not work for these. Add explicit migrations to ComponentRegistry's static block.");
+                    }
                     bySimpleName.put(meta.simpleName(), meta);
                     byFullName.put(meta.className(), meta);
                     allComponents.add(meta);

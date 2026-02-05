@@ -1,5 +1,7 @@
-package com.pocket.rpg.components;
+package com.pocket.rpg.components.pokemon;
 
+import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.ComponentMeta;
 import org.joml.Vector3f;
 
 @ComponentMeta(category = "Rendering")

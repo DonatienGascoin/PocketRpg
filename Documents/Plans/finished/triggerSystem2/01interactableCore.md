@@ -94,7 +94,7 @@ public interface Interactable {
 package com.pocket.rpg.components.interaction;
 
 import com.pocket.rpg.components.Component;
-import com.pocket.rpg.components.GridMovement;
+import com.pocket.rpg.components.pokemon.GridMovement;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.core.input.Input;
 import com.pocket.rpg.core.input.Key;
@@ -122,19 +122,22 @@ public class InteractionController extends Component {
     /**
      * Maximum distance to detect interactables.
      */
-    @Getter @Setter
+    @Getter
+    @Setter
     private float detectionRadius = 2.0f;
 
     /**
      * Key to trigger interaction.
      */
-    @Getter @Setter
+    @Getter
+    @Setter
     private Key interactKey = Key.E;
 
     /**
      * Alternative key for interaction.
      */
-    @Getter @Setter
+    @Getter
+    @Setter
     private Key interactKeyAlt = Key.SPACE;
 
     /**
@@ -150,7 +153,7 @@ public class InteractionController extends Component {
     private Interactable currentTarget;
 
     @Transient
-    private GridMovement gridMovement; // For facing direction
+    private com.pocket.rpg.components.pokemon.GridMovement gridMovement; // For facing direction
 
     @Override
     public void start() {
@@ -220,8 +223,8 @@ public class InteractionController extends Component {
 
         // Sort by priority, then distance
         valid.sort(Comparator
-            .comparingInt(Interactable::getInteractionPriority)
-            .thenComparingDouble(i -> distance(myPos, i.getPosition()))
+                .comparingInt(Interactable::getInteractionPriority)
+                .thenComparingDouble(i -> distance(myPos, i.getPosition()))
         );
 
         return valid.get(0);

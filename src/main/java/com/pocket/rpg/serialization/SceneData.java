@@ -1,7 +1,7 @@
 package com.pocket.rpg.serialization;
 
 import com.pocket.rpg.components.Component;
-import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.components.core.Transform;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -186,7 +186,7 @@ public class SceneData {
 
             // Add Transform override with position
             Map<String, Object> transformOverride = overrides.computeIfAbsent(
-                    "com.pocket.rpg.components.Transform", k -> new HashMap<>());
+                    "com.pocket.rpg.components.core.Transform", k -> new HashMap<>());
             transformOverride.put("localPosition", pos);
 
             data = new GameObjectData(

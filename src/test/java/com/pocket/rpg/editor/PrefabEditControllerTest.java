@@ -1,7 +1,7 @@
 package com.pocket.rpg.editor;
 
 import com.pocket.rpg.components.Component;
-import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.components.core.Transform;
 import com.pocket.rpg.editor.events.EditorEventBus;
 import com.pocket.rpg.editor.events.PrefabEditStartedEvent;
 import com.pocket.rpg.editor.events.PrefabEditStoppedEvent;
@@ -18,7 +18,6 @@ import org.junit.jupiter.api.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 

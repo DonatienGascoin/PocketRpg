@@ -1,6 +1,6 @@
 package com.pocket.rpg.editor.tools.gizmo;
 
-import com.pocket.rpg.components.SpriteRenderer;
+import com.pocket.rpg.components.rendering.SpriteRenderer;
 import com.pocket.rpg.editor.camera.EditorCamera;
 import com.pocket.rpg.editor.gizmos.GizmoColors;
 import com.pocket.rpg.editor.scene.EditorGameObject;

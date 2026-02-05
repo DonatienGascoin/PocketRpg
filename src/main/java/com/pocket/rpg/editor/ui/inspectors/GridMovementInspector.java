@@ -1,9 +1,9 @@
 package com.pocket.rpg.editor.ui.inspectors;
 
 import com.pocket.rpg.collision.Direction;
-import com.pocket.rpg.components.GridMovement;
-import com.pocket.rpg.components.GridMovement.AnchorMode;
-import com.pocket.rpg.components.SpriteRenderer;
+import com.pocket.rpg.components.pokemon.GridMovement;
+import com.pocket.rpg.components.pokemon.GridMovement.AnchorMode;
+import com.pocket.rpg.components.rendering.SpriteRenderer;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
 import com.pocket.rpg.editor.undo.EditorCommand;
 import com.pocket.rpg.editor.undo.UndoManager;

@@ -2,7 +2,11 @@ package com.pocket.rpg.scenes;
 
 import com.pocket.rpg.collision.CollisionMap;
 import com.pocket.rpg.collision.CollisionType;
-import com.pocket.rpg.components.*;
+import com.pocket.rpg.components.pokemon.GridMovement;
+import com.pocket.rpg.components.pokemon.PlayerCameraFollow;
+import com.pocket.rpg.components.pokemon.PlayerMovement;
+import com.pocket.rpg.components.rendering.SpriteRenderer;
+import com.pocket.rpg.components.rendering.TilemapRenderer;
 import com.pocket.rpg.components.ui.UIText;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.levels.VillageLevelGenerator;

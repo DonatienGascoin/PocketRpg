@@ -1,8 +1,8 @@
 package com.pocket.rpg.editor.scene;
 
 import com.pocket.rpg.components.Component;
-import com.pocket.rpg.components.TilemapRenderer;
-import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.components.rendering.TilemapRenderer;
+import com.pocket.rpg.components.core.Transform;
 import com.pocket.rpg.components.core.PersistentEntity;
 import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.core.GameObject;
@@ -14,7 +14,6 @@ import com.pocket.rpg.scenes.RuntimeScene;
 import com.pocket.rpg.serialization.*;
 import org.joml.Vector3f;
 
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;

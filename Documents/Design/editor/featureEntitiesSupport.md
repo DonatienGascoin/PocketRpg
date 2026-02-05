@@ -93,7 +93,7 @@ public class ComponentData {
     "previewSprite": "sprites/chest_closed.png",
     "components": [
         {
-            "type": "com.pocket.rpg.components.SpriteRenderer",
+            "type": "com.pocket.rpg.components.rendering.SpriteRenderer",
             "fields": {
                 "zIndex": 10
             }

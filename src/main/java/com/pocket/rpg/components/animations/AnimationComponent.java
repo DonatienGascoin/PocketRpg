@@ -1,7 +1,9 @@
-package com.pocket.rpg.components;
+package com.pocket.rpg.components.animations;
 
 import com.pocket.rpg.animation.Animation;
 import com.pocket.rpg.animation.AnimationPlayer;
+import com.pocket.rpg.components.*;
+import com.pocket.rpg.components.rendering.SpriteRenderer;
 import com.pocket.rpg.rendering.resources.Sprite;
 import lombok.Getter;
 import lombok.Setter;

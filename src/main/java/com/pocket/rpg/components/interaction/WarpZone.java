@@ -5,7 +5,7 @@ import com.pocket.rpg.audio.clips.AudioClip;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ComponentMeta;
 import com.pocket.rpg.components.ComponentRef;
-import com.pocket.rpg.components.GridMovement;
+import com.pocket.rpg.components.pokemon.GridMovement;
 import com.pocket.rpg.config.TransitionConfig;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.editor.gizmos.GizmoColors;

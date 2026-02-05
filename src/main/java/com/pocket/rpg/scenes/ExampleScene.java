@@ -2,6 +2,9 @@ package com.pocket.rpg.scenes;
 
 import com.pocket.rpg.animation.Animation;
 import com.pocket.rpg.components.*;
+import com.pocket.rpg.components.animations.AnimationComponent;
+import com.pocket.rpg.components.rendering.SpritePostEffect;
+import com.pocket.rpg.components.rendering.SpriteRenderer;
 import com.pocket.rpg.components.ui.*;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.rendering.postfx.BloomEffect;

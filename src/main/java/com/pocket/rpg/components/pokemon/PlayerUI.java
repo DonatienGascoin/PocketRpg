@@ -1,6 +1,9 @@
-package com.pocket.rpg.components;
+package com.pocket.rpg.components.pokemon;
 
-import com.pocket.rpg.components.ui.UIImage;
+import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.ComponentMeta;
+import com.pocket.rpg.components.ComponentRef;
+import com.pocket.rpg.components.UiKeyReference;
 import com.pocket.rpg.components.ui.UIText;
 import com.pocket.rpg.logging.Log;
 import com.pocket.rpg.logging.Logger;

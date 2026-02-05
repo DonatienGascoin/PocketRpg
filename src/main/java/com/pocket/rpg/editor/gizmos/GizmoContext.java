@@ -1,6 +1,6 @@
 package com.pocket.rpg.editor.gizmos;
 
-import com.pocket.rpg.components.Transform;
+import com.pocket.rpg.components.core.Transform;
 import com.pocket.rpg.editor.camera.EditorCamera;
 import imgui.ImDrawList;
 import imgui.ImGui;

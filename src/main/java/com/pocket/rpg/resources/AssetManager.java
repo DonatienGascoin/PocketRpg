@@ -70,6 +70,13 @@ public class AssetManager implements AssetContext {
      */
     private final Map<Object, String> resourcePaths;
 
+    /**
+     * Maps cached path → asset type class.
+     * <p>
+     * Used by hot-reload to find the correct loader for a cached asset.
+     */
+    private final Map<String, Class<?>> cachedTypes;
+
     @Getter
     private String assetRoot = "gameData/assets/";
     @Getter
@@ -86,6 +93,7 @@ public class AssetManager implements AssetContext {
         this.loaders = new ConcurrentHashMap<>();
         this.extensionMap = new ConcurrentHashMap<>();
         this.resourcePaths = new ConcurrentHashMap<>();
+        this.cachedTypes = new ConcurrentHashMap<>();
 
         // Auto-register default loaders
         registerDefaultLoaders();
@@ -312,6 +320,8 @@ public class AssetManager implements AssetContext {
 
         if (options.isUseCache()) {
             cache.put(fullPath, subAsset);
+            // Sub-assets have the same loader type as parent for reload purposes
+            cachedTypes.put(fullPath, parentType);
         }
         resourcePaths.put(subAsset, fullPath);
 
@@ -335,6 +345,7 @@ public class AssetManager implements AssetContext {
 
             if (options.isUseCache()) {
                 cache.put(normalizedPath, resource);
+                cachedTypes.put(normalizedPath, type);
             }
             resourcePaths.put(resource, normalizedPath);
 
@@ -349,6 +360,7 @@ public class AssetManager implements AssetContext {
 
                 if (placeholder != null && options.isUseCache()) {
                     cache.put(normalizedPath, placeholder);
+                    cachedTypes.put(normalizedPath, type);
                     resourcePaths.put(placeholder, normalizedPath);
                 }
 
@@ -603,6 +615,26 @@ public class AssetManager implements AssetContext {
             System.err.println(e.getMessage());
             throw e;
         }
+    }
+
+    /**
+     * Gets the type that was used to load a cached asset.
+     *
+     * @param path The normalized path
+     * @return The asset type class, or null if not cached
+     */
+    public Class<?> getCachedType(String path) {
+        return cachedTypes.get(path);
+    }
+
+    /**
+     * Resolves a relative path to a full path using asset root.
+     *
+     * @param path Relative path
+     * @return Full path
+     */
+    public String resolveFullPath(String path) {
+        return resolvePath(path, LoadOptions.defaults());
     }
 
     // ========================================================================

@@ -17,10 +17,10 @@ import static org.lwjgl.stb.STBImage.stbi_load;
 public class Texture {
     @Getter
     private final String filePath;
-    private final int textureId;
-    private final int width;
-    private final int height;
-    private final int channels;
+    private int textureId;
+    private int width;
+    private int height;
+    private int channels;
     private final boolean ownsTexture;
 
     /**
@@ -168,6 +168,91 @@ public class Texture {
         if (ownsTexture) {
             glDeleteTextures(textureId);
         }
+    }
+
+    /**
+     * Reloads this texture from disk, replacing GPU data while keeping the same instance.
+     * Creates new GL texture before destroying old to avoid render gaps.
+     * <p>
+     * All existing references to this Texture remain valid after reload.
+     *
+     * @param path Path to image file
+     * @throws RuntimeException if loading fails (this texture unchanged on failure)
+     * @throws IllegalStateException if this is a wrapped texture (not owned)
+     */
+    public void reloadFromDisk(String path) {
+        if (!ownsTexture) {
+            throw new IllegalStateException("Cannot reload wrapped texture (not owned): " + filePath);
+        }
+
+        // 1. Load new image data FIRST (fail-fast, don't destroy old yet)
+        STBImage.stbi_set_flip_vertically_on_load(true);
+
+        int[] widthArr = new int[1];
+        int[] heightArr = new int[1];
+        int[] channelsArr = new int[1];
+
+        ByteBuffer imageData = stbi_load(path, widthArr, heightArr, channelsArr, 0);
+        if (imageData == null) {
+            throw new RuntimeException("Failed to reload texture: " + path +
+                    "\nReason: " + stbi_failure_reason());
+        }
+
+        int newWidth = widthArr[0];
+        int newHeight = heightArr[0];
+        int newChannels = channelsArr[0];
+
+        // Determine format based on channels
+        int format;
+        int internalFormat;
+        switch (newChannels) {
+            case 1:
+                format = GL_RED;
+                internalFormat = GL_RED;
+                break;
+            case 3:
+                format = GL_RGB;
+                internalFormat = GL_RGB;
+                break;
+            case 4:
+                format = GL_RGBA;
+                internalFormat = GL_RGBA;
+                break;
+            default:
+                stbi_image_free(imageData);
+                throw new RuntimeException("Unsupported number of channels: " + newChannels);
+        }
+
+        // 2. Create new GL texture
+        int newTextureId = glGenTextures();
+        glBindTexture(GL_TEXTURE_2D, newTextureId);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+        glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, newWidth, newHeight, 0,
+                format, GL_UNSIGNED_BYTE, imageData);
+
+        if (newChannels == 1) {
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, GL_RED);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_RED);
+        }
+
+        glBindTexture(GL_TEXTURE_2D, 0);
+
+        // 3. Free CPU-side image data
+        stbi_image_free(imageData);
+
+        // 4. Only NOW destroy old texture (no gap - new one ready)
+        glDeleteTextures(this.textureId);
+
+        // 5. Update internal state
+        this.textureId = newTextureId;
+        this.width = newWidth;
+        this.height = newHeight;
+        this.channels = newChannels;
     }
 
     // Getters

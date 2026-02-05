@@ -49,27 +49,14 @@ public class ShaderLoader implements AssetLoader<Shader> {
     @Override
     public Shader reload(Shader existing, String path) throws IOException {
         if (existing == null) {
-            // No existing shader - just load fresh
             return load(path);
         }
-
+        // Mutate existing shader in place
         try {
-            // Create new shader with same path
-            Shader newShader = new Shader(path);
-            newShader.compileAndLink();
-
-            // Success! Delete old shader
-            existing.delete();
-
-            return newShader;
-
+            existing.reloadFromDisk(path);
+            return existing; // Same reference
         } catch (RuntimeException e) {
-            // Compilation failed - keep old shader
-            System.err.println("Hot reload failed for shader: " + path);
-            System.err.println("Keeping previous version. Error: " + e.getMessage());
-
-            // Return existing shader (still works)
-            return existing;
+            throw new IOException("Failed to reload shader: " + path, e);
         }
     }
 

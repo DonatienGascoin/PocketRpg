@@ -40,10 +40,18 @@ public class UIDesignerInputHandler {
     // ========================================================================
 
     public void handleInput() {
-        handleCameraInput();
-        handleZoomInput();
-        handleClickInput();
-        handleDragInput();
+        // Block all new interactions when a popup is open (e.g., SpriteEditor modal)
+        // Allow ongoing drags to complete on mouse release
+        boolean popupOpen = ImGui.isPopupOpen("", ImGuiPopupFlags.AnyPopupId);
+
+        if (!popupOpen) {
+            handleCameraInput();
+            handleZoomInput();
+            handleClickInput();
+            handleDragInput();
+        }
+
+        // Always handle mouse release to clean up drag state
         handleMouseRelease();
     }
 

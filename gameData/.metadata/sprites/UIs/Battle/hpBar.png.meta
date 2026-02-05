@@ -1,0 +1,67 @@
+{
+  "spriteMode": "MULTIPLE",
+  "pixelsPerUnitOverride": null,
+  "pivotX": null,
+  "pivotY": null,
+  "nineSlice": null,
+  "grid": {
+    "spriteWidth": 243,
+    "spriteHeight": 16,
+    "spacingX": 0,
+    "spacingY": 0,
+    "offsetX": 0,
+    "offsetY": 0
+  },
+  "defaultPivot": null,
+  "defaultNineSlice": null,
+  "sprites": {
+    "0": {
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "nineSlice": {
+        "left": 47,
+        "right": 11,
+        "top": 6,
+        "bottom": 6
+      }
+    },
+    "1": {
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "nineSlice": {
+        "left": 47,
+        "right": 11,
+        "top": 6,
+        "bottom": 6
+      }
+    },
+    "2": {
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "nineSlice": {
+        "left": 47,
+        "right": 11,
+        "top": 6,
+        "bottom": 6
+      }
+    },
+    "3": {
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "nineSlice": {
+        "left": 47,
+        "right": 11,
+        "top": 6,
+        "bottom": 6
+      }
+    }
+  }
+}

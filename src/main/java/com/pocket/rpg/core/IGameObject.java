@@ -105,4 +105,6 @@ public interface IGameObject {
     default boolean isEditor() {
         return !isRuntime();
     }
+
+    boolean hasChildren();
 }

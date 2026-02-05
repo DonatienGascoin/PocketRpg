@@ -1,0 +1,16 @@
+{
+  "spriteMode": null,
+  "pixelsPerUnitOverride": null,
+  "pivotX": 0.5,
+  "pivotY": 0.5,
+  "nineSlice": {
+    "left": 180,
+    "right": 150,
+    "top": 175,
+    "bottom": 43
+  },
+  "grid": null,
+  "defaultPivot": null,
+  "defaultNineSlice": null,
+  "sprites": null
+}

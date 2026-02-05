@@ -2,6 +2,7 @@ package com.pocket.rpg.resources;
 
 import com.pocket.rpg.editor.EditorPanelType;
 import com.pocket.rpg.editor.scene.EditorGameObject;
+import com.pocket.rpg.logging.Log;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.rendering.resources.SpriteGrid;
 import com.pocket.rpg.resources.loaders.SpriteLoader;
@@ -9,6 +10,8 @@ import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector3f;
 
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -547,5 +550,101 @@ public final class Assets {
     private static SpriteLoader getSpriteLoader(AssetManager manager) {
         AssetLoader<Sprite> loader = manager.getLoader(Sprite.class);
         return (loader instanceof SpriteLoader) ? (SpriteLoader) loader : null;
+    }
+
+    // ========================================================================
+    // HOT-RELOAD API
+    // ========================================================================
+
+    /**
+     * Reloads an asset from disk, mutating the cached instance in place.
+     * All existing references remain valid.
+     * <p>
+     * For sub-asset paths (e.g., "sprites/player.png#3"), the parent asset is reloaded.
+     *
+     * @param path Asset path (e.g., "sprites/player.png")
+     * @return true if reloaded, false if not cached or reload not supported
+     */
+    public static boolean reload(String path) {
+        AssetContext ctx = getContext();
+        if (!(ctx instanceof AssetManager manager)) {
+            return false;
+        }
+
+        // Skip sub-asset paths - reload parent instead
+        if (path.contains("#")) {
+            path = path.substring(0, path.indexOf('#'));
+        }
+
+        Object cached = manager.getCache().get(path);
+        if (cached == null) {
+            return false; // Not loaded, nothing to reload
+        }
+
+        Class<?> type = manager.getCachedType(path);
+        if (type == null) {
+            return false;
+        }
+
+        AssetLoader<?> loader = manager.getLoader(type);
+        if (loader == null || !loader.supportsHotReload()) {
+            return false;
+        }
+
+        try {
+            String fullPath = manager.resolveFullPath(path);
+            reloadWithLoader(loader, cached, fullPath, path);
+            return true;
+        } catch (Exception e) {
+            Log.error("Assets", "Failed to reload " + path + ": " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Helper method to invoke reload with proper type casting and contract validation.
+     */
+    @SuppressWarnings("unchecked")
+    private static <T> void reloadWithLoader(AssetLoader<T> loader, Object asset, String fullPath, String path)
+            throws IOException {
+        T existing = (T) asset;
+        T result = loader.reload(existing, fullPath);
+
+        // Guard: ensure loader mutated in place rather than creating new reference
+        if (result != existing) {
+            Log.error("Assets",
+                    "Hot-reload contract violation for " + existing.getClass().getSimpleName() +
+                    ": " + loader.getClass().getSimpleName() + ".reload() returned new reference " +
+                    "instead of mutating existing. Path: " + path + ". " +
+                    "Fix: Update the loader's reload() method to mutate the existing instance in place " +
+                    "and return it, rather than creating a new object. Keeping old asset to prevent broken references.");
+            // Don't use the new reference - keep existing to avoid breaking external references
+        } else {
+            Log.info("Assets", "Reloaded: " + path);
+        }
+    }
+
+    /**
+     * Reloads all cached assets that support hot-reload.
+     *
+     * @return Number of assets successfully reloaded
+     */
+    public static int reloadAll() {
+        AssetContext ctx = getContext();
+        if (!(ctx instanceof AssetManager manager)) {
+            return 0;
+        }
+
+        int count = 0;
+        for (String path : new ArrayList<>(manager.getCache().getPaths())) {
+            // Skip sub-assets (they share parent's texture)
+            if (path.contains("#")) {
+                continue;
+            }
+            if (reload(path)) {
+                count++;
+            }
+        }
+        return count;
     }
 }

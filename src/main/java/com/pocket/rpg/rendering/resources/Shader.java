@@ -232,6 +232,149 @@ public class Shader implements Comparable<Shader> {
         glDeleteProgram(shaderProgramId);
     }
 
+    // ========================================================================
+    // HOT-RELOAD SUPPORT
+    // ========================================================================
+
+    /**
+     * Reloads and recompiles this shader from disk.
+     * Creates new GL program before destroying old to avoid render gaps.
+     * <p>
+     * All existing references to this Shader remain valid after reload.
+     *
+     * @param path Path to shader file
+     * @throws RuntimeException if loading or compilation fails (old shader unchanged on failure)
+     */
+    public void reloadFromDisk(String path) {
+        // 1. Load and parse new shader source (fail-fast)
+        String newVertexSource;
+        String newFragmentSource;
+        try {
+            String source = new String(Files.readAllBytes(new File(path).toPath()));
+            String[] splitString = source.split("(#type)( )+([a-zA-Z]+)");
+
+            int index = source.indexOf("#type") + 6;
+            int eol = source.indexOf("\n", index);
+            String firstPattern = source.substring(index, eol).trim();
+
+            index = source.indexOf("#type", eol) + 6;
+            eol = source.indexOf("\n", index);
+            String secondPattern = source.substring(index, eol).trim();
+
+            String tempVertex = null;
+            String tempFragment = null;
+
+            if (firstPattern.equals("vertex")) {
+                tempVertex = splitString[1];
+            } else if (firstPattern.equals("fragment")) {
+                tempFragment = splitString[1];
+            } else {
+                throw new IOException(String.format("Unexpected token '%s'", firstPattern));
+            }
+
+            if (secondPattern.equals("vertex")) {
+                tempVertex = splitString[2];
+            } else if (secondPattern.equals("fragment")) {
+                tempFragment = splitString[2];
+            } else {
+                throw new IOException(String.format("Unexpected token '%s'", secondPattern));
+            }
+
+            newVertexSource = tempVertex;
+            newFragmentSource = tempFragment;
+        } catch (IOException e) {
+            throw new RuntimeException("Error: could not open shader file for reload: " + path, e);
+        }
+
+        // 2. Compile new shader program (fail-fast - don't touch old yet)
+        int newProgramId = compileNewProgram(newVertexSource, newFragmentSource, path);
+
+        // 3. Only NOW delete old program (new one is ready)
+        if (this.shaderProgramId != 0) {
+            glDeleteProgram(this.shaderProgramId);
+        }
+
+        // 4. Update internal state
+        this.shaderProgramId = newProgramId;
+        this.vertexSource = newVertexSource;
+        this.fragmentSource = newFragmentSource;
+        this.uniformLocationCache.clear();
+    }
+
+    /**
+     * Compiles a new shader program from sources without modifying this shader's state.
+     *
+     * @return The new GL program ID
+     * @throws RuntimeException if compilation or linking fails
+     */
+    private int compileNewProgram(String vertexSrc, String fragmentSrc, String pathForErrors) {
+        int vertexId = 0;
+        int fragmentId = 0;
+
+        try {
+            // Compile vertex shader
+            vertexId = glCreateShader(GL_VERTEX_SHADER);
+            glShaderSource(vertexId, vertexSrc);
+            glCompileShader(vertexId);
+
+            int success = glGetShaderi(vertexId, GL_COMPILE_STATUS);
+            if (success == GL_FALSE) {
+                int len = glGetShaderi(vertexId, GL_INFO_LOG_LENGTH);
+                String errorLog = glGetShaderInfoLog(vertexId, len);
+                throw new RuntimeException(String.format(
+                        "Vertex shader compilation failed for '%s':\n%s",
+                        pathForErrors, errorLog
+                ));
+            }
+
+            // Compile fragment shader
+            fragmentId = glCreateShader(GL_FRAGMENT_SHADER);
+            glShaderSource(fragmentId, fragmentSrc);
+            glCompileShader(fragmentId);
+
+            success = glGetShaderi(fragmentId, GL_COMPILE_STATUS);
+            if (success == GL_FALSE) {
+                int len = glGetShaderi(fragmentId, GL_INFO_LOG_LENGTH);
+                String errorLog = glGetShaderInfoLog(fragmentId, len);
+                throw new RuntimeException(String.format(
+                        "Fragment shader compilation failed for '%s':\n%s",
+                        pathForErrors, errorLog
+                ));
+            }
+
+            // Link program
+            int programId = glCreateProgram();
+            glAttachShader(programId, vertexId);
+            glAttachShader(programId, fragmentId);
+            glLinkProgram(programId);
+
+            success = glGetProgrami(programId, GL_LINK_STATUS);
+            if (success == GL_FALSE) {
+                int len = glGetProgrami(programId, GL_INFO_LOG_LENGTH);
+                String errorLog = glGetProgramInfoLog(programId, len);
+                glDeleteProgram(programId);
+                throw new RuntimeException(String.format(
+                        "Shader linking failed for '%s':\n%s",
+                        pathForErrors, errorLog
+                ));
+            }
+
+            // Cleanup shader objects after successful link
+            glDetachShader(programId, vertexId);
+            glDetachShader(programId, fragmentId);
+            glDeleteShader(vertexId);
+            glDeleteShader(fragmentId);
+
+            return programId;
+
+        } catch (RuntimeException e) {
+            // Cleanup on failure
+            if (vertexId != 0) glDeleteShader(vertexId);
+            if (fragmentId != 0) glDeleteShader(fragmentId);
+            throw e;
+        }
+    }
+
     @Override
     public int compareTo(Shader o) {
         return filePath.compareTo(o.getFilePath());

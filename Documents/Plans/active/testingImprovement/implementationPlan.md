@@ -981,6 +981,42 @@ class EnableDisableTests {
 @Test void instantiate_createsEntityWithCorrectComponents()
 ```
 
+### 6.4 SpriteEditorPanelTest.java
+
+**Purpose:** Test sprite metadata editing logic, especially mode transitions.
+
+**Background:** A crash was discovered when switching sprites from SINGLE to MULTIPLE mode - the cached sprite's actual mode didn't match the updated metadata, causing `Assets.getSpriteGrid()` to fail on a SINGLE-mode sprite.
+
+**Test Scenarios:**
+```java
+@Nested @DisplayName("Apply Metadata to Sprite")
+class ApplyMetadataTests {
+    @Test void appliesPivot_whenSingleMode()
+    @Test void appliesNineSlice_whenSingleMode()
+    @Test void clearsGridCache_whenMultipleMode()
+    @Test void doesNotCrash_whenModeChangedFromSingleToMultiple()
+    @Test void doesNotCrash_whenModeChangedFromMultipleToSingle()
+    @Test void skipsUpdate_whenSpriteModeDoesNotMatchMetadata()
+}
+
+@Nested @DisplayName("Save Changes")
+class SaveChangesTests {
+    @Test void savesMetadataToFile()
+    @Test void updatesOriginalMetadata_afterSave()
+    @Test void clearsUnsavedChangesFlag_afterSave()
+    @Test void publishesAssetChangedEvent_afterSave()
+}
+
+@Nested @DisplayName("Revert Changes")
+class RevertChangesTests {
+    @Test void restoresOriginalMetadata()
+    @Test void reloadsTabsFromMetadata()
+    @Test void clearsUnsavedChangesFlag()
+}
+```
+
+**Dependencies:** Requires `MockAssetContext` from Phase 1 to mock `Assets.load()`, `Assets.isMultipleMode()`, and `Assets.getSpriteGrid()`.
+
 ---
 
 ## Phase 7: End-to-End Integration Tests
@@ -1043,9 +1079,9 @@ Assets through full serialization pipeline:
 | 3: Serialization | 4 | ~50 |
 | 4: Collision | 10 | ~70 |
 | 5: Animation | 3 | ~25 |
-| 6: Editor Paths | 3 | ~20 |
+| 6: Editor Paths | 4 | ~32 |
 | 7: Integration | 3 | ~15 |
-| **Total** | **27** | **~220** |
+| **Total** | **28** | **~232** |
 
 ---
 

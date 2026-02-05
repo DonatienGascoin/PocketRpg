@@ -247,6 +247,54 @@ public class Sprite {
     }
 
     // ========================================================================
+    // HOT-RELOAD SUPPORT
+    // ========================================================================
+
+    /**
+     * Reloads metadata (pivot, 9-slice, PPU override) in place.
+     * Called after texture reload to pick up any metadata changes.
+     * <p>
+     * All existing references to this Sprite remain valid after reload.
+     *
+     * @param metadata The new metadata (may be null to reset to defaults)
+     */
+    public void reloadMetadata(com.pocket.rpg.resources.SpriteMetadata metadata) {
+        if (metadata == null) {
+            // Reset to defaults
+            this.pivotX = 0.5f;
+            this.pivotY = 0.5f;
+            this.nineSliceData = null;
+            this.pixelsPerUnitOverride = null;
+            return;
+        }
+
+        // Apply PPU override
+        this.pixelsPerUnitOverride = metadata.pixelsPerUnitOverride;
+
+        if (metadata.isSingle()) {
+            // Single mode: apply direct pivot and 9-slice
+            if (metadata.hasPivot()) {
+                this.pivotX = metadata.pivotX;
+                this.pivotY = metadata.pivotY;
+            } else {
+                this.pivotX = 0.5f;
+                this.pivotY = 0.5f;
+            }
+            this.nineSliceData = metadata.nineSlice != null ? metadata.nineSlice.copy() : null;
+        } else {
+            // Multiple mode: use default pivot if set
+            if (metadata.defaultPivot != null) {
+                this.pivotX = metadata.defaultPivot.x;
+                this.pivotY = metadata.defaultPivot.y;
+            } else {
+                this.pivotX = 0.5f;
+                this.pivotY = 0.5f;
+            }
+            this.nineSliceData = metadata.defaultNineSlice != null ? metadata.defaultNineSlice.copy() : null;
+        }
+    }
+
+    // ========================================================================
     // NINE-SLICE METHODS
     // ========================================================================
 

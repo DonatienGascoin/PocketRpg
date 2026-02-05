@@ -467,25 +467,31 @@ public class NineSliceEditorTab {
         float cellW = cellRect[2];
         float cellH = cellRect[3];
 
+        // Allow asymmetric borders: each border can go up to (spriteSize - oppositeBorder)
+        // This ensures borders can touch but not overlap (left + right <= width, top + bottom <= height)
         switch (draggingBorder) {
             case LEFT -> {
                 float pixelX = (mouseX - cellX) / zoom;
-                int value = Math.max(0, Math.min(spriteWidth / 2, Math.round(pixelX)));
+                int maxLeft = spriteWidth - sliceRight.get();
+                int value = Math.max(0, Math.min(maxLeft, Math.round(pixelX)));
                 sliceLeft.set(value);
             }
             case RIGHT -> {
                 float pixelX = (cellX + cellW - mouseX) / zoom;
-                int value = Math.max(0, Math.min(spriteWidth / 2, Math.round(pixelX)));
+                int maxRight = spriteWidth - sliceLeft.get();
+                int value = Math.max(0, Math.min(maxRight, Math.round(pixelX)));
                 sliceRight.set(value);
             }
             case TOP -> {
                 float pixelY = (mouseY - cellY) / zoom;
-                int value = Math.max(0, Math.min(spriteHeight / 2, Math.round(pixelY)));
+                int maxTop = spriteHeight - sliceBottom.get();
+                int value = Math.max(0, Math.min(maxTop, Math.round(pixelY)));
                 sliceTop.set(value);
             }
             case BOTTOM -> {
                 float pixelY = (cellY + cellH - mouseY) / zoom;
-                int value = Math.max(0, Math.min(spriteHeight / 2, Math.round(pixelY)));
+                int maxBottom = spriteHeight - sliceTop.get();
+                int value = Math.max(0, Math.min(maxBottom, Math.round(pixelY)));
                 sliceBottom.set(value);
             }
         }

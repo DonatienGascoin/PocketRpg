@@ -8,6 +8,7 @@ import com.pocket.rpg.editor.events.EditorEventBus;
 import com.pocket.rpg.editor.assets.ThumbnailCache;
 import com.pocket.rpg.editor.core.EditorFonts;
 import com.pocket.rpg.editor.core.MaterialIcons;
+import com.pocket.rpg.logging.Log;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.rendering.resources.SpriteGrid;
 import com.pocket.rpg.resources.AssetMetadata;
@@ -124,6 +125,7 @@ public class AssetBrowserPanel extends EditorPanel {
 
     /**
      * Refreshes the asset list from disk.
+     * Also hot-reloads any cached assets that have been modified.
      */
     public void refresh() {
         long now = System.currentTimeMillis();
@@ -131,7 +133,16 @@ public class AssetBrowserPanel extends EditorPanel {
             return;
         }
         lastRefreshTime = now;
+
+        // Hot-reload modified assets from disk
+        int reloaded = Assets.reloadAll();
+        if (reloaded > 0) {
+            Log.info("AssetBrowser", "Reloaded " + reloaded + " assets from disk");
+        }
+
+        // Clear caches (thumbnails will regenerate with new data)
         multipleModeCache.clear();
+        thumbnailCache.clear();
 
         // Scan all assets
         List<String> allPaths = Assets.scanAll();

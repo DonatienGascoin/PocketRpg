@@ -867,20 +867,32 @@ public class SpriteEditorPanel implements
         Sprite sprite = Assets.load(texturePath, Sprite.class);
         if (sprite == null) return;
 
-        if (metadata.isSingle()) {
-            // Apply pivot
-            if (metadata.hasPivot()) {
-                sprite.setPivot(metadata.pivotX, metadata.pivotY);
+        // Check sprite's actual mode, not metadata - the cached sprite may be in a different
+        // mode if the user just changed the mode and saved
+        boolean spriteIsMultiple = Assets.isMultipleMode(sprite);
+
+        if (!spriteIsMultiple) {
+            // Sprite is in single mode - apply single mode properties
+            if (metadata.isSingle()) {
+                // Apply pivot
+                if (metadata.hasPivot()) {
+                    sprite.setPivot(metadata.pivotX, metadata.pivotY);
+                }
+                // Apply 9-slice data
+                sprite.setNineSliceData(metadata.nineSlice != null ? metadata.nineSlice.copy() : null);
             }
-            // Apply 9-slice data
-            sprite.setNineSliceData(metadata.nineSlice != null ? metadata.nineSlice.copy() : null);
+            // If metadata is MULTIPLE but sprite is SINGLE, skip - sprite will be reloaded
+            // with correct mode on next access
         } else {
-            // For multiple mode, grid sprites are lazily created from metadata,
-            // so we clear the grid cache to force re-generation with updated data
-            SpriteGrid grid = Assets.getSpriteGrid(sprite);
-            if (grid != null) {
-                grid.clearCache();
+            // Sprite is in multiple mode - clear grid cache if metadata is also multiple
+            if (metadata.isMultiple()) {
+                SpriteGrid grid = Assets.getSpriteGrid(sprite);
+                if (grid != null) {
+                    grid.clearCache();
+                }
             }
+            // If metadata is SINGLE but sprite is MULTIPLE, skip - sprite will be reloaded
+            // with correct mode on next access
         }
     }
 

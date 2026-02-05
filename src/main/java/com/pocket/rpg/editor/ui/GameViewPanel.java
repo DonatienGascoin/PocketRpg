@@ -89,9 +89,10 @@ public class GameViewPanel {
 
     private boolean initialized = false;
 
-    // Post-processing for preview (refreshed before each render)
+    // Post-processing for preview (only refreshed when effects change)
     private PostProcessor previewPostProcessor;
     private String lastEffectsHash = "";
+    private boolean needsPostProcessorRefresh = true;
 
     // Transition debug UI state
     private List<String> cachedScenes = new ArrayList<>();
@@ -480,6 +481,7 @@ public class GameViewPanel {
         String currentEffectsHash = computeEffectsHash();
         if (!currentEffectsHash.equals(lastEffectsHash)) {
             needsRender = true;
+            needsPostProcessorRefresh = true;
             lastEffectsHash = currentEffectsHash;
         }
 
@@ -557,8 +559,11 @@ public class GameViewPanel {
     private void renderPreviewToFramebuffer(EditorScene scene) {
         if (previewPipeline == null || previewFramebuffer == null) return;
 
-        // Always refresh post-processor to pick up effect changes (add/remove/property edits)
-        refreshPreviewPostProcessor();
+        // Only refresh post-processor when effects actually changed (not every frame)
+        if (needsPostProcessorRefresh) {
+            refreshPreviewPostProcessor();
+            needsPostProcessorRefresh = false;
+        }
 
         // Apply scene camera settings (position from scene, ortho size from rendering config)
         if (scene != null) {

@@ -53,12 +53,16 @@ public class TextureLoader implements AssetLoader<Texture> {
 
     @Override
     public Texture reload(Texture existing, String path) throws IOException {
-        // Destroy old texture
-        if (existing != null) {
-            existing.destroy();
+        if (existing == null) {
+            return load(path);
         }
-        // Load new texture
-        return load(path);
+        // Mutate existing texture in place
+        try {
+            existing.reloadFromDisk(path);
+            return existing; // Same reference
+        } catch (RuntimeException e) {
+            throw new IOException("Failed to reload texture: " + path, e);
+        }
     }
 
     /**

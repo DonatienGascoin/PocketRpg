@@ -310,16 +310,42 @@ public class SpriteLoader implements AssetLoader<Sprite> {
 
     @Override
     public Sprite reload(Sprite existing, String path) throws IOException {
-        // Clear caches for the existing sprite
-        if (existing != null) {
+        if (existing == null) {
+            return load(path);
+        }
+
+        try {
+            // 1. Reload the underlying texture in place
+            Texture texture = existing.getTexture();
+            if (texture != null) {
+                texture.reloadFromDisk(path);
+            }
+
+            // 2. Reload metadata and apply to existing sprite
+            String relativePath = Assets.getRelativePath(path);
+            SpriteMetadata meta = null;
+            if (relativePath != null) {
+                meta = AssetMetadata.load(relativePath, SpriteMetadata.class);
+            }
+            existing.reloadMetadata(meta);
+
+            // 3. Clear grid cache (grid sprites share parent's texture, so they're updated too)
             SpriteGrid grid = gridCache.remove(existing);
             if (grid != null) {
                 grid.clearCache();
             }
-            metadataCache.remove(existing);
+
+            // 4. Update metadata cache
+            if (meta != null) {
+                metadataCache.put(existing, meta);
+            } else {
+                metadataCache.remove(existing);
+            }
+
+            return existing; // Same reference
+        } catch (RuntimeException e) {
+            throw new IOException("Failed to reload sprite: " + path, e);
         }
-        // Simply load fresh sprite - texture reload is handled by TextureLoader
-        return load(path);
     }
 
     // ========================================================================

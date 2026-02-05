@@ -37,6 +37,7 @@
   "showTileCoordinates": true,
   "defaultUiFont": "gameData/assets/fonts/zelda.ttf",
   "recentScenes": [
+    "Battle.scene",
     "DemoScene.scene",
     "Test.scene"
   ],

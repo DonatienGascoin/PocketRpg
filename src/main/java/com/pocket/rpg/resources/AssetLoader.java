@@ -3,6 +3,7 @@ package com.pocket.rpg.resources;
 import com.pocket.rpg.editor.EditorPanelType;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
+import com.pocket.rpg.logging.Log;
 import com.pocket.rpg.rendering.resources.Sprite;
 import org.joml.Vector3f;
 
@@ -54,25 +55,32 @@ public interface AssetLoader<T> {
     String[] getSupportedExtensions();
 
     /**
-     * Hot reload support (future feature).
+     * Returns whether this loader supports hot-reloading assets from disk.
      *
-     * @return true if this loader supports reloading
+     * @return true if {@link #reload(Object, String)} is implemented
      */
     default boolean supportsHotReload() {
         return false;
     }
 
     /**
-     * Reloads a resource (future feature).
-     * Default implementation just calls load().
+     * Reloads an asset in place by mutating the existing instance.
+     * <p>
+     * <b>Contract:</b> Implementations MUST mutate the existing instance rather than
+     * creating a new one. This ensures all external references remain valid after reload.
+     * <p>
+     * <b>Failure handling:</b> If reload fails, the existing instance should remain
+     * unchanged (load new data before destroying old).
      *
-     * @param existing The existing resource
-     * @param path Path to reload from
-     * @return Reloaded resource
+     * @param existing The existing asset instance to mutate
+     * @param path Full path to reload from
+     * @return The same instance passed in (mutated), or existing unchanged if not supported
      * @throws IOException if reload fails
      */
     default T reload(T existing, String path) throws IOException {
-        return load(path);
+        Log.warn("AssetLoader", "Hot-reload not implemented for " + getClass().getSimpleName() +
+                ", skipping: " + path);
+        return existing;
     }
 
     // ========================================================================

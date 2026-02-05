@@ -46,6 +46,7 @@ public class PostProcessor {
     private int textureB;
     private int rbo;
     private int quadVAO;
+    private int quadVBO;
 
     @Getter
     private final List<PostEffect> effects = new ArrayList<>();
@@ -413,10 +414,10 @@ public class PostProcessor {
         };
 
         quadVAO = glGenVertexArrays();
-        int vbo = glGenBuffers();
+        quadVBO = glGenBuffers();
 
         glBindVertexArray(quadVAO);
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
         glBufferData(GL_ARRAY_BUFFER, quadVertices, GL_STATIC_DRAW);
 
         glEnableVertexAttribArray(0);
@@ -435,6 +436,7 @@ public class PostProcessor {
         glDeleteTextures(textureB);
         glDeleteRenderbuffers(rbo);
         glDeleteVertexArrays(quadVAO);
+        glDeleteBuffers(quadVBO);
 
         if (blitShader != null) {
             blitShader.delete();

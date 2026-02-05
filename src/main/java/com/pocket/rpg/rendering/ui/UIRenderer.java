@@ -368,8 +368,11 @@ public class UIRenderer implements UIRendererBackend {
         if (sprite != null && sprite.getTexture() != null) {
             glUniform1i(uUseTexture, 1);
             sprite.getTexture().bind(0);
+            // Flip V coordinates for sprites: textures are loaded with Y-flip,
+            // so v0 (image top) maps to V=1 and v1 (image bottom) maps to V=0.
+            // Swap v0/v1 so screen top shows image top.
             buildQuadVertices(0, 0, width, height,
-                    sprite.getU0(), sprite.getV0(), sprite.getU1(), sprite.getV1());
+                    sprite.getU0(), sprite.getV1(), sprite.getU1(), sprite.getV0());
         } else {
             glUniform1i(uUseTexture, 0);
             glActiveTexture(GL_TEXTURE0);
@@ -406,15 +409,23 @@ public class UIRenderer implements UIRendererBackend {
         float top = nineSlice.getTopBorder();
         float bottom = nineSlice.getBottomBorder();
 
-        // Clamp to minimum size
+        // Scale borders proportionally if size is smaller than minimum (Unity behavior)
         float minWidth = left + right;
         float minHeight = top + bottom;
-        if (width < minWidth) width = minWidth;
-        if (height < minHeight) height = minHeight;
+        if (width < minWidth && minWidth > 0) {
+            float scale = width / minWidth;
+            left *= scale;
+            right *= scale;
+        }
+        if (height < minHeight && minHeight > 0) {
+            float scale = height / minHeight;
+            top *= scale;
+            bottom *= scale;
+        }
 
-        // Calculate center region size
-        float centerWidth = width - left - right;
-        float centerHeight = height - top - bottom;
+        // Calculate center region size (may be 0 or negative if borders fill/exceed the space)
+        float centerWidth = Math.max(0, width - left - right);
+        float centerHeight = Math.max(0, height - top - bottom);
 
         glUseProgram(shaderProgram);
         glBindVertexArray(vao);
@@ -428,7 +439,11 @@ public class UIRenderer implements UIRendererBackend {
         float pivotY = y + originY * height;
 
         // Draw all 9 regions
-        // Top row
+        // NineSlice UV regions are now correctly mapped for Y-flipped textures:
+        // TOP_* = visual top (high V), BOTTOM_* = visual bottom (low V)
+        // Use regions in natural order with their corresponding border sizes
+
+        // Screen top row (visual top of image)
         drawNineSliceRegion(x, y, left, top, nineSlice.getRegionUV(NineSlice.TOP_LEFT),
                 rotation, pivotX, pivotY);
         drawNineSliceRegion(x + left, y, centerWidth, top, nineSlice.getRegionUV(NineSlice.TOP_CENTER),
@@ -446,7 +461,7 @@ public class UIRenderer implements UIRendererBackend {
         drawNineSliceRegion(x + left + centerWidth, y + top, right, centerHeight,
                 nineSlice.getRegionUV(NineSlice.MIDDLE_RIGHT), rotation, pivotX, pivotY);
 
-        // Bottom row
+        // Screen bottom row (visual bottom of image)
         drawNineSliceRegion(x, y + top + centerHeight, left, bottom, nineSlice.getRegionUV(NineSlice.BOTTOM_LEFT),
                 rotation, pivotX, pivotY);
         drawNineSliceRegion(x + left, y + top + centerHeight, centerWidth, bottom,
@@ -476,7 +491,9 @@ public class UIRenderer implements UIRendererBackend {
         }
         glUniformMatrix4fv(uModel, false, modelMatrix.get(new float[16]));
 
-        buildQuadVertices(x, y, width, height, uv[0], uv[1], uv[2], uv[3]);
+        // Swap V for sprite (textures are loaded with Y-flip)
+        // uv = [u0, v0, u1, v1] -> pass as [u0, v1, u1, v0]
+        buildQuadVertices(x, y, width, height, uv[0], uv[3], uv[2], uv[1]);
         uploadVertices();
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
     }
@@ -522,9 +539,9 @@ public class UIRenderer implements UIRendererBackend {
         }
         glUniformMatrix4fv(uModel, false, modelMatrix.get(new float[16]));
 
-        // Draw tiles
-        float u0 = sprite.getU0(), v0 = sprite.getV0();
-        float u1 = sprite.getU1(), v1 = sprite.getV1();
+        // Draw tiles - swap V for sprite (textures are loaded with Y-flip)
+        float u0 = sprite.getU0(), v0 = sprite.getV1();  // Swapped
+        float u1 = sprite.getU1(), v1 = sprite.getV0();  // Swapped
 
         for (float ty = y; ty < y + height; ty += tileHeight) {
             for (float tx = x; tx < x + width; tx += tileWidth) {
@@ -610,7 +627,8 @@ public class UIRenderer implements UIRendererBackend {
         glUniform1i(uUseTexture, 1);
         sprite.getTexture().bind(0);
 
-        buildQuadVertices(drawX, y, fillWidth, height, drawU0, v0, drawU1, v1);
+        // Swap V for sprite (textures are loaded with Y-flip)
+        buildQuadVertices(drawX, y, fillWidth, height, drawU0, v1, drawU1, v0);
         uploadVertices();
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
@@ -648,7 +666,8 @@ public class UIRenderer implements UIRendererBackend {
         glUniform1i(uUseTexture, 1);
         sprite.getTexture().bind(0);
 
-        buildQuadVertices(x, drawY, width, fillHeight, u0, drawV0, u1, drawV1);
+        // Swap V for sprite (textures are loaded with Y-flip)
+        buildQuadVertices(x, drawY, width, fillHeight, u0, drawV1, u1, drawV0);
         uploadVertices();
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
@@ -702,8 +721,9 @@ public class UIRenderer implements UIRendererBackend {
         sprite.getTexture().bind(0);
 
         // Render radial fill as triangle fan segments
-        float u0 = sprite.getU0(), v0 = sprite.getV0();
-        float u1 = sprite.getU1(), v1 = sprite.getV1();
+        // Swap V coordinates for sprites (textures are loaded with Y-flip)
+        float u0 = sprite.getU0(), v0 = sprite.getV1();  // Swapped: use V1 as "top"
+        float u1 = sprite.getU1(), v1 = sprite.getV0();  // Swapped: use V0 as "bottom"
         float uCenter = (u0 + u1) / 2, vCenter = (v0 + v1) / 2;
 
         // Number of segments for smooth arc (at least 1 segment per 5 degrees)
@@ -793,6 +813,7 @@ public class UIRenderer implements UIRendererBackend {
 
     /**
      * Calculates UV coordinates for a point within the quad.
+     * For sprites with Y-flipped textures, v0/v1 should be pre-swapped by caller.
      */
     private float[] getRadialUV(float px, float py, float x, float y, float width, float height,
                                  float u0, float v0, float u1, float v1) {
@@ -852,6 +873,10 @@ public class UIRenderer implements UIRendererBackend {
         }
 
         int offset = batchSpriteCount * VERTICES_PER_SPRITE * FLOATS_PER_VERTEX;
+
+        // NOTE: batchSprite uses raw UV coordinates as-is (no V flip)
+        // This is used by UIText with font atlas UVs which don't need flipping
+        // (Font atlases are uploaded without Y-flip, so V=0 = top of atlas)
 
         // Top-left vertex
         batchVertices[offset + 0] = x;
@@ -936,6 +961,9 @@ public class UIRenderer implements UIRendererBackend {
         float ry3 = rotateY(x3, y3, pivotX, pivotY, cos, sin);
 
         int offset = batchSpriteCount * VERTICES_PER_SPRITE * FLOATS_PER_VERTEX;
+
+        // NOTE: batchSprite uses raw UV coordinates as-is (no V flip)
+        // This is used by UIText with font atlas UVs which don't need flipping
 
         // Top-left vertex (rotated)
         batchVertices[offset + 0] = rx0;
@@ -1054,6 +1082,7 @@ public class UIRenderer implements UIRendererBackend {
 
     private void buildQuadVertices(float x, float y, float w, float h,
                                    float u0, float v0, float u1, float v1) {
+        // Standard UV mapping: v0 at screen top, v1 at screen bottom
         // Top-left
         vertices[0] = x;      vertices[1] = y;      vertices[2] = u0; vertices[3] = v0;
         // Top-right

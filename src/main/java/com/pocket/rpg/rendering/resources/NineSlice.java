@@ -73,6 +73,13 @@ public class NineSlice {
 
     /**
      * Computes UV coordinates for all 9 regions based on sprite UVs and slice data.
+     * <p>
+     * IMPORTANT: Textures are loaded with Y-flip (stbi_set_flip_vertically_on_load),
+     * so V=0 (baseV0) is the VISUAL BOTTOM and V=1 (baseV1) is the VISUAL TOP.
+     * The sliceData defines borders in visual terms (top = visual top of image),
+     * so we map them accordingly:
+     * - Visual top border (sliceData.top) → high V region
+     * - Visual bottom border (sliceData.bottom) → low V region
      */
     private void computeRegionUVs() {
         float spriteWidth = sourceSprite.getWidth();
@@ -94,31 +101,35 @@ public class NineSlice {
         float topV = (sliceData.top / spriteHeight) * vSpan;
         float bottomV = (sliceData.bottom / spriteHeight) * vSpan;
 
-        // UV boundaries
+        // UV boundaries for U (left to right - unchanged)
         float u0 = baseU0;                  // Left edge
         float u1 = baseU0 + leftU;          // Left border edge
         float u2 = baseU1 - rightU;         // Right border edge
         float u3 = baseU1;                  // Right edge
 
-        float v0 = baseV0;                  // Top edge
-        float v1 = baseV0 + topV;           // Top border edge
-        float v2 = baseV1 - bottomV;        // Bottom border edge
-        float v3 = baseV1;                  // Bottom edge
+        // UV boundaries for V - account for Y-flip:
+        // After Y-flip: baseV0 (low V) = visual bottom, baseV1 (high V) = visual top
+        // Visual top border (sliceData.top) should be at HIGH V values
+        // Visual bottom border (sliceData.bottom) should be at LOW V values
+        float v0 = baseV0;                  // Visual bottom edge (low V)
+        float v1 = baseV0 + bottomV;        // Visual bottom border edge
+        float v2 = baseV1 - topV;           // Visual top border edge
+        float v3 = baseV1;                  // Visual top edge (high V)
 
-        // Top row (V0 to V1)
-        regionUVs[TOP_LEFT] = new float[]{u0, v0, u1, v1};
-        regionUVs[TOP_CENTER] = new float[]{u1, v0, u2, v1};
-        regionUVs[TOP_RIGHT] = new float[]{u2, v0, u3, v1};
+        // Bottom row - visual bottom (low V: v0 to v1)
+        regionUVs[BOTTOM_LEFT] = new float[]{u0, v0, u1, v1};
+        regionUVs[BOTTOM_CENTER] = new float[]{u1, v0, u2, v1};
+        regionUVs[BOTTOM_RIGHT] = new float[]{u2, v0, u3, v1};
 
-        // Middle row (V1 to V2)
+        // Middle row (v1 to v2)
         regionUVs[MIDDLE_LEFT] = new float[]{u0, v1, u1, v2};
         regionUVs[MIDDLE_CENTER] = new float[]{u1, v1, u2, v2};
         regionUVs[MIDDLE_RIGHT] = new float[]{u2, v1, u3, v2};
 
-        // Bottom row (V2 to V3)
-        regionUVs[BOTTOM_LEFT] = new float[]{u0, v2, u1, v3};
-        regionUVs[BOTTOM_CENTER] = new float[]{u1, v2, u2, v3};
-        regionUVs[BOTTOM_RIGHT] = new float[]{u2, v2, u3, v3};
+        // Top row - visual top (high V: v2 to v3)
+        regionUVs[TOP_LEFT] = new float[]{u0, v2, u1, v3};
+        regionUVs[TOP_CENTER] = new float[]{u1, v2, u2, v3};
+        regionUVs[TOP_RIGHT] = new float[]{u2, v2, u3, v3};
     }
 
     /**

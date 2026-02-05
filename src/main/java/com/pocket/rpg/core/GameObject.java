@@ -301,6 +301,11 @@ public class GameObject implements IGameObject {
         return new ArrayList<>(components);
     }
 
+    @Override
+    public boolean hasChildren() {
+        return !children.isEmpty();
+    }
+
     // =======================================================================
     // Transform Change Notification
     // =======================================================================

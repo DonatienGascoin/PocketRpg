@@ -14,15 +14,7 @@
   "scalingMode": "MAINTAIN_ASPECT_RATIO",
   "enablePillarBox": false,
   "pillarboxAspectRatio": 0.0,
-  "postProcessingEffects": [
-    {
-      "type": "VignetteEffect",
-      "params": {
-        "vignetteIntensity": 1.0,
-        "vignetteStrength": 0.75
-      }
-    }
-  ],
+  "postProcessingEffects": [],
   "defaultTransitionConfig": {
     "fadeOutDuration": 1.0,
     "fadeInDuration": 0.5,

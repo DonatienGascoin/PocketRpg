@@ -87,6 +87,11 @@ public class RuntimeGameObjectAdapter implements HierarchyItem {
         return true;
     }
 
+    @Override
+    public boolean hasChildren() {
+        return gameObject.hasChildren();
+    }
+
     // ========================================================================
     // HierarchyItem
     // ========================================================================

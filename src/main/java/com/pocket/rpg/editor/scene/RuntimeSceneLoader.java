@@ -165,12 +165,7 @@ public class RuntimeSceneLoader {
             }
         }
 
-        // Phase 3: Resolve references BEFORE adding to scene
-        for (GameObject go : gameObjectsById.values()) {
-            ComponentRefResolver.resolveReferences(go);
-        }
-
-        // Phase 4: Add root objects to scene (sorted by order)
+        // Phase 3: Add root objects to scene (registers componentKeys in ComponentKeyRegistry)
         List<Map.Entry<String, GameObject>> sortedEntries = new ArrayList<>(gameObjectsById.entrySet());
         sortedEntries.sort((a, b) -> {
             GameObjectData dataA = dataById.get(a.getKey());
@@ -193,9 +188,9 @@ public class RuntimeSceneLoader {
             }
         }
 
-        // Phase 5: Resolve @UiKeyReference after UIManager keys are registered (Phase 4)
+        // Phase 4: Resolve all @ComponentReference (hierarchy + key) after registry is populated
         for (GameObject go : gameObjectsById.values()) {
-            UiKeyRefResolver.resolveReferences(go);
+            ComponentReferenceResolver.resolveAll(go);
         }
 
         System.out.println("Loaded " + scene.getGameObjects().size() + " root GameObjects");

@@ -14,10 +14,10 @@ import com.pocket.rpg.resources.AssetContext;
 import com.pocket.rpg.resources.SpriteReference;
 import com.pocket.rpg.logging.Log;
 import com.pocket.rpg.serialization.ComponentMeta;
+import com.pocket.rpg.serialization.ComponentReferenceMeta;
+import com.pocket.rpg.serialization.ComponentReferenceResolver;
 import com.pocket.rpg.serialization.ComponentRegistry;
 import com.pocket.rpg.serialization.FieldMeta;
-import com.pocket.rpg.serialization.UiKeyRefMeta;
-import com.pocket.rpg.serialization.UiKeyRefResolver;
 
 import java.io.*;
 import java.lang.reflect.Field;
@@ -170,13 +170,25 @@ public class ComponentTypeAdapterFactory implements TypeAdapterFactory {
                 field.setAccessible(true);
 
                 try {
-                    // @UiKeyReference fields: write the pending key string, not the field value
-                    UiKeyRefMeta uiKeyRef = findUiKeyRef(meta, fieldMeta.name());
-                    if (uiKeyRef != null) {
-                        String key = UiKeyRefResolver.getPendingKey(component, fieldMeta.name());
-                        if (key != null && !key.isEmpty()) {
-                            out.name(fieldMeta.name());
-                            out.value(key);
+                    // @ComponentReference(source=KEY) fields: write the pending key string
+                    ComponentReferenceMeta keyRef = findKeyRef(meta, fieldMeta.name());
+                    if (keyRef != null) {
+                        if (keyRef.isList()) {
+                            List<String> keys = ComponentReferenceResolver.getPendingKeyList(component, fieldMeta.name());
+                            if (!keys.isEmpty()) {
+                                out.name(fieldMeta.name());
+                                out.beginArray();
+                                for (String k : keys) {
+                                    out.value(k);
+                                }
+                                out.endArray();
+                            }
+                        } else {
+                            String key = ComponentReferenceResolver.getPendingKey(component, fieldMeta.name());
+                            if (key != null && !key.isEmpty()) {
+                                out.name(fieldMeta.name());
+                                out.value(key);
+                            }
                         }
                         continue;
                     }
@@ -281,14 +293,22 @@ public class ComponentTypeAdapterFactory implements TypeAdapterFactory {
             field.setAccessible(true);
 
             try {
-                // @UiKeyReference fields: read the JSON string and store as pending key
-                UiKeyRefMeta uiKeyRef = findUiKeyRef(meta, fieldMeta.name());
-                if (uiKeyRef != null) {
-                    if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isString()) {
+                // @ComponentReference(source=KEY) fields: read key(s) and store as pending
+                ComponentReferenceMeta keyRef = findKeyRef(meta, fieldMeta.name());
+                if (keyRef != null) {
+                    if (keyRef.isList() && element.isJsonArray()) {
+                        List<String> keys = new ArrayList<>();
+                        for (var elem : element.getAsJsonArray()) {
+                            if (elem.isJsonPrimitive() && elem.getAsJsonPrimitive().isString()) {
+                                keys.add(elem.getAsString());
+                            }
+                        }
+                        ComponentReferenceResolver.storePendingKeyList(component, fieldMeta.name(), keys);
+                    } else if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isString()) {
                         String key = element.getAsString();
-                        UiKeyRefResolver.storePendingKey(component, fieldMeta.name(), key);
+                        ComponentReferenceResolver.storePendingKey(component, fieldMeta.name(), key);
                     }
-                    // Leave the UIComponent field null — resolver fills it at runtime
+                    // Leave the Component field null — resolver fills it at runtime
                     continue;
                 }
 
@@ -407,11 +427,11 @@ public class ComponentTypeAdapterFactory implements TypeAdapterFactory {
     }
 
     /**
-     * Finds the UiKeyRefMeta for a field name, or null if the field is not a @UiKeyReference.
+     * Finds the ComponentReferenceMeta for a KEY source field, or null if not a key reference.
      */
-    private static UiKeyRefMeta findUiKeyRef(ComponentMeta meta, String fieldName) {
-        for (UiKeyRefMeta ref : meta.uiKeyRefs()) {
-            if (ref.fieldName().equals(fieldName)) {
+    private static ComponentReferenceMeta findKeyRef(ComponentMeta meta, String fieldName) {
+        for (ComponentReferenceMeta ref : meta.componentReferences()) {
+            if (ref.isKeySource() && ref.fieldName().equals(fieldName)) {
                 return ref;
             }
         }

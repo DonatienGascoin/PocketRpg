@@ -264,7 +264,7 @@
         {
           "type": "com.pocket.rpg.components.ui.UIText",
           "properties": {
-            "uiKey": "ElevationText",
+            "componentKey": "ElevationText",
             "raycastTarget": true,
             "fontPath": "fonts/Pokemon-Red.ttf",
             "fontSize": 30,
@@ -791,7 +791,7 @@
         {
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
-            "uiKey": "vsdv",
+            "componentKey": "vsdv",
             "raycastTarget": true,
             "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/Buttons/button normal - dark.png",
             "color": {
@@ -855,7 +855,7 @@
         {
           "type": "com.pocket.rpg.components.ui.UIText",
           "properties": {
-            "uiKey": "InteractKey",
+            "componentKey": "InteractKey",
             "raycastTarget": true,
             "fontPath": "fonts/Pokemon-Red.ttf",
             "fontSize": 20,
@@ -966,7 +966,7 @@
         {
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
-            "uiKey": "PauseMenu",
+            "componentKey": "PauseMenu",
             "raycastTarget": true,
             "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/Panels/panel-light - md.png",
             "color": {

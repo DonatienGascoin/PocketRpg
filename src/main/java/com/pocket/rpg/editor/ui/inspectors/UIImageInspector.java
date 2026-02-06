@@ -32,7 +32,7 @@ public class UIImageInspector extends CustomComponentInspector<UIImage> {
         boolean changed = false;
 
         // === UI KEY ===
-        changed |= UIKeyField.draw(component);
+        changed |= ComponentKeyField.draw(component);
 
         // Sprite
         changed |= FieldEditors.drawAsset(MaterialIcons.Image + " Sprite", component, "sprite", Sprite.class, editorEntity());

@@ -4,7 +4,8 @@ import com.pocket.rpg.audio.Audio;
 import com.pocket.rpg.audio.clips.AudioClip;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ComponentMeta;
-import com.pocket.rpg.components.ComponentRef;
+import com.pocket.rpg.components.ComponentReference;
+import com.pocket.rpg.components.ComponentReference.Source;
 import com.pocket.rpg.components.pokemon.GridMovement;
 import com.pocket.rpg.config.TransitionConfig;
 import com.pocket.rpg.core.GameObject;
@@ -45,7 +46,7 @@ public class WarpZone extends Component implements GizmoDrawable {
      * Reference to the TriggerZone that activates this warp.
      * Resolved automatically at runtime.
      */
-    @ComponentRef
+    @ComponentReference(source = Source.SELF)
     private TriggerZone triggerZone;
 
     /**
@@ -119,7 +120,7 @@ public class WarpZone extends Component implements GizmoDrawable {
 
     @Override
     protected void onStart() {
-        // Register callback with TriggerZone (resolved via @ComponentRef)
+        // Register callback with TriggerZone (resolved via @ComponentReference)
         if (triggerZone != null) {
             triggerZone.setOnEnterCallback(this::onTriggerEnter);
         } else {

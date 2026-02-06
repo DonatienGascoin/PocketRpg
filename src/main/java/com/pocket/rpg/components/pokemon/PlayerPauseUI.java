@@ -5,7 +5,8 @@ import com.pocket.rpg.animation.tween.TweenManager;
 import com.pocket.rpg.animation.tween.Tweens;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ComponentMeta;
-import com.pocket.rpg.components.UiKeyReference;
+import com.pocket.rpg.components.ComponentReference;
+import com.pocket.rpg.components.ComponentReference.Source;
 import com.pocket.rpg.components.ui.UIImage;
 import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.input.Input;
@@ -16,7 +17,7 @@ import com.pocket.rpg.logging.Logger;
 /**
  * Updates UI elements based on player state.
  * <p>
- * Uses @UiKeyReference to resolve UI components from UIManager keys
+ * Uses @ComponentReference to resolve UI components from ComponentKeyRegistry keys
  * configured in the editor, eliminating magic strings.
  */
 @ComponentMeta(category = "Player")
@@ -26,7 +27,7 @@ public class PlayerPauseUI extends Component {
 
     private float toggleDuration = 0.5f;
 
-    @UiKeyReference
+    @ComponentReference(source = Source.KEY)
     private UIImage pauseMenuBgImage;
 
     private transient UITransform pauseMenuTransform;

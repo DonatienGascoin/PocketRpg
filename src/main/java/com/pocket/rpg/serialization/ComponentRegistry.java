@@ -1,11 +1,9 @@
 package com.pocket.rpg.serialization;
 
 import com.pocket.rpg.components.Component;
-import com.pocket.rpg.components.ComponentRef;
+import com.pocket.rpg.components.ComponentReference;
 import com.pocket.rpg.components.HideInInspector;
 import com.pocket.rpg.components.RequiredComponent;
-import com.pocket.rpg.components.UiKeyReference;
-import com.pocket.rpg.components.ui.UIComponent;
 import org.reflections.Reflections;
 import org.reflections.scanners.Scanners;
 import org.reflections.util.ClasspathHelper;
@@ -406,9 +404,8 @@ public class ComponentRegistry {
         }
 
         List<FieldMeta> fields = new ArrayList<>();
-        List<ComponentRefMeta> references = new ArrayList<>();
-        List<UiKeyRefMeta> uiKeyRefs = new ArrayList<>();
-        collectFields(clazz, fields, references, uiKeyRefs);
+        List<ComponentReferenceMeta> componentReferences = new ArrayList<>();
+        collectFields(clazz, fields, componentReferences);
 
         return new ComponentMeta(
                 className,
@@ -416,20 +413,18 @@ public class ComponentRegistry {
                 displayName,
                 clazz,
                 fields,
-                references,
-                uiKeyRefs,
+                componentReferences,
                 hasNoArgConstructor
         );
     }
 
     private static void collectFields(Class<?> clazz, List<FieldMeta> fields,
-                                      List<ComponentRefMeta> references,
-                                      List<UiKeyRefMeta> uiKeyRefs) {
+                                      List<ComponentReferenceMeta> componentReferences) {
         if (clazz == null || clazz == Component.class || clazz == Object.class) {
             return;
         }
 
-        collectFields(clazz.getSuperclass(), fields, references, uiKeyRefs);
+        collectFields(clazz.getSuperclass(), fields, componentReferences);
 
         for (Field field : clazz.getDeclaredFields()) {
             if (Modifier.isStatic(field.getModifiers())) {
@@ -440,32 +435,29 @@ public class ComponentRegistry {
                 continue;
             }
 
-            // Check for @UiKeyReference on non-transient UIComponent fields
-            UiKeyReference uiKeyAnnotation = field.getAnnotation(UiKeyReference.class);
-            if (uiKeyAnnotation != null && UIComponent.class.isAssignableFrom(field.getType())) {
-                @SuppressWarnings("unchecked")
-                Class<? extends UIComponent> compType = (Class<? extends UIComponent>) field.getType();
-                uiKeyRefs.add(new UiKeyRefMeta(
-                        field,
-                        compType,
-                        uiKeyAnnotation.required()
-                ));
-                // Add to fields list with String.class as the type override so the serializer
-                // treats this UIComponent field as a plain String (the uiKey value)
-                fields.add(new FieldMeta(field.getName(), String.class, field, ""));
-                continue;
-            }
-            String name = field.getName();
-            if (name.equals("gameObject") || name.equals("started") || name.equals("enabled")) {
+            // Check for @ComponentReference
+            ComponentReference refAnnotation = field.getAnnotation(ComponentReference.class);
+            if (refAnnotation != null) {
+                ComponentReferenceMeta refMeta = buildReferenceMeta(field, refAnnotation);
+                if (refMeta != null) {
+                    componentReferences.add(refMeta);
+
+                    // KEY source fields are serialized — add to fields list with String.class override
+                    if (refMeta.isKeySource()) {
+                        if (refMeta.isList()) {
+                            // List KEY: serialized as List<String>
+                            fields.add(new FieldMeta(field.getName(), List.class, field, List.of(), String.class));
+                        } else {
+                            // Single KEY: serialized as String
+                            fields.add(new FieldMeta(field.getName(), String.class, field, ""));
+                        }
+                    }
+                }
                 continue;
             }
 
-            ComponentRef refAnnotation = field.getAnnotation(ComponentRef.class);
-            if (refAnnotation != null) {
-                ComponentRefMeta refMeta = buildRefMeta(field, refAnnotation);
-                if (refMeta != null) {
-                    references.add(refMeta);
-                }
+            String name = field.getName();
+            if (name.equals("gameObject") || name.equals("started") || name.equals("enabled")) {
                 continue;
             }
 
@@ -492,9 +484,9 @@ public class ComponentRegistry {
     }
 
     @SuppressWarnings("unchecked")
-    private static ComponentRefMeta buildRefMeta(Field field, ComponentRef annotation) {
+    private static ComponentReferenceMeta buildReferenceMeta(Field field, ComponentReference annotation) {
         Class<?> fieldType = field.getType();
-        Class<?> componentType;
+        Class<? extends Component> componentType;
         boolean isList = false;
 
         if (List.class.isAssignableFrom(fieldType)) {
@@ -505,7 +497,7 @@ public class ComponentRegistry {
                 Type[] typeArgs = pt.getActualTypeArguments();
                 if (typeArgs.length > 0 && typeArgs[0] instanceof Class<?> typeArg) {
                     if (Component.class.isAssignableFrom(typeArg)) {
-                        componentType = typeArg;
+                        componentType = (Class<? extends Component>) typeArg;
                     } else {
                         return null;
                     }
@@ -516,18 +508,18 @@ public class ComponentRegistry {
                 return null;
             }
         } else if (Component.class.isAssignableFrom(fieldType)) {
-            componentType = fieldType;
+            componentType = (Class<? extends Component>) fieldType;
         } else {
             return null;
         }
 
-        return new ComponentRefMeta(
+        return new ComponentReferenceMeta(
+                field,
                 field.getName(),
                 componentType,
                 annotation.source(),
                 annotation.required(),
-                isList,
-                field
+                isList
         );
     }
 

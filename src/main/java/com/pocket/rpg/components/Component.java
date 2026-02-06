@@ -8,6 +8,7 @@ import com.pocket.rpg.editor.gizmos.GizmoDrawable;
 import com.pocket.rpg.editor.gizmos.GizmoDrawableSelected;
 import com.pocket.rpg.logging.Log;
 import lombok.Getter;
+import lombok.Setter;
 
 import java.util.Collections;
 import java.util.List;
@@ -32,6 +33,14 @@ public abstract class Component implements GizmoDrawable, GizmoDrawableSelected 
      */
     @Getter
     protected GameObject gameObject;
+
+    /**
+     * Optional key for referencing this component from other components via
+     * {@code @ComponentReference(source = Source.KEY)}. Null by default.
+     * Only serialized when non-null.
+     */
+    @Getter @Setter
+    protected String componentKey;
 
     protected boolean enabled = true;
 

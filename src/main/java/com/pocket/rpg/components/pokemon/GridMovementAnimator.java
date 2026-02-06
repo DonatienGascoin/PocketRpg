@@ -3,7 +3,8 @@ package com.pocket.rpg.components.pokemon;
 import com.pocket.rpg.collision.Direction;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ComponentMeta;
-import com.pocket.rpg.components.ComponentRef;
+import com.pocket.rpg.components.ComponentReference;
+import com.pocket.rpg.components.ComponentReference.Source;
 import com.pocket.rpg.components.HideInInspector;
 import com.pocket.rpg.components.animations.AnimatorComponent;
 import lombok.Getter;
@@ -62,10 +63,10 @@ public class GridMovementAnimator extends Component {
     // COMPONENT REFERENCES
     // ========================================================================
 
-    @ComponentRef
+    @ComponentReference(source = Source.SELF)
     private GridMovement gridMovement;
 
-    @ComponentRef
+    @ComponentReference(source = Source.SELF)
     private AnimatorComponent animator;
 
     // ========================================================================

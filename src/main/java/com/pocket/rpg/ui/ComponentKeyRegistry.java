@@ -1,37 +1,37 @@
 package com.pocket.rpg.ui;
 
+import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ui.*;
 
 import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Central registry for UI components.
+ * Central registry for components identified by a {@code componentKey}.
  * <p>
- * Components register themselves using a unique key (set in editor via uiKey field).
- * Game code retrieves components by key to update them.
+ * Any component with a non-null, non-blank {@code componentKey} is registered here
+ * during scene loading. Game code retrieves components by key to interact with them.
+ * <p>
+ * Replaces the previous UIManager, which only supported UIComponent subclasses.
  * <p>
  * Example usage:
  * <pre>
- * // Get and update
- * UIText scoreText = UIManager.getText("score");
+ * // Get any component by key + type
+ * AlphaGroup alpha = ComponentKeyRegistry.get("playerAlpha", AlphaGroup.class);
+ *
+ * // Convenience methods for UI components
+ * UIText scoreText = ComponentKeyRegistry.getText("score");
  * if (scoreText != null) {
  *     scoreText.setText("Score: " + score);
  * }
- *
- * // Get panel for tweening
- * UIPanel menu = UIManager.getPanel("main_menu");
- * if (menu != null) {
- *     Tween.offset(menu, new Vector2f(0, 0), 0.3f).setEase(Ease.OUT_BACK);
- * }
  * </pre>
  */
-public class UIManager {
+public class ComponentKeyRegistry {
 
-    private static final Map<String, UIComponent> registry = new HashMap<>();
+    private static final Map<String, Component> registry = new HashMap<>();
     private static final Map<String, UITransform> transformRegistry = new HashMap<>();
 
-    private UIManager() {
+    private ComponentKeyRegistry() {
         // Static utility class
     }
 
@@ -40,16 +40,16 @@ public class UIManager {
     // ========================================================================
 
     /**
-     * Registers a UI component with a key.
+     * Registers a component with a key.
      * Also caches the UITransform from the same GameObject if present.
-     * Called automatically by Scene during component registration if uiKey is set.
+     * Called automatically by Scene during component registration if componentKey is set.
      */
-    public static void register(String key, UIComponent component) {
+    public static void register(String key, Component component) {
         if (key == null || key.isBlank()) {
             return;
         }
         if (registry.containsKey(key)) {
-            System.err.println("[UIManager] Warning: Overwriting existing key '" + key + "'");
+            System.err.println("[ComponentKeyRegistry] Warning: Overwriting existing key '" + key + "'");
         }
         registry.put(key, component);
 
@@ -63,8 +63,7 @@ public class UIManager {
     }
 
     /**
-     * Unregisters a UI component.
-     * Called automatically by UIComponent.onDestroy().
+     * Unregisters a component.
      */
     public static void unregister(String key) {
         if (key != null) {
@@ -94,23 +93,23 @@ public class UIManager {
      * @return The component, or null if not found or wrong type
      */
     @SuppressWarnings("unchecked")
-    public static <T extends UIComponent> T get(String key, Class<T> type) {
-        UIComponent component = registry.get(key);
+    public static <T extends Component> T get(String key, Class<T> type) {
+        Component component = registry.get(key);
         if (component == null) {
             return null;
         }
         if (type.isInstance(component)) {
             return (T) component;
         }
-        System.err.println("[UIManager] Type mismatch for '" + key + "': expected " +
+        System.err.println("[ComponentKeyRegistry] Type mismatch for '" + key + "': expected " +
                 type.getSimpleName() + ", got " + component.getClass().getSimpleName());
         return null;
     }
 
     /**
-     * Gets any UIComponent by key.
+     * Gets any component by key.
      */
-    public static UIComponent get(String key) {
+    public static Component get(String key) {
         return registry.get(key);
     }
 
@@ -155,7 +154,7 @@ public class UIManager {
 
     /**
      * Gets the cached UITransform for a key.
-     * The transform is automatically cached when a UIComponent registers.
+     * The transform is automatically cached when a component registers.
      */
     public static UITransform getUITransform(String key) {
         return transformRegistry.get(key);
@@ -190,8 +189,8 @@ public class UIManager {
      * Debug: prints all registered keys.
      */
     public static void debugPrint() {
-        System.out.println("[UIManager] Registered components (" + registry.size() + "):");
-        for (Map.Entry<String, UIComponent> entry : registry.entrySet()) {
+        System.out.println("[ComponentKeyRegistry] Registered components (" + registry.size() + "):");
+        for (Map.Entry<String, Component> entry : registry.entrySet()) {
             String key = entry.getKey();
             boolean hasTransform = transformRegistry.containsKey(key);
             System.out.println("  - " + key + " -> " +

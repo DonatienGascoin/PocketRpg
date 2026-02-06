@@ -1,7 +1,6 @@
 package com.pocket.rpg.editor.ui.inspectors;
 
 import com.pocket.rpg.components.Component;
-import com.pocket.rpg.components.ui.UIComponent;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
@@ -13,15 +12,18 @@ import imgui.ImGui;
 import imgui.ImVec2;
 
 /**
- * Shared UI Key field drawer for all UI component inspectors.
- * Shows the uiKey field with a full-width color-coded row background:
+ * Shared Component Key field drawer for component inspectors.
+ * Shows the componentKey field with a full-width color-coded row background:
  * <ul>
  *   <li>Amber — empty (field is unset, key not assigned)</li>
  *   <li>Green — valid (key is set and unique in the scene)</li>
  *   <li>Red — error (key is duplicated by another component in the scene)</li>
  * </ul>
+ * <p>
+ * Drawn automatically by ReflectionFieldEditor for all components.
+ * Also called explicitly by custom UI inspectors.
  */
-final class UIKeyField {
+public final class ComponentKeyField {
 
     // Amber hint for empty key — draws attention without alarming
     private static final int COLOR_EMPTY = ImGui.colorConvertFloat4ToU32(0.7f, 0.5f, 0.1f, 0.35f);
@@ -31,23 +33,22 @@ final class UIKeyField {
     private static final int COLOR_ERROR = ImGui.colorConvertFloat4ToU32(1f, 0.1f, 0.1f, 0.7f);
 
     private static final String TOOLTIP =
-            "Unique identifier for UIManager lookups.\n" +
-            "Set this to access the component from code at runtime\n" +
-            "(e.g. UIManager.getText(\"ElevationText\")).\n\n" +
-            "Must be unique across all UI components in the scene.\n" +
-            "Leave empty if the component is not accessed by code.";
+            "Unique identifier for ComponentKeyRegistry lookups.\n" +
+            "Set this to reference the component from other components\n" +
+            "via @ComponentReference(source = Source.KEY).\n\n" +
+            "Must be unique across all components in the scene.\n" +
+            "Leave empty if the component is not referenced by key.";
 
-    private UIKeyField() {}
+    private ComponentKeyField() {}
 
     /**
-     * Draws the UI Key field with color-coded row background and tooltip.
-     * Call this in place of {@code FieldEditors.drawString("UI Key", component, "uiKey")}.
+     * Draws the Component Key field with color-coded row background and tooltip.
      *
-     * @param component the UI component being inspected
+     * @param component the component being inspected
      * @return true if the field value changed
      */
-    static boolean draw(Component component) {
-        String currentKey = ComponentReflectionUtils.getString(component, "uiKey", "");
+    public static boolean draw(Component component) {
+        String currentKey = ComponentReflectionUtils.getString(component, "componentKey", "");
         boolean isEmpty = currentKey.isEmpty();
         boolean isDuplicate = !isEmpty && isDuplicateKey(currentKey, component);
 
@@ -69,13 +70,13 @@ final class UIKeyField {
         drawList.channelsSplit(2);
         drawList.channelsSetCurrent(1); // Draw content on foreground channel
 
-        boolean changed = FieldEditors.drawString(MaterialIcons.VpnKey + " UI Key", component, "uiKey");
+        boolean changed = FieldEditors.drawString(MaterialIcons.VpnKey + " Component Key", component, "componentKey");
 
         // Tooltip
         if (ImGui.isItemHovered()) {
             if (isDuplicate) {
                 ImGui.setTooltip("ERROR: Duplicate key \"" + currentKey + "\"!\n" +
-                        "Another UI component in this scene uses the same key.\n" +
+                        "Another component in this scene uses the same key.\n" +
                         "The last registered component will overwrite the first.\n\n" +
                         TOOLTIP);
             } else {
@@ -102,7 +103,7 @@ final class UIKeyField {
     }
 
     /**
-     * Checks whether the given key is used by more than one UIComponent in the current scene.
+     * Checks whether the given key is used by more than one component in the current scene.
      * Early-returns on the second match for efficiency.
      */
     private static boolean isDuplicateKey(String key, Component self) {
@@ -112,7 +113,7 @@ final class UIKeyField {
         int count = 0;
         for (EditorGameObject entity : scene.getEntities()) {
             for (Component comp : entity.getComponents()) {
-                if (comp instanceof UIComponent uiComp && key.equals(uiComp.getUiKey())) {
+                if (key.equals(comp.getComponentKey())) {
                     count++;
                     if (count > 1) return true;
                 }

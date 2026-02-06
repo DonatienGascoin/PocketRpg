@@ -3,7 +3,8 @@ package com.pocket.rpg.components.pokemon;
 import com.pocket.rpg.collision.Direction;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ComponentMeta;
-import com.pocket.rpg.components.ComponentRef;
+import com.pocket.rpg.components.ComponentReference;
+import com.pocket.rpg.components.ComponentReference.Source;
 import com.pocket.rpg.input.Input;
 import com.pocket.rpg.input.KeyCode;
 import lombok.Getter;
@@ -18,7 +19,7 @@ import lombok.Setter;
 @ComponentMeta(category = "Player")
 public class PlayerMovement extends Component {
 
-    @ComponentRef
+    @ComponentReference(source = Source.SELF)
     private GridMovement movement;
 
     /**

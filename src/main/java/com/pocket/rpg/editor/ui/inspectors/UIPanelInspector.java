@@ -38,7 +38,7 @@ public class UIPanelInspector extends CustomComponentInspector<UIPanel> {
         boolean changed = false;
 
         // === UI KEY ===
-        changed |= UIKeyField.draw(component);
+        changed |= ComponentKeyField.draw(component);
 
         // Background Color
         ImGui.text(MaterialIcons.FormatColorFill + " Background Color");

@@ -6,6 +6,7 @@ import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import imgui.ImGui;
 import imgui.ImVec2;
+import imgui.flag.ImGuiCol;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
@@ -29,7 +30,52 @@ public final class FieldEditorUtils {
     private static Runnable nextMiddleContent = null;   // null means "no middle content"
     private static String nextTooltip = null;           // null means "no custom tooltip"
 
+    private static final float[] ACCENT_COLOR = {0.9f, 0.2f, 0.2f, 1.0f};
+    private static final float[] ACCENT_HOVER = {1.0f, 0.3f, 0.3f, 1.0f};
+    private static final float[] ACCENT_ACTIVE = {0.8f, 0.1f, 0.1f, 1.0f};
+
     private FieldEditorUtils() {}
+
+    // ========================================================================
+    // BUTTONS
+    // ========================================================================
+
+    /**
+     * Draws a small button with accent (red) styling when active.
+     * Handles push/pop symmetry internally.
+     *
+     * @param active Whether to apply accent styling
+     * @param label  Button label (include ##id for uniqueness)
+     * @return true if the button was clicked
+     */
+    public static boolean accentButton(boolean active, String label) {
+        if (active) pushAccentColors();
+        boolean clicked = ImGui.smallButton(label);
+        if (active) ImGui.popStyleColor(3);
+        return clicked;
+    }
+
+    /**
+     * Draws a full-width button with accent (red) styling when active.
+     * Uses {@link ImGui#button(String, float, float)} instead of smallButton.
+     *
+     * @param active Whether to apply accent styling
+     * @param label  Button label
+     * @param width  Button width (0 for auto)
+     * @return true if the button was clicked
+     */
+    public static boolean accentButton(boolean active, String label, float width) {
+        if (active) pushAccentColors();
+        boolean clicked = ImGui.button(label, width, 0);
+        if (active) ImGui.popStyleColor(3);
+        return clicked;
+    }
+
+    private static void pushAccentColors() {
+        ImGui.pushStyleColor(ImGuiCol.Button, ACCENT_COLOR[0], ACCENT_COLOR[1], ACCENT_COLOR[2], ACCENT_COLOR[3]);
+        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, ACCENT_HOVER[0], ACCENT_HOVER[1], ACCENT_HOVER[2], ACCENT_HOVER[3]);
+        ImGui.pushStyleColor(ImGuiCol.ButtonActive, ACCENT_ACTIVE[0], ACCENT_ACTIVE[1], ACCENT_ACTIVE[2], ACCENT_ACTIVE[3]);
+    }
 
     // ========================================================================
     // LAYOUT
@@ -90,6 +136,22 @@ public final class FieldEditorUtils {
     public static void inlineField(String label, Runnable field) {
         ImGui.text(label);
         ImGui.sameLine();  // Relative positioning - stays after label
+        field.run();
+    }
+
+    /**
+     * Draws a compact inline field with label, explicit field width, then field widget.
+     * Sets {@code ImGui.setNextItemWidth()} AFTER the label text to avoid
+     * NextItemData being consumed by {@code text()}.
+     *
+     * @param label      Short label (e.g., "X", "Y")
+     * @param fieldWidth Width for the input widget
+     * @param field      The field widget to draw
+     */
+    public static void inlineField(String label, float fieldWidth, Runnable field) {
+        ImGui.text(label);
+        ImGui.sameLine();
+        ImGui.setNextItemWidth(fieldWidth);
         field.run();
     }
 

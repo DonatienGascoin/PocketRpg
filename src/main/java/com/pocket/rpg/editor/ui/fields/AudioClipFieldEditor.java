@@ -76,7 +76,7 @@ public final class AudioClipFieldEditor {
                 }
             });
 
-            FieldEditorContext.popOverrideStyle(fieldName);
+            FieldEditorContext.popOverrideStyle();
             FieldEditorUtils.drawResetButtonIfNeeded(component, fieldName);
 
         } finally {

@@ -54,7 +54,7 @@ public final class EnumEditor {
             changed[0] = ImGui.combo("##" + fieldName, intBuffer, names);
         });
 
-        FieldEditorContext.popOverrideStyle(fieldName);
+        FieldEditorContext.popOverrideStyle();
 
         if (changed[0]) {
             Object oldValue = value;

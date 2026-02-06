@@ -73,7 +73,7 @@ public final class AssetEditor {
                 }
             });
 
-            FieldEditorContext.popOverrideStyle(fieldName);
+            FieldEditorContext.popOverrideStyle();
             FieldEditorUtils.drawResetButtonIfNeeded(component, fieldName);
 
         } finally {

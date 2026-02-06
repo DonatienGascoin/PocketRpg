@@ -28,6 +28,7 @@ import com.pocket.rpg.editor.events.PlayModeStoppedEvent;
 import com.pocket.rpg.editor.events.PrefabEditStartedEvent;
 import com.pocket.rpg.editor.events.PrefabEditStoppedEvent;
 import com.pocket.rpg.editor.events.SceneWillChangeEvent;
+import com.pocket.rpg.editor.ui.fields.FieldUndoTracker;
 import com.pocket.rpg.input.Input;
 import com.pocket.rpg.platform.glfw.GLFWPlatformFactory;
 import com.pocket.rpg.time.DefaultTimeContext;
@@ -177,7 +178,10 @@ public class PlayModeController {
             // 7. Create play mode selection manager
             playModeSelectionManager = new PlayModeSelectionManager();
 
-            // 8. Switch state
+            // 8. Clear stale undo state from editor
+            FieldUndoTracker.clear();
+
+            // 9. Switch state
             state = PlayState.PLAYING;
             context.getModeManager().setMode(EditorMode.PLAY);
             EditorEventBus.get().publish(new PlayModeStartedEvent());
@@ -214,6 +218,7 @@ public class PlayModeController {
 
         System.out.println("Stopping play mode...");
 
+        FieldUndoTracker.clear();
         cleanup();
 
         snapshot = null;

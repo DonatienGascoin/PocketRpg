@@ -2,21 +2,19 @@ package com.pocket.rpg.editor.ui.inspectors;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ui.LayoutGroup;
-import com.pocket.rpg.components.ui.UIButton;
 import com.pocket.rpg.components.ui.UIGridLayoutGroup;
-import com.pocket.rpg.components.ui.UIImage;
 import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.hierarchy.HierarchyItem;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
-import com.pocket.rpg.editor.ui.layout.EditorFields;
-import com.pocket.rpg.editor.ui.layout.EditorLayout;
+import com.pocket.rpg.editor.ui.fields.FieldEditorUtils;
+import com.pocket.rpg.editor.ui.fields.FieldUndoTracker;
+import com.pocket.rpg.editor.ui.fields.PrimitiveEditors;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.CompoundCommand;
 import com.pocket.rpg.editor.undo.commands.SetterUndoCommand;
 import com.pocket.rpg.editor.undo.commands.UITransformDragCommand;
-import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
@@ -101,18 +99,11 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
         this.compactLayout = compactLayout;
     }
 
-    // Track editing state for percent undo
-    private final java.util.HashMap<String, Float> percentUndoStart = new java.util.HashMap<>();
     private boolean isEditingSize = false;
     private float editStartWidth;
     private float editStartHeight;
     private Vector2f editStartOffset;
     private List<ChildState> editStartChildStates;
-
-    // Accent color for "Match Parent" buttons when ON (red)
-    private static final float[] ACCENT_COLOR = {0.9f, 0.2f, 0.2f, 1.0f};
-    private static final float[] ACCENT_HOVER = {1.0f, 0.3f, 0.3f, 1.0f};
-    private static final float[] ACCENT_ACTIVE = {0.8f, 0.1f, 0.1f, 1.0f};
 
     /**
      * Stores a child's transform state for undo.
@@ -222,17 +213,17 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
 
             // X and Y on same line with automatic undo support
             ImGui.sameLine();
-            ImGui.setCursorPosX(FIELD_POSITION); // Fixed position for size fields
-            EditorLayout.beginHorizontal(2);
-            changed |= EditorFields.floatField("X", "uiTransform.offset.x",
+            ImGui.setCursorPosX(FIELD_POSITION);
+            float flexWidth = calculateFlexWidth(2);
+            changed |= PrimitiveEditors.drawFloatInline("X", "uiTransform.offset.x",
                     () -> t.getOffset().x,
                     v -> t.setOffset((float) v, t.getOffset().y),
-                    1.0f);
-            changed |= EditorFields.floatField("Y", "uiTransform.offset.y",
+                    1.0f, flexWidth);
+            ImGui.sameLine();
+            changed |= PrimitiveEditors.drawFloatInline("Y", "uiTransform.offset.y",
                     () -> t.getOffset().y,
                     v -> t.setOffset(t.getOffset().x, (float) v),
-                    1.0f);
-            EditorLayout.endHorizontal();
+                    1.0f, flexWidth);
         }
 
 
@@ -250,26 +241,30 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
 
         ImGui.spacing();
 
-        // Master "MATCH PARENT" toggle button (only if parent has UITransform)
-        if (hasParentUITransform) {
-            if (hasParentLayout) ImGui.beginDisabled();
+        // Master "MATCH PARENT" toggle button (always visible; disabled if no parent UITransform)
+        if (!hasParentUITransform) ImGui.beginDisabled();
+        if (hasParentLayout) ImGui.beginDisabled();
 
-            boolean anyMatchParent = component.isMatchingParent() ||
-                    component.isMatchParentRotation() ||
-                    component.isMatchParentScale();
-            boolean allMatchParent = component.isFillingParent() &&
-                    component.isMatchParentRotation() &&
-                    component.isMatchParentScale();
+        boolean anyMatchParent = component.isMatchingParent() ||
+                component.isMatchParentRotation() ||
+                component.isMatchParentScale();
+        boolean allMatchParent = component.isFillingParent() &&
+                component.isMatchParentRotation() &&
+                component.isMatchParentScale();
 
-            float buttonWidth = ImGui.getContentRegionAvailX();
-            changed |= drawMasterMatchParentButton(component, anyMatchParent, allMatchParent, buttonWidth);
-            if (hasParentLayout && ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) {
+        float buttonWidth = ImGui.getContentRegionAvailX();
+        changed |= drawMasterMatchParentButton(component, anyMatchParent, allMatchParent, buttonWidth);
+
+        if (hasParentLayout) ImGui.endDisabled();
+        if (!hasParentUITransform) ImGui.endDisabled();
+        if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) {
+            if (!hasParentUITransform) {
+                ImGui.setTooltip("No parent UITransform");
+            } else if (hasParentLayout) {
                 ImGui.setTooltip("Managed by parent layout");
             }
-
-            if (hasParentLayout) ImGui.endDisabled();
-            ImGui.spacing();
         }
+        ImGui.spacing();
 
         return changed;
     }
@@ -284,14 +279,8 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
     private boolean drawMasterMatchParentButton(UITransform component, boolean anyMatchParent, boolean allMatchParent, float buttonWidth) {
         boolean changed = false;
 
-        // Apply red accent color only if ALL match parent options are active
-        if (allMatchParent) {
-            ImGui.pushStyleColor(ImGuiCol.Button, ACCENT_COLOR[0], ACCENT_COLOR[1], ACCENT_COLOR[2], ACCENT_COLOR[3]);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, ACCENT_HOVER[0], ACCENT_HOVER[1], ACCENT_HOVER[2], ACCENT_HOVER[3]);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, ACCENT_ACTIVE[0], ACCENT_ACTIVE[1], ACCENT_ACTIVE[2], ACCENT_ACTIVE[3]);
-        }
-
-        if (ImGui.button(MaterialIcons.Link + (allMatchParent ? " MATCHING PARENT" : " MATCH PARENT"), buttonWidth, 0)) {
+        String label = MaterialIcons.Link + (allMatchParent ? " MATCHING PARENT" : " MATCH PARENT");
+        if (FieldEditorUtils.accentButton(allMatchParent, label, buttonWidth)) {
             // Capture old values
             UITransform.SizeMode oldWidthMode = component.getWidthMode();
             UITransform.SizeMode oldHeightMode = component.getHeightMode();
@@ -329,10 +318,6 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
             changed = true;
         }
 
-        if (allMatchParent) {
-            ImGui.popStyleColor(3);
-        }
-
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(anyMatchParent ?
                     "Click to disable all match parent options" :
@@ -349,19 +334,9 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
     private boolean drawMatchParentToggle(String id, boolean isActive, Runnable onToggle) {
         boolean changed = false;
 
-        if (isActive) {
-            ImGui.pushStyleColor(ImGuiCol.Button, ACCENT_COLOR[0], ACCENT_COLOR[1], ACCENT_COLOR[2], ACCENT_COLOR[3]);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, ACCENT_HOVER[0], ACCENT_HOVER[1], ACCENT_HOVER[2], ACCENT_HOVER[3]);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, ACCENT_ACTIVE[0], ACCENT_ACTIVE[1], ACCENT_ACTIVE[2], ACCENT_ACTIVE[3]);
-        }
-
-        if (ImGui.smallButton("M##" + id)) {
+        if (FieldEditorUtils.accentButton(isActive, "M##" + id)) {
             onToggle.run();
             changed = true;
-        }
-
-        if (isActive) {
-            ImGui.popStyleColor(3);
         }
 
         if (ImGui.isItemHovered()) {
@@ -415,105 +390,120 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
         float width = FieldEditors.getFloat(component, "width", 100);
         float height = FieldEditors.getFloat(component, "height", 100);
 
-        // Texture size button (only if entity has a sprite) — on header line
-        float[] textureDims = getSpriteTextureDimensions();
-        if (textureDims != null) {
-            ImGui.sameLine();
-            if (ImGui.smallButton(MaterialIcons.Image + "##textureSize")) {
-                float oldWidth = FieldEditors.getFloat(component, "width", 100);
-                float oldHeight = FieldEditors.getFloat(component, "height", 100);
+        // [M] toggle: set both axes to 100% of parent (always visible; disabled if no parent)
+        if (!hasParentUITransform) ImGui.beginDisabled();
+        if (hasParentLayout) ImGui.beginDisabled();
 
-                if (oldWidth != textureDims[0] || oldHeight != textureDims[1]) {
-                    startSizeEdit();
-                    applySizeChange(oldWidth, oldHeight, textureDims[0], textureDims[1]);
-                    commitSizeEdit();
-                    changed = true;
-                }
-            }
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("Match texture size (" + (int) textureDims[0] + "x" + (int) textureDims[1] + ")");
+        boolean isBothPercent100 =
+                component.getWidthMode() == UITransform.SizeMode.PERCENT
+                && component.getHeightMode() == UITransform.SizeMode.PERCENT
+                && component.getWidthPercent() == 100f
+                && component.getHeightPercent() == 100f;
+
+        ImGui.sameLine();
+        if (FieldEditorUtils.accentButton(isBothPercent100, "M##sizeMatchParent")) {
+            changed |= toggleMatchParentSize(isBothPercent100);
+        }
+
+        if (hasParentLayout) ImGui.endDisabled();
+        if (!hasParentUITransform) ImGui.endDisabled();
+        if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) {
+            if (!hasParentUITransform) {
+                ImGui.setTooltip("No parent UITransform");
+            } else if (hasParentLayout) {
+                ImGui.setTooltip("Size managed by parent layout");
+            } else {
+                ImGui.setTooltip(isBothPercent100
+                        ? "Match Parent Size: ON (click to switch to pixel)"
+                        : "Set both axes to 100% of parent");
             }
         }
 
-        // Match parent size button — on header line
-        if (hasParentUITransform) {
-            HierarchyItem matchParent = entity.getHierarchyParent();
-            Component parentTransform = matchParent != null ? matchParent.getComponent(UITransform.class) : null;
+        // Match parent size button (pixel-based) — on header line
+        // Always visible; disabled if no parent UITransform
+        HierarchyItem matchParent = entity.getHierarchyParent();
+        Component parentTransform = hasParentUITransform && matchParent != null
+                ? matchParent.getComponent(UITransform.class) : null;
+        ImGui.sameLine();
+        if (!hasParentUITransform) ImGui.beginDisabled();
+        if (ImGui.smallButton(MaterialIcons.OpenInFull + "##matchParent")) {
             if (parentTransform != null) {
-                ImGui.sameLine();
-                if (ImGui.smallButton(MaterialIcons.OpenInFull + "##matchParent")) {
-                    // Capture component reference for undo lambdas (survives inspector unbind)
-                    final UITransform t = this.component;
+                // Capture component reference for undo lambdas (survives inspector unbind)
+                final UITransform t = this.component;
 
-                    float parentWidth = FieldEditors.getFloat(parentTransform, "width", 100);
-                    float parentHeight = FieldEditors.getFloat(parentTransform, "height", 100);
-                    float oldWidth = FieldEditors.getFloat(t, "width", 100);
-                    float oldHeight = FieldEditors.getFloat(t, "height", 100);
+                float parentWidth = FieldEditors.getFloat(parentTransform, "width", 100);
+                float parentHeight = FieldEditors.getFloat(parentTransform, "height", 100);
+                float oldWidth = FieldEditors.getFloat(t, "width", 100);
+                float oldHeight = FieldEditors.getFloat(t, "height", 100);
 
-                    // Capture old anchor/pivot before changes
-                    Vector2f oldAnchor = new Vector2f(t.getAnchor());
-                    Vector2f oldPivot = new Vector2f(t.getPivot());
+                // Capture old anchor/pivot before changes
+                Vector2f oldAnchor = new Vector2f(t.getAnchor());
+                Vector2f oldPivot = new Vector2f(t.getPivot());
 
-                    // Size change with undo support
-                    startSizeEdit();
-                    applySizeChange(oldWidth, oldHeight, parentWidth, parentHeight);
-                    t.setOffset(0, 0);
-                    commitSizeEdit();
+                // Size change with undo support
+                startSizeEdit();
+                applySizeChange(oldWidth, oldHeight, parentWidth, parentHeight);
+                t.setOffset(0, 0);
+                commitSizeEdit();
 
-                    // Set anchor and pivot to top-left with undo
-                    Vector2f newAnchor = new Vector2f(0, 0);
-                    Vector2f newPivot = new Vector2f(0, 0);
-                    t.setAnchor(0, 0);
-                    t.setPivot(0, 0);
+                // Set anchor and pivot to top-left with undo
+                Vector2f newAnchor = new Vector2f(0, 0);
+                Vector2f newPivot = new Vector2f(0, 0);
+                t.setAnchor(0, 0);
+                t.setPivot(0, 0);
 
-                    if (!oldAnchor.equals(newAnchor)) {
-                        UndoManager.getInstance().push(
-                                new SetterUndoCommand<>(
-                                        v -> t.setAnchor(v.x, v.y),
-                                        oldAnchor, newAnchor, "Set Anchor"
-                                )
-                        );
-                    }
-                    if (!oldPivot.equals(newPivot)) {
-                        UndoManager.getInstance().push(
-                                new SetterUndoCommand<>(
-                                        v -> t.setPivot(v.x, v.y),
-                                        oldPivot, newPivot, "Set Pivot"
-                                )
-                        );
-                    }
-                    changed = true;
+                if (!oldAnchor.equals(newAnchor)) {
+                    UndoManager.getInstance().push(
+                            new SetterUndoCommand<>(
+                                    v -> t.setAnchor(v.x, v.y),
+                                    oldAnchor, newAnchor, "Set Anchor"
+                            )
+                    );
                 }
-                if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("Match parent size (" +
-                            (int) FieldEditors.getFloat(parentTransform, "width", 100) + "x" +
-                            (int) FieldEditors.getFloat(parentTransform, "height", 100) + ")");
+                if (!oldPivot.equals(newPivot)) {
+                    UndoManager.getInstance().push(
+                            new SetterUndoCommand<>(
+                                    v -> t.setPivot(v.x, v.y),
+                                    oldPivot, newPivot, "Set Pivot"
+                            )
+                    );
                 }
+                changed = true;
+            }
+        }
+        if (!hasParentUITransform) ImGui.endDisabled();
+        if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) {
+            if (!hasParentUITransform) {
+                ImGui.setTooltip("No parent UITransform");
+            } else if (parentTransform != null) {
+                ImGui.setTooltip("Match parent size (" +
+                        (int) FieldEditors.getFloat(parentTransform, "width", 100) + "x" +
+                        (int) FieldEditors.getFloat(parentTransform, "height", 100) + ")");
             }
         }
 
         // W/H fields aligned at FIELD_POSITION (same line as header)
         ImGui.sameLine();
         ImGui.setCursorPosX(FIELD_POSITION);
-        EditorLayout.beginHorizontal(2);
+
+        // Calculate drag field width for each axis (label + px/% button + drag field)
+        float usedPerField = ImGui.calcTextSize("W").x + ImGui.calcTextSize("px").x + 16f;
+        float sizeFieldWidth = calculateFlexWidth(2, usedPerField);
 
         // ---- Width axis ----
         if (layoutControlsWidth) {
-            EditorLayout.beforeWidget();
             ImGui.textDisabled("W: " + (int) component.getEffectiveWidth() + " (layout)");
         } else {
-            changed |= drawAxisField("W", "sizeW", true, width, height, hasParentUITransform);
+            changed |= drawAxisField("W", "sizeW", true, width, height, hasParentUITransform, sizeFieldWidth);
         }
 
         // ---- Height axis ----
+        ImGui.sameLine();
         if (layoutControlsHeight) {
-            EditorLayout.beforeWidget();
             ImGui.textDisabled("H: " + (int) component.getEffectiveHeight() + " (layout)");
         } else {
-            changed |= drawAxisField("H", "sizeH", false, width, height, hasParentUITransform);
+            changed |= drawAxisField("H", "sizeH", false, width, height, hasParentUITransform, sizeFieldWidth);
         }
-
-        EditorLayout.endHorizontal();
 
         return changed;
     }
@@ -528,40 +518,27 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
      * @param currentWidth    current pixel width
      * @param currentHeight   current pixel height
      * @param hasParentUITransform whether a parent UITransform exists
+     * @param fieldWidth      width for the drag field
      * @return true if value changed
      */
     private boolean drawAxisField(String label, String id, boolean isWidth,
                                    float currentWidth, float currentHeight,
-                                   boolean hasParentUITransform) {
+                                   boolean hasParentUITransform, float fieldWidth) {
         boolean changed = false;
 
         UITransform.SizeMode mode = isWidth ? component.getWidthMode() : component.getHeightMode();
         boolean isPercent = mode == UITransform.SizeMode.PERCENT;
-
-        // Position via layout system (handles sameLine for 2nd widget)
-        EditorLayout.beforeWidget();
 
         // "W" or "H" text label
         ImGui.text(label);
         ImGui.sameLine();
 
         // Per-axis mode toggle button: "px" or "%"
-        boolean wasPercent = isPercent;
-        if (wasPercent) {
-            ImGui.pushStyleColor(ImGuiCol.Button, ACCENT_COLOR[0], ACCENT_COLOR[1], ACCENT_COLOR[2], ACCENT_COLOR[3]);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, ACCENT_HOVER[0], ACCENT_HOVER[1], ACCENT_HOVER[2], ACCENT_HOVER[3]);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, ACCENT_ACTIVE[0], ACCENT_ACTIVE[1], ACCENT_ACTIVE[2], ACCENT_ACTIVE[3]);
-        }
-
-        String modeLabel = wasPercent ? "%%" : "px";
-        if (ImGui.smallButton(modeLabel + "##" + id)) {
+        String modeLabel = isPercent ? "%" : "px";
+        if (FieldEditorUtils.accentButton(isPercent, modeLabel + "##" + id)) {
             if (hasParentUITransform) {
                 changed |= toggleSizeMode(isWidth);
             }
-        }
-
-        if (wasPercent) {
-            ImGui.popStyleColor(3);
         }
 
         if (ImGui.isItemHovered()) {
@@ -578,8 +555,7 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
 
         // Drag field fills remaining width in this half
         ImGui.sameLine();
-        float usedWidth = ImGui.calcTextSize(label).x + ImGui.calcTextSize(modeLabel).x + 16f; // label + button + padding
-        ImGui.setNextItemWidth(EditorLayout.calculateWidgetWidth(usedWidth));
+        ImGui.setNextItemWidth(fieldWidth);
 
         if (isPercent) {
             // PERCENT mode: drag the percentage value
@@ -606,7 +582,15 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
             }
 
             // Undo for percent drag
-            handlePercentUndo(id, isWidth);
+            final UITransform t = this.component;
+            float currentPercent = isWidth ? t.getWidthPercent() : t.getHeightPercent();
+            Consumer<Float> percentSetter = isWidth ? t::setWidthPercent : t::setHeightPercent;
+            FieldUndoTracker.track(
+                    "percent_" + id,
+                    currentPercent,
+                    percentSetter,
+                    "Change " + (isWidth ? "Width" : "Height") + " %%"
+            );
 
             if (ImGui.isItemHovered()) {
                 float resolvedPx = isWidth ? component.getEffectiveWidth() : component.getEffectiveHeight();
@@ -725,28 +709,57 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
     }
 
     /**
-     * Handles undo for percent drag fields.
+     * Toggles both axes between 100% parent match and FIXED mode.
+     * When enabling: sets both axes to PERCENT mode at 100%.
+     * When disabling: switches back to FIXED mode, keeping current effective pixel sizes.
      */
-    private void handlePercentUndo(String id, boolean isWidth) {
-        // Capture component reference for undo lambdas (survives inspector unbind)
+    private boolean toggleMatchParentSize(boolean isCurrentlyMatching) {
         final UITransform t = this.component;
-        String undoKey = "percent_" + id;
-        if (ImGui.isItemActivated()) {
-            percentUndoStart.put(undoKey, isWidth ? t.getWidthPercent() : t.getHeightPercent());
+
+        UITransform.SizeMode oldWidthMode = t.getWidthMode();
+        UITransform.SizeMode oldHeightMode = t.getHeightMode();
+        float oldWidthPercent = t.getWidthPercent();
+        float oldHeightPercent = t.getHeightPercent();
+        float oldWidth = t.getWidth();
+        float oldHeight = t.getHeight();
+
+        if (isCurrentlyMatching) {
+            // Switch back to FIXED: keep current effective pixel sizes
+            float effectiveWidth = t.getEffectiveWidth();
+            float effectiveHeight = t.getEffectiveHeight();
+
+            t.setWidthMode(UITransform.SizeMode.FIXED);
+            t.setHeightMode(UITransform.SizeMode.FIXED);
+            t.setWidth(effectiveWidth);
+            t.setHeight(effectiveHeight);
+
+            UndoManager.getInstance().push(
+                    new CompoundCommand("Disable Match Parent Size",
+                            new SetterUndoCommand<>(t::setWidthMode, oldWidthMode, UITransform.SizeMode.FIXED, "Width Mode"),
+                            new SetterUndoCommand<>(t::setHeightMode, oldHeightMode, UITransform.SizeMode.FIXED, "Height Mode"),
+                            new SetterUndoCommand<>(v -> t.setWidth(v), oldWidth, effectiveWidth, "Width"),
+                            new SetterUndoCommand<>(v -> t.setHeight(v), oldHeight, effectiveHeight, "Height")
+                    )
+            );
+        } else {
+            // Enable: set both axes to PERCENT mode at 100%
+            t.setWidthMode(UITransform.SizeMode.PERCENT);
+            t.setHeightMode(UITransform.SizeMode.PERCENT);
+            t.setWidthPercent(100f);
+            t.setHeightPercent(100f);
+
+            UndoManager.getInstance().push(
+                    new CompoundCommand("Match Parent Size 100%",
+                            new SetterUndoCommand<>(t::setWidthMode, oldWidthMode, UITransform.SizeMode.PERCENT, "Width Mode"),
+                            new SetterUndoCommand<>(t::setHeightMode, oldHeightMode, UITransform.SizeMode.PERCENT, "Height Mode"),
+                            new SetterUndoCommand<>(t::setWidthPercent, oldWidthPercent, 100f, "Width Percent"),
+                            new SetterUndoCommand<>(t::setHeightPercent, oldHeightPercent, 100f, "Height Percent")
+                    )
+            );
         }
-        if (ImGui.isItemDeactivatedAfterEdit() && percentUndoStart.containsKey(undoKey)) {
-            float startValue = percentUndoStart.remove(undoKey);
-            float endValue = isWidth ? t.getWidthPercent() : t.getHeightPercent();
-            if (startValue != endValue) {
-                UndoManager.getInstance().push(
-                        new SetterUndoCommand<>(
-                                isWidth ? t::setWidthPercent : t::setHeightPercent,
-                                startValue, endValue,
-                                "Change " + (isWidth ? "Width" : "Height") + " %%"
-                        )
-                );
-            }
-        }
+
+        t.markDirty();
+        return true;
     }
 
     /**
@@ -763,17 +776,20 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
         // Rotation (Z only for 2D)
         ImGui.text(MaterialIcons.Sync + " Rotation");
 
-        // Match Parent toggle [M] (only if parent has UITransform)
-        if (hasParentUITransform) {
-            ImGui.sameLine();
-            changed |= drawMatchParentToggle("##rotation", t.isMatchParentRotation(), () -> {
-                boolean oldValue = t.isMatchParentRotation();
-                boolean newValue = !oldValue;
-                t.setMatchParentRotation(newValue);
-                UndoManager.getInstance().push(
-                        new SetterUndoCommand<>(t::setMatchParentRotation, oldValue, newValue, "Toggle Match Parent Rotation")
-                );
-            });
+        // Match Parent toggle [M] (always visible; disabled if no parent UITransform)
+        ImGui.sameLine();
+        if (!hasParentUITransform) ImGui.beginDisabled();
+        changed |= drawMatchParentToggle("##rotation", t.isMatchParentRotation(), () -> {
+            boolean oldValue = t.isMatchParentRotation();
+            boolean newValue = !oldValue;
+            t.setMatchParentRotation(newValue);
+            UndoManager.getInstance().push(
+                    new SetterUndoCommand<>(t::setMatchParentRotation, oldValue, newValue, "Toggle Match Parent Rotation")
+            );
+        });
+        if (!hasParentUITransform) ImGui.endDisabled();
+        if (!hasParentUITransform && ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) {
+            ImGui.setTooltip("No parent UITransform");
         }
 
         boolean matchingRotation = t.isMatchParentRotation();
@@ -816,17 +832,20 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
         // Scale (X, Y)
         ImGui.text(MaterialIcons.OpenInFull + " Scale");
 
-        // Match Parent toggle [M] (only if parent has UITransform)
-        if (hasParentUITransform) {
-            ImGui.sameLine();
-            changed |= drawMatchParentToggle("scale", t.isMatchParentScale(), () -> {
-                boolean oldValue = t.isMatchParentScale();
-                boolean newValue = !oldValue;
-                t.setMatchParentScale(newValue);
-                UndoManager.getInstance().push(
-                        new SetterUndoCommand<>(t::setMatchParentScale, oldValue, newValue, "Toggle Match Parent Scale")
-                );
-            });
+        // Match Parent toggle [M] (always visible; disabled if no parent UITransform)
+        ImGui.sameLine();
+        if (!hasParentUITransform) ImGui.beginDisabled();
+        changed |= drawMatchParentToggle("scale", t.isMatchParentScale(), () -> {
+            boolean oldValue = t.isMatchParentScale();
+            boolean newValue = !oldValue;
+            t.setMatchParentScale(newValue);
+            UndoManager.getInstance().push(
+                    new SetterUndoCommand<>(t::setMatchParentScale, oldValue, newValue, "Toggle Match Parent Scale")
+            );
+        });
+        if (!hasParentUITransform) ImGui.endDisabled();
+        if (!hasParentUITransform && ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) {
+            ImGui.setTooltip("No parent UITransform");
         }
 
         boolean matchingScale = t.isMatchParentScale();
@@ -881,17 +900,17 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
             }
             // X and Y on same line with automatic undo support
             ImGui.sameLine();
-            ImGui.setCursorPosX(FIELD_POSITION); // Fixed position for size fields
-            EditorLayout.beginHorizontal(2);
-            changed |= EditorFields.floatField("X", "uiTransform.scale.x",
+            ImGui.setCursorPosX(FIELD_POSITION);
+            float scaleFlexWidth = calculateFlexWidth(2);
+            changed |= PrimitiveEditors.drawFloatInline("X", "uiTransform.scale.x",
                     () -> t.getLocalScale2D().x,
                     v -> t.setScale2D((float) v, t.getLocalScale2D().y),
-                    0.01f, 0.01f, 10f, "%.2f");
-            changed |= EditorFields.floatField("Y", "uiTransform.scale.y",
+                    0.01f, 0.01f, 10f, "%.2f", scaleFlexWidth);
+            ImGui.sameLine();
+            changed |= PrimitiveEditors.drawFloatInline("Y", "uiTransform.scale.y",
                     () -> t.getLocalScale2D().y,
                     v -> t.setScale2D(t.getLocalScale2D().x, (float) v),
-                    0.01f, 0.01f, 10f, "%.2f");
-            EditorLayout.endHorizontal();
+                    0.01f, 0.01f, 10f, "%.2f", scaleFlexWidth);
 
         }
 
@@ -1156,52 +1175,13 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
     }
 
     /**
-     * Gets the texture dimensions from an entity's sprite (UIImage or UIButton).
-     *
-     * @return float[2] with {width, height}, or null if no sprite found
-     */
-    private float[] getSpriteTextureDimensions() {
-        if (entity == null) return null;
-        Object spriteObj = null;
-
-        // Check UIImage
-        Component imageComp = entity.getComponent(UIImage.class);
-        if (imageComp != null) {
-            spriteObj = ComponentReflectionUtils.getFieldValue(imageComp, "sprite");
-        }
-
-        // Check UIButton
-        if (spriteObj == null) {
-            Component buttonComp = entity.getComponent(UIButton.class);
-            if (buttonComp != null) {
-                spriteObj = ComponentReflectionUtils.getFieldValue(buttonComp, "sprite");
-            }
-        }
-
-        if (spriteObj == null) return null;
-
-        // Handle Sprite instance
-        if (spriteObj instanceof Sprite sprite) {
-            if (sprite.getTexture() != null) {
-                return new float[]{sprite.getWidth(), sprite.getHeight()};
-            }
-        }
-
-        return null;
-    }
-
-    /**
      * Gets the parent's UITransform component if it exists.
      *
      * @return The parent's UITransform, or null if no parent or parent has no UITransform
      */
     private UITransform getParentUITransform() {
-        HierarchyItem parentEntity = entity.getHierarchyParent();
-        if (parentEntity == null) {
-            return null;
-        }
-        Component parentComp = parentEntity.getComponent(UITransform.class);
-        return parentComp instanceof UITransform ? (UITransform) parentComp : null;
+        HierarchyItem parent = entity.getHierarchyParent();
+        return parent != null ? parent.getComponent(UITransform.class) : null;
     }
 
     /**
@@ -1216,6 +1196,29 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
             if (comp instanceof LayoutGroup lg) return lg;
         }
         return null;
+    }
+
+    /**
+     * Calculates width per drag field for a horizontal N-field layout.
+     * Uses a single-char label width (suitable for "X [___] Y [___]" patterns).
+     */
+    private float calculateFlexWidth(int fieldCount) {
+        return calculateFlexWidth(fieldCount, ImGui.calcTextSize("X").x);
+    }
+
+    /**
+     * Calculates width per drag field for a horizontal N-field layout.
+     *
+     * @param fieldCount        Number of fields in the row
+     * @param perFieldLabelWidth Width consumed by label + extras per field
+     */
+    private float calculateFlexWidth(int fieldCount, float perFieldLabelWidth) {
+        float available = ImGui.getContentRegionAvailX();
+        float totalLabels = perFieldLabelWidth * fieldCount;
+        float spacing = 8f * (fieldCount - 1);
+        float padding = 4f * fieldCount;
+        float margin = 8f;
+        return (available - totalLabels - spacing - padding - margin) / fieldCount;
     }
 
     private boolean isWidthControlledByLayout(LayoutGroup layout) {

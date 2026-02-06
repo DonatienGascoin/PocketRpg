@@ -154,21 +154,27 @@ public final class FieldEditorContext {
     // STYLING
     // ========================================================================
 
+    private static boolean overrideStylePushed = false;
+
     /**
      * Pushes override text color if field is overridden.
+     * Must be paired with {@link #popOverrideStyle()}.
      */
     public static void pushOverrideStyle(String fieldName) {
-        if (isFieldOverridden(fieldName)) {
+        overrideStylePushed = isFieldOverridden(fieldName);
+        if (overrideStylePushed) {
             ImGui.pushStyleColor(ImGuiCol.Text, OVERRIDE_COLOR[0], OVERRIDE_COLOR[1], OVERRIDE_COLOR[2], OVERRIDE_COLOR[3]);
         }
     }
 
     /**
-     * Pops override text color if field is overridden.
+     * Pops override text color if it was pushed.
+     * Uses stored state from {@link #pushOverrideStyle(String)} to guarantee push/pop symmetry.
      */
-    public static void popOverrideStyle(String fieldName) {
-        if (isFieldOverridden(fieldName)) {
+    public static void popOverrideStyle() {
+        if (overrideStylePushed) {
             ImGui.popStyleColor();
+            overrideStylePushed = false;
         }
     }
 

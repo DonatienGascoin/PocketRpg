@@ -8,6 +8,7 @@ import com.pocket.rpg.editor.panels.ComponentBrowserPopup;
 import com.pocket.rpg.editor.panels.SavePrefabPopup;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
+import com.pocket.rpg.editor.ui.fields.FieldUndoTracker;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.*;
 import com.pocket.rpg.editor.utils.IconUtils;
@@ -48,7 +49,17 @@ public class EntityInspector {
     // Undo support for rename
     private String nameBeforeEdit = null;
 
+    // Selection-change detection for clearing stale undo state
+    private String lastSelectedEntityId = null;
+
     public void render(EditorGameObject entity) {
+        // Clear stale undo state when selection changes
+        String currentId = entity.getId();
+        if (!currentId.equals(lastSelectedEntityId)) {
+            FieldUndoTracker.clear();
+            lastSelectedEntityId = currentId;
+        }
+
         fieldEditor.setScene(scene);
 
         String icon = IconUtils.getIconForEntity(entity);

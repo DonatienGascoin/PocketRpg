@@ -79,7 +79,7 @@ public final class UiKeyReferenceEditor {
             changed[0] = ImGui.combo("##" + fieldName, intBuffer, names);
         });
 
-        FieldEditorContext.popOverrideStyle(fieldName);
+        FieldEditorContext.popOverrideStyle();
 
         if (changed[0]) {
             String oldValue = currentKey;

@@ -58,7 +58,7 @@ public final class VectorEditors {
         }
         boolean deactivated = ImGui.isItemDeactivatedAfterEdit();
 
-        FieldEditorContext.popOverrideStyle(fieldName);
+        FieldEditorContext.popOverrideStyle();
 
         if (changed[0]) {
             Vector2f newValue = new Vector2f(floatBuffer[0], floatBuffer[1]);
@@ -109,7 +109,7 @@ public final class VectorEditors {
         }
         boolean deactivated = ImGui.isItemDeactivatedAfterEdit();
 
-        FieldEditorContext.popOverrideStyle(fieldName);
+        FieldEditorContext.popOverrideStyle();
 
         if (changed[0]) {
             Vector3f newValue = new Vector3f(floatBuffer[0], floatBuffer[1], floatBuffer[2]);
@@ -161,7 +161,7 @@ public final class VectorEditors {
         }
         boolean deactivated = ImGui.isItemDeactivatedAfterEdit();
 
-        FieldEditorContext.popOverrideStyle(fieldName);
+        FieldEditorContext.popOverrideStyle();
 
         if (changed[0]) {
             Vector4f newValue = new Vector4f(floatBuffer[0], floatBuffer[1], floatBuffer[2], floatBuffer[3]);
@@ -209,7 +209,7 @@ public final class VectorEditors {
         }
         boolean deactivated = ImGui.isItemDeactivatedAfterEdit();
 
-        FieldEditorContext.popOverrideStyle(fieldName);
+        FieldEditorContext.popOverrideStyle();
 
         if (changed[0]) {
             Vector4f newValue = new Vector4f(floatBuffer[0], floatBuffer[1], floatBuffer[2], floatBuffer[3]);

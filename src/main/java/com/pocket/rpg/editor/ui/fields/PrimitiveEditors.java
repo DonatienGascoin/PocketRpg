@@ -56,7 +56,7 @@ public final class PrimitiveEditors {
         }
         boolean deactivated = ImGui.isItemDeactivatedAfterEdit();
 
-        FieldEditorContext.popOverrideStyle(fieldName);
+        FieldEditorContext.popOverrideStyle();
 
         if (changed[0]) {
             ComponentReflectionUtils.setFieldValue(component, fieldName, intBuffer.get());
@@ -103,7 +103,7 @@ public final class PrimitiveEditors {
         }
         boolean deactivated = ImGui.isItemDeactivatedAfterEdit();
 
-        FieldEditorContext.popOverrideStyle(fieldName);
+        FieldEditorContext.popOverrideStyle();
 
         if (changed[0]) {
             ComponentReflectionUtils.setFieldValue(component, fieldName, floatBuffer[0]);
@@ -146,7 +146,7 @@ public final class PrimitiveEditors {
         }
         boolean deactivated = ImGui.isItemDeactivatedAfterEdit();
 
-        FieldEditorContext.popOverrideStyle(fieldName);
+        FieldEditorContext.popOverrideStyle();
 
         if (changed[0]) {
             ComponentReflectionUtils.setFieldValue(component, fieldName, floatBuffer[0]);
@@ -189,7 +189,7 @@ public final class PrimitiveEditors {
         }
         boolean deactivated = ImGui.isItemDeactivatedAfterEdit();
 
-        FieldEditorContext.popOverrideStyle(fieldName);
+        FieldEditorContext.popOverrideStyle();
 
         if (changed[0]) {
             ComponentReflectionUtils.setFieldValue(component, fieldName, floatBuffer[0]);
@@ -227,7 +227,7 @@ public final class PrimitiveEditors {
             changed[0] = ImGui.checkbox("##" + fieldName, boolValue);
         });
 
-        FieldEditorContext.popOverrideStyle(fieldName);
+        FieldEditorContext.popOverrideStyle();
 
         if (changed[0]) {
             boolean newValue = !boolValue;
@@ -269,7 +269,7 @@ public final class PrimitiveEditors {
         }
         boolean deactivated = ImGui.isItemDeactivatedAfterEdit();
 
-        FieldEditorContext.popOverrideStyle(fieldName);
+        FieldEditorContext.popOverrideStyle();
 
         if (changed[0]) {
             String newValue = stringBuffer.get();

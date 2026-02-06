@@ -6,6 +6,7 @@ import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import imgui.ImGui;
 import imgui.ImVec2;
+import imgui.flag.ImGuiCol;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
@@ -29,7 +30,34 @@ public final class FieldEditorUtils {
     private static Runnable nextMiddleContent = null;   // null means "no middle content"
     private static String nextTooltip = null;           // null means "no custom tooltip"
 
+    private static final float[] ACCENT_COLOR = {0.9f, 0.2f, 0.2f, 1.0f};
+    private static final float[] ACCENT_HOVER = {1.0f, 0.3f, 0.3f, 1.0f};
+    private static final float[] ACCENT_ACTIVE = {0.8f, 0.1f, 0.1f, 1.0f};
+
     private FieldEditorUtils() {}
+
+    // ========================================================================
+    // BUTTONS
+    // ========================================================================
+
+    /**
+     * Draws a small button with accent (red) styling when active.
+     * Handles push/pop symmetry internally.
+     *
+     * @param active Whether to apply accent styling
+     * @param label  Button label (include ##id for uniqueness)
+     * @return true if the button was clicked
+     */
+    public static boolean accentButton(boolean active, String label) {
+        if (active) {
+            ImGui.pushStyleColor(ImGuiCol.Button, ACCENT_COLOR[0], ACCENT_COLOR[1], ACCENT_COLOR[2], ACCENT_COLOR[3]);
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, ACCENT_HOVER[0], ACCENT_HOVER[1], ACCENT_HOVER[2], ACCENT_HOVER[3]);
+            ImGui.pushStyleColor(ImGuiCol.ButtonActive, ACCENT_ACTIVE[0], ACCENT_ACTIVE[1], ACCENT_ACTIVE[2], ACCENT_ACTIVE[3]);
+        }
+        boolean clicked = ImGui.smallButton(label);
+        if (active) ImGui.popStyleColor(3);
+        return clicked;
+    }
 
     // ========================================================================
     // LAYOUT

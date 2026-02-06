@@ -1,5 +1,6 @@
 package com.pocket.rpg.editor.panels.hierarchy;
 
+import com.pocket.rpg.components.Component;
 import com.pocket.rpg.core.IGameObject;
 
 import java.util.List;
@@ -36,5 +37,22 @@ public interface HierarchyItem extends IGameObject {
      */
     default boolean isEditable() {
         return isEditor();
+    }
+
+    /**
+     * Walks the parent hierarchy looking for a component of the given type.
+     * Returns the first match, or null if none found.
+     * Depth-guarded to prevent infinite loops from hierarchy cycles.
+     */
+    default <T extends Component> T findComponentInParent(Class<T> type) {
+        HierarchyItem parent = getHierarchyParent();
+        int depth = 0;
+        while (parent != null && depth < 100) {
+            T comp = parent.getComponent(type);
+            if (comp != null) return comp;
+            parent = parent.getHierarchyParent();
+            depth++;
+        }
+        return null;
     }
 }

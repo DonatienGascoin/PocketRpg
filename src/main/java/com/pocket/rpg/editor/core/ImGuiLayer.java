@@ -197,22 +197,22 @@ public class ImGuiLayer {
     }
 
     /**
-     * Applies a dark theme with custom accent colors.
+     * Applies a dark theme with vivid blue accents on interactive elements.
+     * Dark neutral backgrounds with flat styling, blue buttons, headers, and tabs.
      */
     private void applyDarkTheme() {
         ImGui.styleColorsDark();
 
         ImGuiStyle style = ImGui.getStyle();
 
-        // Adjust style parameters
-        style.setWindowRounding(4.0f);
-        style.setFrameRounding(2.0f);
-        style.setScrollbarRounding(2.0f);
-        style.setGrabRounding(2.0f);
-        style.setTabRounding(4.0f);
+        style.setWindowRounding(1.0f);
+        style.setFrameRounding(1.0f);
+        style.setScrollbarRounding(1.0f);
+        style.setGrabRounding(1.0f);
+        style.setTabRounding(1.0f);
 
         style.setWindowBorderSize(1.0f);
-        style.setFrameBorderSize(0.0f);
+        style.setFrameBorderSize(1.0f);
         style.setPopupBorderSize(1.0f);
 
         style.setWindowPadding(8.0f, 8.0f);
@@ -220,77 +220,209 @@ public class ImGuiLayer {
         style.setItemSpacing(8.0f, 4.0f);
         style.setItemInnerSpacing(4.0f, 4.0f);
 
-        // Custom colors - dark theme with blue accents
-        // Using setColor() method for 1.90.0+ compatibility
-        style.setColor(ImGuiCol.WindowBg, 0.10f, 0.10f, 0.12f, 1.00f);
-        style.setColor(ImGuiCol.ChildBg, 0.10f, 0.10f, 0.12f, 1.00f);
-        style.setColor(ImGuiCol.PopupBg, 0.12f, 0.12f, 0.14f, 1.00f);
-        style.setColor(ImGuiCol.Border, 0.30f, 0.30f, 0.35f, 1.00f);
-        style.setColor(ImGuiCol.BorderShadow, 0.00f, 0.00f, 0.00f, 0.00f);
+        // -- Text --
+        style.setColor(ImGuiCol.Text,                 0.82f, 0.82f, 0.82f, 1.00f);  // #D2D2D2
+        style.setColor(ImGuiCol.TextDisabled,          0.50f, 0.50f, 0.50f, 1.00f);
 
-        style.setColor(ImGuiCol.FrameBg, 0.16f, 0.16f, 0.18f, 1.00f);
-        style.setColor(ImGuiCol.FrameBgHovered, 0.20f, 0.20f, 0.24f, 1.00f);
-        style.setColor(ImGuiCol.FrameBgActive, 0.24f, 0.24f, 0.28f, 1.00f);
+        // -- Backgrounds (same as applyDarkTheme - pure neutral) --
+        style.setColor(ImGuiCol.WindowBg,              0.18f, 0.18f, 0.18f, 1.00f);  // #2E2E2E
+        style.setColor(ImGuiCol.ChildBg,               0.18f, 0.18f, 0.18f, 1.00f);
+        style.setColor(ImGuiCol.PopupBg,               0.20f, 0.20f, 0.20f, 1.00f);  // #333333
+        style.setColor(ImGuiCol.Border,                0.10f, 0.10f, 0.10f, 1.00f);  // #1A1A1A
+        style.setColor(ImGuiCol.BorderShadow,          0.00f, 0.00f, 0.00f, 0.00f);
 
-        style.setColor(ImGuiCol.TitleBg, 0.10f, 0.10f, 0.12f, 1.00f);
-        style.setColor(ImGuiCol.TitleBgActive, 0.14f, 0.14f, 0.16f, 1.00f);
-        style.setColor(ImGuiCol.TitleBgCollapsed, 0.10f, 0.10f, 0.12f, 0.50f);
+        // -- Input fields (neutral dark) --
+        style.setColor(ImGuiCol.FrameBg,               0.13f, 0.13f, 0.13f, 1.00f);  // #212121
+        style.setColor(ImGuiCol.FrameBgHovered,        0.17f, 0.17f, 0.17f, 1.00f);  // #2B2B2B
+        style.setColor(ImGuiCol.FrameBgActive,         0.17f, 0.36f, 0.53f, 1.00f);  // #2C5D87 blue
 
-        style.setColor(ImGuiCol.MenuBarBg, 0.12f, 0.12f, 0.14f, 1.00f);
+        // -- Title bars (neutral) --
+        style.setColor(ImGuiCol.TitleBg,               0.15f, 0.15f, 0.15f, 1.00f);
+        style.setColor(ImGuiCol.TitleBgActive,         0.15f, 0.15f, 0.15f, 1.00f);
+        style.setColor(ImGuiCol.TitleBgCollapsed,      0.15f, 0.15f, 0.15f, 0.50f);
 
-        style.setColor(ImGuiCol.ScrollbarBg, 0.10f, 0.10f, 0.12f, 1.00f);
-        style.setColor(ImGuiCol.ScrollbarGrab, 0.30f, 0.30f, 0.35f, 1.00f);
-        style.setColor(ImGuiCol.ScrollbarGrabHovered, 0.40f, 0.40f, 0.45f, 1.00f);
-        style.setColor(ImGuiCol.ScrollbarGrabActive, 0.50f, 0.50f, 0.55f, 1.00f);
+        // -- Menu bar --
+        style.setColor(ImGuiCol.MenuBarBg,             0.19f, 0.19f, 0.19f, 1.00f);
 
-        style.setColor(ImGuiCol.CheckMark, 0.40f, 0.70f, 1.00f, 1.00f);
+        // -- Scrollbar --
+        style.setColor(ImGuiCol.ScrollbarBg,           0.18f, 0.18f, 0.18f, 1.00f);
+        style.setColor(ImGuiCol.ScrollbarGrab,         0.31f, 0.31f, 0.31f, 1.00f);
+        style.setColor(ImGuiCol.ScrollbarGrabHovered,  0.38f, 0.38f, 0.38f, 1.00f);
+        style.setColor(ImGuiCol.ScrollbarGrabActive,   0.45f, 0.45f, 0.45f, 1.00f);
 
-        style.setColor(ImGuiCol.SliderGrab, 0.40f, 0.70f, 1.00f, 1.00f);
-        style.setColor(ImGuiCol.SliderGrabActive, 0.50f, 0.80f, 1.00f, 1.00f);
+        // -- Accent blue (more vivid) --
+        style.setColor(ImGuiCol.CheckMark,             0.35f, 0.62f, 0.95f, 1.00f);
 
-        style.setColor(ImGuiCol.Button, 0.20f, 0.40f, 0.70f, 1.00f);
-        style.setColor(ImGuiCol.ButtonHovered, 0.30f, 0.50f, 0.80f, 1.00f);
-        style.setColor(ImGuiCol.ButtonActive, 0.40f, 0.60f, 0.90f, 1.00f);
+        style.setColor(ImGuiCol.SliderGrab,            0.35f, 0.62f, 0.95f, 1.00f);
+        style.setColor(ImGuiCol.SliderGrabActive,      0.28f, 0.52f, 0.82f, 1.00f);
 
-        style.setColor(ImGuiCol.Header, 0.20f, 0.40f, 0.70f, 0.50f);
-        style.setColor(ImGuiCol.HeaderHovered, 0.30f, 0.50f, 0.80f, 0.70f);
-        style.setColor(ImGuiCol.HeaderActive, 0.40f, 0.60f, 0.90f, 1.00f);
+        // -- Buttons (blue that pops against the dark background) --
+        style.setColor(ImGuiCol.Button,                0.18f, 0.30f, 0.50f, 1.00f);  // visible blue at rest
+        style.setColor(ImGuiCol.ButtonHovered,         0.22f, 0.40f, 0.65f, 1.00f);  // brighter on hover
+        style.setColor(ImGuiCol.ButtonActive,          0.28f, 0.50f, 0.78f, 1.00f);  // vivid on press
 
-        style.setColor(ImGuiCol.Separator, 0.30f, 0.30f, 0.35f, 1.00f);
-        style.setColor(ImGuiCol.SeparatorHovered, 0.40f, 0.70f, 1.00f, 0.70f);
-        style.setColor(ImGuiCol.SeparatorActive, 0.40f, 0.70f, 1.00f, 1.00f);
+        // -- Headers (blue that reads clearly) --
+        style.setColor(ImGuiCol.Header,                0.16f, 0.26f, 0.42f, 1.00f);  // noticeable blue
+        style.setColor(ImGuiCol.HeaderHovered,         0.20f, 0.36f, 0.58f, 1.00f);  // brighter on hover
+        style.setColor(ImGuiCol.HeaderActive,          0.25f, 0.46f, 0.72f, 1.00f);  // vivid on active
 
-        style.setColor(ImGuiCol.ResizeGrip, 0.30f, 0.30f, 0.35f, 0.50f);
-        style.setColor(ImGuiCol.ResizeGripHovered, 0.40f, 0.70f, 1.00f, 0.70f);
-        style.setColor(ImGuiCol.ResizeGripActive, 0.40f, 0.70f, 1.00f, 1.00f);
+        // -- Separators --
+        style.setColor(ImGuiCol.Separator,             0.10f, 0.10f, 0.10f, 1.00f);
+        style.setColor(ImGuiCol.SeparatorHovered,      0.28f, 0.52f, 0.82f, 0.70f);
+        style.setColor(ImGuiCol.SeparatorActive,       0.35f, 0.62f, 0.95f, 1.00f);
 
-        style.setColor(ImGuiCol.Tab, 0.16f, 0.16f, 0.18f, 1.00f);
-        style.setColor(ImGuiCol.TabHovered, 0.30f, 0.50f, 0.80f, 1.00f);
-        style.setColor(ImGuiCol.TabActive, 0.20f, 0.40f, 0.70f, 1.00f);
-        style.setColor(ImGuiCol.TabUnfocused, 0.12f, 0.12f, 0.14f, 1.00f);
-        style.setColor(ImGuiCol.TabUnfocusedActive, 0.16f, 0.30f, 0.50f, 1.00f);
+        // -- Resize grips --
+        style.setColor(ImGuiCol.ResizeGrip,            0.26f, 0.26f, 0.26f, 0.50f);
+        style.setColor(ImGuiCol.ResizeGripHovered,     0.28f, 0.52f, 0.82f, 0.70f);
+        style.setColor(ImGuiCol.ResizeGripActive,      0.35f, 0.62f, 0.95f, 1.00f);
 
-        style.setColor(ImGuiCol.DockingPreview, 0.40f, 0.70f, 1.00f, 0.50f);
-        style.setColor(ImGuiCol.DockingEmptyBg, 0.08f, 0.08f, 0.10f, 1.00f);
+        // -- Tabs (blue-tinted active) --
+        style.setColor(ImGuiCol.Tab,                   0.14f, 0.14f, 0.14f, 1.00f);  // dark inactive
+        style.setColor(ImGuiCol.TabHovered,            0.20f, 0.36f, 0.58f, 1.00f);  // blue on hover
+        style.setColor(ImGuiCol.TabActive,             0.15f, 0.25f, 0.40f, 1.00f);  // clear blue tint
+        style.setColor(ImGuiCol.TabUnfocused,          0.11f, 0.11f, 0.11f, 1.00f);
+        style.setColor(ImGuiCol.TabUnfocusedActive,    0.13f, 0.20f, 0.30f, 1.00f);  // visible blue
 
-        style.setColor(ImGuiCol.PlotLines, 0.60f, 0.60f, 0.60f, 1.00f);
-        style.setColor(ImGuiCol.PlotLinesHovered, 1.00f, 0.70f, 0.40f, 1.00f);
-        style.setColor(ImGuiCol.PlotHistogram, 0.40f, 0.70f, 1.00f, 1.00f);
-        style.setColor(ImGuiCol.PlotHistogramHovered, 1.00f, 0.80f, 0.50f, 1.00f);
+        // -- Docking --
+        style.setColor(ImGuiCol.DockingPreview,        0.28f, 0.52f, 0.82f, 0.50f);
+        style.setColor(ImGuiCol.DockingEmptyBg,        0.08f, 0.08f, 0.08f, 1.00f);
 
-        style.setColor(ImGuiCol.TableHeaderBg, 0.14f, 0.14f, 0.16f, 1.00f);
-        style.setColor(ImGuiCol.TableBorderStrong, 0.30f, 0.30f, 0.35f, 1.00f);
-        style.setColor(ImGuiCol.TableBorderLight, 0.20f, 0.20f, 0.24f, 1.00f);
-        style.setColor(ImGuiCol.TableRowBg, 0.00f, 0.00f, 0.00f, 0.00f);
-        style.setColor(ImGuiCol.TableRowBgAlt, 0.10f, 0.10f, 0.12f, 0.50f);
+        // -- Plots --
+        style.setColor(ImGuiCol.PlotLines,             0.60f, 0.60f, 0.60f, 1.00f);
+        style.setColor(ImGuiCol.PlotLinesHovered,      1.00f, 0.70f, 0.40f, 1.00f);
+        style.setColor(ImGuiCol.PlotHistogram,         0.35f, 0.62f, 0.95f, 1.00f);
+        style.setColor(ImGuiCol.PlotHistogramHovered,  1.00f, 0.80f, 0.50f, 1.00f);
 
-        style.setColor(ImGuiCol.TextSelectedBg, 0.40f, 0.70f, 1.00f, 0.35f);
+        // -- Tables --
+        style.setColor(ImGuiCol.TableHeaderBg,         0.15f, 0.15f, 0.15f, 1.00f);
+        style.setColor(ImGuiCol.TableBorderStrong,     0.10f, 0.10f, 0.10f, 1.00f);
+        style.setColor(ImGuiCol.TableBorderLight,      0.15f, 0.15f, 0.15f, 1.00f);
+        style.setColor(ImGuiCol.TableRowBg,            0.00f, 0.00f, 0.00f, 0.00f);
+        style.setColor(ImGuiCol.TableRowBgAlt,         0.16f, 0.16f, 0.16f, 0.40f);
 
-        style.setColor(ImGuiCol.DragDropTarget, 0.40f, 0.70f, 1.00f, 0.90f);
+        // -- Selection & interaction --
+        style.setColor(ImGuiCol.TextSelectedBg,        0.22f, 0.44f, 0.70f, 0.50f);
+        style.setColor(ImGuiCol.DragDropTarget,        0.35f, 0.62f, 0.95f, 0.90f);
 
-        style.setColor(ImGuiCol.NavHighlight, 0.40f, 0.70f, 1.00f, 1.00f);
-        style.setColor(ImGuiCol.NavWindowingHighlight, 1.00f, 1.00f, 1.00f, 0.70f);
-        style.setColor(ImGuiCol.NavWindowingDimBg, 0.80f, 0.80f, 0.80f, 0.20f);
-        style.setColor(ImGuiCol.ModalWindowDimBg, 0.20f, 0.20f, 0.20f, 0.35f);
+        // -- Navigation --
+        style.setColor(ImGuiCol.NavHighlight,          0.35f, 0.62f, 0.95f, 1.00f);
+        style.setColor(ImGuiCol.NavWindowingHighlight,  1.00f, 1.00f, 1.00f, 0.70f);
+        style.setColor(ImGuiCol.NavWindowingDimBg,     0.80f, 0.80f, 0.80f, 0.20f);
+        style.setColor(ImGuiCol.ModalWindowDimBg,      0.00f, 0.00f, 0.00f, 0.50f);
+    }
+
+    /**
+     * Applies a Unity-inspired light gray theme with vivid blue accents on interactive elements.
+     */
+    @SuppressWarnings("unused")
+    private void applyLightTheme() {
+        ImGui.styleColorsLight();
+
+        ImGuiStyle style = ImGui.getStyle();
+
+        style.setWindowRounding(1.0f);
+        style.setFrameRounding(1.0f);
+        style.setScrollbarRounding(1.0f);
+        style.setGrabRounding(1.0f);
+        style.setTabRounding(1.0f);
+
+        style.setWindowBorderSize(1.0f);
+        style.setFrameBorderSize(1.0f);
+        style.setPopupBorderSize(1.0f);
+
+        style.setWindowPadding(8.0f, 8.0f);
+        style.setFramePadding(4.0f, 3.0f);
+        style.setItemSpacing(8.0f, 4.0f);
+        style.setItemInnerSpacing(4.0f, 4.0f);
+
+        // -- Text --
+        style.setColor(ImGuiCol.Text,                 0.13f, 0.13f, 0.13f, 1.00f);  // #222222
+        style.setColor(ImGuiCol.TextDisabled,          0.45f, 0.45f, 0.45f, 1.00f);
+
+        // -- Backgrounds --
+        style.setColor(ImGuiCol.WindowBg,              0.76f, 0.76f, 0.76f, 1.00f);  // #C2C2C2
+        style.setColor(ImGuiCol.ChildBg,               0.76f, 0.76f, 0.76f, 1.00f);
+        style.setColor(ImGuiCol.PopupBg,               0.82f, 0.82f, 0.82f, 1.00f);  // #D1D1D1
+        style.setColor(ImGuiCol.Border,                0.60f, 0.60f, 0.60f, 1.00f);  // #999999
+        style.setColor(ImGuiCol.BorderShadow,          0.00f, 0.00f, 0.00f, 0.00f);
+
+        // -- Input fields --
+        style.setColor(ImGuiCol.FrameBg,               0.88f, 0.88f, 0.88f, 1.00f);  // #E0E0E0
+        style.setColor(ImGuiCol.FrameBgHovered,        0.84f, 0.84f, 0.84f, 1.00f);  // #D6D6D6
+        style.setColor(ImGuiCol.FrameBgActive,         0.58f, 0.73f, 0.90f, 1.00f);  // blue tint on active
+
+        // -- Title bars --
+        style.setColor(ImGuiCol.TitleBg,               0.68f, 0.68f, 0.68f, 1.00f);  // #ADADAD
+        style.setColor(ImGuiCol.TitleBgActive,         0.68f, 0.68f, 0.68f, 1.00f);
+        style.setColor(ImGuiCol.TitleBgCollapsed,      0.68f, 0.68f, 0.68f, 0.50f);
+
+        // -- Menu bar --
+        style.setColor(ImGuiCol.MenuBarBg,             0.72f, 0.72f, 0.72f, 1.00f);  // #B8B8B8
+
+        // -- Scrollbar --
+        style.setColor(ImGuiCol.ScrollbarBg,           0.76f, 0.76f, 0.76f, 1.00f);
+        style.setColor(ImGuiCol.ScrollbarGrab,         0.55f, 0.55f, 0.55f, 1.00f);
+        style.setColor(ImGuiCol.ScrollbarGrabHovered,  0.48f, 0.48f, 0.48f, 1.00f);
+        style.setColor(ImGuiCol.ScrollbarGrabActive,   0.40f, 0.40f, 0.40f, 1.00f);
+
+        // -- Accent blue (same vivid blue as dark theme) --
+        style.setColor(ImGuiCol.CheckMark,             0.20f, 0.45f, 0.78f, 1.00f);
+
+        style.setColor(ImGuiCol.SliderGrab,            0.20f, 0.45f, 0.78f, 1.00f);
+        style.setColor(ImGuiCol.SliderGrabActive,      0.15f, 0.38f, 0.68f, 1.00f);
+
+        // -- Buttons (blue that pops against light background) --
+        style.setColor(ImGuiCol.Button,                0.42f, 0.58f, 0.80f, 1.00f);  // visible blue at rest
+        style.setColor(ImGuiCol.ButtonHovered,         0.48f, 0.65f, 0.88f, 1.00f);  // brighter on hover
+        style.setColor(ImGuiCol.ButtonActive,          0.30f, 0.50f, 0.76f, 1.00f);  // deeper on press
+
+        // -- Headers (blue that reads clearly on light bg) --
+        style.setColor(ImGuiCol.Header,                0.52f, 0.66f, 0.84f, 1.00f);
+        style.setColor(ImGuiCol.HeaderHovered,         0.46f, 0.62f, 0.82f, 1.00f);
+        style.setColor(ImGuiCol.HeaderActive,          0.38f, 0.56f, 0.80f, 1.00f);
+
+        // -- Separators --
+        style.setColor(ImGuiCol.Separator,             0.60f, 0.60f, 0.60f, 1.00f);
+        style.setColor(ImGuiCol.SeparatorHovered,      0.28f, 0.52f, 0.82f, 0.70f);
+        style.setColor(ImGuiCol.SeparatorActive,       0.35f, 0.62f, 0.95f, 1.00f);
+
+        // -- Resize grips --
+        style.setColor(ImGuiCol.ResizeGrip,            0.55f, 0.55f, 0.55f, 0.50f);
+        style.setColor(ImGuiCol.ResizeGripHovered,     0.28f, 0.52f, 0.82f, 0.70f);
+        style.setColor(ImGuiCol.ResizeGripActive,      0.35f, 0.62f, 0.95f, 1.00f);
+
+        // -- Tabs (blue-tinted active) --
+        style.setColor(ImGuiCol.Tab,                   0.68f, 0.68f, 0.68f, 1.00f);  // inactive matches title
+        style.setColor(ImGuiCol.TabHovered,            0.52f, 0.66f, 0.84f, 1.00f);  // blue on hover
+        style.setColor(ImGuiCol.TabActive,             0.76f, 0.76f, 0.76f, 1.00f);  // matches window bg
+        style.setColor(ImGuiCol.TabUnfocused,          0.65f, 0.65f, 0.65f, 1.00f);
+        style.setColor(ImGuiCol.TabUnfocusedActive,    0.72f, 0.72f, 0.72f, 1.00f);
+
+        // -- Docking --
+        style.setColor(ImGuiCol.DockingPreview,        0.28f, 0.52f, 0.82f, 0.50f);
+        style.setColor(ImGuiCol.DockingEmptyBg,        0.82f, 0.82f, 0.82f, 1.00f);
+
+        // -- Plots --
+        style.setColor(ImGuiCol.PlotLines,             0.40f, 0.40f, 0.40f, 1.00f);
+        style.setColor(ImGuiCol.PlotLinesHovered,      0.90f, 0.50f, 0.20f, 1.00f);
+        style.setColor(ImGuiCol.PlotHistogram,         0.20f, 0.45f, 0.78f, 1.00f);
+        style.setColor(ImGuiCol.PlotHistogramHovered,  0.90f, 0.60f, 0.25f, 1.00f);
+
+        // -- Tables --
+        style.setColor(ImGuiCol.TableHeaderBg,         0.70f, 0.70f, 0.70f, 1.00f);
+        style.setColor(ImGuiCol.TableBorderStrong,     0.60f, 0.60f, 0.60f, 1.00f);
+        style.setColor(ImGuiCol.TableBorderLight,      0.68f, 0.68f, 0.68f, 1.00f);
+        style.setColor(ImGuiCol.TableRowBg,            0.00f, 0.00f, 0.00f, 0.00f);
+        style.setColor(ImGuiCol.TableRowBgAlt,         0.72f, 0.72f, 0.72f, 0.40f);
+
+        // -- Selection & interaction --
+        style.setColor(ImGuiCol.TextSelectedBg,        0.28f, 0.52f, 0.82f, 0.35f);
+        style.setColor(ImGuiCol.DragDropTarget,        0.35f, 0.62f, 0.95f, 0.90f);
+
+        // -- Navigation --
+        style.setColor(ImGuiCol.NavHighlight,          0.35f, 0.62f, 0.95f, 1.00f);
+        style.setColor(ImGuiCol.NavWindowingHighlight,  1.00f, 1.00f, 1.00f, 0.70f);
+        style.setColor(ImGuiCol.NavWindowingDimBg,     0.20f, 0.20f, 0.20f, 0.20f);
+        style.setColor(ImGuiCol.ModalWindowDimBg,      0.20f, 0.20f, 0.20f, 0.35f);
     }
 }

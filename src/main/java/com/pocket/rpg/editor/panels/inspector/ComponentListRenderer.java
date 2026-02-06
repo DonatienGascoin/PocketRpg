@@ -16,7 +16,9 @@ import com.pocket.rpg.editor.undo.commands.SwapTransformCommand;
 import com.pocket.rpg.editor.utils.TransformSwapHelper;
 import com.pocket.rpg.serialization.ComponentRegistry;
 import imgui.ImGui;
+import imgui.ImVec2;
 import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiTreeNodeFlags;
 
 import java.util.List;
@@ -55,6 +57,8 @@ public class ComponentListRenderer {
         } else {
             Component toRemove = null;
 
+            float padding = ImGui.getStyle().getWindowPaddingX();
+
             for (int i = 0; i < components.size(); i++) {
                 Component comp = components.get(i);
                 ImGui.pushID(i);
@@ -65,7 +69,10 @@ public class ComponentListRenderer {
                     label += " *";
                 }
 
+                // Extend header to left window edge
+                ImGui.indent(-padding);
                 boolean open = ImGui.collapsingHeader(label, ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.AllowOverlap);
+                ImGui.indent(padding);
 
                 if (allowStructuralChanges) {
                     boolean isTransform = comp instanceof Transform;
@@ -117,7 +124,6 @@ public class ComponentListRenderer {
                         dirtyTracker.markDirty();
                     }
                 }
-
                 ImGui.popID();
             }
 
@@ -128,8 +134,16 @@ public class ComponentListRenderer {
         }
 
         if (allowStructuralChanges) {
-            ImGui.separator();
-            if (ImGui.button(MaterialIcons.Add + " Add Component", -1, 0)) {
+            ImGui.spacing();
+            float y = ImGui.getCursorScreenPosY();
+            float x1 = ImGui.getWindowPosX();
+            float x2 = x1 + ImGui.getWindowSizeX();
+            ImGui.getWindowDrawList().addLine(x1, y, x2, y, ImGui.getColorU32(ImGuiCol.Separator), 2.0f);
+            ImGui.dummy(0, 1);
+
+            ImGui.dummy(new ImVec2(0.0f, 10.0f));
+            ImGui.setCursorPosX((ImGui.getContentRegionAvailX() / 2) - 75f);
+            if (ImGui.button("Add Component", 150, 30)) {
                 componentBrowserPopup.open(meta -> {
                     Component component = ComponentRegistry.instantiateByClassName(meta.className());
                     if (component != null) {
@@ -138,8 +152,10 @@ public class ComponentListRenderer {
                     }
                 });
             }
+            ImGui.dummy(new ImVec2(0.0f, 10.0f));
         }
     }
+
 
     /**
      * Renders the ComponentBrowserPopup (must be called each frame).

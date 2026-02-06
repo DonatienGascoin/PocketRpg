@@ -85,7 +85,6 @@
         {
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
-            "componentKey": "OpponentHpBar",
             "raycastTarget": true,
             "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/Battle/OpponentPokemonSlot.png",
             "color": {
@@ -151,7 +150,6 @@
         {
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
-            "componentKey": "PlayerHpBar",
             "raycastTarget": true,
             "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/Battle/PokemonSlot.png",
             "color": {
@@ -631,7 +629,6 @@
         {
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
-            "componentKey": "DialogueBG",
             "raycastTarget": true,
             "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/Battle/battleDialogue.png",
             "color": {
@@ -697,7 +694,6 @@
         {
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
-            "componentKey": "PlayerPokemon",
             "raycastTarget": true,
             "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/Battle/pikachu.png",
             "color": {
@@ -763,7 +759,6 @@
         {
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
-            "componentKey": "OpponentPokemon",
             "raycastTarget": true,
             "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/Battle/carabaffe.png",
             "color": {

@@ -1,13 +1,12 @@
 package com.pocket.rpg.editor.ui.fields;
 
 import com.pocket.rpg.components.Component;
-import com.pocket.rpg.components.ui.UIComponent;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.SetComponentFieldCommand;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
-import com.pocket.rpg.serialization.UiKeyRefMeta;
+import com.pocket.rpg.serialization.ComponentReferenceMeta;
 import imgui.ImGui;
 import imgui.type.ImInt;
 
@@ -15,29 +14,30 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Field editor for @UiKeyReference fields.
- * Draws a combo dropdown populated with all uiKey values in the current scene,
- * filtered by the expected UIComponent type from the @UiKeyReference annotation.
+ * Field editor for {@code @ComponentReference(source = Source.KEY)} fields.
+ * Draws a combo dropdown populated with all componentKey values in the current scene,
+ * filtered by the expected component type.
  */
-public final class UiKeyReferenceEditor {
+public final class ComponentKeyReferenceEditor {
 
     private static final ImInt intBuffer = new ImInt();
 
-    private UiKeyReferenceEditor() {}
+    private ComponentKeyReferenceEditor() {}
 
     /**
-     * Draws a dropdown of available UI keys for a @UiKeyReference field.
+     * Draws a dropdown of available component keys for a KEY mode field.
      *
      * @param label     Display label
      * @param component The component being edited
-     * @param fieldName The @UiKeyReference field name
-     * @param refMeta   The @UiKeyReference metadata (for type filtering)
+     * @param fieldName The field name
+     * @param refMeta   The metadata (for type filtering)
      * @return true if the value changed
      */
-    public static boolean draw(String label, Component component, String fieldName, UiKeyRefMeta refMeta) {
+    public static boolean draw(String label, Component component, String fieldName,
+                                ComponentReferenceMeta refMeta) {
         String currentKey = ComponentReflectionUtils.getString(component, fieldName, "");
 
-        // Collect all available UI keys from the scene
+        // Collect all available keys from the scene
         List<String> availableKeys = collectAvailableKeys(refMeta.componentType());
 
         // Build display array: first entry is "(none)" for empty/unset
@@ -58,7 +58,6 @@ public final class UiKeyReferenceEditor {
             }
             // If key is set but not found in scene, add it as a special entry
             if (currentIndex == 0) {
-                // Key exists but isn't in the scene — show it with a warning marker
                 String[] extended = new String[displayNames.length + 1];
                 extended[0] = displayNames[0];
                 extended[1] = currentKey + " (missing)";
@@ -87,9 +86,8 @@ public final class UiKeyReferenceEditor {
             int selectedIndex = intBuffer.get();
 
             if (selectedIndex == 0) {
-                newValue = ""; // (none) selected
+                newValue = "";
             } else {
-                // Account for possible "(missing)" entry
                 String selectedDisplay = names[selectedIndex];
                 if (selectedDisplay.endsWith(" (missing)")) {
                     newValue = selectedDisplay.substring(0, selectedDisplay.length() - " (missing)".length());
@@ -101,7 +99,6 @@ public final class UiKeyReferenceEditor {
             ComponentReflectionUtils.setFieldValue(component, fieldName, newValue);
             FieldEditorContext.markFieldOverridden(fieldName, newValue);
 
-            // Combo is instant change — push undo immediately
             UndoManager.getInstance().push(
                     new SetComponentFieldCommand(component, fieldName, oldValue, newValue, FieldEditorContext.getEntity())
             );
@@ -109,8 +106,8 @@ public final class UiKeyReferenceEditor {
 
         // Tooltip showing the resolved type
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("UI Key reference → " + refMeta.componentType().getSimpleName() +
-                    "\nResolved at runtime via UIManager.");
+            ImGui.setTooltip("Component Key reference \u2192 " + refMeta.componentType().getSimpleName() +
+                    "\nResolved at runtime via ComponentKeyRegistry.");
         }
 
         boolean reset = FieldEditorUtils.drawResetButtonIfNeeded(component, fieldName);
@@ -120,10 +117,10 @@ public final class UiKeyReferenceEditor {
     }
 
     /**
-     * Collects all non-empty uiKey values from UIComponents in the current editor scene,
+     * Collects all non-empty componentKey values from components in the current editor scene,
      * filtered to only include components assignable to the expected type.
      */
-    private static List<String> collectAvailableKeys(Class<? extends UIComponent> expectedType) {
+    private static List<String> collectAvailableKeys(Class<? extends Component> expectedType) {
         List<String> keys = new ArrayList<>();
         EditorScene scene = FieldEditorContext.getCurrentScene();
         if (scene == null) {
@@ -132,12 +129,10 @@ public final class UiKeyReferenceEditor {
 
         for (EditorGameObject entity : scene.getEntities()) {
             for (Component comp : entity.getComponents()) {
-                if (comp instanceof UIComponent uiComp) {
-                    String key = uiComp.getUiKey();
-                    if (key != null && !key.isBlank() && expectedType.isInstance(uiComp)) {
-                        if (!keys.contains(key)) {
-                            keys.add(key);
-                        }
+                String key = comp.getComponentKey();
+                if (key != null && !key.isBlank() && expectedType.isInstance(comp)) {
+                    if (!keys.contains(key)) {
+                        keys.add(key);
                     }
                 }
             }

@@ -12,7 +12,7 @@ import com.pocket.rpg.editor.scene.RuntimeSceneLoader;
 import com.pocket.rpg.save.SaveManager;
 import com.pocket.rpg.serialization.GameObjectData;
 import com.pocket.rpg.serialization.SceneData;
-import com.pocket.rpg.ui.UIManager;
+import com.pocket.rpg.ui.ComponentKeyRegistry;
 import lombok.Getter;
 import lombok.NonNull;
 
@@ -127,10 +127,10 @@ public class SceneManager {
      * @param sceneName name of the scene to load
      */
     public void loadScene(String sceneName) {
-        // Clear UIManager before file-based loading, which registers
+        // Clear ComponentKeyRegistry before file-based loading, which registers
         // keys during addGameObject(). Without this, stale keys from the
         // current scene would trigger overwrite warnings.
-        UIManager.clear();
+        ComponentKeyRegistry.clear();
 
         // First check registered scenes
         Scene scene = scenes.get(sceneName);
@@ -501,11 +501,11 @@ public class SceneManager {
             currentScene.destroy();
             fireSceneUnloaded(currentScene);
         }
-        // Clear UIManager so the next session starts clean.
-        // Note: UiKeyRefResolver.pendingKeys is NOT cleared here — it uses
+        // Clear ComponentKeyRegistry so the next session starts clean.
+        // Note: ComponentReferenceResolver.pendingKeys is NOT cleared here — it uses
         // identity hash codes, so entries for destroyed components are orphaned
         // and harmless. Clearing would wipe editor component keys too.
-        UIManager.clear();
+        ComponentKeyRegistry.clear();
 
         GameCamera.setMainCamera(null);
         scenes.clear();

@@ -114,7 +114,7 @@ public class ComponentFieldEditor {
             ImGui.popID();
         }
 
-        ReflectionFieldEditor.drawComponentReferences(meta.references(), entity);
+        ReflectionFieldEditor.drawComponentReferences(meta.hierarchyReferences(), entity);
 
         return changed;
     }

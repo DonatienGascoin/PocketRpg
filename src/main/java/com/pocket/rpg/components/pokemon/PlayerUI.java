@@ -2,8 +2,8 @@ package com.pocket.rpg.components.pokemon;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ComponentMeta;
-import com.pocket.rpg.components.ComponentRef;
-import com.pocket.rpg.components.UiKeyReference;
+import com.pocket.rpg.components.ComponentReference;
+import com.pocket.rpg.components.ComponentReference.Source;
 import com.pocket.rpg.components.ui.UIText;
 import com.pocket.rpg.logging.Log;
 import com.pocket.rpg.logging.Logger;
@@ -11,7 +11,7 @@ import com.pocket.rpg.logging.Logger;
 /**
  * Updates UI elements based on player state.
  * <p>
- * Uses @UiKeyReference to resolve UI components from UIManager keys
+ * Uses @ComponentReference to resolve UI components from ComponentKeyRegistry keys
  * configured in the editor, eliminating magic strings.
  */
 @ComponentMeta(category = "Player")
@@ -19,11 +19,11 @@ public class PlayerUI extends Component {
 
     private static final Logger LOG = Log.getLogger(PlayerUI.class);
 
-    @ComponentRef
+    @ComponentReference(source = Source.SELF)
     private GridMovement movement;
 
-    /** Serialized as a JSON string key, resolved at runtime via UIManager */
-    @UiKeyReference
+    /** Serialized as a JSON string key, resolved at runtime via ComponentKeyRegistry */
+    @ComponentReference(source = Source.KEY)
     private UIText elevationText;
 
     public PlayerUI() {

@@ -4,7 +4,8 @@ import com.pocket.rpg.collision.Direction;
 import com.pocket.rpg.collision.TileEntityMap;
 import com.pocket.rpg.collision.trigger.TileCoord;
 import com.pocket.rpg.components.Component;
-import com.pocket.rpg.components.ComponentRef;
+import com.pocket.rpg.components.ComponentReference;
+import com.pocket.rpg.components.ComponentReference.Source;
 import com.pocket.rpg.components.RequiredComponent;
 import com.pocket.rpg.components.Tooltip;
 import com.pocket.rpg.core.GameObject;
@@ -107,7 +108,7 @@ public abstract class InteractableComponent extends Component implements Interac
     // RUNTIME STATE — not serialized
     // ========================================================================
 
-    @ComponentRef
+    @ComponentReference(source = Source.SELF)
     private TriggerZone triggerZone;
 
     private transient TileEntityMap tileEntityMap;

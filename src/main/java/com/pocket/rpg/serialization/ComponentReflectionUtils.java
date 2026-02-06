@@ -34,9 +34,9 @@ public final class ComponentReflectionUtils {
             return null;
         }
 
-        // @UiKeyReference fields: return the pending key string, not the UIComponent field value
-        if (isUiKeyRefField(meta, fieldName)) {
-            String key = UiKeyRefResolver.getPendingKey(component, fieldName);
+        // @ComponentReference(source=KEY) fields: return the pending key string, not the Component field value
+        if (isKeyRefField(meta, fieldName)) {
+            String key = ComponentReferenceResolver.getPendingKey(component, fieldName);
             return key.isEmpty() ? null : key;
         }
 
@@ -78,10 +78,10 @@ public final class ComponentReflectionUtils {
             return false;
         }
 
-        // @UiKeyReference fields: store the key string in the pending map, not on the UIComponent field
-        if (isUiKeyRefField(meta, fieldName)) {
+        // @ComponentReference(source=KEY) fields: store the key string in the pending map
+        if (isKeyRefField(meta, fieldName)) {
             String key = value instanceof String s ? s : (value != null ? value.toString() : "");
-            UiKeyRefResolver.storePendingKey(component, fieldName, key);
+            ComponentReferenceResolver.storePendingKey(component, fieldName, key);
             return true;
         }
 
@@ -380,11 +380,11 @@ public final class ComponentReflectionUtils {
     }
 
     /**
-     * Checks if a field is a @UiKeyReference field on a component.
+     * Checks if a field is a @ComponentReference(source=KEY) field on a component.
      */
-    private static boolean isUiKeyRefField(ComponentMeta meta, String fieldName) {
-        for (UiKeyRefMeta ref : meta.uiKeyRefs()) {
-            if (ref.fieldName().equals(fieldName)) {
+    private static boolean isKeyRefField(ComponentMeta meta, String fieldName) {
+        for (ComponentReferenceMeta ref : meta.componentReferences()) {
+            if (ref.isKeySource() && ref.fieldName().equals(fieldName)) {
                 return true;
             }
         }

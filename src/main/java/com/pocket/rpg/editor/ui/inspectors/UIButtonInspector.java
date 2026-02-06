@@ -38,7 +38,7 @@ public class UIButtonInspector extends CustomComponentInspector<UIButton> {
         boolean changed = false;
 
         // === UI KEY ===
-        changed |= UIKeyField.draw(component);
+        changed |= ComponentKeyField.draw(component);
 
         // === TRANSITION SECTION ===
         ImGui.text(MaterialIcons.SwapHoriz + " Transition");

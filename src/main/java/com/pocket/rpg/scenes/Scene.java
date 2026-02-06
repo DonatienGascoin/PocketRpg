@@ -11,15 +11,13 @@ import com.pocket.rpg.components.pokemon.GridMovement;
 import com.pocket.rpg.components.rendering.SpriteRenderer;
 import com.pocket.rpg.scenes.transitions.SceneTransition;
 import com.pocket.rpg.components.ui.UICanvas;
-import com.pocket.rpg.components.ui.UIComponent;
 import com.pocket.rpg.config.RenderingConfig;
-import com.pocket.rpg.ui.UIManager;
+import com.pocket.rpg.ui.ComponentKeyRegistry;
 import com.pocket.rpg.core.camera.GameCamera;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.core.window.ViewportConfig;
 import com.pocket.rpg.rendering.core.Renderable;
-import com.pocket.rpg.serialization.ComponentRefResolver;
-import com.pocket.rpg.serialization.UiKeyRefResolver;
+import com.pocket.rpg.serialization.ComponentReferenceResolver;
 import lombok.Getter;
 
 import java.util.ArrayList;
@@ -223,14 +221,9 @@ public abstract class Scene {
 
         onLoad();
 
-        // Resolve @ComponentRef annotations after hierarchy is established
+        // Resolve all @ComponentReference annotations (hierarchy + key in single pass)
         for (GameObject go : gameObjects) {
-            ComponentRefResolver.resolveReferences(go);
-        }
-
-        // Resolve @UiKeyReference annotations after UIManager keys are registered
-        for (GameObject go : gameObjects) {
-            UiKeyRefResolver.resolveReferences(go);
+            ComponentReferenceResolver.resolveAll(go);
         }
 
         for (GameObject go : gameObjects) {
@@ -310,7 +303,7 @@ public abstract class Scene {
         registerCachedComponents(obj);
 
         if (initialized) {
-            ComponentRefResolver.resolveReferences(obj);
+            ComponentReferenceResolver.resolveAll(obj);
             obj.start();
         }
     }
@@ -352,12 +345,10 @@ public abstract class Scene {
                     renderableSortDirty = true;
                 }
             }
-            // Register UIComponent with UIManager if uiKey is set
-            if (component instanceof UIComponent uiComp) {
-                String key = uiComp.getUiKey();
-                if (key != null && !key.isBlank()) {
-                    UIManager.register(key, uiComp);
-                }
+            // Register component with ComponentKeyRegistry if componentKey is set
+            String key = component.getComponentKey();
+            if (key != null && !key.isBlank()) {
+                ComponentKeyRegistry.register(key, component);
             }
         }
 
@@ -385,12 +376,10 @@ public abstract class Scene {
         if (component instanceof UICanvas canvas && !uiCanvases.contains(canvas)) {
             insertCanvasSorted(canvas);
         }
-        // Register UIComponent with UIManager if uiKey is set
-        if (component instanceof UIComponent uiComp) {
-            String key = uiComp.getUiKey();
-            if (key != null && !key.isBlank()) {
-                UIManager.register(key, uiComp);
-            }
+        // Register component with ComponentKeyRegistry if componentKey is set
+        String key = component.getComponentKey();
+        if (key != null && !key.isBlank()) {
+            ComponentKeyRegistry.register(key, component);
         }
     }
 
@@ -402,12 +391,10 @@ public abstract class Scene {
             if (component instanceof Renderable) {
                 renderables.remove(component);
             }
-            // Unregister UIComponent from UIManager if uiKey is set
-            if (component instanceof UIComponent uiComp) {
-                String key = uiComp.getUiKey();
-                if (key != null && !key.isBlank()) {
-                    UIManager.unregister(key);
-                }
+            // Unregister component from ComponentKeyRegistry if componentKey is set
+            String key = component.getComponentKey();
+            if (key != null && !key.isBlank()) {
+                ComponentKeyRegistry.unregister(key);
             }
         }
         uiCanvases.removeAll(gameObject.getComponents(UICanvas.class));
@@ -427,12 +414,10 @@ public abstract class Scene {
         if (component instanceof UICanvas canvas) {
             uiCanvases.remove(canvas);
         }
-        // Unregister UIComponent from UIManager if uiKey is set
-        if (component instanceof UIComponent uiComp) {
-            String key = uiComp.getUiKey();
-            if (key != null && !key.isBlank()) {
-                UIManager.unregister(key);
-            }
+        // Unregister component from ComponentKeyRegistry if componentKey is set
+        String key = component.getComponentKey();
+        if (key != null && !key.isBlank()) {
+            ComponentKeyRegistry.unregister(key);
         }
     }
 

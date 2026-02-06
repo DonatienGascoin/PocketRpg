@@ -2,19 +2,21 @@ package com.pocket.rpg.editor.ui.fields;
 
 import com.pocket.rpg.audio.clips.AudioClip;
 import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.ComponentReference;
 import com.pocket.rpg.components.Tooltip;
+import com.pocket.rpg.core.IGameObject;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.hierarchy.HierarchyItem;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.SetComponentFieldCommand;
+import com.pocket.rpg.editor.ui.inspectors.ComponentKeyField;
 import com.pocket.rpg.editor.ui.inspectors.CustomComponentEditorRegistry;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.serialization.ComponentMeta;
-import com.pocket.rpg.serialization.ComponentRefMeta;
+import com.pocket.rpg.serialization.ComponentReferenceMeta;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import com.pocket.rpg.serialization.FieldMeta;
-import com.pocket.rpg.serialization.UiKeyRefMeta;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import org.joml.Vector2f;
@@ -48,7 +50,7 @@ public class ReflectionFieldEditor {
         if (CustomComponentEditorRegistry.hasCustomEditor(component.getClass().getName())) {
             boolean changed = CustomComponentEditorRegistry.drawCustomEditor(component, hierarchyEntity);
             // Still draw component references after custom editor
-            drawComponentReferences(meta.references(), editorEntity);
+            drawComponentReferences(meta.hierarchyReferences(), hierarchyEntity);
             return changed;
         }
 
@@ -56,6 +58,10 @@ public class ReflectionFieldEditor {
         FieldEditorContext.begin(editorEntity, component);
         try {
             boolean changed = false;
+
+            // Draw componentKey field at top of every inspector
+            changed |= ComponentKeyField.draw(component);
+
             for (FieldMeta fieldMeta : meta.fields()) {
                 try {
                     changed |= drawField(component, fieldMeta, editorEntity);
@@ -63,7 +69,7 @@ public class ReflectionFieldEditor {
                     ImGui.textColored(1f, 0.3f, 0.3f, 1f, fieldMeta.name() + ": Error");
                 }
             }
-            drawComponentReferences(meta.references(), editorEntity);
+            drawComponentReferences(meta.hierarchyReferences(), hierarchyEntity);
             return changed;
         } finally {
             FieldEditorContext.end();
@@ -110,10 +116,10 @@ public class ReflectionFieldEditor {
         // Begin row highlight for missing required fields
         boolean requiredHighlight = FieldEditorContext.beginRequiredRowHighlight(fieldName);
 
-        // @UiKeyReference fields — intercept before type dispatch
-        UiKeyRefMeta uiKeyRef = findUiKeyRefForField(component, fieldName);
-        if (uiKeyRef != null) {
-            fieldChanged = UiKeyReferenceEditor.draw(label, component, fieldName, uiKeyRef);
+        // @ComponentReference(source=KEY) fields — intercept before type dispatch
+        ComponentReferenceMeta keyRef = findKeyRefForField(component, fieldName);
+        if (keyRef != null) {
+            fieldChanged = ComponentKeyReferenceEditor.draw(label, component, fieldName, keyRef);
 
             // End row highlight
             FieldEditorContext.endRequiredRowHighlight(requiredHighlight);
@@ -193,15 +199,15 @@ public class ReflectionFieldEditor {
     }
 
     /**
-     * Checks if a field is a @UiKeyReference field on this component.
+     * Checks if a field is a @ComponentReference(source=KEY) field on this component.
      */
-    private static UiKeyRefMeta findUiKeyRefForField(Component component, String fieldName) {
+    private static ComponentReferenceMeta findKeyRefForField(Component component, String fieldName) {
         ComponentMeta meta = ComponentReflectionUtils.getMeta(component);
-        if (meta == null || meta.uiKeyRefs().isEmpty()) {
+        if (meta == null || meta.componentReferences().isEmpty()) {
             return null;
         }
-        for (UiKeyRefMeta ref : meta.uiKeyRefs()) {
-            if (ref.fieldName().equals(fieldName)) {
+        for (ComponentReferenceMeta ref : meta.componentReferences()) {
+            if (ref.isKeySource() && ref.fieldName().equals(fieldName)) {
                 return ref;
             }
         }
@@ -219,11 +225,11 @@ public class ReflectionFieldEditor {
         return (a == b) || (a != null && a.equals(b));
     }
 
-    public static void drawComponentReferences(List<ComponentRefMeta> references, EditorGameObject entity) {
+    public static void drawComponentReferences(List<ComponentReferenceMeta> references, HierarchyItem entity) {
         if (references == null || references.isEmpty()) return;
 
-        for (ComponentRefMeta ref : references) {
-            ImGui.pushID(ref.name());
+        for (ComponentReferenceMeta ref : references) {
+            ImGui.pushID(ref.fieldName());
 
             String label = ref.getDisplayName();
             String description = ref.getEditorDescription();
@@ -285,7 +291,6 @@ public class ReflectionFieldEditor {
                         }
                     }
                     case UNKNOWN -> {
-                        ImGui.text("Cannot verify - requires parent/children");
                         ImGui.textDisabled("Will be resolved at runtime");
                     }
                 }
@@ -296,19 +301,40 @@ public class ReflectionFieldEditor {
         }
     }
 
-    private static ReferenceStatus checkReferenceStatus(ComponentRefMeta ref, EditorGameObject entity) {
+    private static ReferenceStatus checkReferenceStatus(ComponentReferenceMeta ref, HierarchyItem entity) {
         if (entity == null) {
             return ReferenceStatus.UNKNOWN;
         }
 
         return switch (ref.source()) {
             case SELF -> {
-                // Check if entity has a component of the required type
                 boolean found = hasComponentOfType(entity, ref.componentType());
                 yield found ? ReferenceStatus.FOUND : ReferenceStatus.NOT_FOUND;
             }
-            case PARENT, CHILDREN, CHILDREN_RECURSIVE -> {
-                // Can't verify parent/children in editor without scene hierarchy
+            case PARENT -> {
+                HierarchyItem parent = entity.getHierarchyParent();
+                if (parent == null) {
+                    yield ReferenceStatus.NOT_FOUND;
+                }
+                boolean found = hasComponentOfType(parent, ref.componentType());
+                yield found ? ReferenceStatus.FOUND : ReferenceStatus.NOT_FOUND;
+            }
+            case CHILDREN -> {
+                boolean found = false;
+                for (HierarchyItem child : entity.getHierarchyChildren()) {
+                    if (hasComponentOfType(child, ref.componentType())) {
+                        found = true;
+                        break;
+                    }
+                }
+                yield found ? ReferenceStatus.FOUND : ReferenceStatus.NOT_FOUND;
+            }
+            case CHILDREN_RECURSIVE -> {
+                boolean found = hasComponentOfTypeRecursive(entity, ref.componentType());
+                yield found ? ReferenceStatus.FOUND : ReferenceStatus.NOT_FOUND;
+            }
+            case KEY -> {
+                // KEY references are displayed as dropdowns, not status indicators
                 yield ReferenceStatus.UNKNOWN;
             }
         };
@@ -317,21 +343,27 @@ public class ReflectionFieldEditor {
     /**
      * Checks if an entity has a component of the given type.
      */
-    private static boolean hasComponentOfType(EditorGameObject entity, Class<?> componentType) {
-        String targetTypeName = componentType.getName();
-
-        // Check scratch entity components
-        for (Component comp : entity.getComponents()) {
+    private static boolean hasComponentOfType(IGameObject entity, Class<?> componentType) {
+        for (Component comp : entity.getAllComponents()) {
             if (componentType.isInstance(comp)) {
                 return true;
             }
         }
+        return false;
+    }
 
-        // Check if it's Transform (always present)
-        if (targetTypeName.equals("com.pocket.rpg.components.core.Transform")) {
-            return true;
+    /**
+     * Recursively checks children for a component of the given type.
+     */
+    private static boolean hasComponentOfTypeRecursive(HierarchyItem entity, Class<?> componentType) {
+        for (HierarchyItem child : entity.getHierarchyChildren()) {
+            if (hasComponentOfType(child, componentType)) {
+                return true;
+            }
+            if (hasComponentOfTypeRecursive(child, componentType)) {
+                return true;
+            }
         }
-
         return false;
     }
 
@@ -341,7 +373,7 @@ public class ReflectionFieldEditor {
     private enum ReferenceStatus {
         FOUND,      // Component exists
         NOT_FOUND,  // Component missing
-        UNKNOWN     // Can't determine (parent/children reference)
+        UNKNOWN     // Can't determine (e.g. KEY reference)
     }
 
     public static void renderAssetPicker() {

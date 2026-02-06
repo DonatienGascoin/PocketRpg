@@ -270,6 +270,7 @@
         {
           "type": "com.pocket.rpg.components.ui.UIText",
           "properties": {
+            "componentKey": "ElevationText",
             "raycastTarget": true,
             "fontPath": "fonts/Pokemon-Red.ttf",
             "fontSize": 30,
@@ -979,6 +980,7 @@
         {
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
+            "componentKey": "PauseMenu",
             "raycastTarget": true,
             "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/Panels/panel-light - md.png",
             "color": {

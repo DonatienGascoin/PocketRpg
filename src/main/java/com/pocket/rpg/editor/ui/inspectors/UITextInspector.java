@@ -49,7 +49,7 @@ public class UITextInspector extends CustomComponentInspector<UIText> {
         boolean changed = false;
 
         // === UI KEY ===
-        changed |= UIKeyField.draw(component);
+        changed |= ComponentKeyField.draw(component);
 
         // === CONTENT SECTION ===
         ImGui.text(MaterialIcons.TextFields + " Content");

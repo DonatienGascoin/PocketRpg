@@ -24,7 +24,7 @@ public class UICanvasInspector extends CustomComponentInspector<UICanvas> {
         boolean changed = false;
 
         // === UI KEY ===
-        changed |= UIKeyField.draw(component);
+        changed |= ComponentKeyField.draw(component);
 
         // Render Mode
         ImGui.text(MaterialIcons.DesktopWindows + " Render Mode");

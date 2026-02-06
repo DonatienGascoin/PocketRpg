@@ -26,6 +26,7 @@ import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiMouseButton;
 import imgui.flag.ImGuiPopupFlags;
+import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiTreeNodeFlags;
 import lombok.Getter;
 import lombok.Setter;
@@ -142,9 +143,7 @@ public class HierarchyPanel extends EditorPanel {
         }
         ImGui.end();
 
-        if (!isPlayMode() && !isPrefabEditMode()) {
-            dragDropHandler.resetDropTarget();
-        }
+        // resetFrame() is called inside renderEntitiesSection() each frame
     }
 
     private boolean isPlayMode() {
@@ -184,15 +183,19 @@ public class HierarchyPanel extends EditorPanel {
 
         ImGui.separator();
 
-        renderEntitiesSection();
-        renderEntityCreationMenu();
+        // Scrollable child region — header stays fixed above
+        if (ImGui.beginChild("##sceneEntities", 0, 0, false)) {
+            renderEntitiesSection();
+            renderEntityCreationMenu();
 
-        // Detect click on empty space to deselect all
-        if (ImGui.isMouseClicked(ImGuiMouseButton.Left)
-                && ImGui.isWindowHovered()
-                && !ImGui.isAnyItemHovered()) {
-            selectionHandler.clearSelection();
+            // Detect click on empty space to deselect all
+            if (ImGui.isMouseClicked(ImGuiMouseButton.Left)
+                    && ImGui.isWindowHovered()
+                    && !ImGui.isAnyItemHovered()) {
+                selectionHandler.clearSelection();
+            }
         }
+        ImGui.endChild();
     }
 
     private void renderPlayModeHeader() {
@@ -412,27 +415,38 @@ public class HierarchyPanel extends EditorPanel {
         }
         lastSelectedEntityIds = currentSelectedIds;
 
+        float baseIndentX = ImGui.getCursorScreenPosX();
+        dragDropHandler.resetFrame(baseIndentX);
+
         List<EditorGameObject> rootEntities = scene.getRootEntities();
         rootEntities.sort(Comparator.comparingInt(EditorGameObject::getOrder));
 
         if (rootEntities.isEmpty()) {
             ImGui.textDisabled("No entities");
-            dragDropHandler.renderDropZone(null, 0, null);
         } else {
-            for (int i = 0; i < rootEntities.size(); i++) {
-                EditorGameObject entity = rootEntities.get(i);
-                dragDropHandler.renderDropZone(null, i, entity);
-                treeRenderer.renderEntityTree(entity);
+            // Minimal vertical gap — 1px keeps nodes tight but leaves room for the drop indicator line
+            ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing,
+                    ImGui.getStyle().getItemSpacingX(), 1f);
+
+            for (EditorGameObject entity : rootEntities) {
+                treeRenderer.renderEntityTree(entity, 0);
             }
-            dragDropHandler.renderDropZone(null, rootEntities.size(), null);
+
+            ImGui.popStyleVar();
         }
 
+        dragDropHandler.drawDropIndicator();
         renderMultiSelectionContextMenu();
-        HierarchyDropTarget.handleEmptyAreaDrop(scene);
 
-        // If the user clicks on the invisible drop target (the "empty space"), clear selection
-        if (ImGui.isItemClicked(ImGuiMouseButton.Left)) {
-            selectionHandler.clearSelection();
+        // Empty area: invisible button for drops + deselect
+        float avail = ImGui.getContentRegionAvailY();
+        if (avail > 20) {
+            ImGui.invisibleButton("##empty_drop", ImGui.getContentRegionAvailX(), avail - 10);
+            HierarchyDropTarget.handleEmptyAreaDropOnLastItem(scene);
+            dragDropHandler.handleEmptyAreaEntityDrop(rootEntities.size());
+            if (ImGui.isItemClicked(ImGuiMouseButton.Left)) {
+                selectionHandler.clearSelection();
+            }
         }
     }
 

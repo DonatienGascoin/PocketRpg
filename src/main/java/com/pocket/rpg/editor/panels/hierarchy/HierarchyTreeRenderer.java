@@ -15,14 +15,12 @@ import com.pocket.rpg.editor.undo.commands.ReparentEntityCommand;
 import com.pocket.rpg.editor.utils.IconUtils;
 import com.pocket.rpg.prefab.Prefab;
 import imgui.ImGui;
-import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiMouseButton;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImString;
 import lombok.Setter;
-import org.joml.Vector3f;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -73,7 +71,7 @@ public class HierarchyTreeRenderer {
         }
     }
 
-    public void renderEntityTree(EditorGameObject entity) {
+    public void renderEntityTree(EditorGameObject entity, int depth) {
         boolean isRenaming = entity == renamingItem;
         boolean hasChildren = entity.hasChildren();
 
@@ -95,11 +93,6 @@ public class HierarchyTreeRenderer {
         if (isSelected) flags |= ImGuiTreeNodeFlags.Selected;
         if (!hasChildren) flags |= ImGuiTreeNodeFlags.Leaf | ImGuiTreeNodeFlags.NoTreePushOnOpen;
         else flags |= ImGuiTreeNodeFlags.DefaultOpen;
-
-        boolean isDropTarget = dragDropHandler.isDropTarget(entity);
-        if (isDropTarget) {
-            ImGui.pushStyleColor(ImGuiCol.Header, 0.3f, 0.5f, 0.8f, 0.5f);
-        }
 
         // Force-open ancestor nodes to reveal scroll target
         if (entitiesToForceOpen.contains(entity.getId())) {
@@ -131,15 +124,21 @@ public class HierarchyTreeRenderer {
         }
 
         // Cache this entity's rect for next frame's right-click pre-selection
+        float nodeMinY = ImGui.getItemRectMinY();
+        float nodeMaxY = ImGui.getItemRectMaxY();
         entityRectCache.put(entity.getId(), new float[]{
-                ImGui.getItemRectMinX(), ImGui.getItemRectMinY(),
-                ImGui.getItemRectMaxX(), ImGui.getItemRectMaxY()
+                ImGui.getItemRectMinX(), nodeMinY,
+                ImGui.getItemRectMaxX(), nodeMaxY
         });
 
         if (!isRenaming) {
             handleEntityInteraction(entity);
             dragDropHandler.handleDragSource(entity);
-            dragDropHandler.handleDropTarget(entity);
+            // Positional drop target (tree node is last item for beginDragDropTarget)
+            dragDropHandler.handlePositionalDrop(entity, nodeMinY, nodeMaxY,
+                    depth, hasChildren && nodeOpen);
+            // Asset drops on entity (also targets the tree node)
+            HierarchyDropTarget.handleEntityDrop(scene, entity);
             renderEntityContextMenu(entity);
         }
 
@@ -148,23 +147,14 @@ public class HierarchyTreeRenderer {
             List<EditorGameObject> children = new ArrayList<>(entity.getChildren());
             children.sort(Comparator.comparingInt(EditorGameObject::getOrder));
 
-            for (int i = 0; i < children.size(); i++) {
-                EditorGameObject child = children.get(i);
-                dragDropHandler.renderDropZone(entity, i, child);
-                renderEntityTree(child);
+            for (EditorGameObject child : children) {
+                renderEntityTree(child, depth + 1);
             }
 
-            dragDropHandler.renderDropZone(entity, children.size(), null);
             ImGui.treePop();
         }
 
-        if (isDropTarget) {
-            ImGui.popStyleColor();
-        }
-
         ImGui.popID();
-
-        HierarchyDropTarget.handleEntityDrop(scene, entity);
     }
 
     private void renderRenameField(EditorGameObject entity) {

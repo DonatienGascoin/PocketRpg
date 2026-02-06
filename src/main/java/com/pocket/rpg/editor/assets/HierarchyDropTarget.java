@@ -180,6 +180,49 @@ public class HierarchyDropTarget {
     }
 
     /**
+     * Handles asset drops on whatever was the last rendered ImGui item.
+     * The caller is responsible for creating the invisible button; this method
+     * only calls beginDragDropTarget() on that last item.
+     *
+     * @param scene The editor scene
+     * @return true if an entity was created from drop
+     */
+    public static boolean handleEmptyAreaDropOnLastItem(EditorScene scene) {
+        if (scene == null) {
+            return false;
+        }
+
+        if (AssetDragPayload.isDragCancelled()) {
+            return false;
+        }
+
+        if (ImGui.beginDragDropTarget()) {
+            byte[] payloadData = ImGui.acceptDragDropPayload(AssetDragPayload.DRAG_TYPE);
+
+            if (payloadData != null && payloadData.length > 0) {
+                AssetDragPayload payload = AssetDragPayload.deserialize(payloadData);
+
+                if (payload != null && AssetDropHandler.canInstantiate(payload)) {
+                    EditorGameObject entity = AssetDropHandler.handleDrop(payload, new Vector3f(ORIGIN));
+
+                    if (entity != null) {
+                        UndoManager.getInstance().execute(new AddEntityCommand(scene, entity));
+                        scene.setSelectedEntity(entity);
+                        scene.markDirty();
+
+                        ImGui.endDragDropTarget();
+                        return true;
+                    }
+                }
+            }
+
+            ImGui.endDragDropTarget();
+        }
+
+        return false;
+    }
+
+    /**
      * Checks if a drag is currently in progress with an instantiable asset.
      */
     public static boolean isDraggingInstantiableAsset() {

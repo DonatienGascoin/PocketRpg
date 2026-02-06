@@ -273,11 +273,11 @@ public class AssetBrowserPanel extends EditorPanel {
             refresh();
         }
 
-        // Check for Escape to cancel drag operation
-        // Note: imgui-java doesn't expose clearDragDrop(), so we use a flag-based approach
-        // TODO: Once imgui-java exposes clearDragDrop(), replace with:
-        //   imgui.internal.ImGui.clearActiveID();
-        //   imgui.internal.ImGui.clearDragDrop();
+        // Check for Escape to cancel drag operation.
+        // Workaround: imgui-java doesn't expose ImGui::ClearDragDrop(), so we use a flag-based
+        // approach. The drag tooltip is hidden but the user must release the mouse to fully end it.
+        // See: https://github.com/SpaiR/imgui-java/issues/365
+        // TODO: Once the binding is added, call ImGui.clearDragDrop() here to instantly end the drag.
         if (ImGui.getDragDropPayload() == null) {
             AssetDragPayload.clearCancellation();
         } else if (ImGui.isKeyPressed(Escape, false)) {

@@ -26,6 +26,7 @@ public final class FieldEditorUtils {
     // ========================================================================
 
     private static float nextFieldWidth = -1;           // -1 means "use default"
+    private static float nextLabelWidth = -1;           // -1 means "use LABEL_WIDTH"
     private static Runnable nextMiddleContent = null;   // null means "no middle content"
     private static String nextTooltip = null;           // null means "no custom tooltip"
 
@@ -41,6 +42,14 @@ public final class FieldEditorUtils {
      */
     public static void setNextFieldWidth(float width) {
         nextFieldWidth = width;
+    }
+
+    /**
+     * Sets the label width for the next inspectorRow() call only.
+     * Consumed after the next inspectorRow() call.
+     */
+    public static void setNextLabelWidth(float width) {
+        nextLabelWidth = width;
     }
 
     /**
@@ -64,6 +73,12 @@ public final class FieldEditorUtils {
     private static float consumeNextFieldWidth() {
         float width = nextFieldWidth;
         nextFieldWidth = -1;
+        return width;
+    }
+
+    private static float consumeNextLabelWidth() {
+        float width = nextLabelWidth;
+        nextLabelWidth = -1;
         return width;
     }
 
@@ -100,18 +115,20 @@ public final class FieldEditorUtils {
      */
     public static void inspectorRow(String label, Runnable field) {
         String tooltip = consumeNextTooltip();
+        float labelWidth = consumeNextLabelWidth();
+        if (labelWidth <= 0) labelWidth = LABEL_WIDTH;
 
         if (!label.startsWith("##")) {
             var currentPos = ImGui.getCursorPosX();
             float textWidth = ImGui.calcTextSize(label).x;
-            boolean truncated = textWidth > LABEL_WIDTH;
+            boolean truncated = textWidth > labelWidth;
 
             // Clip the label text so it doesn't bleed into the field area
             if (truncated) {
                 ImVec2 cursorScreen = ImGui.getCursorScreenPos();
                 float lineHeight = ImGui.getTextLineHeight();
                 ImGui.pushClipRect(cursorScreen.x, cursorScreen.y,
-                        cursorScreen.x + LABEL_WIDTH, cursorScreen.y + lineHeight, true);
+                        cursorScreen.x + labelWidth, cursorScreen.y + lineHeight, true);
                 ImGui.text(label);
                 ImGui.popClipRect();
             } else {
@@ -128,7 +145,7 @@ public final class FieldEditorUtils {
                 }
             }
 
-            ImGui.sameLine(currentPos + LABEL_WIDTH);
+            ImGui.sameLine(currentPos + labelWidth);
         }
 
         // Draw middle content if set (buttons between label and field)

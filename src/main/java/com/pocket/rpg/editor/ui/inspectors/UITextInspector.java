@@ -48,9 +48,6 @@ public class UITextInspector extends CustomComponentInspector<UIText> {
     public boolean draw() {
         boolean changed = false;
 
-        // === UI KEY ===
-        changed |= ComponentKeyField.draw(component);
-
         // === CONTENT SECTION ===
         ImGui.text(MaterialIcons.TextFields + " Content");
         ImGui.separator();

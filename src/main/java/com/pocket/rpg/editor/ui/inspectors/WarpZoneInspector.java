@@ -77,7 +77,7 @@ public class WarpZoneInspector extends CustomComponentInspector<WarpZone> {
         ImGui.text("Audio");
         ImGui.separator();
 
-        changed.set(changed.get() | FieldEditors.drawAudioClip("Warp Out Sound", component, "warpOutSound", entity));
+        changed.set(changed.get() | FieldEditors.drawAudioClip("Warp Out Sound", component, "warpOutSound", editorEntity()));
 
         ImGui.spacing();
         ImGui.spacing();

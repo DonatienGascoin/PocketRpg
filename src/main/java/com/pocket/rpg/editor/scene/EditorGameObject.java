@@ -68,6 +68,11 @@ public class EditorGameObject implements Renderable, HierarchyItem {
 
     private transient List<EditorGameObject> children;
 
+    @Override
+    public HierarchyItem getHierarchyParent() {
+        return parent;
+    }
+
     private static final int DEFAULT_ENTITY_Z_INDEX = 100; // TODO: Shouldn't it be 0 ?
     private static final String TRANSFORM_TYPE = Transform.class.getName();
 

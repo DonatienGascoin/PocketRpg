@@ -145,7 +145,7 @@ public class GridMovementInspector extends CustomComponentInspector<GridMovement
 
         if (oldAnchor.equals(newAnchor)) return;
 
-        if (entity == null) {
+        if (editorEntity() == null) {
             component.setManualAnchor(newAnchor);
             return;
         }
@@ -153,7 +153,7 @@ public class GridMovementInspector extends CustomComponentInspector<GridMovement
         // Compute grid cell from current position + old anchor, then re-snap
         // transform so the entity stays on the same tile
         float tileSize = component.getTileSize();
-        Vector3f pos = entity.getPosition();
+        Vector3f pos = editorEntity().getPosition();
         int gx = Math.round((pos.x - tileSize * oldAnchor.x) / tileSize);
         int gy = Math.round((pos.y - tileSize * oldAnchor.y) / tileSize);
 
@@ -164,17 +164,18 @@ public class GridMovementInspector extends CustomComponentInspector<GridMovement
                 pos.z
         );
 
+        var editorObj = editorEntity();
         UndoManager.getInstance().execute(new EditorCommand() {
             @Override
             public void execute() {
                 component.setManualAnchor(newAnchor);
-                entity.setPosition(newPos.x, newPos.y, newPos.z);
+                editorObj.setPosition(newPos.x, newPos.y, newPos.z);
             }
 
             @Override
             public void undo() {
                 component.setManualAnchor(oldAnchor);
-                entity.setPosition(oldPos.x, oldPos.y, oldPos.z);
+                editorObj.setPosition(oldPos.x, oldPos.y, oldPos.z);
             }
 
             @Override

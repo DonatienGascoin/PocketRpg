@@ -3,6 +3,7 @@ package com.pocket.rpg.editor.panels.inspector;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.core.IGameObject;
 import com.pocket.rpg.editor.core.MaterialIcons;
+import com.pocket.rpg.editor.panels.hierarchy.HierarchyItem;
 import com.pocket.rpg.editor.panels.ComponentBrowserPopup;
 import com.pocket.rpg.editor.panels.SavePrefabPopup;
 import com.pocket.rpg.editor.scene.EditorGameObject;
@@ -124,7 +125,7 @@ public class EntityInspector {
      * Renders inspector for a runtime game object during play mode.
      * Read-only header, editable component fields (changes are temporary).
      */
-    public void renderRuntime(IGameObject gameObject) {
+    public void renderRuntime(HierarchyItem gameObject) {
         // Header (read-only)
         ImGui.text(MaterialIcons.ViewInAr);
         ImGui.sameLine();
@@ -151,7 +152,7 @@ public class EntityInspector {
                 String label = comp.getClass().getSimpleName();
                 boolean open = ImGui.collapsingHeader(label, ImGuiTreeNodeFlags.DefaultOpen);
                 if (open) {
-                    fieldEditor.renderRuntimeComponentFields(comp);
+                    fieldEditor.renderRuntimeComponentFields(comp, gameObject);
                 }
                 ImGui.popID();
             }

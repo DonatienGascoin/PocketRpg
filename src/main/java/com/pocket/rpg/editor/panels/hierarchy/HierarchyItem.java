@@ -14,6 +14,11 @@ import java.util.List;
 public interface HierarchyItem extends IGameObject {
 
     /**
+     * Returns the parent item in the hierarchy, or null if this is a root item.
+     */
+    HierarchyItem getHierarchyParent();
+
+    /**
      * Returns child items for hierarchy tree display.
      */
     List<? extends HierarchyItem> getHierarchyChildren();

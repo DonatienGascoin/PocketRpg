@@ -58,7 +58,7 @@ public class SpawnPointInspector extends CustomComponentInspector<SpawnPoint> {
         ImGui.text("Audio");
         ImGui.separator();
 
-        changed |= FieldEditors.drawAudioClip("Arrival Sound", component, "arrivalSound", entity);
+        changed |= FieldEditors.drawAudioClip("Arrival Sound", component, "arrivalSound", editorEntity());
 
         // Preview
         ImGui.spacing();
@@ -231,12 +231,12 @@ public class SpawnPointInspector extends CustomComponentInspector<SpawnPoint> {
     private void drawPositionPreview() {
         ImGui.textDisabled("Spawn Position:");
 
-        if (entity == null) {
+        if (editorEntity() == null) {
             ImGui.textDisabled("  (no entity)");
             return;
         }
 
-        Vector3f pos = entity.getPosition();
+        Vector3f pos = editorEntity().getPosition();
         int x = (int) Math.floor(pos.x);
         int y = (int) Math.floor(pos.y);
 

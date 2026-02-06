@@ -40,9 +40,9 @@ public class AlphaGroupInspector extends CustomComponentInspector<AlphaGroup> {
 
         if (ImGui.isItemDeactivatedAfterEdit() && alphaEditStartValue != null) {
             float newValue = component.getAlpha();
-            if (entity != null) {
+            if (editorEntity() != null) {
                 UndoManager.getInstance().push(
-                        new SetComponentFieldCommand(component, "alpha", alphaEditStartValue, newValue, entity)
+                        new SetComponentFieldCommand(component, "alpha", alphaEditStartValue, newValue, editorEntity())
                 );
             }
             alphaEditStartValue = null;

@@ -19,9 +19,9 @@ public class TransformInspector extends CustomComponentInspector<Transform> {
     public boolean draw() {
         boolean changed = false;
 
-        changed |= FieldEditors.drawPosition("Position", entity);
-        changed |= FieldEditors.drawScale("Scale", entity);
-        changed |= FieldEditors.drawRotation("Rotation", entity);
+        changed |= FieldEditors.drawPosition("Position", editorEntity());
+        changed |= FieldEditors.drawScale("Scale", editorEntity());
+        changed |= FieldEditors.drawRotation("Rotation", editorEntity());
 
         return changed;
     }

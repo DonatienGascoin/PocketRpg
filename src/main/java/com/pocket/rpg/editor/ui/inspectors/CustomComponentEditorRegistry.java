@@ -1,6 +1,7 @@
 package com.pocket.rpg.editor.ui.inspectors;
 
 import com.pocket.rpg.components.Component;
+import com.pocket.rpg.editor.panels.hierarchy.HierarchyItem;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.ui.fields.FieldEditorContext;
 import org.reflections.Reflections;
@@ -55,7 +56,7 @@ public class CustomComponentEditorRegistry {
      * @param entity    The owning entity (may be null)
      * @return true if a field changed, false if no custom editor or no change
      */
-    public static boolean drawCustomEditor(Component component, EditorGameObject entity) {
+    public static boolean drawCustomEditor(Component component, HierarchyItem entity) {
         CustomComponentInspector<?> editor = editors.get(component.getClass().getName());
         if (editor == null) {
             // No custom editor - unbind any previous inspector
@@ -82,7 +83,8 @@ public class CustomComponentEditorRegistry {
 
         // Set up context for @Required and override styling
         // Preserve existing scene context if set
-        FieldEditorContext.begin(entity, component, FieldEditorContext.getCurrentScene());
+        EditorGameObject editorEntity = entity instanceof EditorGameObject ego ? ego : null;
+        FieldEditorContext.begin(editorEntity, component, FieldEditorContext.getCurrentScene());
         try {
             // Draw the inspector
             return editor.draw();

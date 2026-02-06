@@ -4,6 +4,7 @@ import com.pocket.rpg.audio.clips.AudioClip;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.Tooltip;
 import com.pocket.rpg.editor.core.MaterialIcons;
+import com.pocket.rpg.editor.panels.hierarchy.HierarchyItem;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.SetComponentFieldCommand;
@@ -31,8 +32,11 @@ public class ReflectionFieldEditor {
 
     private static final Map<String, Object> editingOriginalValues = new HashMap<>();
 
-    public static boolean drawComponent(Component component, EditorGameObject entity) {
+    public static boolean drawComponent(Component component, HierarchyItem hierarchyEntity) {
         if (component == null) return false;
+
+        // Extract EditorGameObject for undo/override paths (null in play mode)
+        EditorGameObject editorEntity = hierarchyEntity instanceof EditorGameObject ego ? ego : null;
 
         ComponentMeta meta = ComponentReflectionUtils.getMeta(component);
         if (meta == null) {
@@ -42,24 +46,24 @@ public class ReflectionFieldEditor {
 
         // Check for custom editor first
         if (CustomComponentEditorRegistry.hasCustomEditor(component.getClass().getName())) {
-            boolean changed = CustomComponentEditorRegistry.drawCustomEditor(component, entity);
+            boolean changed = CustomComponentEditorRegistry.drawCustomEditor(component, hierarchyEntity);
             // Still draw component references after custom editor
-            drawComponentReferences(meta.references(), entity);
+            drawComponentReferences(meta.references(), editorEntity);
             return changed;
         }
 
         // Set up context for @Required and override styling
-        FieldEditorContext.begin(entity, component);
+        FieldEditorContext.begin(editorEntity, component);
         try {
             boolean changed = false;
             for (FieldMeta fieldMeta : meta.fields()) {
                 try {
-                    changed |= drawField(component, fieldMeta, entity);
+                    changed |= drawField(component, fieldMeta, editorEntity);
                 } catch (Exception e) {
                     ImGui.textColored(1f, 0.3f, 0.3f, 1f, fieldMeta.name() + ": Error");
                 }
             }
-            drawComponentReferences(meta.references(), entity);
+            drawComponentReferences(meta.references(), editorEntity);
             return changed;
         } finally {
             FieldEditorContext.end();

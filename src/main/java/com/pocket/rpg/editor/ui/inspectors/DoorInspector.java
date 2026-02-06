@@ -208,12 +208,12 @@ public class DoorInspector extends CustomComponentInspector<Door> {
     private void drawTilePreview() {
         ImGui.textDisabled("Door Tile (computed):");
 
-        if (entity == null) {
+        if (editorEntity() == null) {
             ImGui.textDisabled("  (no entity)");
             return;
         }
 
-        Vector3f pos = entity.getPosition();
+        Vector3f pos = editorEntity().getPosition();
         int x = (int) Math.floor(pos.x) + component.getOffsetX();
         int y = (int) Math.floor(pos.y) + component.getOffsetY();
         int elev = component.getElevation();

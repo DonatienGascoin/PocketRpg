@@ -35,7 +35,7 @@ public class UIImageInspector extends CustomComponentInspector<UIImage> {
         changed |= UIKeyField.draw(component);
 
         // Sprite
-        changed |= FieldEditors.drawAsset(MaterialIcons.Image + " Sprite", component, "sprite", Sprite.class, entity);
+        changed |= FieldEditors.drawAsset(MaterialIcons.Image + " Sprite", component, "sprite", Sprite.class, editorEntity());
 
         // Reset size to sprite size button
         Object spriteObj = ComponentReflectionUtils.getFieldValue(component, "sprite");
@@ -77,9 +77,9 @@ public class UIImageInspector extends CustomComponentInspector<UIImage> {
         }
         if (ImGui.isItemDeactivatedAfterEdit() && alphaEditStartColor != null) {
             Vector4f newColor = new Vector4f(FieldEditors.getVector4f(component, "color"));
-            if (entity != null) {
+            if (editorEntity() != null) {
                 UndoManager.getInstance().push(
-                        new SetComponentFieldCommand(component, "color", alphaEditStartColor, newColor, entity)
+                        new SetComponentFieldCommand(component, "color", alphaEditStartColor, newColor, editorEntity())
                 );
             }
             alphaEditStartColor = null;
@@ -202,9 +202,9 @@ public class UIImageInspector extends CustomComponentInspector<UIImage> {
             UIImage.FillOrigin oldOrigin = currentOrigin;
             UIImage.FillOrigin newOrigin = validOrigins[selected.get()];
             component.setFillOrigin(newOrigin);
-            if (entity != null) {
+            if (editorEntity() != null) {
                 UndoManager.getInstance().push(
-                        new SetComponentFieldCommand(component, "fillOrigin", oldOrigin, newOrigin, entity)
+                        new SetComponentFieldCommand(component, "fillOrigin", oldOrigin, newOrigin, editorEntity())
                 );
             }
             changed = true;
@@ -253,7 +253,7 @@ public class UIImageInspector extends CustomComponentInspector<UIImage> {
     }
 
     private boolean resetSizeToSprite(Sprite sprite) {
-        if (entity == null) return false;
+        if (editorEntity() == null) return false;
 
         Component transformComp = entity.getComponent(UITransform.class);
         if (!(transformComp instanceof UITransform uiTransform)) return false;
@@ -271,7 +271,7 @@ public class UIImageInspector extends CustomComponentInspector<UIImage> {
         ComponentReflectionUtils.setFieldValue(transformComp, "height", newHeight);
 
         UndoManager.getInstance().push(
-                UITransformDragCommand.resize(entity, transformComp,
+                UITransformDragCommand.resize(editorEntity(), transformComp,
                         offset, oldWidth, oldHeight,
                         offset, newWidth, newHeight,
                         anchor, pivot)

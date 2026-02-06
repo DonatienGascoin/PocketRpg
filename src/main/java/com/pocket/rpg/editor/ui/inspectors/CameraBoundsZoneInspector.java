@@ -39,7 +39,7 @@ public class CameraBoundsZoneInspector extends CustomComponentInspector<CameraBo
         // Draw boundsId field first
         for (FieldMeta fieldMeta : fields) {
             if ("boundsId".equals(fieldMeta.name())) {
-                changed |= ReflectionFieldEditor.drawField(component, fieldMeta, entity);
+                changed |= ReflectionFieldEditor.drawField(component, fieldMeta, editorEntity());
                 break;
             }
         }
@@ -53,7 +53,7 @@ public class CameraBoundsZoneInspector extends CustomComponentInspector<CameraBo
         for (FieldMeta fieldMeta : fields) {
             if ("boundsId".equals(fieldMeta.name())) continue;
             try {
-                changed |= ReflectionFieldEditor.drawField(component, fieldMeta, entity);
+                changed |= ReflectionFieldEditor.drawField(component, fieldMeta, editorEntity());
             } catch (Exception e) {
                 ImGui.textColored(1f, 0.3f, 0.3f, 1f, fieldMeta.name() + ": Error");
             }

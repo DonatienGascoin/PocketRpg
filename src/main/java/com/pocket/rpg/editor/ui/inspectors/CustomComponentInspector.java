@@ -1,6 +1,7 @@
 package com.pocket.rpg.editor.ui.inspectors;
 
 import com.pocket.rpg.components.Component;
+import com.pocket.rpg.editor.panels.hierarchy.HierarchyItem;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 
 /**
@@ -21,18 +22,18 @@ public abstract class CustomComponentInspector<T extends Component> {
     /** Cached component reference, set on bind(). */
     protected T component;
 
-    /** Cached entity reference, set on bind(). */
-    protected EditorGameObject entity;
+    /** Cached entity reference, set on bind(). Always non-null when bound. */
+    protected HierarchyItem entity;
 
     /**
      * Called once when component is selected for editing.
      * Caches the cast so draw() doesn't cast every frame.
      *
      * @param component The component to edit
-     * @param entity    The entity owning this component (for undo support), may be null
+     * @param entity    The entity owning this component
      */
     @SuppressWarnings("unchecked")
-    public void bind(Component component, EditorGameObject entity) {
+    public void bind(Component component, HierarchyItem entity) {
         this.component = (T) component;
         this.entity = entity;
     }
@@ -52,6 +53,20 @@ public abstract class CustomComponentInspector<T extends Component> {
      */
     public boolean isBound() {
         return component != null;
+    }
+
+    /**
+     * Returns the entity as {@link EditorGameObject}, or null if in play mode.
+     * <p>
+     * Use this for operations that only apply in the editor:
+     * undo commands, prefab overrides, position access via
+     * {@code EditorGameObject.getPosition()}.
+     * <p>
+     * For scene graph queries (getComponent, parent/children),
+     * use {@link #entity} directly — it is always non-null.
+     */
+    protected EditorGameObject editorEntity() {
+        return entity instanceof EditorGameObject ego ? ego : null;
     }
 
     /**

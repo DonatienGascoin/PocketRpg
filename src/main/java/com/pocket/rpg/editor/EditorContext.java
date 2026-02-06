@@ -11,6 +11,7 @@ import com.pocket.rpg.editor.core.EditorWindow;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.tools.ToolManager;
 import com.pocket.rpg.editor.ui.fields.FieldEditorContext;
+import com.pocket.rpg.editor.ui.inspectors.ComponentKeyField;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -93,6 +94,7 @@ public class EditorContext {
         }
         // Update FieldEditorContext so inspectors can access the scene
         FieldEditorContext.setCurrentScene(scene);
+        ComponentKeyField.clearExpandedState();
         notifySceneChanged(scene);
     }
 

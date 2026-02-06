@@ -2,6 +2,12 @@
 
 Project guidance for Claude Code.
 
+During each session, try to improve this document with any relevant tips, best practices, or reference links you find yourself sharing repeatedly. 
+The goal is to build a single source of truth for how to work effectively on PocketRpg, so future contributors can onboard faster and avoid common pitfalls.
+
+Encyclopedia folder is the user source of truth, it also needs to be kept up to date with new features and editor workflows.
+If you implement or update a feature that requires an encyclopedia guide, **always ask the user before creating or updating encyclopedia files.** Some users may prefer to write their own guides or may want to delay documentation until the feature is more stable.
+
 ## Build & Run Commands
 
 ```bash

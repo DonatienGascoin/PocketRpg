@@ -77,6 +77,14 @@ public class AssetManager implements AssetContext {
      */
     private final Map<String, Class<?>> cachedTypes;
 
+    /**
+     * Maps cached path → full resolved path (as used during load).
+     * <p>
+     * Used by hot-reload to reload assets with the correct path
+     * (respecting whether they were loaded with raw() or default options).
+     */
+    private final Map<String, String> cachedFullPaths;
+
     @Getter
     private String assetRoot = "gameData/assets/";
     @Getter
@@ -94,6 +102,7 @@ public class AssetManager implements AssetContext {
         this.extensionMap = new ConcurrentHashMap<>();
         this.resourcePaths = new ConcurrentHashMap<>();
         this.cachedTypes = new ConcurrentHashMap<>();
+        this.cachedFullPaths = new ConcurrentHashMap<>();
 
         // Auto-register default loaders
         registerDefaultLoaders();
@@ -346,6 +355,7 @@ public class AssetManager implements AssetContext {
             if (options.isUseCache()) {
                 cache.put(normalizedPath, resource);
                 cachedTypes.put(normalizedPath, type);
+                cachedFullPaths.put(normalizedPath, fullPath);
             }
             resourcePaths.put(resource, normalizedPath);
 
@@ -361,6 +371,7 @@ public class AssetManager implements AssetContext {
                 if (placeholder != null && options.isUseCache()) {
                     cache.put(normalizedPath, placeholder);
                     cachedTypes.put(normalizedPath, type);
+                    cachedFullPaths.put(normalizedPath, fullPath);
                     resourcePaths.put(placeholder, normalizedPath);
                 }
 
@@ -628,13 +639,14 @@ public class AssetManager implements AssetContext {
     }
 
     /**
-     * Resolves a relative path to a full path using asset root.
+     * Gets the full resolved path that was used to load a cached asset.
+     * This respects the LoadOptions used during initial load (e.g., raw() vs default).
      *
-     * @param path Relative path
-     * @return Full path
+     * @param path The normalized/relative path
+     * @return The full path used for loading, or null if not cached
      */
-    public String resolveFullPath(String path) {
-        return resolvePath(path, LoadOptions.defaults());
+    public String getCachedFullPath(String path) {
+        return cachedFullPaths.get(path);
     }
 
     // ========================================================================

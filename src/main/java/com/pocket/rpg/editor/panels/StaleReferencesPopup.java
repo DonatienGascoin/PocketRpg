@@ -2,6 +2,7 @@ package com.pocket.rpg.editor.panels;
 
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiWindowFlags;
 
 import java.util.ArrayList;
@@ -29,10 +30,17 @@ public class StaleReferencesPopup {
     }
 
     /**
-     * Renders the popup. Pattern matches PrefabEditController.renderConfirmationPopup().
+     * Renders the popup. Must be called from a context with a valid ImGui current window
+     * (e.g., renderUIPreShortcuts, right after newFrame) — calling after all windows have
+     * been End()'ed causes openPopup to silently fail.
      */
     public void render() {
         if (!showPopup) return;
+
+        // Center popup on screen (matches compilation modal pattern)
+        float centerX = ImGui.getIO().getDisplaySizeX() * 0.5f;
+        float centerY = ImGui.getIO().getDisplaySizeY() * 0.5f;
+        ImGui.setNextWindowPos(centerX, centerY, ImGuiCond.Appearing, 0.5f, 0.5f);
 
         ImGui.openPopup(POPUP_TITLE);
 

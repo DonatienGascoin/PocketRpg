@@ -86,10 +86,13 @@ Your inspector class must:
 
 Inside `draw()`, you have access to:
 
-| Field | Type | Description |
-|-------|------|-------------|
+| Field/Method | Type | Description |
+|--------------|------|-------------|
 | `component` | `T` | The component being edited (already cast) |
-| `entity` | `EditorGameObject` | The entity owning this component |
+| `entity` | `HierarchyItem` | The entity owning this component (always non-null) |
+| `editorEntity()` | `EditorGameObject` or `null` | Returns entity as EditorGameObject, or null in play mode |
+
+**Play Mode Support:** Custom inspectors work in both editor and play mode. Use `entity` for scene graph queries (`getComponent()`, `getHierarchyParent()`, `getHierarchyChildren()`). Use `editorEntity()` for editor-only operations (undo commands, position access, prefab overrides).
 
 ---
 
@@ -274,15 +277,46 @@ float oldValue = component.getCustomValue();
 // Make the change
 component.setCustomValue(newValue);
 
-// Push undo command
-UndoManager.getInstance().push(
-    new SetterUndoCommand<>(
-        component::setCustomValue,
-        oldValue,
-        newValue,
-        "Change Custom Value"
-    )
-);
+// Push undo command (guard for play mode!)
+if (editorEntity() != null) {
+    UndoManager.getInstance().push(
+        new SetterUndoCommand<>(
+            component::setCustomValue,
+            oldValue,
+            newValue,
+            "Change Custom Value"
+        )
+    );
+}
+```
+
+### Play Mode Compatibility
+
+Custom inspectors run in both editor and play mode. In play mode, `editorEntity()` returns `null` — changes are temporary and won't have undo support.
+
+```java
+@Override
+public boolean draw() {
+    boolean changed = false;
+
+    // Scene graph queries work in both modes
+    HierarchyItem parent = entity.getHierarchyParent();
+    SpriteRenderer sr = entity.getComponent(SpriteRenderer.class);
+
+    // Always draw fields (changes work in both modes)
+    changed |= FieldEditors.drawFloat("Speed", component, "speed", 0.1f);
+
+    // Guard editor-only operations
+    if (editorEntity() != null) {
+        // Position access (EditorGameObject-specific)
+        Vector3f pos = editorEntity().getPosition();
+
+        // Undo commands
+        UndoManager.getInstance().push(new SetComponentFieldCommand(..., editorEntity()));
+    }
+
+    return changed;
+}
 ```
 
 ---
@@ -307,6 +341,8 @@ UndoManager.getInstance().push(
 | No undo support | Use `FieldEditors` methods or manually push `UndoManager` commands |
 | Field not updating | Check that field name matches exactly (case-sensitive) |
 | Icon not showing | Import `com.pocket.rpg.editor.core.MaterialIcons` |
+| NPE in play mode | Use `editorEntity()` instead of `entity` for undo/position operations |
+| Undo command type error | Pass `editorEntity()` (not `entity`) to `SetComponentFieldCommand` |
 
 ---
 

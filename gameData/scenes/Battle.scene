@@ -74,7 +74,10 @@
             },
             "width": 262.5,
             "height": 75.0,
-            "stretchMode": "NONE",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": false,
             "matchParentScale": false
           }
@@ -136,7 +139,10 @@
             },
             "width": 262.5,
             "height": 75.0,
-            "stretchMode": "NONE",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": false,
             "matchParentScale": false
           }
@@ -198,7 +204,10 @@
             },
             "width": 130.45682,
             "height": 30.0,
-            "stretchMode": "NONE",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": false,
             "matchParentScale": false
           }
@@ -272,7 +281,10 @@
             },
             "width": 130.45682,
             "height": 30.0,
-            "stretchMode": "NONE",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": false,
             "matchParentScale": false
           }
@@ -346,7 +358,10 @@
             },
             "width": 180.0,
             "height": 11.851874,
-            "stretchMode": "NONE",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": false,
             "matchParentScale": false
           }
@@ -408,7 +423,10 @@
             },
             "width": 180.0,
             "height": 11.851874,
-            "stretchMode": "NONE",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": false,
             "matchParentScale": false
           }
@@ -470,7 +488,10 @@
             },
             "width": 180.0,
             "height": 11.851874,
-            "stretchMode": "NONE",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": false,
             "matchParentScale": false
           }
@@ -532,7 +553,10 @@
             },
             "width": 180.0,
             "height": 11.851874,
-            "stretchMode": "NONE",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": false,
             "matchParentScale": false
           }
@@ -594,7 +618,10 @@
             },
             "width": 640.0,
             "height": 150.0,
-            "stretchMode": "NONE",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": false,
             "matchParentScale": false
           }
@@ -656,7 +683,10 @@
             },
             "width": 256.0,
             "height": 256.0,
-            "stretchMode": "NONE",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": false,
             "matchParentScale": false
           }
@@ -718,7 +748,10 @@
             },
             "width": 256.0,
             "height": 256.0,
-            "stretchMode": "NONE",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": false,
             "matchParentScale": false
           }
@@ -817,7 +850,10 @@
             },
             "width": 101.55777,
             "height": 25.0,
-            "stretchMode": "NONE",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": false,
             "matchParentScale": false
           }
@@ -879,7 +915,10 @@
             },
             "width": 33.85259,
             "height": 25.0,
-            "stretchMode": "NONE",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": false,
             "matchParentScale": false
           }
@@ -941,7 +980,10 @@
             },
             "width": 33.85259,
             "height": 25.0,
-            "stretchMode": "NONE",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": false,
             "matchParentScale": false
           }
@@ -1003,7 +1045,10 @@
             },
             "width": 33.85259,
             "height": 25.0,
-            "stretchMode": "NONE",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": false,
             "matchParentScale": false
           }
@@ -1065,7 +1110,10 @@
             },
             "width": 101.55777,
             "height": 25.0,
-            "stretchMode": "NONE",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": false,
             "matchParentScale": false
           }
@@ -1127,7 +1175,10 @@
             },
             "width": 33.85259,
             "height": 25.0,
-            "stretchMode": "NONE",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": false,
             "matchParentScale": false
           }
@@ -1189,7 +1240,10 @@
             },
             "width": 33.85259,
             "height": 25.0,
-            "stretchMode": "NONE",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": false,
             "matchParentScale": false
           }
@@ -1251,7 +1305,10 @@
             },
             "width": 33.85259,
             "height": 25.0,
-            "stretchMode": "NONE",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": false,
             "matchParentScale": false
           }
@@ -1313,7 +1370,10 @@
             },
             "width": 160.0,
             "height": 55.0,
-            "stretchMode": "NONE",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": false,
             "matchParentScale": false
           }
@@ -1361,7 +1421,10 @@
             },
             "width": 160.0,
             "height": 55.0,
-            "stretchMode": "NONE",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": false,
             "matchParentScale": false
           }
@@ -1409,7 +1472,10 @@
             },
             "width": 101.55777,
             "height": 25.0,
-            "stretchMode": "NONE",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": false,
             "matchParentScale": false
           }
@@ -1471,7 +1537,10 @@
             },
             "width": 33.85259,
             "height": 25.0,
-            "stretchMode": "NONE",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": false,
             "matchParentScale": false
           }
@@ -1533,7 +1602,10 @@
             },
             "width": 33.85259,
             "height": 25.0,
-            "stretchMode": "NONE",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": false,
             "matchParentScale": false
           }
@@ -1595,7 +1667,10 @@
             },
             "width": 33.85259,
             "height": 25.0,
-            "stretchMode": "NONE",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": false,
             "matchParentScale": false
           }
@@ -1657,7 +1732,10 @@
             },
             "width": 101.55777,
             "height": 25.0,
-            "stretchMode": "NONE",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": false,
             "matchParentScale": false
           }
@@ -1719,7 +1797,10 @@
             },
             "width": 33.85259,
             "height": 25.0,
-            "stretchMode": "NONE",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": false,
             "matchParentScale": false
           }
@@ -1781,7 +1862,10 @@
             },
             "width": 33.85259,
             "height": 25.0,
-            "stretchMode": "NONE",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": false,
             "matchParentScale": false
           }
@@ -1843,7 +1927,10 @@
             },
             "width": 33.85259,
             "height": 25.0,
-            "stretchMode": "NONE",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": false,
             "matchParentScale": false
           }
@@ -1905,7 +1992,10 @@
             },
             "width": 250.0,
             "height": 50.0,
-            "stretchMode": "NONE",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": false,
             "matchParentScale": false
           }
@@ -1975,7 +2065,10 @@
             },
             "width": 500.0,
             "height": 100.0,
-            "stretchMode": "NONE",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": false,
             "matchParentScale": false
           }
@@ -2037,7 +2130,10 @@
             },
             "width": 250.0,
             "height": 50.0,
-            "stretchMode": "NONE",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": false,
             "matchParentScale": false
           }
@@ -2107,7 +2203,10 @@
             },
             "width": 250.0,
             "height": 50.0,
-            "stretchMode": "NONE",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": false,
             "matchParentScale": false
           }
@@ -2177,7 +2276,10 @@
             },
             "width": 250.0,
             "height": 50.0,
-            "stretchMode": "NONE",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": false,
             "matchParentScale": false
           }
@@ -2217,7 +2319,7 @@
       "name": "Text",
       "active": true,
       "parentId": "c5e6a6d6",
-      "order": 1,
+      "order": 0,
       "components": [
         {
           "type": "com.pocket.rpg.components.ui.UITransform",
@@ -2247,7 +2349,10 @@
             },
             "width": 190.0,
             "height": 50.0,
-            "stretchMode": "MATCH_PARENT",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": true,
             "matchParentScale": true
           }
@@ -2321,7 +2426,10 @@
             },
             "width": 200.0,
             "height": 30.0,
-            "stretchMode": "MATCH_PARENT",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": true,
             "matchParentScale": true
           }
@@ -2395,7 +2503,10 @@
             },
             "width": 200.0,
             "height": 30.0,
-            "stretchMode": "MATCH_PARENT",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": true,
             "matchParentScale": true
           }
@@ -2469,7 +2580,10 @@
             },
             "width": 200.0,
             "height": 30.0,
-            "stretchMode": "MATCH_PARENT",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": true,
             "matchParentScale": true
           }
@@ -2543,7 +2657,10 @@
             },
             "width": 38.0,
             "height": 38.0,
-            "stretchMode": "NONE",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": false,
             "matchParentScale": false
           }
@@ -2617,7 +2734,10 @@
             },
             "width": 38.0,
             "height": 38.0,
-            "stretchMode": "NONE",
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
             "matchParentRotation": false,
             "matchParentScale": false
           }

@@ -71,6 +71,38 @@ if (wasEnabled) {  // Same value as push
 
 ---
 
+## Custom Inspectors (Play Mode)
+
+Custom inspectors work in both editor mode and play mode. The `entity` field type changed from `EditorGameObject` to `HierarchyItem` to support this.
+
+**Use `entity` for scene graph queries (always non-null):**
+```java
+// These work in both editor and play mode
+Component parent = entity.getHierarchyParent();
+List<? extends HierarchyItem> children = entity.getHierarchyChildren();
+SpriteRenderer sr = entity.getComponent(SpriteRenderer.class);
+```
+
+**Use `editorEntity()` for undo commands (null in play mode):**
+```java
+// WRONG: Creates undo with HierarchyItem, won't compile or NPE in play mode
+UndoManager.getInstance().push(new SetComponentFieldCommand(..., entity));
+
+// CORRECT: Guard undo operations with editorEntity()
+if (editorEntity() != null) {
+    UndoManager.getInstance().push(
+        new SetComponentFieldCommand(component, "field", oldVal, newVal, editorEntity())
+    );
+}
+```
+
+**Also use `editorEntity()` for:**
+- `getPosition()` / `setPosition()` (EditorGameObject-specific)
+- Prefab override checks
+- Any method only available on EditorGameObject
+
+---
+
 ## Gizmos
 
 **Always use `ctx.getTransform()` in gizmo methods, not `getTransform()`.**

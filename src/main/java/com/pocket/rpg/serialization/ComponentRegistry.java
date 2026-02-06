@@ -88,6 +88,11 @@ public class ComponentRegistry {
         return !fallbackResolutions.get().isEmpty();
     }
 
+    /** Returns the current number of unique fallback resolutions recorded. */
+    public static int getFallbackResolutionCount() {
+        return fallbackResolutions.get().size();
+    }
+
     /**
      * Initializes the registry by scanning the components package.
      * Call once at startup.

@@ -132,14 +132,32 @@ public class MyBehavior implements TileBehavior {
 
 1. Create class extending `CustomComponentInspector<T>`
 2. Annotate with `@InspectorFor(MyComponent.class)`
-3. Implement `render(T component)`
+3. Implement `draw()` — return true if any field changed
 
 ```java
 @InspectorFor(MyComponent.class)
 public class MyComponentInspector extends CustomComponentInspector<MyComponent> {
     @Override
-    public void render(MyComponent component) {
-        // Custom ImGui rendering
+    public boolean draw() {
+        boolean changed = false;
+        // 'component' is typed as MyComponent
+        // 'entity' is HierarchyItem (always non-null)
+        // 'editorEntity()' returns EditorGameObject or null in play mode
+
+        changed |= FieldEditors.drawFloat("Speed", component, "speed", 0.1f);
+
+        // Guard undo with editorEntity()
+        if (editorEntity() != null) {
+            // undo operations...
+        }
+        return changed;
     }
 }
 ```
+
+### Inspector Entity Access
+
+| Need | Use |
+|------|-----|
+| `getComponent()`, `getHierarchyParent()`, `getHierarchyChildren()` | `entity` |
+| Undo commands, `getPosition()`, prefab overrides | `editorEntity()` |

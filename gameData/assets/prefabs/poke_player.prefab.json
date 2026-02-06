@@ -4,7 +4,7 @@
   "category": "Characters",
   "components": [
     {
-      "type": "com.pocket.rpg.components.Transform",
+      "type": "com.pocket.rpg.components.core.Transform",
       "properties": {
         "localPosition": {
           "x": 0.0,
@@ -24,7 +24,7 @@
       }
     },
     {
-      "type": "com.pocket.rpg.components.SpriteRenderer",
+      "type": "com.pocket.rpg.components.rendering.SpriteRenderer",
       "properties": {
         "sprite": "com.pocket.rpg.rendering.resources.Sprite:sheet_complex.png#0",
         "tintColor": {

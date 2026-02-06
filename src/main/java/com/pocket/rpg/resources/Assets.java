@@ -591,12 +591,19 @@ public final class Assets {
             return false;
         }
 
+        // Use the same full path that was used during initial load
+        String fullPath = manager.getCachedFullPath(path);
+        if (fullPath == null) {
+            return false;
+        }
+
         try {
-            String fullPath = manager.resolveFullPath(path);
             reloadWithLoader(loader, cached, fullPath, path);
             return true;
         } catch (Exception e) {
-            Log.error("Assets", "Failed to reload " + path + ": " + e.getMessage());
+            // Include root cause for better debugging
+            String cause = e.getCause() != null ? e.getCause().getMessage() : e.getMessage();
+            Log.error("Assets", "Failed to reload " + path + ": " + cause);
             return false;
         }
     }

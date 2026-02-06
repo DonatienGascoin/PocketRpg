@@ -4,9 +4,11 @@ import com.pocket.rpg.editor.EditorPanelType;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.rendering.resources.Sprite;
+import com.pocket.rpg.logging.Log;
 import com.pocket.rpg.resources.AssetContext;
 import com.pocket.rpg.resources.AssetLoader;
 import com.pocket.rpg.resources.Assets;
+import com.pocket.rpg.serialization.ComponentRegistry;
 import com.pocket.rpg.serialization.Serializer;
 import org.joml.Vector3f;
 
@@ -25,11 +27,19 @@ public class JsonPrefabLoader implements AssetLoader<JsonPrefab> {
 
     @Override
     public JsonPrefab load(String path) throws IOException {
+        int countBefore = ComponentRegistry.getFallbackResolutionCount();
+
         String jsonContent = new String(Files.readAllBytes(Paths.get(path)));
         JsonPrefab prefab = Serializer.fromJson(jsonContent, JsonPrefab.class);
 
         if (prefab == null) {
             throw new IOException("Failed to parse prefab: " + path);
+        }
+
+        // Log actionable message if this prefab had stale component references
+        if (ComponentRegistry.getFallbackResolutionCount() > countBefore) {
+            Log.warn("JsonPrefabLoader", "Prefab '" + path +
+                    "' has stale component class paths. Open in prefab editor and save to update.");
         }
 
         // Store the source path for later saving

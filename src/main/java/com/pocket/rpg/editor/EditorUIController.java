@@ -341,15 +341,21 @@ public class EditorUIController {
      */
     public void renderUIPreShortcuts() {
         renderCompilationModal();
-    }
 
-    /**
-     * Renders the stale references popup. Called after renderUI() from EditorApplication.
-     */
-    public void renderStaleReferencesPopup() {
+        // Stale references popup must render here (pre-shortcuts) rather than after
+        // renderUI(). After renderUI(), all ImGui windows have been End()'ed, leaving
+        // no valid current window — openPopup silently fails in that context.
         if (staleReferencesPopup != null) {
             staleReferencesPopup.render();
         }
+    }
+
+    /**
+     * @deprecated Popup now renders in {@link #renderUIPreShortcuts()}. Remove caller.
+     */
+    @Deprecated
+    public void renderStaleReferencesPopup() {
+        // No-op — rendering moved to renderUIPreShortcuts()
     }
 
     /**

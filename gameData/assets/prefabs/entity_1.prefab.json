@@ -4,9 +4,41 @@
   "category": "Custom",
   "components": [
     {
+      "type": "com.pocket.rpg.components.core.Transform",
+      "properties": {
+        "localPosition": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "localRotation": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "localScale": {
+          "x": 1.0,
+          "y": 1.0,
+          "z": 1.0
+        }
+      }
+    },
+    {
       "type": "com.pocket.rpg.components.TranslationComponent",
-      "fields": {}
+      "properties": {
+        "endPosition": {
+          "x": 0.0,
+          "y": 1.0,
+          "z": 0.0
+        },
+        "duration": 1.0,
+        "easingType": "LINEAR",
+        "loop": false,
+        "pingPong": false,
+        "elapsedTime": 0.0,
+        "movingForward": true,
+        "isComplete": false
+      }
     }
-  ],
-  "properties": []
+  ]
 }

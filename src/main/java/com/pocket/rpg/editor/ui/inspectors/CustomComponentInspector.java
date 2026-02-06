@@ -3,6 +3,7 @@ package com.pocket.rpg.editor.ui.inspectors;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.editor.panels.hierarchy.HierarchyItem;
 import com.pocket.rpg.editor.scene.EditorGameObject;
+import com.pocket.rpg.editor.ui.fields.FieldUndoTracker;
 
 /**
  * Abstract base class for custom component editors.
@@ -44,6 +45,7 @@ public abstract class CustomComponentInspector<T extends Component> {
     public void unbind() {
         this.component = null;
         this.entity = null;
+        FieldUndoTracker.clear();
     }
 
     /**

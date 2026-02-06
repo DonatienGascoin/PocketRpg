@@ -28,6 +28,13 @@ public final class VectorEditors {
 
     private VectorEditors() {}
 
+    /**
+     * Clears pending undo start values. Called by {@link FieldUndoTracker#clear()}.
+     */
+    public static void clearUndoState() {
+        undoStartValues.clear();
+    }
+
     private static String undoKey(Component component, String fieldName) {
         return System.identityHashCode(component) + "@" + fieldName;
     }

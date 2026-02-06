@@ -36,6 +36,13 @@ public class EditorFields {
     private static final float[] floatBuf = new float[1];
     private static final Map<String, Object> undoStartValues = new HashMap<>();
 
+    /**
+     * Clears pending undo start values. Called by {@link com.pocket.rpg.editor.ui.fields.FieldUndoTracker#clear()}.
+     */
+    public static void clearUndoState() {
+        undoStartValues.clear();
+    }
+
     // ========================================================================
     // FLOAT FIELDS
     // ========================================================================

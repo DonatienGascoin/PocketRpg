@@ -86,8 +86,10 @@ public class CustomComponentEditorRegistry {
         EditorGameObject editorEntity = entity instanceof EditorGameObject ego ? ego : null;
         FieldEditorContext.begin(editorEntity, component, FieldEditorContext.getCurrentScene());
         try {
+            // Draw componentKey field at top of every custom inspector
+            boolean changed = ComponentKeyField.draw(component);
             // Draw the inspector
-            return editor.draw();
+            return editor.draw() | changed;
         } finally {
             FieldEditorContext.end();
         }

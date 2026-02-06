@@ -23,9 +23,6 @@ public class UICanvasInspector extends CustomComponentInspector<UICanvas> {
     public boolean draw() {
         boolean changed = false;
 
-        // === UI KEY ===
-        changed |= ComponentKeyField.draw(component);
-
         // Render Mode
         ImGui.text(MaterialIcons.DesktopWindows + " Render Mode");
         changed |= EnumEditor.drawEnum("Render Mode", component, "renderMode", UICanvas.RenderMode.class);

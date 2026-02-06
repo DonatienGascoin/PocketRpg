@@ -164,6 +164,13 @@ public class ComponentTypeAdapterFactory implements TypeAdapterFactory {
 
         out.beginObject();
 
+        // Write componentKey (defined on Component.class, excluded from meta.fields())
+        String componentKey = component.getComponentKey();
+        if (componentKey != null && !componentKey.isEmpty()) {
+            out.name("componentKey");
+            out.value(componentKey);
+        }
+
         if (meta != null) {
             for (FieldMeta fieldMeta : meta.fields()) {
                 Field field = fieldMeta.field();
@@ -281,6 +288,12 @@ public class ComponentTypeAdapterFactory implements TypeAdapterFactory {
         Component component = ComponentRegistry.instantiateByClassName(clazz.getName());
         if (component == null) {
             throw new JsonParseException("Failed to instantiate component: " + clazz.getName());
+        }
+
+        // Read componentKey (defined on Component.class, excluded from meta.fields())
+        JsonElement keyElement = json.get("componentKey");
+        if (keyElement != null && keyElement.isJsonPrimitive()) {
+            component.setComponentKey(keyElement.getAsString());
         }
 
         for (FieldMeta fieldMeta : meta.fields()) {

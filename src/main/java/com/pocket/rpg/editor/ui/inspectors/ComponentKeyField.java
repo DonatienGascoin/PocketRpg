@@ -5,8 +5,8 @@ import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.ui.fields.FieldEditorContext;
+import com.pocket.rpg.editor.ui.fields.FieldEditorUtils;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
-import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
@@ -48,7 +48,7 @@ public final class ComponentKeyField {
      * @return true if the field value changed
      */
     public static boolean draw(Component component) {
-        String currentKey = ComponentReflectionUtils.getString(component, "componentKey", "");
+        String currentKey = component.getComponentKey() != null ? component.getComponentKey() : "";
         boolean isEmpty = currentKey.isEmpty();
         boolean isDuplicate = !isEmpty && isDuplicateKey(currentKey, component);
 
@@ -70,7 +70,13 @@ public final class ComponentKeyField {
         drawList.channelsSplit(2);
         drawList.channelsSetCurrent(1); // Draw content on foreground channel
 
-        boolean changed = FieldEditors.drawString(MaterialIcons.VpnKey + " Component Key", component, "componentKey");
+        FieldEditorUtils.setNextLabelWidth(145f);
+        boolean changed = FieldEditors.drawString(
+                MaterialIcons.VpnKey + " Component Key",
+                "componentKey",
+                () -> component.getComponentKey() != null ? component.getComponentKey() : "",
+                component::setComponentKey
+        );
 
         // Tooltip
         if (ImGui.isItemHovered()) {

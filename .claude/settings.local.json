@@ -40,7 +40,10 @@
       "Bash(gh pr view:*)",
       "Bash(gh api:*)",
       "mcp__trello__add_card_to_list",
-      "Bash(gh pr merge:*)"
+      "Bash(gh pr merge:*)",
+      "Bash(gh pr diff:*)",
+      "Bash(git fetch:*)",
+      "Bash(git rebase:*)"
     ]
   }
 }

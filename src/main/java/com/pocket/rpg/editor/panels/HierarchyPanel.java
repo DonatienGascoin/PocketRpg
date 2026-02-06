@@ -34,6 +34,7 @@ import lombok.Setter;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Unified hierarchy panel - orchestrates tree rendering, selection, drag-drop, and entity creation.
@@ -56,6 +57,8 @@ public class HierarchyPanel extends EditorPanel {
     @Getter
     private final EntityCreationService creationService = new EntityCreationService();
     private final HierarchyTreeRenderer treeRenderer = new HierarchyTreeRenderer();
+
+    private Set<String> lastSelectedEntityIds = Set.of();
 
     public HierarchyPanel() {
         super(PANEL_ID, true); // Default open - core panel
@@ -393,6 +396,17 @@ public class HierarchyPanel extends EditorPanel {
     }
 
     private void renderEntitiesSection() {
+        // Detect selection changes and request scroll-to for newly selected entities
+        Set<String> currentSelectedIds = scene.getSelectedEntities().stream()
+                .map(EditorGameObject::getId)
+                .collect(Collectors.toSet());
+
+        if (!currentSelectedIds.equals(lastSelectedEntityIds) && !currentSelectedIds.isEmpty()) {
+            EditorGameObject target = scene.getSelectedEntities().iterator().next();
+            treeRenderer.requestScrollToEntity(target);
+        }
+        lastSelectedEntityIds = currentSelectedIds;
+
         List<EditorGameObject> rootEntities = scene.getRootEntities();
         rootEntities.sort(Comparator.comparingInt(EditorGameObject::getOrder));
 

@@ -1,5 +1,7 @@
 package com.pocket.rpg.editor.ui.inspectors;
 
+import com.pocket.rpg.components.ui.LayoutGroup.ChildHorizontalAlignment;
+import com.pocket.rpg.components.ui.LayoutGroup.ChildVerticalAlignment;
 import com.pocket.rpg.components.ui.UIGridLayoutGroup;
 import com.pocket.rpg.components.ui.UIGridLayoutGroup.Axis;
 import com.pocket.rpg.components.ui.UIGridLayoutGroup.Constraint;
@@ -52,6 +54,26 @@ public class UIGridLayoutGroupInspector extends LayoutGroupInspectorBase<UIGridL
 
         if (component.getConstraint() != Constraint.FLEXIBLE) {
             changed |= FieldEditors.drawInt("Count", component, "constraintCount");
+        }
+
+        ImGui.spacing();
+
+        // Alignment section
+        ImGui.text("Alignment");
+        ImGui.separator();
+
+        if (component.isChildForceExpandWidth()) {
+            FieldEditors.inspectorRow("Horizontal", () ->
+                    ImGui.textDisabled("No effect (Force Width)"));
+        } else {
+            changed |= FieldEditors.drawEnum("Horizontal", component, "horizontalAlignment", ChildHorizontalAlignment.class);
+        }
+
+        if (component.isChildForceExpandHeight()) {
+            FieldEditors.inspectorRow("Vertical", () ->
+                    ImGui.textDisabled("No effect (Force Height)"));
+        } else {
+            changed |= FieldEditors.drawEnum("Vertical", component, "verticalAlignment", ChildVerticalAlignment.class);
         }
 
         return changed;

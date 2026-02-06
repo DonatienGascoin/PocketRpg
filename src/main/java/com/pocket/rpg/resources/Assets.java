@@ -619,8 +619,6 @@ public final class Assets {
                     "Fix: Update the loader's reload() method to mutate the existing instance in place " +
                     "and return it, rather than creating a new object. Keeping old asset to prevent broken references.");
             // Don't use the new reference - keep existing to avoid breaking external references
-        } else {
-            Log.info("Assets", "Reloaded: " + path);
         }
     }
 

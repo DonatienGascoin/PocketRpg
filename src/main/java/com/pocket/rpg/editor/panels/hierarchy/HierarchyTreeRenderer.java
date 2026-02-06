@@ -26,6 +26,7 @@ import org.joml.Vector3f;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -51,8 +52,26 @@ public class HierarchyTreeRenderer {
     private String nameBeforeRename = null;  // For undo support
     private final SavePrefabPopup savePrefabPopup = new SavePrefabPopup();
 
+    // Scroll-to-selection support
+    private Set<String> entitiesToForceOpen = new HashSet<>();
+    private String scrollToEntityId = null;
+
     // Cache entity rects from previous frame for right-click pre-selection
     private final java.util.Map<String, float[]> entityRectCache = new java.util.HashMap<>();
+
+    /**
+     * Requests the tree to expand all ancestor nodes and scroll to reveal the given entity.
+     * One-shot: clears after the entity is rendered.
+     */
+    public void requestScrollToEntity(EditorGameObject entity) {
+        scrollToEntityId = entity.getId();
+        entitiesToForceOpen.clear();
+        EditorGameObject current = entity.getParent();
+        while (current != null) {
+            entitiesToForceOpen.add(current.getId());
+            current = current.getParent();
+        }
+    }
 
     public void renderEntityTree(EditorGameObject entity) {
         boolean isRenaming = entity == renamingItem;
@@ -82,6 +101,11 @@ public class HierarchyTreeRenderer {
             ImGui.pushStyleColor(ImGuiCol.Header, 0.3f, 0.5f, 0.8f, 0.5f);
         }
 
+        // Force-open ancestor nodes to reveal scroll target
+        if (entitiesToForceOpen.contains(entity.getId())) {
+            ImGui.setNextItemOpen(true);
+        }
+
         // Determine the label - empty when renaming (we'll draw inline input after)
         String label;
         if (isRenaming) {
@@ -92,6 +116,13 @@ public class HierarchyTreeRenderer {
         }
 
         boolean nodeOpen = ImGui.treeNodeEx("##entity_" + entity.getId(), flags, label);
+
+        // Scroll to this entity if it's the target
+        if (entity.getId().equals(scrollToEntityId)) {
+            ImGui.setScrollHereY(0.5f);
+            scrollToEntityId = null;
+            entitiesToForceOpen.clear();
+        }
 
         // Render inline rename field on same line as tree node
         if (isRenaming) {

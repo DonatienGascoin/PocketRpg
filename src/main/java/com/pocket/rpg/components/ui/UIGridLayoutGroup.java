@@ -70,6 +70,12 @@ public class UIGridLayoutGroup extends LayoutGroup {
     @Getter @Setter
     private int constraintCount = 2;
 
+    @Getter @Setter
+    private ChildHorizontalAlignment horizontalAlignment = ChildHorizontalAlignment.LEFT;
+
+    @Getter @Setter
+    private ChildVerticalAlignment verticalAlignment = ChildVerticalAlignment.TOP;
+
     // ========================================================================
     // LAYOUT
     // ========================================================================
@@ -96,10 +102,15 @@ public class UIGridLayoutGroup extends LayoutGroup {
                 columns = (int) Math.ceil((double) children.size() / rows);
             }
             default -> { // FLEXIBLE
-                columns = Math.max(1, (int) ((availableWidth + spacing) / (cellWidth + spacing)));
-                // Don't create more columns than children
-                columns = Math.min(columns, children.size());
-                rows = (int) Math.ceil((double) children.size() / columns);
+                if (startAxis == Axis.HORIZONTAL) {
+                    columns = Math.max(1, (int) ((availableWidth + spacing) / (cellWidth + spacing)));
+                    columns = Math.min(columns, children.size());
+                    rows = (int) Math.ceil((double) children.size() / columns);
+                } else {
+                    rows = Math.max(1, (int) ((availableHeight + spacing) / (cellHeight + spacing)));
+                    rows = Math.min(rows, children.size());
+                    columns = (int) Math.ceil((double) children.size() / rows);
+                }
             }
         }
 
@@ -114,6 +125,21 @@ public class UIGridLayoutGroup extends LayoutGroup {
             float totalSpacing = spacing * Math.max(0, rows - 1);
             actualCellHeight = (availableHeight - totalSpacing) / rows;
         }
+
+        // Calculate grid block size and alignment offsets
+        float gridWidth = columns * actualCellWidth + Math.max(0, columns - 1) * spacing;
+        float gridHeight = rows * actualCellHeight + Math.max(0, rows - 1) * spacing;
+
+        float baseX = switch (horizontalAlignment) {
+            case LEFT -> paddingLeft;
+            case CENTER -> paddingLeft + (availableWidth - gridWidth) / 2;
+            case RIGHT -> paddingLeft + availableWidth - gridWidth;
+        };
+        float baseY = switch (verticalAlignment) {
+            case TOP -> paddingTop;
+            case MIDDLE -> paddingTop + (availableHeight - gridHeight) / 2;
+            case BOTTOM -> paddingTop + availableHeight - gridHeight;
+        };
 
         for (int i = 0; i < children.size(); i++) {
             int col, row;
@@ -133,11 +159,12 @@ public class UIGridLayoutGroup extends LayoutGroup {
                 row = rows - 1 - row;
             }
 
-            float x = paddingLeft + col * (actualCellWidth + spacing);
-            float y = paddingTop + row * (actualCellHeight + spacing);
+            float x = baseX + col * (actualCellWidth + spacing);
+            float y = baseY + row * (actualCellHeight + spacing);
 
             UITransform ct = children.get(i).getComponent(UITransform.class);
             ct.setAnchor(0, 0);
+            ct.setPivot(0, 0);
             ct.setOffset(x, y);
             ct.setWidth(actualCellWidth);
             ct.setHeight(actualCellHeight);

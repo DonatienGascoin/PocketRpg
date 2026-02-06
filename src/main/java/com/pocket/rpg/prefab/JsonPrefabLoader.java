@@ -79,7 +79,7 @@ public class JsonPrefabLoader implements AssetLoader<JsonPrefab> {
 
     @Override
     public boolean supportsHotReload() {
-        return true;
+        return false;
     }
 
     // ========================================================================

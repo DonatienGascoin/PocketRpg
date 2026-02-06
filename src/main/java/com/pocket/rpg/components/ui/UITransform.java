@@ -106,50 +106,58 @@ public class UITransform extends Transform {
     private transient boolean uiMatrixDirty = true;
 
     // ========================================================================
-    // STRETCH MODE (Match Parent Size)
+    // SIZE MODE (Per-axis percentage sizing)
     // ========================================================================
 
     /**
-     * Stretch mode for matching parent bounds.
+     * Per-axis sizing mode. Each axis can independently be fixed pixels or a percentage of parent.
      */
-    public enum StretchMode {
-        /** Use explicit width/height values */
-        NONE,
-        /** Stretch to fill parent bounds (like Unity's stretch anchor) */
-        MATCH_PARENT,
-        /** Stretch width to match parent, keep explicit height */
-        MATCH_PARENT_WIDTH,
-        /** Stretch height to match parent, keep explicit width */
-        MATCH_PARENT_HEIGHT
+    public enum SizeMode {
+        /** Uses explicit width/height in pixels */
+        FIXED,
+        /** Uses percentage of parent size */
+        PERCENT
     }
 
     @Getter
-    private StretchMode stretchMode = StretchMode.NONE;
+    @Setter
+    private SizeMode widthMode = SizeMode.FIXED;
+
+    @Getter
+    @Setter
+    private SizeMode heightMode = SizeMode.FIXED;
+
+    /** Percentage of parent width when widthMode=PERCENT (0-200+). Default 100 = match parent. */
+    @Getter
+    @Setter
+    private float widthPercent = 100f;
+
+    /** Percentage of parent height when heightMode=PERCENT (0-200+). Default 100 = match parent. */
+    @Getter
+    @Setter
+    private float heightPercent = 100f;
 
     /**
-     * Sets the stretch mode. Resets anchor, pivot, and offset on the matching axis/axes
-     * so the element fills the parent appropriately.
+     * Sets both axes to PERCENT at 100% and resets anchor, pivot, and offset.
+     * This is the equivalent of the old "MATCH_PARENT" behavior.
      */
-    public void setStretchMode(StretchMode stretchMode) {
-        this.stretchMode = stretchMode;
-        switch (stretchMode) {
-            case MATCH_PARENT -> {
-                anchor.set(0, 0);
-                pivot.set(0, 0);
-                localPosition.set(0, 0, localPosition.z);
-            }
-            case MATCH_PARENT_WIDTH -> {
-                anchor.x = 0;
-                pivot.x = 0;
-                localPosition.x = 0;
-            }
-            case MATCH_PARENT_HEIGHT -> {
-                anchor.y = 0;
-                pivot.y = 0;
-                localPosition.y = 0;
-            }
-            case NONE -> { /* no reset */ }
-        }
+    public void setMatchParent() {
+        this.widthMode = SizeMode.PERCENT;
+        this.heightMode = SizeMode.PERCENT;
+        this.widthPercent = 100f;
+        this.heightPercent = 100f;
+        anchor.set(0, 0);
+        pivot.set(0, 0);
+        localPosition.set(0, 0, localPosition.z);
+        markDirty();
+    }
+
+    /**
+     * Resets both axes to FIXED mode.
+     */
+    public void clearMatchParent() {
+        this.widthMode = SizeMode.FIXED;
+        this.heightMode = SizeMode.FIXED;
         markDirty();
     }
 
@@ -281,24 +289,27 @@ public class UITransform extends Transform {
 
     /**
      * Gets the effective pivot for rendering.
-     * For MATCH_PARENT elements, returns the parent's pivot so rotation
+     * For PERCENT-mode axes, returns the parent's pivot on that axis so rotation
      * happens around the correct point (parent's center, not top-left).
      * Otherwise returns this element's pivot.
      *
      * @return Effective pivot ratio (0-1)
      */
     public Vector2f getEffectivePivot() {
-        if (stretchMode == StretchMode.MATCH_PARENT) {
+        boolean wPercent = widthMode == SizeMode.PERCENT;
+        boolean hPercent = heightMode == SizeMode.PERCENT;
+
+        if (wPercent && hPercent) {
             UITransform parentTransform = getParentUITransform();
             if (parentTransform != null) {
                 return parentTransform.getPivot();
             }
-        } else if (stretchMode == StretchMode.MATCH_PARENT_WIDTH) {
+        } else if (wPercent) {
             UITransform parentTransform = getParentUITransform();
             if (parentTransform != null) {
                 return new Vector2f(parentTransform.getPivot().x, pivot.y);
             }
-        } else if (stretchMode == StretchMode.MATCH_PARENT_HEIGHT) {
+        } else if (hPercent) {
             UITransform parentTransform = getParentUITransform();
             if (parentTransform != null) {
                 return new Vector2f(pivot.x, parentTransform.getPivot().y);
@@ -323,52 +334,61 @@ public class UITransform extends Transform {
     }
 
     /**
-     * Gets the effective width, considering stretch mode.
-     * In MATCH_PARENT mode, returns parent width.
+     * Gets the effective width, considering size mode.
+     * In PERCENT mode, returns percentage of parent width.
      *
      * @return Effective width in pixels
      */
     public float getEffectiveWidth() {
-        if (stretchMode == StretchMode.MATCH_PARENT || stretchMode == StretchMode.MATCH_PARENT_WIDTH) {
-            return getParentWidth();
+        if (widthMode == SizeMode.PERCENT) {
+            return getParentWidth() * widthPercent / 100f;
         }
         return width;
     }
 
     /**
-     * Gets the effective height, considering stretch mode.
-     * In MATCH_PARENT mode, returns parent height.
+     * Gets the effective height, considering size mode.
+     * In PERCENT mode, returns percentage of parent height.
      *
      * @return Effective height in pixels
      */
     public float getEffectiveHeight() {
-        if (stretchMode == StretchMode.MATCH_PARENT || stretchMode == StretchMode.MATCH_PARENT_HEIGHT) {
-            return getParentHeight();
+        if (heightMode == SizeMode.PERCENT) {
+            return getParentHeight() * heightPercent / 100f;
         }
         return height;
     }
 
     /**
-     * Checks if this transform is in any match parent mode.
+     * Checks if either axis is using percentage sizing.
      *
-     * @return true if stretchMode is not NONE
+     * @return true if any axis is in PERCENT mode
      */
     public boolean isMatchingParent() {
-        return stretchMode != StretchMode.NONE;
+        return widthMode == SizeMode.PERCENT || heightMode == SizeMode.PERCENT;
     }
 
     /**
-     * Checks if width is matching parent (MATCH_PARENT or MATCH_PARENT_WIDTH).
+     * Checks if width is using percentage sizing.
      */
     public boolean isMatchingParentWidth() {
-        return stretchMode == StretchMode.MATCH_PARENT || stretchMode == StretchMode.MATCH_PARENT_WIDTH;
+        return widthMode == SizeMode.PERCENT;
     }
 
     /**
-     * Checks if height is matching parent (MATCH_PARENT or MATCH_PARENT_HEIGHT).
+     * Checks if height is using percentage sizing.
      */
     public boolean isMatchingParentHeight() {
-        return stretchMode == StretchMode.MATCH_PARENT || stretchMode == StretchMode.MATCH_PARENT_HEIGHT;
+        return heightMode == SizeMode.PERCENT;
+    }
+
+    /**
+     * Checks if both axes are PERCENT at 100% — equivalent to the old MATCH_PARENT.
+     * Used for position/matrix optimizations where the element fills parent completely.
+     */
+    public boolean isFillingParent() {
+        return widthMode == SizeMode.PERCENT && heightMode == SizeMode.PERCENT
+                && widthPercent == 100f && heightPercent == 100f;
     }
 
     // ========================================================================
@@ -646,8 +666,8 @@ public class UITransform extends Transform {
         // Get parent transform for rotation handling
         UITransform parentTransform = getParentUITransform();
 
-        // In MATCH_PARENT mode, element fills parent entirely
-        if (stretchMode == StretchMode.MATCH_PARENT) {
+        // When filling parent (both axes PERCENT at 100%), element fills parent entirely
+        if (isFillingParent()) {
             calculatedPosition.set(parentX, parentY);
             positionDirty = false;
             return;
@@ -874,8 +894,8 @@ public class UITransform extends Transform {
 
         UITransform parentTransform = getParentUITransform();
 
-        // In MATCH_PARENT mode, child fills parent completely and rotates with it
-        if (stretchMode == StretchMode.MATCH_PARENT) {
+        // When filling parent (both axes PERCENT at 100%), child fills parent completely and rotates with it
+        if (isFillingParent()) {
             if (parentTransform != null) {
                 // Ensure parent has screen bounds set (propagate up the chain)
                 parentTransform.setScreenBounds(screenWidth, screenHeight);

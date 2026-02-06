@@ -460,6 +460,68 @@ static Stream<AssetLoader<?>> allLoaders() {
 }
 ```
 
+### 2.5 AssetHotReloadTest.java
+
+**Purpose:** Test hot-reload contract enforcement and reload behavior.
+
+**Test Scenarios:**
+```java
+@Nested @DisplayName("AssetLoader Default Behavior")
+class DefaultBehaviorTests {
+    @Test void reload_throwsException_whenSupportsHotReloadTrueButNotOverridden() {
+        // Loader that returns supportsHotReload()=true but uses default reload()
+        AssetLoader<Object> loader = new AssetLoader<>() {
+            public Object load(String p) { return new Object(); }
+            public void save(Object r, String p) {}
+            public Object getPlaceholder() { return null; }
+            public String[] getSupportedExtensions() { return new String[]{".test"}; }
+            public boolean supportsHotReload() { return true; } // true but not overridden!
+        };
+
+        Object existing = new Object();
+        assertThrows(UnsupportedOperationException.class,
+            () -> loader.reload(existing, "test.test"));
+    }
+
+    @Test void exceptionMessage_containsLoaderNameAndFixInstructions()
+}
+
+@Nested @DisplayName("Contract Violation Detection")
+class ContractViolationTests {
+    @Test void reload_logsError_whenLoaderReturnsNewReference()
+    @Test void reload_keepsOldAsset_whenContractViolated()
+    @Test void reload_succeedsQuietly_whenSameReferenceReturned()
+}
+
+@Nested @DisplayName("Assets.reload() API")
+class AssetsReloadTests {
+    @Test void reload_returnsFalse_whenAssetNotCached()
+    @Test void reload_returnsFalse_whenLoaderDoesNotSupportHotReload()
+    @Test void reload_returnsTrue_whenSuccessful()
+    @Test void reload_stripsSubAssetSuffix_andReloadsParent()
+}
+
+@Nested @DisplayName("Assets.reloadAll() API")
+class AssetsReloadAllTests {
+    @Test void reloadAll_returnsCountOfReloadedAssets()
+    @Test void reloadAll_skipsSubAssets()
+    @Test void reloadAll_skipsAssetsWithoutHotReloadSupport()
+}
+
+@Nested @DisplayName("Sprite.reloadMetadata()")
+class SpriteReloadMetadataTests {
+    @Test void reloadMetadata_resetsPivotToDefault_whenMetadataNull()
+    @Test void reloadMetadata_appliesPivot_fromSingleModeMetadata()
+    @Test void reloadMetadata_appliesNineSlice_fromSingleModeMetadata()
+    @Test void reloadMetadata_appliesPpuOverride()
+    @Test void reloadMetadata_usesDefaultPivot_forMultipleModeMetadata()
+}
+```
+
+**Note:** `Texture.reloadFromDisk()` and `Shader.reloadFromDisk()` require OpenGL context and are better suited for manual/integration testing. The unit tests focus on the contract enforcement and API behavior which can be tested with mocks.
+
+**Dependencies:** Requires `MockAssetContext` from Phase 1.
+
 ---
 
 ## Phase 3: Serialization Tests
@@ -1075,13 +1137,13 @@ Assets through full serialization pipeline:
 ### Test Files by Phase
 | Phase | Files | Est. Tests |
 |-------|-------|------------|
-| 2: Asset Pipeline | 4 | ~40 |
+| 2: Asset Pipeline | 5 | ~55 |
 | 3: Serialization | 4 | ~50 |
 | 4: Collision | 10 | ~70 |
 | 5: Animation | 3 | ~25 |
 | 6: Editor Paths | 4 | ~32 |
 | 7: Integration | 3 | ~15 |
-| **Total** | **28** | **~232** |
+| **Total** | **29** | **~247** |
 
 ---
 

@@ -3,7 +3,6 @@ package com.pocket.rpg.resources;
 import com.pocket.rpg.editor.EditorPanelType;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
-import com.pocket.rpg.logging.Log;
 import com.pocket.rpg.rendering.resources.Sprite;
 import org.joml.Vector3f;
 
@@ -78,9 +77,10 @@ public interface AssetLoader<T> {
      * @throws IOException if reload fails
      */
     default T reload(T existing, String path) throws IOException {
-        Log.warn("AssetLoader", "Hot-reload not implemented for " + getClass().getSimpleName() +
-                ", skipping: " + path);
-        return existing;
+        throw new UnsupportedOperationException(
+                getClass().getSimpleName() + " returns supportsHotReload()=true but does not override reload(). " +
+                "Either override reload() to mutate the existing instance, or return false from supportsHotReload()."
+        );
     }
 
     // ========================================================================

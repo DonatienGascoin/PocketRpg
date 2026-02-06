@@ -64,6 +64,7 @@ public class UIHorizontalLayoutGroup extends LayoutGroup {
             };
 
             ct.setAnchor(0, 0);
+            ct.setPivot(0, 0);
             ct.setOffset(x, y);
 
             if (childForceExpandWidth) {

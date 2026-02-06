@@ -45,6 +45,10 @@
 - `AssetLoader<T>` - Interface for custom asset types
 - Metadata stored in `gameData/.metadata/` (pivots, 9-slice borders)
 - Sub-asset syntax: `"spritesheets/player.spritesheet#3"` loads sprite index 3
+- **Hot-reload**: `Assets.reload(path)` / `Assets.reloadAll()` mutate cached assets in place
+  - Loaders implement `supportsHotReload()` and `reload(existing, path)`
+  - Contract: `reload()` must mutate existing instance, not return new reference
+  - Supported: Texture, Sprite, Shader
 
 ## Serialization
 

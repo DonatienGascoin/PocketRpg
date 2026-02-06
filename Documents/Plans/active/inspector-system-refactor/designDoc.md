@@ -1,10 +1,16 @@
-# Inspector System Refactor — Design Document (v2)
+# Inspector System Refactor — Design Document (v3)
 
-> **v2 changes:** Redesigned based on expert review (QA, architecture, product, ImGui). Major changes:
-> InspectorRow uses immediate rendering (not deferred lambdas). InspectorField is now an interface
-> hiding reflection vs getter/setter. FieldUndoTracker uses component-scoped keys. Added Phase 0
-> (quick wins) and Phase 5 (old API removal). Realistic scope: UITransformInspector is the primary
-> beneficiary; most other inspectors are fine as-is.
+> **v3 changes:** Restructured based on v2 expert panel review (QA, architecture, product, ImGui).
+> Major changes from v2:
+> - **Dropped `InspectorField` sealed interface** — over-engineered for one outlier; `sealed` blocks future
+>   extension; `instanceof` in `drawFloat` violated its own principle; lambda `identityHashCode` broke undo.
+> - **Dropped Phase 5 full migration** — 17 working inspectors gain nothing from forced API change.
+> - **`FieldUndoTracker` is now standalone** — string-key primary API, no `InspectorField` dependency.
+> - **`InspectorRow` is now a private helper inside UITransformInspector** — it has exactly one consumer.
+> - **Added critical bug fix**: `pushOverrideStyle`/`popOverrideStyle` re-query state independently,
+>   causing ImGui style stack corruption if override state changes between push and pop.
+> - **Honest line target**: 950–1,000 lines for UITransformInspector (not 700–800).
+> - **3 focused phases** instead of 6.
 
 ---
 
@@ -12,7 +18,7 @@
 
 ### Who actually hurts?
 
-The comparison doc identifies three structural problems. But an audit of all 18 custom inspectors shows the pain is **heavily concentrated**:
+An audit of all 18 custom inspectors (`@InspectorFor`) shows the pain is **heavily concentrated**:
 
 | Inspector | Lines | Mixes APIs? | Manual layout? | Manual undo? | Needs refactor? |
 |-----------|-------|-------------|----------------|--------------|-----------------|
@@ -22,50 +28,48 @@ The comparison doc identifies three structural problems. But an audit of all 18 
 | UIImageInspector | 281 | Minimal | 3 calls | 1 block | Low |
 | Other 14 inspectors | 22–250 | No | 0–2 calls | 0–1 blocks | **No** |
 
-**UITransformInspector is the outlier.** The other 17 inspectors work fine with the current APIs. This refactor is primarily motivated by making complex UI inspectors viable — UITransformInspector today, and similar inspectors as more UI components are added.
+**UITransformInspector is the outlier.** The other 17 inspectors work fine with the current APIs.
+
+**Key finding from v2 review:** `EditorLayout` and `EditorFields` are used exclusively by
+UITransformInspector. Zero other inspectors use them. The "two competing layout APIs" problem
+is entirely contained within one file.
+
+### What this refactor targets
+
+1. **Phase 0** — Quick wins that help all inspectors + fix a critical existing bug
+2. **Phase 1** — Centralized undo tracking that eliminates boilerplate in 10+ inspectors
+3. **Phase 2** — UITransformInspector targeted refactor using Phase 0+1 tools
 
 ### Design principles
 
-1. **Immediate rendering only** — no deferred lambdas, no builder-then-execute pattern. ImGui's `isItemActivated()` / `isItemDeactivatedAfterEdit()` must work at their call site.
-2. **Callers don't check `hasReflection()`** — the abstraction handles reflection vs getter/setter internally.
-3. **Component-scoped undo keys** — no global key collisions between inspectors.
-4. **Incremental value** — Phase 0 ships standalone improvements that help all inspectors immediately.
+1. **Fix real bugs first** — the `pushOverrideStyle`/`popOverrideStyle` asymmetry is a latent Critical bug.
+2. **Targeted, not systemic** — build tools for UITransformInspector, not an abstraction layer for 17 inspectors that don't need one.
+3. **No forced migration** — existing inspector APIs stay. No inspector is rewritten unless it benefits.
+4. **Immediate rendering only** — no deferred lambdas. ImGui's `isItemActivated()` / `isItemDeactivatedAfterEdit()` must work at their call site.
 
 ---
 
-## Phase 0: Quick Wins (No New Abstractions)
+## Phase 0: Quick Wins + Critical Bug Fix
 
-**Goal:** Ship high-value, low-risk improvements that help all 18 inspectors. No new classes, no API changes.
+**Goal:** Ship high-value, low-risk improvements. No new classes, minimal API changes.
 
-### 0a: Typed `getComponent<T>()` on HierarchyItem
+### 0a: Audit `getComponent<T>()` call sites
 
-Every custom inspector that accesses sibling components does this:
+> **v3 note:** `IGameObject.getComponent()` already returns `<T extends Component> T` (line 54).
+> The v2 design claimed this needed a signature change — it does not. The typed generic signature
+> already exists. However, some inspector call sites may still use the cast pattern from before the
+> signature was genericized. This is a grep-and-fix cleanup, not a design decision.
 
-```java
-// Current: returns Component, requires cast
-Component transformComp = entity.getComponent(UITransform.class);
-if (!(transformComp instanceof UITransform uiTransform)) return false;
-```
-
-Add a typed overload:
-
-```java
-// In HierarchyItem / IGameObject interface
-default <T extends Component> T getComponent(Class<T> type) {
-    // Existing implementation already finds by class — just cast the return
-}
-```
-
-This already returns the right type internally — we just need the signature to reflect it. **Wait** — check if the interface already declares this. If `IGameObject.getComponent()` returns `Component`, change its return type to `<T extends Component> T`. If that's a breaking change on the interface, add a typed overload alongside.
-
-**Impact:** Eliminates 15+ casts across 10 inspectors. Zero risk.
+**Action:** Search for `instanceof` casts after `getComponent()` calls. Remove unnecessary casts
+where the generic return type is sufficient. Do NOT create a phase milestone for this — it's
+a 15-minute cleanup task.
 
 ### 0b: `findComponentInParent<T>()` helper
 
 5 inspectors check parent chains for `LayoutGroup`, `UITransform`, etc.:
 
 ```java
-// Current: manual parent walk
+// Current: manual parent walk (5–8 lines)
 HierarchyItem parent = entity.getHierarchyParent();
 if (parent != null) {
     UITransform parentTransform = parent.getComponent(UITransform.class);
@@ -78,578 +82,183 @@ Add helper to `HierarchyItem`:
 ```java
 default <T extends Component> T findComponentInParent(Class<T> type) {
     HierarchyItem parent = getHierarchyParent();
-    while (parent != null) {
+    int depth = 0;
+    while (parent != null && depth < 100) {  // depth guard prevents infinite loop on hierarchy cycles
         T comp = parent.getComponent(type);
         if (comp != null) return comp;
         parent = parent.getHierarchyParent();
+        depth++;
     }
     return null;
 }
 ```
 
-**Impact:** Reduces parent-walk boilerplate from 5–8 lines to 1 line. Used in UITransformInspector, LayoutGroupInspectorBase, UIImageInspector.
+> **v3 fix (QA #14):** Added depth guard. Hierarchy cycles shouldn't exist, but a bug in reparenting
+> would hang the editor without this guard. Cost: zero. Prevention: priceless.
+
+**Impact:** Reduces parent-walk boilerplate from 5–8 lines to 1 line. Used in UITransformInspector,
+LayoutGroupInspectorBase, UIImageInspector.
 
 ### 0c: `accentButton()` helper
 
-UITransformInspector pushes 3 style colors for every accent-colored button (px/% toggle, match-parent). Extract:
+UITransformInspector pushes 3 style colors for every accent-colored button (px/% toggle, match-parent).
+Extract:
 
 ```java
-// In FieldEditorUtils or a new EditorWidgets utility
+// In FieldEditorUtils
 
 public static boolean accentButton(boolean active, String label) {
-    boolean wasActive = active;
-    if (wasActive) {
+    if (active) {
         ImGui.pushStyleColor(ImGuiCol.Button, ACCENT_COLOR);
         ImGui.pushStyleColor(ImGuiCol.ButtonHovered, ACCENT_HOVER);
         ImGui.pushStyleColor(ImGuiCol.ButtonActive, ACCENT_ACTIVE);
     }
     boolean clicked = ImGui.smallButton(label);
-    if (wasActive) ImGui.popStyleColor(3);
+    if (active) ImGui.popStyleColor(3);
     return clicked;
 }
 ```
 
 **Impact:** Eliminates ~40 lines from UITransformInspector. Reusable for any future toggle-style buttons.
 
+### 0d: Fix `pushOverrideStyle` / `popOverrideStyle` asymmetry (CRITICAL)
+
+> **v3 addition.** Identified by QA (#2) and ImGui Expert (#3). This is a latent bug in the current code,
+> not a new-design issue.
+
+**The bug:** `FieldEditorContext.pushOverrideStyle()` and `popOverrideStyle()` each independently
+call `isFieldOverridden(fieldName)`:
+
+```java
+// FieldEditorContext.java:160-173 — CURRENT CODE (BUGGY)
+public static void pushOverrideStyle(String fieldName) {
+    if (isFieldOverridden(fieldName)) {                    // queries state at T1
+        ImGui.pushStyleColor(ImGuiCol.Text, ...);
+    }
+}
+
+public static void popOverrideStyle(String fieldName) {
+    if (isFieldOverridden(fieldName)) {                    // queries state at T2
+        ImGui.popStyleColor();
+    }
+}
+```
+
+If override state changes between push and pop (e.g., user clicks the reset button, which calls
+`resetFieldToDefault()` clearing the override), push fires but pop doesn't — **ImGui style stack
+permanently corrupted**. This violates the project's own `common-pitfalls.md` (lines 9–38).
+
+Today this doesn't trigger because `markFieldOverridden()` is called after `popOverrideStyle()` in
+`PrimitiveEditors.drawFloat()` (line 106→110). But the ordering is accidental, not enforced. Any
+reordering of the draw methods would silently trigger the bug.
+
+**Fix:** Store the push result, use it for pop:
+
+```java
+// FieldEditorContext.java — FIXED
+
+private static boolean overrideStylePushed = false;
+
+public static void pushOverrideStyle(String fieldName) {
+    overrideStylePushed = isFieldOverridden(fieldName);
+    if (overrideStylePushed) {
+        ImGui.pushStyleColor(ImGuiCol.Text, OVERRIDE_COLOR[0], OVERRIDE_COLOR[1],
+            OVERRIDE_COLOR[2], OVERRIDE_COLOR[3]);
+    }
+}
+
+public static void popOverrideStyle() {    // no fieldName param needed
+    if (overrideStylePushed) {
+        ImGui.popStyleColor();
+        overrideStylePushed = false;
+    }
+}
+```
+
+> **Why `popOverrideStyle()` drops its parameter:** The pop should always match the push.
+> Re-querying state is the bug. The boolean stored at push time is the only correct source of truth.
+>
+> **All existing callers** pass the same fieldName to push and pop, so this is a safe signature change.
+> A quick grep confirms no caller uses different field names between push/pop.
+
+**Impact:** Fixes a Critical latent bug. Zero behavioral change when things work correctly.
+Prevents silent ImGui stack corruption when things go wrong.
+
 ### Files to Change
 
 | File | Change |
 |------|--------|
-| `editor/panels/hierarchy/HierarchyItem.java` | Add typed `getComponent<T>()`, `findComponentInParent<T>()` |
+| `editor/panels/hierarchy/HierarchyItem.java` | Add `findComponentInParent<T>()` with depth guard |
 | `editor/ui/fields/FieldEditorUtils.java` | Add `accentButton()` |
-| `editor/ui/inspectors/UITransformInspector.java` | Use new helpers (optional, can defer) |
+| `editor/ui/fields/FieldEditorContext.java` | Fix `pushOverrideStyle`/`popOverrideStyle` |
+| Various inspectors (optional) | Remove unnecessary `instanceof` casts after `getComponent()` |
 
 ### Phase 0 Testing
 
-- Unit test `findComponentInParent()` with 3-level hierarchy, null parent, no match
-- Compile-verify all existing inspectors (signature change)
+- Unit test `findComponentInParent()` with 3-level hierarchy, null parent, no match, depth > 100
+- Compile-verify all inspectors after `popOverrideStyle()` signature change (drops `fieldName` param)
+- Manual test: edit prefab instance fields, click reset buttons, verify no ImGui assertion / visual glitch
 - Existing editor manual tests pass
 
 ---
 
-## Phase 1: Unified Field API — `InspectorField`
+## Phase 1: Centralized Undo Tracking — `FieldUndoTracker`
 
-**Goal:** One field descriptor that works for both reflection and getter/setter fields, hiding the distinction from callers.
+**Goal:** Extract the per-widget undo pattern (94 occurrences across 17 files) into a one-line call.
 
 ### Problem
 
-Reflection fields get prefab override styling + reset buttons + `SetComponentFieldCommand` undo.
-Getter/setter fields get none of that — just `SetterUndoCommand`.
-
-Custom inspectors must choose per-field, mixing two APIs with different signatures, different undo patterns, and different behavior.
-
-### Solution: `InspectorField` Interface
-
-An interface (not a final class — per architecture review) with two implementations that hide the reflection vs getter/setter distinction:
+Every field editor method has a 10-line undo tracking block. The pattern is identical:
 
 ```java
-// editor/ui/fields/InspectorField.java
-
-public sealed interface InspectorField permits ReflectionInspectorField, GetterSetterInspectorField {
-
-    String label();
-    String undoKey();
-
-    // Value access (Object to avoid boxing overhead on hot path —
-    // typed accessors on subtypes for primitives)
-    Object getValue();
-    void setValue(Object value);
-
-    // Undo — creates the right command type transparently
-    EditorCommand createUndoCommand(Object oldValue, Object newValue);
-
-    // Override support — no-ops for getter/setter fields
-    boolean isOverridden();
-    void markOverridden(Object value);
-    boolean canReset();
-    void drawResetButton();
-
-    // Override styling — no-ops for getter/setter fields
-    void pushOverrideStyle();
-    void popOverrideStyle();
+if (ImGui.isItemActivated()) {
+    undoStartValues.put(key, currentValue);
+}
+if (ImGui.isItemDeactivatedAfterEdit()) {
+    float start = undoStartValues.remove(key);
+    UndoManager.getInstance().push(new SomeUndoCommand(setter, start, current, "Change X"));
 }
 ```
 
-### ReflectionInspectorField
-
-```java
-// editor/ui/fields/ReflectionInspectorField.java
-
-public final class ReflectionInspectorField implements InspectorField {
-
-    private final String label;
-    private final Component component;
-    private final String fieldName;
-
-    public ReflectionInspectorField(String label, Component component, String fieldName) {
-        this.label = label;
-        this.component = component;
-        this.fieldName = fieldName;
-    }
-
-    @Override public String undoKey() {
-        return System.identityHashCode(component) + "@" + fieldName;
-    }
-
-    @Override public Object getValue() {
-        return ComponentReflectionUtils.getFieldValue(component, fieldName);
-    }
-
-    @Override public void setValue(Object value) {
-        ComponentReflectionUtils.setFieldValue(component, fieldName, value);
-    }
-
-    // Typed accessors for hot-path primitives (avoid boxing)
-    public float getFloat(float defaultValue) {
-        return ComponentReflectionUtils.getFloat(component, fieldName, defaultValue);
-    }
-    public void setFloat(float value) {
-        ComponentReflectionUtils.setFieldValue(component, fieldName, value);
-    }
-
-    @Override public EditorCommand createUndoCommand(Object oldValue, Object newValue) {
-        return new SetComponentFieldCommand(
-            component, fieldName, oldValue, newValue,
-            FieldEditorContext.getEntity()
-        );
-    }
-
-    @Override public boolean isOverridden() {
-        return FieldEditorContext.isActive()
-            && FieldEditorContext.isFieldOverridden(fieldName);
-    }
-
-    @Override public void markOverridden(Object value) {
-        if (FieldEditorContext.isActive()) {
-            FieldEditorContext.markFieldOverridden(fieldName, value);
-        }
-    }
-
-    @Override public boolean canReset() {
-        return isOverridden();
-    }
-
-    @Override public void drawResetButton() {
-        FieldEditorUtils.drawResetButtonIfNeeded(component, fieldName);
-    }
-
-    @Override public void pushOverrideStyle() {
-        FieldEditorContext.pushOverrideStyle(fieldName);
-    }
-
-    @Override public void popOverrideStyle() {
-        FieldEditorContext.popOverrideStyle(fieldName);
-    }
-}
-```
-
-### GetterSetterInspectorField
-
-```java
-// editor/ui/fields/GetterSetterInspectorField.java
-
-public final class GetterSetterInspectorField implements InspectorField {
-
-    private final String label;
-    private final String key;
-    private final Supplier<Object> getter;
-    private final Consumer<Object> setter;
-
-    // Constructor + typed factory methods:
-
-    public static GetterSetterInspectorField ofFloat(
-            String label, String key,
-            DoubleSupplier getter, DoubleConsumer setter) {
-        return new GetterSetterInspectorField(label, key,
-            () -> (float) getter.getAsDouble(),
-            v -> setter.accept((float) v));
-    }
-
-    @Override public String undoKey() {
-        // Include hash to avoid collisions between inspectors
-        return System.identityHashCode(setter) + "@" + key;
-    }
-
-    @Override public Object getValue() { return getter.get(); }
-    @Override public void setValue(Object value) { setter.accept(value); }
-
-    @Override public EditorCommand createUndoCommand(Object oldValue, Object newValue) {
-        return new SetterUndoCommand<>(setter, oldValue, newValue, "Change " + label);
-    }
-
-    // Override support — no-ops
-    @Override public boolean isOverridden() { return false; }
-    @Override public void markOverridden(Object value) { /* no-op */ }
-    @Override public boolean canReset() { return false; }
-    @Override public void drawResetButton() { /* no-op */ }
-    @Override public void pushOverrideStyle() { /* no-op */ }
-    @Override public void popOverrideStyle() { /* no-op */ }
-}
-```
-
-### Key design decisions (addressing review feedback)
-
-1. **Interface, not final class** — Callers program to `InspectorField`, never check `hasReflection()`. Override support methods are no-ops on getter/setter fields, so callers always call them.
-
-2. **`undoKey()` includes identity hash** — Reflection fields use `identityHashCode(component) + "@" + fieldName`. Getter/setter fields use `identityHashCode(setter) + "@" + key`. No collisions between inspectors editing different components.
-
-3. **No generic type parameter** — Uses `Object` internally. Typed accessors (`getFloat()`) on the reflection subtype for the hot path. This avoids boxing overhead and signature bloat per the architecture review.
-
-4. **`drawResetButton()` on the field itself** — Callers don't need to know about `FieldEditorContext` or `FieldEditorUtils`. They just call `field.drawResetButton()` after the field widget.
-
-### Unified PrimitiveEditors Implementation
-
-One method handles both reflection and getter/setter fields:
-
-```java
-// PrimitiveEditors.java — single implementation
-
-public static boolean drawFloat(InspectorField field, float speed) {
-    Object raw = field.getValue();
-    float value = (raw instanceof Number n) ? n.floatValue() : 0f;
-    floatBuffer[0] = value;
-    String key = field.undoKey();
-
-    ImGui.pushID(key);
-    field.pushOverrideStyle();    // No-op for getter/setter
-
-    final boolean[] changed = {false};
-    FieldEditorUtils.inspectorRow(field.label(), () -> {
-        changed[0] = ImGui.dragFloat("##" + key, floatBuffer, speed);
-    });
-
-    // Undo tracking — immediate after widget (inspectorRow executes lambda synchronously)
-    if (ImGui.isItemActivated()) {
-        undoStartValues.put(key, value);
-    }
-    boolean deactivated = ImGui.isItemDeactivatedAfterEdit();
-
-    field.popOverrideStyle();     // No-op for getter/setter
-
-    if (changed[0]) {
-        field.setValue(floatBuffer[0]);
-        field.markOverridden(floatBuffer[0]);  // No-op for getter/setter
-    }
-
-    if (deactivated && undoStartValues.containsKey(key)) {
-        float startValue = (Float) undoStartValues.remove(key);
-        if (startValue != floatBuffer[0]) {
-            UndoManager.getInstance().push(
-                field.createUndoCommand(startValue, floatBuffer[0])
-            );
-        }
-    }
-
-    field.drawResetButton();      // No-op for getter/setter
-    ImGui.popID();
-    return changed[0];
-}
-```
-
-**Note:** `inspectorRow()` executes its lambda synchronously — this is critical. `isItemActivated()` on line after the `inspectorRow()` call works because the dragFloat has already executed.
-
-### Facade: Convenience Factories
-
-`FieldEditors` gets shorthand factory + draw methods:
-
-```java
-// FieldEditors.java — factories + unified draw
-
-// Factories
-public static InspectorField field(String label, Component component, String fieldName) {
-    return new ReflectionInspectorField(label, component, fieldName);
-}
-
-public static InspectorField field(String label, String key,
-                                    DoubleSupplier getter, DoubleConsumer setter) {
-    return GetterSetterInspectorField.ofFloat(label, key, getter, setter);
-}
-
-// Draw methods
-public static boolean drawFloat(InspectorField field, float speed) {
-    return PrimitiveEditors.drawFloat(field, speed);
-}
-```
-
-### Files to Change
-
-| File | Change |
-|------|--------|
-| `editor/ui/fields/InspectorField.java` | **NEW** — Sealed interface |
-| `editor/ui/fields/ReflectionInspectorField.java` | **NEW** — Reflection implementation |
-| `editor/ui/fields/GetterSetterInspectorField.java` | **NEW** — Getter/setter implementation |
-| `editor/ui/fields/PrimitiveEditors.java` | Add `drawFloat(InspectorField, speed)` etc. alongside old methods |
-| `editor/ui/fields/VectorEditors.java` | Same |
-| `editor/ui/fields/EnumEditor.java` | Same |
-| `editor/ui/fields/FieldEditors.java` | Add factory methods + InspectorField draw overloads |
-
-Old methods stay (not deprecated yet) — they coexist until Phase 5.
-
----
-
-## Phase 2: Row Layout — `InspectorRow` (Immediate Mode)
-
-**Goal:** Replace manual `sameLine` / `setCursorPosX` / `setNextItemWidth` chains with a scope-based row helper that calculates widths upfront but renders widgets immediately.
-
-### Problem (unchanged from v1)
-
-`inspectorRow(label, field)` handles "label + field" only. Anything more complex requires manual ImGui layout math.
-
-### Why NOT a Deferred Builder
-
-The v1 design proposed collecting `Runnable` lambdas and executing them in `end()`. The ImGui expert review identified fatal flaws:
-
-1. **`isItemActivated()` / `isItemDeactivatedAfterEdit()` check the last rendered widget** — if widgets render inside `end()`, these checks can't be called at the widget's call site.
-2. **Widget return values** require `boolean[]` capture arrays — error-prone and noisy.
-3. **Push/pop style safety** is harder to verify when rendering is deferred.
-4. **Error stack traces** point to `end()`, not the actual widget.
-
-### Solution: Immediate Scope-Based API
-
-Instead of collecting lambdas, `InspectorRow` calculates widths upfront and exposes them. Widgets render inline at their call site:
-
-```java
-// editor/ui/fields/InspectorRow.java
-
-public final class InspectorRow implements AutoCloseable {
-
-    private final float available;
-    private final float flexWidth;
-    private boolean first = true;
-
-    // --- Construction ---
-
-    /** Row with label + N flex slots. */
-    public static InspectorRow withLabel(String label, int flexSlots) {
-        float available = ImGui.getContentRegionAvailX();
-        if (FieldEditorContext.isActive()) {
-            available -= FieldEditorUtils.RESET_BUTTON_WIDTH;
-        }
-
-        // Draw label immediately
-        FieldEditorUtils.drawLabel(label);
-
-        float remaining = available - FieldEditorUtils.LABEL_WIDTH;
-        return new InspectorRow(remaining, flexSlots);
-    }
-
-    /** Row with label + fixed-width widget + N flex slots. */
-    public static InspectorRow withLabel(String label, float fixedWidth, int flexSlots) {
-        float available = ImGui.getContentRegionAvailX();
-        if (FieldEditorContext.isActive()) {
-            available -= FieldEditorUtils.RESET_BUTTON_WIDTH;
-        }
-
-        FieldEditorUtils.drawLabel(label);
-
-        float remaining = available - FieldEditorUtils.LABEL_WIDTH - fixedWidth;
-        float flex = flexSlots > 0 ? remaining / flexSlots : 0;
-        return new InspectorRow(flex, fixedWidth);
-    }
-
-    /** Row with no label, N flex slots (for XY side-by-side). */
-    public static InspectorRow noLabel(int flexSlots) {
-        float available = ImGui.getContentRegionAvailX();
-        float flex = flexSlots > 0 ? available / flexSlots : available;
-        return new InspectorRow(available, flexSlots);
-    }
-
-    private InspectorRow(float remaining, int flexSlots) {
-        this.available = remaining;
-        this.flexWidth = flexSlots > 0 ? Math.max(0, remaining / flexSlots) : 0;
-    }
-
-    // --- Slot Helpers (called between widgets) ---
-
-    /** Call before each widget to insert sameLine + set width. */
-    public void nextFlex() {
-        if (!first) ImGui.sameLine();
-        first = false;
-        ImGui.setNextItemWidth(flexWidth);
-    }
-
-    /** Call before each flex widget with an inline label ("X", "Y"). */
-    public void nextFlex(String inlineLabel) {
-        if (!first) ImGui.sameLine();
-        first = false;
-        float labelW = ImGui.calcTextSize(inlineLabel).x + 4f;
-        ImGui.text(inlineLabel);
-        ImGui.sameLine();
-        ImGui.setNextItemWidth(Math.max(0, flexWidth - labelW));
-    }
-
-    /** Call before a fixed-width widget (button, toggle). */
-    public void nextFixed() {
-        if (!first) ImGui.sameLine();
-        first = false;
-        // Natural width — widget determines its own size
-    }
-
-    /** Call before a fixed-width widget with explicit width. */
-    public void nextFixed(float width) {
-        if (!first) ImGui.sameLine();
-        first = false;
-        ImGui.setNextItemWidth(width);
-    }
-
-    /** Get the calculated flex width (for manual use). */
-    public float getFlexWidth() { return flexWidth; }
-
-    @Override
-    public void close() {
-        // AutoCloseable — nothing to clean up, but enables try-with-resources
-        // for safety against forgotten close in complex control flow
-    }
-}
-```
-
-### Usage Examples
-
-**Simple field (equivalent to `inspectorRow`):**
-```java
-try (var row = InspectorRow.withLabel("Speed", 1)) {
-    row.nextFlex();
-    boolean changed = ImGui.dragFloat("##speed", buf, 0.1f);
-    FieldUndoTracker.track(field, buf[0]);  // Works — widget just rendered
-}
-```
-
-**Field with toggle button:**
-```java
-try (var row = InspectorRow.withLabel("W", 30f, 1)) {
-    row.nextFixed();
-    if (accentButton(isPercent, "%%" + "##sizeW")) toggleMode();
-
-    row.nextFlex();
-    boolean changed = ImGui.dragFloat("##sizeW", buf, 1f);
-    // isItemActivated() works here — dragFloat just rendered inline
-}
-```
-
-**Two fields side by side:**
-```java
-try (var row = InspectorRow.noLabel(2)) {
-    row.nextFlex("X");
-    changed |= ImGui.dragFloat("##x", xBuf, 1f);
-
-    row.nextFlex("Y");
-    changed |= ImGui.dragFloat("##y", yBuf, 1f);
-}
-```
-
-### Why This Works with ImGui
-
-- **Widgets render inline** — `dragFloat()` executes at its call site, not in a deferred lambda.
-- **`isItemActivated()` works immediately** — the last widget is the one just rendered.
-- **Widget return values are direct `boolean`** — no `boolean[]` wrappers needed.
-- **Push/pop pairs are visible** — they wrap the widget call, not a Runnable.
-- **try-with-resources** guards against forgotten cleanup (though `close()` is a no-op here, the pattern prevents bugs if we add cleanup later).
-- **`Math.max(0, ...)` guards against negative widths** — if fixed content exceeds available space, flex widgets get 0 width instead of negative.
-
-### Extracting `drawLabel()` from FieldEditorUtils
-
-The label rendering logic (clipping, truncation tooltip) currently lives inside `inspectorRow()`. Extract it into a standalone method so `InspectorRow` can reuse it:
-
-```java
-// In FieldEditorUtils
-
-public static void drawLabel(String label) {
-    if (label.startsWith("##")) return;
-
-    float currentPos = ImGui.getCursorPosX();
-    float textWidth = ImGui.calcTextSize(label).x;
-    boolean truncated = textWidth > LABEL_WIDTH;
-
-    if (truncated) {
-        ImVec2 cursorScreen = ImGui.getCursorScreenPos();
-        float lineHeight = ImGui.getTextLineHeight();
-        ImGui.pushClipRect(cursorScreen.x, cursorScreen.y,
-            cursorScreen.x + LABEL_WIDTH, cursorScreen.y + lineHeight, true);
-        ImGui.text(label);
-        ImGui.popClipRect();
-    } else {
-        ImGui.text(label);
-    }
-
-    if (ImGui.isItemHovered() && truncated) {
-        ImGui.setTooltip(label);
-    }
-
-    ImGui.sameLine(currentPos + LABEL_WIDTH);
-}
-```
-
-### Nesting
-
-**Nesting is not supported.** `InspectorRow` calculates width based on available space at construction time. If a flex slot starts a new `InspectorRow`, the inner row sees reduced available space (which is correct — it's inside the outer slot). This works naturally because the width calculation uses `ImGui.getContentRegionAvailX()` at the point of construction, and `setNextItemWidth()` constrains the slot. **But** nested rows should be documented as unsupported — the inner row's widths may not add up correctly if the outer row's `sameLine()` shifts the cursor.
-
-### Files to Change
-
-| File | Change |
-|------|--------|
-| `editor/ui/fields/InspectorRow.java` | **NEW** — Immediate scope-based row layout |
-| `editor/ui/fields/FieldEditorUtils.java` | Extract `drawLabel()` from `inspectorRow()` |
-| `editor/ui/layout/EditorLayout.java` | Untouched (old API stays until Phase 5) |
-| `editor/ui/layout/EditorFields.java` | Untouched (old API stays until Phase 5) |
-
----
-
-## Phase 3: Centralized Undo Tracking — `FieldUndoTracker`
-
-**Goal:** Extract the per-widget undo pattern into a one-line call.
-
-### Problem (unchanged)
-
-Every field editor method has a 10-line undo tracking block. ~25 copies across the codebase.
+This is duplicated across 4 separate static maps:
+- `PrimitiveEditors.undoStartValues` (line 27)
+- `VectorEditors.undoStartValues` (line 27)
+- `EditorFields.undoStartValues` (line 37)
+- `UITransformInspector.percentUndoStart` (per-instance, but never cleared)
+
+**Existing bug:** `EditorFields.undoStartValues` uses plain string keys like `"uiTransform.offset.x"`.
+These collide across entities — start a drag on entity A's offset.x, switch to entity B, release
+drag → stale undo command pushed for wrong entity. The other maps use `identityHashCode`-based keys
+which avoid this by accident (different component instance = different key).
 
 ### Solution: `FieldUndoTracker`
+
+> **v3 change:** This is now a **standalone utility** with no `InspectorField` dependency.
+> The primary API uses string keys + setter, matching how inspectors already work.
 
 ```java
 // editor/ui/fields/FieldUndoTracker.java
 
 public final class FieldUndoTracker {
 
-    // Component-scoped: identityHashCode(component/setter) + "@" + fieldKey → start value
     private static final Map<String, Object> startValues = new HashMap<>();
 
     /**
      * Track undo for the last ImGui widget. Call IMMEDIATELY after the widget.
      *
-     * IMPORTANT: Must be called before any other ImGui call — isItemActivated()
-     * and isItemDeactivatedAfterEdit() check the LAST rendered widget.
+     * ORDERING CONTRACT:
+     * - Must be called BEFORE any ImGui call that changes "last item"
+     *   (text, button, checkbox, etc.)
+     * - Safe calls between widget and track(): setTooltip(), sameLine() (no widget after),
+     *   popStyleColor(), popID()
+     * - Unsafe calls: text(), smallButton(), checkbox(), dragFloat(), any widget render
      *
-     * @param field   The InspectorField being edited
-     * @param current The current value after potential edit
-     * @return true if an undo command was pushed (edit completed)
-     */
-    public static boolean track(InspectorField field, Object current) {
-        String key = field.undoKey();  // Already component-scoped
-
-        if (ImGui.isItemActivated()) {
-            startValues.put(key, current);
-        }
-
-        if (ImGui.isItemDeactivatedAfterEdit() && startValues.containsKey(key)) {
-            Object startValue = startValues.remove(key);
-            if (!Objects.equals(startValue, current)) {
-                UndoManager.getInstance().push(
-                    field.createUndoCommand(startValue, current)
-                );
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Track undo for a raw key + setter (for one-off cases in custom inspectors
-     * that don't use InspectorField).
-     *
-     * @param key         Unique key — MUST include component identity to avoid collisions.
+     * @param key         Unique key — MUST include component identity to avoid cross-entity collisions.
      *                    Use pattern: System.identityHashCode(component) + "@" + fieldId
-     * @param current     Current value
+     * @param current     Current value (pre-edit on activation frame, post-edit on deactivation frame)
      * @param setter      Consumer to apply value on undo/redo
-     * @param description Undo menu description
+     * @param description Undo menu description (e.g., "Change Width %")
+     * @return true if an undo command was pushed (edit completed)
      */
     public static <T> boolean track(String key, T current,
                                      Consumer<T> setter, String description) {
@@ -671,127 +280,271 @@ public final class FieldUndoTracker {
     }
 
     /**
-     * Clear all tracking state. Must be called on:
+     * Track undo for a reflection field. Convenience overload that creates
+     * SetComponentFieldCommand for proper prefab override sync.
+     *
+     * @param key       Unique key (use undoKey(component, fieldName) pattern)
+     * @param current   Current field value
+     * @param component The component being edited
+     * @param fieldName The reflection field name
+     * @param entity    The entity (for prefab override tracking) — pass explicitly,
+     *                  do NOT read from FieldEditorContext static state
+     */
+    public static boolean trackReflection(String key, Object current,
+                                           Component component, String fieldName,
+                                           EditorGameObject entity) {
+        if (ImGui.isItemActivated()) {
+            startValues.put(key, current);
+        }
+
+        if (ImGui.isItemDeactivatedAfterEdit() && startValues.containsKey(key)) {
+            Object startValue = startValues.remove(key);
+            if (!Objects.equals(startValue, current)) {
+                UndoManager.getInstance().push(
+                    new SetComponentFieldCommand(component, fieldName, startValue, current, entity)
+                );
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Build a standard undo key for a component field.
+     * Uses identityHashCode for cross-entity collision avoidance.
+     */
+    public static String undoKey(Component component, String fieldId) {
+        return System.identityHashCode(component) + "@" + fieldId;
+    }
+
+    /**
+     * Clear all tracking state. Called on:
      * - Inspector unbind (CustomComponentInspector.unbind())
-     * - Entity selection change (InspectorPanel)
+     * - Entity selection change (see: SelectionChangeDetector)
      * - Play mode enter/exit (PlayModeController)
+     *
+     * Also clears legacy undo maps in PrimitiveEditors, VectorEditors, EditorFields
+     * to fix the existing cross-entity key collision bug.
      */
     public static void clear() {
         startValues.clear();
+        // Also clear legacy maps (until they are migrated to use FieldUndoTracker)
+        PrimitiveEditors.clearUndoState();
+        VectorEditors.clearUndoState();
+        EditorFields.clearUndoState();
+    }
+
+    /**
+     * Debug: returns the number of pending undo entries.
+     * If this grows > 50, something is leaking (abandoned drags).
+     */
+    public static int pendingCount() {
+        return startValues.size();
     }
 }
 ```
 
-### Key collision prevention (addressing QA review)
+### Key design decisions (addressing v2 review findings)
 
-`InspectorField.undoKey()` returns component-scoped keys:
-- `ReflectionInspectorField`: `System.identityHashCode(component) + "@" + fieldName`
-- `GetterSetterInspectorField`: `System.identityHashCode(setter) + "@" + key`
+**1. No `InspectorField` dependency (Architect #10, Product #2)**
 
-Two inspectors editing different components will have different identity hashes. Two fields on the same component will have different field names. No collisions.
+The v2 design coupled `FieldUndoTracker.track()` to `InspectorField`, which:
+- Made Phase 3 depend on Phase 1 (Architect #7 — "cannot be parallel")
+- Required building a sealed interface that 17 inspectors don't need (Product #1)
+- Introduced `identityHashCode(setter)` instability for per-frame lambdas (Architect #8, QA #5)
+
+The v3 tracker uses plain string keys. Callers build keys using `undoKey(component, fieldId)`.
+No lambda identity hashing.
+
+**2. `trackReflection()` takes entity explicitly (Architect #9)**
+
+The v2 design had `ReflectionInspectorField.createUndoCommand()` reading entity from
+`FieldEditorContext.getEntity()` — a static field that could be null or stale if called outside
+`begin()/end()` scope. The v3 version takes `entity` as an explicit parameter. No silent failures.
+
+**3. String keys, not identity hash keys (Architect #8, QA #5)**
+
+The v2 design used `identityHashCode(setter)` for getter/setter undo keys. Java lambdas created
+per-frame (`t::setRotation`) produce a **new object each frame**, so `identityHashCode` changes
+every frame. On the activation frame, the tracker stores key X. On the deactivation frame, it
+looks up key Y. **Undo silently broke.**
+
+v3 uses `undoKey(component, fieldId)` which is stable because `component` is the same object
+across frames and `fieldId` is a string constant.
+
+**4. Ordering contract documented explicitly (QA #8)**
+
+The v2 design said "call IMMEDIATELY after the widget" but didn't specify which ImGui calls are
+safe between widget and `track()`. v3 documents the contract:
+- **Safe:** `setTooltip()`, `sameLine()` (without widget after), `popStyleColor()`, `popID()`
+- **Unsafe:** `text()`, `smallButton()`, `checkbox()`, `dragFloat()`, any widget
+
+**5. `clear()` also clears legacy maps (QA #4)**
+
+The 4 existing undo maps (`PrimitiveEditors`, `VectorEditors`, `EditorFields`, `UITransformInspector`)
+are never cleared today. This is a latent bug: `EditorFields.undoStartValues` uses plain string keys
+that collide across entities. `clear()` calls `clearUndoState()` on each class, fixing the bug
+retroactively without migrating those classes to `FieldUndoTracker`.
+
+### Selection-change detection for `clear()`
+
+> **v3 addition (QA #4):** `InspectorPanel` has no selection-change callback. It re-renders every
+> frame based on `selectionManager` state. We need to add change detection.
+
+**Option A (recommended):** Add a `lastSelectedEntityId` field to `EntityInspector` (or
+`InspectorPanel`). On each frame, compare against current selection. If changed, call
+`FieldUndoTracker.clear()`.
+
+```java
+// In EntityInspector or InspectorPanel draw loop:
+private int lastSelectedEntityId = -1;
+
+// At top of draw():
+int currentId = (selectedEntity != null) ? selectedEntity.getId() : -1;
+if (currentId != lastSelectedEntityId) {
+    FieldUndoTracker.clear();
+    lastSelectedEntityId = currentId;
+}
+```
+
+This is simple, robust, and requires no event system changes.
 
 ### Required `clear()` call sites
 
-| Location | When |
-|----------|------|
-| `CustomComponentInspector.unbind()` | Inspector loses focus |
-| `InspectorPanel` selection change | Different entity selected |
-| `PlayModeController.enterPlayMode()` | Editor → play transition |
-| `PlayModeController.exitPlayMode()` | Play → editor transition |
+| Location | When | Mechanism |
+|----------|------|-----------|
+| `EntityInspector` / `InspectorPanel` | Different entity selected | Selection-change detection (see above) |
+| `CustomComponentInspector.unbind()` | Inspector loses focus | Direct call in existing method |
+| `PlayModeController.enterPlayMode()` | Editor → play transition | Direct call |
+| `PlayModeController.exitPlayMode()` | Play → editor transition | Direct call |
 
-### Impact on PrimitiveEditors (with Phase 1)
+### Impact on existing code
 
-Combined with `InspectorField`, the float method becomes:
+`FieldUndoTracker` does NOT replace the existing undo tracking in `PrimitiveEditors`, `VectorEditors`,
+or `EditorFields`. Those continue to work as-is. The tracker is **opt-in** for:
 
-```java
-public static boolean drawFloat(InspectorField field, float speed) {
-    float value = (field instanceof ReflectionInspectorField rf)
-        ? rf.getFloat(0f) : ((Number) field.getValue()).floatValue();
-    floatBuffer[0] = value;
+1. **Custom inspectors** that currently duplicate the 10-line undo pattern (UITextInspector,
+   UIButtonInspector, UIPanelInspector, AlphaGroupInspector, DoorInspector, SpawnPointInspector,
+   StaticOccupantInspector, WarpZoneInspector — 8 inspectors with manual undo blocks)
+2. **UITransformInspector** — replaces `handlePercentUndo()` and the `percentUndoStart` HashMap
+3. **Future inspectors** — use `FieldUndoTracker.track()` instead of copying the pattern
 
-    ImGui.pushID(field.undoKey());
-    field.pushOverrideStyle();
-
-    final boolean[] changed = {false};
-    FieldEditorUtils.inspectorRow(field.label(), () -> {
-        changed[0] = ImGui.dragFloat("##f", floatBuffer, speed);
-    });
-
-    // One-line undo tracking — replaces 10-line block
-    FieldUndoTracker.track(field, floatBuffer[0]);
-
-    field.popOverrideStyle();
-
-    if (changed[0]) {
-        field.setValue(floatBuffer[0]);
-        field.markOverridden(floatBuffer[0]);
-    }
-
-    field.drawResetButton();
-    ImGui.popID();
-    return changed[0];
-}
-```
-
-### Impact on UITransformInspector
-
-`handlePercentUndo()` (20 lines) becomes:
-
-```java
-// Inside drawAxisField(), immediately after the percent dragFloat:
-FieldUndoTracker.track(
-    System.identityHashCode(component) + "@percent_" + id,
-    isWidth ? t.getWidthPercent() : t.getHeightPercent(),
-    isWidth ? t::setWidthPercent : t::setHeightPercent,
-    "Change " + (isWidth ? "Width" : "Height") + " %"
-);
-```
-
-The `percentUndoStart` HashMap and `handlePercentUndo()` method are deleted.
-
-**Note:** Complex cascading resize undo (`startSizeEdit()`/`commitSizeEdit()`) stays as-is — it's multi-entity and multi-field. `FieldUndoTracker` handles the common single-field case.
+Existing `PrimitiveEditors.drawFloat(label, component, fieldName, speed)` is untouched. It continues
+to use its own internal `undoStartValues`. Migration of the internal implementations to
+`FieldUndoTracker` is optional and can happen incrementally.
 
 ### Files to Change
 
 | File | Change |
 |------|--------|
 | `editor/ui/fields/FieldUndoTracker.java` | **NEW** — Centralized undo tracking |
-| `editor/ui/fields/PrimitiveEditors.java` | Replace inline undo blocks (in new InspectorField methods) |
-| `editor/ui/fields/VectorEditors.java` | Same |
+| `editor/ui/fields/PrimitiveEditors.java` | Add `public static void clearUndoState()` |
+| `editor/ui/fields/VectorEditors.java` | Add `public static void clearUndoState()` |
+| `editor/ui/layout/EditorFields.java` | Add `public static void clearUndoState()` |
 | `editor/ui/inspectors/CustomComponentInspector.java` | Add `FieldUndoTracker.clear()` to `unbind()` |
-| `editor/panels/InspectorPanel.java` | Add `FieldUndoTracker.clear()` on selection change |
-| `editor/ui/inspectors/UITransformInspector.java` | Replace `handlePercentUndo()` |
+| `editor/panels/inspector/EntityInspector.java` | Add selection-change detection + `clear()` |
+| `editor/ui/inspectors/UITransformInspector.java` | Replace `handlePercentUndo()` (optional, can defer to Phase 2) |
+
+### Phase 1 Testing
+
+- Unit test `track()`: activation → change → deactivation pushes correct command
+- Unit test `track()`: activation → no change → deactivation pushes nothing
+- Unit test `track()`: two different fields interleaved don't collide
+- Unit test `trackReflection()`: creates `SetComponentFieldCommand` with correct entity
+- Unit test `clear()`: removes all pending state, including legacy maps
+- Unit test `undoKey()`: same component + different fields → different keys; different components + same field → different keys
+- Integration test: edit field → undo → verify value restored
+- Regression test: selection change mid-drag doesn't push stale undo command
+- Regression test: `EditorFields` string-key cross-entity collision is fixed by `clear()` on selection change
+- **Document and test which ImGui calls between widget and `track()` are safe vs unsafe** (QA #8)
 
 ---
 
-## Phase 4: UITransformInspector Refactor
+## Phase 2: UITransformInspector Targeted Refactor
 
-**Goal:** Refactor UITransformInspector using Phases 0–3, proving the new APIs work end-to-end.
+**Goal:** Refactor UITransformInspector using Phase 0+1 tools, plus private layout helpers.
 
-### Realistic Target (addressing product review)
+### Realistic Target (addressing Product review)
 
-The v1 design claimed 400–500 lines. That was optimistic. The domain logic (cascading resize, aspect lock, match-parent, preset grids) is inherently complex. **Realistic target: 700–800 lines** (from 1,230), achieved by eliminating:
+> **v3 correction:** The v2 design claimed 700–800 lines. The savings math was wrong.
+> Explicit savings add up to ~265 lines. Domain logic alone is ~390 lines.
 
 | Savings | Lines | How |
 |---------|-------|-----|
-| Manual width math | ~100 | `InspectorRow` calculates widths |
-| Undo boilerplate | ~60 | `FieldUndoTracker` for percent fields |
+| Undo boilerplate | ~60 | `FieldUndoTracker` for percent fields, manual undo blocks |
 | Style push/pop | ~40 | `accentButton()` helper (Phase 0) |
 | Parent chain lookups | ~20 | `findComponentInParent()` (Phase 0) |
-| Component casts | ~15 | Typed `getComponent<T>()` (Phase 0) |
-| API unification | ~30 | `InspectorField` eliminates mixed API patterns |
+| Component casts | ~10 | Already-typed `getComponent<T>()` cleanup |
+| Manual width math | ~80 | Private `RowLayout` helper (see below) |
+| Method extraction | ~50 | Extracting repeated sub-patterns into private helpers |
 
 **What stays the same:**
-- Cascading resize logic + undo (~200 lines) — inherently multi-entity
-- Anchor/pivot preset grids (~90 lines) — domain-specific UI
-- Match-parent toggle logic (~100 lines) — domain-specific behavior
+- Cascading resize logic + undo (~200 lines) — inherently multi-entity, multi-field
+- Anchor/pivot preset grids (~125 lines) — domain-specific UI
+- Match-parent toggle logic (~88 lines) — domain-specific behavior
+- Rotation/scale section (~143 lines) — domain-specific
+- Size section core (~100 lines after helpers extracted) — domain-specific
+
+**Realistic target: 950–1,000 lines** (from 1,230). This is a ~20% reduction, entirely from
+eliminating boilerplate and mechanical duplication. The domain complexity is inherent and stays.
+
+### Private `RowLayout` helper (not a public class)
+
+> **v3 change (Product #2, Architect #10):** `InspectorRow` from v2 was proposed as a public class.
+> But it has exactly one consumer (UITransformInspector). Making it public creates a maintenance burden
+> for an abstraction with one user. Instead, add private helper methods inside UITransformInspector.
+
+```java
+// Private inner class or static helper methods inside UITransformInspector
+
+/**
+ * Calculates flex width for a row with label + fixed-width content + N flex slots.
+ * Does NOT render anything — just returns the width. Caller does layout manually.
+ */
+private float calculateFlexWidth(float fixedContentWidth, int flexSlots) {
+    float available = ImGui.getContentRegionAvailX();
+    if (FieldEditorContext.isActive()) {
+        available -= FieldEditorUtils.RESET_BUTTON_WIDTH;
+    }
+    float remaining = available - FieldEditorUtils.LABEL_WIDTH - fixedContentWidth;
+    return flexSlots > 0 ? Math.max(0, remaining / flexSlots) : 0;
+}
+```
+
+If, in the future, a second inspector needs this pattern, extract it into a public utility then.
+Not before.
+
+> **v3 fixes for v2's InspectorRow bugs (for reference if extracted later):**
+>
+> - **Constructor parameter mismatch (QA #7):** The v2 `withLabel(label, fixedWidth, flexSlots)`
+>   passed `(flex, fixedWidth)` to constructor `(float remaining, int flexSlots)` — wouldn't compile.
+>
+> - **`nextFlex(String)` hardcodes 4f instead of `ItemSpacing.x` (ImGui #5):** `sameLine()` inserts
+>   `ItemSpacing.x` gap (default ~8f). Using `4f` causes ~4px overflow per slot. Must use
+>   `ImGui.getStyle().getItemSpacingX()`.
+>
+> - **`withLabel("##hidden")` deducts LABEL_WIDTH unnecessarily (ImGui #8):** When label starts
+>   with `##`, `drawLabel()` returns without drawing, but `remaining = available - LABEL_WIDTH` still
+>   deducts 120f. Current `inspectorRow()` handles this correctly by skipping the label block entirely.
+>
+> - **Nested rows produce silent visual corruption (ImGui #4):** Inner row calls
+>   `getContentRegionAvailX()` which returns full remaining panel width, not the outer slot width.
+>   Must add nesting guard assertion if ever extracted as public API.
+>
+> - **`setNextMiddleContent`/`setNextFieldWidth` silently ignored (QA #16):** These static "next-call"
+>   overrides are consumed by `inspectorRow()` but not by a standalone row helper. Must consume/clear
+>   them in the factory method if extracted as public API.
 
 ### Key Refactorings
 
 **Size axis field — before (UITransformInspector:533-656, ~120 lines):**
-Manual `EditorLayout.beforeWidget()`, `ImGui.text()`, `sameLine()`, style push x3, `smallButton()`, style pop x3, `sameLine()`, `calcTextSize()`, `calculateWidgetWidth()`, `setNextItemWidth()`, `dragFloat()`, `handlePercentUndo()`.
 
-**After (~30 lines):**
+Manual `EditorLayout.beforeWidget()`, `ImGui.text()`, `sameLine()`, style push x3, `smallButton()`,
+style pop x3, `sameLine()`, `calcTextSize()`, `calculateWidgetWidth()`, `setNextItemWidth()`,
+`dragFloat()`, `handlePercentUndo()`.
+
+**After (~40 lines):**
+
 ```java
 private boolean drawAxisField(String label, String id, boolean isWidth,
                                float currentWidth, float currentHeight,
@@ -800,205 +553,203 @@ private boolean drawAxisField(String label, String id, boolean isWidth,
     UITransform.SizeMode mode = isWidth ? component.getWidthMode() : component.getHeightMode();
     boolean isPercent = mode == UITransform.SizeMode.PERCENT;
 
-    try (var row = InspectorRow.withLabel(label, 30f, 1)) {
-        // Mode toggle button
-        row.nextFixed();
-        if (FieldEditorUtils.accentButton(isPercent, (isPercent ? "%%" : "px") + "##" + id)) {
-            if (hasParentUITransform) changed |= toggleSizeMode(isWidth);
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(isPercent ? "Switch to pixel size" : "Switch to percentage of parent");
-        }
+    // Label
+    FieldEditorUtils.inspectorRow(label, () -> {});  // just the label positioning
+    // Actually: use manual label + width calculation
+    float buttonW = ImGui.calcTextSize(isPercent ? "%%" : "px").x + 8f;
+    float flexW = calculateFlexWidth(buttonW, 1);
 
-        // Value drag
-        row.nextFlex();
-        if (isPercent) {
-            changed |= drawPercentDrag(id, isWidth);
-        } else {
-            changed |= drawPixelDrag(id, isWidth, currentWidth, currentHeight);
-        }
+    // Mode toggle button
+    ImGui.sameLine();
+    if (FieldEditorUtils.accentButton(isPercent, (isPercent ? "%%" : "px") + "##" + id)) {
+        if (hasParentUITransform) changed |= toggleSizeMode(isWidth);
+    }
+    if (ImGui.isItemHovered()) {
+        ImGui.setTooltip(isPercent ? "Switch to pixel size" : "Switch to percentage of parent");
+    }
+
+    // Value drag
+    ImGui.sameLine();
+    ImGui.setNextItemWidth(flexW);
+    if (isPercent) {
+        changed |= drawPercentDrag(id, isWidth);
+    } else {
+        changed |= drawPixelDrag(id, isWidth, currentWidth, currentHeight);
     }
     return changed;
 }
 ```
 
-**Offset fields — before (uses EditorLayout + EditorFields, ~10 lines):**
-```java
-EditorLayout.beginHorizontal(2);
-changed |= EditorFields.floatField("X", "uiTransform.offset.x", ...);
-changed |= EditorFields.floatField("Y", "uiTransform.offset.y", ...);
-EditorLayout.endHorizontal();
-```
+**Percent undo — before (handlePercentUndo, ~20 lines + HashMap):**
 
-**After (uses InspectorRow, ~8 lines):**
 ```java
-try (var row = InspectorRow.noLabel(2)) {
-    row.nextFlex("X");
-    changed |= drawOffsetAxis(true);
+// Current: manual undo with instance HashMap
+private final Map<String, Float> percentUndoStart = new HashMap<>();
 
-    row.nextFlex("Y");
-    changed |= drawOffsetAxis(false);
+private void handlePercentUndo(String id, boolean isWidth) {
+    if (ImGui.isItemActivated()) {
+        percentUndoStart.put(id, isWidth ? component.getWidthPercent() : component.getHeightPercent());
+    }
+    if (ImGui.isItemDeactivatedAfterEdit() && percentUndoStart.containsKey(id)) {
+        float start = percentUndoStart.remove(id);
+        float current = isWidth ? component.getWidthPercent() : component.getHeightPercent();
+        if (start != current) {
+            UndoManager.getInstance().push(
+                new SetterUndoCommand<>(isWidth ? component::setWidthPercent : component::setHeightPercent,
+                    start, current, "Change " + (isWidth ? "Width" : "Height") + " %"));
+        }
+    }
 }
 ```
+
+**After (1 line):**
+
+```java
+// Inside drawPercentDrag(), immediately after ImGui.dragFloat():
+FieldUndoTracker.track(
+    FieldUndoTracker.undoKey(component, "percent_" + id),
+    isWidth ? component.getWidthPercent() : component.getHeightPercent(),
+    isWidth ? component::setWidthPercent : component::setHeightPercent,
+    "Change " + (isWidth ? "Width" : "Height") + " %"
+);
+```
+
+The `percentUndoStart` HashMap and `handlePercentUndo()` method are deleted.
+
+**Note:** Complex cascading resize undo (`startSizeEdit()`/`commitSizeEdit()`) stays as-is — it's
+multi-entity and multi-field. `FieldUndoTracker` handles the common single-field case.
+
+### `EditorLayout` / `EditorFields` Cleanup
+
+After Phase 2, UITransformInspector no longer uses `EditorLayout` or `EditorFields`. Since no other
+inspector uses them either, they can be deleted. This is a cleanup step within Phase 2, not a
+separate migration phase.
+
+| File | Action |
+|------|--------|
+| `editor/ui/layout/EditorLayout.java` | **DELETE** — zero remaining consumers |
+| `editor/ui/layout/EditorFields.java` | **DELETE** — zero remaining consumers |
+| `editor/ui/layout/LayoutContext.java` | **DELETE** (if exists, internal to EditorLayout) |
 
 ### Files to Change
 
 | File | Change |
 |------|--------|
-| `editor/ui/inspectors/UITransformInspector.java` | Refactor using Phases 0–3 APIs |
-
----
-
-## Phase 5: Old API Removal
-
-**Goal:** Remove the old `drawFloat(label, component, fieldName, speed)` and `drawFloat(label, key, getter, setter, speed)` signatures, plus `EditorLayout` / `EditorFields`. Clean cut, no deprecated wrappers.
-
-### Prerequisites
-
-- Phases 0–4 shipped and stable (at least 2 weeks without regressions)
-- All 18 custom inspectors migrated to `InspectorField` + `InspectorRow`
-
-### Migration Scope
-
-| Inspector | Complexity | Estimated effort |
-|-----------|-----------|-----------------|
-| TransformInspector | Trivial (3 lines) | 5 min |
-| AlphaGroupInspector | Trivial | 5 min |
-| CameraBoundsZoneInspector | Simple | 10 min |
-| DoorInspector | Simple | 10 min |
-| GridMovementInspector | Moderate | 20 min |
-| SpawnPointInspector | Simple | 10 min |
-| StaticOccupantInspector | Simple | 10 min |
-| UICanvasInspector | Simple | 10 min |
-| UIButtonInspector | Moderate | 30 min |
-| UIImageInspector | Moderate | 20 min |
-| UITextInspector | Moderate | 30 min |
-| UIPanelInspector | Simple | 10 min |
-| WarpZoneInspector | Simple | 10 min |
-| 3x LayoutGroupInspectors | Simple | 15 min each |
-| UITransformInspector | Already done in Phase 4 | 0 |
-
-**Total estimated migration: ~4 hours** — straightforward because most inspectors use simple reflection fields.
-
-### What Gets Deleted
-
-| File | Action |
-|------|--------|
+| `editor/ui/inspectors/UITransformInspector.java` | Refactor using Phase 0+1 APIs + private helpers |
 | `editor/ui/layout/EditorLayout.java` | **DELETE** |
 | `editor/ui/layout/EditorFields.java` | **DELETE** |
-| `editor/ui/layout/LayoutContext.java` | **DELETE** (if exists, internal to EditorLayout) |
-| `editor/ui/fields/PrimitiveEditors.java` | Remove old method signatures (reflection + getter/setter string-key variants) |
-| `editor/ui/fields/VectorEditors.java` | Same |
-| `editor/ui/fields/EnumEditor.java` | Same |
-| `editor/ui/fields/FieldEditors.java` | Remove old method signatures, remove `dragFloat`/`dragVector2f`/etc. raw variants |
 
-### Migration Guide for Inspector Authors
+### Phase 2 Testing
 
-**Reflection field (most common):**
-```java
-// Before:
-FieldEditors.drawFloat("Speed", component, "speed", 0.1f);
-
-// After:
-var speed = new ReflectionInspectorField("Speed", component, "speed");
-FieldEditors.drawFloat(speed, 0.1f);
-// Or create in bind() and reuse:
-FieldEditors.drawFloat(this.speedField, 0.1f);
-```
-
-**Getter/setter field:**
-```java
-// Before:
-FieldEditors.drawFloat("Rotation", "rot", t::getRotation, t::setRotation, 0.5f);
-
-// After:
-var rotation = GetterSetterInspectorField.ofFloat("Rotation", "rot", t::getRotation, t::setRotation);
-FieldEditors.drawFloat(rotation, 0.5f);
-```
-
-**Horizontal layout:**
-```java
-// Before:
-EditorLayout.beginHorizontal(2);
-EditorFields.floatField("X", "key.x", getterX, setterX, 1f);
-EditorFields.floatField("Y", "key.y", getterY, setterY, 1f);
-EditorLayout.endHorizontal();
-
-// After:
-try (var row = InspectorRow.noLabel(2)) {
-    row.nextFlex("X");
-    ImGui.dragFloat("##key.x", xBuf, 1f);
-    FieldUndoTracker.track(xField, xBuf[0]);
-
-    row.nextFlex("Y");
-    ImGui.dragFloat("##key.y", yBuf, 1f);
-    FieldUndoTracker.track(yField, yBuf[0]);
-}
-```
+Full manual test checklist for UITransformInspector:
+- [ ] Anchor preset grid (all 9 positions + custom value)
+- [ ] Pivot preset grid (all 9 positions + custom value)
+- [ ] Offset drag with undo/redo
+- [ ] Size drag (fixed mode) with cascading children + undo
+- [ ] Size drag (percent mode) with undo
+- [ ] px / % mode toggle with undo
+- [ ] Lock aspect ratio (both modes)
+- [ ] Match parent toggles (master + per-property)
+- [ ] Layout group disabled state
+- [ ] Prefab instance: override styling + reset buttons
+- [ ] Play mode: inspector renders without NPE
+- [ ] Side-by-side visual comparison with current layout (widths, spacing, alignment)
+- [ ] Keyboard entry into drag field → undo works correctly (not just mouse drag)
+- [ ] Start drag → switch entity selection mid-drag → verify no stale undo command
 
 ---
 
 ## Phase Summary
 
-| Phase | Deliverable | New Files | Modified Files | Value |
-|-------|------------|-----------|----------------|-------|
-| 0 | Quick wins (typed getComponent, findInParent, accentButton) | 0 | 3 | Immediate — helps all inspectors |
-| 1 | `InspectorField` interface + implementations | 3 | 4 | Foundation — new API coexists with old |
-| 2 | `InspectorRow` (immediate mode) | 1 | 1 | Layout helper — opt-in for complex rows |
-| 3 | `FieldUndoTracker` | 1 | 4 | Internal cleanup — eliminates 25 undo blocks |
-| 4 | UITransformInspector refactor | 0 | 1 | Proof — validates phases 0–3 together |
-| 5 | Old API removal + full migration | 0 (3 deleted) | ~20 | Clean cut — one API, no duplication |
+| Phase | Deliverable | New Files | Modified Files | Deleted Files | Value |
+|-------|------------|-----------|----------------|---------------|-------|
+| 0 | Quick wins + critical override style fix | 0 | 4 | 0 | Immediate — bug fix + helpers for all |
+| 1 | `FieldUndoTracker` (standalone) | 1 | 6 | 0 | Eliminates boilerplate in 10+ inspectors |
+| 2 | UITransformInspector refactor | 0 | 1 | 2–3 | Targeted — validates Phase 0+1 |
 
-**Recommended order:** 0 → 1 → 3 → 2 → 4 → 5
+**Recommended order:** 0 → 1 → 2
 
-Phase 0 ships standalone value immediately. Phases 1+3 can be developed in parallel (undo tracker is independent of field descriptor). Phase 2 (layout) builds on 1. Phase 4 validates everything. Phase 5 cleans up after Phase 4 proves stability.
+Phase 0 ships standalone value immediately. Phase 1 is independent of Phase 0 (can be parallel).
+Phase 2 depends on both.
+
+**Total: 3 phases, 1 new file, ~11 files modified, 2–3 files deleted.**
+
+---
+
+## What This Does NOT Build (and Why)
+
+### `InspectorField` sealed interface — DEFERRED
+
+The v2 design proposed a sealed interface unifying reflection and getter/setter field access.
+Four reviewers identified fundamental problems:
+
+| Problem | Reviewer | Severity |
+|---------|----------|----------|
+| `sealed` blocks future implementations (TransformEditors, ListEditor, AssetEditor) | Architect #2a | High |
+| `instanceof ReflectionInspectorField` in `drawFloat` violates the "callers never check type" principle | Architect #2b | High |
+| `identityHashCode(setter)` breaks for per-frame lambdas — undo silently stops working | Architect #8 | Critical |
+| `drawResetButton()` on a field descriptor couples data to rendering; 6 no-op methods = two interfaces crammed into one | Architect #2c | Medium |
+| `createUndoCommand()` reads static `FieldEditorContext.getEntity()` — fails silently out of scope | Architect #9 | High |
+| Only works for scalars; vectors, enums, assets, lists are unaddressed | Architect #6a | High |
+| 17 inspectors gain nothing from it; forced migration makes their code more verbose | Product #2 | High |
+
+**When to reconsider:** When a second inspector of UITransformInspector's complexity exists —
+one that genuinely mixes reflection and getter/setter APIs and would benefit from a unified
+field abstraction. At that point, revisit the interface design with these fixes:
+- Regular interface (not sealed) with package-private constructors
+- Default typed accessors on the interface (no `instanceof` downcasting)
+- Entity passed at construction, not read from static state
+- String-based undo keys only (no `identityHashCode(setter)`)
+- Override styling and reset buttons stay in draw methods, not on the descriptor
+
+### `InspectorRow` public class — DEFERRED
+
+Exactly one consumer (UITransformInspector). Private helper methods suffice. Extract when a second
+consumer exists. See v2 bugs to fix if extracted:
+- Constructor parameter type mismatch
+- `4f` hardcode instead of `ItemSpacing.x`
+- `##hidden` label regression
+- Nested row silent corruption
+- `setNextMiddleContent` state leak
+
+### Phase 5 full migration — CANCELLED
+
+Forcing 17 working inspectors through a new API:
+- `TransformInspector` (28 lines): 3-line draws become 6-line constructions. Net negative.
+- `GridMovementInspector` (187 lines): `FieldEditors.drawFloat("Speed", component, "speed", 0.1f)`
+  becomes `FieldEditors.drawFloat(new ReflectionInspectorField("Speed", component, "speed"), 0.1f)`.
+  Strictly more verbose, same behavior.
+- Most inspectors use `FieldEditors` one-liners that already handle undo. No benefit from migration.
+- Estimated 4 hours coding + 4–8 hours QA with zero automated test coverage.
 
 ---
 
 ## Testing Strategy
 
 ### Phase 0
-- Unit test `findComponentInParent()`: 3-level hierarchy, null parent, no match, multiple matches (returns first)
-- Compile-verify all inspectors with typed `getComponent<T>()`
+- Unit test `findComponentInParent()`: 3-level hierarchy, null parent, no match, depth > 100
+- Unit test `popOverrideStyle()` push/pop pairing: push with override → state changes → pop still pops
+- Compile-verify all inspectors after `popOverrideStyle()` signature change
+- Manual test: prefab instance field editing, reset buttons, override styling
 - Existing editor manual tests pass
 
 ### Phase 1
-- Unit test `ReflectionInspectorField`: getValue/setValue roundtrip, undoKey uniqueness, createUndoCommand type, isOverridden with/without FieldEditorContext
-- Unit test `GetterSetterInspectorField`: same, plus verify override methods are no-ops
-- Unit test `undoKey()` collision resistance: two different components with same field name produce different keys
-- Integration test: render one inspector with old API, same inspector with new API, verify identical ImGui output
-
-### Phase 2
-- Unit test width calculation: 1 flex, 2 flex, 1 fixed + 1 flex, label + fixed + flex
-- Edge case: zero flex slots, negative available space (narrow panel), fixedWidth > available
-- Visual test: UITransformInspector side-by-side comparison
-
-### Phase 3
 - Unit test `track()`: activation → change → deactivation pushes correct command
 - Unit test `track()`: activation → no change → deactivation pushes nothing
 - Unit test `track()`: two different fields interleaved don't collide
-- Unit test `clear()`: removes all pending state
+- Unit test `trackReflection()`: creates `SetComponentFieldCommand` with explicit entity
+- Unit test `clear()`: removes all pending state including legacy maps
+- Unit test `undoKey()`: collision resistance across components and fields
 - Integration test: edit field → undo → verify value restored
 - Regression test: selection change mid-drag doesn't push stale undo command
+- Regression test: `EditorFields` string-key cross-entity collision fixed by `clear()` on selection change
+- Test which ImGui calls between widget and `track()` are safe vs. unsafe
+- Debug assertion: log warning if `startValues.size() > 50` (leak detection)
 
-### Phase 4
-- Full manual test checklist for UITransformInspector:
-  - [ ] Anchor preset grid (all 9 positions + custom value)
-  - [ ] Pivot preset grid (all 9 positions + custom value)
-  - [ ] Offset drag with undo/redo
-  - [ ] Size drag (fixed mode) with cascading children + undo
-  - [ ] Size drag (percent mode) with undo
-  - [ ] px ↔ % mode toggle with undo
-  - [ ] Lock aspect ratio (both modes)
-  - [ ] Match parent toggles (master + per-property)
-  - [ ] Layout group disabled state
-  - [ ] Prefab instance: override styling + reset buttons
-  - [ ] Play mode: inspector renders without NPE
-
-### Phase 5
-- All 18 inspectors compile
-- Full editor manual test pass
-- No `EditorLayout` or `EditorFields` imports remain in codebase
+### Phase 2
+- Full manual test checklist (see Phase 2 section above)
+- Side-by-side visual comparison with pre-refactor layout
+- Verify `EditorLayout` / `EditorFields` have zero imports remaining in codebase before deletion
 
 ---
 
@@ -1006,41 +757,122 @@ Phase 0 ships standalone value immediately. Phases 1+3 can be developed in paral
 
 | Risk | Severity | Mitigation |
 |------|----------|-----------|
-| `InspectorField` interface too heavy for simple inspectors | Medium | Simple inspectors can create fields inline — no bind()-time caching needed |
-| `InspectorRow` width math differs from current layout | Medium | Side-by-side visual comparison during Phase 4 |
-| `FieldUndoTracker.clear()` not called at all required sites | High | Document required call sites; add debug assertion that warns if startValues grows > 50 entries |
-| Phase 5 migration breaks obscure inspector | Medium | Migration is mechanical — each inspector is small and independently testable |
-| Selection change mid-drag pushes stale undo | High | `clear()` on selection change; undo key includes component identity hash |
-| Two InspectorField implementations diverge in behavior | Medium | Sealed interface prevents third-party implementations; both tested against same contract |
+| `FieldUndoTracker.clear()` not called at all required sites | High | Selection-change detection in EntityInspector; clear legacy maps; debug size assertion |
+| Selection change mid-drag pushes stale undo | High | `clear()` on selection change; undo key includes `identityHashCode(component)` |
+| `pushOverrideStyle` fix changes behavior | Low | Fix is strictly more correct — push/pop always paired; no behavioral change when override state is stable |
+| UITransformInspector refactor introduces visual regression | Medium | Side-by-side comparison; detailed manual test checklist |
+| `EditorLayout`/`EditorFields` deletion misses a consumer | Low | Grep for imports before deletion; compiler catches any remaining references |
+| Phase 2 doesn't hit 950–1,000 lines | Medium | Domain complexity is inherent; even 1,050 lines is a meaningful improvement with cleaner structure |
+| Abandoned drags leak entries in `startValues` | Medium | `clear()` on selection change handles most cases; debug assertion catches the rest |
 
 ---
 
 ## What This Does NOT Change
 
 - **Serialization** — No changes to component serialization/deserialization
-- **Prefab system** — Override tracking works identically (just accessed through `InspectorField` interface)
+- **Prefab system** — Override tracking works identically
 - **EditorCommand interface** — `execute()` / `undo()` / `canMergeWith()` unchanged
 - **Complex multi-entity undo** — `UITransformDragCommand`, `CompoundCommand` stay as-is
 - **Custom inspector registration** — `@InspectorFor`, `CustomComponentEditorRegistry` untouched
 - **ReflectionFieldEditor** — Auto-discovery of component fields unchanged
+- **Existing inspector APIs** — `FieldEditors.drawFloat(label, component, fieldName, speed)` and all
+  other existing signatures stay exactly as they are. No migration required.
 
 ---
 
-## Appendix: Expert Review Summary
+## Appendix A: Expert Review Summary (v2 → v3)
 
-This design was reviewed by four perspectives. Key feedback incorporated:
+This design was reviewed by four expert perspectives. The v3 restructuring addresses their findings:
 
-| Reviewer | Key Concern | Resolution |
-|----------|------------|------------|
-| **QA Engineer** | FieldUndoTracker static state causes key collisions | Keys now include `identityHashCode(component/setter)` — no collisions |
-| **QA Engineer** | InspectorRow.end() silently fails if not called | Switched to AutoCloseable + try-with-resources pattern |
-| **QA Engineer** | Reset button behavior changes for getter/setter fields | `InspectorField.drawResetButton()` is a no-op for getter/setter — same as current behavior |
-| **Senior Architect** | InspectorField leaks `hasReflection()` | Replaced with sealed interface — callers never check implementation type |
-| **Senior Architect** | Over-generalized from one outlier | Added Phase 0 (quick wins for all), acknowledged scope in "Who actually hurts?" section |
-| **Senior Architect** | Facade keeps growing | Phase 5 removes old methods; net method count decreases |
-| **Product Owner** | All value deferred to Phase 4 | Phase 0 ships standalone value; Phases 1+3 clean up internal code |
-| **Product Owner** | Higher-value wins ignored (typed getComponent, findInParent) | Added as Phase 0 |
-| **Product Owner** | "No deprecated" forces big-bang migration | Phase 5 is separate; old APIs coexist until stability proven |
-| **ImGui Expert** | Deferred rendering breaks isItemActivated() | Switched to immediate scope-based API — no lambdas in InspectorRow |
-| **ImGui Expert** | Widget return values lost in Runnable | Immediate mode — boolean returns work naturally |
-| **ImGui Expert** | Push/pop safety with deferred execution | Immediate mode — push/pop pairs are visible at call site |
+### Cross-Reviewer Consensus (all four agreed)
+
+| Finding | Resolution in v3 |
+|---------|-----------------|
+| Ship Phase 0 immediately — zero risk, immediate value | Phase 0 preserved, expanded with critical bug fix |
+| `FieldUndoTracker` should be standalone, not coupled to `InspectorField` | Phase 1 redesigned with string-key primary API |
+| Fix `pushOverrideStyle`/`popOverrideStyle` — this is a bug today | Added as Phase 0d |
+| Refactor UITransformInspector locally, not via system-wide abstraction | Phase 2 uses private helpers, not public classes |
+| Do not migrate 17 working inspectors | Phase 5 cancelled; existing APIs preserved |
+
+### Critical / High Findings Addressed
+
+| # | Finding | Reviewer | Resolution |
+|---|---------|----------|------------|
+| 1 | `pushOverrideStyle`/`popOverrideStyle` re-query state → ImGui stack corruption | QA, ImGui | Fixed in Phase 0d — store push result |
+| 2 | `identityHashCode(setter)` unstable for per-frame lambdas → undo breaks | Architect, QA | Eliminated — v3 uses string keys only |
+| 3 | Phases 1+3 cannot be parallel (`FieldUndoTracker` depended on `InspectorField`) | Architect | Eliminated — `FieldUndoTracker` is standalone |
+| 4 | No selection-change hook for `clear()` | QA | Added selection-change detection in EntityInspector |
+| 5 | `instanceof ReflectionInspectorField` in `drawFloat` violates design principle | Architect, QA | Eliminated — `InspectorField` deferred |
+| 6 | `sealed` prevents future implementations | Architect | Eliminated — `InspectorField` deferred |
+| 7 | 6-phase, 5-class design is disproportionate to one outlier file | Product | Reduced to 3 phases, 1 new file |
+| 8 | 700–800 line target unreachable | Product | Corrected to 950–1,000 |
+| 9 | `createUndoCommand()` reads static `FieldEditorContext.getEntity()` | Architect | `trackReflection()` takes entity explicitly |
+
+### Medium Findings Addressed
+
+| # | Finding | Reviewer | Resolution |
+|---|---------|----------|------------|
+| 10 | `EditorFields` string-key collision across entities | QA | `FieldUndoTracker.clear()` fixes retroactively |
+| 11 | `InspectorRow` constructor type mismatch | QA | Documented in "v2 bugs" section; row is private helper now |
+| 12 | `nextFlex(String)` hardcodes 4f vs `ItemSpacing.x` | ImGui | Documented in "v2 bugs" section |
+| 13 | `withLabel("##hidden")` regression | ImGui | Documented in "v2 bugs" section |
+| 14 | Nested rows → silent visual corruption | ImGui | Documented in "v2 bugs" section |
+| 15 | `setNextMiddleContent` state leak with `InspectorRow` | QA | Documented in "v2 bugs" section |
+| 16 | `findComponentInParent` infinite loop on hierarchy cycles | QA | Added depth guard |
+| 17 | Facade grows to ~70 methods during transition | Architect | No transition — existing APIs preserved |
+
+### Findings Acknowledged but Deferred
+
+| Finding | Rationale |
+|---------|-----------|
+| `InspectorField` doesn't handle vectors, enums, assets, lists | Interface deferred entirely; revisit when needed |
+| No multi-entity editing story | Explicitly a non-goal of this refactor |
+| Frame-level snapshot undo (Unity's `ApplyModifiedProperties()`) | Fundamental architecture change; out of scope |
+
+---
+
+## Appendix B: `FieldUndoTracker.track()` Activation-Frame Value Correctness
+
+> **v3 addition (QA #3).** The v2 design had conflicting code samples with different `track()` call
+> semantics. This section clarifies the correct pattern.
+
+The `track()` method captures `current` as the start value on the activation frame. This requires
+that `current` holds the **pre-edit** value at that point. This is correct because:
+
+1. `ImGui.isItemActivated()` fires on the frame the user clicks/focuses the widget.
+2. On that frame, `ImGui.dragFloat()` typically returns `false` (no drag has occurred yet), so
+   the buffer still contains the pre-click value.
+3. The `current` parameter passed to `track()` is the field's value read **before** the widget
+   call, or the buffer value which hasn't been modified yet.
+
+**Edge case — keyboard text entry:** If `dragFloat` returns `true` on the same frame as
+`isItemActivated()` (which can happen when tabbing into a field with keyboard), the captured start
+value may be wrong. In practice, ImGui fires `isItemActivated()` on focus, and the first edit
+arrives on the next frame. But this should be verified empirically and documented in tests.
+
+**Correct calling pattern:**
+```java
+float preEditValue = component.getWidthPercent();  // read BEFORE widget
+float[] buf = {preEditValue};
+if (ImGui.dragFloat("##w", buf, 0.5f)) {
+    component.setWidthPercent(buf[0]);
+}
+// Pass preEditValue (or buf[0] which equals preEditValue on activation frame)
+FieldUndoTracker.track(key, preEditValue, component::setWidthPercent, "Change Width %");
+```
+
+On the activation frame, `preEditValue` is correct. On the deactivation frame, `preEditValue` is
+still the pre-edit value read this frame... wait, that's wrong. On the deactivation frame, we need
+the **current** (post-edit) value to compare against the start value.
+
+**Correction:** The `current` parameter serves dual purpose:
+- On activation frame: captured as start value (should be pre-edit)
+- On deactivation frame: compared against start value (should be post-edit)
+
+Since the same parameter is used for both, and these happen on different frames, the parameter
+should always reflect the **current state of the field**:
+- Activation frame: field hasn't been edited yet → current = pre-edit ✓
+- Deactivation frame: field has been edited → current = post-edit ✓
+
+This works naturally when `current` is read from the component (`component.getWidthPercent()`),
+because the component always reflects the latest state.

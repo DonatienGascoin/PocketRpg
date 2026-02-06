@@ -85,6 +85,7 @@
         {
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
+            "uiKey": "OpponentHpBar",
             "raycastTarget": true,
             "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/Battle/OpponentPokemonSlot.png",
             "color": {
@@ -150,6 +151,7 @@
         {
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
+            "uiKey": "PlayerHpBar",
             "raycastTarget": true,
             "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/Battle/PokemonSlot.png",
             "color": {
@@ -629,6 +631,7 @@
         {
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
+            "uiKey": "DialogueBG",
             "raycastTarget": true,
             "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/Battle/battleDialogue.png",
             "color": {
@@ -659,7 +662,7 @@
           "type": "com.pocket.rpg.components.ui.UITransform",
           "properties": {
             "localPosition": {
-              "x": 22.03061,
+              "x": 22.0,
               "y": -138.0,
               "z": 0.0
             },
@@ -694,6 +697,7 @@
         {
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
+            "uiKey": "PlayerPokemon",
             "raycastTarget": true,
             "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/Battle/pikachu.png",
             "color": {
@@ -759,6 +763,7 @@
         {
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
+            "uiKey": "OpponentPokemon",
             "raycastTarget": true,
             "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/Battle/carabaffe.png",
             "color": {
@@ -2347,10 +2352,10 @@
               "x": 0.0,
               "y": 0.0
             },
-            "width": 190.0,
+            "width": 250.0,
             "height": 50.0,
-            "widthMode": "FIXED",
-            "heightMode": "FIXED",
+            "widthMode": "PERCENT",
+            "heightMode": "PERCENT",
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": true,
@@ -2424,10 +2429,10 @@
               "x": 0.0,
               "y": 0.0
             },
-            "width": 200.0,
-            "height": 30.0,
-            "widthMode": "FIXED",
-            "heightMode": "FIXED",
+            "width": 250.0,
+            "height": 50.0,
+            "widthMode": "PERCENT",
+            "heightMode": "PERCENT",
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": true,
@@ -2501,10 +2506,10 @@
               "x": 0.0,
               "y": 0.0
             },
-            "width": 200.0,
-            "height": 30.0,
-            "widthMode": "FIXED",
-            "heightMode": "FIXED",
+            "width": 250.0,
+            "height": 50.0,
+            "widthMode": "PERCENT",
+            "heightMode": "PERCENT",
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": true,
@@ -2578,10 +2583,10 @@
               "x": 0.0,
               "y": 0.0
             },
-            "width": 200.0,
-            "height": 30.0,
-            "widthMode": "FIXED",
-            "heightMode": "FIXED",
+            "width": 250.0,
+            "height": 50.0,
+            "widthMode": "PERCENT",
+            "heightMode": "PERCENT",
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": true,

@@ -88,6 +88,8 @@ public class AlphaGroup extends Component {
                 panel.setAlpha(alpha);
             } else if (comp instanceof UIButton btn) {
                 btn.setAlpha(alpha);
+            } else if(comp instanceof UIText text) {
+                text.setAlpha(alpha);
             }
         }
     }

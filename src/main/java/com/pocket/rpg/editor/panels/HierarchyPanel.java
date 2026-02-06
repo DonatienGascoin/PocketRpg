@@ -1,7 +1,6 @@
 package com.pocket.rpg.editor.panels;
 
 import com.pocket.rpg.core.GameObject;
-import com.pocket.rpg.editor.EditorModeManager;
 import com.pocket.rpg.editor.PrefabEditController;
 import com.pocket.rpg.editor.SelectionGuard;
 import com.pocket.rpg.editor.PlayModeController;

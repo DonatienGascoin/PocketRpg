@@ -133,9 +133,21 @@ Spritesheets show as a single thumbnail with an expand arrow:
 3. Drag individual sprites to use specific frames
 4. Click the expand arrow again to collapse
 
-### Refreshing
+### Refreshing and Hot-Reload
 
-The Asset Browser automatically detects new files. If files were added externally, the browser refreshes after a short cooldown.
+Click the **Refresh** button (🔄) in the top-right to:
+1. **Rescan the filesystem** — Detect new, renamed, or deleted files
+2. **Hot-reload modified assets** — Reload any cached assets that were changed externally
+
+**Hot-reload workflow:**
+1. Modify a PNG, shader, or other asset in an external program (e.g., Aseprite, GIMP, VS Code)
+2. Save the file
+3. Click **Refresh** in the Asset Browser
+4. The asset updates everywhere — thumbnails, Scene View, and any entities using it
+
+Hot-reload works for sprites, textures, and shaders. All existing references remain valid (no need to re-assign assets).
+
+> **Note:** The browser also auto-refreshes when files change, but clicking Refresh forces an immediate update.
 
 ---
 

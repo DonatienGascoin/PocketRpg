@@ -674,4 +674,8 @@ public class UIText extends UIComponent {
         }
         return lines != null ? lines.length : 0;
     }
+
+    public void setAlpha(float alpha) {
+        color.w = alpha;
+    }
 }

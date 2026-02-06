@@ -64,6 +64,10 @@ public class ImGuiLayer {
     }
 
     private void initFonts(final ImGuiIO io, long windowHandle) {
+        // 1. Force Hinting for sharpness
+        io.getFonts().setFreeTypeRenderer(true);
+        io.setFontGlobalScale(1.0f); // Ensure this is exactly 1.0
+
         int[] fbW = new int[1];
         int[] fbH = new int[1];
         int[] winW = new int[1];
@@ -87,23 +91,37 @@ public class ImGuiLayer {
 
         // Font config for main font
         final ImFontConfig fontConfig = new ImFontConfig();
-        fontConfig.setSizePixels(16.0f * dpiScale);
+        int oversample = (dpiScale > 1.0f) ? 1 : 3;
+        fontConfig.setOversampleH(oversample); // Oversample horizontally
+        fontConfig.setOversampleV(1); // Oversample vertically
+        fontConfig.setPixelSnapH(true); // Force characters to land on integer pixels
+//        fontConfig.setRasterizerMultiply(1.2f); // Slight boost to edge contrast
 
         // Add default font for latin glyphs
-        io.getFonts().addFontFromMemoryTTF(loadFromResources("editor/fonts/Roboto-Regular.ttf"), 18 * dpiScale, fontConfig);
+//        io.getFonts().addFontFromMemoryTTF(loadFromResources("editor/fonts/JetBrainsMonoNL-Medium.ttf"), Math.round(16 * dpiScale), fontConfig);
+//        io.getFonts().addFontFromMemoryTTF(loadFromResources("editor/fonts/InterDisplay-Regular.ttf"), Math.round(16 * dpiScale), fontConfig);
+//        io.getFonts().addFontFromMemoryTTF(loadFromResources("editor/fonts/Inter-Medium.ttf"), Math.round(16 * dpiScale), fontConfig);
+//        io.getFonts().addFontFromMemoryTTF(loadFromResources("editor/fonts/InterDisplay-Medium.ttf"), Math.round(16 * dpiScale), fontConfig);
+        io.getFonts().addFontFromMemoryTTF(loadFromResources("editor/fonts/Inter-Regular.ttf"), Math.round(16 * dpiScale), fontConfig);
 
         // Material Icons merged with default font (for seamless icon+text usage)
         final ImFontConfig mergedIconConfig = new ImFontConfig();
+        mergedIconConfig.setOversampleH(3); // Oversample horizontally
+        mergedIconConfig.setOversampleV(1); // Oversample vertically
+        mergedIconConfig.setPixelSnapH(true); // Force characters to land on integer pixels
         mergedIconConfig.setMergeMode(true);
         mergedIconConfig.setGlyphOffset(0, 1 * dpiScale);  // Lower icons to align with text
-        io.getFonts().addFontFromMemoryTTF(iconFontData, 18 * dpiScale, mergedIconConfig, glyphRanges);
+        io.getFonts().addFontFromMemoryTTF(iconFontData, Math.round(16 * dpiScale), mergedIconConfig, glyphRanges);
 
         // Separate icon fonts (NOT merged) for thumbnail fallbacks at various sizes
         final ImFontConfig iconConfig = new ImFontConfig();
-        ImFont iconFontTiny = io.getFonts().addFontFromMemoryTTF(iconFontData, 12 * dpiScale, iconConfig, glyphRanges);
-        ImFont iconFontSmall = io.getFonts().addFontFromMemoryTTF(iconFontData, 24 * dpiScale, iconConfig, glyphRanges);
-        ImFont iconFontMedium = io.getFonts().addFontFromMemoryTTF(iconFontData, 32 * dpiScale, iconConfig, glyphRanges);
-        ImFont iconFontLarge = io.getFonts().addFontFromMemoryTTF(iconFontData, 48 * dpiScale, iconConfig, glyphRanges);
+        iconConfig.setOversampleH(3); // Oversample horizontally
+        iconConfig.setOversampleV(1); // Oversample vertically
+        iconConfig.setPixelSnapH(true); // Force characters to land on integer pixels
+        ImFont iconFontTiny = io.getFonts().addFontFromMemoryTTF(iconFontData, Math.round(12 * dpiScale), iconConfig, glyphRanges);
+        ImFont iconFontSmall = io.getFonts().addFontFromMemoryTTF(iconFontData, Math.round(24 * dpiScale), iconConfig, glyphRanges);
+        ImFont iconFontMedium = io.getFonts().addFontFromMemoryTTF(iconFontData, Math.round(32 * dpiScale), iconConfig, glyphRanges);
+        ImFont iconFontLarge = io.getFonts().addFontFromMemoryTTF(iconFontData, Math.round(48 * dpiScale), iconConfig, glyphRanges);
 
         io.getFonts().build();
 
@@ -113,6 +131,7 @@ public class ImGuiLayer {
         fontConfig.destroy();
         mergedIconConfig.destroy();
         iconConfig.destroy();
+
     }
 
     private byte[] loadFromResources(String fontPath) {

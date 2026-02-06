@@ -4,6 +4,7 @@ import com.pocket.rpg.editor.EditorPanelType;
 import com.pocket.rpg.editor.SelectionGuard;
 import com.pocket.rpg.editor.assets.AssetDragPayload;
 import com.pocket.rpg.editor.events.AssetChangedEvent;
+import com.pocket.rpg.editor.events.AssetFocusRequestEvent;
 import com.pocket.rpg.editor.events.EditorEventBus;
 import com.pocket.rpg.editor.assets.ThumbnailCache;
 import com.pocket.rpg.editor.core.EditorFonts;
@@ -91,6 +92,12 @@ public class AssetBrowserPanel extends EditorPanel {
     private long lastRefreshTime = 0;
     private static final long REFRESH_COOLDOWN_MS = 1000;
 
+    // Highlight state for focusOnAsset
+    private String highlightedAssetPath = null;
+    private long highlightStartTime = 0;
+    private boolean scrollToHighlight = false;
+    private static final long HIGHLIGHT_DURATION_MS = 2000;
+
     // Panel handlers for double-click (keyed by EditorPanelType)
     private final Map<EditorPanelType, Consumer<String>> panelHandlers = new EnumMap<>(EditorPanelType.class);
 
@@ -115,6 +122,9 @@ public class AssetBrowserPanel extends EditorPanel {
 
         // Subscribe to asset change events
         EditorEventBus.get().subscribe(AssetChangedEvent.class, this::onAssetChanged);
+
+        // Subscribe to asset focus requests from inspector
+        EditorEventBus.get().subscribe(AssetFocusRequestEvent.class, e -> focusOnAsset(e.path()));
     }
 
     private void onAssetChanged(AssetChangedEvent event) {
@@ -582,12 +592,20 @@ public class AssetBrowserPanel extends EditorPanel {
         boolean isMultipleMode = isMultipleModeSprite(entry);
         boolean isExpanded = expandedSpritesheets.contains(entry.path);
 
+        // Highlight state for focus-on-asset
+        boolean highlighted = isHighlighted(entry.path);
+        float highlightAlpha = highlighted ? getHighlightAlpha() : 0f;
+        highlighted = highlightAlpha > 0f;
+
         ImGui.pushID(entry.path);
 
         // Selection highlight for entire row
         if (isSelected) {
             ImGui.pushStyleColor(ImGuiCol.Header, 0.3f, 0.6f, 1.0f, 1.0f);
             ImGui.pushStyleColor(ImGuiCol.HeaderHovered, 0.5f, 0.7f, 1.0f, 1.0f);
+        } else if (highlighted) {
+            ImGui.pushStyleColor(ImGuiCol.Header, 1.0f, 0.8f, 0.2f, highlightAlpha * 0.5f);
+            ImGui.pushStyleColor(ImGuiCol.HeaderHovered, 1.0f, 0.85f, 0.3f, highlightAlpha * 0.6f);
         }
 
         // Selectable row with icon and filename
@@ -595,14 +613,20 @@ public class AssetBrowserPanel extends EditorPanel {
         String label = icon + "  " + entry.filename;
 
         int flags = ImGuiSelectableFlags.SpanAllColumns;
-        if (ImGui.selectable(label, isSelected, flags)) {
+        if (ImGui.selectable(label, isSelected || highlighted, flags)) {
             selectedAsset = entry;
             if (selectionManager != null) {
                 selectionManager.selectAsset(entry.path, entry.type);
             }
         }
 
-        if (isSelected) {
+        // Scroll to highlighted asset
+        if (scrollToHighlight && highlighted) {
+            ImGui.setScrollHereY();
+            scrollToHighlight = false;
+        }
+
+        if (isSelected || highlighted) {
             ImGui.popStyleColor(2);
         }
 
@@ -691,10 +715,27 @@ public class AssetBrowserPanel extends EditorPanel {
         ImGui.indent(20);
         for (int i = 0; i < grid.getTotalSprites(); i++) {
             String spritePath = entry.path + "#" + i;
+            boolean childHighlighted = isHighlighted(spritePath);
+            float childAlpha = childHighlighted ? getHighlightAlpha() : 0f;
+            childHighlighted = childAlpha > 0f;
+
             ImGui.pushID(spritePath);
 
-            if (ImGui.selectable(MaterialIcons.Image + "  #" + i, false)) {
+            if (childHighlighted) {
+                ImGui.pushStyleColor(ImGuiCol.Header, 1.0f, 0.8f, 0.2f, childAlpha * 0.5f);
+                ImGui.pushStyleColor(ImGuiCol.HeaderHovered, 1.0f, 0.85f, 0.3f, childAlpha * 0.6f);
+            }
+
+            if (ImGui.selectable(MaterialIcons.Image + "  #" + i, childHighlighted)) {
                 selectedAsset = entry;
+            }
+
+            if (childHighlighted) {
+                if (scrollToHighlight) {
+                    ImGui.setScrollHereY();
+                    scrollToHighlight = false;
+                }
+                ImGui.popStyleColor(2);
             }
 
             // Drag source for individual sprite
@@ -723,6 +764,11 @@ public class AssetBrowserPanel extends EditorPanel {
         boolean isSelected = entry == selectedAsset;
         boolean isMultipleMode = isMultipleModeSprite(entry);
         boolean isExpanded = expandedSpritesheets.contains(entry.path);
+
+        // Highlight state for focus-on-asset
+        boolean highlighted = isHighlighted(entry.path);
+        float highlightAlpha = highlighted ? getHighlightAlpha() : 0f;
+        highlighted = highlightAlpha > 0f;
 
         ImGui.pushID(entry.path);
         ImGui.beginGroup();
@@ -781,6 +827,23 @@ public class AssetBrowserPanel extends EditorPanel {
         ImGui.text(displayName);
 
         ImGui.endGroup();
+
+        // Draw highlight overlay on top of the item (visible over images)
+        if (highlighted) {
+            var drawList = ImGui.getWindowDrawList();
+            var min = ImGui.getItemRectMin();
+            var max = ImGui.getItemRectMax();
+            drawList.addRectFilled(min.x, min.y, max.x, max.y,
+                    ImGui.getColorU32(1.0f, 0.8f, 0.2f, highlightAlpha * 0.25f), 4f);
+            drawList.addRect(min.x, min.y, max.x, max.y,
+                    ImGui.getColorU32(1.0f, 0.8f, 0.2f, highlightAlpha * 0.8f), 4f, 0, 2f);
+        }
+
+        // Scroll to highlighted asset
+        if (scrollToHighlight && highlighted) {
+            ImGui.setScrollHereY();
+            scrollToHighlight = false;
+        }
 
         // Handle click
         if (clicked) {
@@ -918,6 +981,11 @@ public class AssetBrowserPanel extends EditorPanel {
         String spritePath = sheetEntry.path + "#" + index;
         String spriteId = spritePath;
 
+        // Highlight state for focus-on-asset
+        boolean highlighted = isHighlighted(spritePath);
+        float highlightAlpha = highlighted ? getHighlightAlpha() : 0f;
+        highlighted = highlightAlpha > 0f;
+
         ImGui.pushID(spriteId);
 
         int texId = thumbnailCache.getTextureId(sheetEntry.path, index, sprite);
@@ -931,6 +999,21 @@ public class AssetBrowserPanel extends EditorPanel {
             selectedAsset = sheetEntry; // Keep sheet selected
         }
         ImGui.popStyleVar();
+
+        // Draw highlight overlay on top of the sprite
+        if (highlighted) {
+            var drawList = ImGui.getWindowDrawList();
+            var min = ImGui.getItemRectMin();
+            var max = ImGui.getItemRectMax();
+            drawList.addRectFilled(min.x, min.y, max.x, max.y,
+                    ImGui.getColorU32(1.0f, 0.8f, 0.2f, highlightAlpha * 0.25f), 4f);
+            drawList.addRect(min.x, min.y, max.x, max.y,
+                    ImGui.getColorU32(1.0f, 0.8f, 0.2f, highlightAlpha * 0.8f), 4f, 0, 2f);
+            if (scrollToHighlight) {
+                ImGui.setScrollHereY();
+                scrollToHighlight = false;
+            }
+        }
 
         // Drag source - use unified path format with #index
         if (ImGui.beginDragDropSource(ImGuiDragDropFlags.SourceAllowNullID)) {
@@ -976,6 +1059,56 @@ public class AssetBrowserPanel extends EditorPanel {
         panelHandlers.put(panel, handler);
     }
 
+    /**
+     * Navigates to the folder containing the given asset and highlights it.
+     * Opens the panel if it is not already visible.
+     *
+     * @param path asset path, e.g. "sprites/player.png" or "sheets/player.spritesheet#3"
+     */
+    public void focusOnAsset(String path) {
+        if (path == null || path.isEmpty()) return;
+
+        setOpen(true);
+
+        // Handle spritesheet child paths (e.g., "sheets/player.spritesheet#3")
+        String basePath = path;
+        int hashIndex = path.indexOf('#');
+        if (hashIndex >= 0) {
+            basePath = path.substring(0, hashIndex);
+            // Expand the parent spritesheet so the child is visible
+            expandedSpritesheets.add(basePath);
+        }
+
+        // Extract folder path (everything before last '/')
+        int lastSlash = basePath.lastIndexOf('/');
+        String folderPath = lastSlash >= 0 ? basePath.substring(0, lastSlash) : "";
+
+        // Walk the rootFolder tree to find the target folder
+        FolderNode targetFolder = rootFolder;
+        if (!folderPath.isEmpty()) {
+            String[] parts = folderPath.split("/");
+            for (String part : parts) {
+                FolderNode child = targetFolder.getChild(part);
+                if (child == null) {
+                    // Folder not found — asset might not exist
+                    return;
+                }
+                targetFolder = child;
+            }
+        }
+
+        // Navigate to the folder
+        navigateTo(targetFolder, folderPath);
+
+        // Clear search filter so the asset is visible
+        searchFilter.set("");
+
+        // Set highlight state — keep full path (with #index) for sub-asset highlighting
+        highlightedAssetPath = path;
+        highlightStartTime = System.currentTimeMillis();
+        scrollToHighlight = true;
+    }
+
     // ========================================================================
     // HELPERS
     // ========================================================================
@@ -985,6 +1118,25 @@ public class AssetBrowserPanel extends EditorPanel {
         currentPath = path;
         refreshCurrentFolder();
         selectedAsset = null;
+    }
+
+    /**
+     * Returns the highlight alpha for the focused asset (0.0 when expired, fades over last 500ms).
+     */
+    private float getHighlightAlpha() {
+        if (highlightedAssetPath == null) return 0f;
+        long elapsed = System.currentTimeMillis() - highlightStartTime;
+        if (elapsed >= HIGHLIGHT_DURATION_MS) {
+            highlightedAssetPath = null;
+            return 0f;
+        }
+        long fadeStart = HIGHLIGHT_DURATION_MS - 500;
+        if (elapsed < fadeStart) return 1f;
+        return 1f - (float)(elapsed - fadeStart) / 500f;
+    }
+
+    private boolean isHighlighted(String entryPath) {
+        return highlightedAssetPath != null && entryPath.equals(highlightedAssetPath);
     }
 
     private void toggleSpritesheetExpansion(String path) {

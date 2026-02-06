@@ -12,7 +12,7 @@ public class ResourceCache {
     
     private final Map<String, Object> cache = new ConcurrentHashMap<>();
     private final CacheStats stats = new CacheStats();
-    private int maxSize = 5000;
+    private int maxSize = 10000;
     
     /**
      * Gets a resource from the cache.

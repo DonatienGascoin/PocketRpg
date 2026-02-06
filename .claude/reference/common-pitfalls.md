@@ -39,6 +39,35 @@ if (wasEnabled) {  // Same value as push
 
 ---
 
+## ImGui NextItemData Consumption
+
+**`setNextItemWidth()` (and other `setNext*` calls) are consumed by the next `ItemAdd()` — which includes `text()`.**
+
+If you call `setNextItemWidth()` before a text label, the label consumes it and your input widget gets default width.
+
+**WRONG:**
+```java
+ImGui.setNextItemWidth(width);
+ImGui.text("X");
+ImGui.sameLine();
+ImGui.dragFloat("##x", buf);  // gets default width — NextItemData already consumed
+```
+
+**CORRECT — set width after the label:**
+```java
+ImGui.text("X");
+ImGui.sameLine();
+ImGui.setNextItemWidth(width);
+ImGui.dragFloat("##x", buf);  // gets correct width
+```
+
+**CORRECT — use `FieldEditorUtils.inlineField()`:**
+```java
+FieldEditorUtils.inlineField("X", width, () -> ImGui.dragFloat("##x", buf));
+```
+
+---
+
 ## Component Lifecycle
 
 - `onStart()` is called after all components are added but before the first `update()`. Don't assume other GameObjects exist during construction.

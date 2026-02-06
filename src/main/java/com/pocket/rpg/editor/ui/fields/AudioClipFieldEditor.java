@@ -65,15 +65,7 @@ public final class AudioClipFieldEditor {
                 // Asset name (truncated if needed)
                 ImGui.sameLine();
                 String truncated = truncateAssetName(display);
-                if (clip != null) {
-                    ImGui.textColored(0.6f, 0.9f, 0.6f, 1.0f, truncated);
-                } else {
-                    ImGui.textDisabled(truncated);
-                }
-                // Tooltip with full name if truncated
-                if (!truncated.equals(display) && ImGui.isItemHovered()) {
-                    ImGui.setTooltip(display);
-                }
+                AssetEditor.drawClickableAssetName(truncated, display, clip);
             });
 
             FieldEditorContext.popOverrideStyle();
@@ -121,15 +113,7 @@ public final class AudioClipFieldEditor {
                 // Asset name (truncated if needed)
                 ImGui.sameLine();
                 String truncated = truncateAssetName(display);
-                if (clip != null) {
-                    ImGui.textColored(0.6f, 0.9f, 0.6f, 1.0f, truncated);
-                } else {
-                    ImGui.textDisabled(truncated);
-                }
-                // Tooltip with full name if truncated
-                if (!truncated.equals(display) && ImGui.isItemHovered()) {
-                    ImGui.setTooltip(display);
-                }
+                AssetEditor.drawClickableAssetName(truncated, display, clip);
             });
 
         } finally {

@@ -6,9 +6,12 @@ import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.SetComponentFieldCommand;
 import com.pocket.rpg.editor.undo.commands.SetterUndoCommand;
+import com.pocket.rpg.editor.events.AssetFocusRequestEvent;
+import com.pocket.rpg.editor.events.EditorEventBus;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import imgui.ImGui;
+import imgui.flag.ImGuiMouseCursor;
 
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -62,15 +65,7 @@ public final class AssetEditor {
                 // Asset name (truncated if needed)
                 ImGui.sameLine();
                 String truncated = truncateAssetName(display);
-                if (value != null) {
-                    ImGui.textColored(0.6f, 0.9f, 0.6f, 1.0f, truncated);
-                } else {
-                    ImGui.textDisabled(truncated);
-                }
-                // Tooltip with full name if truncated
-                if (!truncated.equals(display) && ImGui.isItemHovered()) {
-                    ImGui.setTooltip(display);
-                }
+                drawClickableAssetName(truncated, display, value);
             });
 
             FieldEditorContext.popOverrideStyle();
@@ -128,15 +123,7 @@ public final class AssetEditor {
                 // Asset name (truncated if needed)
                 ImGui.sameLine();
                 String truncated = truncateAssetName(display);
-                if (value != null) {
-                    ImGui.textColored(0.6f, 0.9f, 0.6f, 1.0f, truncated);
-                } else {
-                    ImGui.textDisabled(truncated);
-                }
-                // Tooltip with full name if truncated
-                if (!truncated.equals(display) && ImGui.isItemHovered()) {
-                    ImGui.setTooltip(display);
-                }
+                drawClickableAssetName(truncated, display, value);
             });
 
         } finally {
@@ -174,6 +161,48 @@ public final class AssetEditor {
         }
 
         return ellipsis;
+    }
+
+    /**
+     * Draws a clickable asset name with hover effects (brighter color, underline, hand cursor).
+     * Clicking publishes an {@link AssetFocusRequestEvent} to highlight the asset in the browser.
+     *
+     * @param truncated Truncated display name
+     * @param fullName  Full display name (for tooltip when truncated)
+     * @param value     The asset object (null shows disabled text)
+     */
+    static void drawClickableAssetName(String truncated, String fullName, Object value) {
+        if (value != null) {
+            boolean hovered = ImGui.isMouseHoveringRect(
+                    ImGui.getCursorScreenPosX(),
+                    ImGui.getCursorScreenPosY(),
+                    ImGui.getCursorScreenPosX() + ImGui.calcTextSize(truncated).x,
+                    ImGui.getCursorScreenPosY() + ImGui.getTextLineHeight()
+            );
+            if (hovered) {
+                ImGui.textColored(0.7f, 1.0f, 0.7f, 1.0f, truncated);
+                ImGui.setMouseCursor(ImGuiMouseCursor.Hand);
+                // Underline
+                var min = ImGui.getItemRectMin();
+                var max = ImGui.getItemRectMax();
+                ImGui.getWindowDrawList().addLine(min.x, max.y, max.x, max.y,
+                        ImGui.getColorU32(0.7f, 1.0f, 0.7f, 1.0f));
+            } else {
+                ImGui.textColored(0.6f, 0.9f, 0.6f, 1.0f, truncated);
+            }
+            if (ImGui.isItemClicked()) {
+                String path = Assets.getPathForResource(value);
+                if (path != null) {
+                    EditorEventBus.get().publish(new AssetFocusRequestEvent(path));
+                }
+            }
+        } else {
+            ImGui.textDisabled(truncated);
+        }
+        // Tooltip with full name if truncated
+        if (!truncated.equals(fullName) && ImGui.isItemHovered()) {
+            ImGui.setTooltip(fullName);
+        }
     }
 
     /**

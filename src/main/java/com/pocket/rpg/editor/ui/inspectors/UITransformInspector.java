@@ -819,12 +819,20 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
                 ImGui.setTooltip("Reset rotation to 0");
             }
             ImGui.sameLine();
-            ImGui.setCursorPosX(ImGui.getCursorPosX() + 21); // Fixed position for size fields
-            ImGui.setNextItemWidth(-1); // Use remaining width, does not work
-            changed |= FieldEditors.drawFloat("##Rotation", "uiTransform.rotation",
-                    t::getLocalRotation2D,
-                    v -> t.setRotation2D((float) v),
-                    0.5f, -360f, 360f, "%.1f°");
+            ImGui.setCursorPosX(ImGui.getCursorPosX() + 21); // Fixed position for size field
+            ImGui.setNextItemWidth(-1);
+            float rotValue = t.getLocalRotation2D();
+            float[] rotBuf = {rotValue};
+            if (ImGui.dragFloat("##rotation_drag", rotBuf, 0.5f, -360f, 360f, "%.1f°")) {
+                t.setRotation2D(rotBuf[0]);
+                changed = true;
+            }
+            FieldUndoTracker.track(
+                    FieldUndoTracker.undoKey(t, "rotation"),
+                    rotValue,
+                    t::setRotation2D,
+                    "Change Rotation"
+            );
         }
 
         ImGui.spacing();

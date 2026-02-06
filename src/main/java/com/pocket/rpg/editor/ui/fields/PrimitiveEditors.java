@@ -564,6 +564,51 @@ public final class PrimitiveEditors {
     }
 
     /**
+     * Draws a compact inline float field with explicit field width.
+     * Width is set AFTER the label text, right before the drag field,
+     * to avoid ImGui's NextItemData being consumed by the label.
+     */
+    public static boolean drawFloatInline(String label, String key,
+                                          DoubleSupplier getter, DoubleConsumer setter,
+                                          float speed, float fieldWidth) {
+        float value = (float) getter.getAsDouble();
+        floatBuffer[0] = value;
+
+        ImGui.pushID(key);
+
+        final boolean[] changed = {false};
+        FieldEditorUtils.inlineField(label, fieldWidth, () -> {
+            changed[0] = ImGui.dragFloat("##" + key, floatBuffer, speed);
+        });
+
+        if (ImGui.isItemActivated()) {
+            undoStartValues.put(key, value);
+        }
+        boolean deactivated = ImGui.isItemDeactivatedAfterEdit();
+
+        if (changed[0]) {
+            setter.accept(floatBuffer[0]);
+        }
+
+        if (deactivated && undoStartValues.containsKey(key)) {
+            float startValue = (Float) undoStartValues.remove(key);
+            float currentValue = floatBuffer[0];
+            if (startValue != currentValue) {
+                UndoManager.getInstance().push(
+                        new SetterUndoCommand<>(
+                                v -> setter.accept(v),
+                                startValue, currentValue,
+                                "Change " + label
+                        )
+                );
+            }
+        }
+
+        ImGui.popID();
+        return changed[0];
+    }
+
+    /**
      * Draws a compact inline float field with min/max limits.
      */
     public static boolean drawFloatInline(String label, String key,
@@ -576,6 +621,50 @@ public final class PrimitiveEditors {
 
         final boolean[] changed = {false};
         FieldEditorUtils.inlineField(label, () -> {
+            changed[0] = ImGui.dragFloat("##" + key, floatBuffer, speed, min, max, format);
+        });
+
+        if (ImGui.isItemActivated()) {
+            undoStartValues.put(key, value);
+        }
+        boolean deactivated = ImGui.isItemDeactivatedAfterEdit();
+
+        if (changed[0]) {
+            setter.accept(floatBuffer[0]);
+        }
+
+        if (deactivated && undoStartValues.containsKey(key)) {
+            float startValue = (Float) undoStartValues.remove(key);
+            float currentValue = floatBuffer[0];
+            if (startValue != currentValue) {
+                UndoManager.getInstance().push(
+                        new SetterUndoCommand<>(
+                                v -> setter.accept(v),
+                                startValue, currentValue,
+                                "Change " + label
+                        )
+                );
+            }
+        }
+
+        ImGui.popID();
+        return changed[0];
+    }
+
+    /**
+     * Draws a compact inline float field with min/max limits and explicit field width.
+     */
+    public static boolean drawFloatInline(String label, String key,
+                                          DoubleSupplier getter, DoubleConsumer setter,
+                                          float speed, float min, float max, String format,
+                                          float fieldWidth) {
+        float value = (float) getter.getAsDouble();
+        floatBuffer[0] = value;
+
+        ImGui.pushID(key);
+
+        final boolean[] changed = {false};
+        FieldEditorUtils.inlineField(label, fieldWidth, () -> {
             changed[0] = ImGui.dragFloat("##" + key, floatBuffer, speed, min, max, format);
         });
 

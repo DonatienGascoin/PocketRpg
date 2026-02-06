@@ -5,7 +5,6 @@ import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.SetComponentFieldCommand;
 import com.pocket.rpg.editor.undo.commands.SetterUndoCommand;
-import com.pocket.rpg.editor.ui.layout.EditorFields;
 import imgui.ImGui;
 
 import java.util.HashMap;
@@ -111,7 +110,6 @@ public final class FieldUndoTracker {
         startValues.clear();
         PrimitiveEditors.clearUndoState();
         VectorEditors.clearUndoState();
-        EditorFields.clearUndoState();
     }
 
     /**

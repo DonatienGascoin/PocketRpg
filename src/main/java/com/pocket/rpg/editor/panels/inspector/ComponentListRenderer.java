@@ -11,6 +11,7 @@ import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.AddComponentCommand;
 import com.pocket.rpg.editor.undo.commands.RemoveComponentCommand;
+import com.pocket.rpg.editor.ui.inspectors.ComponentKeyField;
 import com.pocket.rpg.editor.undo.commands.SwapTransformCommand;
 import com.pocket.rpg.editor.utils.TransformSwapHelper;
 import com.pocket.rpg.serialization.ComponentRegistry;
@@ -70,14 +71,19 @@ public class ComponentListRenderer {
                     boolean isTransform = comp instanceof Transform;
                     String dependent = findDependentComponent(entity, comp);
 
-                    // Calculate button positions
+                    // Calculate button positions (right to left: remove, key, swap)
                     float removeButtonX = ImGui.getContentRegionAvailX() - 20;
-                    float swapButtonX = removeButtonX - 25;
+                    float keyButtonX = removeButtonX - 25;
+                    float swapButtonX = keyButtonX - 25;
 
                     // Render swap button for Transform components
                     if (isTransform) {
                         renderTransformSwapButton(entity, comp, swapButtonX, dirtyTracker);
                     }
+
+                    // Render key toggle button
+                    ImGui.sameLine(keyButtonX);
+                    ComponentKeyField.drawHeaderButton(comp);
 
                     // Render remove button
                     ImGui.sameLine(removeButtonX);

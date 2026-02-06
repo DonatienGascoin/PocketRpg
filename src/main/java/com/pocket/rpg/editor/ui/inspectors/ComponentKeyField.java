@@ -10,6 +10,11 @@ import com.pocket.rpg.editor.ui.fields.FieldEditors;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
+import imgui.flag.ImGuiCol;
+
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.Set;
 
 /**
  * Shared Component Key field drawer for component inspectors.
@@ -39,15 +44,79 @@ public final class ComponentKeyField {
             "Must be unique across all components in the scene.\n" +
             "Leave empty if the component is not referenced by key.";
 
+    /** Components whose key field has been manually expanded via the header button. */
+    private static final Set<Component> expandedComponents =
+            Collections.newSetFromMap(new IdentityHashMap<>());
+
     private ComponentKeyField() {}
+
+    /** Clears all toggle state. Called on scene transitions. */
+    public static void clearExpandedState() {
+        expandedComponents.clear();
+    }
+
+    /**
+     * Returns true if the key field should be visible for this component.
+     * Visible when the key is set (non-empty) or the user toggled it on.
+     */
+    public static boolean isVisible(Component component) {
+        String key = component.getComponentKey();
+        if (key != null && !key.isEmpty()) return true;
+        return expandedComponents.contains(component);
+    }
+
+    /**
+     * Draws the key toggle button for the component header row.
+     * Call this with {@code ImGui.sameLine(x)} already set.
+     * <ul>
+     *   <li>Key is set → disabled button with tooltip</li>
+     *   <li>Key is empty → toggle button to show/hide the key field</li>
+     * </ul>
+     */
+    public static void drawHeaderButton(Component component) {
+        String key = component.getComponentKey();
+        boolean hasKey = key != null && !key.isEmpty();
+
+        if (hasKey) {
+            // Disabled — key is set, can't hide
+            ImGui.pushStyleColor(ImGuiCol.Button, 0.3f, 0.3f, 0.3f, 0.5f);
+            ImGui.pushStyleColor(ImGuiCol.Text, 0.5f, 0.5f, 0.5f, 0.5f);
+            ImGui.smallButton(MaterialIcons.VpnKey + "##key");
+            ImGui.popStyleColor(2);
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("Component Key is set.\nClear the key to hide this field.");
+            }
+        } else {
+            boolean expanded = expandedComponents.contains(component);
+            if (expanded) {
+                ImGui.pushStyleColor(ImGuiCol.Button, 0.3f, 0.5f, 0.7f, 1f);
+            }
+            if (ImGui.smallButton(MaterialIcons.VpnKey + "##key")) {
+                if (expanded) {
+                    expandedComponents.remove(component);
+                } else {
+                    expandedComponents.add(component);
+                }
+            }
+            if (expanded) {
+                ImGui.popStyleColor();
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip(expanded ? "Hide Component Key field" : "Show Component Key field");
+            }
+        }
+    }
 
     /**
      * Draws the Component Key field with color-coded row background and tooltip.
+     * Hidden by default when empty — use {@link #drawHeaderButton} to toggle visibility.
      *
      * @param component the component being inspected
      * @return true if the field value changed
      */
     public static boolean draw(Component component) {
+        if (!isVisible(component)) return false;
+
         String currentKey = component.getComponentKey() != null ? component.getComponentKey() : "";
         boolean isEmpty = currentKey.isEmpty();
         boolean isDuplicate = !isEmpty && isDuplicateKey(currentKey, component);

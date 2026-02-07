@@ -2,8 +2,11 @@ package com.pocket.rpg.editor.ui.inspectors;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ui.LayoutGroup;
+import com.pocket.rpg.components.ui.UICanvas;
 import com.pocket.rpg.components.ui.UIGridLayoutGroup;
 import com.pocket.rpg.components.ui.UITransform;
+import com.pocket.rpg.config.ConfigLoader;
+import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.hierarchy.HierarchyItem;
 import com.pocket.rpg.editor.scene.EditorGameObject;
@@ -130,6 +133,16 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
 
     @Override
     public boolean draw() {
+        // Canvas-owned UITransform: read-only display with game resolution
+        if (entity.getComponent(UICanvas.class) != null) {
+            GameConfig gameConfig = ConfigLoader.getConfig(ConfigLoader.ConfigType.GAME);
+            ImGui.beginDisabled();
+            ImGui.text(String.format("Managed by UICanvas  (%d x %d)",
+                    gameConfig.getGameWidth(), gameConfig.getGameHeight()));
+            ImGui.endDisabled();
+            return false;
+        }
+
         boolean changed = false;
 
         Vector2f anchor = FieldEditors.getVector2f(component, "anchor");

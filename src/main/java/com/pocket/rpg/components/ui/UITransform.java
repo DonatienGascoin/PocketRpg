@@ -588,13 +588,13 @@ public class UITransform extends Transform {
         UITransform parentTransform = getParentUITransform();
 
         if (parentTransform != null) {
-            // Use parent UITransform's position and size
+            // Use parent UITransform's position and effective size
             Vector2f parentPos = parentTransform.getScreenPosition();
             return new float[]{
                     parentPos.x,
                     parentPos.y,
-                    parentTransform.getWidth(),
-                    parentTransform.getHeight()
+                    parentTransform.getEffectiveWidth(),
+                    parentTransform.getEffectiveHeight()
             };
         } else {
             // Use screen bounds
@@ -609,7 +609,7 @@ public class UITransform extends Transform {
      */
     public float getParentWidth() {
         UITransform parentTransform = getParentUITransform();
-        return parentTransform != null ? parentTransform.getWidth() : screenWidth;
+        return parentTransform != null ? parentTransform.getEffectiveWidth() : screenWidth;
     }
 
     /**
@@ -619,7 +619,7 @@ public class UITransform extends Transform {
      */
     public float getParentHeight() {
         UITransform parentTransform = getParentUITransform();
-        return parentTransform != null ? parentTransform.getHeight() : screenHeight;
+        return parentTransform != null ? parentTransform.getEffectiveHeight() : screenHeight;
     }
 
     // ========================================================================
@@ -773,38 +773,6 @@ public class UITransform extends Transform {
         setAnchor(preset);
         setOffset(offsetX, offsetY);
         setSize(width, height);
-    }
-
-    /**
-     * Gets the bounds of this element as [x, y, width, height].
-     * Useful for hit testing.
-     */
-    public float[] getBounds() {
-        Vector2f pos = getScreenPosition();
-        return new float[]{pos.x, pos.y, width, height};
-    }
-
-    /**
-     * Gets the scaled bounds of this element as [x, y, scaledWidth, scaledHeight].
-     * Applies world scale to dimensions. Useful for renderers.
-     */
-    public float[] getScaledBounds() {
-        Vector2f pos = getScreenPosition();
-        Vector2f scale = getWorldScale2D();
-        return new float[]{pos.x, pos.y, width * scale.x, height * scale.y};
-    }
-
-    /**
-     * Checks if a point (in screen coordinates) is inside this element.
-     *
-     * @param x Screen X coordinate
-     * @param y Screen Y coordinate
-     * @return true if point is inside bounds
-     */
-    public boolean containsPoint(float x, float y) {
-        Vector2f pos = getScreenPosition();
-        return x >= pos.x && x <= pos.x + width &&
-                y >= pos.y && y <= pos.y + height;
     }
 
     // ========================================================================

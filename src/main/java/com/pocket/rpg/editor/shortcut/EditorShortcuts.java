@@ -77,6 +77,7 @@ public final class EditorShortcuts {
     // Entity actions
     public static final String ENTITY_DELETE = "editor.entity.delete";
     public static final String ENTITY_CANCEL = "editor.entity.cancel";
+    public static final String ENTITY_TOGGLE_ENABLED = "editor.entity.toggleEnabled";
 
     // Camera pan actions (held keys) — WASD
     public static final String CAMERA_PAN_UP = "editor.camera.panUp";
@@ -432,6 +433,14 @@ public final class EditorShortcuts {
                         .defaultBinding(ShortcutBinding.key(ImGuiKey.Escape))
                         .global()
                         .handler(() -> {})
+                        .build(),
+
+                ShortcutAction.builder()
+                        .id(ENTITY_TOGGLE_ENABLED)
+                        .displayName("Toggle Entity Enabled")
+                        .defaultBinding(ShortcutBinding.ctrlShift(ImGuiKey.A))
+                        .global()
+                        .handler(() -> {})
                         .build()
         );
     }
@@ -656,6 +665,7 @@ public final class EditorShortcuts {
         bindings.put(TOOL_ENTITY_PLACER, ShortcutBinding.key(ImGuiKey.P));
         bindings.put(ENTITY_DELETE, ShortcutBinding.key(ImGuiKey.Delete));
         bindings.put(ENTITY_CANCEL, ShortcutBinding.key(ImGuiKey.Escape));
+        bindings.put(ENTITY_TOGGLE_ENABLED, ShortcutBinding.ctrlShift(ImGuiKey.A));
 
         // Transform tool shortcuts
         bindings.put(TOOL_MOVE, ShortcutBinding.key(ImGuiKey.W));
@@ -742,6 +752,7 @@ public final class EditorShortcuts {
         registry.bindHandler(TOOL_ENTITY_PLACER, handlers::onToolEntityPlacer);
         registry.bindHandler(ENTITY_DELETE, handlers::onEntityDelete);
         registry.bindHandler(ENTITY_CANCEL, handlers::onEntityCancel);
+        registry.bindHandler(ENTITY_TOGGLE_ENABLED, handlers::onEntityToggleEnabled);
 
         // Transform tools
         registry.bindHandler(TOOL_MOVE, handlers::onToolMove);

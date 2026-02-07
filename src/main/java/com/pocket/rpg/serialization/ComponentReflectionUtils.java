@@ -205,6 +205,15 @@ public final class ComponentReflectionUtils {
             }
         }
 
+        // Copy base Component fields (not in meta.fields())
+        String key = source.getComponentKey();
+        if (key != null && !key.isEmpty()) {
+            clone.setComponentKey(key);
+        }
+        if (!source.isOwnEnabled()) {
+            clone.setEnabled(false);
+        }
+
         return clone;
     }
 

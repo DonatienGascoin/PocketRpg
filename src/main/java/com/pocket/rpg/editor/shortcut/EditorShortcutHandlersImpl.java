@@ -20,6 +20,7 @@ import com.pocket.rpg.editor.undo.EditorCommand;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.CompoundCommand;
 import com.pocket.rpg.editor.undo.commands.RemoveEntityCommand;
+import com.pocket.rpg.editor.undo.commands.ToggleEntityEnabledCommand;
 import com.pocket.rpg.editor.ui.EditorMenuBar;
 import lombok.Setter;
 import org.joml.Vector3f;
@@ -461,6 +462,36 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
         if (scene != null && scene.getSelectedEntity() != null) {
             scene.setSelectedEntity(null);
             showMessage("Deselected");
+        }
+    }
+
+    @Override
+    public void onEntityToggleEnabled() {
+        EditorScene scene = context.getCurrentScene();
+        if (scene == null) return;
+
+        Set<EditorGameObject> selected = scene.getSelectedEntities();
+        if (selected.isEmpty()) return;
+
+        // Toggle based on majority state: if any are enabled, disable all; else enable all
+        boolean anyEnabled = selected.stream().anyMatch(EditorGameObject::isOwnEnabled);
+        boolean newState = !anyEnabled;
+
+        List<EditorCommand> commands = new ArrayList<>();
+        for (EditorGameObject e : selected) {
+            if (e.isOwnEnabled() != newState) {
+                commands.add(new ToggleEntityEnabledCommand(e, newState));
+            }
+        }
+
+        if (!commands.isEmpty()) {
+            if (commands.size() == 1) {
+                UndoManager.getInstance().execute(commands.getFirst());
+            } else {
+                UndoManager.getInstance().execute(new CompoundCommand(
+                        (newState ? "Enable" : "Disable") + " " + commands.size() + " entities", commands));
+            }
+            scene.markDirty();
         }
     }
 

@@ -8,13 +8,17 @@ import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.RuntimeGameObjectAdapter;
 import com.pocket.rpg.editor.undo.UndoManager;
+import com.pocket.rpg.editor.undo.EditorCommand;
 import com.pocket.rpg.editor.undo.commands.BulkDeleteCommand;
+import com.pocket.rpg.editor.undo.commands.CompoundCommand;
 import com.pocket.rpg.editor.undo.commands.RemoveEntityCommand;
 import com.pocket.rpg.editor.undo.commands.RenameEntityCommand;
 import com.pocket.rpg.editor.undo.commands.ReparentEntityCommand;
+import com.pocket.rpg.editor.undo.commands.ToggleEntityEnabledCommand;
 import com.pocket.rpg.editor.utils.IconUtils;
 import com.pocket.rpg.prefab.Prefab;
 import imgui.ImGui;
+import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiMouseButton;
@@ -100,15 +104,24 @@ public class HierarchyTreeRenderer {
         }
 
         // Determine the label - empty when renaming (we'll draw inline input after)
+        boolean hierarchicallyDisabled = !entity.isEnabled();
         String label;
         if (isRenaming) {
-            // Just show icon, name will be replaced by input field
             label = IconUtils.getIconForEntity(entity) + " ";
         } else {
             label = IconUtils.getIconForEntity(entity) + " " + entity.getName();
         }
 
+        // Gray out entities that are disabled (own or via parent)
+        if (hierarchicallyDisabled) {
+            ImGui.pushStyleColor(ImGuiCol.Text, 0.5f, 0.5f, 0.5f, 0.6f);
+        }
+
         boolean nodeOpen = ImGui.treeNodeEx("##entity_" + entity.getId(), flags, label);
+
+        if (hierarchicallyDisabled) {
+            ImGui.popStyleColor();
+        }
 
         // Scroll to this entity if it's the target
         if (entity.getId().equals(scrollToEntityId)) {
@@ -209,6 +222,26 @@ public class HierarchyTreeRenderer {
                 ImGui.text(selected.size() + " entities selected");
                 ImGui.separator();
 
+                // Toggle enabled for all selected entities
+                boolean anyEnabled = selected.stream().anyMatch(EditorGameObject::isOwnEnabled);
+                String toggleLabel = anyEnabled
+                        ? MaterialIcons.VisibilityOff + " Disable All"
+                        : MaterialIcons.Visibility + " Enable All";
+                if (ImGui.menuItem(toggleLabel)) {
+                    boolean newState = !anyEnabled;
+                    List<EditorCommand> commands = new ArrayList<>();
+                    for (EditorGameObject e : selected) {
+                        if (e.isOwnEnabled() != newState) {
+                            commands.add(new ToggleEntityEnabledCommand(e, newState));
+                        }
+                    }
+                    if (!commands.isEmpty()) {
+                        UndoManager.getInstance().execute(
+                                new CompoundCommand(newState ? "Enable All" : "Disable All", commands));
+                        scene.markDirty();
+                    }
+                }
+
                 if (ImGui.menuItem(MaterialIcons.Delete + " Delete All")) {
                     UndoManager.getInstance().execute(new BulkDeleteCommand(scene, selected));
                 }
@@ -227,6 +260,17 @@ public class HierarchyTreeRenderer {
                     renamingItem = entity;
                     nameBeforeRename = entity.getName();
                     renameBuffer.set(nameBeforeRename);
+                }
+
+                // Toggle enabled using isOwnEnabled (not hierarchical)
+                boolean ownEnabled = entity.isOwnEnabled();
+                String enableLabel = ownEnabled
+                        ? MaterialIcons.VisibilityOff + " Disable"
+                        : MaterialIcons.Visibility + " Enable";
+                if (ImGui.menuItem(enableLabel)) {
+                    UndoManager.getInstance().execute(
+                            new ToggleEntityEnabledCommand(entity, !ownEnabled));
+                    scene.markDirty();
                 }
 
                 if (ImGui.menuItem(MaterialIcons.ContentCopy + " Duplicate")) {

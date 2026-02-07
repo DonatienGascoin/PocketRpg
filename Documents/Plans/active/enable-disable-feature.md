@@ -54,14 +54,16 @@ Audit of all `isEnabled()` calls in editor code confirms the `EditorGameObject.i
 | File | Change |
 |------|--------|
 | `core/GameObject.java` | Wire `setEnabled()` to call `triggerEnable()`/`triggerDisable()` on components, propagate to children, invalidate Scene caches |
-| `components/Component.java` | Make `enabled` field `public` (was `protected`) so serializer can access it directly |
+| `components/Component.java` | Add `isOwnEnabled()` getter that returns the raw `enabled` field (non-hierarchical) |
+| `scenes/Scene.java` | Add enabled guard to `registerCachedComponents()` so disabled GameObjects/children are skipped |
 
 ### Tasks
 
-- [ ] Change `Component.enabled` from `protected` to `public` — allows the serializer to read the field directly without the hierarchical `isEnabled()` check.
+- [ ] Add `public boolean isOwnEnabled()` to `Component` — returns the raw `enabled` field without the hierarchical `owner.isEnabled()` chain. Needed by the serializer (Phase 2) and inspector UI (Phase 3) to read a component's own state independent of its parent.
 - [ ] Update `GameObject.setEnabled()` to iterate components (snapshot) and call `triggerEnable()` or `triggerDisable()` when state changes
 - [ ] Implement `propagateParentEnabledChange(boolean parentNowEnabled)` to recursively notify children's components, respecting each child's own `enabled` flag
-- [ ] Invalidate Scene caches when enabled state changes: call `scene.unregisterCachedComponents(this)` when disabled, `scene.registerCachedComponents(this)` when re-enabled. This removes/adds Renderable and UICanvas entries from the Scene's fast-lookup lists.
+- [ ] Invalidate Scene caches when enabled state changes: call `scene.unregisterCachedComponents(this)` when disabled, `scene.registerCachedComponents(this)` when re-enabled. This removes/adds Renderable, UICanvas, and ComponentKeyRegistry entries from the Scene's fast-lookup lists.
+- [ ] Add enabled guard to `Scene.registerCachedComponents()` — skip disabled GameObjects so their components are not added to renderables/uiCanvases/ComponentKeyRegistry. This prevents re-enabling a parent from incorrectly registering individually-disabled children. See "Scene Cache Guard" section below.
 
 ### Implementation Detail
 
@@ -126,6 +128,46 @@ Key points:
 - `propagateParentEnabledChange()` short-circuits at children with `enabled=false` (their effective state didn't change)
 - Snapshot iteration (`new ArrayList<>(...)`) prevents `ConcurrentModificationException` if callbacks modify the component/child list — consistent with existing patterns in `update()` and `start()`
 
+### Scene Cache Guard
+
+`Scene.registerCachedComponents()` recurses into all children unconditionally. When re-enabling a parent, this would re-register individually-disabled children's Renderables, UICanvases, and ComponentKeyRegistry entries. Rendering consumers (`RenderDispatcher.submit()`, `UIRenderer.render()`) already guard with `isEnabled()`/`isRenderVisible()` so disabled items won't render, but `ComponentKeyRegistry.get()` does NOT check enabled state — game code using `@ComponentReference` would resolve to a disabled component.
+
+Add an enabled guard at the top of `registerCachedComponents()`:
+
+```java
+public void registerCachedComponents(GameObject gameObject) {
+    if (!gameObject.isEnabled()) return;  // Skip disabled GameObjects entirely
+
+    for (Component component : gameObject.getAllComponents()) {
+        if (component instanceof Renderable renderable) {
+            if (!renderables.contains(renderable)) {
+                renderables.add(renderable);
+                renderableSortDirty = true;
+            }
+        }
+        String key = component.getComponentKey();
+        if (key != null && !key.isBlank()) {
+            ComponentKeyRegistry.register(key, component);
+        }
+    }
+
+    for (UICanvas canvas : gameObject.getComponents(UICanvas.class)) {
+        if (!uiCanvases.contains(canvas)) {
+            insertCanvasSorted(canvas);
+        }
+    }
+
+    // Recursion — the enabled check at method entry handles disabled children
+    for (GameObject child : gameObject.getChildren()) {
+        registerCachedComponents(child);
+    }
+}
+```
+
+This is safe for all existing callers:
+- `Scene.addGameObject()` — disabled GO added to scene won't be cached; when later enabled, `setEnabled(true)` calls `registerCachedComponents(this)` to populate the cache
+- `GameObject.setParent()` — reparenting a disabled child across scenes correctly skips caching
+
 ### Testing
 
 - [ ] Unit test: Disable GameObject -> components receive `onDisable()`
@@ -170,13 +212,13 @@ Key points:
 
 ### Component Serialization Detail
 
-**IMPORTANT:** Use the `enabled` *field* directly, not `isEnabled()` — because `isEnabled()` is hierarchical and would return `false` for a component whose owner is disabled, even if the component's own `enabled` field is `true`.
+**IMPORTANT:** Use `isOwnEnabled()`, not `isEnabled()` — because `isEnabled()` is hierarchical and would return `false` for a component whose owner is disabled, even if the component's own `enabled` field is `true`.
 
 In `writeComponentProperties()`, after the `componentKey` block:
 ```java
 // Write enabled (only when false, since true is default)
-// Use enabled — isEnabled() is hierarchical and would give wrong result
-if (!component.enabled) {
+// Use isOwnEnabled() — isEnabled() is hierarchical and would give wrong result
+if (!component.isOwnEnabled()) {
     out.name("enabled");
     out.value(false);
 }
@@ -250,7 +292,7 @@ A checkbox before the component name. When unchecked:
 ### Disabled Component Header Style
 
 ```java
-boolean compEnabled = comp.isEnabled();
+boolean compEnabled = comp.isOwnEnabled();
 if (!compEnabled) {
     ImGui.pushStyleColor(ImGuiCol.Header, 0.25f, 0.25f, 0.25f, 1.0f);
     ImGui.pushStyleColor(ImGuiCol.HeaderHovered, 0.30f, 0.30f, 0.30f, 1.0f);
@@ -280,9 +322,10 @@ if (!compEnabled) {
 - [ ] In `renderEntityTree()`: when entity is disabled, push grayed text color and use `VisibilityOff` icon
 - [ ] In `renderHierarchyItemTree()` (play mode): already uses `VisibilityOff` icon for disabled items — verify this still works
 - [ ] When a parent is disabled, children should also appear grayed (EditorGameObject needs to chain `isEnabled()` through parent — see note below)
-- [ ] Add "Enable" / "Disable" toggle to hierarchy right-click context menu (single-select and multi-select)
+- [ ] Add "Enable" / "Disable" toggle to hierarchy right-click context menu (single-select and multi-select). **Use `isOwnEnabled()`** for the label and toggle logic — not hierarchical `isEnabled()` — to avoid flipping the wrong direction when a child's parent is disabled (see Context Menu section below).
 - [ ] Register `Ctrl+Shift+A` keyboard shortcut to toggle enabled on all selected GameObjects (not components). Uses batch undo command for multi-selection.
-- [ ] Duplicate entity preserves disabled state (verify existing duplication code copies `enabled` field)
+- [ ] Duplicate entity preserves disabled state (verify existing duplication code copies `enabled` field — depends on Phase 2 `toData()`/`fromData()` changes)
+- [ ] Add `isOwnEnabled()` to `EditorGameObject` — returns the raw `enabled` field without parent chain. Used by context menu, inspector checkbox, and shortcut handler to operate on the entity's own flag.
 
 ### Hierarchy Parent Chain for Editor
 
@@ -299,10 +342,12 @@ public boolean isEnabled() {
 
 ### Context Menu Addition
 
+**IMPORTANT:** Use `isOwnEnabled()` (not hierarchical `isEnabled()`) for the label and toggle logic. `isEnabled()` chains through the parent, so a child whose parent is disabled would show `isEnabled()=false` even though its own flag is `true`. Using `isEnabled()` here would cause "Enable" to appear for an already-own-enabled child, and toggling would flip it to `false` — the opposite of user intent.
+
 In `renderEntityContextMenu()`, after "Duplicate" and before "Unparent":
 ```java
-// Single select
-String enableLabel = entity.isEnabled()
+// Single select — use isOwnEnabled() to reflect and toggle the entity's own flag
+String enableLabel = entity.isOwnEnabled()
     ? MaterialIcons.VisibilityOff + " Disable"
     : MaterialIcons.Visibility + " Enable";
 if (ImGui.menuItem(enableLabel)) {
@@ -310,15 +355,15 @@ if (ImGui.menuItem(enableLabel)) {
     scene.markDirty();
 }
 
-// Multi-select
+// Multi-select — use isOwnEnabled() for the same reason
 if (multiSelect) {
-    boolean anyEnabled = selected.stream().anyMatch(EditorGameObject::isEnabled);
-    String bulkLabel = anyEnabled
+    boolean anyOwnEnabled = selected.stream().anyMatch(EditorGameObject::isOwnEnabled);
+    String bulkLabel = anyOwnEnabled
         ? MaterialIcons.VisibilityOff + " Disable All"
         : MaterialIcons.Visibility + " Enable All";
     if (ImGui.menuItem(bulkLabel)) {
         // Batch undo command — one compound command wrapping individual toggles
-        UndoManager.getInstance().execute(new BulkToggleEnabledCommand(scene, selected, !anyEnabled));
+        UndoManager.getInstance().execute(new BulkToggleEnabledCommand(scene, selected, !anyOwnEnabled));
         scene.markDirty();
     }
 }
@@ -355,6 +400,7 @@ if (!entityEnabled) {
 | File | Change |
 |------|--------|
 | `editor/scene/EditorGameObject.java` | `isRenderVisible()` checks `enabled` (done in Phase 2) |
+| `editor/scene/EditorScene.java` | Skip disabled entities in `findEntityAt()` so they are not selectable via scene view click |
 | `editor/rendering/EditorUIBridge.java` | Respect component `enabled` state instead of force-enabling |
 | `editor/rendering/EditorSceneRenderer.java` | No change needed (already checks `isRenderVisible()`) |
 | `editor/gizmos/GizmoRenderer.java` | Skip disabled entities in always-gizmos, skip disabled entities/components in selected-gizmos |
@@ -362,6 +408,7 @@ if (!entityEnabled) {
 ### Tasks
 
 - [ ] Verify `EditorSceneRenderer` and `EditorSceneAdapter` correctly skip entities where `isRenderVisible()` returns `false` (already the case)
+- [ ] Update `EditorScene.findEntityAt()` to skip disabled entities — add `if (!entity.isEnabled()) continue;`. This prevents invisible disabled entities from being click-selected or hover-highlighted in the scene view. Note: `isPointInsideEntity()` does NOT check visibility, so without this guard a disabled entity can still be hit-tested by raw position/size. All scene tools (`SelectionTool`, `MoveTool`, `RotateTool`, `ScaleTool`) call `findEntityAt()` for both selection and hover — the guard covers all of them.
 - [ ] Update `EditorUIBridge` to check component `enabled` state. Remove `uiComp.setEnabled(true)` force-enable. When a UI component is disabled, skip it during editor preview rendering.
 - [ ] Verify that disabled children of a disabled parent also stop rendering (hierarchy chain via `isEnabled()` parent check from Phase 4)
 - [ ] Update `GizmoRenderer.renderAlwaysGizmos()` to skip disabled entities entirely
@@ -427,7 +474,7 @@ for (EditorGameObject entity : scene.getSelectedEntities()) {
 
 ### Tasks
 
-- [ ] **GridMovement**: Add `onEnable()` → register with `CollisionSystem.entityOccupancyMap`; add `onDisable()` → unregister. Currently only registers in `onStart()` and unregisters in `onDestroy()`, so disabling leaves a phantom collision entry.
+- [ ] **GridMovement**: Add `onEnable()` → recalculate `gridX`/`gridY` from current transform position, `snapToGrid()`, then register with `CollisionSystem.entityOccupancyMap`. Add `onDisable()` → unregister. Currently only registers in `onStart()` and unregisters in `onDestroy()`, so disabling leaves a phantom collision entry. The position recalculation in `onEnable()` is needed because the entity may have been repositioned while GridMovement was disabled — re-registering with stale `gridX`/`gridY` would place the collision entry at the wrong tile.
 - [ ] Audit all components for global system registration patterns (search for `onStart()` with register/subscribe calls that don't have matching `onDisable()`)
 - [ ] Document in `common-pitfalls.md`: "Components that register with global systems (collision, audio, events) must unregister in `onDisable()` and re-register in `onEnable()`"
 
@@ -497,32 +544,31 @@ for (EditorGameObject entity : scene.getSelectedEntities()) {
 
 | File | Phase | Changes |
 |------|-------|---------|
-| `components/Component.java` | 1 | Make `enabled` field `public` |
+| `components/Component.java` | 1 | Add `isOwnEnabled()` getter (non-hierarchical, returns raw `enabled` field) |
 | `core/GameObject.java` | 1 | Wire `setEnabled()` to notify components, add `propagateParentEnabledChange()`, invalidate Scene caches |
-| `editor/scene/EditorGameObject.java` | 2, 4, 5, 6 | Add `enabled` field, update `isEnabled()` with parent chain, `isRenderVisible()`, `toData()`, `fromData()` |
+| `scenes/Scene.java` | 1 | Add enabled guard to `registerCachedComponents()` to skip disabled GameObjects/children |
+| `editor/scene/EditorGameObject.java` | 2, 4, 5, 6 | Add `enabled` field, `isOwnEnabled()`, update `isEnabled()` with parent chain, `isRenderVisible()`, `toData()`, `fromData()` |
 | `serialization/custom/ComponentTypeAdapterFactory.java` | 2 | Serialize/deserialize component `enabled` field |
 | `editor/panels/inspector/EntityInspector.java` | 3 | Add enabled checkbox in header |
 | `editor/panels/inspector/ComponentListRenderer.java` | 3 | Add enabled checkbox + disabled header style |
-| `editor/panels/hierarchy/HierarchyTreeRenderer.java` | 4 | Gray out disabled entities, add context menu toggle |
+| `editor/panels/hierarchy/HierarchyTreeRenderer.java` | 4 | Gray out disabled entities, add context menu toggle (using `isOwnEnabled()`) |
 | `editor/shortcut/EditorShortcuts.java` | 4 | Register `Ctrl+Shift+A` shortcut |
+| `editor/scene/EditorScene.java` | 5 | Skip disabled entities in `findEntityAt()` |
 | `editor/rendering/EditorUIBridge.java` | 5 | Respect component enabled state in UI preview |
 | `editor/gizmos/GizmoRenderer.java` | 5 | Skip disabled entities/components in gizmo rendering |
-| `components/pokemon/GridMovement.java` | 7 | Add `onEnable()`/`onDisable()` for collision registration |
+| `components/pokemon/GridMovement.java` | 7 | Add `onEnable()`/`onDisable()` for collision registration (with grid position recalculation) |
 | `.claude/reference/common-pitfalls.md` | 7 | Document enable/disable registration pattern |
 
 ### Unchanged (already working)
 
 | File | Why No Change Needed |
 |------|---------------------|
-| `components/Component.java` | **Moved to Modified** — add `enabled` accessor (Phase 1) |
 | `components/rendering/SpriteRenderer.java` | `isRenderVisible()` already checks `isEnabled()` |
 | `components/rendering/TilemapRenderer.java` | `isRenderVisible()` already checks `isEnabled()` |
 | `rendering/ui/UIRenderer.java` | Already checks canvas, GameObject, and component enabled state |
 | `components/ui/LayoutGroup.java` | `getLayoutChildren()` already skips disabled children |
 | `ui/UIInputHandler.java` | Already skips disabled GameObjects and buttons |
-| `scenes/Scene.java` | Update loop already checks `gameObject.isEnabled()` |
 | `rendering/pipeline/RenderDispatcher.java` | Already checks `isRenderVisible()` |
-| `editor/gizmos/GizmoRenderer.java` | **Moved to Modified** — needs `isEnabled()` checks added |
 | `scenes/RuntimeSceneLoader.java` | Already maps `GameObjectData.active` → `GameObject.setEnabled()` |
 
 ---

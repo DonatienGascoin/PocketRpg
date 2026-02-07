@@ -119,9 +119,9 @@ public class ImGuiLayer {
         iconConfig.setOversampleV(1); // Oversample vertically
         iconConfig.setPixelSnapH(true); // Force characters to land on integer pixels
         ImFont iconFontTiny = io.getFonts().addFontFromMemoryTTF(iconFontData, Math.round(12 * dpiScale), iconConfig, glyphRanges);
-        ImFont iconFontSmall = io.getFonts().addFontFromMemoryTTF(iconFontData, Math.round(24 * dpiScale), iconConfig, glyphRanges);
-        ImFont iconFontMedium = io.getFonts().addFontFromMemoryTTF(iconFontData, Math.round(32 * dpiScale), iconConfig, glyphRanges);
-        ImFont iconFontLarge = io.getFonts().addFontFromMemoryTTF(iconFontData, Math.round(48 * dpiScale), iconConfig, glyphRanges);
+        ImFont iconFontSmall = io.getFonts().addFontFromMemoryTTF(iconFontData, Math.round(20 * dpiScale), iconConfig, glyphRanges);
+        ImFont iconFontMedium = io.getFonts().addFontFromMemoryTTF(iconFontData, Math.round(28 * dpiScale), iconConfig, glyphRanges);
+        ImFont iconFontLarge = io.getFonts().addFontFromMemoryTTF(iconFontData, Math.round(44 * dpiScale), iconConfig, glyphRanges);
 
         io.getFonts().build();
 

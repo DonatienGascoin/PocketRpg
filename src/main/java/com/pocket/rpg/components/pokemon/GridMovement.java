@@ -229,6 +229,24 @@ public class GridMovement extends Component {
     }
 
     @Override
+    protected void onEnable() {
+        // Re-register with entity occupancy map when enabled
+        CollisionSystem collisionSystem = getCollisionSystem();
+        if (collisionSystem != null) {
+            collisionSystem.registerEntity(gameObject, gridX, gridY, zLevel);
+        }
+    }
+
+    @Override
+    protected void onDisable() {
+        // Unregister from entity occupancy map when disabled
+        CollisionSystem collisionSystem = getCollisionSystem();
+        if (collisionSystem != null) {
+            collisionSystem.unregisterEntity(gameObject, gridX, gridY, zLevel);
+        }
+    }
+
+    @Override
     protected void onDestroy() {
         // Unregister from entity occupancy map
         CollisionSystem collisionSystem = getCollisionSystem();

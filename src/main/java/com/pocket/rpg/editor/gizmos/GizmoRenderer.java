@@ -88,11 +88,13 @@ public class GizmoRenderer {
      */
     private void renderAlwaysGizmos(EditorScene scene, GizmoContext ctx) {
         for (EditorGameObject entity : scene.getEntities()) {
+            if (!entity.isEnabled()) continue; // Skip disabled entities
+
             Transform transform = entity.getComponent(Transform.class);
             ctx.setTransform(transform);
 
             for (Component component : entity.getComponents()) {
-                if (component instanceof GizmoDrawable gizmoDrawable) {
+                if (component instanceof GizmoDrawable gizmoDrawable && component.isOwnEnabled()) {
                     // Reset style for each component
                     ctx.setColor(GizmoColors.DEFAULT);
                     ctx.setThickness(2.0f);
@@ -111,11 +113,13 @@ public class GizmoRenderer {
      */
     private void renderAlwaysGizmosRecursive(EditorGameObject parent, GizmoContext ctx) {
         for (EditorGameObject child : parent.getChildren()) {
+            if (!child.isEnabled()) continue; // Skip disabled children
+
             Transform transform = child.getComponent(Transform.class);
             ctx.setTransform(transform);
 
             for (Component component : child.getComponents()) {
-                if (component instanceof GizmoDrawable gizmoDrawable) {
+                if (component instanceof GizmoDrawable gizmoDrawable && component.isOwnEnabled()) {
                     ctx.setColor(GizmoColors.DEFAULT);
                     ctx.setThickness(2.0f);
                     gizmoDrawable.onDrawGizmos(ctx);
@@ -131,11 +135,13 @@ public class GizmoRenderer {
      */
     private void renderSelectedGizmos(EditorScene scene, GizmoContext ctx) {
         for (EditorGameObject entity : scene.getSelectedEntities()) {
+            if (!entity.isEnabled()) continue; // Skip disabled entities
+
             Transform transform = entity.getComponent(Transform.class);
             ctx.setTransform(transform);
 
             for (Component component : entity.getComponents()) {
-                if (component instanceof GizmoDrawableSelected gizmoDrawableSelected) {
+                if (component instanceof GizmoDrawableSelected gizmoDrawableSelected && component.isOwnEnabled()) {
                     // Reset style for each component
                     ctx.setColor(GizmoColors.DEFAULT);
                     ctx.setThickness(2.0f);

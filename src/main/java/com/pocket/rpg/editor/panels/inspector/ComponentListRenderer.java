@@ -11,6 +11,7 @@ import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.AddComponentCommand;
 import com.pocket.rpg.editor.undo.commands.RemoveComponentCommand;
+import com.pocket.rpg.editor.undo.commands.ToggleComponentEnabledCommand;
 import com.pocket.rpg.editor.ui.inspectors.ComponentKeyField;
 import com.pocket.rpg.editor.undo.commands.SwapTransformCommand;
 import com.pocket.rpg.editor.utils.TransformSwapHelper;
@@ -20,6 +21,7 @@ import imgui.ImVec2;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiTreeNodeFlags;
+import imgui.type.ImBoolean;
 
 import java.util.List;
 
@@ -69,14 +71,49 @@ public class ComponentListRenderer {
                     label += " *";
                 }
 
+                boolean compEnabled = comp.isOwnEnabled();
+                boolean isTransform = comp instanceof Transform;
+
+                // Mute disabled component headers
+                if (!compEnabled) {
+                    ImGui.pushStyleColor(ImGuiCol.Text, 0.5f, 0.5f, 0.5f, 0.7f);
+                }
+
+                // Pad label to leave room for checkbox on the left
+                boolean showEnabledCheckbox = !isTransform && allowStructuralChanges;
+                String headerLabel = showEnabledCheckbox ? "     " + label : label;
+
                 // Extend header to left window edge
                 ImGui.indent(-padding);
-                boolean open = ImGui.collapsingHeader(label, ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.AllowOverlap);
+                boolean open = ImGui.collapsingHeader(headerLabel, ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.AllowOverlap);
                 ImGui.indent(padding);
 
+                if (!compEnabled) {
+                    ImGui.popStyleColor();
+                }
+
                 if (allowStructuralChanges) {
-                    boolean isTransform = comp instanceof Transform;
                     String dependent = findDependentComponent(entity, comp);
+
+                    // Enabled checkbox overlaid on left of header (not for Transform)
+                    if (showEnabledCheckbox) {
+                        float headerH = ImGui.getItemRectMaxY() - ImGui.getItemRectMinY();
+                        ImGui.sameLine(padding + 16);
+                        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 0, 0);
+                        float checkboxH = ImGui.getFrameHeight();
+                        float curY = ImGui.getCursorPosY();
+                        ImGui.setCursorPosY(curY + (headerH - checkboxH) * 0.5f);
+                        ImBoolean enabledRef = new ImBoolean(compEnabled);
+                        if (ImGui.checkbox("##compEnabled", enabledRef)) {
+                            UndoManager.getInstance().execute(
+                                    new ToggleComponentEnabledCommand(comp, enabledRef.get()));
+                            dirtyTracker.markDirty();
+                        }
+                        ImGui.popStyleVar();
+                        if (ImGui.isItemHovered()) {
+                            ImGui.setTooltip(compEnabled ? "Disable component" : "Enable component");
+                        }
+                    }
 
                     // Calculate button positions (right to left: remove, key, swap)
                     float removeButtonX = ImGui.getContentRegionAvailX() - 20;

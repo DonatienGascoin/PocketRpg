@@ -65,6 +65,10 @@ public class EditorGameObject implements Renderable, HierarchyItem {
     private int order;
 
     @Getter
+    @Setter
+    private boolean enabled = true;
+
+    @Getter
     private transient EditorGameObject parent;
 
     private transient List<EditorGameObject> children;
@@ -613,11 +617,22 @@ public class EditorGameObject implements Renderable, HierarchyItem {
     }
 
     /**
-     * Editor entities are always considered enabled.
+     * Returns effective enabled state, checking parent chain.
+     * Used for rendering, gizmos, and hierarchy graying.
      */
     @Override
     public boolean isEnabled() {
+        if (!enabled) return false;
+        if (parent != null) return parent.isEnabled();
         return true;
+    }
+
+    /**
+     * Returns the entity's own enabled state without checking the parent chain.
+     * Used by context menu labels, inspector checkboxes, and serialization.
+     */
+    public boolean isOwnEnabled() {
+        return enabled;
     }
 
     /**
@@ -864,7 +879,7 @@ public class EditorGameObject implements Renderable, HierarchyItem {
 
     public Sprite getCurrentSprite() {
         SpriteRenderer spriteRenderer = getComponent(SpriteRenderer.class);
-        if (spriteRenderer != null) {
+        if (spriteRenderer != null && spriteRenderer.isOwnEnabled()) {
             Sprite sprite = spriteRenderer.getSprite();
             if (sprite != null) {
                 return sprite;
@@ -905,7 +920,7 @@ public class EditorGameObject implements Renderable, HierarchyItem {
 
     @Override
     public boolean isRenderVisible() {
-        return getCurrentSprite() != null;
+        return isEnabled() && getCurrentSprite() != null;
     }
 
     // ========================================================================
@@ -947,6 +962,7 @@ public class EditorGameObject implements Renderable, HierarchyItem {
 
         data.setParentId(parentId);
         data.setOrder(order);
+        data.setActive(enabled);
         return data;
     }
 
@@ -993,6 +1009,8 @@ public class EditorGameObject implements Renderable, HierarchyItem {
                 entity.addRequiredComponents(comp.getClass());
             }
         }
+
+        entity.setEnabled(data.isActive());
 
         return entity;
     }

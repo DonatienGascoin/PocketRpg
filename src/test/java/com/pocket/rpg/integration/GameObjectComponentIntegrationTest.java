@@ -77,8 +77,8 @@ class GameObjectComponentIntegrationTest {
         component.setEnabled(true);
         assertEquals(2, component.enableCallCount);
 
-        gameObject.setEnabled(false); // Disabling GameObject does not disable components
-        assertEquals(1, component.disableCallCount);
+        gameObject.setEnabled(false); // Disabling GameObject now notifies components
+        assertEquals(2, component.disableCallCount);
     }
 
     @Test

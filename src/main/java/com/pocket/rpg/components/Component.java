@@ -52,6 +52,15 @@ public abstract class Component implements GizmoDrawable, GizmoDrawableSelected 
     }
 
     /**
+     * Returns the component's own enabled state without checking the parent hierarchy.
+     * Use this when you need the raw field value (e.g., serialization, inspector UI).
+     * Use {@link #isEnabled()} for runtime behavior checks.
+     */
+    public boolean isOwnEnabled() {
+        return enabled;
+    }
+
+    /**
      * Sets the enabled state of the component.
      * Triggers onEnable() or onDisable() callbacks when state changes.
      */

@@ -2,6 +2,7 @@ package com.pocket.rpg.editor.panels.inspector;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.core.IGameObject;
+import com.pocket.rpg.editor.core.EditorFonts;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.hierarchy.HierarchyItem;
 import com.pocket.rpg.editor.panels.ComponentBrowserPopup;
@@ -20,6 +21,7 @@ import com.pocket.rpg.prefab.PrefabRegistry;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiTreeNodeFlags;
+import imgui.type.ImBoolean;
 import imgui.type.ImString;
 import lombok.Setter;
 
@@ -62,9 +64,26 @@ public class EntityInspector {
 
         fieldEditor.setScene(scene);
 
-        String icon = IconUtils.getIconForEntity(entity);
+        // Enabled checkbox
+        boolean ownEnabled = entity.isOwnEnabled();
+        ImBoolean enabledRef = new ImBoolean(ownEnabled);
+        if (ImGui.checkbox("##EntityEnabled", enabledRef)) {
+            UndoManager.getInstance().execute(
+                    new ToggleEntityEnabledCommand(entity, enabledRef.get()));
+            scene.markDirty();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(ownEnabled ? "Disable entity" : "Enable entity");
+        }
+        ImGui.sameLine();
 
+        String icon = IconUtils.getIconForEntity(entity);
+        ImGui.pushFont(EditorFonts.getIconFont(20)); // Larger icon size
+        float cursorY = ImGui.getCursorPosY();
+        ImGui.setCursorPosY(cursorY - 3);
         ImGui.text(icon);
+        ImGui.popFont();
+        ImGui.setCursorPosY(cursorY);
         ImGui.sameLine();
         stringBuffer.set(entity.getName());
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() - 70);

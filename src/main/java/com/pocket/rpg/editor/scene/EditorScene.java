@@ -373,6 +373,7 @@ public class EditorScene implements DirtyTracker {
     public EditorGameObject findEntityAt(float worldX, float worldY) {
         for (int i = entities.size() - 1; i >= 0; i--) {
             EditorGameObject entity = entities.get(i);
+            if (!entity.isEnabled()) continue; // Skip disabled entities
             if (isPointInsideEntity(entity, worldX, worldY)) {
                 return entity;
             }

@@ -65,6 +65,7 @@ public interface EditorShortcutHandlers {
     void onToolEntityPlacer();
     void onEntityDelete();
     void onEntityCancel();
+    void onEntityToggleEnabled();
 
     // ========================================================================
     // TRANSFORM TOOLS

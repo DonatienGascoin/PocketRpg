@@ -37,14 +37,14 @@
   "showTileCoordinates": true,
   "defaultUiFont": "gameData/assets/fonts/zelda.ttf",
   "recentScenes": [
-    "Battle.scene",
     "DemoScene.scene",
+    "Battle.scene",
     "Test.scene"
   ],
   "panelVisibility": {
     "assetBrowser": true,
     "hierarchy": true,
-    "collisionPanel": false,
+    "collisionPanel": true,
     "inspector": true,
     "tilesetPalette": false,
     "configuration": false

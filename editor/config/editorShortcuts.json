@@ -1,6 +1,7 @@
 {
   "keyboardLayout": "AZERTY",
   "qwertyBindings": {
+    "editor.entity.toggleEnabled": "CS:A",
     "editor.tool.selection": ":V",
     "editor.tool.rotate": ":E",
     "editor.camera.panLeftArrow": ":Left",
@@ -69,6 +70,7 @@
     "editor.tool.fill": ":3"
   },
   "azertyBindings": {
+    "editor.entity.toggleEnabled": "CS:Q",
     "editor.tool.selection": ":V",
     "editor.tool.rotate": ":E",
     "editor.camera.panLeftArrow": ":Left",

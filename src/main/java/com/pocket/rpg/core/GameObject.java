@@ -174,6 +174,63 @@ public class GameObject implements IGameObject {
     public void setEnabled(boolean enabled) {
         if (this.enabled == enabled) return;
         this.enabled = enabled;
+
+        // Notify components on this GameObject (snapshot for iteration safety)
+        for (Component component : new ArrayList<>(components)) {
+            if (enabled) {
+                component.triggerEnable();
+            } else {
+                component.triggerDisable();
+            }
+        }
+
+        // Invalidate Scene caches (renderables, uiCanvases, ComponentKeyRegistry)
+        if (scene != null) {
+            if (enabled) {
+                scene.registerCachedComponents(this);
+            } else {
+                scene.unregisterCachedComponents(this);
+            }
+        }
+
+        // Propagate to children — only notify children whose effective state changed
+        for (GameObject child : new ArrayList<>(children)) {
+            child.propagateParentEnabledChange(enabled);
+        }
+    }
+
+    /**
+     * Called when an ancestor's enabled state changes.
+     * Only fires callbacks on components whose effective state actually changed.
+     * Respects this child's own enabled flag — if child is individually disabled,
+     * its components won't receive triggerEnable() when parent is re-enabled.
+     */
+    void propagateParentEnabledChange(boolean parentNowEnabled) {
+        // If this child is individually disabled, its effective state didn't change
+        if (!this.enabled) return;
+
+        // This child is individually enabled, so parent change affects it
+        for (Component component : new ArrayList<>(components)) {
+            if (parentNowEnabled) {
+                component.triggerEnable();
+            } else {
+                component.triggerDisable();
+            }
+        }
+
+        // Invalidate Scene caches for this child
+        if (scene != null) {
+            if (parentNowEnabled) {
+                scene.registerCachedComponents(this);
+            } else {
+                scene.unregisterCachedComponents(this);
+            }
+        }
+
+        // Recurse to grandchildren
+        for (GameObject child : new ArrayList<>(children)) {
+            child.propagateParentEnabledChange(parentNowEnabled);
+        }
     }
 
     // =======================================================================

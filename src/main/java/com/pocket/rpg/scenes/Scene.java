@@ -335,8 +335,11 @@ public abstract class Scene {
 
     /**
      * Registers cached components from a GameObject and its children.
+     * Skips disabled GameObjects — their components should not be in the cache.
      */
     public void registerCachedComponents(GameObject gameObject) {
+        if (!gameObject.isEnabled()) return;
+
         // Register all Renderable components
         for (Component component : gameObject.getAllComponents()) {
             if (component instanceof Renderable renderable) {

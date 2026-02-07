@@ -38,6 +38,7 @@ public class EditorUIBridge {
     private EditorScene lastScene;
     private int lastHierarchyVersion = -1;
     private int lastComponentCount = -1;
+    private int lastEnabledHash = -1;
 
     /**
      * Gets UICanvas list, rebuilding wrappers when hierarchy or components changed.
@@ -50,15 +51,18 @@ public class EditorUIBridge {
 
         // Check if we need to rebuild
         int currentComponentCount = countTotalComponents(scene);
+        int currentEnabledHash = computeEnabledHash(scene);
         boolean needsRebuild = (scene != lastScene)
                 || (scene.getHierarchyVersion() != lastHierarchyVersion)
-                || (currentComponentCount != lastComponentCount);
+                || (currentComponentCount != lastComponentCount)
+                || (currentEnabledHash != lastEnabledHash);
 
         if (needsRebuild) {
             rebuildWrappers(scene);
             lastScene = scene;
             lastHierarchyVersion = scene.getHierarchyVersion();
             lastComponentCount = currentComponentCount;
+            lastEnabledHash = currentEnabledHash;
         }
 
         return cachedCanvases;
@@ -74,6 +78,22 @@ public class EditorUIBridge {
             count += entity.getComponents().size();
         }
         return count;
+    }
+
+    /**
+     * Computes a hash of all entity enabled states for change detection.
+     * Detects enable/disable toggles that don't trigger hierarchy version change.
+     */
+    private int computeEnabledHash(EditorScene scene) {
+        int hash = 0;
+        int bit = 1;
+        for (EditorGameObject entity : scene.getEntities()) {
+            if (entity.isOwnEnabled()) {
+                hash ^= bit;
+            }
+            bit = Integer.rotateLeft(bit, 1);
+        }
+        return hash;
     }
 
     /**
@@ -93,6 +113,7 @@ public class EditorUIBridge {
         cachedCanvases.clear();
         lastScene = null;
         lastHierarchyVersion = -1;
+        lastEnabledHash = -1;
     }
 
     /**
@@ -104,10 +125,12 @@ public class EditorUIBridge {
         wrapperCache.clear();
         cachedCanvases.clear();
 
-        // First pass: create wrappers for ALL UI entities from flat list
+        // First pass: create wrappers for UI entities from flat list
         // (not using getRootEntities + recursion because children may not be linked)
+        // Skip disabled entities — they should not render in the editor preview.
         Map<String, EditorGameObject> entityById = new HashMap<>();
         for (EditorGameObject entity : scene.getEntities()) {
+            if (!entity.isEnabled()) continue;
             if (hasUIComponents(entity)) {
                 GameObject wrapper = createWrapperGameObject(entity);
                 wrapperCache.put(entity.getId(), wrapper);
@@ -219,8 +242,12 @@ public class EditorUIBridge {
             if (comp instanceof UIComponent uiComp) {
                 // Temporarily reassign the component to the wrapper
                 comp.setOwner(wrapper);
-                // Force enable - wrappers bypass onStart() lifecycle
-                uiComp.setEnabled(true);
+                // Only force enable if the component's own state is enabled.
+                // Wrappers bypass onStart() lifecycle, so we need this to set
+                // internal flags. But respect intentionally disabled components.
+                if (uiComp.isOwnEnabled()) {
+                    uiComp.setEnabled(true);
+                }
                 // Add to wrapper's component list
                 addComponentToWrapper(wrapper, comp);
             } else if (comp instanceof LayoutGroup) {

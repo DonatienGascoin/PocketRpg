@@ -171,6 +171,13 @@ public class ComponentTypeAdapterFactory implements TypeAdapterFactory {
             out.value(componentKey);
         }
 
+        // Write enabled (only when false, since true is default — backwards compatible)
+        // Use isOwnEnabled() — isEnabled() is hierarchical and would give wrong result
+        if (!component.isOwnEnabled()) {
+            out.name("enabled");
+            out.value(false);
+        }
+
         if (meta != null) {
             for (FieldMeta fieldMeta : meta.fields()) {
                 Field field = fieldMeta.field();
@@ -294,6 +301,14 @@ public class ComponentTypeAdapterFactory implements TypeAdapterFactory {
         JsonElement keyElement = json.get("componentKey");
         if (keyElement != null && keyElement.isJsonPrimitive()) {
             component.setComponentKey(keyElement.getAsString());
+        }
+
+        // Read enabled (defaults to true if absent — backwards compatible)
+        JsonElement enabledElement = json.get("enabled");
+        if (enabledElement != null && enabledElement.isJsonPrimitive()) {
+            if (!enabledElement.getAsBoolean()) {
+                component.setEnabled(false);
+            }
         }
 
         for (FieldMeta fieldMeta : meta.fields()) {

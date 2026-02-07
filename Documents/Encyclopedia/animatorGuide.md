@@ -350,10 +350,10 @@ player.setSpeed(2.0f);  // 2x speed
 
 ```java
 public class PlayerController extends Component {
-    @ComponentRef
+    @ComponentReference(source = Source.SELF)
     private AnimatorComponent animator;
 
-    @ComponentRef
+    @ComponentReference(source = Source.SELF)
     private GridMovement movement;
 
     @Override

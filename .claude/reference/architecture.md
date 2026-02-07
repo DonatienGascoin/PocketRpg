@@ -53,7 +53,7 @@
 ## Serialization
 
 Components use reflection-based serialization via `ComponentRegistry`:
-- `@ComponentRef` - Auto-resolved component references (not serialized). Supports `source` parameter: `SELF`, `PARENT`, `CHILDREN`, `CHILDREN_RECURSIVE`
+- `@ComponentReference(source)` - Unified component references. Hierarchy sources (`SELF`, `PARENT`, `CHILDREN`, `CHILDREN_RECURSIVE`) are transient/auto-resolved. `KEY` source is serialized as a string and resolved via `ComponentKeyRegistry` at runtime. The `componentKey` field on `Component` is explicitly serialized (not in `meta.fields()`).
 - `@HideInInspector` - Excludes fields from editor inspector and serialization
 - `@Required` - Shows red highlight in inspector when field is null/empty
 - Scene files are JSON in `gameData/scenes/`

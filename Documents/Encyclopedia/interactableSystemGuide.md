@@ -209,7 +209,7 @@ The TriggerZone's remove button is greyed out because it is required by the Sign
 - Use distinct gizmo shape + color combinations so interactable types are recognizable at a glance
 - Set `directionalInteraction = false` for objects that should be interactable from any side
 - Use `getInteractionPriority()` when multiple interactables can overlap (higher = takes precedence)
-- The base class handles `@ComponentRef` for TriggerZone — use `getComponent(TriggerZone.class)` if you need it in gizmo code (editor context doesn't resolve `@ComponentRef`)
+- The base class handles `@ComponentReference` for TriggerZone — use `getComponent(TriggerZone.class)` if you need it in gizmo code (editor context doesn't resolve `@ComponentReference`)
 - Keep `interact()` lightweight — it runs on the game thread
 
 ---

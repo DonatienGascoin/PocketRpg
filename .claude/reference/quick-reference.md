@@ -7,15 +7,15 @@ How to add common things to the codebase.
 1. Create class extending `Component` in `com.pocket.rpg.components`
 2. Add no-arg constructor (required for serialization)
 3. Override lifecycle methods (`onStart`, `update`, `onDestroy`)
-4. Use `@ComponentRef` for dependencies, `@Required` for mandatory fields
+4. Use `@ComponentReference(source)` for dependencies, `@Required` for mandatory fields
 
 ```java
 public class MyComponent extends Component {
     @Required
     private String requiredField;
 
-    @ComponentRef
-    private Transform transform;
+    @ComponentReference(source = Source.SELF)
+    private transient Transform transform;
 
     public MyComponent() {} // Required
 

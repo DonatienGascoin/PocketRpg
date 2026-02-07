@@ -287,7 +287,7 @@ if (SaveManager.getSceneFlag("boss_defeated", false)) {
 |------|------------|
 | Player gold, items | Animation frame/timer |
 | Current health | Cached calculations |
-| Quest progress | Component references (@ComponentRef) |
+| Quest progress | Component references (@ComponentReference) |
 | Chest opened state | Default config values |
 | Entity position (if moved) | Static scenery state |
 

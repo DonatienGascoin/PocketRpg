@@ -71,8 +71,7 @@ FieldEditorUtils.inlineField("X", width, () -> ImGui.dragFloat("##x", buf));
 ## Component Lifecycle
 
 - `onStart()` is called after all components are added but before the first `update()`. Don't assume other GameObjects exist during construction.
-- `@ComponentRef` fields are resolved before `onStart()`, after hierarchy is established. Access them in `onStart()` or `update()`, not in the constructor.
-- `@UiKeyReference` fields are resolved before `onStart()`, after UIManager keys are registered. The annotation goes on a non-transient `UIComponent` field. The field is serialized as a plain JSON string (the uiKey value) and rendered as a dropdown in the editor. At runtime, the resolver looks up the UIComponent via `UIManager.get(key, type)` and injects it.
+- `@ComponentReference` fields are resolved before `onStart()`, after hierarchy is established and `ComponentKeyRegistry` keys are registered. Hierarchy sources (`SELF`, `PARENT`, `CHILDREN`, `CHILDREN_RECURSIVE`) are transient. `KEY` source fields are non-transient, serialized as string keys, and resolved via `ComponentKeyRegistry`.
 - When destroying GameObjects, `onDestroy()` is called on all components. Clean up any external references.
 
 ---
@@ -80,7 +79,7 @@ FieldEditorUtils.inlineField("X", width, () -> ImGui.dragFloat("##x", buf));
 ## Serialization
 
 - Fields must have a no-arg constructor type or be a primitive/String to serialize properly.
-- Transient fields and fields annotated with `@HideInInspector` or `@ComponentRef` are not serialized.
+- Transient fields and fields annotated with `@HideInInspector` are not serialized. Hierarchy-source `@ComponentReference` fields are transient so also not serialized. `componentKey` on `Component.class` is explicitly serialized (not in `meta.fields()`).
 - Asset paths are relative to `gameData/assets/`. Use forward slashes even on Windows.
 
 ---

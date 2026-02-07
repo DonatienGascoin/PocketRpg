@@ -76,7 +76,7 @@ Detects entity entry on its tiles. Non-blocking — entities walk through freely
 
 ### WarpZone
 
-Orchestrates teleportation. Requires a TriggerZone on the same entity (resolved via `@ComponentRef`).
+Orchestrates teleportation. Requires a TriggerZone on the same entity (resolved via `@ComponentReference`).
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|

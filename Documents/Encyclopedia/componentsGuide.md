@@ -32,8 +32,8 @@
 | Remove list item | Click "X" next to list element |
 | Reset field | Click reset button (appears for overridden fields) |
 | Hide field from editor | Add `@HideInInspector` annotation |
-| Reference another component | Add `@ComponentRef` to a transient field |
-| Reference a UI element by key | Add `@UiKeyReference` to a non-transient UIComponent field |
+| Reference another component (hierarchy) | Add `@ComponentReference(source = Source.SELF)` to a transient field |
+| Reference a component by key | Add `@ComponentReference(source = Source.KEY)` and set a `componentKey` on the target |
 | Mark field as required | Add `@Required` annotation |
 | Auto-add dependency | Add `@RequiredComponent(Type.class)` on the class |
 | Add inspector tooltip | Add `@Tooltip("description")` on a field |
@@ -66,12 +66,12 @@ When you select an entity, the Inspector panel shows all its components:
 |   Rotation    [0.0]                         |
 |   Scale       X: [1.0]  Y: [1.0]           |
 +---------------------------------------------+
-| v SpriteRenderer                        [X] |
+| v SpriteRenderer                   [K] [X] |
 |   Sprite      [...] player.sprite          |
 |   Color       [*******]                     |
 |   Z Index     [0]                           |
 +---------------------------------------------+
-| v PlayerController                      [X] |
+| v PlayerController                 [K] [X] |
 |   Speed       [5.0]                         |
 |   Items (3)                             [+] |
 |     0   "Sword"                         [x] |
@@ -93,7 +93,7 @@ The inspector automatically creates appropriate editors based on field type:
 | `int` | Integer input | Supports drag to change |
 | `float` | Drag slider | Speed: 0.1 by default |
 | `boolean` | Checkbox | |
-| `String` | Text input | Or dropdown if backing a `@UiKeyReference` |
+| `String` | Text input | |
 | `Vector2f` | X/Y inputs | Side-by-side layout |
 | `Vector3f` | X/Y/Z inputs | |
 | `Vector4f` | Color picker | When named "color" or "tint" |
@@ -212,101 +212,95 @@ Works with `String` (empty check), asset types (null check), and other reference
 
 ---
 
-### @ComponentRef
+### @ComponentReference
 
-**Target:** Field (must be `transient`)
+**Target:** Field
 **Package:** `com.pocket.rpg.components`
 
-Marks a field as a component reference that is automatically resolved at runtime. The field is **not serialized** — instead, the engine searches for the component at the specified location when the scene initializes.
+Unified annotation for all component references. The `source` parameter determines how the reference is resolved.
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
-| `source` | `Source` enum | `SELF` | Where to search for the component |
-| `required` | `boolean` | `true` | Log warning if not found |
+| `source` | `Source` enum | *(required)* | Where/how to resolve the component |
 
 **Source options:**
 
-| Source | Description |
-|--------|-------------|
-| `SELF` | Same GameObject (default) |
-| `PARENT` | Parent GameObject |
-| `CHILDREN` | Direct children only |
-| `CHILDREN_RECURSIVE` | All descendants (depth-first) |
+| Source | Field modifier | Serialized? | Description |
+|--------|---------------|-------------|-------------|
+| `SELF` | `transient` | No | Same GameObject (sibling component) |
+| `PARENT` | `transient` | No | Parent GameObject |
+| `CHILDREN` | `transient` | No | Direct children only |
+| `CHILDREN_RECURSIVE` | `transient` | No | All descendants (depth-first) |
+| `KEY` | non-transient | Yes (as string) | Resolved via `ComponentKeyRegistry` by key |
+
+#### Hierarchy sources (SELF, PARENT, CHILDREN, CHILDREN_RECURSIVE)
+
+Fields must be `transient`. The engine searches for the component at the specified location when the scene initializes.
 
 ```java
 public class PlayerMovement extends Component {
     // Resolved from same GameObject
-    @ComponentRef
-    private GridMovement movement;
+    @ComponentReference(source = Source.SELF)
+    private transient GridMovement movement;
 
     // Resolved from parent
-    @ComponentRef(source = Source.PARENT)
-    private Inventory parentInventory;
+    @ComponentReference(source = Source.PARENT)
+    private transient Inventory parentInventory;
 
     // Collect all from children
-    @ComponentRef(source = Source.CHILDREN)
-    private List<Collider> childColliders;
+    @ComponentReference(source = Source.CHILDREN)
+    private transient List<SpriteRenderer> childRenderers;
 
-    // Optional reference — no warning if missing
-    @ComponentRef(required = false)
-    private AudioSource audioSource;
+    // Deep search through all descendants
+    @ComponentReference(source = Source.CHILDREN_RECURSIVE)
+    private transient SpriteRenderer deepRenderer;
 }
 ```
 
-**In the inspector**, `@ComponentRef` fields appear as read-only status indicators:
-- Green checkmark: Component found on the entity
-- Red error: Required component missing
-- Gray question mark: Cannot verify (parent/children references)
+**In the inspector**, hierarchy references appear as read-only status indicators:
+- Green checkmark: Component found
+- Red error: Component missing
+- Gray question mark: Cannot verify at edit time
 
-**Resolution timing:** Resolved after hierarchy is established, before `onStart()`. See [Component Lifecycle](#component-lifecycle).
+#### KEY source
 
----
+Fields are non-transient and serialized as a plain JSON string (the component key). At runtime, `ComponentReferenceResolver` looks up the key in `ComponentKeyRegistry` and injects the component.
 
-### @UiKeyReference
-
-**Target:** Field (non-transient `UIComponent` subclass)
-**Package:** `com.pocket.rpg.components`
-
-Marks a UIComponent field to be automatically resolved from a UIManager key at runtime. Works like `@ComponentRef` but looks up UI components registered in the scene's `UIManager` by their `uiKey` string.
-
-The annotated field is serialized as a plain JSON string (the uiKey value), not as a UIComponent object. In the editor, it is rendered as a **dropdown** of all available UI keys in the scene, filtered by the expected UIComponent type.
-
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `required` | `boolean` | `true` | Log warning if key is empty or not found |
+The target component must have a `componentKey` set (visible via the key toggle button in the component header).
 
 ```java
 @ComponentMeta(category = "Player")
 public class PlayerUI extends Component {
-    @ComponentRef
-    private GridMovement movement;
+    @ComponentReference(source = Source.SELF)
+    private transient GridMovement movement;
 
-    // Serialized as JSON string key, resolved at runtime via UIManager
-    @UiKeyReference
-    private UIText elevationText;
+    // Serialized as string key, resolved at runtime via ComponentKeyRegistry
+    @ComponentReference(source = Source.KEY)
+    private Component elevationText;
 
     @Override
     public void update(float deltaTime) {
-        if (elevationText != null) {
-            elevationText.setText(String.valueOf(movement.getZLevel()));
+        if (elevationText instanceof UIText text) {
+            text.setText(String.valueOf(movement.getZLevel()));
         }
     }
 }
 ```
 
-**In the editor**, the field is rendered as a combo dropdown. The dropdown lists all UI components in the scene that have a `uiKey` set and match the expected type (e.g., only `UIText` keys for a `UIText` field). A `(none)` option clears the reference.
+**In the editor**, KEY reference fields are rendered as a combo dropdown listing all components in the scene that have a `componentKey` set, filtered by the expected type. A `(none)` option clears the reference.
 
-If the saved key no longer exists in the scene, it appears as `"KeyName (missing)"` in the dropdown.
+**Component Key field:** Every component has a `componentKey` field (on `Component.class`). It is hidden by default in the inspector — click the key icon button in the component header to reveal it. When a key is set, the field stays visible and the button is disabled.
 
 **How it works step by step:**
 
-1. In the editor, you set a `uiKey` on a UI component (e.g., `"ElevationText"` on a UIText)
-2. On another component, you select that key from the dropdown
-3. At runtime, `UIManager` registers all UI components with their keys during scene load
-4. `UiKeyRefResolver` reads the stored key, calls `UIManager.get(key, type)`, and injects the result
-5. Your component uses the resolved field directly — no `UIManager.getText(...)` calls needed
+1. In the editor, click the key icon on a component header to reveal the Component Key field
+2. Set a key (e.g., `"ElevationText"` on a UIText)
+3. On another component, select that key from the KEY reference dropdown
+4. At runtime, `ComponentKeyRegistry` registers all components with keys during scene load
+5. `ComponentReferenceResolver` reads the stored key and injects the component
+6. Your component uses the resolved field directly
 
-**Resolution timing:** Resolved after UIManager keys are registered, before `onStart()`. See [Component Lifecycle](#component-lifecycle).
+**Resolution timing:** All references (hierarchy and key) are resolved after hierarchy is established and keys are registered, before `onStart()`. See [Component Lifecycle](#component-lifecycle).
 
 ---
 
@@ -372,8 +366,8 @@ public class Sign extends InteractableComponent {
 | `@ComponentMeta` | Class | N/A | Category in component browser | None |
 | `@HideInInspector` | Field | Yes | Hidden from inspector | None |
 | `@Required` | Field | Yes | Red highlight when empty | None |
-| `@ComponentRef` | Field | No (transient) | Status indicator | Auto-resolved from hierarchy |
-| `@UiKeyReference` | Field | Yes (as string key) | Dropdown | Auto-resolved from UIManager |
+| `@ComponentReference` (hierarchy) | Field | No (transient) | Status indicator | Auto-resolved from hierarchy |
+| `@ComponentReference` (KEY) | Field | Yes (as string key) | Dropdown | Auto-resolved from ComponentKeyRegistry |
 | `@RequiredComponent` | Class | N/A | Auto-adds dependency; blocks removal | Auto-adds dependency |
 | `@Tooltip` | Field | N/A | Hover tooltip on label | None |
 
@@ -390,43 +384,40 @@ Scene Load
   |
   v
 1. Components created and added to GameObjects
-   - UIComponents register their uiKey with UIManager
+   - Components with componentKey register with ComponentKeyRegistry
   |
   v
 2. Parent-child hierarchy established
   |
   v
-3. @ComponentRef fields resolved (ComponentRefResolver)
-   - Searches SELF / PARENT / CHILDREN per annotation
+3. @ComponentReference fields resolved (ComponentReferenceResolver)
+   - Hierarchy sources: searches SELF / PARENT / CHILDREN / CHILDREN_RECURSIVE
+   - KEY sources: reads stored key, looks up ComponentKeyRegistry
   |
   v
-4. @UiKeyReference fields resolved (UiKeyRefResolver)
-   - Reads stored key, looks up UIManager.get(key, type)
-  |
-  v
-5. onStart() called on all components
+4. onStart() called on all components
    - All references are available here
   |
   v
-6. update(deltaTime) called every frame
+5. update(deltaTime) called every frame
 ```
 
 ### What you can access where
 
-| Location | @ComponentRef | @UiKeyReference | Other Components | UIManager |
-|----------|:---:|:---:|:---:|:---:|
-| Constructor | No | No | No | No |
-| `onStart()` | Yes | Yes | Yes (via getComponent) | Yes |
-| `update()` | Yes | Yes | Yes | Yes |
-| `onDestroy()` | Yes | Yes | Depends | Depends |
+| Location | @ComponentReference (hierarchy) | @ComponentReference (KEY) | Other Components |
+|----------|:---:|:---:|:---:|
+| Constructor | No | No | No |
+| `onStart()` | Yes | Yes | Yes (via getComponent) |
+| `update()` | Yes | Yes | Yes |
+| `onDestroy()` | Yes | Yes | Depends |
 
 ### Key Rules
 
 - **Never** access other components in the constructor
-- `@ComponentRef` and `@UiKeyReference` fields are available starting from `onStart()`
+- `@ComponentReference` fields are available starting from `onStart()`
 - Always null-check optional references before use
 - `transient` fields are reset after deserialization — don't rely on initializers for transient fields
-- `@UiKeyReference` fields are non-transient but are serialized as string keys, not UIComponent objects
+- KEY source fields are non-transient but serialized as string keys, not Component objects
 
 ---
 
@@ -455,19 +446,19 @@ public class HealthComponent extends Component {
 }
 ```
 
-### Using @ComponentRef
+### Using @ComponentReference (hierarchy)
 
 1. Declare a `transient` field of the component type you need
-2. Add `@ComponentRef` with the appropriate `source`
+2. Add `@ComponentReference` with the appropriate `source`
 3. Use the field in `onStart()` or `update()` — it's already resolved
 
 ```java
 public class PlayerController extends Component {
-    @ComponentRef
-    private GridMovement movement;
+    @ComponentReference(source = Source.SELF)
+    private transient GridMovement movement;
 
-    @ComponentRef(source = Source.CHILDREN, required = false)
-    private List<SpriteRenderer> childRenderers;
+    @ComponentReference(source = Source.CHILDREN)
+    private transient List<SpriteRenderer> childRenderers;
 
     @Override
     public void update(float deltaTime) {
@@ -476,26 +467,27 @@ public class PlayerController extends Component {
 }
 ```
 
-### Using @UiKeyReference
+### Using @ComponentReference (KEY)
 
-1. Add a non-transient UIComponent field with `@UiKeyReference`
-2. In the editor, set a `uiKey` on the target UI component
-3. On your component, select the key from the dropdown
-4. At runtime, the UIComponent is injected automatically
+1. On the target component, click the key icon in its header to reveal the Component Key field
+2. Set a unique key string (e.g., `"ScoreText"`)
+3. On your component, add a non-transient field with `@ComponentReference(source = Source.KEY)`
+4. In the editor, select the key from the dropdown
+5. At runtime, the component is injected automatically
 
 ```java
 @ComponentMeta(category = "UI")
 public class ScoreDisplay extends Component {
-    @UiKeyReference
-    private UIText scoreText;
+    @ComponentReference(source = Source.KEY)
+    private Component scoreText;
 
-    @UiKeyReference(required = false)
-    private UIImage healthBar;
+    @ComponentReference(source = Source.KEY)
+    private Component healthBar;
 
     @Override
     public void update(float deltaTime) {
-        if (scoreText != null) {
-            scoreText.setText("Score: " + GameState.getScore());
+        if (scoreText instanceof UIText text) {
+            text.setText("Score: " + GameState.getScore());
         }
     }
 }
@@ -530,8 +522,7 @@ Keyboard navigation:
 - **Hide internal fields**: Use `@HideInInspector` for fields that shouldn't be edited
 - **Provide defaults**: Always set sensible default values
 - **Name clearly**: Field names become display labels (camelCase -> "Camel Case")
-- **Prefer @ComponentRef over getComponent()**: It's resolved once at startup, not every frame
-- **Prefer @UiKeyReference over UIManager.getText()**: Eliminates magic strings and resolves at startup
+- **Prefer @ComponentReference over getComponent()**: It's resolved once at startup, not every frame
 - **Null-check optional references**: Always guard with `if (ref != null)` for `required = false` references
 - **Use @Required for critical fields**: Gives visual feedback in the editor when fields are empty
 
@@ -545,10 +536,10 @@ Keyboard navigation:
 | Field not appearing | Check if field is `transient`, `static`, or has `@HideInInspector` |
 | Component not in menu | Ensure class extends `Component` and has no-arg constructor |
 | Changes not saving | Check for serialization errors in console |
-| @ComponentRef field is null | Ensure the target component exists on the correct entity; check `source` |
-| @UiKeyReference field is null | Ensure the UI component has a `uiKey` set and the key is selected in the dropdown |
-| UI key dropdown is empty | No UI components with matching type have a `uiKey` set in the scene |
-| UI key shows "(missing)" | The key was set but the UI component no longer exists or its key changed |
+| @ComponentReference field is null (hierarchy) | Ensure the target component exists on the correct entity; check `source` |
+| @ComponentReference field is null (KEY) | Ensure the target component has a `componentKey` set and the key is selected in the dropdown |
+| KEY dropdown is empty | No components with a `componentKey` set in the scene match the expected type |
+| KEY shows "(missing)" | The key was set but the target component no longer exists or its key changed |
 | @Required field not highlighting | Field must be null or empty string; 0 doesn't trigger for numbers |
 | @RequiredComponent not auto-adding | Ensure the target class has a public no-arg constructor; check console for warnings at startup |
 | Can't remove a component | It may be required by another component — hover the greyed-out button to see which |
@@ -600,19 +591,19 @@ public class DamageZone extends Component {
     @HideInInspector
     private int tickCounter = 0;
 
-    @ComponentRef
-    private Transform transform;
+    @ComponentReference(source = Source.SELF)
+    private transient Transform transform;
 
-    @ComponentRef(source = Source.CHILDREN_RECURSIVE)
-    private List<SpriteRenderer> renderers;
+    @ComponentReference(source = Source.CHILDREN_RECURSIVE)
+    private transient List<SpriteRenderer> renderers;
 
-    @UiKeyReference(required = false)
-    private UIText warningText;
+    @ComponentReference(source = Source.KEY)
+    private Component warningText;
 
     @Override
     public void update(float deltaTime) {
-        if (warningText != null) {
-            warningText.setText("Danger: " + damageType);
+        if (warningText instanceof UIText text) {
+            text.setText("Danger: " + damageType);
         }
     }
 }
@@ -624,6 +615,6 @@ public class DamageZone extends Component {
 
 - [Custom Inspector Guide](customInspectorGuide.md) — Building custom editor UIs for components
 - [Asset Loader Guide](assetLoaderGuide.md) — Loading sprites, textures, audio
-- [UI Designer Guide](uiDesignerGuide.md) — Creating UI elements with uiKey
+- [UI Designer Guide](uiDesignerGuide.md) — Creating UI elements
 - [Inspector Panel Guide](inspectorPanelGuide.md) — General inspector usage
 - [Interactable System Guide](interactableSystemGuide.md) — Building interactable objects (Sign, Chest, etc.)

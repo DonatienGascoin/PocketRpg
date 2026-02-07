@@ -5,12 +5,16 @@ import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.core.window.ViewportConfig;
 import com.pocket.rpg.editor.EditorContext;
+import com.pocket.rpg.editor.camera.PreviewCamera;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.uidesigner.*;
 import com.pocket.rpg.editor.rendering.EditorFramebuffer;
 import com.pocket.rpg.editor.rendering.EditorUIBridge;
+import com.pocket.rpg.editor.rendering.PreviewCameraAdapter;
 import com.pocket.rpg.editor.scene.EditorScene;
+import com.pocket.rpg.editor.scene.SceneCameraSettings;
 import com.pocket.rpg.editor.tools.ToolManager;
+import com.pocket.rpg.rendering.core.Renderable;
 import com.pocket.rpg.rendering.pipeline.RenderParams;
 import com.pocket.rpg.rendering.pipeline.RenderPipeline;
 import com.pocket.rpg.rendering.targets.FramebufferTarget;
@@ -56,6 +60,11 @@ public class UIDesignerPanel {
     private final EditorUIBridge uiBridge = new EditorUIBridge();
     private boolean pipelineInitialized = false;
 
+    // Scene background rendering (for WORLD mode)
+    private EditorFramebuffer sceneFramebuffer;
+    private PreviewCamera previewCamera;
+    private PreviewCameraAdapter cameraAdapter;
+
     // Clear color for UI rendering (transparent)
     private static final Vector4f CLEAR_COLOR = new Vector4f(0f, 0f, 0f, 0f);
 
@@ -93,8 +102,16 @@ public class UIDesignerPanel {
         framebuffer = new EditorFramebuffer(width, height);
         framebuffer.init();
 
+        // Create framebuffer for scene background (same game-native dimensions)
+        sceneFramebuffer = new EditorFramebuffer(width, height);
+        sceneFramebuffer.init();
+
         // Create viewport config matching canvas dimensions
         viewportConfig = new ViewportConfig(width, height, width, height);
+
+        // Create preview camera for game-perspective scene rendering
+        previewCamera = new PreviewCamera(viewportConfig);
+        cameraAdapter = new PreviewCameraAdapter(previewCamera);
 
         // Create pipeline (no post-processing for UI)
         pipeline = new RenderPipeline(viewportConfig, renderingConfig);
@@ -229,6 +246,12 @@ public class UIDesignerPanel {
         // Get current scene
         EditorScene scene = context.getCurrentScene();
 
+        // Render scene background to texture (for WORLD mode)
+        if (state.getBackgroundMode() == UIDesignerState.BackgroundMode.WORLD) {
+            renderSceneToTexture(scene);
+            renderer.setSceneTextureId(sceneFramebuffer != null ? sceneFramebuffer.getTextureId() : 0);
+        }
+
         // Render UI elements to texture using unified RenderPipeline
         renderUIToTexture(scene);
 
@@ -301,6 +324,39 @@ public class UIDesignerPanel {
     }
 
     /**
+     * Renders the scene to a texture for the WORLD background.
+     * Uses the game camera perspective at native resolution.
+     */
+    private void renderSceneToTexture(EditorScene scene) {
+        if (pipeline == null || sceneFramebuffer == null || scene == null) return;
+
+        // Apply scene camera settings (position from scene, ortho size from rendering config)
+        SceneCameraSettings settings = scene.getCameraSettings();
+        float orthoSize = renderingConfig.getDefaultOrthographicSize(gameConfig.getGameHeight());
+        previewCamera.applySceneSettings(settings.getPosition(), orthoSize);
+
+        // Get renderables (tilemaps + entities)
+        List<Renderable> renderables = scene.getRenderables();
+
+        // Create render target
+        FramebufferTarget target = new FramebufferTarget(sceneFramebuffer);
+
+        // Build params - scene only (no UI, no post-fx)
+        RenderParams params = RenderParams.builder()
+                .renderables(renderables)
+                .camera(cameraAdapter)
+                .clearColor(renderingConfig.getClearColor())
+                .renderScene(true)
+                .renderUI(false)
+                .renderPostFx(false)
+                .renderOverlay(false)
+                .build();
+
+        // Execute pipeline
+        pipeline.execute(target, params);
+    }
+
+    /**
      * Displays the rendered UI texture in the viewport.
      */
     private void displayUITexture(ImDrawList drawList) {
@@ -348,10 +404,6 @@ public class UIDesignerPanel {
         return state.isFocused();
     }
 
-    public void setSceneTextureId(int textureId) {
-        renderer.setSceneTextureId(textureId);
-    }
-
     public void resetCamera() {
         state.resetCamera();
     }
@@ -371,6 +423,11 @@ public class UIDesignerPanel {
         if (framebuffer != null) {
             framebuffer.destroy();
             framebuffer = null;
+        }
+
+        if (sceneFramebuffer != null) {
+            sceneFramebuffer.destroy();
+            sceneFramebuffer = null;
         }
 
         uiBridge.clear();

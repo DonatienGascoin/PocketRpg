@@ -163,6 +163,9 @@ public class EditorUIBridge {
                 cachedCanvases.add(canvas);
             }
         }
+
+        // Sort by sortOrder (ascending) - higher sortOrder renders on top
+        cachedCanvases.sort(java.util.Comparator.comparingInt(UICanvas::getSortOrder));
     }
 
     /**

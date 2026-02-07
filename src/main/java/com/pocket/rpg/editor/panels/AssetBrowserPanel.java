@@ -90,6 +90,7 @@ public class AssetBrowserPanel extends EditorPanel {
     // Refresh tracking
     private boolean needsRefresh = true;
     private long lastRefreshTime = 0;
+    private boolean isRefreshing = false;
     private static final long REFRESH_COOLDOWN_MS = 1000;
 
     // Highlight state for focusOnAsset
@@ -128,6 +129,7 @@ public class AssetBrowserPanel extends EditorPanel {
     }
 
     private void onAssetChanged(AssetChangedEvent event) {
+        if (isRefreshing) return; // Ignore events from our own refresh
         // Force refresh (bypass cooldown) when assets change
         lastRefreshTime = 0;
         refresh();
@@ -145,9 +147,16 @@ public class AssetBrowserPanel extends EditorPanel {
         lastRefreshTime = now;
 
         // Hot-reload modified assets from disk
-        int reloaded = Assets.reloadAll();
-        if (reloaded > 0) {
-            Log.info("AssetBrowser", "Reloaded " + reloaded + " assets from disk");
+        isRefreshing = true;
+        try {
+            int reloaded = Assets.reloadAll();
+            if (reloaded > 0) {
+                Log.info("AssetBrowser", "Reloaded " + reloaded + " assets from disk");
+                // Notify other panels (e.g. GameViewPanel) that assets were reloaded
+                EditorEventBus.get().publish(new AssetChangedEvent("*", AssetChangedEvent.ChangeType.MODIFIED));
+            }
+        } finally {
+            isRefreshing = false;
         }
 
         // Clear caches (thumbnails will regenerate with new data)

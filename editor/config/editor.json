@@ -44,9 +44,9 @@
   "panelVisibility": {
     "assetBrowser": true,
     "hierarchy": true,
-    "collisionPanel": true,
+    "collisionPanel": false,
     "inspector": true,
-    "tilesetPalette": true,
-    "configuration": true
+    "tilesetPalette": false,
+    "configuration": false
   }
 }

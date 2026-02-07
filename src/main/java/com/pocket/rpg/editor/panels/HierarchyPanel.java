@@ -183,10 +183,12 @@ public class HierarchyPanel extends EditorPanel {
 
         ImGui.separator();
 
+        // Popup must be at the same scope as openPopup (outside the child window)
+        renderEntityCreationMenu();
+
         // Scrollable child region — header stays fixed above
         if (ImGui.beginChild("##sceneEntities", 0, 0, false)) {
             renderEntitiesSection();
-            renderEntityCreationMenu();
 
             // Detect click on empty space to deselect all
             if (ImGui.isMouseClicked(ImGuiMouseButton.Left)
@@ -447,6 +449,15 @@ public class HierarchyPanel extends EditorPanel {
             if (ImGui.isItemClicked(ImGuiMouseButton.Left)) {
                 selectionHandler.clearSelection();
             }
+            if (ImGui.isItemClicked(ImGuiMouseButton.Right)) {
+                selectionHandler.clearSelection();
+                ImGui.openPopup("EmptyArea_CreateEntity_Popup");
+            }
+        }
+
+        if (ImGui.beginPopup("EmptyArea_CreateEntity_Popup")) {
+            renderCreateEntityMenuItems();
+            ImGui.endPopup();
         }
     }
 

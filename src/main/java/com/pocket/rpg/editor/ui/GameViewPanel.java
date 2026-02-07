@@ -9,6 +9,8 @@ import com.pocket.rpg.config.TransitionConfig;
 import com.pocket.rpg.core.window.ViewportConfig;
 import com.pocket.rpg.editor.EditorContext;
 import com.pocket.rpg.editor.PlayModeController;
+import com.pocket.rpg.editor.events.AssetChangedEvent;
+import com.pocket.rpg.editor.events.EditorEventBus;
 import com.pocket.rpg.editor.PlayModeController.PlayState;
 import com.pocket.rpg.editor.camera.PreviewCamera;
 import com.pocket.rpg.editor.core.MaterialIcons;
@@ -114,6 +116,9 @@ public class GameViewPanel {
         this.gameConfig = gameConfig;
         this.renderingConfig = renderingConfig;
         this.aspectRatio = (float) gameConfig.getGameWidth() / gameConfig.getGameHeight();
+
+        // Re-render preview when assets are hot-reloaded
+        EditorEventBus.get().subscribe(AssetChangedEvent.class, event -> markPreviewDirty());
     }
 
     /**

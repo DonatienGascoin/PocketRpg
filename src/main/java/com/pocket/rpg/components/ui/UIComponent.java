@@ -99,7 +99,7 @@ public abstract class UIComponent extends Component {
         canvasCacheDirty = true;
         transformCacheDirty = true;
 
-        // Validate canvas (except for UICanvas itself)
+        // Validate canvas ancestor (UICanvas itself is the root — skip)
         if (!(this instanceof UICanvas)) {
             UICanvas canvas = getCanvas();
             if (canvas == null) {
@@ -107,14 +107,14 @@ public abstract class UIComponent extends Component {
                         getClass().getSimpleName() + " on '" + gameObject.getName() +
                                 "' has no UICanvas ancestor - UI components must be children of a Canvas!");
             }
+        }
 
-            // Validate UITransform exists
-            UITransform transform = getUITransform();
-            if (transform == null) {
-                throw new IllegalStateException(
-                        getClass().getSimpleName() + " on '" + gameObject.getName() +
-                                "' requires a UITransform component on the same GameObject!");
-            }
+        // Validate UITransform exists (all UI components, including UICanvas)
+        UITransform transform = getUITransform();
+        if (transform == null) {
+            throw new IllegalStateException(
+                    getClass().getSimpleName() + " on '" + gameObject.getName() +
+                            "' requires a UITransform component on the same GameObject!");
         }
     }
 

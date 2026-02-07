@@ -217,6 +217,7 @@ public class UIRenderer implements UIRendererBackend {
             // Canvas root starts at (0,0) with full game resolution
             GameObject root = canvas.getGameObject();
             if (root == null) continue; // Skip canvases without a runtime GameObject (e.g. editor preview)
+            canvas.updateScreenSize(gameWidth, gameHeight);
             renderCanvasSubtree(root, 0, 0, gameWidth, gameHeight);
         }
 

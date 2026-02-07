@@ -1,5 +1,6 @@
 package com.pocket.rpg.components.ui;
 
+import com.pocket.rpg.components.RequiredComponent;
 import com.pocket.rpg.rendering.ui.UIRendererBackend;
 import lombok.Getter;
 import lombok.Setter;
@@ -7,7 +8,9 @@ import lombok.Setter;
 /**
  * Marks a GameObject subtree as UI.
  * All UI components (UIImage, UIText, etc.) must have a UICanvas ancestor to render.
+ * Owns a UITransform that reflects screen dimensions (managed automatically).
  */
+@RequiredComponent(UITransform.class)
 public class UICanvas extends UIComponent {
 
     public enum RenderMode {
@@ -50,19 +53,27 @@ public class UICanvas extends UIComponent {
         }
     }
 
+    /**
+     * Updates the canvas-owned UITransform to reflect current screen dimensions.
+     * Called each frame by UIRenderer before rendering the canvas subtree.
+     */
+    public void updateScreenSize(float width, float height) {
+        UITransform transform = gameObject.getComponent(UITransform.class);
+        if (transform == null) return;
+        if (transform.getWidth() == width && transform.getHeight() == height) return;
+        transform.setWidth(width);
+        transform.setHeight(height);
+        transform.setWidthMode(UITransform.SizeMode.FIXED);
+        transform.setHeightMode(UITransform.SizeMode.FIXED);
+        transform.getAnchor().set(0, 0);
+        transform.getPivot().set(0, 0);
+        transform.setOffset(0, 0);
+        transform.markDirtyRecursive();
+    }
+
     @Override
     public void render(UIRendererBackend backend) {
         // UICanvas doesn't render anything - it's just a marker
-    }
-
-    @Override
-    public float getWidth() {
-        return 0;
-    }
-
-    @Override
-    public float getHeight() {
-        return 0;
     }
 
     @Override

@@ -1,6 +1,7 @@
 package com.pocket.rpg.editor.scene;
 
 import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.RequiredComponent;
 import com.pocket.rpg.components.rendering.SpriteRenderer;
 import com.pocket.rpg.components.core.Transform;
 import com.pocket.rpg.editor.panels.hierarchy.HierarchyItem;
@@ -530,6 +531,7 @@ public class EditorGameObject implements Renderable, HierarchyItem {
             // Remove existing plain Transform if present (UITransform takes precedence)
             components.removeIf(c -> c.getClass() == Transform.class);
             getComponents().add(component);
+            addRequiredComponents(component.getClass());
             return;
         }
 
@@ -537,6 +539,7 @@ public class EditorGameObject implements Renderable, HierarchyItem {
             System.err.println("Cannot add Transform - already exists");
             return;
         }
+        addRequiredComponents(component.getClass());
         getComponents().add(component);
     }
 
@@ -549,6 +552,31 @@ public class EditorGameObject implements Renderable, HierarchyItem {
             return false;
         }
         return components.remove(component);
+    }
+
+    /**
+     * Adds any components declared by @RequiredComponent on the given class
+     * or its superclasses, if they are not already present on this entity.
+     */
+    private void addRequiredComponents(Class<?> componentClass) {
+        Class<?> clazz = componentClass;
+        while (clazz != null && clazz != Component.class && clazz != Object.class) {
+            RequiredComponent[] requirements = clazz.getDeclaredAnnotationsByType(RequiredComponent.class);
+            for (RequiredComponent req : requirements) {
+                Class<? extends Component> requiredType = req.value();
+                if (hasComponent(requiredType)) {
+                    continue;
+                }
+                try {
+                    Component dependency = requiredType.getDeclaredConstructor().newInstance();
+                    addComponent(dependency);
+                } catch (Exception e) {
+                    System.err.println("[RequiredComponent] Failed to auto-add " +
+                            requiredType.getSimpleName() + ": " + e.getMessage());
+                }
+            }
+            clazz = clazz.getSuperclass();
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -957,6 +985,13 @@ public class EditorGameObject implements Renderable, HierarchyItem {
                     data.getParentId(),
                     data.getOrder()
             );
+        }
+
+        // Ensure @RequiredComponent dependencies are satisfied for loaded entities
+        if (!entity.isPrefabInstance()) {
+            for (Component comp : new ArrayList<>(entity.getComponents())) {
+                entity.addRequiredComponents(comp.getClass());
+            }
         }
 
         return entity;

@@ -11,6 +11,7 @@ Add a UITransform to UICanvas, managed by the canvas to always reflect full-scre
 - `UIComponent.onStart()` exempts UICanvas from the UITransform requirement via `instanceof` check
 - Direct children of Canvas can't enable PERCENT mode in the inspector — `UITransformInspector` disables the `%` toggle and "MATCH PARENT" buttons when `hasParentUITransform` is false (lines 394, 245)
 - `UITransform.getParentWidth()` uses `parentTransform.getWidth()` (raw Lombok getter) instead of `getEffectiveWidth()`, breaking nested PERCENT sizing at any depth
+- `UITransform` has three dead public methods (`getBounds()`, `getScaledBounds()`, `containsPoint()`) that use raw `width`/`height` instead of effective sizes — zero callers in the codebase
 
 ### Design Decisions
 
@@ -19,6 +20,7 @@ Add a UITransform to UICanvas, managed by the canvas to always reflect full-scre
 3. **Inspector read-only**: `UITransformInspector` detects when the UITransform is on a Canvas and shows a disabled info line instead of editable controls.
 4. **Scene migration**: Handled at both runtime and editor load paths (see below).
 5. **Companion fix**: `getParentWidth()`/`getParentHeight()`/`getParentBounds()` changed to use `getEffectiveWidth()`/`getEffectiveHeight()` so nested PERCENT sizing works at any depth.
+6. **Dead method cleanup**: Remove `getBounds()`, `getScaledBounds()`, `containsPoint()` from UITransform — all three use raw `width`/`height` instead of effective sizes and have zero callers. `UIButton` has its own rotation-aware `containsPoint()` that correctly uses `getEffectiveWidth()`.
 
 ---
 
@@ -34,7 +36,7 @@ This means existing scenes opened **in the editor** would have UICanvas without 
 
 ### Solution: Add `@RequiredComponent` processing to `EditorGameObject`
 
-**`EditorGameObject.addComponent()`** — add `addRequiredComponents()` call mirroring `GameObject.addComponent()`. This fixes user-initiated additions outside the undo system (e.g., programmatic calls, tests).
+**`EditorGameObject.addComponent()`** — add `addRequiredComponents()` call. Must be placed **after** the UITransform special-case block (which does `removeIf(Transform.class)` + early return) and **before** `getComponents().add(component)` on the normal path. The UITransform branch already handles its own addition — required-component processing only applies to non-UITransform components (like UICanvas triggering UITransform auto-add).
 
 **`EditorGameObject.fromData()`** — add a post-construction pass: iterate all loaded components, check for `@RequiredComponent` annotations, and add any missing dependencies. This fixes the editor scene loading path.
 
@@ -49,11 +51,13 @@ This is the correct long-term fix — any future `@RequiredComponent` annotation
 
 ## Challenges & Mitigations
 
-### 1. `updateScreenSize()` forcing full subtree dirty every frame
+### 1. `updateScreenSize()` unnecessary work when screen size unchanged
 
-**Risk:** Calling `updateScreenSize()` every frame sets width/height and calls `markDirty()`, cascading `uiMatrixDirty` to every child UITransform — even when screen size hasn't changed (most frames).
+**Risk:** Calling `updateScreenSize()` every frame sets width/height and marks dirty — wasteful when screen size hasn't changed (most frames).
 
-**Mitigation:** Guard with early return: `if (width == currentWidth && height == currentHeight) return;`. Only mark dirty when values actually change.
+**Mitigation:** Guard with early return: `if (width == currentWidth && height == currentHeight) return;`. When size **does** change, call `markDirtyRecursive()` (not `markDirty()`) so children in PERCENT mode recalculate.
+
+**Note:** `markDirty()` only sets flags on the current transform — it does NOT cascade to children. Only `markDirtyRecursive()` propagates. In practice the renderer currently calls `setScreenBounds()` + `markDirty()` on every UITransform every frame (`UIRenderer.java:249-251`), so children are marked dirty regardless. But `updateScreenSize()` should be correct in isolation — use `markDirtyRecursive()` when values change.
 
 ### 2. Legacy position system (`getParentBounds`) uses same raw `getWidth()`
 
@@ -79,6 +83,12 @@ This is the correct long-term fix — any future `@RequiredComponent` annotation
 
 **Result:** Self-healing on first save. No manual migration step needed.
 
+### 6. Renderer marks every UITransform dirty every frame
+
+**Pre-existing issue:** `UIRenderer.renderCanvasSubtree()` calls `setScreenBounds()` + `markDirty()` on every UITransform in the tree every frame (lines 249-251). After this plan, the canvas root's UITransform gets dirtied twice per frame: once by `updateScreenSize()`, once by the renderer's own loop.
+
+**Acceptable:** The redundancy is harmless. Optimizing the renderer's per-node dirty logic is out of scope for this plan but noted for future cleanup.
+
 ---
 
 ## Changes
@@ -86,14 +96,14 @@ This is the correct long-term fix — any future `@RequiredComponent` annotation
 ### 1. `EditorGameObject.java` (Phase 0 prerequisite)
 **Path:** `src/main/java/com/pocket/rpg/editor/scene/EditorGameObject.java`
 
-- Add `addRequiredComponents()` call in `addComponent()` before adding the component
+- In `addComponent()`: add `addRequiredComponents()` call on the normal (non-UITransform) code path, before `getComponents().add(component)`. The UITransform early-return branch at lines 527-531 is left unchanged — it handles its own addition.
 - Add post-construction pass in `fromData()` to process `@RequiredComponent` annotations on all loaded components
 
 ### 2. `UICanvas.java`
 **Path:** `src/main/java/com/pocket/rpg/components/ui/UICanvas.java`
 
 - Add `@RequiredComponent(UITransform.class)` annotation
-- Add `updateScreenSize(float width, float height)` — guards with early return if unchanged, then sets UITransform to FIXED mode, width/height to screen dimensions, anchor/pivot/offset to (0,0)
+- Add `updateScreenSize(float width, float height)` — guards with early return if unchanged, then sets UITransform to FIXED mode, width/height to screen dimensions, anchor/pivot/offset to (0,0), calls `markDirtyRecursive()` on the UITransform
 - Remove `getWidth()`/`getHeight()` overrides that return 0
 
 ### 3. `UITransform.java`
@@ -102,6 +112,9 @@ This is the correct long-term fix — any future `@RequiredComponent` annotation
 - `getParentWidth()` (line 612): `parentTransform.getWidth()` → `parentTransform.getEffectiveWidth()`
 - `getParentHeight()` (line 622): `parentTransform.getHeight()` → `parentTransform.getEffectiveHeight()`
 - `getParentBounds()` (lines 596-597): `parentTransform.getWidth()`/`getHeight()` → `getEffectiveWidth()`/`getEffectiveHeight()`
+- **Delete** `getBounds()` (lines 782-785) — zero callers, uses raw `width`/`height`
+- **Delete** `getScaledBounds()` (lines 791-795) — zero callers, uses raw `width`/`height`
+- **Delete** `containsPoint()` (lines 804-808) — zero callers, uses raw `width`/`height`. `UIButton` has its own independent rotation-aware implementation that correctly uses `getEffectiveWidth()`
 
 ### 4. `UIRenderer.java`
 **Path:** `src/main/java/com/pocket/rpg/rendering/ui/UIRenderer.java`

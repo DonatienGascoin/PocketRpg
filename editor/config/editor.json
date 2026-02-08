@@ -35,10 +35,11 @@
   "fontSize": 16.0,
   "showGrid": true,
   "showTileCoordinates": true,
+  "audioMuted": true,
   "defaultUiFont": "gameData/assets/fonts/zelda.ttf",
   "recentScenes": [
-    "DemoScene.scene",
     "Battle.scene",
+    "DemoScene.scene",
     "Test.scene"
   ],
   "panelVisibility": {
@@ -46,7 +47,7 @@
     "hierarchy": true,
     "collisionPanel": true,
     "inspector": true,
-    "tilesetPalette": false,
-    "configuration": false
+    "tilesetPalette": true,
+    "configuration": true
   }
 }

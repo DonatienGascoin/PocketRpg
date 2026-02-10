@@ -286,6 +286,7 @@ public class EditorUIController {
         menuBar = new EditorMenuBar();
         menuBar.setCurrentScene(context.getCurrentScene());
         menuBar.setConfigurationPanel(configurationPanel);
+        menuBar.setEditorConfig(context.getConfig());
         menuBar.setOnOpenSpriteEditor(() -> spriteEditorPanel.open());
         menuBar.setOnToggleGizmos(() -> {
             sceneViewport.setShowGizmos(menuBar.isGizmosEnabled());

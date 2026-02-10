@@ -77,10 +77,30 @@ public class UIDesignerInputHandler {
     private void handleZoomInput() {
         // Don't handle zoom if a popup is open (e.g., AssetPicker)
         if (state.isHovered() && !ImGui.isPopupOpen("", ImGuiPopupFlags.AnyPopupId)) {
-            float scroll = ImGui.getIO().getMouseWheel();
-            if (scroll != 0) {
-                float zoomFactor = scroll * 0.1f * state.getZoom();
-                state.adjustZoom(zoomFactor);
+            float scrollY = ImGui.getIO().getMouseWheel();
+            float scrollX = ImGui.getIO().getMouseWheelH();
+
+            if (scrollY != 0 || scrollX != 0) {
+                if (context.getConfig().isTrackpadPanMode()) {
+                    boolean ctrlHeld = ImGui.isKeyDown(ImGuiKey.LeftCtrl)
+                            || ImGui.isKeyDown(ImGuiKey.RightCtrl);
+                    if (ctrlHeld) {
+                        // Ctrl+scroll = zoom
+                        if (scrollY != 0) {
+                            float zoomFactor = scrollY * 0.1f * state.getZoom();
+                            state.adjustZoom(zoomFactor);
+                        }
+                    } else {
+                        // Scroll = pan
+                        state.pan(scrollX * 16f, -scrollY * 16f);
+                    }
+                } else {
+                    // Default: scroll = zoom
+                    if (scrollY != 0) {
+                        float zoomFactor = scrollY * 0.1f * state.getZoom();
+                        state.adjustZoom(zoomFactor);
+                    }
+                }
             }
         }
     }

@@ -87,15 +87,35 @@ public class ViewportInputHandler {
             }
         }
 
-        // Scroll wheel zoom
+        // Scroll wheel: zoom or pan depending on trackpad mode
         if (isHovered) {
-            ImVec2 mousePos = ImGui.getMousePos();
-            float screenX = mousePos.x - viewportX;
-            float screenY = mousePos.y - viewportY;
+            float scrollY = ImGui.getIO().getMouseWheel();
+            float scrollX = ImGui.getIO().getMouseWheelH();
 
-            float scroll = ImGui.getIO().getMouseWheel();
-            if (scroll != 0) {
-                camera.zoomToward(screenX, screenY, scroll);
+            if (scrollY != 0 || scrollX != 0) {
+                ImVec2 mousePos = ImGui.getMousePos();
+                float screenX = mousePos.x - viewportX;
+                float screenY = mousePos.y - viewportY;
+
+                if (config.isTrackpadPanMode()) {
+                    boolean ctrlHeld = ImGui.isKeyDown(imgui.flag.ImGuiKey.LeftCtrl)
+                            || ImGui.isKeyDown(imgui.flag.ImGuiKey.RightCtrl);
+                    if (ctrlHeld) {
+                        // Ctrl+scroll = zoom
+                        if (scrollY != 0) {
+                            camera.zoomToward(screenX, screenY, scrollY);
+                        }
+                    } else {
+                        // Scroll = pan (convert pixels to world units)
+                        float panScale = 1.0f / (camera.getZoom() * config.getPixelsPerUnit());
+                        camera.translate(-scrollX * panScale * 16f, scrollY * panScale * 16f);
+                    }
+                } else {
+                    // Default: scroll = zoom
+                    if (scrollY != 0) {
+                        camera.zoomToward(screenX, screenY, scrollY);
+                    }
+                }
             }
         }
     }

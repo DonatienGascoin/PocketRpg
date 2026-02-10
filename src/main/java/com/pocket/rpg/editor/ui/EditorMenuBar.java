@@ -1,5 +1,6 @@
 package com.pocket.rpg.editor.ui;
 
+import com.pocket.rpg.editor.core.EditorConfig;
 import com.pocket.rpg.editor.core.FileDialogs;
 import com.pocket.rpg.editor.panels.ConfigurationPanel;
 import com.pocket.rpg.editor.scene.EditorScene;
@@ -22,6 +23,9 @@ public class EditorMenuBar {
 
     @Setter
     private ConfigurationPanel configurationPanel;
+
+    @Setter
+    private EditorConfig editorConfig;
 
     private Runnable onNewScene;
     private Consumer<String> onOpenScene;
@@ -263,6 +267,19 @@ public class EditorMenuBar {
             }
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip("Convert .spritesheet files to new .meta format");
+            }
+
+            if (editorConfig != null) {
+                ImGui.separator();
+                ImGui.textDisabled("Input");
+                boolean trackpadPan = editorConfig.isTrackpadPanMode();
+                if (ImGui.menuItem("Trackpad Pan Mode", "", trackpadPan)) {
+                    editorConfig.setTrackpadPanMode(!trackpadPan);
+                    editorConfig.save();
+                }
+                if (ImGui.isItemHovered()) {
+                    ImGui.setTooltip("Scroll to pan, Ctrl+Scroll to zoom (for trackpad users)");
+                }
             }
 
             ImGui.endMenu();

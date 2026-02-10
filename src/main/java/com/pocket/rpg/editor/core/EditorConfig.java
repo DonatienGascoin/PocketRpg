@@ -120,6 +120,13 @@ public class EditorConfig {
     @Builder.Default
     private float zoomSpeed = 0.1f;
 
+    /**
+     * When enabled, scroll wheel pans the viewport and Ctrl+scroll zooms.
+     * Designed for trackpad two-finger scroll gestures.
+     */
+    @Builder.Default
+    private boolean trackpadPanMode = false;
+
     // ===== PATHS =====
 
     /**

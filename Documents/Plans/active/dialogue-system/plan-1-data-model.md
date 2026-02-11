@@ -14,7 +14,7 @@ All dialogue data classes, asset loaders, and supporting utilities. Pure data �
 
 Create the dialogue data classes. No loader yet — just the model and its rules.
 
-- [ ] `Dialogue` — name (derived from filename), entries list, onStartEvent, onEndEvent
+- [ ] `Dialogue` — name (derived from filename), entries list (no per-dialogue event hooks — start/end are global lifecycle signals handled by `PlayerDialogueManager`)
 - [ ] `DialogueEntry` — base type (sealed interface or abstract class)
 - [ ] `DialogueLine` — text, optional onCompleteEvent
 - [ ] `DialogueChoiceGroup` — hasChoices flag, choices list
@@ -73,7 +73,8 @@ Manual JSON parsing following the `AnimatorControllerLoader` pattern. Type discr
   - Unknown entry type → skipped with warning
   - ChoiceAction types: DIALOGUE (path string), BUILT_IN_EVENT, CUSTOM_EVENT
   - hasChoices true/false, empty choices list
-  - onStartEvent / onEndEvent / onCompleteEvent parsing
+  - `DialogueLine.onCompleteEvent` parsing (optional `DialogueEventRef` per line)
+  - Parse `DialogueEventRef` objects: `category` (BUILT_IN/CUSTOM), `builtInEvent` (enum), `customEvent` (string) — null-safe, field is optional
   - Save → load roundtrip preserves all data
   - Placeholder has exactly one empty line
   - Empty entries JSON → loader handles gracefully

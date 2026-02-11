@@ -27,6 +27,7 @@ Basic two-column layout: dialogue list (left) + line/choice editor (right). Crea
 - [ ] Right column — lines:
   - Editable text fields for each line
   - `[+ Var ▾]` dropdown per line (populated from DialogueVariables asset)
+  - Optional `onCompleteEvent` per line (design §5 — Event Hook Points): collapsible row below line text, e.g. `▸ On Complete: [none]` expanding to `▾ On Complete: [CUSTOM ▾] [PLAY_RUMBLE ▾] [╳]`. Uses a `DialogueEventRef` editor: category dropdown (BUILT_IN / CUSTOM) + event selector. `[╳]` clears the event (sets to null). Collapsed by default to keep the line list clean.
   - `[╳]` delete button (disabled on last remaining line)
   - `[+ Add Line]` button
   - Drag handle for reorder
@@ -44,6 +45,7 @@ Basic two-column layout: dialogue list (left) + line/choice editor (right). Crea
   - [ ] Add/remove lines, verify min-1 enforced
   - [ ] Add choices (max 4 enforced), set action types
   - [ ] `[+ Var]` inserts `[VAR_NAME]` at end of line
+  - [ ] Per-line `onCompleteEvent`: collapsible, set/clear event via DialogueEventRef editor
   - [ ] Delete dialogue with confirmation
   - [ ] Search filters dialogue list
   - [ ] Dirty tracking shows `*`, save clears it
@@ -62,6 +64,7 @@ Basic two-column layout: dialogue list (left) + line/choice editor (right). Crea
 - Creating a new dialogue produces a valid `.dialogue.json` file with one empty line
 - Deleting a dialogue shows confirmation popup, then removes the file
 - Lines are editable text fields; `[+ Var]` dropdown inserts `[VAR_NAME]` at end of text
+- Each line has a collapsible `onCompleteEvent` section with a `DialogueEventRef` editor (category + event selector + clear button)
 - Cannot delete the last remaining line (button disabled)
 - Choices section: `Has choices` checkbox toggles visibility; max 4 choices enforced (add button disabled at 4)
 - Each choice has text, action type dropdown, and context-dependent target field
@@ -82,6 +85,7 @@ Basic two-column layout: dialogue list (left) + line/choice editor (right). Crea
   - CUSTOM_EVENT action with no event → `⚠` on choice card
   - Empty choice text → `⚠` on choice card
   - `hasChoices=true` with empty choices → `⚠` on choices section
+  - `onCompleteEvent` with stale/unknown custom event → `⚠` below the event ref on the line
 - [ ] Undo/redo:
   - `DialogueSnapshot` record: capture/restore deep copies
   - Own `Deque<DialogueSnapshot>` stacks (undoStack, redoStack, max 50)
@@ -128,6 +132,7 @@ Basic two-column layout: dialogue list (left) + line/choice editor (right). Crea
   - Conditional dialogues list: add/remove/reorder entries
   - Per-entry: condition dropdowns (eventName from DialogueEvents asset, expectedState FIRED/NOT_FIRED), `[+ Add Condition]`, dialogue picker, `[Open]` button
   - Default dialogue picker with `[Open]` button
+  - `onConversationEnd` field: optional `DialogueEventRef` editor (category + event selector + clear button). This is where NPC-specific post-dialogue triggers go (e.g. trainer sets `START_BATTLE`). Placed below the default dialogue picker.
   - Collapsible preview section (read-only, default dialogue)
   - Variable table: AUTO=disabled "auto", STATIC=editable, RUNTIME=disabled "runtime"
   - Warning for empty static variable values
@@ -140,6 +145,7 @@ Basic two-column layout: dialogue list (left) + line/choice editor (right). Crea
   - [ ] DialogueComponent: add/remove conditional dialogues, set conditions via dropdowns
   - [ ] Condition ordering: drag or up/down to reorder
   - [ ] Default dialogue picker works, "Open" opens DialogueEditorPanel
+  - [ ] `onConversationEnd` event ref editor works (set, clear, dropdown selection)
   - [ ] Variable table shows correct types (auto/static/runtime)
   - [ ] Static variable editing saves to component
   - [ ] Preview section shows default dialogue content

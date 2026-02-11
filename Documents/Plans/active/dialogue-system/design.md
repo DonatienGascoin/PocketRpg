@@ -567,8 +567,8 @@ protected void onStart() {
 
 | Context | Caller | `isActive` | Behavior |
 |---------|--------|------------|----------|
-| **External** | `DialogueComponent.interact()` | `false` | Normal entry — pause IPausable, switch to DIALOGUE mode, fire `onStartEvent` |
-| **Internal chain** | Choice action handler (inside the manager) | `true` | Reset entry index, load new dialogue, continue — no pause/resume, no mode switch, no `onStartEvent` |
+| **External** | `DialogueComponent.interact()` | `false` | Normal entry — pause IPausable, switch to DIALOGUE mode |
+| **Internal chain** | Choice action handler (inside the manager) | `true` | Reset entry index, load new dialogue, continue — no pause/resume, no mode switch |
 
 The external guard (`!manager.isActive()`) lives in `DialogueComponent.interact()`, not in `startDialogue()` itself. The manager's internal chaining calls `startDialogue()` directly, bypassing that guard. Inside `startDialogue()`, the method checks `isActive` to decide whether this is a fresh conversation (pause + mode switch) or a chain (just reset state):
 
@@ -583,7 +583,6 @@ public void startDialogue(Dialogue dialogue, Map<String, String> staticVars, Map
         isActive = true;
         playerInput.setMode(InputMode.DIALOGUE);
         pauseAll();
-        dispatchEvent(dialogue.getOnStartEvent());
     }
 
     // Reset dialogue state (both fresh and chain)
@@ -614,10 +613,10 @@ public void startDialogue(Dialogue dialogue, Map<String, String> staticVars) {
  */
 public void startDialogue(Dialogue dialogue, Map<String, String> staticVars, Map<String, String> runtimeVars) { ... }
 
-/** Called by choice action or end of lines. Resumes IPausable, restores input mode. */
+/** Called by choice action or end of lines. Dispatches DialogueComponent.onConversationEnd if set, resumes IPausable, restores input mode. */
 public void endDialogue() { ... }
 
-/** Dispatches built-in or custom events at any hook point. */
+/** Dispatches built-in or custom events (line-level onCompleteEvent, choice actions). */
 private void dispatchEvent(DialogueEventRef eventRef) { ... }
 ```
 
@@ -721,12 +720,12 @@ DialogueEvents asset (gameData/assets/dialogues/events.dialogue-events.json)
 
 ### Event Hook Points
 
-Events are an **optional field** at multiple levels of the dialogue:
+Events exist at two levels:
+
+**1. Per-line hooks (on the Dialogue asset):**
 
 ```
 Dialogue
-├── onStartEvent: DialogueEventRef?       // Fires when dialogue opens
-├── onEndEvent: DialogueEventRef?         // Fires when dialogue closes
 ├── entries:
 │   ├── DialogueLine
 │   │   ├── text: String
@@ -737,6 +736,15 @@ Dialogue
 │               ├── text: String
 │               └── action: ChoiceAction         // Contains its own event ref
 ```
+
+**2. Per-NPC conversation hook (on the DialogueComponent):**
+
+```
+DialogueComponent
+└── onConversationEnd: DialogueEventRef?   // Fires when the entire conversation ends (after all chaining)
+```
+
+Dialogue start/end are **global lifecycle signals** — the `PlayerDialogueManager` switches input mode and pauses `IPausable` components automatically for every dialogue. No per-dialogue configuration needed. NPC-specific post-dialogue triggers (e.g. trainer → `START_BATTLE`) live on the `DialogueComponent` via `onConversationEnd`.
 
 `DialogueEventRef` wraps the built-in/custom distinction:
 
@@ -749,35 +757,39 @@ DialogueEventRef
 
 | Hook Point | When It Fires | Example Use |
 |---|---|---|
-| `Dialogue.onStartEvent` | **First** dialogue UI opens (not on chained dialogues) | Play sound, trigger cutscene camera |
 | `DialogueLine.onCompleteEvent` | Player advances past this line (fires in every dialogue, including chained) | Sound effect, NPC animation, camera shake |
-| `Dialogue.onEndEvent` | **Last** dialogue closes — the one that actually ends the conversation (not on intermediate chained dialogues) | `START_BATTLE` after trainer speech, cleanup |
 | `Choice.action` | Player selects a choice | `OPEN_DOOR`, branch to another dialogue |
+| `DialogueComponent.onConversationEnd` | `endDialogue()` is called — the conversation is truly over (not during chaining) | `START_BATTLE` after trainer speech, cleanup |
 
 ### Dialogue Chaining Semantics
 
 When a DIALOGUE choice action chains from dialogue A to dialogue B:
 
 ```
-Dialogue A opens       → A.onStartEvent fires (this is the first dialogue)
+Dialogue A opens       → PlayerDialogueManager pauses IPausable, switches to DIALOGUE mode
 A's lines play         → A's line-level onCompleteEvents fire normally
 Player picks choice    → chains to B
-                       → A.onEndEvent does NOT fire (conversation is not over)
-                       → B.onStartEvent does NOT fire (conversation already started)
+                       → A ends silently (no endDialogue, no resume, no mode switch)
+                       → B starts as internal chain (isActive already true)
 B's lines play         → B's line-level onCompleteEvents fire normally
-B ends                 → B.onEndEvent fires (this is the last dialogue)
+B ends                 → endDialogue() called → DialogueComponent.onConversationEnd fires
+                       → IPausable resumed, input mode restored to OVERWORLD
 ```
 
-**Principle:** `onStartEvent` and `onEndEvent` mark the boundaries of the **entire conversation**, not individual dialogue files. Line-level `onCompleteEvent` fires normally in every dialogue.
+**Principle:** Line-level `onCompleteEvent` fires normally in every dialogue. Conversation-level lifecycle (pause/resume, input mode switch, `onConversationEnd`) only fires at the boundaries of the **entire conversation**, not between chained dialogues.
 
-**Implementation:** The `PlayerDialogueManager` tracks a `isFirstDialogue` flag (set true when entering from IDLE, stays false during chaining) and only dispatches `onStartEvent` / `onEndEvent` at conversation boundaries.
+**Choice action execution:**
+- **DIALOGUE** → call `startDialogue()` internally (chain). Do NOT call `endDialogue()`. The current dialogue ends silently, the new one starts.
+- **BUILT_IN_EVENT** → call `dispatchEvent()`, then `endDialogue()`.
+- **CUSTOM_EVENT** → call `dispatchEvent()` to scene listeners + `DialogueEventStore.markFired()`, then `endDialogue()`.
 
-**Why?** If A's `onEndEvent` is `START_BATTLE` and a choice chains to B, firing `onEndEvent` mid-chain would start a battle before B plays — clearly wrong. The event should only fire when the player is actually done talking.
+**Why?** If a trainer's `onConversationEnd` is `START_BATTLE` and a choice chains to dialogue B, the battle should not start until B finishes and `endDialogue()` is actually called.
 
-**Example — Trainer encounter (no choice, battle after dialogue):**
+**Example — Trainer encounter (battle after dialogue, configured on DialogueComponent):**
+
+The trainer NPC's `DialogueComponent` has `onConversationEnd = { category: BUILT_IN, builtInEvent: START_BATTLE }`. The dialogue asset itself is pure data:
 ```json
 {
-  "onEndEvent": { "category": "BUILT_IN", "builtInEvent": "START_BATTLE" },
   "entries": [
     { "type": "LINE", "text": "I've been waiting for you!" },
     { "type": "LINE", "text": "Let's battle!" }
@@ -1002,6 +1014,7 @@ Fields (serialized):
   List<ConditionalDialogue>     conditionalDialogues  // Ordered, first match wins
   @Required Dialogue            dialogue               // Default fallback dialogue
   Map<String, String>           variables              // Variable values (shared across all dialogues)
+  DialogueEventRef              onConversationEnd      // Optional — fires when entire conversation ends (after all chaining)
 
 Gizmo:
   GizmoShape.CIRCLE, color = purple (0.8f, 0.4f, 1.0f, 0.9f)
@@ -1064,7 +1077,7 @@ public void interact(GameObject player) {
     PlayerDialogueManager manager = player.getComponent(PlayerDialogueManager.class);
     if (manager != null && !manager.isActive()) {
         Dialogue selected = selectDialogue();
-        manager.startDialogue(selected, variables);
+        manager.startDialogue(selected, variables, this);  // Pass self so manager can read onConversationEnd
     }
 }
 
@@ -1107,6 +1120,9 @@ The `DialogueComponentInspector` shows:
 │  [+ Add Conditional Dialogue]                             │
 │                                                           │
 │  Default Dialogue: [professor_greeting.dialogue ▾] [Open] │
+│                                                           │
+│  On Conversation End: [BUILT_IN ▾] [START_BATTLE ▾] [╳]  │
+│  (optional — fires when entire conversation ends)         │
 │                                                           │
 │  ▸ Preview (read-only, collapsed by default)              │
 │  ┌────────────────────────────────────────────────────┐   │
@@ -1241,8 +1257,7 @@ private final Deque<DialogueSnapshot> redoStack = new ArrayDeque<>();
 private static final int MAX_UNDO = 50;
 
 // DialogueSnapshot: immutable deep copy of all editable dialogue state
-private record DialogueSnapshot(String name, List<DialogueEntry> entries, List<String> variables,
-                                DialogueEventRef onStartEvent, DialogueEventRef onEndEvent) {
+private record DialogueSnapshot(String name, List<DialogueEntry> entries, List<String> variables) {
     static DialogueSnapshot capture(Dialogue d) { /* deep copy */ }
     void restore(Dialogue d) { /* write back */ }
 }
@@ -1409,11 +1424,11 @@ DialogueUI (GameObject)
       - CUSTOM_EVENT → dispatchEvent() to listeners + DialogueEventStore
 9. If last entry is a Line (no choices or hasChoices == false):
    a. Player presses INTERACT → endDialogue()
-   b. Dispatch onEndEvent if present
 10. endDialogue():
-    a. Hide dialogue UI (tween slide down)
-    b. Resume all IPausable components
-    c. Switch PlayerInput back to OVERWORLD mode
+    a. Dispatch DialogueComponent.onConversationEnd if set (e.g. START_BATTLE)
+    b. Hide dialogue UI (tween slide down)
+    c. Resume all IPausable components
+    d. Switch PlayerInput back to OVERWORLD mode
 ```
 
 ---
@@ -1546,7 +1561,7 @@ Pure logic with no engine or UI dependencies. Each area maps to a test class.
 | `VariableMergeTest` | AUTO → STATIC → RUNTIME merge order | Each layer overrides previous; null/empty maps at each layer; runtime overrides auto with same key |
 | `ConditionalDialogueTest` | `allConditionsMet()` evaluation | Single FIRED condition; single NOT_FIRED; multiple conditions (AND); empty conditions list → true; mixed FIRED + NOT_FIRED |
 | `DialogueSelectionTest` | `DialogueComponent.selectDialogue()` | First match wins; no match → default fallback; empty conditionalDialogues → default; ordering matters (more specific first) |
-| `DialogueLoaderTest` | JSON parse + save roundtrip | LINE entries; CHOICES entries; unknown type → skipped with warning; ChoiceAction types (DIALOGUE path, BUILT_IN_EVENT, CUSTOM_EVENT); hasChoices true/false; empty choices list; onStartEvent/onEndEvent/onCompleteEvent; save → load preserves all data |
+| `DialogueLoaderTest` | JSON parse + save roundtrip | LINE entries; CHOICES entries; unknown type → skipped with warning; ChoiceAction types (DIALOGUE path, BUILT_IN_EVENT, CUSTOM_EVENT); hasChoices true/false; empty choices list; DialogueLine.onCompleteEvent parsing (optional DialogueEventRef); save → load preserves all data |
 | `DialogueVariablesLoaderTest` | Variables asset parse + save | Parse all three types (AUTO, STATIC, RUNTIME); empty list; roundtrip |
 | `DialogueEventsLoaderTest` | Events asset parse + save | Parse event list; empty list; roundtrip |
 | `DialogueValidationTest` | Runtime validation guards | Null dialogue → error path; empty entries → error path; >4 choices → first 4 only; hasChoices=true with empty choices → treated as false |
@@ -1559,7 +1574,7 @@ Multiple systems interacting. Use `TestScene`, `MockInputTesting`, `MockTimeCont
 |------------|----------------|-----------|
 | `PlayerDialogueManagerTest` | Full dialogue state machine | startDialogue → SHOWING_LINE → INTERACT advance → next line → end; typewriter skip on INTERACT; choice navigation (UP/DOWN via MockInput) → INTERACT selects; endDialogue restores input mode |
 | `DialogueChainingTest` | DIALOGUE choice action chaining | Choice chains to new dialogue — no pause/resume between; reentrancy: `isActive` true → internal chain path; external call while active → rejected by DialogueComponent guard |
-| `DialogueEventDispatchTest` | Event firing + chaining semantics | onStartEvent fires on first dialogue only; onEndEvent fires on last dialogue only; line-level onCompleteEvent fires in all; BUILT_IN_EVENT handled by manager; CUSTOM_EVENT dispatched to listeners |
+| `DialogueEventDispatchTest` | Event firing + chaining semantics | Line-level onCompleteEvent fires in all chained dialogues; BUILT_IN_EVENT choice action handled by manager; CUSTOM_EVENT choice action dispatched to listeners + persisted; DialogueComponent.onConversationEnd fires once when endDialogue() is called (not during chaining) |
 | `IPausableIntegrationTest` | Pause/resume across scene | startDialogue → all IPausable.onPause() called; endDialogue → onResume() called; chaining → no resume between dialogues; component stays enabled while paused |
 | `DialogueEventListenerTest` | Listener lifecycle + persistence | Event fires → listener reacts (ENABLE/DISABLE/DESTROY/RUN_ANIMATION); scene loads with already-fired event → reacts in onStart(); null/blank eventName → skipped; RUN_ANIMATION without AnimationComponent → warning |
 | `DialoguePersistenceTest` | Cross-scene event persistence | markFired → hasFired true; save → load → hasFired still true; conditional dialogue selection changes after events fired |

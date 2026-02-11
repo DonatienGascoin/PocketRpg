@@ -23,13 +23,18 @@ The central orchestrator. This phase implements the state machine, variable reso
 - [ ] `startDialogue(dialogue, staticVars, runtimeVars)` — full entry point:
   - Runtime validation: null dialogue, empty entries → log error, endDialogue, return (design §4 — Runtime Validation)
   - Reentrancy: `isChain = isActive` check (design §4 — Reentrancy)
-  - Fresh conversation: set active, switch PlayerInput to DIALOGUE, pause all IPausable, dispatch onStartEvent
-  - Chain: skip pause/mode switch/onStartEvent
+  - Fresh conversation: set active, switch PlayerInput to DIALOGUE, pause all IPausable
+  - Chain: skip pause/mode switch (already in DIALOGUE mode, already paused)
   - Variable merge: AUTO → STATIC → RUNTIME
   - Show first entry
-- [ ] `endDialogue()`: dispatch onEndEvent, resume IPausable, restore OVERWORLD mode, hide UI
+- [ ] `endDialogue()`: resume IPausable, restore OVERWORLD mode, hide UI, dispatch `DialogueComponent.onConversationEnd` if set (see Phase 2)
 - [ ] `update()`: typewriter text reveal, INTERACT handling (skip/advance), choice navigation (UP/DOWN + INTERACT)
+- [ ] Choice action execution (explicit flow):
+  - **DIALOGUE** → call `startDialogue()` internally (chain) — do NOT call `endDialogue()`. The current dialogue ends silently, the new one starts. IPausable stays paused, input stays in DIALOGUE mode.
+  - **BUILT_IN_EVENT** → call `dispatchEvent()`, then `endDialogue()`. Example: `END_CONVERSATION` just calls `endDialogue()`; `START_BATTLE` triggers battle transition then `endDialogue()`.
+  - **CUSTOM_EVENT** → call `dispatchEvent()` to scene listeners + `DialogueEventStore.markFired()`, then `endDialogue()`.
 - [ ] `dispatchEvent(DialogueEventRef)`: built-in → handle directly; custom → scene query for listeners + markFired
+- [ ] Line-level `onCompleteEvent` dispatch: when the player advances past a line, if that line has an `onCompleteEvent`, dispatch it (fires in every dialogue, including chained ones)
 - [ ] Variable substitution: replace `[VAR_NAME]` tags in line text
 - [ ] Choice validation: >4 choices → first 4 + warning; hasChoices=true with empty → skip
 - [ ] Integration tests (`PlayerDialogueManagerTest`):
@@ -38,10 +43,12 @@ The central orchestrator. This phase implements the state machine, variable reso
   - Choices: navigate UP/DOWN, select with INTERACT
   - Runtime validation: null dialogue, empty entries → error path
   - Variable substitution: `[TAG]` replaced, unknown tag stays literal
+  - Line-level onCompleteEvent: fires when player advances past the line
 - [ ] Integration tests (`DialogueChainingTest`):
-  - Choice DIALOGUE action → chains to new dialogue, no resume between
+  - Choice DIALOGUE action → chains to new dialogue, no resume between, no `endDialogue()` on intermediate dialogue
   - isActive true → internal chain path (no re-pause)
   - External call while active → rejected by DialogueComponent guard (tested in Phase 2)
+  - Line-level onCompleteEvent fires normally in both the first and chained dialogue
 
 **Files:**
 
@@ -57,7 +64,9 @@ The central orchestrator. This phase implements the state machine, variable reso
 - INTERACT during typewriter → shows full text; INTERACT when full → advances to next entry
 - Choice navigation: UP/DOWN changes `selectedChoice`, INTERACT on choice executes its action
 - Null dialogue or empty entries → logs error, calls `endDialogue()`, no exception
-- Chaining: DIALOGUE choice action starts new dialogue without resuming IPausable or re-dispatching onStartEvent
+- Chaining: DIALOGUE choice action calls `startDialogue()` internally — no `endDialogue()`, no IPausable resume, no mode switch between chains
+- BUILT_IN_EVENT / CUSTOM_EVENT choice actions dispatch the event, then call `endDialogue()`
+- Line-level `onCompleteEvent` fires when the player advances past a line (in every dialogue, including chained)
 - Variable substitution replaces `[TAG]` with values; unknown tags stay literal with warning logged
 - `>4` choices → only first 4 shown + warning; `hasChoices=true` with empty list → skipped
 - All integration tests pass
@@ -75,7 +84,8 @@ NPC interactable that starts dialogue, with conditional dialogue selection.
   - `conditionalDialogues: List<ConditionalDialogue>` — ordered, first match wins
   - `@Required dialogue: Dialogue` — default fallback
   - `variables: Map<String, String>` — shared static variable values
-- [ ] `interact(player)`: get PlayerDialogueManager, check `!manager.isActive()`, call `selectDialogue()`, start dialogue
+  - `onConversationEnd: DialogueEventRef` — optional event fired when the entire conversation with this NPC ends (after all chaining). This is where NPC-specific triggers live (e.g. trainer sets `onConversationEnd = START_BATTLE`). The `PlayerDialogueManager.endDialogue()` reads this from the originating `DialogueComponent` and dispatches it.
+- [ ] `interact(player)`: get PlayerDialogueManager, check `!manager.isActive()`, call `selectDialogue()`, start dialogue. Pass `this` (the DialogueComponent) so the manager can read `onConversationEnd` later.
 - [ ] `selectDialogue()`: iterate conditionalDialogues, first match → return; none → default
 - [ ] `getInteractionPrompt()` → "Talk"
 - [ ] Gizmo: CIRCLE, purple (0.8f, 0.4f, 1.0f, 0.9f)
@@ -94,8 +104,9 @@ NPC interactable that starts dialogue, with conditional dialogue selection.
 
 **Acceptance criteria:**
 - `DialogueComponent` extends `InteractableComponent` and requires `TriggerZone`
-- `interact()` calls `PlayerDialogueManager.startDialogue()` with the selected dialogue and static variables
+- `interact()` calls `PlayerDialogueManager.startDialogue()` with the selected dialogue, static variables, and a reference to itself (so the manager can read `onConversationEnd`)
 - `interact()` is a no-op when `PlayerDialogueManager.isActive()` is true (no double-trigger)
+- `onConversationEnd` is dispatched by the manager when `endDialogue()` is called (after all chaining completes)
 - `selectDialogue()` evaluates conditional dialogues top-to-bottom, returns first match; falls back to default
 - Gizmo renders as purple circle in editor
 - All integration tests pass
@@ -123,11 +134,12 @@ Reacts to custom dialogue events with predefined actions.
   - Scene loads with already-fired event → listener reacts in onStart()
   - Null/blank eventName → skipped with warning
 - [ ] Integration tests (`DialogueEventDispatchTest`):
-  - Full flow: dialogue fires custom event → listener in scene reacts
-  - onStartEvent fires on first dialogue only
-  - onEndEvent fires on last dialogue only
-  - Line-level onCompleteEvent fires in all chained dialogues
-  - BUILT_IN_EVENT handled by manager (END_CONVERSATION)
+  - Full flow: dialogue fires custom event via choice action → listener in scene reacts
+  - Line-level onCompleteEvent fires in all chained dialogues (every line, not just first/last dialogue)
+  - BUILT_IN_EVENT choice action handled by manager (END_CONVERSATION → endDialogue)
+  - CUSTOM_EVENT choice action dispatched to listeners + persisted, then endDialogue
+  - `DialogueComponent.onConversationEnd` fires once when `endDialogue()` is called (not during chaining)
+  - `onConversationEnd` with START_BATTLE triggers battle transition after dialogue closes
 - [ ] Integration test (`DialoguePersistenceTest`):
   - markFired → hasFired true across dialogue components
   - Conditional dialogue selection changes after events fired
@@ -148,7 +160,7 @@ Reacts to custom dialogue events with predefined actions.
 - Null/blank `eventName` → logged warning on `onStart()`, listener inactive
 - On scene load, if event was already fired (`DialogueEventStore.hasFired()`), listener reacts immediately in `onStart()`
 - Event dispatch from `PlayerDialogueManager`: custom events reach all matching listeners in the scene and are persisted via `DialogueEventStore`
-- Chaining semantics: `onStartEvent` on first dialogue only, `onEndEvent` on last only, `onCompleteEvent` on every line in every dialogue
+- Chaining semantics: line-level `onCompleteEvent` fires on every line in every dialogue; `DialogueComponent.onConversationEnd` fires only once when the conversation truly ends (not during chaining)
 - Conditional dialogue selection changes after events are fired (e.g. NPC says different things after event)
 - All integration tests pass
 

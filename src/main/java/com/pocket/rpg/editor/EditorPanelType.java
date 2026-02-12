@@ -11,7 +11,8 @@ public enum EditorPanelType {
     ANIMATION_EDITOR("Animation Editor"),
     SPRITE_EDITOR("Sprite Editor"),
     ANIMATOR_EDITOR("Animator Editor"),
-    PREFAB_EDITOR("Prefab Editor");
+    PREFAB_EDITOR("Prefab Editor"),
+    DIALOGUE_EDITOR("Dialogue Editor");
 
     private final String windowName;
 

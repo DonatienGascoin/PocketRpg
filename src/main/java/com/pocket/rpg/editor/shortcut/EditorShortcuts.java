@@ -115,6 +115,7 @@ public final class EditorShortcuts {
         public static final String ANIMATION_EDITOR = "animationEditor";
         public static final String ANIMATOR_EDITOR = "animatorEditor";
         public static final String CONFIGURATION = "configuration";
+        public static final String DIALOGUE_EDITOR = "dialogueEditor";
 
         private PanelIds() {
         }

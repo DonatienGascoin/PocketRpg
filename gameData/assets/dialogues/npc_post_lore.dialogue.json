@@ -1,0 +1,32 @@
+{
+  "entries": [
+    {
+      "type": "LINE",
+      "text": "Ah, you again! Have you found that cave yet?"
+    },
+    {
+      "type": "LINE",
+      "text": "I heard it\u0027s somewhere past the old fence to the north."
+    },
+    {
+      "type": "CHOICES",
+      "hasChoices": true,
+      "choices": [
+        {
+          "text": "I\u0027ll keep looking",
+          "action": {
+            "type": "BUILT_IN_EVENT",
+            "builtInEvent": "END_CONVERSATION"
+          }
+        },
+        {
+          "text": "What else do you know?",
+          "action": {
+            "type": "DIALOGUE",
+            "dialogue": "dialogues/npc_job.dialogue.json"
+          }
+        }
+      ]
+    }
+  ]
+}

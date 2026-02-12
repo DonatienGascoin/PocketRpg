@@ -66,6 +66,10 @@ When modifying core systems, update corresponding reference files:
 | `editor/ui/fields/` | `field-editors.md` |
 | Component lifecycle | `common-pitfalls.md` |
 
+## Phase Workflow
+
+When starting a new plan phase, **always give a brief summary** of what the phase involves before writing any code. Explain what will be created, what existing code will be modified, and the key design decisions — so the user can review the approach first.
+
 ## GitHub PR Comments
 
 When replying to PR review comments via `gh api`, always prefix the message body with `Claude:` so reviewers can distinguish automated replies from human ones.

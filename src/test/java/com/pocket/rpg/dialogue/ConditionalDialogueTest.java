@@ -71,7 +71,7 @@ class ConditionalDialogueTest {
 
     @Test
     void emptyConditionsReturnsTrue() {
-        ConditionalDialogue cd = new ConditionalDialogue(List.of(), "dialogues/test.dialogue.json");
+        ConditionalDialogue cd = new ConditionalDialogue(List.of(), null);
         assertTrue(cd.allConditionsMet());
     }
 
@@ -81,7 +81,7 @@ class ConditionalDialogueTest {
 
         ConditionalDialogue cd = new ConditionalDialogue(List.of(
                 new DialogueCondition("GOT_BADGE_1", DialogueCondition.ExpectedState.FIRED)
-        ), "dialogues/badge.dialogue.json");
+        ), null);
 
         assertTrue(cd.allConditionsMet());
     }
@@ -90,7 +90,7 @@ class ConditionalDialogueTest {
     void singleFiredConditionNotMet() {
         ConditionalDialogue cd = new ConditionalDialogue(List.of(
                 new DialogueCondition("GOT_BADGE_1", DialogueCondition.ExpectedState.FIRED)
-        ), "dialogues/badge.dialogue.json");
+        ), null);
 
         assertFalse(cd.allConditionsMet());
     }
@@ -103,7 +103,7 @@ class ConditionalDialogueTest {
         ConditionalDialogue cd = new ConditionalDialogue(List.of(
                 new DialogueCondition("GOT_BADGE_1", DialogueCondition.ExpectedState.FIRED),
                 new DialogueCondition("TALKED_TO_RIVAL", DialogueCondition.ExpectedState.FIRED)
-        ), "dialogues/congrats.dialogue.json");
+        ), null);
 
         assertTrue(cd.allConditionsMet());
     }
@@ -116,7 +116,7 @@ class ConditionalDialogueTest {
         ConditionalDialogue cd = new ConditionalDialogue(List.of(
                 new DialogueCondition("GOT_BADGE_1", DialogueCondition.ExpectedState.FIRED),
                 new DialogueCondition("TALKED_TO_RIVAL", DialogueCondition.ExpectedState.FIRED)
-        ), "dialogues/congrats.dialogue.json");
+        ), null);
 
         assertFalse(cd.allConditionsMet());
     }
@@ -129,7 +129,7 @@ class ConditionalDialogueTest {
         ConditionalDialogue cd = new ConditionalDialogue(List.of(
                 new DialogueCondition("GOT_BADGE_1", DialogueCondition.ExpectedState.FIRED),
                 new DialogueCondition("BOSS_DEFEATED", DialogueCondition.ExpectedState.NOT_FIRED)
-        ), "dialogues/pre_boss.dialogue.json");
+        ), null);
 
         assertTrue(cd.allConditionsMet());
     }
@@ -142,7 +142,7 @@ class ConditionalDialogueTest {
         ConditionalDialogue cd = new ConditionalDialogue(List.of(
                 new DialogueCondition("GOT_BADGE_1", DialogueCondition.ExpectedState.FIRED),
                 new DialogueCondition("BOSS_DEFEATED", DialogueCondition.ExpectedState.NOT_FIRED)
-        ), "dialogues/pre_boss.dialogue.json");
+        ), null);
 
         assertFalse(cd.allConditionsMet());
     }

@@ -8,60 +8,75 @@ All editor panels, inspectors, and asset renderers. Primarily manual testing.
 
 ---
 
-## Phase 1: DialogueEditorPanel — Core
+## Phase 1: DialogueEditorPanel — Core ✅
 
 **Design ref:** §7 — DialogueEditorPanel
+**Status:** COMPLETE
 
 Basic two-column layout: dialogue list (left) + line/choice editor (right). Create, edit, save dialogues.
 
-- [ ] Register `DIALOGUE_EDITOR` panel in `EditorUIController`
-- [ ] Left column:
-  - Dialogue list from asset browser (all `.dialogue.json` files)
-  - Search/filter by name
-  - `[+ Add]` creates new dialogue, `[- Remove]` deletes with confirmation popup
-  - Warning icon `⚠` on dialogues with validation issues
-- [ ] Right column — toolbar:
+- [x] Register `DIALOGUE_EDITOR` panel in `EditorUIController`
+- [x] Left column:
+  - Dialogue list from `Assets.scanByType(Dialogue.class)` with cooldown-based refresh
+  - Search/filter by name via `ImString` input
+  - `[+ Add]` creates new dialogue (modal popup with name input), `[- Remove]` deletes with confirmation popup
+  - Selection highlight via path-based matching (survives list rebuilds)
+- [x] Right column — toolbar:
   - Dialogue name (read-only, derived from filename)
-  - `[Save]` button, dirty tracking (`*` in title)
-  - `[Variables ⇗]` `[Events ⇗]` quick links → `selectionManager.selectAsset()`
-- [ ] Right column — lines:
-  - Editable text fields for each line
-  - `[+ Var ▾]` dropdown per line (populated from DialogueVariables asset)
-  - Optional `onCompleteEvent` per line (design §5 — Event Hook Points): collapsible row below line text, e.g. `▸ On Complete: [none]` expanding to `▾ On Complete: [CUSTOM ▾] [PLAY_RUMBLE ▾] [╳]`. Uses a `DialogueEventRef` editor: category dropdown (BUILT_IN / CUSTOM) + event selector. `[╳]` clears the event (sets to null). Collapsed by default to keep the line list clean.
-  - `[╳]` delete button (disabled on last remaining line)
-  - `[+ Add Line]` button
-  - Drag handle for reorder
-- [ ] Right column — choices:
+  - `[Save]` button: amber when dirty, disabled when clean (follows AnimatorEditorPanel pattern), dirty tracking (`*` in window title)
+  - `[Variables ⇗]` `[Events ⇗]` quick links right-aligned → `selectionManager.selectAsset()`
+- [x] Right column — lines:
+  - Editable multiline text fields for each line
+  - `[+ Var]` dropdown per line (populated from DialogueVariables asset) — right-aligned
+  - Optional `onCompleteEvent` per line: inline selectable toggle on header row (`▸ On Complete: [none]`), expanding to category dropdown (BUILT_IN / CUSTOM) + event selector + `[╳]` clear button
+  - `[╳]` red delete button (disabled on last remaining line) — right-aligned
+  - `[+ Add Line]` button (inserts before choice group if present)
+  - Alternating row backgrounds for visual clarity
+- [x] Drag handle for reorder:
+  - Drag indicator icon as `invisibleButton` drag source (text widgets aren't interactive for drag detection)
+  - Thin gap-based drop zones between lines (no duplicate drop targets)
+  - Blue line + triangle indicator for valid moves, gray indicator for no-op drops (cancel by dropping in place)
+  - `AcceptNoDrawDefaultRect` to suppress default ImGui highlight box
+  - Escape key cancellation (follows `HierarchyDragDropHandler` pattern)
+  - Deferred move execution via `pendingLineMove` with `lineEventExpanded` state preservation
+- [x] Right column — choices:
   - `☑ Has choices` checkbox
   - Choice cards: text field, action type dropdown, target field (dialogue picker or event dropdown)
   - `[╳]` delete per choice
   - `[+ Add Choice]` button (disabled at 4)
-- [ ] Opening the panel:
+- [x] Opening the panel:
   - Double-click `.dialogue.json` in Asset Browser
   - Window menu → Dialogue Editor
-- [ ] Manual testing:
-  - [ ] Create new dialogue, add lines, save
-  - [ ] Edit existing dialogue, modify lines
-  - [ ] Add/remove lines, verify min-1 enforced
-  - [ ] Add choices (max 4 enforced), set action types
-  - [ ] `[+ Var]` inserts `[VAR_NAME]` at end of line
-  - [ ] Per-line `onCompleteEvent`: collapsible, set/clear event via DialogueEventRef editor
-  - [ ] Delete dialogue with confirmation
-  - [ ] Search filters dialogue list
-  - [ ] Dirty tracking shows `*`, save clears it
+- [x] Warning icon `⚠` on dialogues with validation issues — deferred to Phase 2
 
 **Files:**
 
 | File | Change |
 |------|--------|
-| `editor/panels/DialogueEditorPanel.java` | **NEW** |
-| `editor/EditorPanelType.java` | Already has `DIALOGUE_EDITOR` from Plan 1 |
-| `editor/EditorUIController.java` | Register panel handler + menu item |
+| `editor/panels/DialogueEditorPanel.java` | **NEW** — ~900 lines |
+| `editor/shortcut/EditorShortcuts.java` | Added `DIALOGUE_EDITOR` panel ID |
+| `editor/EditorPanelType.java` | Already had `DIALOGUE_EDITOR` from Plan 1 |
+| `editor/EditorUIController.java` | Register panel: creation, rendering, Window menu, asset browser handler, status callback |
 
-**Acceptance criteria:**
+**Design decisions:**
+
+| Decision | Rationale |
+|----------|-----------|
+| `ImString()` (dynamic) instead of `ImString(256)` (fixed buffer) | Fixed-size buffers include trailing null bytes that break `get().isEmpty()` checks in imgui-java |
+| Path-based selection matching instead of reference equality | `refreshDialogueList()` rebuilds records; `==` breaks after refresh. `DialogueListEntry.matches()` compares by path, and `selectedEntry` is re-linked after each refresh |
+| Amber save button when dirty, disabled when clean | Follows `AnimatorEditorPanel` pattern: `pushStyleColor` (amber) when dirty, `beginDisabled` when clean. Avoids the earlier push/pop pitfall where `saveCurrentDialogue()` cleared `dirty` between `beginDisabled`/`endDisabled` |
+| Auto-create missing Variables/Events asset files on quick-link click | `variables.dialogue-vars.json` didn't exist yet. Rather than disabling the button or showing an error, creating an empty asset on demand is the smoothest UX |
+| Alternating row backgrounds via `getWindowDrawList().addRectFilled()` | Drawn after all line widgets so the rect covers the full block height. Uses 12% white alpha for visibility without overwhelming |
+| onCompleteEvent as inline `selectable` with fixed width | Tree nodes didn't work well inline with `sameLine()`. A fixed-width selectable provides consistent click target and familiar highlight behavior |
+| Regular `button()` instead of `smallButton()` | Small buttons were too hard to see and click in the editor UI |
+| `sameLine()` only inside `if (eventRef != null)` | Dangling `sameLine()` with no following widget eats the next line break, hiding expanded content |
+| Drag reorder via gap-based drop zones + deferred move | Thin `invisibleButton` gaps between lines (not full-line overlay) to avoid duplicate drop targets. `AcceptNoDrawDefaultRect` suppresses default highlight; custom blue/gray indicator drawn via `ImDrawList`. No-op drops (adjacent gaps) shown in gray as cancel targets. Escape cancellation follows `HierarchyDragDropHandler` pattern. Static import of `intToBytes`/`bytesToInt` from `AnimationTimelineContext` |
+| `invisibleButton` as drag source, not `text()` | `ImGui.text()` is not an interactive widget — `beginDragDropSource` needs a hoverable item. The drag handle uses an `invisibleButton` with the label drawn on top via `addText()` |
+
+**Acceptance criteria:** ✅
 - Dialogue Editor panel opens from Window menu and from double-clicking `.dialogue.json` files
-- Left column lists all `.dialogue.json` assets, search filters by name
-- Creating a new dialogue produces a valid `.dialogue.json` file with one empty line
+- Left column lists all `.dialogue.json` assets with selection highlight, search filters by name
+- Creating a new dialogue produces a valid `.dialogue.json` file with one empty line (auto-focus on name input)
 - Deleting a dialogue shows confirmation popup, then removes the file
 - Lines are editable text fields; `[+ Var]` dropdown inserts `[VAR_NAME]` at end of text
 - Each line has a collapsible `onCompleteEvent` section with a `DialogueEventRef` editor (category + event selector + clear button)
@@ -69,58 +84,69 @@ Basic two-column layout: dialogue list (left) + line/choice editor (right). Crea
 - Choices section: `Has choices` checkbox toggles visibility; max 4 choices enforced (add button disabled at 4)
 - Each choice has text, action type dropdown, and context-dependent target field
 - Dirty tracking: `*` in title when unsaved, cleared on save
-- `[Save]` button persists changes to disk via `DialogueLoader.save()`
-- Quick links open Variables/Events assets in InspectorPanel
+- `[Save]` button: amber when dirty, disabled when clean; persists changes to disk via `DialogueLoader.save()`, reloads asset cache
+- Quick links open Variables/Events assets in InspectorPanel (auto-creates missing files)
+- Drag reorder: grab drag handle to reorder lines; blue indicator for valid moves, gray for no-op (cancel); Escape cancels drag; no default highlight box
 
 ---
 
-## Phase 2: Validation, Undo/Redo, Shortcuts
+## Phase 2: Validation, Undo/Redo, Shortcuts ✅
 
 **Design ref:** §7 — Line Editor Details, Undo/Redo, Shortcuts
+**Status:** COMPLETE
 
-- [ ] Validation warnings:
+- [x] Validation warnings:
   - Unknown variable `[TAG]` → orange `⚠` below line
   - Malformed tag `[BROKEN` → orange `⚠` below line
   - DIALOGUE action with no target → `⚠` on choice card + dialogue list
-  - CUSTOM_EVENT action with no event → `⚠` on choice card
+  - CUSTOM_EVENT action with no event or unknown event → `⚠` on choice card
   - Empty choice text → `⚠` on choice card
   - `hasChoices=true` with empty choices → `⚠` on choices section
   - `onCompleteEvent` with stale/unknown custom event → `⚠` below the event ref on the line
-- [ ] Undo/redo:
-  - `DialogueSnapshot` record: capture/restore deep copies
+  - Dialogue list: amber text + `⚠` icon for dialogues with any validation issue
+- [x] Undo/redo:
+  - `DialogueSnapshot` record: deep copies of all entries (lines, choices, events)
   - Own `Deque<DialogueSnapshot>` stacks (undoStack, redoStack, max 50)
-  - Stacks cleared on dialogue switch
-  - Unsaved changes confirmation popup on dialogue switch
-  - `[Undo]` `[Redo]` toolbar buttons
-- [ ] Shortcuts via `provideShortcuts(KeyboardLayout)`:
+  - `captureUndoState()` called *before* every mutation, `dirty = true` after
+  - Stacks cleared on dialogue switch and delete
+  - `[Undo]` `[Redo]` toolbar buttons (disabled when empty, with tooltips)
+- [x] Unsaved changes confirmation popup on dialogue switch:
+  - "Save & Switch" / "Discard & Switch" / "Cancel"
+  - Discard reloads current dialogue from disk via `Assets.reload()` to restore cached asset
+- [x] Shortcuts via `provideShortcuts(KeyboardLayout)`:
   - `Ctrl+S` → save (allowInInput=true)
   - `Ctrl+Z` / `Ctrl+W` (AZERTY) → undo (allowInInput=true)
-  - `Ctrl+Y` → redo (allowInInput=true)
-  - `Ctrl+Enter` → add line
-- [ ] Manual testing:
-  - [ ] Validation warnings appear for each case above
-  - [ ] Warning icon in dialogue list reflects validation state
-  - [ ] Undo/redo works for line edits, choice edits, add/remove
-  - [ ] Switching dialogues clears undo stacks
-  - [ ] Confirmation popup on switch with unsaved changes
-  - [ ] All keyboard shortcuts work (including while typing)
-  - [ ] AZERTY undo binding works
+  - `Ctrl+Y` / `Ctrl+Shift+Z` / `Ctrl+Shift+W` (AZERTY) → redo (allowInInput=true)
+  - `Ctrl+Enter` → add line (allowInInput=true)
+- [x] UX: hand cursor on drag handle hover
 
 **Files:**
 
 | File | Change |
 |------|--------|
-| `editor/panels/DialogueEditorPanel.java` | Add validation, undo/redo, shortcuts |
+| `editor/panels/DialogueEditorPanel.java` | Add validation, undo/redo, shortcuts, unsaved changes popup |
 
-**Acceptance criteria:**
-- Each validation case above produces a visible orange `⚠` warning at the correct location (below line, on choice card, in dialogue list)
-- Dialogues with any validation warning show `⚠` icon in the left column list
-- Undo reverses the last edit (line text, choice edit, add/remove); redo re-applies it
+**Design decisions:**
+
+| Decision | Rationale |
+|----------|-----------|
+| `captureUndoState()` before mutation, not via `markDirty()` | `markDirty()` was called after mutations, capturing the already-modified state. Every mutation site now explicitly calls `captureUndoState()` before the change, then sets `dirty = true` directly. Removed `markDirty()` entirely |
+| `DialogueSnapshot` deep copies via manual construction | `Dialogue.copyFrom()` is shallow (shares entry references). Snapshot manually constructs new `DialogueLine`, `DialogueChoiceGroup`, `Choice`, `ChoiceAction`, and `DialogueEventRef` instances. Avoids JSON round-trip overhead |
+| `Assets.reload()` on discard | Editing mutates the cached asset in place. Discarding must reload from disk to restore the original state, otherwise navigating back shows the discarded mutations |
+| Regex-based tag validation | `TAG_PATTERN` (`\[([^\]]*)]`) extracts closed tags, `UNCLOSED_TAG_PATTERN` (`\[[^\]]*$`) detects malformed unclosed brackets. Validated against `DialogueVariables` asset names |
+| `hasDialogueWarnings()` for list icons | Separate method checks all validation cases without rendering, used by the left column to show `⚠` icon + amber text on dialogues with issues |
+
+**Acceptance criteria:** ✅
+- Each validation case produces a visible orange `⚠` warning at the correct location (below line, on choice card, in dialogue list)
+- Dialogues with any validation warning show `⚠` icon in the left column list (amber text)
+- Undo reverses the last edit (line text, choice edit, add/remove, reorder, event changes); redo re-applies it
 - Undo/redo stacks hold up to 50 entries
 - Switching dialogues clears both undo and redo stacks
-- If current dialogue has unsaved changes, switching shows a confirmation popup
-- All 4 shortcuts work: Ctrl+S (save), Ctrl+Z/W (undo), Ctrl+Y (redo), Ctrl+Enter (add line)
+- If current dialogue has unsaved changes, switching shows confirmation popup with Save & Switch / Discard & Switch / Cancel
+- Discard correctly reloads from disk (navigating back shows saved state)
+- All 5 shortcuts work: Ctrl+S (save), Ctrl+Z/W (undo), Ctrl+Y/Ctrl+Shift+Z/W (redo), Ctrl+Enter (add line)
 - Shortcuts work while cursor is in a text input field (`allowInInput=true`)
+- Hand cursor on drag handle hover
 
 ---
 

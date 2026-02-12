@@ -91,11 +91,6 @@ public final class SaveManager {
      * Initializes with custom save directory.
      */
     public static void initialize(SceneManager sceneManager, Path savesDirectory) {
-        if (instance != null) {
-            System.out.println("[SaveManager] Already initialized");
-            return;
-        }
-
         instance = new SaveManager(savesDirectory);
 
         // Hook into scene lifecycle

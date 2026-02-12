@@ -3,6 +3,7 @@ package com.pocket.rpg.editor;
 import com.pocket.rpg.animation.animator.AnimatorController;
 import com.pocket.rpg.animation.animator.AnimatorState;
 import com.pocket.rpg.animation.animator.AnimatorTransition;
+import com.pocket.rpg.editor.events.AssetSelectionRequestEvent;
 import com.pocket.rpg.editor.events.EditorEventBus;
 import com.pocket.rpg.editor.events.SelectionChangedEvent;
 import com.pocket.rpg.editor.scene.EditorGameObject;
@@ -17,6 +18,11 @@ import java.util.Set;
  * Selection is independent of tools and modes - it persists when switching tools or panels.
  */
 public class EditorSelectionManager {
+
+    public EditorSelectionManager() {
+        EditorEventBus.get().subscribe(AssetSelectionRequestEvent.class,
+                event -> selectAsset(event.path(), event.type()));
+    }
 
     /**
      * Types of items that can be selected in the editor.

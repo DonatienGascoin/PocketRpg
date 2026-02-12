@@ -289,27 +289,27 @@ public class UITransform extends Transform {
 
     /**
      * Gets the effective pivot for rendering.
-     * For PERCENT-mode axes, returns the parent's pivot on that axis so rotation
-     * happens around the correct point (parent's center, not top-left).
-     * Otherwise returns this element's pivot.
+     * For axes that fill the parent (PERCENT at 100%), returns the parent's pivot
+     * on that axis so rotation happens around the correct point.
+     * Non-filling PERCENT axes (e.g. 80%) use this element's own pivot.
      *
      * @return Effective pivot ratio (0-1)
      */
     public Vector2f getEffectivePivot() {
-        boolean wPercent = widthMode == SizeMode.PERCENT;
-        boolean hPercent = heightMode == SizeMode.PERCENT;
+        boolean wFills = widthMode == SizeMode.PERCENT && widthPercent == 100f;
+        boolean hFills = heightMode == SizeMode.PERCENT && heightPercent == 100f;
 
-        if (wPercent && hPercent) {
+        if (wFills && hFills) {
             UITransform parentTransform = getParentUITransform();
             if (parentTransform != null) {
                 return parentTransform.getPivot();
             }
-        } else if (wPercent) {
+        } else if (wFills) {
             UITransform parentTransform = getParentUITransform();
             if (parentTransform != null) {
                 return new Vector2f(parentTransform.getPivot().x, pivot.y);
             }
-        } else if (hPercent) {
+        } else if (hFills) {
             UITransform parentTransform = getParentUITransform();
             if (parentTransform != null) {
                 return new Vector2f(pivot.x, parentTransform.getPivot().y);

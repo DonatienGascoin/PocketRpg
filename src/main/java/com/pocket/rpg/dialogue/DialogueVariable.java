@@ -9,7 +9,7 @@ import lombok.Setter;
  * The {@link #type} determines how the variable's value is provided:
  * <ul>
  *   <li>{@code AUTO} — Resolved from game state (e.g. PLAYER_NAME, MONEY). Always available.</li>
- *   <li>{@code STATIC} — Set per-NPC in the DialogueComponent inspector (e.g. TRAINER_NAME).</li>
+ *   <li>{@code STATIC} — Set per-NPC in the DialogueInteractable inspector (e.g. TRAINER_NAME).</li>
  *   <li>{@code RUNTIME} — Provided programmatically at dialogue start (e.g. POKEMON_NAME).</li>
  * </ul>
  */

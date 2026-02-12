@@ -1,0 +1,39 @@
+{
+  "entries": [
+    {
+      "type": "LINE",
+      "text": "Hello there, traveler!"
+    },
+    {
+      "type": "LINE",
+      "text": "Welcome to our little town. It\u0027s nice to see a new face around here."
+    },
+    {
+      "type": "CHOICES",
+      "hasChoices": true,
+      "choices": [
+        {
+          "text": "Tell me about this place",
+          "action": {
+            "type": "DIALOGUE",
+            "dialogue": "dialogues/npc_lore.dialogue.json"
+          }
+        },
+        {
+          "text": "What do you do here?",
+          "action": {
+            "type": "DIALOGUE",
+            "dialogue": "dialogues/npc_job.dialogue.json"
+          }
+        },
+        {
+          "text": "Goodbye",
+          "action": {
+            "type": "BUILT_IN_EVENT",
+            "builtInEvent": "END_CONVERSATION"
+          }
+        }
+      ]
+    }
+  ]
+}

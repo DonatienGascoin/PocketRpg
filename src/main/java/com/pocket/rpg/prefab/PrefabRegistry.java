@@ -1,5 +1,6 @@
 package com.pocket.rpg.prefab;
 
+import com.pocket.rpg.prefab.prefabs.DialogueUIPrefab;
 import com.pocket.rpg.prefab.prefabs.PlayerPrefab;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.resources.Assets;
@@ -89,7 +90,10 @@ public class PrefabRegistry {
     }
 
     private void registerBuiltInPrefabs() {
+        // TODO: Useless, those prefabs aren't visible to the AssetBrowserPanel.
+        //   I think they are not really needed anyway, better to remove them.
         register(new PlayerPrefab());
+        register(new DialogueUIPrefab());
     }
 
     /**

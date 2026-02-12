@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Tests the conditional dialogue selection pattern:
  * iterate top-to-bottom, first match wins, no match returns default.
  * <p>
- * This logic will live in {@code DialogueComponent.selectDialogue()} at runtime.
+ * This logic will live in {@code DialogueInteractable.selectDialogue()} at runtime.
  * Here we test the pattern independently using the data model classes.
  */
 class DialogueSelectionTest {
@@ -47,7 +47,7 @@ class DialogueSelectionTest {
         // Condition requires GOT_BADGE_1 fired, but it hasn't been
         ConditionalDialogue cd = new ConditionalDialogue(List.of(
                 new DialogueCondition("GOT_BADGE_1", DialogueCondition.ExpectedState.FIRED)
-        ), "dialogues/badge.dialogue.json");
+        ), null);
 
         int match = selectIndex(List.of(cd));
         assertEquals(-1, match);
@@ -60,10 +60,10 @@ class DialogueSelectionTest {
         // Both conditions match GOT_BADGE_1 FIRED, but first one should win
         ConditionalDialogue cd0 = new ConditionalDialogue(List.of(
                 new DialogueCondition("GOT_BADGE_1", DialogueCondition.ExpectedState.FIRED)
-        ), "dialogues/badge1.dialogue.json");
+        ), null);
         ConditionalDialogue cd1 = new ConditionalDialogue(List.of(
                 new DialogueCondition("GOT_BADGE_1", DialogueCondition.ExpectedState.FIRED)
-        ), "dialogues/badge2.dialogue.json");
+        ), null);
 
         int match = selectIndex(List.of(cd0, cd1));
         assertEquals(0, match);
@@ -78,12 +78,12 @@ class DialogueSelectionTest {
         ConditionalDialogue cd0 = new ConditionalDialogue(List.of(
                 new DialogueCondition("GOT_BADGE_1", DialogueCondition.ExpectedState.FIRED),
                 new DialogueCondition("TALKED_TO_RIVAL", DialogueCondition.ExpectedState.FIRED)
-        ), "dialogues/congrats.dialogue.json");
+        ), null);
 
         // Entry 1: requires GOT_BADGE_1 only — matches
         ConditionalDialogue cd1 = new ConditionalDialogue(List.of(
                 new DialogueCondition("GOT_BADGE_1", DialogueCondition.ExpectedState.FIRED)
-        ), "dialogues/badge_only.dialogue.json");
+        ), null);
 
         int match = selectIndex(List.of(cd0, cd1));
         assertEquals(1, match);
@@ -98,12 +98,12 @@ class DialogueSelectionTest {
         ConditionalDialogue cd0 = new ConditionalDialogue(List.of(
                 new DialogueCondition("GOT_BADGE_1", DialogueCondition.ExpectedState.FIRED),
                 new DialogueCondition("TALKED_TO_RIVAL", DialogueCondition.ExpectedState.FIRED)
-        ), "dialogues/congrats.dialogue.json");
+        ), null);
 
         // Less specific second — requires one event
         ConditionalDialogue cd1 = new ConditionalDialogue(List.of(
                 new DialogueCondition("GOT_BADGE_1", DialogueCondition.ExpectedState.FIRED)
-        ), "dialogues/badge_only.dialogue.json");
+        ), null);
 
         int match = selectIndex(List.of(cd0, cd1));
         assertEquals(0, match);
@@ -111,7 +111,7 @@ class DialogueSelectionTest {
 
     @Test
     void emptyConditionsAlwaysMatch() {
-        ConditionalDialogue cd = new ConditionalDialogue(List.of(), "dialogues/always.dialogue.json");
+        ConditionalDialogue cd = new ConditionalDialogue(List.of(), null);
 
         int match = selectIndex(List.of(cd));
         assertEquals(0, match);
@@ -121,7 +121,7 @@ class DialogueSelectionTest {
     void stateChangesAffectSelection() {
         ConditionalDialogue cd0 = new ConditionalDialogue(List.of(
                 new DialogueCondition("GOT_BADGE_1", DialogueCondition.ExpectedState.FIRED)
-        ), "dialogues/badge.dialogue.json");
+        ), null);
 
         // Before firing — no match
         assertEquals(-1, selectIndex(List.of(cd0)));
@@ -132,7 +132,7 @@ class DialogueSelectionTest {
     }
 
     // ========================================================================
-    // SELECTION HELPER (mirrors DialogueComponent.selectDialogue())
+    // SELECTION HELPER (mirrors DialogueInteractable.selectDialogue())
     // ========================================================================
 
     /**

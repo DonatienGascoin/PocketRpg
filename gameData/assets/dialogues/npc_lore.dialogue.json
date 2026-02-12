@@ -1,0 +1,20 @@
+{
+  "entries": [
+    {
+      "type": "LINE",
+      "text": "This town was founded many years ago by a group of adventurers."
+    },
+    {
+      "type": "LINE",
+      "text": "They say there\u0027s a hidden cave somewhere to the north... but nobody has found it yet."
+    },
+    {
+      "type": "LINE",
+      "text": "Maybe you\u0027ll be the one to discover it!j",
+      "onCompleteEvent": {
+        "category": "CUSTOM",
+        "customEvent": "HEARD_CAVE_RUMOR"
+      }
+    }
+  ]
+}

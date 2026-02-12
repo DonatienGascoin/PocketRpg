@@ -6,6 +6,8 @@ import com.pocket.rpg.components.ComponentMeta;
 import com.pocket.rpg.input.Input;
 import com.pocket.rpg.input.InputAction;
 import com.pocket.rpg.input.KeyCode;
+import com.pocket.rpg.logging.Log;
+import com.pocket.rpg.logging.Logger;
 import lombok.Getter;
 
 import java.util.ArrayList;
@@ -26,6 +28,8 @@ import java.util.List;
  */
 @ComponentMeta(category = "Player")
 public class PlayerInput extends Component {
+
+    private static final Logger LOG = Log.getLogger(PlayerInput.class);
 
     @Getter
     private transient InputMode mode = InputMode.OVERWORLD;
@@ -69,6 +73,28 @@ public class PlayerInput extends Component {
         } else if (Input.getKey(KeyCode.A) || Input.getKey(KeyCode.LEFT)) {
             return Direction.LEFT;
         } else if (Input.getKey(KeyCode.D) || Input.getKey(KeyCode.RIGHT)) {
+            return Direction.RIGHT;
+        }
+        return null;
+    }
+
+    /**
+     * Returns the movement direction that was just released this frame,
+     * or null if no directional key was released.
+     * <p>
+     * Edge-triggered (fires once per key release). Used by choice navigation
+     * in dialogue mode where per-frame polling would be too fast.
+     */
+    public Direction getMovementDirectionUp() {
+        if (!Input.hasContext()) return null;
+
+        if (Input.getKeyUp(KeyCode.W) || Input.getKeyUp(KeyCode.UP)) {
+            return Direction.UP;
+        } else if (Input.getKeyUp(KeyCode.S) || Input.getKeyUp(KeyCode.DOWN)) {
+            return Direction.DOWN;
+        } else if (Input.getKeyUp(KeyCode.A) || Input.getKeyUp(KeyCode.LEFT)) {
+            return Direction.LEFT;
+        } else if (Input.getKeyUp(KeyCode.D) || Input.getKeyUp(KeyCode.RIGHT)) {
             return Direction.RIGHT;
         }
         return null;
@@ -119,6 +145,8 @@ public class PlayerInput extends Component {
         if (!Input.hasContext()) return;
 
         if (Input.isActionPressed(InputAction.INTERACT)) {
+            LOG.debug("[PlayerInput] INTERACT pressed, mode=%s, callbacks=%d",
+                    mode, interactCallbacks.size());
             dispatchCallbacks(interactCallbacks);
         }
         if (Input.isActionPressed(InputAction.MENU)) {
@@ -127,10 +155,16 @@ public class PlayerInput extends Component {
     }
 
     private void dispatchCallbacks(List<ActionCallback> callbacks) {
+        int dispatched = 0;
         for (ActionCallback callback : callbacks) {
             if (callback.mode == mode) {
+                LOG.debug("[PlayerInput] dispatching callback for mode=%s", callback.mode);
                 callback.handler.run();
+                dispatched++;
             }
+        }
+        if (dispatched == 0) {
+            LOG.debug("[PlayerInput] no callbacks matched mode=%s", mode);
         }
     }
 

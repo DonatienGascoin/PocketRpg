@@ -7,7 +7,7 @@ import lombok.Setter;
  * Wraps a reference to either a built-in or custom dialogue event.
  * <p>
  * Used by {@link DialogueLine#getOnCompleteEvent()}, {@link ChoiceAction},
- * and DialogueComponent's onConversationEnd field.
+ * and DialogueInteractable's onConversationEnd field.
  */
 @Getter
 @Setter

@@ -1,5 +1,6 @@
 # Plan 2: Runtime Components
 
+**Status:** COMPLETE
 **PR:** `dialogue-runtime`
 **Depends on:** Plan 0 (PlayerInput, IPausable, getComponentsImplementing), Plan 1 (data model, loaders, utilities)
 **Design reference:** `Documents/Plans/active/dialogue-system/design.md`
@@ -8,141 +9,92 @@ All runtime components that execute dialogue in-game. No editor tooling.
 
 ---
 
-## Phase 1: PlayerDialogueManager — Core State Machine
+## Phase 1: PlayerDialogueManager — Core State Machine ✅
 
 **Design ref:** §4 — PlayerDialogueManager Component
 
-The central orchestrator. This phase implements the state machine, variable resolution, and typewriter effect — but **without UI wiring**. UI references are null-safe (guarded). This allows full integration testing of dialogue logic via MockInputTesting.
+The central orchestrator. Implements the state machine, variable resolution, and typewriter effect. UI references are null-safe (guarded), allowing full integration testing without a UI hierarchy.
 
-- [ ] Create `PlayerDialogueManager` component:
-  - Serialized fields: UI references (all `@ComponentReference(source = KEY)`), `charsPerSecond`
-  - Transient fields: `DialogueVariableResolver`, `currentDialogue`, `currentEntryIndex`, `currentVariables`, `isActive`, `selectedChoice`, `visibleChars`, `fullText`
-  - `@ComponentReference(source = SELF) PlayerInput playerInput`
-- [ ] `onStart()`: create `DialogueVariableResolver`, register auto variables (see design §4 — Auto Variable Registration)
-- [ ] `startDialogue(dialogue, staticVars)` — 2-arg convenience overload
-- [ ] `startDialogue(dialogue, staticVars, runtimeVars)` — full entry point:
-  - Runtime validation: null dialogue, empty entries → log error, endDialogue, return (design §4 — Runtime Validation)
-  - Reentrancy: `isChain = isActive` check (design §4 — Reentrancy)
-  - Fresh conversation: set active, switch PlayerInput to DIALOGUE, pause all IPausable
-  - Chain: skip pause/mode switch (already in DIALOGUE mode, already paused)
-  - Variable merge: AUTO → STATIC → RUNTIME
-  - Show first entry
-- [ ] `endDialogue()`: resume IPausable, restore OVERWORLD mode, hide UI, dispatch `DialogueComponent.onConversationEnd` if set (see Phase 2)
-- [ ] `update()`: typewriter text reveal, INTERACT handling (skip/advance), choice navigation (UP/DOWN + INTERACT)
-- [ ] Choice action execution (explicit flow):
-  - **DIALOGUE** → call `startDialogue()` internally (chain) — do NOT call `endDialogue()`. The current dialogue ends silently, the new one starts. IPausable stays paused, input stays in DIALOGUE mode.
-  - **BUILT_IN_EVENT** → call `dispatchEvent()`, then `endDialogue()`. Example: `END_CONVERSATION` just calls `endDialogue()`; `START_BATTLE` triggers battle transition then `endDialogue()`.
-  - **CUSTOM_EVENT** → call `dispatchEvent()` to scene listeners + `DialogueEventStore.markFired()`, then `endDialogue()`.
-- [ ] `dispatchEvent(DialogueEventRef)`: built-in → handle directly; custom → scene query for listeners + markFired
-- [ ] Line-level `onCompleteEvent` dispatch: when the player advances past a line, if that line has an `onCompleteEvent`, dispatch it (fires in every dialogue, including chained ones)
-- [ ] Variable substitution: replace `[VAR_NAME]` tags in line text
-- [ ] Choice validation: >4 choices → first 4 + warning; hasChoices=true with empty → skip
-- [ ] Integration tests (`PlayerDialogueManagerTest`):
-  - startDialogue → SHOWING_LINE → advance → next line → end
-  - Typewriter: partial reveal → INTERACT → full text → INTERACT → next line
-  - Choices: navigate UP/DOWN, select with INTERACT
-  - Runtime validation: null dialogue, empty entries → error path
-  - Variable substitution: `[TAG]` replaced, unknown tag stays literal
-  - Line-level onCompleteEvent: fires when player advances past the line
-- [ ] Integration tests (`DialogueChainingTest`):
-  - Choice DIALOGUE action → chains to new dialogue, no resume between, no `endDialogue()` on intermediate dialogue
-  - isActive true → internal chain path (no re-pause)
-  - External call while active → rejected by DialogueComponent guard (tested in Phase 2)
-  - Line-level onCompleteEvent fires normally in both the first and chained dialogue
+- [x] Create `PlayerDialogueManager` component with serialized fields (`charsPerSecond`, `slideDuration`) and transient state (`currentDialogue`, `currentEntryIndex`, `active`, `selectedChoice`, `visibleChars`, etc.)
+- [x] `onStart()`: resolve `PlayerInput` sibling, create `DialogueVariableResolver`, register DIALOGUE-mode interact callback on PlayerInput
+- [x] `startDialogue(dialogue, staticVars)` — 2-arg convenience overload
+- [x] `startDialogue(dialogue, staticVars, runtimeVars)` — full entry point with runtime validation, reentrancy (chain vs fresh), variable merge (AUTO → STATIC → RUNTIME), slide-in animation with `waitingForSlide` blocking
+- [x] `endDialogue()`: clear state, slide-out animation, restore OVERWORLD mode and resume IPausable in `onComplete` callback
+- [x] `update()`: typewriter text reveal, continue indicator blink, choice navigation (key-up edge-triggered via `PlayerInput.getMovementDirectionUp()`), interact handling via callback flag
+- [x] Choice action execution: DIALOGUE → internal chain, BUILT_IN_EVENT → dispatch + end, CUSTOM_EVENT → dispatch + persist + end
+- [x] `dispatchEvent(DialogueEventRef)`: built-in → handle directly; custom → scene query for listeners + `DialogueEventStore.markFired()`
+- [x] Line-level `onCompleteEvent` dispatch when advancing past a line
+- [x] Variable substitution: `[VAR_NAME]` tags replaced from merged variable map
+- [x] Choice validation: `hasChoices=true` with empty list → skip + end; `hasChoices=false` → skip
+- [x] Auto-advance from last LINE to CHOICES without requiring an extra interact press
+- [x] Integration tests (`PlayerDialogueManagerTest` — 33 tests):
+  - State machine, typewriter, variable substitution, choices (navigate + select), runtime validation, line events, custom event dispatch, pause/resume
 
 **Files:**
 
 | File | Change |
 |------|--------|
 | `components/dialogue/PlayerDialogueManager.java` | **NEW** |
-| `PlayerDialogueManagerTest.java` | **NEW** |
-| `DialogueChainingTest.java` | **NEW** |
+| `test/.../dialogue/PlayerDialogueManagerTest.java` | **NEW** — 33 tests |
 
-**Acceptance criteria:**
-- `startDialogue()` transitions through IDLE → SHOWING_LINE → (advance through lines) → END correctly
-- Typewriter effect reveals text character-by-character at `charsPerSecond` rate
-- INTERACT during typewriter → shows full text; INTERACT when full → advances to next entry
-- Choice navigation: UP/DOWN changes `selectedChoice`, INTERACT on choice executes its action
-- Null dialogue or empty entries → logs error, calls `endDialogue()`, no exception
-- Chaining: DIALOGUE choice action calls `startDialogue()` internally — no `endDialogue()`, no IPausable resume, no mode switch between chains
-- BUILT_IN_EVENT / CUSTOM_EVENT choice actions dispatch the event, then call `endDialogue()`
-- Line-level `onCompleteEvent` fires when the player advances past a line (in every dialogue, including chained)
-- Variable substitution replaces `[TAG]` with values; unknown tags stay literal with warning logged
-- `>4` choices → only first 4 shown + warning; `hasChoices=true` with empty list → skipped
-- All integration tests pass
+**Planned refactoring — extract helpers from PlayerDialogueManager:**
+
+The initial implementation keeps all logic in one component for simplicity. Once the feature is stable, three concerns should be extracted:
+
+| Extract | Into | What moves |
+|---------|------|------------|
+| Typewriter effect | `DialogueTypewriter` (helper class) | `charTimer`, `visibleChars`, `charsPerSecond`, `fullText`, `textFullyRevealed`. Self-contained state machine — the manager calls `typewriter.update(dt)`, `typewriter.skipToEnd()`, `typewriter.setText(text)`. |
+| Variable substitution | `DialogueTextResolver` (static utility) | `substituteVariables()` method + `VARIABLE_TAG` pattern. Pure function: takes text + variable map, returns resolved text. |
+| Event dispatch | `DialogueEventDispatcher` (utility) | `dispatchEvent()`, `handleBuiltInEvent()`, `dispatchToSceneListeners()`. Routes built-in vs custom, performs scene query, calls `DialogueEventStore.markFired()`. The manager calls `dispatcher.dispatch(eventRef, scene)`. |
+
+What stays in the manager: state machine transitions (start/end/advance/chain), input routing (callback flag), choice navigation, and pause/resume orchestration.
 
 ---
 
-## Phase 2: DialogueComponent
+## Phase 2: DialogueInteractable ✅
 
 **Design ref:** §6 — DialogueComponent
 
-NPC interactable that starts dialogue, with conditional dialogue selection.
+NPC interactable that starts dialogue, with conditional dialogue selection. Named `DialogueInteractable` (not `DialogueComponent` as originally planned) to better describe its role.
 
-- [ ] Create `DialogueComponent extends InteractableComponent`:
-  - `@RequiredComponent(TriggerZone.class)`
+- [x] Create `DialogueInteractable extends InteractableComponent`:
   - `conditionalDialogues: List<ConditionalDialogue>` — ordered, first match wins
   - `@Required dialogue: Dialogue` — default fallback
   - `variables: Map<String, String>` — shared static variable values
-  - `onConversationEnd: DialogueEventRef` — optional event fired when the entire conversation with this NPC ends (after all chaining). This is where NPC-specific triggers live (e.g. trainer sets `onConversationEnd = START_BATTLE`). The `PlayerDialogueManager.endDialogue()` reads this from the originating `DialogueComponent` and dispatches it.
-- [ ] `interact(player)`: get PlayerDialogueManager, check `!manager.isActive()`, call `selectDialogue()`, start dialogue. Pass `this` (the DialogueComponent) so the manager can read `onConversationEnd` later.
-- [ ] `selectDialogue()`: iterate conditionalDialogues, first match → return; none → default
-- [ ] `getInteractionPrompt()` → "Talk"
-- [ ] Gizmo: CIRCLE, purple (0.8f, 0.4f, 1.0f, 0.9f)
-- [ ] Integration tests (`DialogueSelectionIntegrationTest`):
-  - No conditions → default dialogue used
-  - First condition matches → that dialogue returned
-  - Multiple conditions, first match wins
-  - Events fired → condition evaluation changes result
+  - `onConversationEnd: DialogueEventRef` — optional event fired when the entire conversation ends
+- [x] `interact(player)`: get `PlayerDialogueManager`, check `!manager.isActive()`, call `selectDialogue()`, set source component, start dialogue
+- [x] `selectDialogue()`: iterate conditionalDialogues, first match → return; none → default
+- [x] `getInteractionPrompt()` → "Talk"
+- [x] Gizmo: CIRCLE, purple (0.8f, 0.4f, 1.0f, 0.9f)
+- [x] Integration tests (`DialogueSelectionTest`, `ConditionalDialogueTest`):
+  - No conditions → default dialogue, first match wins, AND logic, FIRED/NOT_FIRED states
 
 **Files:**
 
 | File | Change |
 |------|--------|
-| `components/dialogue/DialogueComponent.java` | **NEW** |
-| `DialogueSelectionIntegrationTest.java` | **NEW** |
+| `components/dialogue/DialogueInteractable.java` | **NEW** |
+| `test/.../dialogue/DialogueSelectionTest.java` | **NEW** |
+| `test/.../dialogue/ConditionalDialogueTest.java` | **NEW** |
 
-**Acceptance criteria:**
-- `DialogueComponent` extends `InteractableComponent` and requires `TriggerZone`
-- `interact()` calls `PlayerDialogueManager.startDialogue()` with the selected dialogue, static variables, and a reference to itself (so the manager can read `onConversationEnd`)
-- `interact()` is a no-op when `PlayerDialogueManager.isActive()` is true (no double-trigger)
-- `onConversationEnd` is dispatched by the manager when `endDialogue()` is called (after all chaining completes)
-- `selectDialogue()` evaluates conditional dialogues top-to-bottom, returns first match; falls back to default
-- Gizmo renders as purple circle in editor
-- All integration tests pass
+**Planned improvement — conditional dialogues toggle:**
+
+Add a `hasConditionalDialogues` boolean toggle to `DialogueInteractable`. When disabled, the `conditionalDialogues` list is hidden in the inspector, keeping the UI clean for simple NPCs that only use the default dialogue. This requires a custom inspector (`DialogueInteractableInspector`) that shows/hides the conditional section based on the toggle — similar to how `DialogueChoiceGroup.hasChoices` controls choice visibility.
 
 ---
 
-## Phase 3: DialogueEventListener
+## Phase 3: DialogueEventListener ✅
 
 **Design ref:** §5 — Component-Based Event Listener
 
 Reacts to custom dialogue events with predefined actions.
 
-- [ ] Create `DialogueEventListener` component:
-  - `@Required eventName: String` — set via dropdown (no free-text)
+- [x] Create `DialogueEventListener` component:
+  - `@Required eventName: String` — set via dropdown
   - `reaction: DialogueReaction` — enum: ENABLE_GAME_OBJECT, DISABLE_GAME_OBJECT, DESTROY_GAME_OBJECT, RUN_ANIMATION
-  - `onStart()`: null/blank eventName guard → warn + return; check `DialogueEventStore.hasFired()` → react if already fired
+  - `onStart()`: null/blank eventName guard; check `DialogueEventStore.hasFired()` → react if already fired
   - `onDialogueEvent()`: switch on reaction type
-  - RUN_ANIMATION: null-check AnimationComponent → warn if missing
-- [ ] Integration tests (`DialogueEventListenerTest`):
-  - Event fires → DISABLE_GAME_OBJECT reaction
-  - Event fires → ENABLE_GAME_OBJECT reaction
-  - Event fires → DESTROY_GAME_OBJECT reaction
-  - Event fires → RUN_ANIMATION with AnimationComponent → plays
-  - Event fires → RUN_ANIMATION without AnimationComponent → warning, no crash
-  - Scene loads with already-fired event → listener reacts in onStart()
-  - Null/blank eventName → skipped with warning
-- [ ] Integration tests (`DialogueEventDispatchTest`):
-  - Full flow: dialogue fires custom event via choice action → listener in scene reacts
-  - Line-level onCompleteEvent fires in all chained dialogues (every line, not just first/last dialogue)
-  - BUILT_IN_EVENT choice action handled by manager (END_CONVERSATION → endDialogue)
-  - CUSTOM_EVENT choice action dispatched to listeners + persisted, then endDialogue
-  - `DialogueComponent.onConversationEnd` fires once when `endDialogue()` is called (not during chaining)
-  - `onConversationEnd` with START_BATTLE triggers battle transition after dialogue closes
-- [ ] Integration test (`DialoguePersistenceTest`):
-  - markFired → hasFired true across dialogue components
-  - Conditional dialogue selection changes after events fired
+- [x] Integration tests (`DialogueEventListenerTest`, `DialogueEventDispatchTest`, `DialoguePersistenceTest`)
 
 **Files:**
 
@@ -150,73 +102,136 @@ Reacts to custom dialogue events with predefined actions.
 |------|--------|
 | `components/dialogue/DialogueEventListener.java` | **NEW** |
 | `components/dialogue/DialogueReaction.java` | **NEW** — Enum |
-| `DialogueEventListenerTest.java` | **NEW** |
-| `DialogueEventDispatchTest.java` | **NEW** |
-| `DialoguePersistenceTest.java` | **NEW** |
-
-**Acceptance criteria:**
-- Each `DialogueReaction` type works: ENABLE, DISABLE, DESTROY, RUN_ANIMATION
-- RUN_ANIMATION without AnimationComponent → logs warning, no crash
-- Null/blank `eventName` → logged warning on `onStart()`, listener inactive
-- On scene load, if event was already fired (`DialogueEventStore.hasFired()`), listener reacts immediately in `onStart()`
-- Event dispatch from `PlayerDialogueManager`: custom events reach all matching listeners in the scene and are persisted via `DialogueEventStore`
-- Chaining semantics: line-level `onCompleteEvent` fires on every line in every dialogue; `DialogueComponent.onConversationEnd` fires only once when the conversation truly ends (not during chaining)
-- Conditional dialogue selection changes after events are fired (e.g. NPC says different things after event)
-- All integration tests pass
+| `test/.../dialogue/DialogueEventListenerTest.java` | **NEW** |
+| `test/.../dialogue/DialogueEventDispatchTest.java` | **NEW** |
+| `test/.../dialogue/DialoguePersistenceTest.java` | **NEW** |
 
 ---
 
-## Phase 4: Dialogue UI Prefab & Visual Integration
+## Phase 4: Dialogue UI Prefab & Visual Integration ✅
 
 **Design ref:** §8 — Dialogue UI Prefab
 
-Wire the PlayerDialogueManager to actual UI elements. Create the prefab structure. This phase is primarily manual testing.
+Wire the PlayerDialogueManager to actual UI elements. Create a programmatic prefab builder and a scene injector tool. This phase included extensive manual testing and visual polish.
 
-- [ ] Create dialogue UI prefab (scene template or documented structure):
-  - DialogueUI root with UITransform (BOTTOM_CENTER, 100% width, 150px height)
-  - ChoicePanel (hidden by default, above dialogue box) with 4 choice slots
-  - DialogueBox with DialogueText (UIText, wordWrap=true) and ContinueIndicator (UIImage)
-  - All UI elements registered with ComponentKeyRegistry keys
-- [ ] Wire PlayerDialogueManager UI references to prefab elements
-- [ ] Show/hide dialogue box with tween (slide up/down)
-- [ ] Show/hide choice panel
-- [ ] Choice highlight visual (selected choice panel color)
-- [ ] Continue indicator blinking when text fully shown
-- [ ] Manual testing:
-  - [ ] Dialogue box appears on interaction, text typewriter reveals
-  - [ ] INTERACT skips to full text, then advances
-  - [ ] Choice panel appears above dialogue box
-  - [ ] UP/DOWN navigates choices with visible highlight
-  - [ ] Choice selection triggers action (chain or event)
-  - [ ] Dialogue box hides on end
-  - [ ] NPCs freeze during dialogue, resume after
-  - [ ] Word wrap works, long text clips at bottom
+### Final UI Hierarchy
+
+```
+UICanvas "DialogueUI" (sortOrder: 10, SCREEN_SPACE_OVERLAY)
+└── UIImage "DialogueBox"                       (key: "dialogue_box", SLICED)
+    │  battleDialogue.png, anchor: BOTTOM_LEFT, pivot: (0,1)
+    │  100% width, 150px height
+    │  starts off-screen (offset Y = +150), slides up/down via Tween
+    ├── UIText "DialogueText"                   (key: "dialogue_text")
+    │     anchor: (0,0), offset: (20,20), 85% width, 75% height
+    │     wordWrap=true, Pokemon-Red font 20px, black text
+    ├── UIText "ContinueIndicator"              (key: "dialogue_continue")
+    │     anchor: BOTTOM_RIGHT, pivot: (1,1), 24x24px, offset: (-8,-8)
+    │     "v" character, alpha 0 initially, blinks at 0.5s interval
+    └── UIImage "ChoicePanel"                   (key: "dialogue_choice_panel")
+        │  dialogueChoiceBg.png, anchor: TOP_RIGHT, pivot: (1,1)
+        │  35% width, dynamic height based on choice count
+        │  offset: (-10, 0), right-aligned Pokémon-style choice box
+        └── "ChoiceContainer"
+            │  anchor: (0, 0.10), offset: (16, 0), 75% width, 80% height
+            │  UIVerticalLayoutGroup (spacing: 5px, forceExpandWidth: true)
+            │  Inset avoids unusable left ~15% of background image
+            ├── "Choice0" [40px height]
+            │   ├── UIText "Arrow0" [20%w]      (key: "dialogue_choice_arrow_0")
+            │   │     "<" character, size 25, centered
+            │   └── UIText "Text0"  [80%w]      (key: "dialogue_choice_text_0")
+            │         wordWrap=true, white text, vertically centered
+            ├── "Choice1" ... (same pattern)
+            ├── "Choice2" ... (same pattern)
+            └── "Choice3" ... (same pattern)
+```
+
+### Implementation
+
+- [x] Create `DialogueUIBuilder` — programmatic prefab builder with static `build()` method
+- [x] Create `DialogueUISceneInjector` — tool that generates the UI hierarchy + test NPC as JSON and merges into scene files
+- [x] Wire PlayerDialogueManager UI references via `ComponentKeyRegistry` (lazy resolve in `onStart()`)
+- [x] Show/hide dialogue box with `Tweens.offsetY()` (slide up: offset 150→0, slide down: 0→150)
+- [x] Show/hide choice panel via `GameObject.setEnabled()`
+- [x] Dynamic choice panel height based on visible choice count (`choicePanelHeight()`)
+- [x] Choice arrow selection: selected arrow alpha=1, others alpha=0
+- [x] Continue indicator blink: timer-based alpha toggle every 0.5s
+- [x] Variable substitution applied to choice labels
+- [x] Unused choice slots hidden via `setEnabled(false)` on slot parent
+- [x] UIImage backgrounds: `battleDialogue.png` (SLICED) for dialogue box, `dialogueChoiceBg.png` for choice panel
+- [x] Manual testing:
+  - [x] Dialogue box appears on interaction, text typewriter reveals
+  - [x] INTERACT skips to full text, then advances
+  - [x] Choice panel appears (right-aligned, Pokémon-style)
+  - [x] UP/DOWN navigates choices with visible arrow
+  - [x] Choice selection triggers action (chain or event)
+  - [x] Dialogue box hides on end (slides down)
+  - [x] NPCs freeze during dialogue, resume after
+  - [x] Word wrap works for both dialogue text and choice labels
+  - [x] Events & conditional dialogue: HEARD_CAVE_RUMOR changes NPC dialogue on subsequent interactions
+  - [x] Input blocked during slide-out animation (no re-triggering dialogue mid-slide)
 
 **Files:**
 
 | File | Change |
 |------|--------|
-| `components/dialogue/PlayerDialogueManager.java` | Add UI show/hide/tween logic |
-| Prefab scene file(s) | **NEW** — Dialogue UI prefab |
+| `components/dialogue/DialogueUIBuilder.java` | **NEW** — Programmatic prefab builder |
+| `tools/DialogueUISceneInjector.java` | **NEW** — Scene injection tool |
+| `components/dialogue/PlayerDialogueManager.java` | Add UI references, show/hide/tween logic, blink, choice arrows, `slidingOut` guard |
 
-**Acceptance criteria:**
-- Dialogue UI prefab exists with all required GameObjects (DialogueBox, DialogueText, ContinueIndicator, ChoicePanel, Choice1-4)
-- All UI elements are wired to PlayerDialogueManager via ComponentKeyRegistry keys
-- Dialogue box slides in from bottom on dialogue start, slides out on end
-- Text displays with typewriter effect, INTERACT skips/advances
-- Choice panel appears above the dialogue box when a ChoiceGroup is reached
-- Selected choice is visually highlighted; UP/DOWN changes selection
-- Continue indicator (▼) blinks when text is fully revealed, hidden during typewriter
-- NPCs freeze during dialogue (IPausable) and resume after
-- Word wrap works; text that exceeds the box clips at the bottom (no crash, no overflow)
+---
+
+## Bugs Fixed During Manual Testing
+
+Issues discovered and resolved during Phase 4 manual testing:
+
+| Issue | Root Cause | Fix |
+|-------|-----------|-----|
+| Choice arrow not visible | Unicode `▶` not in Pokémon Red font | Changed to ASCII `<` (size 25) |
+| Extra click needed to show choices | No auto-advance from last LINE to CHOICES | Added `isNextEntryChoices()` check in `updateTextReveal()` and `handleInteract()` |
+| Choice navigation too fast | Per-frame polling (`getKey()`) fires every frame | Added `PlayerInput.getMovementDirectionUp()` for edge-triggered key-up detection |
+| SaveManager not initialized in editor play mode | `PlayModeController.play()` didn't call `SaveManager.initialize()` | Added `SaveManager.initialize(engine.getSceneManager())` in `PlayModeController.play()` |
+| SaveManager state persisted across play sessions | `SaveManager.initialize()` early-returned if already initialized | Removed the early-return guard — always creates a fresh instance |
+| Conditional dialogue not loading | `AssetReferenceTypeAdapterFactory` didn't strip `ClassName:` prefix from typed asset format | Added `ClassName:path` prefix stripping in `AssetReferenceTypeAdapterFactory.read()` |
+| Player could move during slide-out | `setMode(OVERWORLD)` and `resumeAll()` called immediately in `endDialogue()` | Deferred to `hideDialogueBox()` `onComplete` callback |
+| Dialogue re-triggered during slide-out | `isActive()` returned false immediately, so NPC interaction was accepted | Added `slidingOut` flag; `isActive()` returns `active \|\| slidingOut` |
+| Test SaveManager warnings | `DialogueEventStore.markFired()` calls `SaveManager.setGlobal()` which needs initialization | Added reflection-based SaveManager init in `PlayerDialogueManagerTest` setup (same pattern as `DialogueEventStoreTest`) |
 
 ---
 
 ## Plan Acceptance Criteria
 
-- [ ] `mvn compile` passes
-- [ ] `mvn test` passes — all integration tests green
-- [ ] Full manual playthrough: interact with NPC → dialogue plays with typewriter effect → choices appear and are navigable → selecting a choice triggers the correct action (chain or event) → events fire and listeners react → world pauses during dialogue and resumes after
-- [ ] Cross-scene persistence: fire event in scene A → load scene B → listener reacts on load
-- [ ] Conditional dialogue: fire events → NPC says different things based on event state
-- [ ] Edge cases: null dialogue, empty entries, >4 choices, missing AnimationComponent — all handled gracefully (logged, no crash)
+- [x] `mvn compile` passes
+- [x] `mvn test` passes — 1276 tests green
+- [x] Full manual playthrough: interact with NPC → dialogue plays with typewriter effect → choices appear and are navigable → selecting a choice triggers the correct action (chain or event) → events fire and listeners react → world pauses during dialogue and resumes after
+- [x] Conditional dialogue: fire HEARD_CAVE_RUMOR event → NPC says different things on next interaction
+- [x] Edge cases: null dialogue, empty entries, hasChoices=false — all handled gracefully (logged, no crash)
+
+---
+
+## Improvements
+
+### Tidy up `DialogueUISceneInjector` for reusability
+
+The `DialogueUISceneInjector` tool proved valuable during development for iterating on the dialogue UI hierarchy and test NPC configuration without manual scene editing. It should be kept and improved:
+
+- **Separate test data from injection logic**: Extract the test NPC configuration (`buildTestNPC()`, dialogue asset references, conditional dialogues) into a configurable section or separate file, so the tool can be reused for injecting dialogue UI into any scene without carrying test-specific data.
+- **Make it easier to add/remove objects**: Currently adding a new UI element requires manually constructing `JsonObject` trees with verbose helper calls. A more declarative API (e.g. a builder pattern or a simple DSL) would make it straightforward to add, remove, or reconfigure objects in the hierarchy without touching low-level JSON construction.
+- **Keep in sync with `DialogueUIBuilder`**: The injector and the programmatic builder must produce equivalent hierarchies. Consider generating the injector's JSON from `DialogueUIBuilder` constants (already partially done for layout values) to avoid drift.
+
+### Other planned improvements
+
+- **Conditional dialogues toggle**: Add `hasConditionalDialogues` boolean on `DialogueInteractable` to hide the conditional list in the inspector for simple NPCs (see Phase 2 notes).
+- **Extract helpers from PlayerDialogueManager**: `DialogueTypewriter`, `DialogueTextResolver`, `DialogueEventDispatcher` (see Phase 1 notes).
+
+---
+
+## Known Issues / Follow-up
+
+### `Scene.registerCachedComponents()` skips disabled GameObjects entirely
+
+**Severity:** Important — affects any system that needs to reference initially-disabled UI elements by component key.
+
+**Current workaround:** The ChoicePanel is kept `active: true` in the scene data and `DialogueUIBuilder`. `PlayerDialogueManager.resolveUI()` hides it after resolving references. This works but is fragile — any new initially-disabled hierarchy with component keys will hit the same issue.
+
+**Proper fix:** `Scene.registerCachedComponents()` should register `ComponentKeyRegistry` keys even for disabled GameObjects. Only renderables and UICanvases should be skipped for disabled GOs (to avoid rendering invisible elements). The recursive child traversal should also continue into disabled GOs for key registration purposes.

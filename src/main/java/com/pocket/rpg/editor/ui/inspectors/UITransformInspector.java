@@ -147,7 +147,7 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
 
         Vector2f anchor = FieldEditors.getVector2f(component, "anchor");
         Vector2f pivot = FieldEditors.getVector2f(component, "pivot");
-        boolean isMatchingParentSize = component.isMatchingParent();
+        boolean isMatchingParentSize = component.isFillingParent();
 
         // Detect parent layout group
         LayoutGroup parentLayout = getParentLayoutGroup();

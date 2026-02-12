@@ -77,6 +77,9 @@ public class EditorUIController {
     private ConsolePanel consolePanel;
 
     @Getter
+    private DialogueEditorPanel dialogueEditorPanel;
+
+    @Getter
     private AudioBrowserPanel audioBrowserPanel;
 
     @Getter
@@ -143,6 +146,10 @@ public class EditorUIController {
         assetBrowserPanel.registerPanelHandler(
                 EditorPanelType.ANIMATOR_EDITOR,
                 animatorEditorPanel::selectControllerByPath
+        );
+        assetBrowserPanel.registerPanelHandler(
+                EditorPanelType.DIALOGUE_EDITOR,
+                dialogueEditorPanel::selectDialogueByPath
         );
     }
 
@@ -277,6 +284,9 @@ public class EditorUIController {
 
         consolePanel = new ConsolePanel();
         consolePanel.initPanel(context.getConfig());
+
+        dialogueEditorPanel = new DialogueEditorPanel();
+        dialogueEditorPanel.initPanel(context.getConfig());
 
         audioBrowserPanel = new AudioBrowserPanel();
         audioBrowserPanel.initPanel(context.getConfig());
@@ -634,6 +644,9 @@ public class EditorUIController {
             if (ImGui.menuItem("Animator Editor", "", animatorEditorPanel.isOpen())) {
                 animatorEditorPanel.toggle();
             }
+            if (ImGui.menuItem("Dialogue Editor", "", dialogueEditorPanel.isOpen())) {
+                dialogueEditorPanel.toggle();
+            }
 
             ImGui.separator();
 
@@ -775,6 +788,7 @@ public class EditorUIController {
         animationEditorPanel.render();
         animatorEditorPanel.render();
         spriteEditorPanel.render();
+        dialogueEditorPanel.render();
         consolePanel.render();
         audioBrowserPanel.render();
         if (gameViewPanel != null) {

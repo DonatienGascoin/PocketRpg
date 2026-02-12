@@ -329,6 +329,33 @@ public abstract class Scene {
         return new ArrayList<>(gameObjects);
     }
 
+    /**
+     * Finds all components across all GameObjects (including children) that implement the given interface or extend the given class.
+     * Useful for querying by interface (e.g. IPausable) or by concrete component type.
+     *
+     * @param type The interface or class to match against
+     * @return List of matching components (empty list if none found, never null)
+     */
+    @SuppressWarnings("unchecked")
+    public <T> List<T> getComponentsImplementing(Class<T> type) {
+        List<T> result = new ArrayList<>();
+        for (GameObject go : gameObjects) {
+            collectComponentsImplementing(go, type, result);
+        }
+        return result;
+    }
+
+    private <T> void collectComponentsImplementing(GameObject go, Class<T> type, List<T> result) {
+        for (Component component : go.getAllComponents()) {
+            if (type.isInstance(component)) {
+                result.add(type.cast(component));
+            }
+        }
+        for (GameObject child : go.getChildren()) {
+            collectComponentsImplementing(child, type, result);
+        }
+    }
+
     // ===========================================
     // Component Caching
     // ===========================================

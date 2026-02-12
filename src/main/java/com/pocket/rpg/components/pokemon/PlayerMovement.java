@@ -5,22 +5,24 @@ import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ComponentMeta;
 import com.pocket.rpg.components.ComponentReference;
 import com.pocket.rpg.components.ComponentReference.Source;
-import com.pocket.rpg.input.Input;
-import com.pocket.rpg.input.KeyCode;
+import com.pocket.rpg.components.player.PlayerInput;
 import lombok.Getter;
 import lombok.Setter;
 
 /**
  * Handles player input and translates it to GridMovement commands.
  * <p>
- * Reads keyboard input and calls GridMovement.move() in the appropriate direction.
- * Also handles debug output for collision testing.
+ * Reads directional input from {@link PlayerInput} and calls GridMovement.move()
+ * in the appropriate direction. Only processes input in OVERWORLD mode.
  */
 @ComponentMeta(category = "Player")
 public class PlayerMovement extends Component {
 
     @ComponentReference(source = Source.SELF)
     private GridMovement movement;
+
+    @ComponentReference(source = Source.SELF)
+    private PlayerInput playerInput;
 
     /**
      * -- SETTER --
@@ -41,28 +43,19 @@ public class PlayerMovement extends Component {
 
     @Override
     public void update(float deltaTime) {
-        if (movement == null) return;
+        if (movement == null || playerInput == null) return;
+
+        // Only process movement in OVERWORLD mode
+        if (!playerInput.isOverworld()) return;
 
         // Don't accept input while moving (grid-based movement)
         if (movement.isMoving()) {
             return;
         }
 
-        // Check directional input
-        Direction direction = null;
-
-        if (Input.getKey(KeyCode.W) || Input.getKey(KeyCode.UP)) {
-            direction = Direction.UP;
-        } else if (Input.getKey(KeyCode.S) || Input.getKey(KeyCode.DOWN)) {
-            direction = Direction.DOWN;
-        } else if (Input.getKey(KeyCode.A) || Input.getKey(KeyCode.LEFT)) {
-            direction = Direction.LEFT;
-        } else if (Input.getKey(KeyCode.D) || Input.getKey(KeyCode.RIGHT)) {
-            direction = Direction.RIGHT;
-        }
-
+        Direction direction = playerInput.getMovementDirection();
         if (direction != null) {
-            boolean moved = movement.move(direction);
+            movement.move(direction);
         }
     }
 }

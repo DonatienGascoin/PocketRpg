@@ -4,10 +4,12 @@ import com.pocket.rpg.collision.TileEntityMap;
 import com.pocket.rpg.collision.trigger.TileCoord;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ComponentMeta;
+import com.pocket.rpg.components.ComponentReference;
+import com.pocket.rpg.components.ComponentReference.Source;
+import com.pocket.rpg.components.player.InputMode;
+import com.pocket.rpg.components.player.PlayerInput;
 import com.pocket.rpg.components.pokemon.GridMovement;
 import com.pocket.rpg.core.GameObject;
-import com.pocket.rpg.input.Input;
-import com.pocket.rpg.input.InputAction;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector3f;
@@ -51,6 +53,9 @@ public class InteractionController extends Component {
     @Setter
     private boolean facingOnly = true;
 
+    @ComponentReference(source = Source.SELF)
+    private PlayerInput playerInput;
+
     // Runtime state
     private transient TileEntityMap tileEntityMap;
     private transient GridMovement gridMovement;
@@ -75,12 +80,14 @@ public class InteractionController extends Component {
     protected void onStart() {
         tileEntityMap = getTileEntityMap();
         gridMovement = gameObject.getComponent(GridMovement.class);
+        if (playerInput != null) {
+            playerInput.onInteract(InputMode.OVERWORLD, this::triggerInteraction);
+        }
     }
 
     @Override
     public void update(float deltaTime) {
         updateCurrentTarget();
-        handleInput();
     }
 
     /**
@@ -192,12 +199,6 @@ public class InteractionController extends Component {
                     ));
                 }
             }
-        }
-    }
-
-    private void handleInput() {
-        if (Input.hasContext() && Input.isActionPressed(InputAction.INTERACT)) {
-            triggerInteraction();
         }
     }
 

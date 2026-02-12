@@ -7,10 +7,10 @@ import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ComponentMeta;
 import com.pocket.rpg.components.ComponentReference;
 import com.pocket.rpg.components.ComponentReference.Source;
+import com.pocket.rpg.components.player.InputMode;
+import com.pocket.rpg.components.player.PlayerInput;
 import com.pocket.rpg.components.ui.UIImage;
 import com.pocket.rpg.components.ui.UITransform;
-import com.pocket.rpg.input.Input;
-import com.pocket.rpg.input.InputAction;
 import com.pocket.rpg.logging.Log;
 import com.pocket.rpg.logging.Logger;
 
@@ -19,6 +19,7 @@ import com.pocket.rpg.logging.Logger;
  * <p>
  * Uses @ComponentReference to resolve UI components from ComponentKeyRegistry keys
  * configured in the editor, eliminating magic strings.
+ * Reads input from {@link PlayerInput} — only responds in OVERWORLD mode.
  */
 @ComponentMeta(category = "Player")
 public class PlayerPauseUI extends Component {
@@ -29,6 +30,9 @@ public class PlayerPauseUI extends Component {
 
     @ComponentReference(source = Source.KEY)
     private UIImage pauseMenuBgImage;
+
+    @ComponentReference(source = Source.SELF)
+    private PlayerInput playerInput;
 
     private transient UITransform pauseMenuTransform;
     private transient float hiddenOffsetX;
@@ -47,25 +51,24 @@ public class PlayerPauseUI extends Component {
 
         // Start hidden off-screen to the right
         pauseMenuTransform.setOffset(hiddenOffsetX, pauseMenuTransform.getOffset().y);
+
+        if (playerInput != null) {
+            playerInput.onMenu(InputMode.OVERWORLD, this::togglePauseMenu);
+        }
     }
 
-    @Override
-    public void update(float deltaTime) {
-        if (Input.isActionPressed(InputAction.MENU)) {
-            isPaused = !isPaused;
-            LOG.info("Toggling pause menu UI to " + (isPaused ? "visible" : "hidden"));
+    private void togglePauseMenu() {
+        isPaused = !isPaused;
+        LOG.info("Toggling pause menu UI to " + (isPaused ? "visible" : "hidden"));
 
-            // Kill any in-progress animation
+        TweenManager.kill(pauseMenuTransform, false);
 
-            TweenManager.kill(pauseMenuTransform, false);
-
-            if (isPaused) {
-                Tweens.offsetX(pauseMenuTransform, visibleOffsetX, toggleDuration)
-                        .setEase(Ease.OUT_SINE);
-            } else {
-                Tweens.offsetX(pauseMenuTransform, hiddenOffsetX, toggleDuration)
-                        .setEase(Ease.IN_QUAD);
-            }
+        if (isPaused) {
+            Tweens.offsetX(pauseMenuTransform, visibleOffsetX, toggleDuration)
+                    .setEase(Ease.OUT_SINE);
+        } else {
+            Tweens.offsetX(pauseMenuTransform, hiddenOffsetX, toggleDuration)
+                    .setEase(Ease.IN_QUAD);
         }
     }
 }

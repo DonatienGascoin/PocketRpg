@@ -7,6 +7,7 @@ import com.pocket.rpg.collision.MoveResult;
 import com.pocket.rpg.collision.MovementModifier;
 import com.pocket.rpg.collision.TileEntityMap;
 import com.pocket.rpg.collision.trigger.TriggerSystem;
+import com.pocket.rpg.IPausable;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ComponentMeta;
 import com.pocket.rpg.components.rendering.SpriteRenderer;
@@ -49,7 +50,7 @@ import java.util.List;
  * - ENCOUNTER: Tall grass (triggers random encounters)
  */
 @ComponentMeta(category = "Physics")
-public class GridMovement extends Component {
+public class GridMovement extends Component implements IPausable {
 
     // ========================================================================
     // ANCHOR MODE
@@ -148,6 +149,10 @@ public class GridMovement extends Component {
 
     /** Time remaining on the turn delay before movement is accepted. */
     private transient float turnTimer = 0f;
+
+    /** When true, update() and move() are no-ops. Component stays enabled and keeps tile registration. */
+    @Getter
+    private transient boolean paused = false;
 
     // Internal movement animation state
     private transient final Vector3f startPos = new Vector3f();
@@ -305,7 +310,7 @@ public class GridMovement extends Component {
      * @return true if movement started, false if blocked or already moving
      */
     public boolean move(Direction direction) {
-        if (isMoving) {
+        if (paused || isMoving) {
             return false;
         }
 
@@ -450,6 +455,8 @@ public class GridMovement extends Component {
 
     @Override
     public void update(float deltaTime) {
+        if (paused) return;
+
         // Tick down the turn delay timer
         if (turnTimer > 0f) {
             turnTimer -= deltaTime;
@@ -472,6 +479,20 @@ public class GridMovement extends Component {
             // Interpolate position
             updatePosition();
         }
+    }
+
+    // ========================================================================
+    // IPAUSABLE
+    // ========================================================================
+
+    @Override
+    public void onPause() {
+        paused = true;
+    }
+
+    @Override
+    public void onResume() {
+        paused = false;
     }
 
     /**

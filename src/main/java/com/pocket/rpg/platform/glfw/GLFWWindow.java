@@ -90,11 +90,14 @@ public class GLFWWindow extends AbstractWindow {
             GLFWVidMode vidmode = glfwGetVideoMode(glfwGetPrimaryMonitor());
 
             // Center the window
-            glfwSetWindowPos(
+
+            if (GLFW_PLATFORM_WAYLAND != glfwGetPlatform()) {
+                glfwSetWindowPos(
                     windowHandle,
                     (vidmode.width() - pWidth.get(0)) / 2,
                     (vidmode.height() - pHeight.get(0)) / 2
-            );
+                );
+            }
         } // the stack frame is popped automatically
     }
 

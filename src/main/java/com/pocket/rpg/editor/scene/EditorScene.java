@@ -273,6 +273,10 @@ public class EditorScene implements DirtyTracker {
     // LAYER VISIBILITY
     // ========================================================================
 
+    private boolean isTilemapLayerSelected() {
+        return activeLayerIndex >= 0 && activeLayerIndex < layers.size();
+    }
+
     public boolean isLayerVisible(int index) {
         TilemapLayer layer = getLayer(index);
         if (layer == null || !layer.isVisible()) {
@@ -287,6 +291,8 @@ public class EditorScene implements DirtyTracker {
     }
 
     public float getLayerOpacity(int index) {
+        if (!isTilemapLayerSelected()) return 1.0f; // If tilemap is not selected, show all layers at full opacity
+
         if (!isLayerVisible(index)) {
             return 0f;
         }

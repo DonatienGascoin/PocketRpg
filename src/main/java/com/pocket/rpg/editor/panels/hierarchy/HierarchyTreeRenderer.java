@@ -192,6 +192,13 @@ public class HierarchyTreeRenderer {
             renamingItem = null;
             nameBeforeRename = null;
         }
+
+        if ((ImGui.isMouseClicked(ImGuiMouseButton.Left) || ImGui.isMouseClicked(ImGuiMouseButton.Middle)
+            || ImGui.isMouseClicked(ImGuiMouseButton.Right)) && !ImGui.isItemHovered()) {
+            // If clicking outside the input, cancel rename
+                renamingItem = null;
+                nameBeforeRename = null;
+        }
     }
 
     private void handleEntityInteraction(EditorGameObject entity) {

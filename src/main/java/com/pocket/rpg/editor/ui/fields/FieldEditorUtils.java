@@ -187,12 +187,14 @@ public final class FieldEditorUtils {
 
             // Clip the label text so it doesn't bleed into the field area
             if (truncated) {
+                String ellipsis = "... ";
+                String truncatedLabel = label;
+                do {
+                    truncatedLabel = truncatedLabel.substring(0, truncatedLabel.length() - 1);
+                } while (ImGui.calcTextSize(truncatedLabel + ellipsis).x > labelWidth && truncatedLabel.length() > 0);
                 ImVec2 cursorScreen = ImGui.getCursorScreenPos();
                 float lineHeight = ImGui.getTextLineHeight();
-                ImGui.pushClipRect(cursorScreen.x, cursorScreen.y,
-                        cursorScreen.x + labelWidth, cursorScreen.y + lineHeight, true);
-                ImGui.text(label);
-                ImGui.popClipRect();
+                ImGui.text(truncatedLabel + ellipsis);
             } else {
                 ImGui.text(label);
             }

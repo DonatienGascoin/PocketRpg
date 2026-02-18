@@ -1,12 +1,12 @@
 package com.pocket.rpg.editor.ui.fields;
 
 import com.pocket.rpg.components.Component;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import imgui.ImGui;
 import imgui.ImVec2;
-import imgui.flag.ImGuiCol;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
@@ -30,10 +30,6 @@ public final class FieldEditorUtils {
     private static float nextLabelWidth = -1;           // -1 means "use LABEL_WIDTH"
     private static Runnable nextMiddleContent = null;   // null means "no middle content"
     private static String nextTooltip = null;           // null means "no custom tooltip"
-
-    private static final float[] ACCENT_COLOR = {0.9f, 0.2f, 0.2f, 1.0f};
-    private static final float[] ACCENT_HOVER = {1.0f, 0.3f, 0.3f, 1.0f};
-    private static final float[] ACCENT_ACTIVE = {0.8f, 0.1f, 0.1f, 1.0f};
 
     private FieldEditorUtils() {}
 
@@ -73,9 +69,7 @@ public final class FieldEditorUtils {
     }
 
     private static void pushAccentColors() {
-        ImGui.pushStyleColor(ImGuiCol.Button, ACCENT_COLOR[0], ACCENT_COLOR[1], ACCENT_COLOR[2], ACCENT_COLOR[3]);
-        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, ACCENT_HOVER[0], ACCENT_HOVER[1], ACCENT_HOVER[2], ACCENT_HOVER[3]);
-        ImGui.pushStyleColor(ImGuiCol.ButtonActive, ACCENT_ACTIVE[0], ACCENT_ACTIVE[1], ACCENT_ACTIVE[2], ACCENT_ACTIVE[3]);
+        EditorColors.pushAccentButton();
     }
 
     // ========================================================================

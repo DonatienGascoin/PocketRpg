@@ -4,10 +4,10 @@ import com.pocket.rpg.audio.Audio;
 import com.pocket.rpg.audio.AudioConfig;
 import com.pocket.rpg.audio.mixing.AudioChannel;
 import com.pocket.rpg.audio.mixing.AudioMixer;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
 import imgui.ImGui;
-import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiTreeNodeFlags;
 
 /**
@@ -53,7 +53,7 @@ public class AudioConfigTab implements ConfigTab {
     public void renderContent() {
         AudioMixer mixer = Audio.getMixer();
         if (mixer == null) {
-            ImGui.textColored(1.0f, 0.5f, 0.0f, 1.0f, "Audio system not initialized");
+            EditorColors.textColored(EditorColors.WARNING, "Audio system not initialized");
             return;
         }
 
@@ -146,9 +146,7 @@ public class AudioConfigTab implements ConfigTab {
 
         // Style muted button with red color
         if (wasMuted) {
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.8f, 0.3f, 0.3f, 1f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.9f, 0.4f, 0.4f, 1f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.7f, 0.2f, 0.2f, 1f);
+            EditorColors.pushDangerButton();
         }
         if (ImGui.button(icon + "##mute", buttonWidth, 0)) {
             if (wasMuted) {
@@ -161,7 +159,7 @@ public class AudioConfigTab implements ConfigTab {
         }
         // Pop uses same captured state as push
         if (wasMuted) {
-            ImGui.popStyleColor(3);
+            EditorColors.popButtonColors();
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(wasMuted ? "Unmute " + label : "Mute " + label);

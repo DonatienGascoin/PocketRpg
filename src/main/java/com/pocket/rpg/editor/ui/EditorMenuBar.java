@@ -8,6 +8,7 @@ import com.pocket.rpg.editor.shortcut.EditorShortcuts;
 import com.pocket.rpg.editor.shortcut.ShortcutRegistry;
 import com.pocket.rpg.editor.tools.SpritesheetMigrationTool;
 import com.pocket.rpg.editor.undo.UndoManager;
+import com.pocket.rpg.editor.core.EditorColors;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiWindowFlags;
@@ -338,9 +339,9 @@ public class EditorMenuBar {
             if (migrationReport != null) {
                 // Header
                 if (migrationReport.isDryRun()) {
-                    ImGui.textColored(0.5f, 0.8f, 1.0f, 1.0f, "DRY RUN - No changes were made");
+                    EditorColors.textColored(EditorColors.INFO, "DRY RUN - No changes were made");
                 } else {
-                    ImGui.textColored(0.5f, 1.0f, 0.5f, 1.0f, "Migration Complete");
+                    EditorColors.textColored(EditorColors.SUCCESS, "Migration Complete");
                 }
 
                 ImGui.separator();
@@ -391,7 +392,7 @@ public class EditorMenuBar {
 
                     // Warnings
                     if (!migrationReport.getWarnings().isEmpty()) {
-                        ImGui.pushStyleColor(ImGuiCol.Text, 1.0f, 0.8f, 0.2f, 1.0f);
+                        ImGui.pushStyleColor(ImGuiCol.Text, EditorColors.WARNING[0], EditorColors.WARNING[1], EditorColors.WARNING[2], EditorColors.WARNING[3]);
                         if (ImGui.treeNode("Warnings (" + migrationReport.getWarnings().size() + ")")) {
                             for (String warning : migrationReport.getWarnings()) {
                                 ImGui.bulletText(warning);
@@ -403,7 +404,7 @@ public class EditorMenuBar {
 
                     // Errors
                     if (!migrationReport.getErrors().isEmpty()) {
-                        ImGui.pushStyleColor(ImGuiCol.Text, 1.0f, 0.3f, 0.3f, 1.0f);
+                        ImGui.pushStyleColor(ImGuiCol.Text, EditorColors.DANGER[0], EditorColors.DANGER[1], EditorColors.DANGER[2], EditorColors.DANGER[3]);
                         if (ImGui.treeNode("Errors (" + migrationReport.getErrors().size() + ")")) {
                             for (String error : migrationReport.getErrors()) {
                                 ImGui.bulletText(error);

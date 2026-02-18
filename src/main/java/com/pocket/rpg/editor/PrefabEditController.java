@@ -12,6 +12,7 @@ import com.pocket.rpg.prefab.JsonPrefab;
 import com.pocket.rpg.prefab.PrefabRegistry;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import com.pocket.rpg.serialization.ComponentRegistry;
+import com.pocket.rpg.editor.core.EditorColors;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiWindowFlags;
@@ -325,8 +326,7 @@ public class PrefabEditController {
 
                 ImGui.sameLine();
 
-                ImGui.pushStyleColor(ImGuiCol.Button, 0.2f, 0.6f, 0.2f, 1f);
-                ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.3f, 0.7f, 0.3f, 1f);
+                EditorColors.pushSuccessButton();
                 if (ImGui.button("Save and exit", buttonWidth, 0)) {
                     showConfirmationPopup = false;
                     Runnable action = pendingAction;
@@ -335,7 +335,7 @@ public class PrefabEditController {
                     if (action != null) action.run();
                     ImGui.closeCurrentPopup();
                 }
-                ImGui.popStyleColor(2);
+                EditorColors.popButtonColors();
             }
 
             ImGui.endPopup();

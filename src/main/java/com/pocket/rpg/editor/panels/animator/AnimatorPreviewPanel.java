@@ -6,6 +6,7 @@ import com.pocket.rpg.animation.animator.AnimatorController;
 import com.pocket.rpg.animation.animator.AnimatorParameter;
 import com.pocket.rpg.animation.animator.ParameterType;
 import com.pocket.rpg.collision.Direction;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.rendering.SpritePreviewRenderer;
 import com.pocket.rpg.rendering.resources.Sprite;
@@ -94,13 +95,11 @@ public class AnimatorPreviewPanel {
 
         // Play/Pause button - green when playing
         if (isPlaying) {
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.15f, 0.5f, 0.15f, 1f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.2f, 0.6f, 0.2f, 1f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.25f, 0.7f, 0.25f, 1f);
+            EditorColors.pushSuccessButton();
             if (ImGui.button(MaterialIcons.Pause + "##pause", 30, 0)) {
                 previewState.setPlaying(false);
             }
-            ImGui.popStyleColor(3);
+            EditorColors.popButtonColors();
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip("Pause");
             }
@@ -117,15 +116,13 @@ public class AnimatorPreviewPanel {
 
         // Stop button - red tint when playing
         if (isPlaying) {
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.5f, 0.15f, 0.15f, 1f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.6f, 0.2f, 0.2f, 1f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.7f, 0.25f, 0.25f, 1f);
+            EditorColors.pushDangerButton();
         }
         if (ImGui.button(MaterialIcons.Stop + "##stop", 30, 0)) {
             stopAndReset();
         }
         if (isPlaying) {
-            ImGui.popStyleColor(3);
+            EditorColors.popButtonColors();
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("Stop & Reset");
@@ -168,7 +165,7 @@ public class AnimatorPreviewPanel {
         ImGui.text("State: ");
         ImGui.sameLine();
         if (stateName != null) {
-            ImGui.textColored(0.4f, 0.8f, 0.4f, 1f, stateName);
+            EditorColors.textColored(EditorColors.SUCCESS, stateName);
         } else {
             ImGui.textDisabled("none");
         }

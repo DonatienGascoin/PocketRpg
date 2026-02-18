@@ -1,10 +1,10 @@
 package com.pocket.rpg.editor.panels.collisions;
 
 import com.pocket.rpg.collision.ElevationLevel;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.tools.*;
 import imgui.ImGui;
-import imgui.flag.ImGuiCol;
 import imgui.type.ImBoolean;
 import imgui.type.ImInt;
 import lombok.Setter;
@@ -161,10 +161,6 @@ public class CollisionToolConfigView {
         float buttonWidth = compact ? 28 : 70;
         float buttonHeight = compact ? 0 : 30;  // 0 = auto height
 
-        // Selected button colors (green highlight)
-        float[] selectedBg = {0.2f, 0.7f, 0.3f, 1.0f};
-        float[] selectedHover = {0.3f, 0.8f, 0.4f, 1.0f};
-
         for (ElevationLevel elev : ElevationLevel.getAll()) {
             int level = elev.getLevel();
             String name = elev.getDisplayName();
@@ -177,9 +173,7 @@ public class CollisionToolConfigView {
 
             // Apply highlight style for selected button
             if (isSelected) {
-                ImGui.pushStyleColor(ImGuiCol.Button, selectedBg[0], selectedBg[1], selectedBg[2], selectedBg[3]);
-                ImGui.pushStyleColor(ImGuiCol.ButtonHovered, selectedHover[0], selectedHover[1], selectedHover[2], selectedHover[3]);
-                ImGui.pushStyleColor(ImGuiCol.ButtonActive, selectedBg[0], selectedBg[1], selectedBg[2], selectedBg[3]);
+                EditorColors.pushSuccessButton();
             }
 
             // Button label: show name in non-compact mode, level number in compact mode
@@ -190,7 +184,7 @@ public class CollisionToolConfigView {
             }
 
             if (isSelected) {
-                ImGui.popStyleColor(3);
+                EditorColors.popButtonColors();
             }
 
             // Tooltip

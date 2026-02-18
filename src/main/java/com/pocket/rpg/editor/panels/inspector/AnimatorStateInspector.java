@@ -3,6 +3,7 @@ package com.pocket.rpg.editor.panels.inspector;
 import com.pocket.rpg.animation.Animation;
 import com.pocket.rpg.animation.animator.*;
 import com.pocket.rpg.collision.Direction;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.ui.fields.AssetEditor;
 import com.pocket.rpg.editor.ui.fields.FieldEditorUtils;
@@ -237,7 +238,7 @@ public class AnimatorStateInspector {
 
         ImGui.sameLine();
         if (currentAnim != null) {
-            ImGui.textColored(0.6f, 0.9f, 0.6f, 1.0f, display);
+            EditorColors.textColored(EditorColors.SUCCESS, display);
         } else {
             ImGui.textDisabled(display);
         }

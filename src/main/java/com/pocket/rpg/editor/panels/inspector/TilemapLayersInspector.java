@@ -1,5 +1,6 @@
 package com.pocket.rpg.editor.panels.inspector;
 
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.LayerVisibilityMode;
@@ -128,12 +129,10 @@ public class TilemapLayersInspector {
 
     private void renderEntitySeparator() {
         ImGui.spacing();
-        ImGui.pushStyleColor(ImGuiCol.Text, 0.6f, 0.8f, 0.6f, 1.0f);
         String text = MaterialIcons.Person + " -- Entities (z: 0) --";
         float indent = (ImGui.getContentRegionAvailX() - ImGui.calcTextSize(text).x) / 2;
         if (indent > 0) ImGui.setCursorPosX(ImGui.getCursorPosX() + indent);
-        ImGui.text(text);
-        ImGui.popStyleColor();
+        EditorColors.textColored(EditorColors.SUCCESS, text);
         if (ImGui.isItemHovered()) ImGui.setTooltip("Entities render at Z-index 0");
         ImGui.spacing();
     }
@@ -180,7 +179,7 @@ public class TilemapLayersInspector {
             ImGui.sameLine();
             ImGui.textDisabled(zDisplay);
         } else {
-            if (atEntityLevel) ImGui.pushStyleColor(ImGuiCol.Text, 1.0f, 0.8f, 0.2f, 1.0f);
+            if (atEntityLevel) ImGui.pushStyleColor(ImGuiCol.Text, EditorColors.WARNING[0], EditorColors.WARNING[1], EditorColors.WARNING[2], EditorColors.WARNING[3]);
 
             float availWidth = ImGui.getContentRegionAvailX() - 55;
             if (ImGui.selectable(layer.getName() + " " + zDisplay, isActive, ImGuiSelectableFlags.AllowDoubleClick | ImGuiSelectableFlags.AllowItemOverlap, availWidth, 0f)) {

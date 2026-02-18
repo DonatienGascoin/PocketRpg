@@ -4,6 +4,7 @@ import com.pocket.rpg.collision.Direction;
 import com.pocket.rpg.components.pokemon.GridMovement;
 import com.pocket.rpg.components.pokemon.GridMovement.AnchorMode;
 import com.pocket.rpg.components.rendering.SpriteRenderer;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
 import com.pocket.rpg.editor.undo.EditorCommand;
 import com.pocket.rpg.editor.undo.UndoManager;
@@ -86,9 +87,7 @@ public class GridMovementInspector extends CustomComponentInspector<GridMovement
         // Show source info
         FieldEditors.inspectorRow("Source", () -> {
             if (sr != null) {
-                ImGui.pushStyleColor(ImGuiCol.Text, 0.4f, 0.9f, 0.4f, 1.0f);
-                ImGui.text("SpriteRenderer");
-                ImGui.popStyleColor();
+                EditorColors.textColored(EditorColors.SUCCESS, "SpriteRenderer");
             } else {
                 ImGui.textDisabled("No SpriteRenderer, using (0.5, 0.5)");
             }
@@ -123,7 +122,7 @@ public class GridMovementInspector extends CustomComponentInspector<GridMovement
                         && Math.abs(current.y - py) < 0.001f;
 
                 if (isActive) {
-                    ImGui.pushStyleColor(ImGuiCol.Button, 0.26f, 0.59f, 0.98f, 1.0f);
+                    ImGui.pushStyleColor(ImGuiCol.Button, EditorColors.INFO[0], EditorColors.INFO[1], EditorColors.INFO[2], EditorColors.INFO[3]);
                 }
 
                 if (ImGui.button(label, buttonSize, buttonSize)) {

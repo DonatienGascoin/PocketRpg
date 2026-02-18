@@ -5,6 +5,7 @@ import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ComponentReference;
 import com.pocket.rpg.components.Tooltip;
 import com.pocket.rpg.core.IGameObject;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.hierarchy.HierarchyItem;
 import com.pocket.rpg.editor.scene.EditorGameObject;
@@ -18,7 +19,6 @@ import com.pocket.rpg.serialization.ComponentReferenceMeta;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import com.pocket.rpg.serialization.FieldMeta;
 import imgui.ImGui;
-import imgui.flag.ImGuiCol;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
@@ -66,7 +66,7 @@ public class ReflectionFieldEditor {
                 try {
                     changed |= drawField(component, fieldMeta, editorEntity);
                 } catch (Exception e) {
-                    ImGui.textColored(1f, 0.3f, 0.3f, 1f, fieldMeta.name() + ": Error");
+                    EditorColors.textColored(EditorColors.DANGER, fieldMeta.name() + ": Error");
                 }
             }
             drawComponentReferences(meta.hierarchyReferences(), hierarchyEntity);
@@ -244,35 +244,29 @@ public class ReflectionFieldEditor {
 
             // Status indicator
             String statusIcon;
-            float r, g, b;
+            float[] statusColor;
 
             switch (status) {
                 case FOUND -> {
                     statusIcon = MaterialIcons.CheckCircle; // ✓
-                    r = 0.3f; g = 0.8f; b = 0.3f; // Green
+                    statusColor = EditorColors.SUCCESS;
                 }
                 case NOT_FOUND -> {
                     statusIcon = MaterialIcons.Error; // ✗
-                    if (ref.required()) {
-                        r = 1.0f; g = 0.3f; b = 0.3f; // Red
-                    } else {
-                        r = 0.8f; g = 0.6f; b = 0.2f; // Orange/yellow for optional
-                    }
+                    statusColor = ref.required() ? EditorColors.DANGER : EditorColors.WARNING;
                 }
                 case UNKNOWN -> {
                     statusIcon = MaterialIcons.Help;
-                    r = 0.6f; g = 0.6f; b = 0.6f; // Gray
+                    statusColor = EditorColors.DISABLED_TEXT;
                 }
                 default -> {
                     statusIcon = MaterialIcons.RemoveCircle;
-                    r = 0.5f; g = 0.5f; b = 0.5f;
+                    statusColor = EditorColors.DISABLED_TEXT;
                 }
             }
 
             // Render label with status color
-            ImGui.pushStyleColor(ImGuiCol.Text, r, g, b, 1.0f);
-            ImGui.text("  " + statusIcon + " " + label + ":");
-            ImGui.popStyleColor();
+            EditorColors.textColored(statusColor, "  " + statusIcon + " " + label + ":");
 
             ImGui.sameLine(170);
             ImGui.textDisabled(description);
@@ -281,13 +275,13 @@ public class ReflectionFieldEditor {
             if (ImGui.isItemHovered()) {
                 ImGui.beginTooltip();
                 switch (status) {
-                    case FOUND -> ImGui.textColored(0.3f, 0.8f, 0.3f, 1f, "Reference will be resolved");
+                    case FOUND -> EditorColors.textColored(EditorColors.SUCCESS, "Reference will be resolved");
                     case NOT_FOUND -> {
                         if (ref.required()) {
-                            ImGui.textColored(1f, 0.3f, 0.3f, 1f, "Required component not found!");
+                            EditorColors.textColored(EditorColors.DANGER, "Required component not found!");
                             ImGui.text("Add " + ref.componentType().getSimpleName() + " to this entity");
                         } else {
-                            ImGui.textColored(0.8f, 0.6f, 0.2f, 1f, "Optional component not found");
+                            EditorColors.textColored(EditorColors.WARNING, "Optional component not found");
                         }
                     }
                     case UNKNOWN -> {

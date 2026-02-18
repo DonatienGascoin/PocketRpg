@@ -3,6 +3,7 @@ package com.pocket.rpg.editor.ui.fields;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import imgui.ImDrawList;
 import imgui.ImGui;
@@ -22,7 +23,6 @@ public final class FieldEditorContext {
     private static String componentType = null;
     private static EditorScene currentScene = null;
 
-    private static final float[] OVERRIDE_COLOR = {1.0f, 0.8f, 0.2f, 1.0f};
     private static final int REQUIRED_ROW_BG_COLOR = ImGui.colorConvertFloat4ToU32(1f, 0.1f, 0.1f, 0.7f);
 
     // State for row highlighting
@@ -163,7 +163,7 @@ public final class FieldEditorContext {
     public static void pushOverrideStyle(String fieldName) {
         overrideStylePushed = isFieldOverridden(fieldName);
         if (overrideStylePushed) {
-            ImGui.pushStyleColor(ImGuiCol.Text, OVERRIDE_COLOR[0], OVERRIDE_COLOR[1], OVERRIDE_COLOR[2], OVERRIDE_COLOR[3]);
+            ImGui.pushStyleColor(ImGuiCol.Text, EditorColors.OVERRIDE[0], EditorColors.OVERRIDE[1], EditorColors.OVERRIDE[2], EditorColors.OVERRIDE[3]);
         }
     }
 

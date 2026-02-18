@@ -1,5 +1,6 @@
 package com.pocket.rpg.editor.panels.inspector;
 
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
@@ -8,7 +9,6 @@ import com.pocket.rpg.editor.undo.commands.BulkDeleteCommand;
 import com.pocket.rpg.editor.undo.commands.BulkMoveCommand;
 import com.pocket.rpg.editor.utils.IconUtils;
 import imgui.ImGui;
-import imgui.flag.ImGuiCol;
 import lombok.Setter;
 import org.joml.Vector3f;
 
@@ -64,12 +64,11 @@ public class MultiSelectionInspector {
         ImGui.separator();
 
         // Bulk actions
-        ImGui.pushStyleColor(ImGuiCol.Button, 0.5f, 0.2f, 0.2f, 1f);
-        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.6f, 0.3f, 0.3f, 1f);
+        EditorColors.pushDangerButton();
         if (ImGui.button(MaterialIcons.Delete + " Delete All", -1, 0)) {
             UndoManager.getInstance().execute(new BulkDeleteCommand(scene, selected));
         }
-        ImGui.popStyleColor(2);
+        EditorColors.popButtonColors();
 
         if (ImGui.button(MaterialIcons.Cancel + " Clear Selection", -1, 0)) {
             scene.clearSelection();

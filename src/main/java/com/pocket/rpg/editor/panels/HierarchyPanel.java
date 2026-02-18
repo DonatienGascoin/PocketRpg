@@ -22,6 +22,7 @@ import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.BulkDeleteCommand;
 import com.pocket.rpg.editor.utils.IconUtils;
 import com.pocket.rpg.scenes.Scene;
+import com.pocket.rpg.editor.core.EditorColors;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiMouseButton;
@@ -201,7 +202,7 @@ public class HierarchyPanel extends EditorPanel {
     }
 
     private void renderPlayModeHeader() {
-        ImGui.pushStyleColor(ImGuiCol.Text, 1f, 0.6f, 0.2f, 1f);
+        ImGui.pushStyleColor(ImGuiCol.Text, EditorColors.WARNING[0], EditorColors.WARNING[1], EditorColors.WARNING[2], EditorColors.WARNING[3]);
         ImGui.text(MaterialIcons.PlayArrow + " PLAY MODE");
         ImGui.popStyleColor();
         ImGui.separator();
@@ -266,8 +267,8 @@ public class HierarchyPanel extends EditorPanel {
         // ===== Fixed Header Section (non-scrollable) =====
         ImGui.pushStyleColor(ImGuiCol.ChildBg, 0.0f, 0.15f, 0.15f, 1.0f);
         if (ImGui.beginChild("##prefabControlBar", 0, 120, true)) {
-            // Teal header
-            ImGui.pushStyleColor(ImGuiCol.Text, 0.0f, 0.8f, 0.8f, 1f);
+            // Prefab mode header
+            ImGui.pushStyleColor(ImGuiCol.Text, EditorColors.PREFAB[0], EditorColors.PREFAB[1], EditorColors.PREFAB[2], EditorColors.PREFAB[3]);
             ImGui.text(MaterialIcons.Widgets + " PREFAB MODE");
             ImGui.popStyleColor();
 
@@ -290,8 +291,7 @@ public class HierarchyPanel extends EditorPanel {
 
             // Save button (green when dirty)
             if (isDirty) {
-                ImGui.pushStyleColor(ImGuiCol.Button, 0.2f, 0.6f, 0.2f, 1f);
-                ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.3f, 0.7f, 0.3f, 1f);
+                EditorColors.pushSuccessButton();
             }
             if (ImGui.button(MaterialIcons.Save + " Save", halfWidth, 0)) {
                 prefabEditController.save();
@@ -304,7 +304,7 @@ public class HierarchyPanel extends EditorPanel {
                 prefabEditController.saveAndExit();
             }
             if (isDirty) {
-                ImGui.popStyleColor(2);
+                EditorColors.popButtonColors();
             }
 
             // Revert all (disabled when clean)
@@ -316,12 +316,11 @@ public class HierarchyPanel extends EditorPanel {
 
             // Exit
             ImGui.sameLine();
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.6f, 0.2f, 0.2f, 1f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.7f, 0.3f, 0.3f, 1f);
+            EditorColors.pushDangerButton();
             if (ImGui.button(MaterialIcons.ExitToApp + " Exit", halfWidth, 0)) {
                 prefabEditController.requestExit(null);
             }
-            ImGui.popStyleColor(2);
+            EditorColors.popButtonColors();
         }
         ImGui.endChild();
         ImGui.popStyleColor();

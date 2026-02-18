@@ -2407,7 +2407,7 @@
           "type": "com.pocket.rpg.components.ui.UITransform",
           "properties": {
             "localPosition": {
-              "x": 16.0,
+              "x": 50.0,
               "y": 0.0,
               "z": 0.0
             },
@@ -3326,6 +3326,7 @@
             "interactFrom": [
               "DOWN"
             ],
+            "hasConditionalDialogues": false,
             "conditionalDialogues": [
               {
                 "conditions": [
@@ -3339,6 +3340,13 @@
             ],
             "dialogue": "com.pocket.rpg.dialogue.Dialogue:dialogues/npc_greeting.dialogue.json",
             "variables": {}
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.dialogue.DialogueEventListener",
+          "properties": {
+            "eventName": "HEARD_CAVE_RUMOR",
+            "reaction": "DISABLE_GAME_OBJECT"
           }
         }
       ]

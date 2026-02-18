@@ -8,6 +8,7 @@ import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.SetPrefabMetadataCommand;
 import com.pocket.rpg.prefab.JsonPrefab;
+import com.pocket.rpg.editor.core.EditorColors;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.type.ImString;
@@ -122,7 +123,7 @@ public class PrefabInspector {
                     || (scale.x != 1 || scale.y != 1 || scale.z != 1);
             if (nonOrigin) {
                 ImGui.spacing();
-                ImGui.pushStyleColor(ImGuiCol.Text, 1.0f, 0.8f, 0.2f, 1.0f);
+                ImGui.pushStyleColor(ImGuiCol.Text, EditorColors.WARNING[0], EditorColors.WARNING[1], EditorColors.WARNING[2], EditorColors.WARNING[3]);
                 ImGui.textWrapped(MaterialIcons.Warning + " Non-origin default transform values will affect all instances without overrides");
                 ImGui.popStyleColor();
             }

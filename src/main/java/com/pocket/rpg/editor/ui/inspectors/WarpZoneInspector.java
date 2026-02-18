@@ -5,6 +5,7 @@ import com.pocket.rpg.components.interaction.WarpZone;
 import com.pocket.rpg.config.ConfigLoader;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.config.TransitionEntry;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.ui.fields.FieldEditorContext;
@@ -322,9 +323,9 @@ public class WarpZoneInspector extends CustomComponentInspector<WarpZone> {
 
         // Warning text
         if (isMissing) {
-            ImGui.textColored(1.0f, 0.8f, 0.2f, 1.0f, "Spawn point required");
+            EditorColors.textColored(EditorColors.WARNING, "Spawn point required");
         } else if (isBroken) {
-            ImGui.textColored(1.0f, 0.8f, 0.2f, 1.0f, "Spawn point '" + currentSpawn + "' not found");
+            EditorColors.textColored(EditorColors.WARNING, "Spawn point '" + currentSpawn + "' not found");
         }
 
         return changed[0];
@@ -342,13 +343,13 @@ public class WarpZoneInspector extends CustomComponentInspector<WarpZone> {
             if (hasSpawn) {
                 ImGui.text("  Same scene -> " + targetSpawn);
             } else {
-                ImGui.textColored(1.0f, 0.5f, 0.2f, 1.0f, "  (incomplete - select spawn point)");
+                EditorColors.textColored(EditorColors.WARNING, "  (incomplete - select spawn point)");
             }
         } else {
             if (hasSpawn) {
                 ImGui.text("  " + targetScene + " -> " + targetSpawn);
             } else {
-                ImGui.textColored(1.0f, 0.5f, 0.2f, 1.0f, "  " + targetScene + " -> (select spawn point)");
+                EditorColors.textColored(EditorColors.WARNING, "  " + targetScene + " -> (select spawn point)");
             }
         }
     }

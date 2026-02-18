@@ -1,6 +1,7 @@
 package com.pocket.rpg.editor.panels.inspector;
 
 import com.pocket.rpg.editor.assets.AssetPreviewRegistry;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.events.EditorEventBus;
 import com.pocket.rpg.editor.events.OpenSpriteEditorEvent;
@@ -171,7 +172,7 @@ public class SpriteInspectorRenderer implements AssetInspectorRenderer<Sprite> {
         if (cachedMetadata == null || cachedMetadata.isSingle()) {
             ImGui.text("Single");
         } else {
-            ImGui.textColored(0.4f, 0.8f, 1.0f, 1.0f, "Multiple");
+            EditorColors.textColored(EditorColors.INFO, "Multiple");
         }
     }
 

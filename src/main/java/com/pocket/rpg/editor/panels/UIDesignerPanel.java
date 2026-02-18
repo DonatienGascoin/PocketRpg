@@ -6,6 +6,7 @@ import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.core.window.ViewportConfig;
 import com.pocket.rpg.editor.EditorContext;
 import com.pocket.rpg.editor.camera.PreviewCamera;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.uidesigner.*;
 import com.pocket.rpg.editor.rendering.EditorFramebuffer;
@@ -21,7 +22,6 @@ import com.pocket.rpg.rendering.targets.FramebufferTarget;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
-import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiWindowFlags;
 import lombok.Setter;
 import org.joml.Vector4f;
@@ -164,14 +164,13 @@ public class UIDesignerPanel {
         // Snap button with icon and green highlight when active
         boolean snapEnabled = state.isSnapEnabled();
         if (snapEnabled) {
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.2f, 0.6f, 0.2f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.3f, 0.7f, 0.3f, 1.0f);
+            EditorColors.pushSuccessButton();
         }
         if (ImGui.button(MaterialIcons.Anchor + " Snap")) {
             state.setSnapEnabled(!snapEnabled);
         }
         if (snapEnabled) {
-            ImGui.popStyleColor(2);
+            EditorColors.popButtonColors();
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("Toggle snap to edges");
@@ -182,14 +181,13 @@ public class UIDesignerPanel {
         // Anchor Lines button with icon and green highlight when active
         boolean showAnchorLines = state.isShowAnchorLines();
         if (showAnchorLines) {
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.2f, 0.6f, 0.2f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.3f, 0.7f, 0.3f, 1.0f);
+            EditorColors.pushSuccessButton();
         }
         if (ImGui.button(MaterialIcons.AccountTree + " Anchors")) {
             state.setShowAnchorLines(!showAnchorLines);
         }
         if (showAnchorLines) {
-            ImGui.popStyleColor(2);
+            EditorColors.popButtonColors();
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("Toggle anchor lines visibility");

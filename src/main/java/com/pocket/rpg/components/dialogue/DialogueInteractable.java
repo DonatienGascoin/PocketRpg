@@ -31,12 +31,9 @@ import java.util.Map;
  * by default, the player must approach from below ({@code interactFrom = [DOWN]}).
  * Set {@code directionalInteraction = false} to allow interaction from any direction.
  * <p>
- * <b>Planned improvement:</b> Add a {@code hasConditionalDialogues} toggle
- * (similar to {@code DialogueChoiceGroup.hasChoices}). When disabled, the
- * {@code conditionalDialogues} list is hidden in the inspector, keeping the
- * UI clean for simple NPCs. This requires a custom inspector
- * ({@code DialogueInteractableInspector}) that shows/hides the conditional
- * section based on the toggle.
+ * When {@link #hasConditionalDialogues} is false (the default), the
+ * conditional dialogues list is hidden in the inspector, keeping the UI
+ * clean for simple NPCs. Toggle it on to reveal the conditional section.
  * <p>
  * Design ref: §6 — DialogueComponent
  */
@@ -49,7 +46,11 @@ public class DialogueInteractable extends InteractableComponent {
     // SERIALIZED FIELDS
     // ========================================================================
 
-    /** Ordered conditional dialogues — first match wins. */
+    /** Whether conditional dialogue selection is enabled. When false, only the default dialogue is used. */
+    @Getter @Setter
+    private boolean hasConditionalDialogues = false;
+
+    /** Ordered conditional dialogues — first match wins. Only evaluated when {@link #hasConditionalDialogues} is true. */
     @Getter @Setter
     private List<ConditionalDialogue> conditionalDialogues = new ArrayList<>();
 
@@ -121,11 +122,13 @@ public class DialogueInteractable extends InteractableComponent {
      * Falls back to the default {@link #dialogue} if none match.
      */
     Dialogue selectDialogue() {
-        for (ConditionalDialogue cd : conditionalDialogues) {
-            if (cd.allConditionsMet()) {
-                Dialogue d = cd.getDialogue();
-                if (d != null) {
-                    return d;
+        if (hasConditionalDialogues) {
+            for (ConditionalDialogue cd : conditionalDialogues) {
+                if (cd.allConditionsMet()) {
+                    Dialogue d = cd.getDialogue();
+                    if (d != null) {
+                        return d;
+                    }
                 }
             }
         }

@@ -39,6 +39,7 @@ import com.pocket.rpg.prefab.PrefabRegistry;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.resources.ErrorMode;
 import com.pocket.rpg.serialization.Serializer;
+import com.pocket.rpg.editor.core.EditorColors;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiConfigFlags;
@@ -577,14 +578,13 @@ public class EditorApplication {
             
             ImGui.text("Scene '" + scene.getName() + "' has unsaved changes.");
             ImGui.spacing();
-            ImGui.textColored(1.0f, 0.8f, 0.2f, 1.0f, "Do you want to save before exiting?");
+            EditorColors.textColored(EditorColors.WARNING, "Do you want to save before exiting?");
             ImGui.spacing();
             ImGui.separator();
             ImGui.spacing();
 
             // Save and Exit
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.2f, 0.6f, 0.2f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.3f, 0.7f, 0.3f, 1.0f);
+            EditorColors.pushSuccessButton();
             if (ImGui.button("Save and Exit", 120, 0)) {
                 sceneController.saveScene();
                 context.requestExit();
@@ -592,20 +592,19 @@ public class EditorApplication {
                 exitRequested = false;
                 ImGui.closeCurrentPopup();
             }
-            ImGui.popStyleColor(2);
+            EditorColors.popButtonColors();
 
             ImGui.sameLine();
 
             // Exit without Saving
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.6f, 0.2f, 0.2f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.7f, 0.3f, 0.3f, 1.0f);
+            EditorColors.pushDangerButton();
             if (ImGui.button("Exit without Saving", 160, 0)) {
                 context.requestExit();
                 showExitConfirmation = false;
                 exitRequested = false;
                 ImGui.closeCurrentPopup();
             }
-            ImGui.popStyleColor(2);
+            EditorColors.popButtonColors();
 
             ImGui.sameLine();
 

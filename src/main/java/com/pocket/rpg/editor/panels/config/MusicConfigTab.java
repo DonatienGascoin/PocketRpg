@@ -3,6 +3,7 @@ package com.pocket.rpg.editor.panels.config;
 import com.pocket.rpg.audio.clips.AudioClip;
 import com.pocket.rpg.audio.music.MusicConfig;
 import com.pocket.rpg.audio.music.MusicConfig.SceneMusicEntry;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.AssetPickerPopup;
 import com.pocket.rpg.editor.ui.fields.AudioClipFieldEditor;
@@ -12,7 +13,6 @@ import com.pocket.rpg.editor.undo.commands.SetterUndoCommand;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.serialization.SceneData;
 import imgui.ImGui;
-import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImInt;
 
@@ -121,7 +121,7 @@ public class MusicConfigTab implements ConfigTab {
             // Reserve space for clear button + spacing
             float buttonWidth = ImGui.calcTextSize(MaterialIcons.Clear).x + ImGui.getStyle().getFramePaddingX() * 2 + 8;
             String truncated = truncateForButton(displayName, buttonWidth);
-            ImGui.textColored(0.6f, 0.9f, 0.6f, 1.0f, truncated);
+            EditorColors.textColored(EditorColors.SUCCESS, truncated);
             if (!truncated.equals(displayName) && ImGui.isItemHovered()) {
                 ImGui.setTooltip(displayName);
             }
@@ -168,11 +168,11 @@ public class MusicConfigTab implements ConfigTab {
 
             // Remove button on same line
             ImGui.sameLine(ImGui.getContentRegionAvailX() - 25);
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.6f, 0.2f, 0.2f, 1.0f);
+            EditorColors.pushDangerButton();
             if (ImGui.smallButton(MaterialIcons.Delete + "##removeEntry")) {
                 indexToRemove = i;
             }
-            ImGui.popStyleColor();
+            EditorColors.popButtonColors();
 
             if (nodeOpen) {
                 // Scene picker
@@ -346,7 +346,7 @@ public class MusicConfigTab implements ConfigTab {
             float buttonWidth = ImGui.calcTextSize(MaterialIcons.Clear).x + ImGui.getStyle().getFramePaddingX() * 2 + 8;
             if (trackPath != null && !trackPath.isEmpty()) {
                 String truncated = truncateForButton(displayName, buttonWidth);
-                ImGui.textColored(0.6f, 0.9f, 0.6f, 1.0f, truncated);
+                EditorColors.textColored(EditorColors.SUCCESS, truncated);
                 if (!truncated.equals(displayName) && ImGui.isItemHovered()) {
                     ImGui.setTooltip(displayName);
                 }

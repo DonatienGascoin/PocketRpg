@@ -3,10 +3,10 @@ package com.pocket.rpg.editor.ui.inspectors;
 import com.pocket.rpg.collision.ElevationLevel;
 import com.pocket.rpg.collision.trigger.TileCoord;
 import com.pocket.rpg.components.interaction.StaticOccupant;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
 import imgui.ImGui;
-import imgui.flag.ImGuiCol;
 import org.joml.Vector3f;
 
 /**
@@ -139,19 +139,15 @@ public class StaticOccupantInspector extends CustomComponentInspector<StaticOccu
         int h = component.getHeight();
         int elev = component.getElevation();
 
-        ImGui.pushStyleColor(ImGuiCol.Text, 0.6f, 0.8f, 1.0f, 1.0f);
-
         if (w == 1 && h == 1) {
             // Single tile - simple display
-            ImGui.text("  " + MaterialIcons.Block + " (" + baseX + ", " + baseY + ") elev=" + elev);
+            EditorColors.textColored(EditorColors.INFO, "  " + MaterialIcons.Block + " (" + baseX + ", " + baseY + ") elev=" + elev);
         } else {
             // Multi-tile - show range
             int endX = baseX + w - 1;
             int endY = baseY + h - 1;
-            ImGui.text("  " + MaterialIcons.Block + " (" + baseX + ", " + baseY + ") to (" + endX + ", " + endY + ")");
-            ImGui.text("  " + w * h + " tiles at elev=" + elev);
+            EditorColors.textColored(EditorColors.INFO, "  " + MaterialIcons.Block + " (" + baseX + ", " + baseY + ") to (" + endX + ", " + endY + ")");
+            EditorColors.textColored(EditorColors.INFO, "  " + w * h + " tiles at elev=" + elev);
         }
-
-        ImGui.popStyleColor();
     }
 }

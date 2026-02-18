@@ -3,6 +3,7 @@ package com.pocket.rpg.editor.panels.config;
 import com.pocket.rpg.config.ConfigLoader;
 import com.pocket.rpg.config.InputConfig;
 import com.pocket.rpg.editor.EditorContext;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.input.AxisConfig;
 import com.pocket.rpg.input.AxisType;
@@ -212,7 +213,7 @@ public class InputConfigTab implements ConfigTab {
     private void renderAxisConfig(AxisConfig config) {
         ImGui.text("Type: ");
         ImGui.sameLine();
-        ImGui.textColored(0.5f, 0.8f, 1.0f, 1.0f, config.type().name());
+        EditorColors.textColored(EditorColors.INFO, config.type().name());
 
         switch (config.type()) {
             case KEYBOARD -> renderKeyboardAxisConfig(config);
@@ -276,19 +277,19 @@ public class InputConfigTab implements ConfigTab {
         if (config.gamepadAxis() != null) {
             ImGui.text("Analog Axis: ");
             ImGui.sameLine();
-            ImGui.textColored(0.8f, 0.8f, 0.2f, 1.0f, config.gamepadAxis().name());
+            EditorColors.textColored(EditorColors.WARNING, config.gamepadAxis().name());
         }
 
         if (config.positiveButton() != null) {
             ImGui.text("Positive Button: ");
             ImGui.sameLine();
-            ImGui.textColored(0.8f, 0.8f, 0.2f, 1.0f, config.positiveButton().name());
+            EditorColors.textColored(EditorColors.WARNING, config.positiveButton().name());
         }
 
         if (config.negativeButton() != null) {
             ImGui.text("Negative Button: ");
             ImGui.sameLine();
-            ImGui.textColored(0.8f, 0.8f, 0.2f, 1.0f, config.negativeButton().name());
+            EditorColors.textColored(EditorColors.WARNING, config.negativeButton().name());
         }
 
         ImGui.unindent();

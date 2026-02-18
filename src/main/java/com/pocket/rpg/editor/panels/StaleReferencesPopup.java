@@ -1,7 +1,7 @@
 package com.pocket.rpg.editor.panels;
 
+import com.pocket.rpg.editor.core.EditorColors;
 import imgui.ImGui;
-import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiWindowFlags;
 
@@ -63,21 +63,17 @@ public class StaleReferencesPopup {
             ImGui.spacing();
 
             // "Don't Save" button (red)
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.6f, 0.2f, 0.2f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.7f, 0.3f, 0.3f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.5f, 0.15f, 0.15f, 1.0f);
+            EditorColors.pushDangerButton();
             if (ImGui.button("Don't Save", 120, 0)) {
                 showPopup = false;
                 ImGui.closeCurrentPopup();
             }
-            ImGui.popStyleColor(3);
+            EditorColors.popButtonColors();
 
             ImGui.sameLine();
 
             // "Save" button (green)
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.2f, 0.6f, 0.2f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.3f, 0.7f, 0.3f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.15f, 0.5f, 0.15f, 1.0f);
+            EditorColors.pushSuccessButton();
             if (ImGui.button("Save", 120, 0)) {
                 if (onSave != null) {
                     onSave.run();
@@ -85,7 +81,7 @@ public class StaleReferencesPopup {
                 showPopup = false;
                 ImGui.closeCurrentPopup();
             }
-            ImGui.popStyleColor(3);
+            EditorColors.popButtonColors();
 
             ImGui.endPopup();
         }

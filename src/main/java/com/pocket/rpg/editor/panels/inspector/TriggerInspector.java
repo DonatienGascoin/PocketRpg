@@ -7,6 +7,7 @@ import com.pocket.rpg.collision.trigger.*;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
+import com.pocket.rpg.editor.core.EditorColors;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import lombok.Setter;
@@ -115,7 +116,7 @@ public class TriggerInspector {
             List<String> errors = currentData.validate();
             if (!errors.isEmpty()) {
                 ImGui.spacing();
-                ImGui.pushStyleColor(ImGuiCol.Text, 1.0f, 0.5f, 0.2f, 1.0f);
+                ImGui.pushStyleColor(ImGuiCol.Text, EditorColors.WARNING[0], EditorColors.WARNING[1], EditorColors.WARNING[2], EditorColors.WARNING[3]);
                 for (String error : errors) {
                     ImGui.text(MaterialIcons.Warning + " " + error);
                 }
@@ -123,7 +124,7 @@ public class TriggerInspector {
             }
         } else {
             ImGui.spacing();
-            ImGui.pushStyleColor(ImGuiCol.Text, 1.0f, 0.5f, 0.2f, 1.0f);
+            ImGui.pushStyleColor(ImGuiCol.Text, EditorColors.WARNING[0], EditorColors.WARNING[1], EditorColors.WARNING[2], EditorColors.WARNING[3]);
             ImGui.text(MaterialIcons.Warning + " Not configured");
             ImGui.text("Fill in the fields below.");
             ImGui.popStyleColor();
@@ -133,7 +134,7 @@ public class TriggerInspector {
     // ========== STAIRS ==========
 
     private void renderStairsExplanation() {
-        ImGui.pushStyleColor(ImGuiCol.Text, 0.7f, 0.7f, 0.7f, 1.0f);
+        ImGui.pushStyleColor(ImGuiCol.Text, EditorColors.DISABLED_TEXT[0], EditorColors.DISABLED_TEXT[1], EditorColors.DISABLED_TEXT[2], EditorColors.DISABLED_TEXT[3]);
         ImGui.textWrapped("Stairs change elevation based on exit direction. " +
                 "Configure which direction(s) change elevation and by how much. " +
                 "Triggers on tile EXIT, not enter - making stairs naturally bidirectional.");
@@ -256,13 +257,11 @@ public class TriggerInspector {
 
         ImGui.sameLine();
 
-        ImGui.pushStyleColor(ImGuiCol.Button, 0.6f, 0.2f, 0.2f, 1.0f);
-        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.7f, 0.3f, 0.3f, 1.0f);
-        ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.5f, 0.15f, 0.15f, 1.0f);
+        EditorColors.pushDangerButton();
         if (ImGui.button("Delete", -1, 0)) {
             ImGui.openPopup("ConfirmDeleteTrigger");
         }
-        ImGui.popStyleColor(3);
+        EditorColors.popButtonColors();
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("Remove tile completely");
         }

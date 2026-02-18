@@ -11,6 +11,7 @@ import com.pocket.rpg.editor.rendering.CameraOverlayRenderer;
 import com.pocket.rpg.editor.rendering.CollisionOverlayRenderer;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.UIEntityFactory;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.core.MavenCompiler;
 import com.pocket.rpg.editor.ui.*;
@@ -230,6 +231,13 @@ public class EditorUIController {
         EditorEventBus.get().subscribe(OpenAnimationEditorEvent.class, event -> {
             if (event.animationPath() != null) {
                 animationEditorPanel.selectAnimationByPath(event.animationPath());
+            }
+        });
+
+        // Subscribe to open dialogue editor events (from inspector "Open in Dialogue Editor" button)
+        EditorEventBus.get().subscribe(OpenDialogueEditorEvent.class, event -> {
+            if (event.dialoguePath() != null) {
+                dialogueEditorPanel.selectDialogueByPath(event.dialoguePath());
             }
         });
 
@@ -533,9 +541,7 @@ public class EditorUIController {
         // Play button - active styling when playing, disabled when already playing or editing prefab
         boolean playDisabled = isPlaying || prefabEditActive;
         if (isPlaying) {
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.2f, 0.5f, 0.2f, 1f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.2f, 0.5f, 0.2f, 1f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.2f, 0.5f, 0.2f, 1f);
+            EditorColors.pushSuccessButton();
         }
         if (playDisabled) {
             ImGui.beginDisabled();
@@ -552,7 +558,7 @@ public class EditorUIController {
             ImGui.endDisabled();
         }
         if (isPlaying) {
-            ImGui.popStyleColor(3);
+            EditorColors.popButtonColors();
         }
         if (ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled)) {
             String tooltip = isPlaying ? "Playing" : (prefabEditActive ? "Exit prefab edit to play" : (isPaused ? "Resume" : "Play"));
@@ -563,9 +569,7 @@ public class EditorUIController {
 
         // Pause button - active styling when paused, disabled when stopped or paused
         if (isPaused) {
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.6f, 0.5f, 0.2f, 1f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.6f, 0.5f, 0.2f, 1f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.6f, 0.5f, 0.2f, 1f);
+            EditorColors.pushWarningButton();
         }
         if (isStopped || isPaused) {
             ImGui.beginDisabled();
@@ -577,7 +581,7 @@ public class EditorUIController {
             ImGui.endDisabled();
         }
         if (isPaused) {
-            ImGui.popStyleColor(3);
+            EditorColors.popButtonColors();
         }
         if (ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled)) {
             ImGui.setTooltip(isPaused ? "Paused" : "Pause");
@@ -713,7 +717,7 @@ public class EditorUIController {
             ImGui.setCursorPosX(ImGui.getCursorPosX() + availableWidth - textWidth - padding);
 
             if (prefabDirty) {
-                ImGui.textColored(0.0f, 0.8f, 0.8f, 1.0f, title);  // Teal for prefab
+                EditorColors.textColored(EditorColors.PREFAB, title);
             } else {
                 ImGui.textDisabled(title);
             }
@@ -732,7 +736,7 @@ public class EditorUIController {
         ImGui.setCursorPosX(ImGui.getCursorPosX() + availableWidth - textWidth - padding);
 
         if (scene.isDirty()) {
-            ImGui.textColored(1.0f, 0.8f, 0.2f, 1.0f, sceneName);
+            EditorColors.textColored(EditorColors.WARNING, sceneName);
         } else {
             ImGui.textDisabled(sceneName);
         }

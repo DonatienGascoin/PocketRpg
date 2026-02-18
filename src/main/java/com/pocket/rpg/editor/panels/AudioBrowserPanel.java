@@ -3,6 +3,7 @@ package com.pocket.rpg.editor.panels;
 import com.pocket.rpg.audio.clips.AudioClip;
 import com.pocket.rpg.audio.editor.EditorAudio;
 import com.pocket.rpg.audio.sources.AudioHandle;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.resources.Assets;
 import imgui.ImGui;
@@ -106,7 +107,7 @@ public class AudioBrowserPanel extends EditorPanel {
 
                 // Highlight playing items
                 if (isPlaying) {
-                    ImGui.pushStyleColor(ImGuiCol.Text, 0.4f, 0.8f, 0.4f, 1.0f);
+                    ImGui.pushStyleColor(ImGuiCol.Text, EditorColors.SUCCESS[0], EditorColors.SUCCESS[1], EditorColors.SUCCESS[2], EditorColors.SUCCESS[3]);
                 }
 
                 if (ImGui.selectable(icon + " " + getDisplayName(path), isSelected, ImGuiSelectableFlags.SpanAllColumns)) {
@@ -145,31 +146,27 @@ public class AudioBrowserPanel extends EditorPanel {
 
         // Selected file info
         if (selectedClip != null) {
-            ImGui.textColored(0.6f, 0.9f, 0.6f, 1.0f, getDisplayName(selectedPath));
+            EditorColors.textColored(EditorColors.SUCCESS, getDisplayName(selectedPath));
 
             boolean isPlaying = EditorAudio.isPreviewingClip(selectedClip);
 
             // Play/Stop buttons
             if (isPlaying) {
-                ImGui.pushStyleColor(ImGuiCol.Button, 0.8f, 0.3f, 0.3f, 1.0f);
-                ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.9f, 0.4f, 0.4f, 1.0f);
-                ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.7f, 0.2f, 0.2f, 1.0f);
+                EditorColors.pushDangerButton();
 
                 if (ImGui.button(MaterialIcons.Stop + " Stop", 80, 0)) {
                     EditorAudio.stopPreview(selectedClip);
                 }
 
-                ImGui.popStyleColor(3);
+                EditorColors.popButtonColors();
             } else {
-                ImGui.pushStyleColor(ImGuiCol.Button, 0.3f, 0.6f, 0.3f, 1.0f);
-                ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.4f, 0.7f, 0.4f, 1.0f);
-                ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.2f, 0.5f, 0.2f, 1.0f);
+                EditorColors.pushSuccessButton();
 
                 if (ImGui.button(MaterialIcons.PlayArrow + " Play", 80, 0)) {
                     playSelected();
                 }
 
-                ImGui.popStyleColor(3);
+                EditorColors.popButtonColors();
             }
 
             // Playback progress

@@ -8,6 +8,7 @@ import com.pocket.rpg.editor.undo.commands.SetComponentFieldCommand;
 import com.pocket.rpg.editor.undo.commands.SetterUndoCommand;
 import com.pocket.rpg.editor.events.AssetFocusRequestEvent;
 import com.pocket.rpg.editor.events.EditorEventBus;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import imgui.ImGui;
@@ -180,7 +181,7 @@ public final class AssetEditor {
                     ImGui.getCursorScreenPosY() + ImGui.getTextLineHeight()
             );
             if (hovered) {
-                ImGui.textColored(0.7f, 1.0f, 0.7f, 1.0f, truncated);
+                EditorColors.textColored(EditorColors.SUCCESS, truncated);
                 ImGui.setMouseCursor(ImGuiMouseCursor.Hand);
                 // Underline
                 var min = ImGui.getItemRectMin();
@@ -188,7 +189,7 @@ public final class AssetEditor {
                 ImGui.getWindowDrawList().addLine(min.x, max.y, max.x, max.y,
                         ImGui.getColorU32(0.7f, 1.0f, 0.7f, 1.0f));
             } else {
-                ImGui.textColored(0.6f, 0.9f, 0.6f, 1.0f, truncated);
+                EditorColors.textColored(EditorColors.SUCCESS, truncated);
             }
             if (ImGui.isItemClicked()) {
                 String path = Assets.getPathForResource(value);

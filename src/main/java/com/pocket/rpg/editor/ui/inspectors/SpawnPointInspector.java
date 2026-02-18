@@ -5,6 +5,7 @@ import com.pocket.rpg.components.interaction.CameraBoundsZone;
 import com.pocket.rpg.components.interaction.SpawnPoint;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.ui.fields.FieldEditorContext;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
 import imgui.ImDrawList;
@@ -111,7 +112,7 @@ public class SpawnPointInspector extends CustomComponentInspector<SpawnPoint> {
 
         // Warning text
         if (isMissing) {
-            ImGui.textColored(1.0f, 0.8f, 0.2f, 1.0f, "Spawn ID required");
+            EditorColors.textColored(EditorColors.WARNING, "Spawn ID required");
         }
 
         return changed;
@@ -204,7 +205,7 @@ public class SpawnPointInspector extends CustomComponentInspector<SpawnPoint> {
 
         // Warning text for broken reference
         if (isBroken) {
-            ImGui.textColored(1.0f, 0.8f, 0.2f, 1.0f, "Bounds zone '" + currentId + "' not found");
+            EditorColors.textColored(EditorColors.WARNING, "Bounds zone '" + currentId + "' not found");
         }
 
         return changed[0];

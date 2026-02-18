@@ -1,6 +1,7 @@
 package com.pocket.rpg.editor.panels.dialogue;
 
 import com.pocket.rpg.dialogue.*;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import imgui.ImDrawList;
 import imgui.ImGui;
@@ -172,13 +173,11 @@ public class DialogueLinesEditor {
             // Red delete button (disabled if only one line)
             boolean canDelete = lineCount > 1;
             if (!canDelete) ImGui.beginDisabled();
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.6f, 0.2f, 0.2f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.7f, 0.3f, 0.3f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.8f, 0.2f, 0.2f, 1.0f);
+            EditorColors.pushDangerButton();
             if (ImGui.button(MaterialIcons.Close + "##del")) {
                 entryIndexToRemove = i;
             }
-            ImGui.popStyleColor(3);
+            EditorColors.popButtonColors();
             if (!canDelete) ImGui.endDisabled();
 
             // Expanded event ref editor

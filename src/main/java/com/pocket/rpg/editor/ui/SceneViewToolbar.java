@@ -3,6 +3,7 @@ package com.pocket.rpg.editor.ui;
 import com.pocket.rpg.editor.EditorContext;
 import com.pocket.rpg.editor.EditorSelectionManager;
 import com.pocket.rpg.editor.EditorToolController;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.events.EditorEventBus;
 import com.pocket.rpg.editor.events.PlayModeStartedEvent;
@@ -13,7 +14,6 @@ import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.tools.EditorTool;
 import com.pocket.rpg.editor.tools.ToolManager;
 import imgui.ImGui;
-import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiStyleVar;
 import lombok.Getter;
 import lombok.Setter;
@@ -124,9 +124,7 @@ public class SceneViewToolbar {
             ImGui.sameLine();
             ImGui.text("|");
             ImGui.sameLine();
-            ImGui.pushStyleColor(ImGuiCol.Text, 0.0f, 0.8f, 0.8f, 1f);
-            ImGui.text(MaterialIcons.Widgets + " " + prefabEditDisplayName);
-            ImGui.popStyleColor();
+            EditorColors.textColored(EditorColors.PREFAB, MaterialIcons.Widgets + " " + prefabEditDisplayName);
         }
 
         ImGui.popStyleVar(2);
@@ -208,9 +206,7 @@ public class SceneViewToolbar {
         if (!enabled) {
             ImGui.beginDisabled(true);
         } else if (isActive) {
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.3f, 0.6f, 1.0f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.4f, 0.7f, 1.0f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.2f, 0.5f, 0.9f, 1.0f);
+            EditorColors.pushInfoButton();
         }
 
         if (ImGui.button(def.icon + "##" + def.toolName)) {
@@ -237,7 +233,7 @@ public class SceneViewToolbar {
         if (!enabled) {
             ImGui.endDisabled();
         } else if (isActive) {
-            ImGui.popStyleColor(3);
+            EditorColors.popButtonColors();
         }
 
         if (ImGui.isItemHovered()) {
@@ -260,13 +256,13 @@ public class SceneViewToolbar {
 
         boolean gridActive = showGrid;
         if (gridActive) {
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.2f, 0.5f, 0.2f, 1.0f);
+            EditorColors.pushSuccessButton();
         }
         if (ImGui.button(MaterialIcons.GridOn + "##Grid")) {
             showGrid = !showGrid;
         }
         if (gridActive) {
-            ImGui.popStyleColor();
+            EditorColors.popButtonColors();
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("Toggle Grid");
@@ -276,7 +272,7 @@ public class SceneViewToolbar {
 
         boolean collisionVisible = scene != null && scene.isCollisionVisible();
         if (collisionVisible) {
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.5f, 0.2f, 0.2f, 1.0f);
+            EditorColors.pushDangerButton();
         }
         if (ImGui.button(MaterialIcons.BorderAll + "##Collision")) {
             if (scene != null) {
@@ -284,7 +280,7 @@ public class SceneViewToolbar {
             }
         }
         if (collisionVisible) {
-            ImGui.popStyleColor();
+            EditorColors.popButtonColors();
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("Toggle Collision Overlay");
@@ -295,18 +291,14 @@ public class SceneViewToolbar {
         // Gizmos toggle - blue when on, red when off
         boolean gizmosActive = showGizmos;
         if (gizmosActive) {
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.3f, 0.5f, 0.9f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.4f, 0.6f, 1.0f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.2f, 0.4f, 0.8f, 1.0f);
+            EditorColors.pushInfoButton();
         } else {
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.7f, 0.2f, 0.2f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.8f, 0.3f, 0.3f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.6f, 0.15f, 0.15f, 1.0f);
+            EditorColors.pushDangerButton();
         }
         if (ImGui.button(MaterialIcons.Visibility + "##Gizmos")) {
             showGizmos = !showGizmos;
         }
-        ImGui.popStyleColor(3);
+        EditorColors.popButtonColors();
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("Toggle Gizmos");
         }

@@ -13,6 +13,7 @@ import com.pocket.rpg.editor.events.AssetChangedEvent;
 import com.pocket.rpg.editor.events.EditorEventBus;
 import com.pocket.rpg.editor.PlayModeController.PlayState;
 import com.pocket.rpg.editor.camera.PreviewCamera;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.rendering.EditorFramebuffer;
 import com.pocket.rpg.editor.rendering.EditorUIBridge;
@@ -218,7 +219,7 @@ public class GameViewPanel {
             ImGui.sameLine();
 
             String stateText = state == PlayState.PLAYING ? "Playing" : "Paused";
-            ImGui.textColored(0.4f, 0.8f, 0.4f, 1.0f, stateText);
+            EditorColors.textColored(EditorColors.SUCCESS, stateText);
 
             // Transition debug button, audio mute, and post-fx toggle on far right
             ImGui.sameLine(ImGui.getWindowWidth() - ImGui.getStyle().getWindowPaddingX() - 200);
@@ -259,9 +260,7 @@ public class GameViewPanel {
 
         // Style muted button with red color
         if (wasMuted) {
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.8f, 0.3f, 0.3f, 1f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.9f, 0.4f, 0.4f, 1f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.7f, 0.2f, 0.2f, 1f);
+            EditorColors.pushDangerButton();
         }
 
         String icon = wasMuted ? MaterialIcons.VolumeOff : MaterialIcons.VolumeUp;
@@ -272,7 +271,7 @@ public class GameViewPanel {
 
         // Pop uses same captured state as push
         if (wasMuted) {
-            ImGui.popStyleColor(3);
+            EditorColors.popButtonColors();
         }
 
         if (ImGui.isItemHovered()) {
@@ -298,9 +297,9 @@ public class GameViewPanel {
     private void renderPostFxToggleButton() {
         // Color the button based on state
         if (postFxEnabled) {
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.2f, 0.6f, 0.2f, 1.0f);
+            EditorColors.pushSuccessButton();
         } else {
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.4f, 0.4f, 0.4f, 1.0f);
+            ImGui.pushStyleColor(ImGuiCol.Button, EditorColors.DISABLED_TEXT[0], EditorColors.DISABLED_TEXT[1], EditorColors.DISABLED_TEXT[2], 1.0f);
         }
 
         String icon = postFxEnabled ? MaterialIcons.AutoFixHigh : MaterialIcons.AutoFixOff;
@@ -310,7 +309,11 @@ public class GameViewPanel {
             markPreviewDirty();
         }
 
-        ImGui.popStyleColor();
+        if (postFxEnabled) {
+            EditorColors.popButtonColors();
+        } else {
+            ImGui.popStyleColor();
+        }
 
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(postFxEnabled ? "Post-Processing: ON\nClick to disable" : "Post-Processing: OFF\nClick to enable");
@@ -343,9 +346,9 @@ public class GameViewPanel {
         // Show progress inline if transitioning
         if (isTransitioning) {
             float progress = transitionManager.getProgress();
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.8f, 0.6f, 0.2f, 1.0f);
+            EditorColors.pushWarningButton();
             ImGui.button(MaterialIcons.SwapHoriz + " " + String.format("%.0f%%", progress * 100));
-            ImGui.popStyleColor();
+            EditorColors.popButtonColors();
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip("Transitioning to: " + transitionManager.getTargetScene());
             }

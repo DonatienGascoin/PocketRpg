@@ -1,9 +1,9 @@
 package com.pocket.rpg.editor.panels.dialogue;
 
 import com.pocket.rpg.dialogue.*;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import imgui.ImGui;
-import imgui.flag.ImGuiCol;
 
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -25,9 +25,7 @@ public final class DialogueValidation {
     // ========================================================================
 
     public static void renderWarning(String message) {
-        ImGui.pushStyleColor(ImGuiCol.Text, 1f, 0.7f, 0.2f, 1f);
-        ImGui.text(MaterialIcons.Warning + " " + message);
-        ImGui.popStyleColor();
+        EditorColors.textColored(EditorColors.WARNING, MaterialIcons.Warning + " " + message);
     }
 
     public static void renderLineValidationWarnings(DialogueLine line, Set<String> validVarNames) {

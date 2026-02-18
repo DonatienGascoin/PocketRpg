@@ -1,6 +1,7 @@
 package com.pocket.rpg.editor.panels;
 
 import com.pocket.rpg.editor.EditorContext;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.config.*;
 import com.pocket.rpg.editor.shortcut.KeyboardLayout;
@@ -181,7 +182,7 @@ public class ConfigurationPanel extends EditorPanel {
             float availWidth = ImGui.getContentRegionAvailX();
             float textWidth = ImGui.calcTextSize(MaterialIcons.FiberManualRecord + " Unsaved").x;
             ImGui.sameLine(ImGui.getCursorPosX() + availWidth - textWidth - 10);
-            ImGui.textColored(1.0f, 0.8f, 0.2f, 1.0f, MaterialIcons.FiberManualRecord + " Unsaved");
+            EditorColors.textColored(EditorColors.WARNING, MaterialIcons.FiberManualRecord + " Unsaved");
         }
     }
 

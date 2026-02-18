@@ -7,6 +7,7 @@ import com.pocket.rpg.components.ui.UIGridLayoutGroup;
 import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.config.ConfigLoader;
 import com.pocket.rpg.config.GameConfig;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.hierarchy.HierarchyItem;
 import com.pocket.rpg.editor.scene.EditorGameObject;
@@ -1090,8 +1091,8 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
 
                 // Highlight selected
                 if (isSelected) {
-                    ImGui.pushStyleColor(ImGuiCol.Button, 0.3f, 0.6f, 0.9f, 1.0f);
-                    ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.4f, 0.7f, 1.0f, 1.0f);
+                    ImGui.pushStyleColor(ImGuiCol.Button, EditorColors.INFO[0], EditorColors.INFO[1], EditorColors.INFO[2], EditorColors.INFO[3]);
+                    ImGui.pushStyleColor(ImGuiCol.ButtonHovered, EditorColors.INFO_HOVERED[0], EditorColors.INFO_HOVERED[1], EditorColors.INFO_HOVERED[2], EditorColors.INFO_HOVERED[3]);
                 }
 
                 ImGui.pushID(idx);

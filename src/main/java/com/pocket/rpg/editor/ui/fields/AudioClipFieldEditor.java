@@ -3,6 +3,7 @@ package com.pocket.rpg.editor.ui.fields;
 import com.pocket.rpg.audio.clips.AudioClip;
 import com.pocket.rpg.audio.editor.EditorAudio;
 import com.pocket.rpg.components.Component;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.undo.UndoManager;
@@ -11,7 +12,6 @@ import com.pocket.rpg.editor.undo.commands.SetterUndoCommand;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import imgui.ImGui;
-import imgui.flag.ImGuiCol;
 
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -131,11 +131,9 @@ public final class AudioClipFieldEditor {
     public static void drawPlayButton(AudioClip clip) {
         if (clip == null) {
             // Disabled play button when no clip
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.3f, 0.3f, 0.3f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.3f, 0.3f, 0.3f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.3f, 0.3f, 0.3f, 1.0f);
+            EditorColors.pushButtonColors(EditorColors.DISABLED_TEXT, EditorColors.DISABLED_TEXT, EditorColors.DISABLED_TEXT);
             ImGui.smallButton(MaterialIcons.PlayArrow);
-            ImGui.popStyleColor(3);
+            EditorColors.popButtonColors();
             return;
         }
 
@@ -143,26 +141,22 @@ public final class AudioClipFieldEditor {
 
         if (isPlaying) {
             // Stop button (red)
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.8f, 0.3f, 0.3f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.9f, 0.4f, 0.4f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.7f, 0.2f, 0.2f, 1.0f);
+            EditorColors.pushDangerButton();
 
             if (ImGui.smallButton(MaterialIcons.Stop)) {
                 EditorAudio.stopPreview(clip);
             }
 
-            ImGui.popStyleColor(3);
+            EditorColors.popButtonColors();
         } else {
             // Play button (green)
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.3f, 0.6f, 0.3f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.4f, 0.7f, 0.4f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.2f, 0.5f, 0.2f, 1.0f);
+            EditorColors.pushSuccessButton();
 
             if (ImGui.smallButton(MaterialIcons.PlayArrow)) {
                 EditorAudio.playPreview(clip);
             }
 
-            ImGui.popStyleColor(3);
+            EditorColors.popButtonColors();
         }
 
         // Tooltip with clip info

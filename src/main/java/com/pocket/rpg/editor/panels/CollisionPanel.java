@@ -11,6 +11,7 @@ import com.pocket.rpg.editor.panels.collision.TriggerListSection;
 import com.pocket.rpg.editor.panels.collisions.CollisionToolConfigView;
 import com.pocket.rpg.editor.panels.collisions.CollisionTypeSelector;
 import com.pocket.rpg.editor.scene.EditorScene;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.tools.*;
 import imgui.ImGui;
 import imgui.flag.ImGuiTableColumnFlags;
@@ -173,7 +174,7 @@ public class CollisionPanel extends EditorPanel {
      */
     private void renderSelectionWarning() {
         if (!canPaint()) {
-            ImGui.textColored(1.0f, 0.8f, 0.2f, 1.0f, "Select collision map to start painting");
+            EditorColors.textColored(EditorColors.WARNING, "Select collision map to start painting");
         }
     }
 

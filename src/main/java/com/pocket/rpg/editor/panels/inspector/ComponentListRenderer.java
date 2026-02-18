@@ -4,6 +4,7 @@ import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.RequiredComponent;
 import com.pocket.rpg.components.core.Transform;
 import com.pocket.rpg.components.ui.UITransform;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.ComponentBrowserPopup;
 import com.pocket.rpg.editor.scene.DirtyTracker;
@@ -149,9 +150,9 @@ public class ComponentListRenderer {
                             ImGui.setTooltip("Required by " + dependent);
                         }
                     } else {
-                        ImGui.pushStyleColor(ImGuiCol.Button, 0.5f, 0.2f, 0.2f, 1f);
+                        EditorColors.pushDangerButton();
                         if (ImGui.smallButton(MaterialIcons.Close + "##remove")) toRemove = comp;
-                        ImGui.popStyleColor();
+                        EditorColors.popButtonColors();
                         if (ImGui.isItemHovered()) ImGui.setTooltip("Remove component");
                     }
                 }
@@ -231,13 +232,12 @@ public class ComponentListRenderer {
             }
         } else if (isProblematic) {
             // Problematic transform - red button to indicate swap is recommended
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.7f, 0.2f, 0.2f, 1f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.8f, 0.3f, 0.3f, 1f);
+            EditorColors.pushDangerButton();
             if (ImGui.smallButton(MaterialIcons.SwapHoriz + "##swap")) {
                 UndoManager.getInstance().execute(new SwapTransformCommand(entity, toUITransform));
                 dirtyTracker.markDirty();
             }
-            ImGui.popStyleColor(2);
+            EditorColors.popButtonColors();
             if (ImGui.isItemHovered()) {
                 String targetType = toUITransform ? "UITransform" : "Transform";
                 ImGui.setTooltip("Swap to " + targetType + " (Recommended!)");

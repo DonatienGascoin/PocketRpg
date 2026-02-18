@@ -1,6 +1,8 @@
 package com.pocket.rpg.editor.panels.inspector;
 
 import com.pocket.rpg.animation.Animation;
+import com.pocket.rpg.dialogue.DialogueEvents;
+import com.pocket.rpg.dialogue.DialogueVariables;
 import com.pocket.rpg.rendering.resources.Sprite;
 
 import java.util.HashMap;
@@ -35,6 +37,8 @@ public final class AssetInspectorRegistry {
         // Register type-specific inspectors
         register(Sprite.class, new SpriteInspectorRenderer());
         register(Animation.class, new AnimationInspectorRenderer());
+        register(DialogueVariables.class, new DialogueVariablesInspectorRenderer());
+        register(DialogueEvents.class, new DialogueEventsInspectorRenderer());
     }
 
     private AssetInspectorRegistry() {
@@ -123,6 +127,24 @@ public final class AssetInspectorRegistry {
      */
     public static boolean hasUnsavedChanges() {
         return currentInspector != null && currentInspector.hasUnsavedChanges();
+    }
+
+    /**
+     * Delegates undo to the current inspector.
+     */
+    public static void undo() {
+        if (currentInspector != null) {
+            currentInspector.undo();
+        }
+    }
+
+    /**
+     * Delegates redo to the current inspector.
+     */
+    public static void redo() {
+        if (currentInspector != null) {
+            currentInspector.redo();
+        }
     }
 
     /**

@@ -3,6 +3,7 @@ package com.pocket.rpg.editor.panels;
 import com.pocket.rpg.audio.clips.AudioClip;
 import com.pocket.rpg.audio.editor.EditorAudio;
 import com.pocket.rpg.editor.assets.AssetPreviewRegistry;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.rendering.resources.SpriteGrid;
@@ -340,7 +341,7 @@ public class AssetPickerPopup {
             ImGui.text("Selected:");
             ImGui.sameLine();
             String displayPath = selectedPath != null ? selectedPath : "(none)";
-            ImGui.textColored(0.7f, 0.9f, 0.7f, 1f, displayPath);
+            EditorColors.textColored(EditorColors.SUCCESS, displayPath);
 
             ImGui.spacing();
 

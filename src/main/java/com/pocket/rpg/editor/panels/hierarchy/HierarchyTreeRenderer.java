@@ -17,6 +17,7 @@ import com.pocket.rpg.editor.undo.commands.ReparentEntityCommand;
 import com.pocket.rpg.editor.undo.commands.ToggleEntityEnabledCommand;
 import com.pocket.rpg.editor.utils.IconUtils;
 import com.pocket.rpg.prefab.Prefab;
+import com.pocket.rpg.editor.core.EditorColors;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiInputTextFlags;
@@ -114,7 +115,8 @@ public class HierarchyTreeRenderer {
 
         // Gray out entities that are disabled (own or via parent)
         if (hierarchicallyDisabled) {
-            ImGui.pushStyleColor(ImGuiCol.Text, 0.5f, 0.5f, 0.5f, 0.6f);
+            float[] disabledWithAlpha = EditorColors.withAlpha(EditorColors.DISABLED_TEXT, 0.6f);
+            ImGui.pushStyleColor(ImGuiCol.Text, disabledWithAlpha[0], disabledWithAlpha[1], disabledWithAlpha[2], disabledWithAlpha[3]);
         }
 
         boolean nodeOpen = ImGui.treeNodeEx("##entity_" + entity.getId(), flags, label);

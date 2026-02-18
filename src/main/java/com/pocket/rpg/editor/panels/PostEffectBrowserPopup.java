@@ -4,6 +4,7 @@ import com.pocket.rpg.editor.utils.FuzzyMatcher;
 import com.pocket.rpg.rendering.postfx.PostEffect;
 import com.pocket.rpg.rendering.postfx.PostEffectMeta;
 import com.pocket.rpg.rendering.postfx.PostEffectRegistry;
+import com.pocket.rpg.editor.core.EditorColors;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiInputTextFlags;
@@ -123,7 +124,7 @@ public class PostEffectBrowserPopup {
 
                 // Disabled style for non-instantiable effects
                 if (!canInstantiate) {
-                    ImGui.pushStyleColor(ImGuiCol.Text, 0.5f, 0.5f, 0.5f, 1.0f);
+                    ImGui.pushStyleColor(ImGuiCol.Text, EditorColors.DISABLED_TEXT[0], EditorColors.DISABLED_TEXT[1], EditorColors.DISABLED_TEXT[2], EditorColors.DISABLED_TEXT[3]);
                 }
 
                 // Focus first item when navigating from search
@@ -186,7 +187,7 @@ public class PostEffectBrowserPopup {
 
                 if (!meta.hasNoArgConstructor()) {
                     ImGui.spacing();
-                    ImGui.textColored(1.0f, 0.5f, 0.5f, 1.0f, "Requires parameters - not available");
+                    EditorColors.textColored(EditorColors.DANGER, "Requires parameters - not available");
                 }
             } else {
                 ImGui.textDisabled("Hover an effect to see its description");

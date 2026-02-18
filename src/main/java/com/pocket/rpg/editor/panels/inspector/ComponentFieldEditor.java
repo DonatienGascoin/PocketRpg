@@ -1,6 +1,7 @@
 package com.pocket.rpg.editor.panels.inspector;
 
 import com.pocket.rpg.components.Component;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.hierarchy.HierarchyItem;
 import com.pocket.rpg.editor.scene.DirtyTracker;
@@ -85,7 +86,7 @@ public class ComponentFieldEditor {
             boolean isOverridden = entity.isFieldOverridden(componentType, fieldName);
 
             ImGui.pushID(fieldName);
-            if (isOverridden) ImGui.pushStyleColor(ImGuiCol.Text, 0.4f, 0.8f, 1.0f, 1.0f);
+            if (isOverridden) ImGui.pushStyleColor(ImGuiCol.Text, EditorColors.PREFAB[0], EditorColors.PREFAB[1], EditorColors.PREFAB[2], EditorColors.PREFAB[3]);
 
             boolean fieldChanged = ReflectionFieldEditor.drawField(component, fieldMeta);
 

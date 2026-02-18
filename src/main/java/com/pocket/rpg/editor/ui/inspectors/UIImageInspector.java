@@ -3,6 +3,7 @@ package com.pocket.rpg.editor.ui.inspectors;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ui.UIImage;
 import com.pocket.rpg.components.ui.UITransform;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.ui.fields.EnumEditor;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
@@ -115,7 +116,7 @@ public class UIImageInspector extends CustomComponentInspector<UIImage> {
         Sprite sprite = component.getSprite();
         if (sprite != null && !sprite.hasNineSlice()) {
             ImGui.spacing();
-            ImGui.textColored(1.0f, 0.8f, 0.2f, 1.0f, MaterialIcons.Warning + " Sprite has no 9-slice data");
+            EditorColors.textColored(EditorColors.WARNING, MaterialIcons.Warning + " Sprite has no 9-slice data");
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip("Configure 9-slice borders in the Sprite Editor");
             }

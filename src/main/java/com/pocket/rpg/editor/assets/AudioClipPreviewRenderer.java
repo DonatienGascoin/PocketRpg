@@ -2,6 +2,7 @@ package com.pocket.rpg.editor.assets;
 
 import com.pocket.rpg.audio.clips.AudioClip;
 import com.pocket.rpg.audio.editor.EditorAudio;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
@@ -20,7 +21,7 @@ public class AudioClipPreviewRenderer implements AssetPreviewRenderer<AudioClip>
         }
 
         // Audio icon
-        ImGui.textColored(0.5f, 0.8f, 1.0f, 1.0f, MaterialIcons.AudioFile);
+        EditorColors.textColored(EditorColors.INFO, MaterialIcons.AudioFile);
 
         ImGui.spacing();
 
@@ -37,26 +38,22 @@ public class AudioClipPreviewRenderer implements AssetPreviewRenderer<AudioClip>
 
         if (isPlaying) {
             // Stop button (red)
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.8f, 0.3f, 0.3f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.9f, 0.4f, 0.4f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.7f, 0.2f, 0.2f, 1.0f);
+            EditorColors.pushDangerButton();
 
             if (ImGui.button(MaterialIcons.Stop + " Stop", buttonWidth, 0)) {
                 EditorAudio.stopPreview(clip);
             }
 
-            ImGui.popStyleColor(3);
+            EditorColors.popButtonColors();
         } else {
             // Play button (green)
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.3f, 0.6f, 0.3f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.4f, 0.7f, 0.4f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.2f, 0.5f, 0.2f, 1.0f);
+            EditorColors.pushSuccessButton();
 
             if (ImGui.button(MaterialIcons.PlayArrow + " Play", buttonWidth, 0)) {
                 EditorAudio.playPreview(clip);
             }
 
-            ImGui.popStyleColor(3);
+            EditorColors.popButtonColors();
         }
 
         ImGui.spacing();

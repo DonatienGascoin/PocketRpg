@@ -4,6 +4,7 @@ import com.pocket.rpg.collision.CollisionMap;
 import com.pocket.rpg.collision.CollisionType;
 import com.pocket.rpg.collision.ElevationLevel;
 import com.pocket.rpg.collision.trigger.*;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorScene;
 import imgui.ImGui;
@@ -88,9 +89,7 @@ public class TriggerListSection {
 
         // Header with warning if unconfigured
         if (unconfigured > 0) {
-            ImGui.pushStyleColor(ImGuiCol.Text, 1.0f, 0.6f, 0.2f, 1.0f);
-            ImGui.text(MaterialIcons.Warning + " Triggers (" + total + ")");
-            ImGui.popStyleColor();
+            EditorColors.textColored(EditorColors.WARNING, MaterialIcons.Warning + " Triggers (" + total + ")");
         } else {
             ImGui.text("Triggers (" + total + ")");
         }
@@ -132,9 +131,7 @@ public class TriggerListSection {
         // Show warning count if any
         long unconfigured = triggers.stream().filter(t -> t.data == null).count();
         if (unconfigured > 0) {
-            ImGui.pushStyleColor(ImGuiCol.Text, 1.0f, 0.6f, 0.2f, 1.0f);
-            ImGui.text(unconfigured + " need config");
-            ImGui.popStyleColor();
+            EditorColors.textColored(EditorColors.WARNING, unconfigured + " need config");
             ImGui.spacing();
         }
 
@@ -169,10 +166,10 @@ public class TriggerListSection {
 
         // Style entries - highlight selected and unconfigured
         if (isSelected) {
-            ImGui.pushStyleColor(ImGuiCol.Header, 0.3f, 0.5f, 0.7f, 1.0f);
+            ImGui.pushStyleColor(ImGuiCol.Header, EditorColors.INFO[0], EditorColors.INFO[1], EditorColors.INFO[2], EditorColors.INFO[3]);
         }
         if (!isConfigured) {
-            ImGui.pushStyleColor(ImGuiCol.Text, 1.0f, 0.6f, 0.2f, 1.0f);
+            ImGui.pushStyleColor(ImGuiCol.Text, EditorColors.WARNING[0], EditorColors.WARNING[1], EditorColors.WARNING[2], EditorColors.WARNING[3]);
         }
 
         // Selectable with fixed width (leaving room for button)
@@ -259,7 +256,7 @@ public class TriggerListSection {
             renderDataTooltip(entry);
         } else {
             ImGui.separator();
-            ImGui.pushStyleColor(ImGuiCol.Text, 1.0f, 0.5f, 0.2f, 1.0f);
+            ImGui.pushStyleColor(ImGuiCol.Text, EditorColors.WARNING[0], EditorColors.WARNING[1], EditorColors.WARNING[2], EditorColors.WARNING[3]);
             ImGui.text(MaterialIcons.Warning + " Not configured");
             ImGui.text("Select and configure in Inspector");
             ImGui.popStyleColor();

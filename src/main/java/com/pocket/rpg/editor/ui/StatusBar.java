@@ -2,6 +2,7 @@ package com.pocket.rpg.editor.ui;
 
 import com.pocket.rpg.editor.PrefabEditController;
 import com.pocket.rpg.editor.camera.EditorCamera;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.events.EditorEventBus;
 import com.pocket.rpg.editor.events.StatusMessageEvent;
@@ -148,10 +149,10 @@ public class StatusBar {
 
         String layerName = activeLayer.getName();
         if (activeLayer.isLocked()) {
-            ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f,
+            EditorColors.textColored(EditorColors.DISABLED_TEXT,
                     MaterialIcons.Lock + " Layer: " + layerName + " [Locked]");
         } else {
-            ImGui.textColored(0.6f, 0.8f, 1.0f, 1.0f,
+            EditorColors.textColored(EditorColors.INFO,
                     MaterialIcons.Layers + " Layer: " + layerName);
         }
     }
@@ -189,9 +190,9 @@ public class StatusBar {
 
             if (isDirty) {
                 if (isPrefabEdit) {
-                    ImGui.textColored(0.0f, 0.8f, 0.8f, 1.0f, text);  // Teal for prefab
+                    EditorColors.textColored(EditorColors.PREFAB, text);  // Teal for prefab
                 } else {
-                    ImGui.textColored(1.0f, 0.8f, 0.2f, 1.0f, text);  // Yellow for scene
+                    EditorColors.textColored(EditorColors.DIRTY, text);  // Amber for scene
                 }
             } else {
                 ImGui.textDisabled(text);

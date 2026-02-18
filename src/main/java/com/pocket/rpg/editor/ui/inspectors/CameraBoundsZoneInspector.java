@@ -1,6 +1,7 @@
 package com.pocket.rpg.editor.ui.inspectors;
 
 import com.pocket.rpg.components.interaction.CameraBoundsZone;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.events.EditorEventBus;
 import com.pocket.rpg.editor.events.ToggleBoundsZoneToolEvent;
@@ -10,7 +11,6 @@ import com.pocket.rpg.serialization.ComponentMeta;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import com.pocket.rpg.serialization.FieldMeta;
 import imgui.ImGui;
-import imgui.flag.ImGuiCol;
 
 import java.util.List;
 
@@ -55,7 +55,7 @@ public class CameraBoundsZoneInspector extends CustomComponentInspector<CameraBo
             try {
                 changed |= ReflectionFieldEditor.drawField(component, fieldMeta, editorEntity());
             } catch (Exception e) {
-                ImGui.textColored(1f, 0.3f, 0.3f, 1f, fieldMeta.name() + ": Error");
+                EditorColors.textColored(EditorColors.DANGER, fieldMeta.name() + ": Error");
             }
         }
 
@@ -66,9 +66,7 @@ public class CameraBoundsZoneInspector extends CustomComponentInspector<CameraBo
         boolean isActive = BoundsZoneTool.isToolActive();
 
         if (isActive) {
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.8f, 0.3f, 0.3f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.9f, 0.4f, 0.4f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.7f, 0.2f, 0.2f, 1.0f);
+            EditorColors.pushDangerButton();
         }
 
         String label = isActive
@@ -80,7 +78,7 @@ public class CameraBoundsZoneInspector extends CustomComponentInspector<CameraBo
         }
 
         if (isActive) {
-            ImGui.popStyleColor(3);
+            EditorColors.popButtonColors();
         }
 
         if (ImGui.isItemHovered()) {

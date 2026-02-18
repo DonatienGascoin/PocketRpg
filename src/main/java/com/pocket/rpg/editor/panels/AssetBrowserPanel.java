@@ -7,6 +7,7 @@ import com.pocket.rpg.editor.events.AssetChangedEvent;
 import com.pocket.rpg.editor.events.AssetFocusRequestEvent;
 import com.pocket.rpg.editor.events.EditorEventBus;
 import com.pocket.rpg.editor.assets.ThumbnailCache;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.EditorFonts;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.logging.Log;
@@ -610,8 +611,8 @@ public class AssetBrowserPanel extends EditorPanel {
 
         // Selection highlight for entire row
         if (isSelected) {
-            ImGui.pushStyleColor(ImGuiCol.Header, 0.3f, 0.6f, 1.0f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.HeaderHovered, 0.5f, 0.7f, 1.0f, 1.0f);
+            ImGui.pushStyleColor(ImGuiCol.Header, EditorColors.INFO[0], EditorColors.INFO[1], EditorColors.INFO[2], EditorColors.INFO[3]);
+            ImGui.pushStyleColor(ImGuiCol.HeaderHovered, EditorColors.INFO_HOVERED[0], EditorColors.INFO_HOVERED[1], EditorColors.INFO_HOVERED[2], EditorColors.INFO_HOVERED[3]);
         } else if (highlighted) {
             ImGui.pushStyleColor(ImGuiCol.Header, 1.0f, 0.8f, 0.2f, highlightAlpha * 0.5f);
             ImGui.pushStyleColor(ImGuiCol.HeaderHovered, 1.0f, 0.85f, 0.3f, highlightAlpha * 0.6f);
@@ -784,8 +785,8 @@ public class AssetBrowserPanel extends EditorPanel {
 
         // Selection highlight
         if (isSelected) {
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.3f, 0.6f, 1.0f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.5f, 0.7f, 1.0f, 1.0f);
+            ImGui.pushStyleColor(ImGuiCol.Button, EditorColors.INFO[0], EditorColors.INFO[1], EditorColors.INFO[2], EditorColors.INFO[3]);
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, EditorColors.INFO_HOVERED[0], EditorColors.INFO_HOVERED[1], EditorColors.INFO_HOVERED[2], EditorColors.INFO_HOVERED[3]);
         }
 
         boolean clicked = false;

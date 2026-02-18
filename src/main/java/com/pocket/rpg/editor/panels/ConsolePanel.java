@@ -1,12 +1,12 @@
 package com.pocket.rpg.editor.panels;
 
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.logging.Log;
 import com.pocket.rpg.logging.LogBuffer;
 import com.pocket.rpg.logging.LogEntry;
 import com.pocket.rpg.logging.LogLevel;
 import imgui.ImGui;
-import imgui.ImVec4;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiSelectableFlags;
 import imgui.flag.ImGuiWindowFlags;
@@ -30,13 +30,6 @@ import java.util.List;
 public class ConsolePanel extends EditorPanel {
 
     private static final String PANEL_ID = "console";
-
-    // Level colors
-    private static final ImVec4 COLOR_TRACE = new ImVec4(0.5f, 0.5f, 0.5f, 1.0f);
-    private static final ImVec4 COLOR_DEBUG = new ImVec4(0.4f, 0.8f, 1.0f, 1.0f);
-    private static final ImVec4 COLOR_INFO = new ImVec4(0.9f, 0.9f, 0.9f, 1.0f);
-    private static final ImVec4 COLOR_WARN = new ImVec4(1.0f, 0.85f, 0.2f, 1.0f);
-    private static final ImVec4 COLOR_ERROR = new ImVec4(1.0f, 0.4f, 0.4f, 1.0f);
 
     // Filter state
     private final ImString searchFilter = new ImString(256);
@@ -109,11 +102,11 @@ public class ConsolePanel extends EditorPanel {
 
                 // Message type filters
                 ImGui.textDisabled("Message Types:");
-                renderLevelMenuItem("Trace", showTrace, COLOR_TRACE);
-                renderLevelMenuItem("Debug", showDebug, COLOR_DEBUG);
-                renderLevelMenuItem("Info", showInfo, COLOR_INFO);
-                renderLevelMenuItem("Warning", showWarn, COLOR_WARN);
-                renderLevelMenuItem("Error", showError, COLOR_ERROR);
+                renderLevelMenuItem("Trace", showTrace, EditorColors.LOG_TRACE);
+                renderLevelMenuItem("Debug", showDebug, EditorColors.LOG_DEBUG);
+                renderLevelMenuItem("Info", showInfo, EditorColors.LOG_INFO);
+                renderLevelMenuItem("Warning", showWarn, EditorColors.LOG_WARN);
+                renderLevelMenuItem("Error", showError, EditorColors.LOG_ERROR);
 
                 ImGui.endMenu();
             }
@@ -121,11 +114,11 @@ public class ConsolePanel extends EditorPanel {
         }
     }
 
-    private void renderLevelMenuItem(String label, ImBoolean enabled, ImVec4 color) {
+    private void renderLevelMenuItem(String label, ImBoolean enabled, float[] color) {
         // Store state before widget to ensure push/pop match
         boolean wasEnabled = enabled.get();
         if (wasEnabled) {
-            ImGui.pushStyleColor(ImGuiCol.Text, color.x, color.y, color.z, color.w);
+            ImGui.pushStyleColor(ImGuiCol.Text, color[0], color[1], color[2], color[3]);
         }
         ImGui.menuItem(label, "", enabled);
         if (wasEnabled) {
@@ -206,7 +199,7 @@ public class ConsolePanel extends EditorPanel {
     }
 
     private void renderLogEntry(LogEntry entry) {
-        ImVec4 color = getLevelColor(entry.getLevel());
+        float[] color = getLevelColor(entry.getLevel());
         String icon = getLevelIcon(entry.getLevel());
 
         // Build display text
@@ -231,7 +224,7 @@ public class ConsolePanel extends EditorPanel {
         String displayText = sb.toString();
         String itemId = "log_" + entry.hashCode();
 
-        ImGui.pushStyleColor(ImGuiCol.Text, color.x, color.y, color.z, color.w);
+        ImGui.pushStyleColor(ImGuiCol.Text, color[0], color[1], color[2], color[3]);
 
         if (wordWrap.get()) {
             // Word wrap mode: use textWrapped with selection background
@@ -297,10 +290,10 @@ public class ConsolePanel extends EditorPanel {
         ImGui.beginChild("DetailPane", 0, height, true);
 
         if (selectedEntry != null) {
-            ImVec4 color = getLevelColor(selectedEntry.getLevel());
+            float[] color = getLevelColor(selectedEntry.getLevel());
 
             // Header
-            ImGui.textColored(color.x, color.y, color.z, color.w,
+            EditorColors.textColored(color,
                     getLevelIcon(selectedEntry.getLevel()) + " " + selectedEntry.getLevel().getLabel());
 
             ImGui.sameLine();
@@ -320,7 +313,7 @@ public class ConsolePanel extends EditorPanel {
             // Stack trace
             if (selectedEntry.getThrowable() != null) {
                 ImGui.separator();
-                ImGui.textColored(COLOR_ERROR.x, COLOR_ERROR.y, COLOR_ERROR.z, COLOR_ERROR.w, "Stack Trace:");
+                EditorColors.textColored(EditorColors.LOG_ERROR, "Stack Trace:");
                 ImGui.beginChild("StackTrace", 0, 0, false);
                 ImGui.textWrapped(getStackTrace(selectedEntry.getThrowable()));
                 ImGui.endChild();
@@ -330,13 +323,13 @@ public class ConsolePanel extends EditorPanel {
         ImGui.endChild();
     }
 
-    private ImVec4 getLevelColor(LogLevel level) {
+    private float[] getLevelColor(LogLevel level) {
         return switch (level) {
-            case TRACE -> COLOR_TRACE;
-            case DEBUG -> COLOR_DEBUG;
-            case INFO -> COLOR_INFO;
-            case WARN -> COLOR_WARN;
-            case ERROR -> COLOR_ERROR;
+            case TRACE -> EditorColors.LOG_TRACE;
+            case DEBUG -> EditorColors.LOG_DEBUG;
+            case INFO -> EditorColors.LOG_INFO;
+            case WARN -> EditorColors.LOG_WARN;
+            case ERROR -> EditorColors.LOG_ERROR;
         };
     }
 

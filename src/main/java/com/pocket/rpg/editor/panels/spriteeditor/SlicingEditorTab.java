@@ -3,8 +3,8 @@ package com.pocket.rpg.editor.panels.spriteeditor;
 import com.pocket.rpg.rendering.resources.Texture;
 import com.pocket.rpg.resources.SpriteMetadata;
 import com.pocket.rpg.resources.SpriteMetadata.GridSettings;
+import com.pocket.rpg.editor.core.EditorColors;
 import imgui.ImGui;
-import imgui.flag.ImGuiCol;
 import imgui.type.ImInt;
 
 /**
@@ -216,9 +216,7 @@ public class SlicingEditorTab {
         ImGui.text("Grid: " + cols + " x " + rows + " = " + total + " sprites");
 
         if (total == 0) {
-            ImGui.pushStyleColor(ImGuiCol.Text, 1f, 0.3f, 0.3f, 1f);
-            ImGui.text("Warning: No sprites fit in texture!");
-            ImGui.popStyleColor();
+            EditorColors.textColored(EditorColors.DANGER, "Warning: No sprites fit in texture!");
         }
     }
 

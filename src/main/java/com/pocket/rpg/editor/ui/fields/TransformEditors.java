@@ -1,6 +1,7 @@
 package com.pocket.rpg.editor.ui.fields;
 
 import com.pocket.rpg.components.core.Transform;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.undo.UndoManager;
@@ -51,7 +52,6 @@ public final class TransformEditors {
     private static final float[] AXIS_X_COLOR = {0.85f, 0.3f, 0.3f, 1.0f};
     private static final float[] AXIS_Y_COLOR = {0.3f, 0.85f, 0.3f, 1.0f};
     private static final float[] AXIS_Z_COLOR = {0.3f, 0.5f, 0.95f, 1.0f};
-    private static final int OVERRIDE_COLOR = ImGui.colorConvertFloat4ToU32(1.0f, 0.8f, 0.2f, 1.0f);
 
     private TransformEditors() {}
 
@@ -89,7 +89,7 @@ public final class TransformEditors {
             ImGui.pushID("Position");
 
             if (isOverridden) {
-                ImGui.pushStyleColor(ImGuiCol.Text, OVERRIDE_COLOR);
+                ImGui.pushStyleColor(ImGuiCol.Text, EditorColors.toU32(EditorColors.OVERRIDE));
             }
 
             float fieldWidth = calcFieldWidth(2, isOverridden);
@@ -194,7 +194,7 @@ public final class TransformEditors {
             ImGui.pushID("Rotation");
 
             if (isOverridden) {
-                ImGui.pushStyleColor(ImGuiCol.Text, OVERRIDE_COLOR);
+                ImGui.pushStyleColor(ImGuiCol.Text, EditorColors.toU32(EditorColors.OVERRIDE));
             }
 
             float fieldWidth = calcFieldWidth(1, isOverridden);
@@ -290,7 +290,7 @@ public final class TransformEditors {
             ImGui.pushID("Scale");
 
             if (isOverridden) {
-                ImGui.pushStyleColor(ImGuiCol.Text, OVERRIDE_COLOR);
+                ImGui.pushStyleColor(ImGuiCol.Text, EditorColors.toU32(EditorColors.OVERRIDE));
             }
 
             float fieldWidth = calcFieldWidth(2, isOverridden);

@@ -1,6 +1,7 @@
 package com.pocket.rpg.editor.panels;
 
 import com.pocket.rpg.dialogue.*;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.events.AssetChangedEvent;
 import com.pocket.rpg.editor.events.AssetSelectionRequestEvent;
@@ -333,7 +334,7 @@ public class DialogueEditorPanel extends EditorPanel {
             String label = MaterialIcons.ChatBubble + " " + entry.displayName + warning;
 
             if (hasWarnings) {
-                ImGui.pushStyleColor(ImGuiCol.Text, 1f, 0.7f, 0.2f, 1f);
+                ImGui.pushStyleColor(ImGuiCol.Text, EditorColors.WARNING[0], EditorColors.WARNING[1], EditorColors.WARNING[2], EditorColors.WARNING[3]);
             }
             if (ImGui.selectable(label + "##" + entry.path, isSelected)) {
                 if (!isSelected) {
@@ -394,13 +395,11 @@ public class DialogueEditorPanel extends EditorPanel {
             ImGui.sameLine();
         }
 
-        // Save button — amber when dirty, disabled when clean (follows AnimatorEditorPanel pattern)
+        // Save button — warning color when dirty, disabled when clean
         boolean canSave = hasDialogue && dirty;
         if (!hasDialogue) ImGui.beginDisabled();
         else if (canSave) {
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.6f, 0.5f, 0.0f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.7f, 0.6f, 0.0f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.8f, 0.7f, 0.0f, 1.0f);
+            EditorColors.pushWarningButtonWithText();
         } else {
             ImGui.beginDisabled();
         }
@@ -409,7 +408,7 @@ public class DialogueEditorPanel extends EditorPanel {
         }
         if (!hasDialogue) ImGui.endDisabled();
         else if (canSave) {
-            ImGui.popStyleColor(3);
+            EditorColors.popWarningButtonWithText();
         } else {
             ImGui.endDisabled();
         }

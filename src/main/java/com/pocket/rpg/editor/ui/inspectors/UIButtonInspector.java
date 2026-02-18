@@ -3,6 +3,7 @@ package com.pocket.rpg.editor.ui.inspectors;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ui.UIButton;
 import com.pocket.rpg.components.ui.UITransform;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.ui.fields.FieldEditorUtils;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
@@ -57,7 +58,7 @@ public class UIButtonInspector extends CustomComponentInspector<UIButton> {
         // === INFO SECTION ===
         ImGui.spacing();
         ImGui.spacing();
-        ImGui.pushStyleColor(ImGuiCol.Text, 0.6f, 0.6f, 0.6f, 1f);
+        ImGui.pushStyleColor(ImGuiCol.Text, EditorColors.DISABLED_TEXT[0], EditorColors.DISABLED_TEXT[1], EditorColors.DISABLED_TEXT[2], EditorColors.DISABLED_TEXT[3]);
         ImGui.text(MaterialIcons.Info + " Callbacks");
         ImGui.separator();
         ImGui.textWrapped("onClick, onHover, onExit callbacks are set via code at runtime.");

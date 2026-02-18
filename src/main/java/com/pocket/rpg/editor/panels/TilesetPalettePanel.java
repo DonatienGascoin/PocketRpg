@@ -8,6 +8,7 @@ import com.pocket.rpg.editor.panels.tilesets.TileSelectionManager;
 import com.pocket.rpg.editor.panels.tilesets.TilesetSelector;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.tileset.TileSelection;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.tools.TileBrushTool;
 import com.pocket.rpg.editor.tools.TileEraserTool;
 import com.pocket.rpg.editor.tools.TileFillTool;
@@ -283,10 +284,10 @@ public class TilesetPalettePanel extends EditorPanel {
      */
     private void renderSelectionWarning() {
         if (!hasActiveLayer()) {
-            ImGui.textColored(1.0f, 0.8f, 0.2f, 1.0f, "Select a layer to start painting");
+            EditorColors.textColored(EditorColors.WARNING, "Select a layer to start painting");
         } else if (!canPaint()) {
             // Layer is selected but not in tilemap mode (e.g., entity selected)
-            ImGui.textColored(1.0f, 0.6f, 0.2f, 1.0f, "Select a tile or brush to resume painting");
+            EditorColors.textColored(EditorColors.WARNING, "Select a tile or brush to resume painting");
         }
     }
 

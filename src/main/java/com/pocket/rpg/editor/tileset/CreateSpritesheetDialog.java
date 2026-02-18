@@ -1,5 +1,6 @@
 package com.pocket.rpg.editor.tileset;
 
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.rendering.resources.Texture;
 import com.pocket.rpg.resources.AssetMetadata;
 import com.pocket.rpg.resources.Assets;
@@ -349,7 +350,7 @@ public class CreateSpritesheetDialog {
         ImGui.text("Total tiles: " + previewTotalTiles);
 
         if (previewTotalTiles == 0) {
-            ImGui.textColored(1.0f, 0.3f, 0.3f, 1.0f,
+            EditorColors.textColored(EditorColors.DANGER,
                     "Warning: No tiles fit with current settings!");
         }
 

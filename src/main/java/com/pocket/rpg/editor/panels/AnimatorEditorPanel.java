@@ -3,6 +3,7 @@ package com.pocket.rpg.editor.panels;
 import com.pocket.rpg.animation.AnimatorLayoutData;
 import com.pocket.rpg.animation.animator.*;
 import com.pocket.rpg.collision.Direction;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.events.AnimatorSelectionClearedEvent;
 import com.pocket.rpg.editor.events.AnimatorStateSelectedEvent;
@@ -511,9 +512,7 @@ public class AnimatorEditorPanel extends EditorPanel {
 
         boolean canSave = selectedEntry != null && hasUnsavedChanges;
         if (canSave) {
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.6f, 0.5f, 0.0f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.7f, 0.6f, 0.0f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.8f, 0.7f, 0.0f, 1.0f);
+            EditorColors.pushWarningButton();
         } else {
             ImGui.beginDisabled();
         }
@@ -521,7 +520,7 @@ public class AnimatorEditorPanel extends EditorPanel {
             saveCurrentController();
         }
         if (canSave) {
-            ImGui.popStyleColor(3);
+            EditorColors.popButtonColors();
         } else {
             ImGui.endDisabled();
         }
@@ -566,7 +565,7 @@ public class AnimatorEditorPanel extends EditorPanel {
         ImGui.sameLine();
         boolean wasOpen = previewPanelOpen;
         if (wasOpen) {
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.2f, 0.5f, 0.3f, 1.0f);
+            EditorColors.pushSuccessButton();
         }
         if (ImGui.button(MaterialIcons.Menu + "##preview")) {
             previewPanelOpen = !previewPanelOpen;
@@ -577,7 +576,7 @@ public class AnimatorEditorPanel extends EditorPanel {
             }
         }
         if (wasOpen) {
-            ImGui.popStyleColor();
+            EditorColors.popButtonColors();
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(previewPanelOpen ? "Hide Preview Panel" : "Show Preview Panel");
@@ -596,7 +595,7 @@ public class AnimatorEditorPanel extends EditorPanel {
         }
 
         if (hasUnsavedChanges) {
-            ImGui.pushStyleColor(ImGuiCol.FrameBg, 0.4f, 0.35f, 0.0f, 1.0f);
+            ImGui.pushStyleColor(ImGuiCol.FrameBg, EditorColors.WARNING[0] * 0.45f, EditorColors.WARNING[1] * 0.45f, EditorColors.WARNING[2] * 0.45f, 1.0f);
         }
 
         ImGui.setNextItemWidth(250);
@@ -1084,7 +1083,7 @@ public class AnimatorEditorPanel extends EditorPanel {
         if (ImGui.beginPopupModal("Delete Controller?", new ImBoolean(true), ImGuiWindowFlags.AlwaysAutoResize)) {
             ImGui.text("Are you sure you want to delete this controller?");
             if (selectedEntry != null) {
-                ImGui.textColored(1f, 0.8f, 0.4f, 1f, selectedEntry.filename);
+                EditorColors.textColored(EditorColors.WARNING, selectedEntry.filename);
             }
             ImGui.text("This action cannot be undone.");
 

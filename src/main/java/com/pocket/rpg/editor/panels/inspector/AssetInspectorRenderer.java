@@ -71,6 +71,20 @@ public interface AssetInspectorRenderer<T> {
     }
 
     /**
+     * Undoes the last edit. Called by InspectorPanel shortcuts.
+     */
+    default void undo() {
+        // Default: no-op
+    }
+
+    /**
+     * Redoes the last undone edit. Called by InspectorPanel shortcuts.
+     */
+    default void redo() {
+        // Default: no-op
+    }
+
+    /**
      * Returns the asset type this inspector handles.
      */
     Class<T> getAssetType();

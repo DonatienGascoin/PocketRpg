@@ -4,10 +4,10 @@ import com.pocket.rpg.animation.Animation;
 import com.pocket.rpg.animation.AnimationFrame;
 import com.pocket.rpg.editor.rendering.SpritePreviewRenderer;
 import com.pocket.rpg.rendering.resources.Sprite;
+import com.pocket.rpg.editor.core.EditorColors;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
-import imgui.flag.ImGuiCol;
 
 import java.util.function.IntConsumer;
 
@@ -147,13 +147,13 @@ public class AnimationPreviewRenderer {
         for (ZoomMode mode : ZoomMode.values()) {
             boolean isSelected = zoomMode == mode;
             if (isSelected) {
-                ImGui.pushStyleColor(ImGuiCol.Button, 0.2f, 0.5f, 0.7f, 1.0f);
+                EditorColors.pushInfoButton();
             }
             if (ImGui.smallButton(mode.label)) {
                 zoomMode = mode;
             }
             if (isSelected) {
-                ImGui.popStyleColor();
+                EditorColors.popButtonColors();
             }
             ImGui.sameLine();
         }

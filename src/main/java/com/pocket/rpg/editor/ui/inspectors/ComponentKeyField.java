@@ -1,6 +1,7 @@
 package com.pocket.rpg.editor.ui.inspectors;
 
 import com.pocket.rpg.components.Component;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
@@ -89,7 +90,7 @@ public final class ComponentKeyField {
         } else {
             boolean expanded = expandedComponents.contains(component);
             if (expanded) {
-                ImGui.pushStyleColor(ImGuiCol.Button, 0.3f, 0.5f, 0.7f, 1f);
+                ImGui.pushStyleColor(ImGuiCol.Button, EditorColors.INFO[0], EditorColors.INFO[1], EditorColors.INFO[2], EditorColors.INFO[3]);
             }
             if (ImGui.smallButton(MaterialIcons.VpnKey + "##key")) {
                 if (expanded) {

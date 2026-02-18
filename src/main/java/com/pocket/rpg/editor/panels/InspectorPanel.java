@@ -12,18 +12,24 @@ import com.pocket.rpg.editor.PlayModeSelectionManager;
 import com.pocket.rpg.editor.PrefabEditController;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.inspector.*;
+import com.pocket.rpg.editor.panels.inspector.AssetInspectorRegistry;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.RuntimeGameObjectAdapter;
+import com.pocket.rpg.editor.shortcut.KeyboardLayout;
+import com.pocket.rpg.editor.shortcut.ShortcutAction;
+import com.pocket.rpg.editor.shortcut.ShortcutBinding;
 import com.pocket.rpg.editor.ui.fields.ReflectionFieldEditor;
 import com.pocket.rpg.editor.utils.IconUtils;
 import com.pocket.rpg.scenes.Scene;
 import imgui.ImGui;
+import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiTreeNodeFlags;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector3f;
 
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -251,6 +257,44 @@ public class InspectorPanel extends EditorPanel {
      */
     public void clearTriggerSelection() {
         triggerInspector.clearSelection();
+    }
+
+    // ========================================================================
+    // SHORTCUTS
+    // ========================================================================
+
+    @Override
+    public List<ShortcutAction> provideShortcuts(KeyboardLayout layout) {
+        ShortcutBinding undoBinding = layout == KeyboardLayout.AZERTY
+                ? ShortcutBinding.ctrl(ImGuiKey.W)
+                : ShortcutBinding.ctrl(ImGuiKey.Z);
+        ShortcutBinding redoBinding = layout == KeyboardLayout.AZERTY
+                ? ShortcutBinding.ctrlShift(ImGuiKey.W)
+                : ShortcutBinding.ctrlShift(ImGuiKey.Z);
+
+        return List.of(
+                panelShortcut()
+                        .id("inspector.undo")
+                        .displayName("Inspector Undo")
+                        .defaultBinding(undoBinding)
+                        .allowInInput(true)
+                        .handler(AssetInspectorRegistry::undo)
+                        .build(),
+                panelShortcut()
+                        .id("inspector.redo")
+                        .displayName("Inspector Redo")
+                        .defaultBinding(redoBinding)
+                        .allowInInput(true)
+                        .handler(AssetInspectorRegistry::redo)
+                        .build(),
+                panelShortcut()
+                        .id("inspector.redoAlt")
+                        .displayName("Inspector Redo (Alt)")
+                        .defaultBinding(ShortcutBinding.ctrl(ImGuiKey.Y))
+                        .allowInInput(true)
+                        .handler(AssetInspectorRegistry::redo)
+                        .build()
+        );
     }
 
     // ========================================================================

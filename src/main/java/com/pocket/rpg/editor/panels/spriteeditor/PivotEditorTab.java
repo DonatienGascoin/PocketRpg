@@ -3,6 +3,7 @@ package com.pocket.rpg.editor.panels.spriteeditor;
 import com.pocket.rpg.rendering.resources.Texture;
 import com.pocket.rpg.resources.SpriteMetadata;
 import com.pocket.rpg.resources.SpriteMetadata.PivotData;
+import com.pocket.rpg.editor.core.EditorColors;
 import imgui.ImGui;
 import imgui.ImVec2;
 import imgui.flag.ImGuiCol;
@@ -233,8 +234,7 @@ public class PivotEditorTab {
         // Pixel Snap toggle
         boolean wasPixelSnap = pixelSnap;
         if (wasPixelSnap) {
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.2f, 0.5f, 0.2f, 1f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.3f, 0.6f, 0.3f, 1f);
+            EditorColors.pushSuccessButton();
         }
         if (ImGui.button("Pixel Snap", 100, 0)) {
             pixelSnap = !pixelSnap;
@@ -246,7 +246,7 @@ public class PivotEditorTab {
             }
         }
         if (wasPixelSnap) {
-            ImGui.popStyleColor(2);
+            EditorColors.popButtonColors();
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("Snap pivot to pixel boundaries (" + spriteWidth + "x" + spriteHeight + ")");
@@ -298,7 +298,7 @@ public class PivotEditorTab {
     private void renderPresetButton(String label, float x, float y, float size) {
         boolean isSelected = Math.abs(pivotX - x) < 0.01f && Math.abs(pivotY - y) < 0.01f;
         if (isSelected) {
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.3f, 0.5f, 0.8f, 1f);
+            ImGui.pushStyleColor(ImGuiCol.Button, EditorColors.INFO[0], EditorColors.INFO[1], EditorColors.INFO[2], EditorColors.INFO[3]);
         }
         if (ImGui.button(label, size, size)) {
             pivotX = x;

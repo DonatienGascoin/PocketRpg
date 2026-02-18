@@ -5,6 +5,7 @@ import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.config.TransitionConfig;
 import com.pocket.rpg.config.TransitionEntry;
 import com.pocket.rpg.editor.EditorContext;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.AssetPickerPopup;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
@@ -272,7 +273,7 @@ public class TransitionConfigTab implements ConfigTab {
                         ImGui.sameLine();
                         Sprite sprite = entry.getLumaSprite();
                         if (sprite != null) {
-                            ImGui.textColored(0.6f, 0.9f, 0.6f, 1.0f, sprite.getName());
+                            EditorColors.textColored(EditorColors.SUCCESS, sprite.getName());
                         } else {
                             ImGui.textDisabled("(none)");
                         }

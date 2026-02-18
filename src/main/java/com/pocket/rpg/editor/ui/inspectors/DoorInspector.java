@@ -2,9 +2,10 @@ package com.pocket.rpg.editor.ui.inspectors;
 
 import com.pocket.rpg.collision.ElevationLevel;
 import com.pocket.rpg.components.interaction.Door;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
 import imgui.ImGui;
-import imgui.flag.ImGuiCol;
+
 import imgui.type.ImBoolean;
 import imgui.type.ImString;
 import org.joml.Vector3f;
@@ -220,15 +221,11 @@ public class DoorInspector extends CustomComponentInspector<Door> {
 
         // Show state with color
         if (component.isOpen()) {
-            ImGui.pushStyleColor(ImGuiCol.Text, 0.4f, 0.9f, 0.4f, 1.0f); // Green
-            ImGui.text("  OPEN at (" + x + ", " + y + ") elev=" + elev);
+            EditorColors.textColored(EditorColors.SUCCESS, "  OPEN at (" + x + ", " + y + ") elev=" + elev);
         } else if (component.isLocked()) {
-            ImGui.pushStyleColor(ImGuiCol.Text, 0.9f, 0.4f, 0.4f, 1.0f); // Red
-            ImGui.text("  LOCKED at (" + x + ", " + y + ") elev=" + elev);
+            EditorColors.textColored(EditorColors.DANGER, "  LOCKED at (" + x + ", " + y + ") elev=" + elev);
         } else {
-            ImGui.pushStyleColor(ImGuiCol.Text, 0.9f, 0.7f, 0.3f, 1.0f); // Yellow
-            ImGui.text("  CLOSED at (" + x + ", " + y + ") elev=" + elev);
+            EditorColors.textColored(EditorColors.WARNING, "  CLOSED at (" + x + ", " + y + ") elev=" + elev);
         }
-        ImGui.popStyleColor();
     }
 }

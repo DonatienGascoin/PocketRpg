@@ -2,6 +2,7 @@ package com.pocket.rpg.editor.panels.inspector;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.core.IGameObject;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.EditorFonts;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.hierarchy.HierarchyItem;
@@ -129,13 +130,12 @@ public class EntityInspector {
             }
         }
 
-        ImGui.pushStyleColor(ImGuiCol.Button, 0.5f, 0.2f, 0.2f, 1f);
-        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.6f, 0.3f, 0.3f, 1f);
+        EditorColors.pushDangerButton();
         if (ImGui.button(MaterialIcons.Delete + "##delete")) {
             pendingDeleteEntity = entity;
             ImGui.openPopup("Delete Entity");
         }
-        ImGui.popStyleColor(2);
+        EditorColors.popButtonColors();
         if (ImGui.isItemHovered()) ImGui.setTooltip("Delete Entity");
 
         ImGui.separator();
@@ -162,9 +162,9 @@ public class EntityInspector {
         ImGui.text(gameObject.getName());
         ImGui.sameLine();
         if (gameObject.isEnabled()) {
-            ImGui.textColored(0.4f, 0.8f, 0.4f, 1f, "(enabled)");
+            EditorColors.textColored(EditorColors.SUCCESS, "(enabled)");
         } else {
-            ImGui.textColored(0.8f, 0.4f, 0.4f, 1f, "(disabled)");
+            EditorColors.textColored(EditorColors.DANGER, "(disabled)");
         }
 
         ImGui.separator();
@@ -208,14 +208,14 @@ public class EntityInspector {
                 ImGui.spacing();
                 ImGui.separator();
 
-                ImGui.pushStyleColor(ImGuiCol.Button, 0.6f, 0.2f, 0.2f, 1f);
+                EditorColors.pushDangerButton();
                 if (ImGui.button("Delete", 120, 0)) {
                     UndoManager.getInstance().execute(new RemoveEntityCommand(scene, pendingDeleteEntity));
                     scene.markDirty();
                     pendingDeleteEntity = null;
                     ImGui.closeCurrentPopup();
                 }
-                ImGui.popStyleColor();
+                EditorColors.popButtonColors();
 
                 ImGui.sameLine();
                 if (ImGui.button("Cancel", 120, 0)) {

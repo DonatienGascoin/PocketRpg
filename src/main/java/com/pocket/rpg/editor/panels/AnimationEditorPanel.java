@@ -2,6 +2,7 @@ package com.pocket.rpg.editor.panels;
 
 import com.pocket.rpg.animation.Animation;
 import com.pocket.rpg.animation.AnimationFrame;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.shortcut.KeyboardLayout;
 import com.pocket.rpg.editor.shortcut.ShortcutAction;
@@ -456,12 +457,10 @@ public class AnimationEditorPanel extends EditorPanel {
 
         ImGui.sameLine();
 
-        // Save (with yellow color when unsaved)
+        // Save (with warning color when unsaved)
         boolean canSave = selectedEntry != null && hasUnsavedChanges;
         if (canSave) {
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.6f, 0.5f, 0.0f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.7f, 0.6f, 0.0f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.8f, 0.7f, 0.0f, 1.0f);
+            EditorColors.pushWarningButton();
         } else {
             ImGui.beginDisabled();
         }
@@ -469,7 +468,7 @@ public class AnimationEditorPanel extends EditorPanel {
             saveCurrentAnimation();
         }
         if (canSave) {
-            ImGui.popStyleColor(3);
+            EditorColors.popButtonColors();
         } else {
             ImGui.endDisabled();
         }
@@ -535,15 +534,13 @@ public class AnimationEditorPanel extends EditorPanel {
 
         // Play button (green when stopped)
         if (!isPlaying) {
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.1f, 0.5f, 0.1f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.2f, 0.6f, 0.2f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.3f, 0.7f, 0.3f, 1.0f);
+            EditorColors.pushSuccessButton();
         }
         if (ImGui.button(MaterialIcons.PlayArrow + " Play##PlayBtn")) {
             if (previewRenderer != null) previewRenderer.play();
         }
         if (!isPlaying) {
-            ImGui.popStyleColor(3);
+            EditorColors.popButtonColors();
         }
         if (!canPlay) ImGui.endDisabled();
         if (ImGui.isItemHovered()) {
@@ -602,8 +599,8 @@ public class AnimationEditorPanel extends EditorPanel {
         }
 
         if (hasModified) {
-            ImGui.pushStyleColor(ImGuiCol.FrameBg, 0.4f, 0.35f, 0.0f, 1.0f);
-            ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, 0.5f, 0.45f, 0.0f, 1.0f);
+            ImGui.pushStyleColor(ImGuiCol.FrameBg, EditorColors.WARNING[0] * 0.45f, EditorColors.WARNING[1] * 0.45f, EditorColors.WARNING[2] * 0.45f, 1.0f);
+            ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, EditorColors.WARNING[0] * 0.55f, EditorColors.WARNING[1] * 0.55f, EditorColors.WARNING[2] * 0.55f, 1.0f);
         }
 
         ImGui.setNextItemWidth(200);
@@ -709,9 +706,7 @@ public class AnimationEditorPanel extends EditorPanel {
         // Show filename (source of truth for identification)
         String filename = selectedEntry.filename;
         if (hasUnsavedChanges) {
-            ImGui.pushStyleColor(ImGuiCol.Text, 1.0f, 0.85f, 0.0f, 1.0f);
-            ImGui.text(filename + " *");
-            ImGui.popStyleColor();
+            EditorColors.textColored(EditorColors.WARNING, filename + " *");
         } else {
             ImGui.text(filename);
         }
@@ -775,7 +770,7 @@ public class AnimationEditorPanel extends EditorPanel {
         ImGui.text("Sprite:");
         String spritePath = frame.spritePath();
         if (spritePath == null || spritePath.isEmpty()) {
-            ImGui.textColored(0.7f, 0.5f, 0.2f, 1f, "(No sprite selected)");
+            EditorColors.textColored(EditorColors.WARNING, "(No sprite selected)");
         } else {
             String displayPath = spritePath.length() > 35 ? "..." + spritePath.substring(spritePath.length() - 32) : spritePath;
             ImGui.textDisabled(displayPath);
@@ -940,26 +935,26 @@ public class AnimationEditorPanel extends EditorPanel {
         // Mode toggle
         boolean isTrack = timelineMode == TimelineMode.TRACK;
         if (isTrack) {
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.2f, 0.5f, 0.7f, 1.0f);
+            EditorColors.pushInfoButton();
         }
         if (ImGui.button("Track")) {
             timelineMode = TimelineMode.TRACK;
         }
         if (isTrack) {
-            ImGui.popStyleColor();
+            EditorColors.popButtonColors();
         }
 
         ImGui.sameLine();
 
         boolean isStrip = timelineMode == TimelineMode.STRIP;
         if (isStrip) {
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.2f, 0.5f, 0.7f, 1.0f);
+            EditorColors.pushInfoButton();
         }
         if (ImGui.button("Strip")) {
             timelineMode = TimelineMode.STRIP;
         }
         if (isStrip) {
-            ImGui.popStyleColor();
+            EditorColors.popButtonColors();
         }
     }
 
@@ -1223,7 +1218,7 @@ public class AnimationEditorPanel extends EditorPanel {
                 }
                 ImGui.endGroup();
             } else {
-                ImGui.textColored(0.7f, 0.5f, 0.2f, 1f, "(No sprite selected)");
+                EditorColors.textColored(EditorColors.WARNING, "(No sprite selected)");
             }
 
             if (ImGui.button(MaterialIcons.FolderOpen + " Browse...##BrowseNewSprite", 200, 0)) {
@@ -1326,7 +1321,7 @@ public class AnimationEditorPanel extends EditorPanel {
         if (ImGui.beginPopupModal("Delete Animation?", new ImBoolean(true), ImGuiWindowFlags.AlwaysAutoResize)) {
             ImGui.text("Are you sure you want to delete this animation?");
             if (selectedEntry != null) {
-                ImGui.textColored(1f, 0.8f, 0.4f, 1f, selectedEntry.filename);
+                EditorColors.textColored(EditorColors.WARNING, selectedEntry.filename);
             }
             ImGui.text("This action cannot be undone.");
 

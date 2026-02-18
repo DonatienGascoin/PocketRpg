@@ -17,6 +17,7 @@ import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.resources.SpriteMetadata;
 import com.pocket.rpg.resources.SpriteMetadata.GridSettings;
 import com.pocket.rpg.resources.SpriteMetadata.PivotData;
+import com.pocket.rpg.editor.core.EditorColors;
 import imgui.ImGui;
 import imgui.ImVec2;
 import imgui.flag.ImGuiCol;
@@ -550,13 +551,11 @@ public class SpriteEditorPanel implements
 
         ImGui.sameLine();
 
-        ImGui.pushStyleColor(ImGuiCol.Button, 0.2f, 0.5f, 0.2f, 1f);
-        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.3f, 0.6f, 0.3f, 1f);
-        ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.4f, 0.7f, 0.4f, 1f);
+        EditorColors.pushSuccessButton();
         if (ImGui.button(MaterialIcons.Save + " Save", buttonWidth, 0)) {
             saveChanges();
         }
-        ImGui.popStyleColor(3);
+        EditorColors.popButtonColors();
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("Save changes to metadata file");
         }

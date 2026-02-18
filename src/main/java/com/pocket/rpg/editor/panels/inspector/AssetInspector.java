@@ -1,9 +1,9 @@
 package com.pocket.rpg.editor.panels.inspector;
 
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.resources.Assets;
 import imgui.ImGui;
-import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiWindowFlags;
 
 /**
@@ -171,7 +171,7 @@ public class AssetInspector {
             ImGui.setCursorPosX(ImGui.getCursorPosX() + startX);
 
             // Save button
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.2f, 0.5f, 0.2f, 1f);
+            EditorColors.pushWarningButtonWithText();
             if (ImGui.button("Save", buttonWidth, 0)) {
                 // Save current, then switch
                 if (cachedAsset != null) {
@@ -180,17 +180,17 @@ public class AssetInspector {
                 completePendingSwitch();
                 ImGui.closeCurrentPopup();
             }
-            ImGui.popStyleColor();
+            EditorColors.popWarningButtonWithText();
 
             ImGui.sameLine();
 
             // Discard button
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.5f, 0.2f, 0.2f, 1f);
+            EditorColors.pushDangerButton();
             if (ImGui.button("Discard", buttonWidth, 0)) {
                 completePendingSwitch();
                 ImGui.closeCurrentPopup();
             }
-            ImGui.popStyleColor();
+            EditorColors.popButtonColors();
 
             ImGui.endPopup();
         }
@@ -243,10 +243,8 @@ public class AssetInspector {
         float buttonWidth = ImGui.getContentRegionAvailX();
 
         if (hasUnsavedChanges) {
-            // Highlight save button when there are changes
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.2f, 0.5f, 0.2f, 1f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.3f, 0.6f, 0.3f, 1f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.25f, 0.55f, 0.25f, 1f);
+            // Highlight save button when there are changes (amber + dark text for readability)
+            EditorColors.pushWarningButtonWithText();
         }
 
         if (ImGui.button(MaterialIcons.Save + " Save", buttonWidth, 0)) {
@@ -255,7 +253,7 @@ public class AssetInspector {
         }
 
         if (hasUnsavedChanges) {
-            ImGui.popStyleColor(3);
+            EditorColors.popWarningButtonWithText();
         }
     }
 

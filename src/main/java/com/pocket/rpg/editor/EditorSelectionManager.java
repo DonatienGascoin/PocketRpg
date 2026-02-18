@@ -75,6 +75,7 @@ public class EditorSelectionManager {
      * Selects a single entity.
      */
     public void selectEntity(EditorGameObject entity) {
+        clearEntitySelection();
         if (scene != null) {
             scene.setSelection(Set.of(entity));
         }
@@ -88,6 +89,7 @@ public class EditorSelectionManager {
      * Selects multiple entities.
      */
     public void selectEntities(Set<EditorGameObject> entities) {
+        clearEntitySelection();
         if (scene != null) {
             scene.setSelection(entities);
         }

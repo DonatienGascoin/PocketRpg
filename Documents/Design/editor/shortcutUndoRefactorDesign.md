@@ -260,9 +260,11 @@ Option A is the simplest correct solution. It changes the fewest files, introduc
 
 ### Changes to `InspectorPanel.java`
 
-Replace the shortcut handlers with context-aware routing methods. The `provideShortcuts` method (lines 267-298) changes the handler references from `AssetInspectorRegistry::undo` / `AssetInspectorRegistry::redo` to `this::handleUndo` / `this::handleRedo`.
+Replace the shortcut handlers with context-aware routing methods. The `provideShortcuts` method (lines 267-298) changes the handler references for **all three shortcuts** (`inspector.undo`, `inspector.redo`, `inspector.redoAlt`) from `AssetInspectorRegistry::undo` / `AssetInspectorRegistry::redo` to `this::handleUndo` / `this::handleRedo`.
 
-Three new private methods are added:
+A new `DirtyTracker` dependency is injected into `InspectorPanel` (same setter pattern used in `EditorShortcutHandlersImpl`).
+
+Four new private methods are added:
 
 ```java
 /**
@@ -274,7 +276,9 @@ private void handleUndo() {
     if (isShowingAssetInspector()) {
         AssetInspectorRegistry.undo();
     } else {
-        UndoManager.getInstance().undo();
+        if (UndoManager.getInstance().undo()) {
+            markSceneDirtyAfterUndoRedo();
+        }
     }
 }
 
@@ -285,47 +289,77 @@ private void handleRedo() {
     if (isShowingAssetInspector()) {
         AssetInspectorRegistry.redo();
     } else {
-        UndoManager.getInstance().redo();
+        if (UndoManager.getInstance().redo()) {
+            markSceneDirtyAfterUndoRedo();
+        }
+    }
+}
+
+/**
+ * Marks the scene dirty after a successful undo/redo.
+ * Mirrors the behavior of EditorShortcutHandlersImpl.onUndo().
+ */
+private void markSceneDirtyAfterUndoRedo() {
+    if (dirtyTracker != null) {
+        dirtyTracker.markDirty();
     }
 }
 
 /**
  * Returns true if the InspectorPanel is currently showing an asset inspector
  * (i.e., the undo target is the asset's own undo stack, not the scene UndoManager).
+ *
+ * Checks both the selection state AND the visual state: when the user clicks
+ * from an asset to an entity, EditorSelectionManager.selectEntity() clears the
+ * asset selection immediately, but the asset inspector may still be visible due
+ * to the unsaved-changes popup. In that case, undo should still target the
+ * asset's undo stack.
+ *
+ * Note: the ShortcutRegistry already blocks all shortcuts when ImGui popups are
+ * open (processShortcuts line 262), so the popup path is technically unreachable.
+ * The check is included as a defensive guard.
  */
 private boolean isShowingAssetInspector() {
     if (selectionManager == null) return false;
     if (prefabEditController != null && prefabEditController.isActive()) return false;
-    if (isPlayMode()) return false;
-    return selectionManager.isAssetSelected();
+    return selectionManager.isAssetSelected()
+        || wasShowingAssetInspector
+        || assetInspector.hasPendingPopup();
 }
 ```
 
-A new import is added:
+New imports:
 
 ```java
 import com.pocket.rpg.editor.undo.UndoManager;
+```
+
+New field + setter:
+
+```java
+@Setter private DirtyTracker dirtyTracker;
 ```
 
 ### Files changed
 
 | File | Change |
 |------|--------|
-| `src/.../editor/panels/InspectorPanel.java` | Replace `AssetInspectorRegistry::undo` / `::redo` handler references with `this::handleUndo` / `this::handleRedo`. Add `handleUndo()`, `handleRedo()`, `isShowingAssetInspector()` methods. Add `UndoManager` import. |
-
-**No other files are changed.** The shortcut system, `AssetInspectorRegistry`, `UndoManager`, `EditorShortcutHandlersImpl`, and all other panels remain untouched.
+| `src/.../editor/panels/InspectorPanel.java` | Replace handler references for all 3 shortcuts (`inspector.undo`, `inspector.redo`, `inspector.redoAlt`). Add `handleUndo()`, `handleRedo()`, `markSceneDirtyAfterUndoRedo()`, `isShowingAssetInspector()`. Add `@Setter DirtyTracker dirtyTracker` field. Add `UndoManager` import. |
+| `src/.../editor/EditorUIController.java` (or wiring site) | Wire `dirtyTracker` into `InspectorPanel` via the existing setter pattern (same as `EditorShortcutHandlersImpl` wiring). |
 
 ### Edge cases
 
-1. **Asset inspector popup is active** (`hasPendingPopup()` returns true): The panel is still effectively showing the asset inspector, so `isShowingAssetInspector()` correctly returns true (via `selectionManager.isAssetSelected()` -- the selection hasn't changed yet during the popup).
+1. **Asset inspector popup is active** (`hasPendingPopup()` returns true): When the user clicks from an asset to an entity, `EditorSelectionManager.selectEntity()` clears the asset selection immediately (synchronously), before the next render frame. At this point `selectionManager.isAssetSelected()` is already `false`. However, the `wasShowingAssetInspector` flag and `assetInspector.hasPendingPopup()` remain `true` until the popup is dismissed. The `isShowingAssetInspector()` check includes both, so undo correctly routes to the asset stack during this window. **Note:** The `ShortcutRegistry` already blocks all shortcuts when `ImGui.isPopupOpen("", ImGuiPopupFlags.AnyPopup)` returns true, so this edge case is technically unreachable. The guard is defensive.
 
 2. **Prefab edit mode:** Returns false from `isShowingAssetInspector()`, routing to `UndoManager`. This is correct -- prefab edits go through the scene undo system (with scope isolation via `UndoManager.pushScope()`).
 
-3. **Play mode:** Returns false from `isShowingAssetInspector()`. `UndoManager.undo()` is safe to call -- it returns false if the stack is empty.
+3. **Play mode:** The `ShortcutRegistry` blocks all shortcut processing in play mode (line 257-259), so `handleUndo()` is never called. The `isPlayMode()` check was removed from `isShowingAssetInspector()` as it is redundant with the registry-level guard.
 
-4. **Animator state/transition selected in Inspector:** `selectionManager.isAssetSelected()` returns false, so undo routes to `UndoManager`. Correct.
+4. **Animator state/transition selected in Inspector:** `selectionManager.isAssetSelected()` returns false, `wasShowingAssetInspector` is false, so undo routes to `UndoManager`. Correct.
 
-5. **Nothing selected:** `selectionManager.isAssetSelected()` returns false, undo routes to `UndoManager`. Correct -- this undoes the last scene action.
+5. **Nothing selected:** Same as above -- undo routes to `UndoManager`. Correct -- this undoes the last scene action.
+
+6. **Empty undo stack:** `UndoManager.undo()` returns `false` when the stack is empty. `markSceneDirtyAfterUndoRedo()` is not called. No side effects, no error.
 
 ---
 
@@ -414,21 +448,40 @@ Track the custom widget undo gap as a separate improvement. The dispatch fix unb
 
 ### Manual testing
 
-1. **Entity inspection undo:** Select an entity, change a field (e.g. position via Inspector drag), press Ctrl+Z with Inspector focused. Verify the change is undone.
+1. **Entity inspection undo:** Select an entity, change a field (e.g. position via Inspector drag), press Ctrl+Z with Inspector focused. Verify the change is undone. **Also verify:** the title bar dirty indicator updates correctly after undo.
 2. **Asset inspection undo:** Select an asset in the Asset Browser (e.g. `.dialogue-events.json`), make an edit, press Ctrl+Z with Inspector focused. Verify the asset edit is undone.
 3. **Switch context:** Edit an entity field, then select an asset, then click back to the entity. Press Ctrl+Z. Verify scene undo fires.
 4. **Prefab edit mode:** Enter prefab edit, make a change, press Ctrl+Z in Inspector. Verify scoped undo fires.
 5. **Play mode:** Verify Ctrl+Z in Inspector does nothing harmful.
 6. **Other panels:** Verify Ctrl+Z in Animation/Animator/Dialogue editors still uses their own undo stacks (regression check).
+7. **Ctrl+Y (redoAlt):** Perform an undo via Ctrl+Z, then press Ctrl+Y with Inspector focused. Verify redo fires correctly for both entity and asset contexts.
+8. **Unsaved asset changes popup:** Select an asset, edit it, then click an entity. When the unsaved-changes popup appears, press Ctrl+Z. Verify behavior (shortcut should be blocked by the registry popup guard).
+9. **Empty undo stack:** Select an entity with only custom-widget edits (e.g. direction checkboxes in DialogueInteractable). Press Ctrl+Z. Verify no error, no crash — undo simply does nothing because no commands were pushed.
+10. **Rapid selection toggle:** Switch rapidly between asset and entity selection 4-5 times, then press Ctrl+Z. Verify undo targets the correct stack based on final selection state.
+11. **Dirty tracker after Inspector undo:** Edit a field, press Ctrl+Z in Inspector. Verify the dirty indicator in the title bar/status bar reflects the undo. Close the editor — verify save prompt appears if the scene has remaining unsaved changes.
 
 ---
 
-## Open Questions
+## Open Questions (Resolved)
 
-1. **Should `handleUndo()` show a status bar message?** The global `onUndo()` in `EditorShortcutHandlersImpl` calls `showMessage("Undo")`. The new `handleUndo()` doesn't have access to the status bar callback. Recommendation: skip for now. The global handler already shows messages, and the asset inspectors have their own visual undo feedback.
+*These questions were raised in the initial design and resolved during the QA / Senior Engineer / PO review cycle.*
 
-2. **Should `handleUndo()` check play mode?** The global handler blocks undo in play mode. Since `UndoManager.undo()` is safe to call with an empty stack, this is low risk. But adding a guard is cheap and defensive.
+1. **~~Should `handleUndo()` show a status bar message?~~** **Deferred.** The `InspectorPanel` does not currently have a message callback. Adding one is low-cost but requires wiring. The PO recommends including it; the senior engineer considers it non-blocking. **Decision:** defer to implementation — if a message callback is easy to wire (e.g. via the existing `EditorEventBus`), include it. Otherwise, accept the gap for now. The user still sees the field revert visually.
 
-3. **Should `handleUndo()` mark the dirty tracker?** The global handler calls `activeDirtyTracker.markDirty()` after a successful undo. The InspectorPanel doesn't have a reference to the dirty tracker. The undo command's `undo()` method may trigger dirty marking itself. This should be verified during implementation.
+2. **~~Should `handleUndo()` check play mode?~~** **Resolved: No.** The `ShortcutRegistry` already blocks all shortcuts during play mode (`processShortcuts()` line 257-259 checks `playModeActive`). The guard is redundant. Removed from `isShowingAssetInspector()` to avoid creating a false impression that this is the primary safeguard.
 
-4. **Option D as a future pattern?** If other panels need conditional shortcut applicability, consider adding the `applicableWhen` predicate to `ShortcutAction` at that time. The refactor from A to D is straightforward.
+3. **~~Should `handleUndo()` mark the dirty tracker?~~** **Resolved: Yes, mandatory.** The global `onUndo()` in `EditorShortcutHandlersImpl` calls `activeDirtyTracker.markDirty()` after a successful undo. `UndoManager.undo()` itself does NOT trigger dirty marking — it returns a boolean and the caller is responsible. The `InspectorPanel` now receives a `DirtyTracker` via a setter (same pattern as `EditorShortcutHandlersImpl`). `handleUndo()` / `handleRedo()` call `markSceneDirtyAfterUndoRedo()` on success.
+
+4. **~~Option D as a future pattern?~~** **Resolved: Defer.** If a second panel needs conditional shortcut applicability, add the `applicableWhen` predicate to `ShortcutAction` at that time. The refactor from A to D is straightforward.
+
+---
+
+## Review History
+
+| Date | Reviewer | Role | Key Findings |
+|------|----------|------|-------------|
+| 2026-02-18 | QA | Quality Assurance | Found `inspector.redoAlt` omission, popup edge case (`isAssetSelected()` already false during popup), `markDirty()` gap, 6 missing test scenarios |
+| 2026-02-18 | Senior Engineer | Technical Review | Confirmed Option A is correct choice. Escalated `markDirty()` to blocking. Verified no race conditions. Confirmed play mode guard is redundant. |
+| 2026-02-18 | PO | Product Owner | Confirmed user impact is high. Recommended including dirty tracker fix as mandatory. Suggested custom widget undo for next sprint. Added unsaved-popup scenario to testing. |
+
+All three blocking findings have been incorporated into the Detailed Design section above.

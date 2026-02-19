@@ -1,6 +1,7 @@
 package com.pocket.rpg.audio.music;
 
 import com.pocket.rpg.audio.AudioEngine;
+import com.pocket.rpg.audio.VolumeProvider;
 import com.pocket.rpg.audio.clips.AudioClip;
 import com.pocket.rpg.audio.mixing.AudioChannel;
 import com.pocket.rpg.audio.sources.AudioHandle;
@@ -27,17 +28,13 @@ public class MusicTrack {
     }
 
     /**
-     * Start playback.
+     * Start playback. The engine manages volume via the given provider.
      */
-    public void play(AudioEngine engine) {
+    public void play(AudioEngine engine, VolumeProvider volumeProvider) {
         handle = engine.play(clip, new PlaybackSettings()
                 .channel(AudioChannel.MUSIC)
                 .loop(true)
-                .volume(volume));
-        // Remove from engine tracking - MusicPlayer manages this handle
-        if (handle != null) {
-            engine.removeFromTracking(handle);
-        }
+                .volume(1.0f), volumeProvider);
     }
 
     /**
@@ -69,15 +66,12 @@ public class MusicTrack {
     }
 
     /**
-     * Set volume immediately.
+     * Set volume immediately. The engine picks up the new value next frame.
      */
     public void setVolume(float vol) {
         this.volume = vol;
         this.targetVolume = vol;
         this.fadeSpeed = 0f;
-        if (handle != null) {
-            handle.setVolume(vol);
-        }
     }
 
     /**
@@ -102,9 +96,6 @@ public class MusicTrack {
         if (duration <= 0) {
             this.volume = target;
             this.fadeSpeed = 0f;
-            if (handle != null) {
-                handle.setVolume(volume);
-            }
             if (onComplete != null) {
                 onComplete.run();
             }
@@ -126,10 +117,6 @@ public class MusicTrack {
             volume = Math.min(volume + fadeSpeed * deltaTime, targetVolume);
         } else {
             volume = Math.max(volume - fadeSpeed * deltaTime, targetVolume);
-        }
-
-        if (handle != null) {
-            handle.setVolume(volume);
         }
 
         if (Math.abs(volume - targetVolume) < 0.001f) {

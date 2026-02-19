@@ -2,9 +2,6 @@ package com.pocket.rpg.audio.music;
 
 import com.pocket.rpg.audio.AudioEngine;
 import com.pocket.rpg.audio.clips.AudioClip;
-import com.pocket.rpg.audio.mixing.AudioChannel;
-import com.pocket.rpg.audio.mixing.AudioMixer;
-import com.pocket.rpg.audio.sources.PlaybackSettings;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -14,7 +11,6 @@ import lombok.Setter;
 public class MusicPlayer {
 
     private final AudioEngine engine;
-    private final AudioMixer mixer;
 
     private MusicTrack currentTrack;
     private MusicTrack nextTrack;
@@ -30,9 +26,8 @@ public class MusicPlayer {
 
     private boolean paused = false;
 
-    public MusicPlayer(AudioEngine engine, AudioMixer mixer) {
+    public MusicPlayer(AudioEngine engine) {
         this.engine = engine;
-        this.mixer = mixer;
         this.crossfadeController = new CrossfadeController();
     }
 
@@ -58,13 +53,14 @@ public class MusicPlayer {
         }
 
         currentTrack = new MusicTrack(music);
-        currentTrack.play(engine);
+        MusicTrack trackRef = currentTrack;
+        currentTrack.play(engine, () -> this.volume * trackRef.getVolume());
 
         if (fadeIn > 0) {
             currentTrack.setVolume(0f);
-            currentTrack.fadeTo(calculateVolume(), fadeIn);
+            currentTrack.fadeTo(1.0f, fadeIn);
         } else {
-            currentTrack.setVolume(calculateVolume());
+            currentTrack.setVolume(1.0f);
         }
     }
 
@@ -140,7 +136,8 @@ public class MusicPlayer {
 
         nextTrack = new MusicTrack(newMusic);
         nextTrack.setVolume(0f);
-        nextTrack.play(engine);
+        MusicTrack trackRef = nextTrack;
+        nextTrack.play(engine, () -> this.volume * trackRef.getVolume());
 
         crossfadeController.start(
                 currentTrack,
@@ -160,16 +157,10 @@ public class MusicPlayer {
 
     /**
      * Set music player volume (relative to channel volume).
+     * The engine picks up the new value next frame via the volume provider lambda.
      */
     public void setVolume(float volume) {
         this.volume = Math.max(0f, Math.min(1f, volume));
-        if (currentTrack != null && !crossfadeController.isActive()) {
-            currentTrack.setVolume(calculateVolume());
-        }
-    }
-
-    private float calculateVolume() {
-        return mixer.calculateFinalVolume(AudioChannel.MUSIC, volume);
     }
 
     // ========================================================================

@@ -41,8 +41,18 @@ public class AudioEngine {
 
     /**
      * Play a one-shot sound with settings.
+     * Uses settings::getVolume as the base volume provider.
      */
     public AudioHandle play(AudioClip clip, PlaybackSettings settings) {
+        return play(clip, settings, settings::getVolume);
+    }
+
+    /**
+     * Play a sound with settings and a custom volume provider.
+     * The provider supplies the base volume each frame; the engine
+     * multiplies it by the mixer gain for the channel.
+     */
+    public AudioHandle play(AudioClip clip, PlaybackSettings settings, VolumeProvider volumeProvider) {
         if (clip == null) {
             return null;
         }
@@ -61,7 +71,7 @@ public class AudioEngine {
         backend.setSourceBuffer(sourceId, clip.getBufferId());
 
         // Apply settings
-        float finalVolume = mixer.calculateFinalVolume(settings.getChannel(), settings.getVolume());
+        float finalVolume = mixer.calculateFinalVolume(settings.getChannel(), volumeProvider.getVolume());
         backend.setSourceVolume(sourceId, finalVolume);
         backend.setSourcePitch(sourceId, settings.getPitch());
         backend.setSourceLooping(sourceId, settings.isLoop());
@@ -80,17 +90,9 @@ public class AudioEngine {
 
         // Create handle and track
         AudioHandle handle = new AudioHandle(backend, sourceId, clip);
-        activeSources.add(new ActiveSource(handle, settings));
+        activeSources.add(new ActiveSource(handle, settings, volumeProvider));
 
         return handle;
-    }
-
-    /**
-     * Remove a handle from active source tracking.
-     * Use this when a handle is managed externally (e.g. by MusicPlayer).
-     */
-    public void removeFromTracking(AudioHandle handle) {
-        activeSources.removeIf(source -> source.handle == handle);
     }
 
     /**
@@ -143,7 +145,7 @@ public class AudioEngine {
             if (source.handle.isPlaying()) {
                 float finalVolume = mixer.calculateFinalVolume(
                         source.settings.getChannel(),
-                        source.settings.getVolume()
+                        source.volumeProvider.getVolume()
                 );
                 backend.setSourceVolume(source.handle.getSourceId(), finalVolume);
             }
@@ -239,6 +241,7 @@ public class AudioEngine {
     private static class ActiveSource {
         final AudioHandle handle;
         final PlaybackSettings settings;
+        final VolumeProvider volumeProvider;
 
         // Fade state
         boolean fading = false;
@@ -246,9 +249,10 @@ public class AudioEngine {
         float fadeSpeed;
         Runnable onFadeComplete;
 
-        ActiveSource(AudioHandle handle, PlaybackSettings settings) {
+        ActiveSource(AudioHandle handle, PlaybackSettings settings, VolumeProvider volumeProvider) {
             this.handle = handle;
             this.settings = settings;
+            this.volumeProvider = volumeProvider;
         }
     }
 }

@@ -52,7 +52,7 @@ public class DefaultAudioContext implements AudioContext {
         engine = new AudioEngine(backend, mixer, config);
 
         // Create music player
-        musicPlayer = new MusicPlayer(engine, mixer);
+        musicPlayer = new MusicPlayer(engine);
 
         initialized = true;
         System.out.println("Audio context initialized");

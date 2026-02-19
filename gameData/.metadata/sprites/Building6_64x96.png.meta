@@ -17,5 +17,6 @@
     "y": 0.5
   },
   "defaultNineSlice": null,
+  "usableAsTileset": true,
   "sprites": null
 }

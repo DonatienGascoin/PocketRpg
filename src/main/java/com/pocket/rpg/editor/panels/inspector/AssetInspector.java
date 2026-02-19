@@ -242,7 +242,8 @@ public class AssetInspector {
     private void renderSaveButton() {
         float buttonWidth = ImGui.getContentRegionAvailX();
 
-        if (hasUnsavedChanges) {
+        boolean pushedStyle = hasUnsavedChanges;
+        if (pushedStyle) {
             // Highlight save button when there are changes (amber + dark text for readability)
             EditorColors.pushWarningButtonWithText();
         }
@@ -252,7 +253,7 @@ public class AssetInspector {
             hasUnsavedChanges = false;
         }
 
-        if (hasUnsavedChanges) {
+        if (pushedStyle) {
             EditorColors.popWarningButtonWithText();
         }
     }

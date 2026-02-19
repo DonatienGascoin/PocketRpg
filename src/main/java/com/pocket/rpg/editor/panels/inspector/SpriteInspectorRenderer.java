@@ -13,6 +13,7 @@ import com.pocket.rpg.resources.SpriteMetadata.GridSettings;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
+import imgui.type.ImBoolean;
 import imgui.type.ImFloat;
 
 /**
@@ -41,6 +42,7 @@ public class SpriteInspectorRenderer implements AssetInspectorRenderer<Sprite> {
 
     // Editable values
     private final ImFloat pixelsPerUnit = new ImFloat();
+    private final ImBoolean usableAsTileset = new ImBoolean();
 
     // Change tracking
     private boolean hasChanges = false;
@@ -223,6 +225,14 @@ public class SpriteInspectorRenderer implements AssetInspectorRenderer<Sprite> {
         ImGui.text(String.valueOf(spriteCount));
 
         ImGui.spacing();
+
+        // Tileset flag
+        if (ImGui.checkbox("Use as Tileset", usableAsTileset)) {
+            cachedMetadata.usableAsTileset = usableAsTileset.get() ? true : null;
+            hasChanges = true;
+        }
+
+        ImGui.spacing();
         ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f,
                 "Use Sprite Editor for pivot and 9-slice editing.");
     }
@@ -260,13 +270,16 @@ public class SpriteInspectorRenderer implements AssetInspectorRenderer<Sprite> {
             } else {
                 pixelsPerUnit.set(0);
             }
+
+            // Initialize tileset flag
+            usableAsTileset.set(cachedMetadata != null && cachedMetadata.isUsableAsTileset());
         }
     }
 
     @Override
     public boolean hasEditableProperties() {
-        // Only single mode has editable PPU
-        return cachedMetadata == null || cachedMetadata.isSingle();
+        // Single mode has PPU, multiple mode has tileset toggle
+        return true;
     }
 
     @Override
@@ -286,6 +299,11 @@ public class SpriteInspectorRenderer implements AssetInspectorRenderer<Sprite> {
             } else {
                 cachedMetadata.pixelsPerUnitOverride = null;
             }
+        }
+
+        // Update multiple mode fields
+        if (cachedMetadata.isMultiple()) {
+            cachedMetadata.usableAsTileset = usableAsTileset.get() ? true : null;
         }
 
         // Save to disk

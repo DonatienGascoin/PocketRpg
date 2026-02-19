@@ -89,6 +89,9 @@ public class TilesetRegistry {
             if (meta == null || !meta.isMultiple()) {
                 return false; // Not a tileset, skip
             }
+            if (!meta.isUsableAsTileset()) {
+                return false; // Not marked as tileset, skip
+            }
 
             // Load the parent sprite and get its grid
             Sprite parent = Assets.load(path, Sprite.class);

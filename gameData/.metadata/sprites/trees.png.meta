@@ -17,6 +17,7 @@
     "y": 0.5
   },
   "defaultNineSlice": null,
+  "usableAsTileset": true,
   "sprites": {
     "0": {
       "pivot": {

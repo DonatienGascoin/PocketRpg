@@ -289,6 +289,12 @@ public class SpriteMetadata {
     public NineSliceData defaultNineSlice;
 
     /**
+     * Whether this sprite sheet can be used as a tileset in the tile palette.
+     * Only relevant for MULTIPLE mode. Null or false means not a tileset.
+     */
+    public Boolean usableAsTileset;
+
+    /**
      * Per-sprite overrides for multiple mode.
      * Keys are sprite indices (0-based). Only sprites with overrides need entries.
      */
@@ -363,7 +369,8 @@ public class SpriteMetadata {
     public boolean isEmpty() {
         if (isMultiple()) {
             return grid == null && defaultPivot == null && defaultNineSlice == null
-                    && (sprites == null || sprites.isEmpty());
+                    && (sprites == null || sprites.isEmpty())
+                    && (usableAsTileset == null || !usableAsTileset);
         }
         return pivotX == null && pivotY == null && pixelsPerUnitOverride == null
                 && (nineSlice == null || nineSlice.isEmpty());
@@ -408,6 +415,15 @@ public class SpriteMetadata {
     // ========================================================================
     // MULTIPLE MODE HELPERS
     // ========================================================================
+
+    /**
+     * Checks if this sprite sheet is marked as usable as a tileset.
+     *
+     * @return true if usableAsTileset is explicitly set to true
+     */
+    public boolean isUsableAsTileset() {
+        return usableAsTileset != null && usableAsTileset;
+    }
 
     /**
      * Gets the effective pivot for a sprite in multiple mode.

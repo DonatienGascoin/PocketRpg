@@ -618,3 +618,4 @@ public class DamageZone extends Component {
 - [UI Designer Guide](uiDesignerGuide.md) — Creating UI elements
 - [Inspector Panel Guide](inspectorPanelGuide.md) — General inspector usage
 - [Interactable System Guide](interactableSystemGuide.md) — Building interactable objects (Sign, Chest, etc.)
+- [Dialogue System Guide](dialogueSystemGuide.md) — Dialogue components (`DialogueInteractable`, `PlayerDialogueManager`, `DialogueEventListener`)

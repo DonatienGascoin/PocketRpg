@@ -13,9 +13,11 @@ import com.pocket.rpg.editor.PrefabEditController;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.inspector.*;
 import com.pocket.rpg.editor.panels.inspector.AssetInspectorRegistry;
+import com.pocket.rpg.editor.scene.DirtyTracker;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.RuntimeGameObjectAdapter;
+import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.shortcut.KeyboardLayout;
 import com.pocket.rpg.editor.shortcut.ShortcutAction;
 import com.pocket.rpg.editor.shortcut.ShortcutBinding;
@@ -52,6 +54,9 @@ public class InspectorPanel extends EditorPanel {
 
     @Setter
     private PrefabEditController prefabEditController;
+
+    @Setter
+    private DirtyTracker dirtyTracker;
 
     private final CameraInspector cameraInspector = new CameraInspector();
     private final TilemapLayersInspector tilemapInspector = new TilemapLayersInspector();
@@ -278,23 +283,83 @@ public class InspectorPanel extends EditorPanel {
                         .displayName("Inspector Undo")
                         .defaultBinding(undoBinding)
                         .allowInInput(true)
-                        .handler(AssetInspectorRegistry::undo)
+                        .handler(this::handleUndo)
                         .build(),
                 panelShortcut()
                         .id("inspector.redo")
                         .displayName("Inspector Redo")
                         .defaultBinding(redoBinding)
                         .allowInInput(true)
-                        .handler(AssetInspectorRegistry::redo)
+                        .handler(this::handleRedo)
                         .build(),
                 panelShortcut()
                         .id("inspector.redoAlt")
                         .displayName("Inspector Redo (Alt)")
                         .defaultBinding(ShortcutBinding.ctrl(ImGuiKey.Y))
                         .allowInInput(true)
-                        .handler(AssetInspectorRegistry::redo)
+                        .handler(this::handleRedo)
                         .build()
         );
+    }
+
+    /**
+     * Routes undo to the correct system based on current inspection context.
+     * When inspecting an asset, delegates to the asset's undo stack.
+     * Otherwise, delegates to the scene-level UndoManager.
+     */
+    private void handleUndo() {
+        if (isShowingAssetInspector()) {
+            AssetInspectorRegistry.undo();
+        } else {
+            if (UndoManager.getInstance().undo()) {
+                markSceneDirtyAfterUndoRedo();
+            }
+        }
+    }
+
+    /**
+     * Routes redo to the correct system based on current inspection context.
+     */
+    private void handleRedo() {
+        if (isShowingAssetInspector()) {
+            AssetInspectorRegistry.redo();
+        } else {
+            if (UndoManager.getInstance().redo()) {
+                markSceneDirtyAfterUndoRedo();
+            }
+        }
+    }
+
+    /**
+     * Marks the scene dirty after a successful undo/redo.
+     * Mirrors the behavior of EditorShortcutHandlersImpl.onUndo().
+     */
+    private void markSceneDirtyAfterUndoRedo() {
+        if (dirtyTracker != null) {
+            dirtyTracker.markDirty();
+        }
+    }
+
+    /**
+     * Returns true if the InspectorPanel is currently showing an asset inspector
+     * (i.e., the undo target is the asset's own undo stack, not the scene UndoManager).
+     *
+     * Checks both the selection state AND the visual state: when the user clicks
+     * from an asset to an entity, EditorSelectionManager.selectEntity() clears the
+     * asset selection immediately, but the asset inspector may still be visible due
+     * to the unsaved-changes popup. In that case, undo should still target the
+     * asset's undo stack.
+     *
+     * Note: the ShortcutRegistry already blocks all shortcuts when ImGui popups are
+     * open, so the popup path is technically unreachable. The check is included as
+     * a defensive guard.
+     */
+    private boolean isShowingAssetInspector() {
+        if (selectionManager == null) return false;
+        if (prefabEditController != null && prefabEditController.isActive()) return false;
+        return selectionManager.isAssetSelected()
+                || wasShowingAssetInspector
+                || assetInspector.hasPendingPopup();
     }
 
     // ========================================================================

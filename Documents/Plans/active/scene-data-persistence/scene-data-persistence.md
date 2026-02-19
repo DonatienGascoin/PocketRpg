@@ -9,165 +9,65 @@ The `PersistentEntity` snapshot system carries entire entities (all components, 
 - **Implicit data flow**: Component state travels through opaque reflection cloning — hard to reason about what's actually persisted
 
 ### Approach
-Introduce a `PlayerData` data class stored in `SaveManager.globalState` as the single source of truth for cross-scene player state. Build it **alongside** the existing `PersistentEntity` system, prove it works, then remove the old system in a later phase.
+Build on the infrastructure from **core-persistence (Plan 0)** — `PlayerData`, `onBeforeSceneUnload`, `onPostSceneInitialize` — to implement the game-specific persistence behavior: position flushing, battle return teleportation, scene migration, and removal of the old `PersistentEntity` system.
 
-1. Encapsulate player game state in `PlayerData`, stored in `SaveManager.globalState`
-2. Every scene that needs a player defines one as a **prefab instance** in its scene file
-3. A new `onBeforeSceneUnload()` component lifecycle method lets components flush state automatically
-4. `SceneManager` orchestrates return teleportation — components just read/write data, SceneManager handles timing
-5. `PersistentEntity` remains functional during migration — removal is a separate final phase
+1. `PlayerMovement` flushes position to `PlayerData` via `onBeforeSceneUnload()` (from Plan 0)
+2. `BattleReturnHandler` teleports the player back after battle via `onPostSceneInitialize()` (from Plan 0)
+3. Every scene that needs a player defines one as a **prefab instance** in its scene file
+4. `PersistentEntity` is removed — no two parallel systems
+
+### Dependencies
+
+- **core-persistence (Plan 0)** — `PlayerData`, `onBeforeSceneUnload`, `onPostSceneInitialize`
 
 ### Core Principle
-**`SaveManager.globalState` is the single source of truth for cross-scene data.** Scenes are self-contained; components initialize from global state. Scene-level orchestration stays in SceneManager.
+**`SaveManager.globalState` is the single source of truth for cross-scene data.** Scenes are self-contained; components initialize from global state. SceneManager handles scene lifecycle and hooks only — game mechanics live in game code via listeners.
 
 ---
 
-## PlayerData — The Data Class
+## Prerequisites from Plan 0
 
-A plain data class holding all player state that matters across scenes. Stored as a **JSON string** in `SaveManager.globalState` under the `"player"` namespace, serialized via the project's existing `Serializer` (Gson wrapper).
+This plan depends on infrastructure from **core-persistence (Plan 0)**:
+- **`PlayerData`** — data class with `load()`/`save()`, position fields, persistence patterns
+- **`onBeforeSceneUnload()`** — Component lifecycle hook, fires before scene destruction
+- **`onPostSceneInitialize()`** — SceneLifecycleListener hook, fires after init but before spawn teleport
 
-```java
-public class PlayerData {
-    // Position context (for returning to over-world after battle)
-    public String lastOverworldScene;    // "route_1"
-    public int lastGridX;               // 12
-    public int lastGridY;               // 8
-    public Direction lastDirection;      // Direction.DOWN
-    public boolean returningFromBattle;  // true when exiting battle
-
-    // Game state
-    // public List<PokemonData> team;    // Future
-    // public InventoryData inventory;   // Future
-    // public int gold;                  // Future
-    // public QuestLog quests;           // Future
-
-    // Persistence via Serializer (Gson)
-    public static PlayerData load() {
-        String json = SaveManager.getGlobal("player", "data", "");
-        if (json.isEmpty()) return new PlayerData();
-        return Serializer.fromJson(json, PlayerData.class);
-    }
-
-    public void save() {
-        SaveManager.setGlobal("player", "data", Serializer.toJson(this));
-    }
-}
-```
-
-**Why a data class?**
-- Explicit — you can read the class to know exactly what persists
-- Testable — no component lifecycle needed to inspect/modify state
-- Scene-independent — battle scene reads the same `PlayerData` as over-world
-- Debuggable — can log/inspect the entire player state in one place
-
-**Why Gson instead of `toMap()`/`fromMap()`?**
-- New fields are picked up automatically — no manual map key management
-- Gson deserializes into typed fields directly — no `Number.intValue()` hacks or `LinkedTreeMap` casting
-- The project already has `Serializer.toJson()`/`fromJson()` wrapping a configured Gson instance
-- Stored as a JSON string in globalState, which round-trips cleanly through the save file (string → Gson serialize → disk → Gson deserialize → string)
+See `pokemon-inventory-system/core-persistence/design.md` for the complete definitions.
 
 ---
 
-## `onBeforeSceneUnload()` — Component Lifecycle Method
+## Battle Return Handler
 
-A new lifecycle hook on `Component`, following the same pattern as `onStart()`, `onDestroy()`, etc. Called on all started, enabled components before the current scene is destroyed.
-
-```java
-// Component.java — new protected hook
-protected void onBeforeSceneUnload() { }
-```
-
-**Trigger path:** `SceneManager` calls a new method on `Scene` which iterates all game objects and their components:
+A game-level `SceneLifecycleListener` implementation that handles return-from-battle teleportation. Registered at game startup (e.g. in `DemoScene` or a future `GameManager`).
 
 ```java
-// Scene.java
-public void notifyBeforeUnload() {
-    for (GameObject go : new ArrayList<>(gameObjects)) {
-        notifyBeforeUnloadRecursive(go);
-    }
-}
+public class BattleReturnHandler implements SceneLifecycleListener {
 
-private void notifyBeforeUnloadRecursive(GameObject go) {
-    for (Component comp : new ArrayList<>(go.getAllComponents())) {
-        if (comp.isStarted() && comp.isEnabled()) {
-            try {
-                comp.onBeforeSceneUnload();
-            } catch (Exception e) {
-                Log.error(comp.logTag(), "onBeforeSceneUnload() failed", e);
-            }
+    @Override
+    public void onPostSceneInitialize(Scene scene) {
+        PlayerData data = PlayerData.load();
+        if (data == null || !data.returningFromBattle) return;
+
+        GameObject player = findPlayerEntity(scene);
+        if (player == null) return;  // No player in this scene (cutscene) — flag stays for next scene
+
+        GridMovement gm = player.getComponent(GridMovement.class);
+        if (gm != null) {
+            gm.setGridPosition(data.lastGridX, data.lastGridY);
+            gm.setFacingDirection(data.lastDirection);
         }
-    }
-    for (GameObject child : new ArrayList<>(go.getChildren())) {
-        notifyBeforeUnloadRecursive(child);
-    }
-}
-```
 
-**Why a Component lifecycle method instead of SceneLifecycleListener?**
-- Follows existing patterns — `onStart()`, `onDestroy()`, `onEnable()`, `onDisable()` all work this way
-- No manual registration/unregistration boilerplate
-- Any component can override it — not just player components
-- Future uses: NPC AI could pause pathing, audio components could stop sounds, etc.
+        // Camera bounds already restored by applyCameraData() (reads globalState)
 
----
-
-## SceneManager Orchestration
-
-The key design decision: **SceneManager handles return teleportation**, not components. This avoids execution order conflicts (onStart vs teleportPlayerToSpawn) and keeps timing correct.
-
-### New `loadSceneInternal()` Flow
-
-```java
-private void loadSceneInternal(Scene scene, String spawnId) {
-    List<GameObjectData> snapshots = Collections.emptyList();
-    if (currentScene != null) {
-        currentScene.notifyBeforeUnload();                    // NEW — lifecycle hook
-        snapshots = snapshotPersistentEntities(currentScene); // Existing (kept during migration)
-        currentScene.destroy();
-        fireSceneUnloaded(currentScene);
+        data.returningFromBattle = false;
+        data.save();
     }
 
-    currentScene = scene;
-    currentScene.initialize(viewportConfig, renderingConfig);
-    // └─ All onStart() run here. GridMovement registers with collision system.
+    @Override
+    public void onSceneLoaded(Scene scene) { }
 
-    if (scene instanceof RuntimeScene runtimeScene) {
-        applyCameraData(runtimeScene);
-        // └─ Restores camera bounds from globalState ("camera.activeBoundsId")
-    }
-
-    restorePersistentEntities(currentScene, snapshots);       // Existing (kept during migration)
-
-    applyReturnPosition(currentScene);                        // NEW — battle return teleport
-
-    if (spawnId != null && !spawnId.isEmpty()) {
-        teleportPlayerToSpawn(currentScene, spawnId);         // Existing — overwrites if spawnId present
-    }
-
-    fireSceneLoaded(currentScene);
-}
-```
-
-### New `applyReturnPosition()` Method
-
-```java
-private void applyReturnPosition(Scene scene) {
-    PlayerData data = PlayerData.load();
-    if (data == null || !data.returningFromBattle) return;
-
-    GameObject player = findPlayerEntity(scene);  // Uses existing player-finding mechanism
-    if (player == null) return;  // No player in this scene (cutscene) — flag stays for next scene
-
-    GridMovement gm = player.getComponent(GridMovement.class);
-    if (gm != null) {
-        gm.setGridPosition(data.lastGridX, data.lastGridY);
-        gm.setFacingDirection(data.lastDirection);
-    }
-
-    // Camera bounds already restored by applyCameraData() above (reads globalState)
-
-    data.returningFromBattle = false;
-    data.save();
+    @Override
+    public void onSceneUnloaded(Scene scene) { }
 }
 ```
 
@@ -175,42 +75,51 @@ private void applyReturnPosition(Scene scene) {
 - Runs after `scene.initialize()` → all `onStart()` complete → GridMovement registered with collision → `setGridPosition()` works
 - Runs before `teleportPlayerToSpawn()` → if a spawnId IS provided, it overwrites (correct for normal transitions). If spawnId is null, return position stands.
 - Camera bounds already restored by `applyCameraData()` reading `camera.activeBoundsId` from globalState (set by the last SpawnPoint before the battle)
-- Flag consumed and cleared by SceneManager immediately — no lingering state in components
+- Flag consumed and cleared immediately — no lingering state in components
+- SceneManager has zero knowledge of battle returns
 
-**Edge case: overworld → cutscene → battle → overworld.** If a scene loads without a player entity (cutscene), `applyReturnPosition` finds no player, doesn't clear the flag. The flag persists until a scene with a player entity loads. This is correct behavior.
+**Edge case: overworld → cutscene → battle → overworld.** If a scene loads without a player entity (cutscene), the handler finds no player, doesn't clear the flag. The flag persists until a scene with a player entity loads. This is correct behavior.
 
 ---
 
-## PlayerStateTracker Component
+## Position Flush in `PlayerMovement`
 
-A simple component on the player entity. Its only job: flush position data to `PlayerData` on scene unload.
+`PlayerMovement` already owns the `GridMovement` reference via `@ComponentReference`. Adding position flushing here is natural — no new component needed.
 
 ```java
-@ComponentMeta(category = "Core")
-public class PlayerStateTracker extends Component {
+// Added to PlayerMovement.java
+@Override
+protected void onBeforeSceneUnload() {
+    if (movement == null) return;
 
-    @Override
-    protected void onBeforeSceneUnload() {
-        GridMovement gm = getComponent(GridMovement.class);
-        if (gm == null) return;  // Graceful skip if no GridMovement
-
-        PlayerData data = PlayerData.load();
-        Scene scene = gameObject.getScene();
-        if (scene != null) {
-            data.lastOverworldScene = scene.getName();
-        }
-        data.lastGridX = gm.getGridX();
-        data.lastGridY = gm.getGridY();
-        data.lastDirection = gm.getFacingDirection();
-        data.save();
+    PlayerData data = PlayerData.load();
+    Scene scene = gameObject.getScene();
+    if (scene != null) {
+        data.lastOverworldScene = scene.getName();
     }
+    data.lastGridX = movement.getGridX();
+    data.lastGridY = movement.getGridY();
+    data.lastDirection = movement.getFacingDirection();
+    data.save();
 }
 ```
 
 **What it doesn't do:**
-- No self-teleporting — SceneManager handles that in `applyReturnPosition()`
-- No SceneLifecycleListener registration — `onBeforeSceneUnload()` is a standard Component hook
-- No battle return logic — just writes, never reads
+- No self-teleporting — `BattleReturnHandler` handles that via `onPostSceneInitialize()`
+- No game state — inventory, team, etc. use write-through and manage themselves
+- No battle return logic — just writes position, never reads it
+
+---
+
+## `loadSceneInternal()` — Updated Flow
+
+See **core-persistence (Plan 0)** for the full updated `loadSceneInternal()` method. The key additions from Plan 0 that this plan depends on:
+
+1. `notifyBeforeUnload()` — fires before destroy, triggers `PlayerMovement` position flush
+2. `firePostSceneInitialize()` — fires after init, triggers `BattleReturnHandler` return teleport
+3. `teleportPlayerToSpawn()` — existing, runs after `firePostSceneInitialize`, overwrites if spawnId present
+
+After **Phase 5** of this plan, the `snapshotPersistentEntities` / `restorePersistentEntities` calls are removed from this flow.
 
 ---
 
@@ -232,7 +141,7 @@ Trigger: Player steps on warp tile → startTransition("house_interior", "door_e
 ┌─ SceneManager.loadScene("house_interior", "door_entrance") ┐
 │                                                             │
 │  0. town_square.notifyBeforeUnload()                        │
-│     └─ PlayerStateTracker saves position to PlayerData      │
+│     └─ PlayerMovement saves position to PlayerData          │
 │                                                             │
 │  1. town_square.destroy()                                   │
 │                                                             │
@@ -242,8 +151,9 @@ Trigger: Player steps on warp tile → startTransition("house_interior", "door_e
 │                                                             │
 │  3. applyCameraData() — restores camera bounds              │
 │                                                             │
-│  4. applyReturnPosition()                                   │
-│     └─ returningFromBattle == false → SKIP                  │
+│  4. firePostSceneInitialize()                               │
+│     └─ BattleReturnHandler: returningFromBattle == false    │
+│        → SKIP                                               │
 │                                                             │
 │  5. teleportPlayerToSpawn("door_entrance")                  │
 │     └─ Player placed at spawn position                      │
@@ -274,7 +184,7 @@ Trigger: Random encounter fires → startTransition("battle_scene")
 ┌─ SceneManager.loadScene("battle_scene") ─────────────────┐
 │                                                           │
 │  0. route_1.notifyBeforeUnload()                          │
-│     └─ PlayerStateTracker saves to PlayerData:            │
+│     └─ PlayerMovement saves to PlayerData:                │
 │        lastOverworldScene = "route_1"                     │
 │        lastGridX = 12, lastGridY = 8                      │
 │        lastDirection = DOWN                               │
@@ -289,8 +199,9 @@ Trigger: Random encounter fires → startTransition("battle_scene")
 │        └─ Reads PlayerData (Pokemon team, inventory)      │
 │        └─ Sets up battle state                            │
 │                                                           │
-│  3. applyReturnPosition()                                 │
-│     └─ returningFromBattle == false → SKIP                │
+│  3. firePostSceneInitialize()                             │
+│     └─ BattleReturnHandler: returningFromBattle == false  │
+│        → SKIP                                             │
 │                                                           │
 │  4. No teleportPlayerToSpawn (no spawnId)                 │
 │                                                           │
@@ -328,7 +239,7 @@ Battle ends: Player won. Pokemon HP reduced, item consumed, XP gained.
 ┌─ SceneManager.loadScene("route_1") ──────────────────────┐
 │                                                           │
 │  0. battle_scene.notifyBeforeUnload()                     │
-│     └─ No PlayerStateTracker in battle → nothing flushed  │
+│     └─ No PlayerMovement in battle → nothing flushed      │
 │                                                           │
 │  1. battle_scene.destroy()                                │
 │                                                           │
@@ -342,14 +253,15 @@ Battle ends: Player won. Pokemon HP reduced, item consumed, XP gained.
 │     └─ Reads "camera.activeBoundsId" from globalState     │
 │     └─ Applies camera bounds (saved before battle)        │
 │                                                           │
-│  4. applyReturnPosition()                                 │
-│     └─ returningFromBattle == true                        │
-│     └─ Finds player entity                                │
-│     └─ gridMovement.setGridPosition(12, 8) ← WORKS       │
-│        (GridMovement.onStart() already ran, collision      │
-│         system registered)                                 │
-│     └─ gridMovement.setFacingDirection(DOWN)              │
-│     └─ Clears flag, saves PlayerData                      │
+│  4. firePostSceneInitialize()                             │
+│     └─ BattleReturnHandler:                               │
+│        └─ returningFromBattle == true                     │
+│        └─ Finds player entity                             │
+│        └─ gridMovement.setGridPosition(12, 8) ← WORKS    │
+│           (GridMovement.onStart() already ran, collision   │
+│            system registered)                              │
+│        └─ gridMovement.setFacingDirection(DOWN)           │
+│        └─ Clears flag, saves PlayerData                   │
 │                                                           │
 │  5. teleportPlayerToSpawn → SKIPPED (no spawnId)          │
 │                                                           │
@@ -408,107 +320,113 @@ If the game crashes during a battle:
 
 ## Phases
 
-### Phase 1: PlayerData Class
-- [ ] Create `PlayerData` data class with fields: `lastOverworldScene`, `lastGridX`, `lastGridY`, `lastDirection`, `returningFromBattle`
-- [ ] Include placeholder fields for future game state (commented team/inventory/gold)
-- [ ] `load()` uses `Serializer.fromJson()`, `save()` uses `Serializer.toJson()` — no manual `toMap()`/`fromMap()`
-- [ ] Handle empty/null globalState gracefully (return fresh `PlayerData` with defaults)
-- [ ] Unit tests: in-memory round-trip (`save()` → `load()` preserves all fields)
-- [ ] Integration tests: full disk round-trip (`save()` → `SaveManager.save()` → `SaveManager.load()` → `load()`)
+### Phase 1: Position Flush in `PlayerMovement`
+- [ ] Add `onBeforeSceneUnload()` override to `PlayerMovement`
+- [ ] Null-check `GridMovement` reference — graceful skip if absent
+- [ ] Writes `lastOverworldScene`, `lastGridX`, `lastGridY`, `lastDirection` to PlayerData
+- [ ] Unit test: position flushed on scene unload
+- [ ] Unit test: missing GridMovement (no crash)
 
-### Phase 2: `onBeforeSceneUnload()` Lifecycle Hook
-- [ ] Add `protected void onBeforeSceneUnload() {}` to `Component.java`
-- [ ] Add `notifyBeforeUnload()` to `Scene.java` — iterates all game objects recursively, calls hook on started+enabled components, catches exceptions per component
-- [ ] Add `currentScene.notifyBeforeUnload()` call in `SceneManager.loadSceneInternal()` before `currentScene.destroy()`
-- [ ] Guard with `if (currentScene != null)` (first scene load has no previous scene)
-- [ ] Unit test: hook fires before destroy, with components still alive
-- [ ] Unit test: hook does NOT fire on first scene load (no previous scene)
-- [ ] Unit test: exception in one component's hook doesn't prevent others from running
-
-### Phase 3: `applyReturnPosition()` in SceneManager
-- [ ] Add `applyReturnPosition(Scene scene)` method to SceneManager
-- [ ] Call it after `scene.initialize()` and `applyCameraData()`, before `teleportPlayerToSpawn()`
-- [ ] Reads `PlayerData.returningFromBattle` — if false, returns immediately
-- [ ] Finds player entity, gets `GridMovement`, calls `setGridPosition()` and `setFacingDirection()`
+### Phase 2: Battle Return Handler
+- [ ] Create `BattleReturnHandler` implementing `SceneLifecycleListener`
+- [ ] `onPostSceneInitialize()`: reads `PlayerData.returningFromBattle`, finds player entity, teleports via `GridMovement.setGridPosition()` + `setFacingDirection()`
 - [ ] Clears `returningFromBattle` flag and saves
 - [ ] If no player entity in scene (cutscene), does not clear the flag — persists for next scene
+- [ ] Register handler in game startup (DemoScene or future GameManager)
 - [ ] Camera bounds: verify `applyCameraData()` already restores from `globalState` — no new camera code needed
 - [ ] Unit test: return position applied when flag is true
 - [ ] Unit test: spawnId teleport overwrites return position when both present
 - [ ] Unit test: flag preserved across scenes without player entities
 
-### Phase 4: PlayerStateTracker Component
-- [ ] Create `PlayerStateTracker` component — overrides `onBeforeSceneUnload()` only
-- [ ] Null-check `GridMovement` — graceful skip if absent
-- [ ] Writes `lastOverworldScene`, `lastGridX`, `lastGridY`, `lastDirection` to PlayerData
-- [ ] Add to the player prefab
-- [ ] Unit tests: state flushing on scene unload, missing GridMovement (no crash)
-
-### Phase 5: Wire Up Battle Transitions
+### Phase 3: Wire Up Battle Transitions
 - [ ] Battle entry: encounter trigger calls `startTransition("battle_scene")` — no spawnId, no manual PlayerData save (`onBeforeSceneUnload` handles it)
 - [ ] Battle exit: BattleManager sets `returningFromBattle = true`, writes updated game state, calls `startTransition(playerData.lastOverworldScene)` — no spawnId
 - [ ] Overworld-to-overworld: unchanged, spawnId passed, `teleportPlayerToSpawn()` handles position
 - [ ] Verify TransitionManager flow works for all three cases
 - [ ] Manual testing: walk between scenes, enter/exit battle, verify position and state
 
-### Phase 6: Migrate Existing Scenes (deferred — separate effort)
-- [ ] Ensure all 3 over-world scenes have player as prefab instance
-- [ ] Manually remove `PersistentEntity` components from all 3 scene files and 3 prefabs
+### Phase 4: Migrate Existing Scenes
+- [ ] Ensure all over-world scenes have player as prefab instance
+- [ ] Remove `PersistentEntity` components from scene files and prefabs
 - [ ] Verify overworld-to-overworld transitions work without `PersistentEntity` snapshots
 - [ ] Regression test: every existing demo scene transition
 
-### Phase 7: Remove PersistentEntity System (deferred — separate effort)
+### Phase 5: Remove PersistentEntity System
 - [ ] Remove `snapshotPersistentEntities()` and `restorePersistentEntities()` calls from `SceneManager.loadSceneInternal()`
 - [ ] Remove `PersistentEntity.java` component
 - [ ] Remove `PersistentEntitySnapshot.java` utility
 - [ ] Delete or rewrite `PersistentEntitySnapshotTest` (~47 tests) and `SceneManagerPersistenceTest` (~10 tests)
 - [ ] Clean up `RuntimeSceneLoader` `sourcePrefabId` auto-set logic
-- [ ] Update player-finding mechanism (currently uses `PersistentEntity` tag — needs replacement)
+- [ ] Update player-finding mechanism (currently uses `PersistentEntity` tag — needs replacement, e.g. a `PlayerTag` component or scene query by component type)
 - [ ] Clean up imports across the codebase
 
-### Phase 8: Code Review
+### Phase 6: Documentation & Code Review
 - [ ] Review all changes
 - [ ] Verify no orphaned references
 - [ ] Verify SaveManager.globalState integration is correct
 - [ ] Check scene files are self-contained and testable in editor
+- [ ] Update `.claude/reference/architecture.md` — new lifecycle hooks, PlayerData, persistence strategy
+- [ ] Update `.claude/reference/common-pitfalls.md` — write-through vs onBeforeSceneUnload rules
+- [ ] Ask user about Encyclopedia guide updates
 
 ---
 
 ## Files to Change
 
+Infrastructure files (`PlayerData`, `Component`, `Scene`, `SceneLifecycleListener`, `SceneManager`) are handled by **core-persistence (Plan 0)**.
+
 | File | Change | Phase |
 |------|--------|-------|
-| `PlayerData.java` | **NEW** — Player state data class with Gson serialization | 1 |
-| `Component.java` | Add `protected void onBeforeSceneUnload() {}` | 2 |
-| `Scene.java` | Add `notifyBeforeUnload()` — iterates components, calls hook | 2 |
-| `SceneManager.java` | Call `notifyBeforeUnload()` before destroy; add `applyReturnPosition()` | 2, 3 |
-| `PlayerStateTracker.java` | **NEW** — Flushes player position on scene unload | 4 |
-| Player prefab | Add `PlayerStateTracker` component | 4 |
-| Scene files (`.scene`) | Remove PersistentEntity from entities | 6 |
-| `PersistentEntity.java` | **DELETE** | 7 |
-| `PersistentEntitySnapshot.java` | **DELETE** | 7 |
-| `RuntimeSceneLoader.java` | Remove sourcePrefabId auto-set for PersistentEntity | 7 |
-| `PersistentEntitySnapshotTest.java` | **DELETE** or rewrite | 7 |
-| `SceneManagerPersistenceTest.java` | Rewrite for new flow | 7 |
+| `PlayerMovement.java` | Add `onBeforeSceneUnload()` — flush position to PlayerData | 1 |
+| `BattleReturnHandler.java` | **NEW** — Handles return-from-battle teleportation via `onPostSceneInitialize()` | 2 |
+| `DemoScene.java` (or GameManager) | Register `BattleReturnHandler` as SceneLifecycleListener | 2 |
+| Scene files (`.scene`) | Remove PersistentEntity from entities | 4 |
+| Player prefab | Remove PersistentEntity component | 4 |
+| `PersistentEntity.java` | **DELETE** | 5 |
+| `PersistentEntitySnapshot.java` | **DELETE** | 5 |
+| `RuntimeSceneLoader.java` | Remove sourcePrefabId auto-set for PersistentEntity | 5 |
+| `PersistentEntitySnapshotTest.java` | **DELETE** or rewrite | 5 |
+| `SceneManagerPersistenceTest.java` | Rewrite for new flow | 5 |
+| `.claude/reference/architecture.md` | Update persistence strategy | 6 |
+| `.claude/reference/common-pitfalls.md` | Add write-through vs onBeforeSceneUnload guidance | 6 |
 | `TransitionManager.java` | No changes expected | — |
 | `SaveManager.java` | No changes expected | — |
 
 ---
 
+## Acceptance Criteria
+
+Prerequisites from Plan 0 (tested there): `PlayerData` round-trip, lifecycle hooks fire correctly.
+
+- [ ] `PlayerMovement` flushes position to `PlayerData` on scene unload (no new component needed)
+- [ ] `PlayerMovement` handles missing `GridMovement` gracefully (no crash)
+- [ ] `BattleReturnHandler` teleports player to saved position when `returningFromBattle` is true
+- [ ] `BattleReturnHandler` does NOT clear flag when scene has no player entity (cutscene passthrough)
+- [ ] `teleportPlayerToSpawn()` overwrites return position when spawnId is provided (normal transitions win)
+- [ ] SceneManager contains zero game logic — all battle-return behavior lives in `BattleReturnHandler`
+- [ ] `PersistentEntity` system fully removed — no snapshot/restore calls, no component, no utility class
+- [ ] All existing demo scene transitions work after migration
+- [ ] `newGame()` clears PlayerData to clean state
+
+---
+
 ## Testing Strategy
 
-### Unit Tests
-- `PlayerData` in-memory round-trip: `save()` → `load()` preserves all fields
-- `PlayerData` disk round-trip: `save()` → `SaveManager.save()` → `SaveManager.load()` → `load()` preserves all fields
-- `onBeforeSceneUnload()` fires on all started+enabled components before destroy
-- `onBeforeSceneUnload()` does NOT fire on first scene load (no previous scene)
-- Exception in one component's `onBeforeSceneUnload()` doesn't prevent others from running
-- `applyReturnPosition()` teleports player when `returningFromBattle` is true
-- `applyReturnPosition()` skipped when `returningFromBattle` is false
-- `applyReturnPosition()` followed by `teleportPlayerToSpawn()` — spawn wins (correct for normal transitions)
-- `applyReturnPosition()` preserves flag when no player entity in scene
-- `PlayerStateTracker` flushes position/direction on scene unload
-- `PlayerStateTracker` handles missing `GridMovement` gracefully (no crash)
+Infrastructure tests (`PlayerData` round-trips, lifecycle hook ordering) are covered by **core-persistence (Plan 0)**.
+
+### New Unit Tests
+- `PlayerMovement.onBeforeSceneUnload()` flushes position/direction to PlayerData
+- `PlayerMovement.onBeforeSceneUnload()` handles missing `GridMovement` gracefully (no crash)
+- `BattleReturnHandler` teleports player when `returningFromBattle` is true
+- `BattleReturnHandler` skipped when `returningFromBattle` is false
+- `BattleReturnHandler` + `teleportPlayerToSpawn()` — spawn wins (correct for normal transitions)
+- `BattleReturnHandler` preserves flag when no player entity in scene
+
+### Existing Tests That Must Pass
+- All `SceneManager` tests (scene loading, lifecycle listeners, camera data)
+- All `SaveManager` tests (globalState read/write, save/load cycle)
+- `PersistentEntitySnapshotTest` (~47 tests) — must pass until Phase 5 removes them
+- `SceneManagerPersistenceTest` (~10 tests) — must pass until Phase 5 rewrites them
 
 ### Integration Tests
 - Overworld → overworld with spawnId: player at spawn, not at return position
@@ -520,6 +438,8 @@ If the game crashes during a battle:
 - Enter battle from over-world, exit battle, verify return to correct position
 - Verify NPCs reset to initial positions after battle return
 - Verify camera bounds correct after battle return
+- Save mid-scene, reload, verify PlayerData state is current (write-through contract)
+- New game: verify all PlayerData fields are clean defaults
 
 ### Edge Case Tests
 - Scene without player entity (cutscene): no crash, `returningFromBattle` flag preserved

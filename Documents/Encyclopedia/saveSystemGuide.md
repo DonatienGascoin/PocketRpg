@@ -307,5 +307,6 @@ if (SaveManager.getSceneFlag("boss_defeated", false)) {
 
 ## Related
 
-- [Asset Loader Guide](asset-loader-guide.md) - Loading assets referenced in saves
-- [Animation Editor Guide](animation-editor-guide.md) - Animation state is NOT saved (transient)
+- [Asset Loader Guide](assetLoaderGuide.md) — Loading assets referenced in saves
+- [Animation Editor Guide](animationEditorGuide.md) — Animation state is NOT saved (transient)
+- [Dialogue System Guide](dialogueSystemGuide.md) — `DialogueEventStore` uses `SaveManager` global state to persist fired events

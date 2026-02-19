@@ -128,6 +128,42 @@ public class MyBehavior implements TileBehavior {
 }
 ```
 
+## Add a New Dialogue
+
+1. Create a `.dialogue.json` file in `gameData/assets/dialogues/`
+2. Add entries — `LINE` for text, `CHOICES` (optional, must be last) for branching
+3. Register any new custom events in `dialogues/events.dialogue-events.json`
+4. Register any new variables in `dialogues/variables.dialogue-vars.json`
+
+```json
+{
+  "entries": [
+    { "type": "LINE", "text": "Hello, [PLAYER_NAME]!" },
+    {
+      "type": "CHOICES",
+      "hasChoices": true,
+      "choices": [
+        {
+          "text": "Tell me more",
+          "action": { "type": "DIALOGUE", "dialogue": "dialogues/other.dialogue.json" }
+        },
+        {
+          "text": "Goodbye",
+          "action": { "type": "BUILT_IN_EVENT", "builtInEvent": "END_CONVERSATION" }
+        }
+      ]
+    }
+  ]
+}
+```
+
+## Set Up an NPC with Dialogue
+
+1. Add `DialogueInteractable` component to the NPC entity (auto-adds `TriggerZone`)
+2. Set **Default Dialogue** to the `.dialogue.json` asset path
+3. Optionally add conditional dialogues, on-conversation-end events, and static variable values
+4. Ensure the player entity has `PlayerDialogueManager` and `PlayerInput` components
+
 ## Add a Custom Inspector
 
 1. Create class extending `CustomComponentInspector<T>`

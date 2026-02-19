@@ -32,6 +32,26 @@
 - Animation files: `gameData/assets/animations/*.anim.json`
 - Sprite paths use `#` syntax: `"spritesheets/player.spritesheet#0"`
 
+### Dialogue System (`dialogue/`, `components/dialogue/`)
+- Data model: `Dialogue` contains `DialogueEntry` list — entries are sealed as `DialogueLine` or `DialogueChoiceGroup`
+- `Choice` has `ChoiceAction` with `ChoiceActionType`: `DIALOGUE` (chains), `BUILT_IN_EVENT`, `CUSTOM_EVENT`
+- `DialogueEvents` asset — global custom event registry (`.dialogue-events.json`)
+- `DialogueVariables` asset — global variable definitions (`.dialogue-vars.json`), three types: `AUTO`, `STATIC`, `RUNTIME`
+- `DialogueVariableResolver` — registers suppliers for AUTO variables, merges AUTO → STATIC → RUNTIME
+- `DialogueEventStore` — persistence via `SaveManager.setGlobal("dialogue_events", ...)`, survives scenes and save/load
+- `DialogueEventRef` — wrapper for built-in or custom event references
+- `ConditionalDialogue` — pairs conditions (`DialogueCondition`: event FIRED/NOT_FIRED) with a dialogue asset
+- Runtime components in `components/dialogue/`:
+  - `PlayerDialogueManager` — orchestrator on player: state machine, typewriter, choice nav, variable substitution, event dispatch
+  - `DialogueInteractable` — NPC component extending `InteractableComponent`, conditional dialogue selection, static variable table
+  - `DialogueEventListener` — reacts to custom events with `DialogueReaction` (ENABLE/DISABLE/DESTROY game object, RUN_ANIMATION)
+  - `DialogueUIBuilder` — programmatic prefab for dialogue box, text, choices, indicators
+- `PlayerInput` (`components/player/`) — `InputMode` enum (OVERWORLD, DIALOGUE, BATTLE, MENU), mode-gated callbacks
+- `IPausable` interface — components freeze during dialogue without being disabled
+- Loaders: `DialogueLoader` (`.dialogue.json`), `DialogueEventsLoader` (`.dialogue-events.json`), `DialogueVariablesLoader` (`.dialogue-vars.json`)
+- Editor: `DialogueEditorPanel` (two-column editor with undo/redo), custom inspectors for all components and asset types
+- Dialogue files: `gameData/assets/dialogues/*.dialogue.json`
+
 ### Collision System (`collision/`)
 - Custom tile-based collision for grid movement (not JBox2D)
 - `CollisionSystem` - Query API for movement validation
@@ -127,9 +147,13 @@ Centralized, rebindable keyboard shortcuts with scope-aware dispatch.
 |------|---------|
 | `src/main/java/com/pocket/rpg/core/` | GameObject, GameLoop, Camera |
 | `src/main/java/com/pocket/rpg/components/` | Built-in components (SpriteRenderer, TilemapRenderer, etc.) |
+| `src/main/java/com/pocket/rpg/components/dialogue/` | Dialogue runtime components (PlayerDialogueManager, DialogueInteractable, etc.) |
+| `src/main/java/com/pocket/rpg/components/player/` | Player components (PlayerInput, InputMode) |
+| `src/main/java/com/pocket/rpg/dialogue/` | Dialogue data model and utilities |
 | `src/main/java/com/pocket/rpg/serialization/` | Component metadata, registry, scene serialization |
 | `src/main/java/com/pocket/rpg/editor/` | Scene editor |
 | `gameData/` | Assets, scenes, and config files |
+| `gameData/assets/dialogues/` | Dialogue assets, events registry, variables registry |
 
 ## Configuration Files
 

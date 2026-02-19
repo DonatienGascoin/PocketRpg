@@ -65,6 +65,8 @@ When modifying core systems, update corresponding reference files:
 | `editor/gizmos/`, Component gizmos | `architecture.md` - Gizmos System, `common-pitfalls.md` |
 | `editor/ui/fields/` | `field-editors.md` |
 | Component lifecycle | `common-pitfalls.md` |
+| `dialogue/`, `components/dialogue/` | `architecture.md` - Dialogue System, `common-pitfalls.md` - Dialogue System |
+| `components/player/PlayerInput` | `architecture.md` - Dialogue System (InputMode) |
 
 ## Phase Workflow
 

@@ -154,3 +154,31 @@ public void onDrawGizmosSelected(GizmoContext ctx) {
     Vector3f pos = transform.getWorldPosition();
 }
 ```
+
+---
+
+## Dialogue System
+
+### DialogueChoiceGroup must be last entry
+
+A `DialogueChoiceGroup` can only appear as the **last** entry in a `Dialogue.entries` list. The editor, loader, and runtime all enforce this. Maximum 4 choices per group.
+
+### DialogueEventStore uses SaveManager global state
+
+`DialogueEventStore.markFired()` / `hasFired()` are wrappers around `SaveManager.setGlobal("dialogue_events", ...)`. Ensure `SaveManager` is initialized before dialogue runtime runs.
+
+### IPausable — don't disable, pause
+
+During dialogue, `PlayerDialogueManager` calls `onPause()` on all `IPausable` components in the scene (found via `Scene.getComponentsImplementing()`). Components stay enabled — they just skip logic in their update loop. This avoids lifecycle side effects from disabling.
+
+### InputMode gating
+
+`PlayerInput` switches to `InputMode.DIALOGUE` during conversations. Other systems (movement, interaction) check the mode before consuming input. Don't access `Input` directly from player components — use `PlayerInput` as the single source of truth.
+
+### DialogueUI hierarchy — keep enabled initially
+
+`Scene.registerCachedComponents()` skips disabled GameObjects. The DialogueUI children must be enabled at scene start so their `@ComponentReference(source = KEY)` fields resolve. Hide them after references resolve (in `onStart()`), not via the enabled flag at scene load time.
+
+### Sealed interface for DialogueEntry
+
+`DialogueEntry` is a `sealed interface` permitting only `DialogueLine` and `DialogueChoiceGroup`. Use pattern matching (`instanceof`) or `switch` for exhaustive handling.

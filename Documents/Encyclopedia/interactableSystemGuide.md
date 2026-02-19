@@ -229,6 +229,7 @@ The TriggerZone's remove button is greyed out because it is required by the Sign
 
 ## Related
 
+- [Dialogue System Guide](dialogueSystemGuide.md) — `DialogueInteractable` extends `InteractableComponent` for NPC conversations
 - [Components Guide](componentsGuide.md) — Annotations reference (`@RequiredComponent`, `@Tooltip`, etc.)
 - [Collision Entities Guide](collisionEntitiesGuide.md) — TriggerZone, TileEntityMap
 - [Gizmos Guide](gizmosGuide.md) — GizmoContext drawing API

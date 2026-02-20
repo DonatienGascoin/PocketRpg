@@ -32,7 +32,7 @@ public class ConsolePanel extends EditorPanel {
     private static final String PANEL_ID = "console";
 
     // Filter state
-    private final ImString searchFilter = new ImString(256);
+    private final ImString searchFilter = new ImString();
     private final ImBoolean showTrace = new ImBoolean(false);
     private final ImBoolean showDebug = new ImBoolean(true);
     private final ImBoolean showInfo = new ImBoolean(true);

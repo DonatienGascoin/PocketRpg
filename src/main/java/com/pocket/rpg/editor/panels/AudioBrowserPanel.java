@@ -25,7 +25,7 @@ public class AudioBrowserPanel extends EditorPanel {
     private static final String PANEL_ID = "audioBrowser";
 
     private final List<String> audioFiles = new ArrayList<>();
-    private final ImString searchFilter = new ImString(256);
+    private final ImString searchFilter = new ImString();
     private final float[] previewVolume = {0.8f};
 
     private String selectedPath = null;

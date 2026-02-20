@@ -29,7 +29,7 @@ import java.util.List;
 @InspectorFor(SpawnPoint.class)
 public class SpawnPointInspector extends CustomComponentInspector<SpawnPoint> {
 
-    private final ImString spawnIdBuffer = new ImString(256);
+    private final ImString spawnIdBuffer = new ImString();
 
     private static final int ERROR_ROW_BG_COLOR = ImGui.colorConvertFloat4ToU32(1f, 0.1f, 0.1f, 0.7f);
 

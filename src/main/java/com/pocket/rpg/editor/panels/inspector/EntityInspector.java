@@ -45,7 +45,7 @@ public class EntityInspector {
         componentListRenderer = new ComponentListRenderer(fieldEditor, componentBrowserPopup);
     }
 
-    private final ImString stringBuffer = new ImString(256);
+    private final ImString stringBuffer = new ImString();
 
     private EditorGameObject pendingDeleteEntity = null;
 

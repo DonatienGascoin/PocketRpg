@@ -11,7 +11,6 @@ import com.pocket.rpg.editor.ui.fields.FieldEditors;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
-import imgui.type.ImString;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
@@ -29,21 +28,24 @@ import java.util.List;
 @InspectorFor(SpawnPoint.class)
 public class SpawnPointInspector extends CustomComponentInspector<SpawnPoint> {
 
-    private final ImString spawnIdBuffer = new ImString(256);
-
     private static final int ERROR_ROW_BG_COLOR = ImGui.colorConvertFloat4ToU32(1f, 0.1f, 0.1f, 0.7f);
 
     @Override
     public boolean draw() {
         boolean changed = false;
+        String id = String.valueOf(System.identityHashCode(component));
 
         // Spawn ID with required styling
-        changed |= drawSpawnIdField();
+        changed |= drawSpawnIdField(id);
 
         ImGui.spacing();
 
         // Facing direction dropdown
-        changed |= drawFacingDirectionDropdown();
+        changed |= FieldEditors.drawEnum("Facing Direction", "spawn.facing." + id,
+                component::getFacingDirection, component::setFacingDirection, Direction.class);
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("Direction the player should face after spawning.");
+        }
 
         ImGui.spacing();
 
@@ -51,7 +53,7 @@ public class SpawnPointInspector extends CustomComponentInspector<SpawnPoint> {
         ImGui.text("Camera");
         ImGui.separator();
 
-        changed |= drawCameraBoundsIdDropdown();
+        changed |= drawCameraBoundsIdDropdown(id);
 
         ImGui.spacing();
 
@@ -70,9 +72,7 @@ public class SpawnPointInspector extends CustomComponentInspector<SpawnPoint> {
         return changed;
     }
 
-    private boolean drawSpawnIdField() {
-        boolean changed = false;
-
+    private boolean drawSpawnIdField(String id) {
         String currentId = component.getSpawnId();
         boolean isMissing = currentId == null || currentId.isBlank();
 
@@ -85,17 +85,11 @@ public class SpawnPointInspector extends CustomComponentInspector<SpawnPoint> {
             ImGui.getWindowDrawList().channelsSetCurrent(1);
         }
 
-        spawnIdBuffer.set(currentId != null ? currentId : "");
-        FieldEditors.inspectorRow("Spawn ID", () -> {
-            ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-            if (ImGui.inputText("##spawnId", spawnIdBuffer)) {
-                component.setSpawnId(spawnIdBuffer.get());
-            }
-        });
+        boolean changed = FieldEditors.drawString("Spawn ID", "spawn.id." + id,
+                component::getSpawnId, component::setSpawnId);
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("Unique identifier for this spawn point.\nUsed by WarpZone to specify destination.");
         }
-        if (ImGui.isItemDeactivatedAfterEdit()) changed = true;
 
         // End row highlight
         if (isMissing) {
@@ -118,35 +112,8 @@ public class SpawnPointInspector extends CustomComponentInspector<SpawnPoint> {
         return changed;
     }
 
-    private boolean drawFacingDirectionDropdown() {
-        Direction current = component.getFacingDirection();
-        String currentName = current != null ? current.name() : "DOWN";
-
-        final boolean[] changed = {false};
-        FieldEditors.inspectorRow("Facing Direction", () -> {
-            ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-            if (ImGui.beginCombo("##facingDir", currentName)) {
-                for (Direction dir : Direction.values()) {
-                    boolean isSelected = dir == current;
-                    if (ImGui.selectable(dir.name(), isSelected)) {
-                        component.setFacingDirection(dir);
-                        changed[0] = true;
-                    }
-                }
-                ImGui.endCombo();
-            }
-        });
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("Direction the player should face after spawning.");
-        }
-
-        return changed[0];
-    }
-
-    private boolean drawCameraBoundsIdDropdown() {
+    private boolean drawCameraBoundsIdDropdown(String id) {
         String currentId = component.getCameraBoundsId();
-        String display = (currentId == null || currentId.isEmpty()) ? "(none)" : currentId;
-
         List<String> boundsIds = getAvailableBoundsIds();
 
         // Check if reference is broken
@@ -161,31 +128,8 @@ public class SpawnPointInspector extends CustomComponentInspector<SpawnPoint> {
             ImGui.getWindowDrawList().channelsSetCurrent(1);
         }
 
-        final boolean[] changed = {false};
-        FieldEditors.inspectorRow("Camera Bounds", () -> {
-            ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-            if (ImGui.beginCombo("##cameraBoundsId", display)) {
-                // Option for no bounds (empty value)
-                if (ImGui.selectable("(none)", currentId == null || currentId.isEmpty())) {
-                    component.setCameraBoundsId("");
-                    changed[0] = true;
-                }
-
-                if (!boundsIds.isEmpty()) {
-                    ImGui.separator();
-                }
-
-                for (String boundsId : boundsIds) {
-                    boolean isSelected = boundsId.equals(currentId);
-                    if (ImGui.selectable(boundsId, isSelected)) {
-                        component.setCameraBoundsId(boundsId);
-                        changed[0] = true;
-                    }
-                }
-
-                ImGui.endCombo();
-            }
-        });
+        boolean changed = FieldEditors.drawStringCombo("Camera Bounds", "spawn.bounds." + id,
+                component::getCameraBoundsId, component::setCameraBoundsId, boundsIds, true);
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("CameraBoundsZone to activate when arriving at this spawn point.\nSelect (none) for no bounds change.");
         }
@@ -208,7 +152,7 @@ public class SpawnPointInspector extends CustomComponentInspector<SpawnPoint> {
             EditorColors.textColored(EditorColors.WARNING, "Bounds zone '" + currentId + "' not found");
         }
 
-        return changed[0];
+        return changed;
     }
 
     private List<String> getAvailableBoundsIds() {
@@ -220,9 +164,9 @@ public class SpawnPointInspector extends CustomComponentInspector<SpawnPoint> {
         for (EditorGameObject obj : scene.getEntities()) {
             CameraBoundsZone zone = obj.getComponent(CameraBoundsZone.class);
             if (zone != null) {
-                String id = zone.getBoundsId();
-                if (id != null && !id.isBlank()) {
-                    ids.add(id);
+                String zoneId = zone.getBoundsId();
+                if (zoneId != null && !zoneId.isBlank()) {
+                    ids.add(zoneId);
                 }
             }
         }

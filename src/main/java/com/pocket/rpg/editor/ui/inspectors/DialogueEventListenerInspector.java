@@ -40,42 +40,26 @@ public class DialogueEventListenerInspector extends CustomComponentInspector<Dia
     }
 
     private boolean drawEventName() {
-        boolean changed = false;
         List<String> eventNames = loadEventNames();
+        String id = String.valueOf(System.identityHashCode(component));
 
         boolean highlighted = FieldEditorContext.beginRequiredRowHighlight("eventName");
         try {
-            String current = component.getEventName() != null ? component.getEventName() : "";
-            String displayLabel = current.isEmpty() ? "Select..." : current;
-
-            final boolean[] comboChanged = {false};
-            FieldEditors.inspectorRow("Event Name", () -> {
-                ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-                if (ImGui.beginCombo("##eventName", displayLabel)) {
-                    for (String name : eventNames) {
-                        boolean isSelected = name.equals(current);
-                        if (ImGui.selectable(name, isSelected)) {
-                            component.setEventName(name);
-                            markSceneDirty();
-                            comboChanged[0] = true;
-                        }
-                    }
-                    ImGui.endCombo();
-                }
-            });
-            changed |= comboChanged[0];
+            boolean changed = FieldEditors.drawStringCombo("Event Name", "event.name." + id,
+                    component::getEventName, component::setEventName, eventNames);
 
             // Stale event warning: event name set but not in the asset list
-            if (!current.isEmpty() && !eventNames.contains(current)) {
+            String current = component.getEventName();
+            if (current != null && !current.isEmpty() && !eventNames.contains(current)) {
                 ImGui.pushStyleColor(ImGuiCol.Text, EditorColors.WARNING[0], EditorColors.WARNING[1], EditorColors.WARNING[2], EditorColors.WARNING[3]);
                 ImGui.textWrapped("\u26A0 Unknown event: " + current);
                 ImGui.popStyleColor();
             }
+
+            return changed;
         } finally {
             FieldEditorContext.endRequiredRowHighlight(highlighted);
         }
-
-        return changed;
     }
 
     private List<String> loadEventNames() {
@@ -88,11 +72,5 @@ public class DialogueEventListenerInspector extends CustomComponentInspector<Dia
             // Asset may not exist yet
         }
         return Collections.emptyList();
-    }
-
-    private void markSceneDirty() {
-        if (FieldEditorContext.getCurrentScene() != null) {
-            FieldEditorContext.getCurrentScene().markDirty();
-        }
     }
 }

@@ -4,11 +4,13 @@ import com.pocket.rpg.collision.ElevationLevel;
 import com.pocket.rpg.components.interaction.Door;
 import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
+import com.pocket.rpg.editor.undo.UndoManager;
+import com.pocket.rpg.editor.undo.commands.SetterUndoCommand;
 import imgui.ImGui;
-
-import imgui.type.ImBoolean;
-import imgui.type.ImString;
 import org.joml.Vector3f;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Custom editor for Door component.
@@ -23,21 +25,26 @@ import org.joml.Vector3f;
 @InspectorFor(Door.class)
 public class DoorInspector extends CustomComponentInspector<Door> {
 
-    private final ImBoolean openState = new ImBoolean();
-    private final ImBoolean lockedState = new ImBoolean();
-    private final ImBoolean stayOpenState = new ImBoolean();
-    private final ImBoolean consumeKeyState = new ImBoolean();
-    private final ImString keyIdBuffer = new ImString(256);
+    /** Tracks start values for dragInt2 undo. */
+    private static final Map<String, Object> undoStartValues = new HashMap<>();
 
     @Override
     public boolean draw() {
         boolean changed = false;
+        String id = String.valueOf(System.identityHashCode(component));
 
         // State section
         ImGui.text("Door State");
         ImGui.separator();
 
-        changed |= drawStateToggles();
+        changed |= FieldEditors.drawBoolean("Open", "door.open." + id,
+                component::isOpen, component::setOpen);
+
+        changed |= FieldEditors.drawBoolean("Stay Open", "door.stayOpen." + id,
+                component::isStayOpen, component::setStayOpen);
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("If true, door cannot be closed after opening");
+        }
 
         ImGui.spacing();
         ImGui.spacing();
@@ -46,7 +53,7 @@ public class DoorInspector extends CustomComponentInspector<Door> {
         ImGui.text("Lock Settings");
         ImGui.separator();
 
-        changed |= drawLockSettings();
+        changed |= drawLockSettings(id);
 
         ImGui.spacing();
         ImGui.spacing();
@@ -55,9 +62,9 @@ public class DoorInspector extends CustomComponentInspector<Door> {
         ImGui.text("Position & Size");
         ImGui.separator();
 
-        changed |= drawOffset();
+        changed |= drawOffset(id);
         ImGui.spacing();
-        changed |= drawSize();
+        changed |= drawSize(id);
         ImGui.spacing();
         changed |= drawElevationDropdown();
 
@@ -70,88 +77,62 @@ public class DoorInspector extends CustomComponentInspector<Door> {
         return changed;
     }
 
-    private boolean drawStateToggles() {
+    private boolean drawLockSettings(String id) {
         boolean changed = false;
 
-        // Open toggle
-        openState.set(component.isOpen());
-        FieldEditors.inspectorRow("Open", () -> {
-            if (ImGui.checkbox("##open", openState)) {
-                component.setOpen(openState.get());
-            }
-        });
-        if (ImGui.isItemDeactivatedAfterEdit()) changed = true;
-
-        // Stay open toggle
-        stayOpenState.set(component.isStayOpen());
-        FieldEditors.inspectorRow("Stay Open", () -> {
-            if (ImGui.checkbox("##stayOpen", stayOpenState)) {
-                component.setStayOpen(stayOpenState.get());
-            }
-        });
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("If true, door cannot be closed after opening");
-        }
-        if (ImGui.isItemDeactivatedAfterEdit()) changed = true;
-
-        return changed;
-    }
-
-    private boolean drawLockSettings() {
-        boolean changed = false;
-
-        // Locked toggle
-        lockedState.set(component.isLocked());
-        FieldEditors.inspectorRow("Locked", () -> {
-            if (ImGui.checkbox("##locked", lockedState)) {
-                component.setLocked(lockedState.get());
-            }
-        });
-        if (ImGui.isItemDeactivatedAfterEdit()) changed = true;
+        changed |= FieldEditors.drawBoolean("Locked", "door.locked." + id,
+                component::isLocked, component::setLocked);
 
         // Only show key settings if locked
         if (component.isLocked()) {
-            // Key ID
-            keyIdBuffer.set(component.getRequiredKeyId() != null ? component.getRequiredKeyId() : "");
-            FieldEditors.inspectorRow("Required Key", () -> {
-                ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-                if (ImGui.inputText("##keyId", keyIdBuffer)) {
-                    component.setRequiredKeyId(keyIdBuffer.get());
-                }
-            });
+            changed |= FieldEditors.drawString("Required Key", "door.keyId." + id,
+                    component::getRequiredKeyId, component::setRequiredKeyId);
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip("Item ID of the key required to unlock");
             }
-            if (ImGui.isItemDeactivatedAfterEdit()) changed = true;
 
-            // Consume key toggle
-            consumeKeyState.set(component.isConsumeKey());
-            FieldEditors.inspectorRow("Consume Key", () -> {
-                if (ImGui.checkbox("##consumeKey", consumeKeyState)) {
-                    component.setConsumeKey(consumeKeyState.get());
-                }
-            });
+            changed |= FieldEditors.drawBoolean("Consume Key", "door.consumeKey." + id,
+                    component::isConsumeKey, component::setConsumeKey);
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip("If true, key is removed from inventory when used");
             }
-            if (ImGui.isItemDeactivatedAfterEdit()) changed = true;
         }
 
         return changed;
     }
 
-    private boolean drawOffset() {
-        boolean changed = false;
+    private boolean drawOffset(String id) {
+        String key = "door.offset." + id;
+        int startX = component.getOffsetX();
+        int startY = component.getOffsetY();
+        int[] offset = {startX, startY};
 
-        int[] offset = {component.getOffsetX(), component.getOffsetY()};
         FieldEditors.inspectorRow("Offset", () -> {
             ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-            if (ImGui.dragInt2("##offset", offset, 0.1f)) {
-                component.setOffsetX(offset[0]);
-                component.setOffsetY(offset[1]);
-            }
+            ImGui.dragInt2("##offset", offset, 0.1f);
         });
-        if (ImGui.isItemDeactivatedAfterEdit()) changed = true;
+
+        if (ImGui.isItemActivated()) {
+            undoStartValues.put(key, new int[]{startX, startY});
+        }
+
+        boolean changed = false;
+        if (offset[0] != startX || offset[1] != startY) {
+            component.setOffsetX(offset[0]);
+            component.setOffsetY(offset[1]);
+            changed = true;
+        }
+
+        if (ImGui.isItemDeactivatedAfterEdit() && undoStartValues.containsKey(key)) {
+            int[] oldValues = (int[]) undoStartValues.remove(key);
+            if (oldValues[0] != offset[0] || oldValues[1] != offset[1]) {
+                UndoManager.getInstance().push(new SetterUndoCommand<>(
+                        vals -> { component.setOffsetX(vals[0]); component.setOffsetY(vals[1]); },
+                        oldValues, new int[]{offset[0], offset[1]}, "Change Offset"
+                ));
+            }
+        }
+
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("Offset from entity position (in tiles)");
         }
@@ -159,18 +140,38 @@ public class DoorInspector extends CustomComponentInspector<Door> {
         return changed;
     }
 
-    private boolean drawSize() {
-        boolean changed = false;
+    private boolean drawSize(String id) {
+        String key = "door.size." + id;
+        int startW = component.getWidth();
+        int startH = component.getHeight();
+        int[] size = {startW, startH};
 
-        int[] size = {component.getWidth(), component.getHeight()};
         FieldEditors.inspectorRow("Size", () -> {
             ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-            if (ImGui.dragInt2("##size", size, 0.1f, 1, 10)) {
-                component.setWidth(size[0]);
-                component.setHeight(size[1]);
-            }
+            ImGui.dragInt2("##size", size, 0.1f, 1, 10);
         });
-        if (ImGui.isItemDeactivatedAfterEdit()) changed = true;
+
+        if (ImGui.isItemActivated()) {
+            undoStartValues.put(key, new int[]{startW, startH});
+        }
+
+        boolean changed = false;
+        if (size[0] != startW || size[1] != startH) {
+            component.setWidth(size[0]);
+            component.setHeight(size[1]);
+            changed = true;
+        }
+
+        if (ImGui.isItemDeactivatedAfterEdit() && undoStartValues.containsKey(key)) {
+            int[] oldValues = (int[]) undoStartValues.remove(key);
+            if (oldValues[0] != size[0] || oldValues[1] != size[1]) {
+                UndoManager.getInstance().push(new SetterUndoCommand<>(
+                        vals -> { component.setWidth(vals[0]); component.setHeight(vals[1]); },
+                        oldValues, new int[]{size[0], size[1]}, "Change Size"
+                ));
+            }
+        }
+
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("Width x Height of the door (in tiles)");
         }
@@ -192,13 +193,19 @@ public class DoorInspector extends CustomComponentInspector<Door> {
                     String label = level.getDisplayName() + " (level " + level.getLevel() + ")";
 
                     if (ImGui.selectable(label, isSelected)) {
-                        component.setElevation(level.getLevel());
+                        int oldValue = currentElevation;
+                        int newValue = level.getLevel();
+                        component.setElevation(newValue);
+                        UndoManager.getInstance().push(new SetterUndoCommand<>(
+                                v -> component.setElevation(v), oldValue, newValue, "Change Elevation"
+                        ));
                         changed[0] = true;
                     }
                 }
                 ImGui.endCombo();
             }
         });
+
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("Elevation level for collision");
         }

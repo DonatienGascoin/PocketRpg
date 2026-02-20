@@ -10,15 +10,15 @@ import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.ui.fields.FieldEditorContext;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
+import com.pocket.rpg.editor.undo.UndoManager;
+import com.pocket.rpg.editor.undo.commands.SetterUndoCommand;
 import com.pocket.rpg.editor.utils.SceneUtils;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
-import imgui.type.ImBoolean;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Custom editor for WarpZone component.
@@ -32,25 +32,20 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @InspectorFor(WarpZone.class)
 public class WarpZoneInspector extends CustomComponentInspector<WarpZone> {
 
-    private final ImBoolean showLabelState = new ImBoolean();
-    private final ImBoolean useFadeState = new ImBoolean();
-    private final ImBoolean overrideDefaultsState = new ImBoolean();
-    private final float[] fadeOutDuration = new float[1];
-    private final float[] fadeInDuration = new float[1];
-
     private static final int ERROR_ROW_BG_COLOR = ImGui.colorConvertFloat4ToU32(1f, 0.1f, 0.1f, 0.7f);
 
     @Override
     public boolean draw() {
-        AtomicBoolean changed = new AtomicBoolean(false);
+        boolean changed = false;
+        String id = String.valueOf(System.identityHashCode(component));
 
         // Destination section
         ImGui.text("Destination");
         ImGui.separator();
 
-        changed.set(changed.get() | drawSceneDropdown());
+        changed |= drawSceneDropdown();
         ImGui.spacing();
-        changed.set(changed.get() | drawSpawnPointDropdown());
+        changed |= drawSpawnPointDropdown();
 
         ImGui.spacing();
         ImGui.spacing();
@@ -60,16 +55,11 @@ public class WarpZoneInspector extends CustomComponentInspector<WarpZone> {
         ImGui.separator();
 
         // Show destination label
-        showLabelState.set(component.isShowDestinationLabel());
-        FieldEditors.inspectorRow("Show Label", () -> {
-            if (ImGui.checkbox("##showLabel", showLabelState)) {
-                component.setShowDestinationLabel(showLabelState.get());
-            }
-        });
+        changed |= FieldEditors.drawBoolean("Show Label", "warp.showLabel." + id,
+                component::isShowDestinationLabel, component::setShowDestinationLabel);
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("If true, show warp destination in editor gizmo.");
         }
-        if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
 
         ImGui.spacing();
         ImGui.spacing();
@@ -78,7 +68,7 @@ public class WarpZoneInspector extends CustomComponentInspector<WarpZone> {
         ImGui.text("Audio");
         ImGui.separator();
 
-        changed.set(changed.get() | FieldEditors.drawAudioClip("Warp Out Sound", component, "warpOutSound", editorEntity()));
+        changed |= FieldEditors.drawAudioClip("Warp Out Sound", component, "warpOutSound", editorEntity());
 
         ImGui.spacing();
         ImGui.spacing();
@@ -88,13 +78,8 @@ public class WarpZoneInspector extends CustomComponentInspector<WarpZone> {
         ImGui.separator();
 
         // Use fade toggle
-        useFadeState.set(component.isUseFade());
-        FieldEditors.inspectorRow("Use Fade", () -> {
-            if (ImGui.checkbox("##useFade", useFadeState)) {
-                component.setUseFade(useFadeState.get());
-                changed.set(true);
-            }
-        });
+        changed |= FieldEditors.drawBoolean("Use Fade", "warp.useFade." + id,
+                component::isUseFade, component::setUseFade);
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("Enable fade transition effect when warping.");
         }
@@ -102,13 +87,8 @@ public class WarpZoneInspector extends CustomComponentInspector<WarpZone> {
         // Only show override option if useFade is enabled
         if (component.isUseFade()) {
             // Override defaults toggle
-            overrideDefaultsState.set(component.isOverrideTransitionDefaults());
-            FieldEditors.inspectorRow("Override Defaults", () -> {
-                if (ImGui.checkbox("##overrideDefaults", overrideDefaultsState)) {
-                    component.setOverrideTransitionDefaults(overrideDefaultsState.get());
-                    changed.set(true);
-                }
-            });
+            changed |= FieldEditors.drawBoolean("Override Defaults", "warp.overrideDefaults." + id,
+                    component::isOverrideTransitionDefaults, component::setOverrideTransitionDefaults);
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip("Override the default transition settings from rendering config.");
             }
@@ -116,27 +96,17 @@ public class WarpZoneInspector extends CustomComponentInspector<WarpZone> {
             // Only show custom settings if override is enabled
             if (component.isOverrideTransitionDefaults()) {
                 // Fade out duration
-                fadeOutDuration[0] = component.getFadeOutDuration();
-                FieldEditors.inspectorRow("Fade Out", () -> {
-                    ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-                    if (ImGui.dragFloat("##fadeOut", fadeOutDuration, 0.01f, 0.0f, 5.0f, "%.2f s")) {
-                        component.setFadeOutDuration(fadeOutDuration[0]);
-                    }
-                });
-                if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
+                changed |= FieldEditors.drawFloat("Fade Out", "warp.fadeOut." + id,
+                        component::getFadeOutDuration, v -> component.setFadeOutDuration((float) v),
+                        0.01f, 0.0f, 5.0f, "%.2f s");
 
                 // Fade in duration
-                fadeInDuration[0] = component.getFadeInDuration();
-                FieldEditors.inspectorRow("Fade In", () -> {
-                    ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-                    if (ImGui.dragFloat("##fadeIn", fadeInDuration, 0.01f, 0.0f, 5.0f, "%.2f s")) {
-                        component.setFadeInDuration(fadeInDuration[0]);
-                    }
-                });
-                if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
+                changed |= FieldEditors.drawFloat("Fade In", "warp.fadeIn." + id,
+                        component::getFadeInDuration, v -> component.setFadeInDuration((float) v),
+                        0.01f, 0.0f, 5.0f, "%.2f s");
 
                 // Transition name dropdown
-                drawTransitionNameDropdown(changed);
+                changed |= drawTransitionNameDropdown();
             }
         }
 
@@ -146,14 +116,14 @@ public class WarpZoneInspector extends CustomComponentInspector<WarpZone> {
         ImGui.spacing();
         drawDestinationPreview();
 
-        return changed.get();
+        return changed;
     }
 
     /**
      * Draws a transition name dropdown for the WarpZone.
      * Options: "(default)" + all entries from GameConfig + "Random".
      */
-    private void drawTransitionNameDropdown(AtomicBoolean changed) {
+    private boolean drawTransitionNameDropdown() {
         RenderingConfig renderingConfig = ConfigLoader.getConfig(ConfigLoader.ConfigType.RENDERING);
         List<TransitionEntry> entries = renderingConfig.getTransitions();
 
@@ -165,21 +135,30 @@ public class WarpZoneInspector extends CustomComponentInspector<WarpZone> {
             display = currentName;
         }
 
+        final boolean[] changed = {false};
         FieldEditors.inspectorRow("Transition", () -> {
             ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
             if (ImGui.beginCombo("##transitionName", display)) {
                 // Default option (empty name = use global default)
                 boolean isDefault = currentName == null || currentName.isEmpty();
                 if (ImGui.selectable("(default)", isDefault)) {
+                    String oldValue = currentName;
                     component.setTransitionName("");
-                    changed.set(true);
+                    UndoManager.getInstance().push(new SetterUndoCommand<>(
+                            component::setTransitionName, oldValue, "", "Change Transition"
+                    ));
+                    changed[0] = true;
                 }
 
                 // Random option
                 boolean isRandom = "Random".equals(currentName);
                 if (ImGui.selectable("Random", isRandom)) {
+                    String oldValue = currentName;
                     component.setTransitionName("Random");
-                    changed.set(true);
+                    UndoManager.getInstance().push(new SetterUndoCommand<>(
+                            component::setTransitionName, oldValue, "Random", "Change Transition"
+                    ));
+                    changed[0] = true;
                 }
 
                 if (!entries.isEmpty()) {
@@ -192,8 +171,12 @@ public class WarpZoneInspector extends CustomComponentInspector<WarpZone> {
                     if (name == null || name.isEmpty()) continue;
                     boolean isSelected = name.equals(currentName);
                     if (ImGui.selectable(name, isSelected)) {
+                        String oldValue = currentName;
                         component.setTransitionName(name);
-                        changed.set(true);
+                        UndoManager.getInstance().push(new SetterUndoCommand<>(
+                                component::setTransitionName, oldValue, name, "Change Transition"
+                        ));
+                        changed[0] = true;
                     }
                 }
 
@@ -203,6 +186,8 @@ public class WarpZoneInspector extends CustomComponentInspector<WarpZone> {
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("Transition pattern to use. (default) uses the global setting.");
         }
+
+        return changed[0];
     }
 
     private boolean drawSceneDropdown() {
@@ -218,7 +203,11 @@ public class WarpZoneInspector extends CustomComponentInspector<WarpZone> {
             if (ImGui.beginCombo("##targetScene", display)) {
                 // Option for same scene (empty value)
                 if (ImGui.selectable("(same scene)", currentScene == null || currentScene.isBlank())) {
+                    String oldValue = currentScene;
                     component.setTargetScene("");
+                    UndoManager.getInstance().push(new SetterUndoCommand<>(
+                            component::setTargetScene, oldValue, "", "Change Target Scene"
+                    ));
                     changed[0] = true;
                 }
 
@@ -231,7 +220,11 @@ public class WarpZoneInspector extends CustomComponentInspector<WarpZone> {
                 for (String sceneName : availableScenes) {
                     boolean isSelected = sceneName.equals(currentScene);
                     if (ImGui.selectable(sceneName, isSelected)) {
+                        String oldValue = currentScene;
                         component.setTargetScene(sceneName);
+                        UndoManager.getInstance().push(new SetterUndoCommand<>(
+                                component::setTargetScene, oldValue, sceneName, "Change Target Scene"
+                        ));
                         changed[0] = true;
                     }
                 }
@@ -295,7 +288,11 @@ public class WarpZoneInspector extends CustomComponentInspector<WarpZone> {
                     for (String spawnId : spawnIds) {
                         boolean isSelected = spawnId.equals(currentSpawn);
                         if (ImGui.selectable(spawnId, isSelected)) {
+                            String oldValue = currentSpawn;
                             component.setTargetSpawnId(spawnId);
+                            UndoManager.getInstance().push(new SetterUndoCommand<>(
+                                    component::setTargetSpawnId, oldValue, spawnId, "Change Spawn Point"
+                            ));
                             changed[0] = true;
                         }
                     }
@@ -370,9 +367,9 @@ public class WarpZoneInspector extends CustomComponentInspector<WarpZone> {
         for (EditorGameObject obj : scene.getEntities()) {
             SpawnPoint spawn = obj.getComponent(SpawnPoint.class);
             if (spawn != null) {
-                String id = spawn.getSpawnId();
-                if (id != null && !id.isBlank()) {
-                    spawnIds.add(id);
+                String spawnId = spawn.getSpawnId();
+                if (spawnId != null && !spawnId.isBlank()) {
+                    spawnIds.add(spawnId);
                 }
             }
         }

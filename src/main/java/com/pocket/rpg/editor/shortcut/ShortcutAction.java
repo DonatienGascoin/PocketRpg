@@ -3,6 +3,7 @@ package com.pocket.rpg.editor.shortcut;
 import lombok.Getter;
 
 import java.util.Objects;
+import java.util.function.BooleanSupplier;
 
 /**
  * Defines a shortcut action with its default binding, scope, and handler.
@@ -18,6 +19,7 @@ public class ShortcutAction {
     private final String panelId;               // Required for PANEL_FOCUSED and PANEL_VISIBLE scopes
     private final boolean allowInInput;     // If true, fires even when typing in text field
     private final boolean allowInPopup;         // If true, fires even when popup is open (for undo/redo)
+    private final BooleanSupplier applicableWhen; // Additional guard — null means always applicable
 
     private Runnable handler;
 
@@ -31,6 +33,7 @@ public class ShortcutAction {
         this.handler = Objects.requireNonNull(builder.handler, "Handler required");
         this.allowInInput = builder.allowInInput;
         this.allowInPopup = builder.allowInPopup;
+        this.applicableWhen = builder.applicableWhen;
 
         // Validate panel scope has panel ID
         if ((scope == ShortcutScope.PANEL_FOCUSED || scope == ShortcutScope.PANEL_VISIBLE)
@@ -67,6 +70,11 @@ public class ShortcutAction {
      * Checks if this action is applicable in the given context.
      */
     public boolean isApplicable(ShortcutContext context) {
+        // Check custom applicability guard (e.g., InspectorPanel only applicable when showing asset)
+        if (applicableWhen != null && !applicableWhen.getAsBoolean()) {
+            return false;
+        }
+
         // Check text input restriction
         if (context.isTextInputActive() && !allowInInput) {
             return false;
@@ -102,6 +110,7 @@ public class ShortcutAction {
         private Runnable handler;
         private boolean allowInInput = false;
         private boolean allowInPopup = false;
+        private BooleanSupplier applicableWhen;
 
         public Builder id(String id) {
             this.id = id;
@@ -162,6 +171,16 @@ public class ShortcutAction {
 
         public Builder allowInPopup(boolean allow) {
             this.allowInPopup = allow;
+            return this;
+        }
+
+        /**
+         * Sets a custom applicability guard. When the predicate returns false,
+         * this action is skipped during dispatch and lower-priority actions
+         * (e.g., GLOBAL scope) can match instead.
+         */
+        public Builder applicableWhen(BooleanSupplier guard) {
+            this.applicableWhen = guard;
             return this;
         }
 

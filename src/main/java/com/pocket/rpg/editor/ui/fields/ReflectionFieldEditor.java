@@ -173,6 +173,11 @@ public class ReflectionFieldEditor {
             fieldChanged = ListEditor.drawList(label, component, meta, entity);
         }
 
+        // MAPS
+        else if (meta.isMap()) {
+            fieldChanged = MapEditor.drawMap(label, component, meta, entity);
+        }
+
         // UNKNOWN
         else {
             FieldEditors.drawReadOnly(label, component, fieldName, type.getSimpleName());

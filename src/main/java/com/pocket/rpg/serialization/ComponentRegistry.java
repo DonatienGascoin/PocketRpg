@@ -467,8 +467,10 @@ public class ComponentRegistry {
 
             Object defaultValue = getDefaultValue(field.getType());
 
-            // Extract generic element type for List fields
+            // Extract generic type arguments for List and Map fields
             Class<?> elementType = null;
+            Class<?> keyType = null;
+            Class<?> valueType = null;
             if (List.class.isAssignableFrom(field.getType())) {
                 Type genericType = field.getGenericType();
                 if (genericType instanceof ParameterizedType pt) {
@@ -477,9 +479,18 @@ public class ComponentRegistry {
                         elementType = et;
                     }
                 }
+            } else if (Map.class.isAssignableFrom(field.getType())) {
+                Type genericType = field.getGenericType();
+                if (genericType instanceof ParameterizedType pt) {
+                    Type[] typeArgs = pt.getActualTypeArguments();
+                    if (typeArgs.length >= 2) {
+                        if (typeArgs[0] instanceof Class<?> kt) keyType = kt;
+                        if (typeArgs[1] instanceof Class<?> vt) valueType = vt;
+                    }
+                }
             }
 
-            fields.add(new FieldMeta(name, field.getType(), field, defaultValue, elementType));
+            fields.add(new FieldMeta(name, field.getType(), field, defaultValue, elementType, keyType, valueType));
         }
     }
 

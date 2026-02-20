@@ -336,6 +336,51 @@ public final class FieldEditors {
     }
 
     // ========================================================================
+    // MAPS
+    // ========================================================================
+
+    public static boolean drawMap(String label, Component component,
+                                   com.pocket.rpg.serialization.FieldMeta meta,
+                                   EditorGameObject entity) {
+        return MapEditor.drawMap(label, component, meta, entity);
+    }
+
+    // ========================================================================
+    // ENUM SET (flags-style checkboxes)
+    // ========================================================================
+
+    public static <E extends Enum<E>> boolean drawEnumSet(String label, Component component,
+                                                           String fieldName, Class<E> enumClass,
+                                                           EditorGameObject entity) {
+        return EnumSetEditor.draw(label, component, fieldName, enumClass, entity);
+    }
+
+    public static <E extends Enum<E>> boolean drawEnumSet(String label, String key,
+                                                           java.util.function.Supplier<java.util.List<E>> getter,
+                                                           java.util.function.Consumer<java.util.List<E>> setter,
+                                                           Class<E> enumClass) {
+        return EnumSetEditor.draw(label, key, getter, setter, enumClass);
+    }
+
+    // ========================================================================
+    // STRING COMBO (select from dynamic list)
+    // ========================================================================
+
+    public static boolean drawStringCombo(String label, String key,
+                                           java.util.function.Supplier<String> getter,
+                                           java.util.function.Consumer<String> setter,
+                                           java.util.List<String> options) {
+        return StringComboEditor.draw(label, key, getter, setter, options);
+    }
+
+    public static boolean drawStringCombo(String label, String key,
+                                           java.util.function.Supplier<String> getter,
+                                           java.util.function.Consumer<String> setter,
+                                           java.util.List<String> options, boolean nullable) {
+        return StringComboEditor.draw(label, key, getter, setter, options, nullable);
+    }
+
+    // ========================================================================
     // READ-ONLY
     // ========================================================================
 

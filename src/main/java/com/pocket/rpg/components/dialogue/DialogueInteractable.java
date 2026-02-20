@@ -51,7 +51,7 @@ public class DialogueInteractable extends InteractableComponent {
     private boolean hasConditionalDialogues = false;
 
     /** Ordered conditional dialogues — first match wins. Only evaluated when {@link #hasConditionalDialogues} is true. */
-    @Getter @Setter
+    @Getter
     private List<ConditionalDialogue> conditionalDialogues = new ArrayList<>();
 
     /** Default fallback dialogue when no conditions match. */
@@ -76,6 +76,17 @@ public class DialogueInteractable extends InteractableComponent {
      */
     @Getter @Setter
     private DialogueEventRef onConversationEnd;
+
+    /**
+     * Sets the conditional dialogues list. Automatically enables
+     * {@link #hasConditionalDialogues} when a non-empty list is provided.
+     */
+    public void setConditionalDialogues(List<ConditionalDialogue> conditionalDialogues) {
+        this.conditionalDialogues = conditionalDialogues != null ? conditionalDialogues : new ArrayList<>();
+        if (!this.conditionalDialogues.isEmpty()) {
+            this.hasConditionalDialogues = true;
+        }
+    }
 
     // ========================================================================
     // CONSTRUCTOR

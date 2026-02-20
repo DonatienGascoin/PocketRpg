@@ -5,6 +5,7 @@
     "editor.tool.selection": ":V",
     "editor.tool.rotate": ":E",
     "editor.camera.panLeftArrow": ":Left",
+    "inspector.redoAlt": "C:Y",
     "editor.brush.sizeDecrease": ":-",
     "editor.animation.refresh": ":F5",
     "editor.tool.picker": ":5",
@@ -19,6 +20,7 @@
     "editor.brush.sizeIncrease": ":\u003d",
     "editor.camera.panRightArrow": ":Right",
     "editor.animation.firstFrame": ":Home",
+    "inspector.redo": "CS:Z",
     "editor.tool.scale": ":R",
     "editor.edit.copy": "C:C",
     "editor.entity.cancel": ":Escape",
@@ -41,6 +43,7 @@
     "editor.edit.redoAlt": "C:Y",
     "editor.animation.prevFrame": ":Left",
     "editor.camera.panUpArrow": ":Up",
+    "inspector.undo": "C:Z",
     "editor.camera.panDown": ":S",
     "editor.tool.brush": ":1",
     "editor.entity.delete": ":Delete",
@@ -72,16 +75,14 @@
     "editor.camera.panLeft": ":A",
     "editor.file.saveAs": "CS:S",
     "editor.zlevel.increase": ":]",
-    "editor.tool.fill": ":3",
-    "inspector.undo": "C:Z",
-    "inspector.redo": "CS:Z",
-    "inspector.redoAlt": "C:Y"
+    "editor.tool.fill": ":3"
   },
   "azertyBindings": {
     "editor.entity.toggleEnabled": "CS:Q",
     "editor.tool.selection": ":V",
     "editor.tool.rotate": ":E",
     "editor.camera.panLeftArrow": ":Left",
+    "inspector.redoAlt": "C:Y",
     "editor.brush.sizeDecrease": ":-",
     "editor.animation.refresh": ":F5",
     "editor.tool.picker": ":5",
@@ -96,6 +97,7 @@
     "editor.brush.sizeIncrease": ":\u003d",
     "editor.camera.panRightArrow": ":Right",
     "editor.animation.firstFrame": ":Home",
+    "inspector.redo": "CS:W",
     "editor.tool.scale": ":R",
     "editor.edit.copy": "C:C",
     "editor.entity.cancel": ":Escape",
@@ -118,6 +120,7 @@
     "editor.edit.redoAlt": "C:Y",
     "editor.animation.prevFrame": ":Left",
     "editor.camera.panUpArrow": ":Up",
+    "inspector.undo": "C:W",
     "editor.camera.panDown": ":S",
     "editor.tool.brush": ":1",
     "editor.entity.delete": ":Delete",
@@ -149,9 +152,6 @@
     "editor.camera.panLeft": ":A",
     "editor.file.saveAs": "CS:S",
     "editor.zlevel.increase": ":]",
-    "editor.tool.fill": ":3",
-    "inspector.undo": "C:W",
-    "inspector.redo": "CS:W",
-    "inspector.redoAlt": "C:Y"
+    "editor.tool.fill": ":3"
   }
 }

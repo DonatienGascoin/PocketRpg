@@ -266,6 +266,26 @@ public abstract class Scene {
         }
     }
 
+    /**
+     * Notifies all started, enabled components that the scene is about to be unloaded.
+     * Called by SceneManager before destroy(). Exception in one component does not
+     * prevent others from being notified.
+     */
+    public void notifyBeforeUnload() {
+        for (GameObject go : new ArrayList<>(gameObjects)) {
+            notifyBeforeUnloadRecursive(go);
+        }
+    }
+
+    private void notifyBeforeUnloadRecursive(GameObject go) {
+        for (Component comp : new ArrayList<>(go.getAllComponents())) {
+            comp.triggerBeforeSceneUnload();
+        }
+        for (GameObject child : new ArrayList<>(go.getChildren())) {
+            notifyBeforeUnloadRecursive(child);
+        }
+    }
+
     public void destroy() {
         onUnload();
 

@@ -10,6 +10,7 @@ import com.pocket.rpg.collision.trigger.TriggerSystem;
 import com.pocket.rpg.IPausable;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ComponentMeta;
+import com.pocket.rpg.save.ISaveable;
 import com.pocket.rpg.components.rendering.SpriteRenderer;
 import com.pocket.rpg.components.interaction.TriggerZone;
 import com.pocket.rpg.components.core.Transform;
@@ -21,6 +22,7 @@ import org.joml.Vector2f;
 import org.joml.Vector3f;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Component for Pokémon-style grid-based movement.
@@ -50,7 +52,7 @@ import java.util.List;
  * - ENCOUNTER: Tall grass (triggers random encounters)
  */
 @ComponentMeta(category = "Physics")
-public class GridMovement extends Component implements IPausable {
+public class GridMovement extends Component implements IPausable, ISaveable {
 
     // ========================================================================
     // ANCHOR MODE
@@ -622,6 +624,32 @@ public class GridMovement extends Component implements IPausable {
      */
     private float lerp(float a, float b, float t) {
         return a + (b - a) * t;
+    }
+
+    // ========================================================================
+    // ISAVEABLE
+    // ========================================================================
+
+    @Override
+    public Map<String, Object> getSaveState() {
+        return Map.of(
+                "gridX", gridX,
+                "gridY", gridY,
+                "facingDirection", facingDirection.name()
+        );
+    }
+
+    @Override
+    public void loadSaveState(Map<String, Object> state) {
+        if (state == null) return;
+        if (state.containsKey("gridX") && state.containsKey("gridY")) {
+            int savedX = ((Number) state.get("gridX")).intValue();
+            int savedY = ((Number) state.get("gridY")).intValue();
+            setGridPosition(savedX, savedY);
+        }
+        if (state.containsKey("facingDirection")) {
+            facingDirection = Direction.valueOf((String) state.get("facingDirection"));
+        }
     }
 
     // ========================================================================

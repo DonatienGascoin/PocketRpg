@@ -29,7 +29,9 @@ public class IconUtils {
         }
 
         // Default icons
-        if (entity.isScratchEntity()) {
+        if (entity.isPrefabChildNode()) {
+            return getPrefabChildNodeIcon();
+        } else if (entity.isScratchEntity()) {
             return getScratchEntityIcon();
         } else if (entity.isPrefabValid()) {
             return getPrefabEntityIcon();
@@ -100,6 +102,10 @@ public class IconUtils {
 
     public static String getPrefabEntityIcon() {
         return MaterialIcons.Inventory2;
+    }
+
+    public static String getPrefabChildNodeIcon() {
+        return MaterialIcons.AccountTree;
     }
 
     public static String getUnknownEntityIcon() {

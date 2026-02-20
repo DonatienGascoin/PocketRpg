@@ -211,7 +211,7 @@ public class HierarchyTreeRenderer {
         // Note: Right-click selection is handled earlier via pre-selection
         // to ensure the entity appears selected before the context menu opens
 
-        if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(0)) {
+        if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(0) && !entity.isPrefabChildNode()) {
             renamingItem = entity;
             nameBeforeRename = entity.getName();
             renameBuffer.set(nameBeforeRename);
@@ -262,6 +262,30 @@ public class HierarchyTreeRenderer {
                                     new ReparentEntityCommand(scene, e, null, getNextChildOrder(null))
                             );
                         }
+                    }
+                }
+            } else if (entity.isPrefabChildNode()) {
+                // Restricted context menu for prefab child nodes
+                ImGui.textDisabled(MaterialIcons.AccountTree + " Prefab Child");
+                ImGui.separator();
+
+                // Toggle enabled
+                boolean ownEnabled = entity.isOwnEnabled();
+                String enableLabel = ownEnabled
+                        ? MaterialIcons.VisibilityOff + " Disable"
+                        : MaterialIcons.Visibility + " Enable";
+                if (ImGui.menuItem(enableLabel)) {
+                    UndoManager.getInstance().execute(
+                            new ToggleEntityEnabledCommand(entity, !ownEnabled));
+                    scene.markDirty();
+                }
+
+                // Edit Prefab shortcut
+                Prefab prefab = entity.getPrefab();
+                if (prefab instanceof com.pocket.rpg.prefab.JsonPrefab jsonPrefab) {
+                    if (ImGui.menuItem(MaterialIcons.Edit + " Edit Prefab")) {
+                        com.pocket.rpg.editor.events.EditorEventBus.get().publish(
+                                new com.pocket.rpg.editor.events.RequestPrefabEditEvent(jsonPrefab));
                     }
                 }
             } else {

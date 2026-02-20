@@ -64,6 +64,9 @@ public class HierarchyDragDropHandler {
      * Sets up the drag source for an entity.
      */
     public void handleDragSource(EditorGameObject entity) {
+        // Prefab child nodes cannot be dragged (they belong to the prefab structure)
+        if (entity.isPrefabChildNode()) return;
+
         // Check for Escape to cancel drag operation.
         // Workaround: imgui-java doesn't expose ImGui::ClearDragDrop(), so we use a flag-based
         // approach. The drag tooltip is hidden but the user must release the mouse to fully end it.

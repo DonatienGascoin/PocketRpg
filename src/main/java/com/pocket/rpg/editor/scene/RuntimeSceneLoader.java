@@ -277,6 +277,11 @@ public class RuntimeSceneLoader {
 
     /**
      * Creates a prefab instance.
+     * <p>
+     * For root instances: creates GameObject from root components + overrides
+     * (children are handled as separate scene data entries).
+     * For child nodes (prefabNodeId set): resolves components from the correct
+     * hierarchy node.
      */
     private GameObject createPrefabInstance(GameObjectData goData) {
         String prefabId = goData.getPrefabId();
@@ -287,6 +292,21 @@ public class RuntimeSceneLoader {
             return null;
         }
 
+        String nodeId = goData.getPrefabNodeId();
+
+        // Resolve the correct component templates
+        List<Component> templateComponents;
+        if (nodeId != null && !nodeId.isEmpty()) {
+            GameObjectData node = prefab.findNode(nodeId);
+            if (node == null) {
+                System.err.println("Prefab node '" + nodeId + "' not found in " + prefabId);
+                return null;
+            }
+            templateComponents = node.getComponents();
+        } else {
+            templateComponents = prefab.getComponents();
+        }
+
         // Get position from Transform overrides
         float[] pos = goData.getPosition();
         Vector3f position = new Vector3f(
@@ -295,26 +315,66 @@ public class RuntimeSceneLoader {
                 pos != null && pos.length > 2 ? pos[2] : 0
         );
 
-        // Instantiate with overrides
-        GameObject gameObject = prefab.instantiate(position, goData.getComponentOverrides());
+        // Create GameObject from node's components + overrides (no hierarchy auto-expansion)
+        GameObject gameObject = instantiateFromNode(
+                goData.getName(), position, templateComponents,
+                goData.getComponentOverrides(), goData.isActive()
+        );
 
         if (gameObject != null) {
-            String instanceName = goData.getName();
-            if (instanceName != null && !instanceName.isBlank()) {
-                gameObject.setName(instanceName);
-            }
-            gameObject.setEnabled(goData.isActive());
-
             // Set sourcePrefabId on PersistentEntity for snapshot restoration
             PersistentEntity pe = gameObject.getComponent(PersistentEntity.class);
             if (pe != null && (pe.getSourcePrefabId() == null || pe.getSourcePrefabId().isEmpty())) {
                 pe.setSourcePrefabId(prefabId);
             }
-        } else {
-            System.err.println("prefab.instantiate() returned null for " + prefabId);
         }
 
         return gameObject;
+    }
+
+    /**
+     * Creates a GameObject from specific component templates + overrides.
+     * Does NOT auto-expand children (hierarchy comes from scene data parentId references).
+     */
+    private GameObject instantiateFromNode(String name, Vector3f position,
+                                           List<Component> templateComponents,
+                                           Map<String, Map<String, Object>> overrides,
+                                           boolean active) {
+        if (name == null || name.isBlank()) name = "GameObject";
+        GameObject go = new GameObject(name, position);
+        go.setEnabled(active);
+
+        if (templateComponents == null) return go;
+
+        for (Component template : templateComponents) {
+            if (template instanceof Transform t) {
+                Transform existing = go.getTransform();
+                existing.setLocalPosition(t.getLocalPosition());
+                existing.setLocalRotation(t.getLocalRotation());
+                existing.setLocalScale(t.getLocalScale());
+
+                if (overrides != null) {
+                    Map<String, Object> tOverrides = overrides.get(Transform.class.getName());
+                    if (tOverrides != null) {
+                        Prefab.applyOverridesStatic(existing, tOverrides);
+                    }
+                }
+                continue;
+            }
+
+            Component clone = ComponentReflectionUtils.cloneComponent(template);
+            if (clone != null) {
+                if (overrides != null) {
+                    Map<String, Object> fieldOverrides = overrides.get(clone.getClass().getName());
+                    if (fieldOverrides != null) {
+                        Prefab.applyOverridesStatic(clone, fieldOverrides);
+                    }
+                }
+                go.addComponent(clone);
+            }
+        }
+
+        return go;
     }
 
     // ========================================================================

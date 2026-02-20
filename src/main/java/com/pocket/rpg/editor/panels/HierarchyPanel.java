@@ -329,18 +329,50 @@ public class HierarchyPanel extends EditorPanel {
 
         // ===== Scrollable Entity Section =====
         if (ImGui.beginChild("##prefabEntities", 0, 0, false)) {
-            EditorGameObject workingEntity = prefabEditController.getWorkingEntity();
-            if (workingEntity != null) {
-                // Single entity item - always selected in prefab edit mode
-                int flags = ImGuiTreeNodeFlags.Leaf
-                        | ImGuiTreeNodeFlags.NoTreePushOnOpen
-                        | ImGuiTreeNodeFlags.SpanAvailWidth
-                        | ImGuiTreeNodeFlags.Selected;
+            EditorScene workingScene = prefabEditController.getWorkingScene();
+            if (workingScene != null) {
+                // Point scene refs to working scene for tree rendering
+                selectionHandler.setScene(workingScene);
+                dragDropHandler.setScene(workingScene);
+                creationService.setScene(workingScene);
+                treeRenderer.setScene(workingScene);
 
-                String label = IconUtils.getScratchEntityIcon() + " " + workingEntity.getName();
-                ImGui.treeNodeEx("##prefabEntity", flags, label);
+                float baseIndentX = ImGui.getCursorScreenPosX();
+                dragDropHandler.resetFrame(baseIndentX);
+
+                List<EditorGameObject> rootEntities = workingScene.getRootEntities();
+                rootEntities.sort(Comparator.comparingInt(EditorGameObject::getOrder));
+
+                if (rootEntities.isEmpty()) {
+                    ImGui.textDisabled("No entities");
+                } else {
+                    ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing,
+                            ImGui.getStyle().getItemSpacingX(), 1f);
+                    for (EditorGameObject entity : rootEntities) {
+                        treeRenderer.renderEntityTree(entity, 0);
+                    }
+                    ImGui.popStyleVar();
+                }
+
+                dragDropHandler.drawDropIndicator();
+
+                // Bridge dirty: tree actions mark working scene dirty, propagate to controller
+                if (workingScene.isDirty()) {
+                    prefabEditController.markDirty();
+                    workingScene.clearDirty();
+                }
+
+                // Empty area handling
+                float avail = ImGui.getContentRegionAvailY();
+                if (avail > 20) {
+                    ImGui.invisibleButton("##prefab_empty_drop", ImGui.getContentRegionAvailX(), avail - 10);
+                    dragDropHandler.handleEmptyAreaEntityDrop(rootEntities.size());
+                    if (ImGui.isItemClicked(ImGuiMouseButton.Left)) {
+                        selectionHandler.clearSelection();
+                    }
+                }
             } else {
-                ImGui.textDisabled("No working entity");
+                ImGui.textDisabled("No working scene");
             }
         }
         ImGui.endChild();

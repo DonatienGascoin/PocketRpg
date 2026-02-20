@@ -86,25 +86,30 @@ public class EntityInspector {
         ImGui.popFont();
         ImGui.setCursorPosY(cursorY);
         ImGui.sameLine();
-        stringBuffer.set(entity.getName());
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() - 70);
-        if (ImGui.inputText("##EntityName", stringBuffer)) {
-            entity.setName(stringBuffer.get());
-            scene.markDirty();
-        }
-
-        // Capture old name when field is activated
-        if (ImGui.isItemActivated()) {
-            nameBeforeEdit = entity.getName();
-        }
-
-        // Push undo command when field is deactivated
-        if (ImGui.isItemDeactivatedAfterEdit() && nameBeforeEdit != null) {
-            String newName = entity.getName();
-            if (!nameBeforeEdit.equals(newName)) {
-                UndoManager.getInstance().push(new RenameEntityCommand(entity, nameBeforeEdit, newName));
+        if (entity.isPrefabChildNode()) {
+            // Read-only name for prefab child nodes
+            ImGui.text(entity.getName());
+        } else {
+            stringBuffer.set(entity.getName());
+            ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() - 70);
+            if (ImGui.inputText("##EntityName", stringBuffer)) {
+                entity.setName(stringBuffer.get());
+                scene.markDirty();
             }
-            nameBeforeEdit = null;
+
+            // Capture old name when field is activated
+            if (ImGui.isItemActivated()) {
+                nameBeforeEdit = entity.getName();
+            }
+
+            // Push undo command when field is deactivated
+            if (ImGui.isItemDeactivatedAfterEdit() && nameBeforeEdit != null) {
+                String newName = entity.getName();
+                if (!nameBeforeEdit.equals(newName)) {
+                    UndoManager.getInstance().push(new RenameEntityCommand(entity, nameBeforeEdit, newName));
+                }
+                nameBeforeEdit = null;
+            }
         }
 
         ImGui.sameLine();
@@ -116,8 +121,8 @@ public class EntityInspector {
             ImGui.sameLine();
         }
 
-        // Edit Prefab button (icon only) for prefab instances
-        if (entity.isPrefabInstance()) {
+        // Edit Prefab button for prefab instances and child nodes
+        if (entity.isPrefabInstance() || entity.isPrefabChildNode()) {
             Prefab prefab = entity.getPrefab();
             if (prefab instanceof JsonPrefab jsonPrefab) {
                 if (ImGui.button(MaterialIcons.Edit + "##editPrefab")) {
@@ -130,23 +135,26 @@ public class EntityInspector {
             }
         }
 
-        EditorColors.pushDangerButton();
-        if (ImGui.button(MaterialIcons.Delete + "##delete")) {
-            pendingDeleteEntity = entity;
-            ImGui.openPopup("Delete Entity");
+        if (!entity.isPrefabChildNode()) {
+            EditorColors.pushDangerButton();
+            if (ImGui.button(MaterialIcons.Delete + "##delete")) {
+                pendingDeleteEntity = entity;
+                ImGui.openPopup("Delete Entity");
+            }
+            EditorColors.popButtonColors();
+            if (ImGui.isItemHovered()) ImGui.setTooltip("Delete Entity");
         }
-        EditorColors.popButtonColors();
-        if (ImGui.isItemHovered()) ImGui.setTooltip("Delete Entity");
 
         ImGui.separator();
 
 
-        if (entity.isPrefabInstance()) {
+        if (entity.isPrefabInstance() || entity.isPrefabChildNode()) {
             renderPrefabInfo(entity);
         }
 
-        componentListRenderer.render(entity, entity.isPrefabInstance(),
-                !entity.isPrefabInstance(), scene);
+        boolean isPrefabBased = entity.isPrefabInstance() || entity.isPrefabChildNode();
+        componentListRenderer.render(entity, isPrefabBased,
+                !isPrefabBased, scene);
         componentListRenderer.renderPopup();
         savePrefabPopup.render();
     }
@@ -245,6 +253,10 @@ public class EntityInspector {
     private void renderPrefabInfo(EditorGameObject entity) {
         Prefab prefab = entity.getPrefab();
         ImGui.labelText("Prefab", prefab != null ? prefab.getDisplayName() : entity.getPrefabId() + " (missing)");
+
+        if (entity.isPrefabChildNode()) {
+            ImGui.textDisabled(MaterialIcons.AccountTree + " Child node: " + entity.getPrefabNodeId());
+        }
 
         if (prefab == null) {
             ImGui.textColored(1f, 0.5f, 0.2f, 1f, MaterialIcons.Warning + " Prefab not found");

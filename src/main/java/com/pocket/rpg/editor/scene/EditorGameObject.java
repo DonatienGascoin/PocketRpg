@@ -39,6 +39,13 @@ public class EditorGameObject implements Renderable, HierarchyItem {
     @Getter
     private final String prefabId;
 
+    /**
+     * Identifies which node within the prefab hierarchy this entity represents.
+     * Null for root prefab instances and scratch entities.
+     */
+    @Getter
+    private final String prefabNodeId;
+
     @Getter
     @Setter
     private String name;
@@ -86,11 +93,19 @@ public class EditorGameObject implements Renderable, HierarchyItem {
     // ========================================================================
 
     /**
-     * Constructor for prefab instances.
+     * Constructor for prefab instances (root node).
      */
     public EditorGameObject(String prefabId, Vector3f position) {
+        this(prefabId, null, position);
+    }
+
+    /**
+     * Constructor for prefab instances with optional node ID for hierarchy support.
+     */
+    public EditorGameObject(String prefabId, String prefabNodeId, Vector3f position) {
         this.id = generateId();
         this.prefabId = prefabId;
+        this.prefabNodeId = prefabNodeId;
         this.name = prefabId + "_" + id;
         this.order = 0;
         this.children = new ArrayList<>();
@@ -109,6 +124,7 @@ public class EditorGameObject implements Renderable, HierarchyItem {
     public EditorGameObject(String name, Vector3f position, boolean isPrefab) {
         this.id = generateId();
         this.prefabId = isPrefab ? name : null;
+        this.prefabNodeId = null;
         this.name = isPrefab ? (name + "_" + id) : name;
         this.order = 0;
         this.children = new ArrayList<>();
@@ -129,12 +145,13 @@ public class EditorGameObject implements Renderable, HierarchyItem {
     /**
      * Internal constructor for deserialization.
      */
-    private EditorGameObject(String id, String prefabId, String name,
+    private EditorGameObject(String id, String prefabId, String prefabNodeId, String name,
                              List<Component> components,
                              Map<String, Map<String, Object>> componentOverrides,
                              String parentId, int order) {
         this.id = (id != null && !id.isEmpty()) ? id : generateId();
         this.prefabId = prefabId;
+        this.prefabNodeId = prefabNodeId;
         this.name = name;
         this.parentId = parentId;
         this.order = order;
@@ -400,6 +417,13 @@ public class EditorGameObject implements Renderable, HierarchyItem {
         return prefabId != null && !prefabId.isEmpty();
     }
 
+    /**
+     * Returns true if this entity represents a child/grandchild node within a prefab hierarchy.
+     */
+    public boolean isPrefabChildNode() {
+        return prefabNodeId != null && !prefabNodeId.isEmpty();
+    }
+
     // ========================================================================
     // COMPONENT MANAGEMENT
     // ========================================================================
@@ -458,6 +482,8 @@ public class EditorGameObject implements Renderable, HierarchyItem {
 
     /**
      * Creates component instances from prefab with overrides applied.
+     * For child nodes (prefabNodeId set), resolves components from the
+     * corresponding hierarchy node instead of the root.
      */
     private List<Component> getMergedComponents() {
         Prefab prefab = getPrefab();
@@ -465,11 +491,26 @@ public class EditorGameObject implements Renderable, HierarchyItem {
             return new ArrayList<>();
         }
 
+        // Resolve the correct component source based on prefabNodeId
+        List<Component> sourceComponents;
+        if (isPrefabChildNode()) {
+            GameObjectData node = prefab.findNode(prefabNodeId);
+            if (node == null) {
+                System.err.println("Prefab node '" + prefabNodeId + "' not found in prefab '" + prefabId + "'");
+                return new ArrayList<>();
+            }
+            sourceComponents = node.getComponents();
+            if (sourceComponents == null) {
+                sourceComponents = List.of();
+            }
+        } else {
+            sourceComponents = prefab.getComponents();
+        }
+
         List<Component> result = new ArrayList<>();
         boolean hasTransform = false;
 
-        // Clone all components from prefab
-        for (Component baseComp : prefab.getComponents()) {
+        for (Component baseComp : sourceComponents) {
             Component cloned = cloneComponent(baseComp);
             if (cloned != null) {
                 String compType = baseComp.getClass().getName();
@@ -490,7 +531,7 @@ public class EditorGameObject implements Renderable, HierarchyItem {
             }
         }
 
-        // Defensive: add Transform if prefab didn't have one
+        // Defensive: add Transform if source didn't have one
         if (!hasTransform) {
             Transform transform = new Transform();
             transform.setPosition(getPosition());
@@ -663,6 +704,7 @@ public class EditorGameObject implements Renderable, HierarchyItem {
 
     /**
      * Gets a field value from a component.
+     * For prefab child nodes, resolves defaults from the correct hierarchy node.
      */
     public Object getFieldValue(String componentType, String fieldName) {
         if (isScratchEntity()) {
@@ -675,8 +717,7 @@ public class EditorGameObject implements Renderable, HierarchyItem {
             return overrides.get(fieldName);
         }
 
-        Prefab prefab = getPrefab();
-        return prefab != null ? prefab.getFieldDefault(componentType, fieldName) : null;
+        return getFieldDefault(componentType, fieldName);
     }
 
     /**
@@ -693,6 +734,7 @@ public class EditorGameObject implements Renderable, HierarchyItem {
 
         componentOverrides.computeIfAbsent(componentType, k -> new HashMap<>())
                 .put(fieldName, value);
+        invalidateComponentCache();
     }
 
     private Object getFieldFromComponent(Component component, String fieldName) {
@@ -818,7 +860,13 @@ public class EditorGameObject implements Renderable, HierarchyItem {
 
     public Object getFieldDefault(String componentType, String fieldName) {
         Prefab prefab = getPrefab();
-        return prefab != null ? prefab.getFieldDefault(componentType, fieldName) : null;
+        if (prefab == null) {
+            return null;
+        }
+        if (isPrefabChildNode()) {
+            return prefab.getChildFieldDefault(prefabNodeId, componentType, fieldName);
+        }
+        return prefab.getFieldDefault(componentType, fieldName);
     }
 
     public void resetFieldToDefault(String componentType, String fieldName) {
@@ -963,6 +1011,7 @@ public class EditorGameObject implements Renderable, HierarchyItem {
         data.setParentId(parentId);
         data.setOrder(order);
         data.setActive(enabled);
+        data.setPrefabNodeId(prefabNodeId);
         return data;
     }
 
@@ -980,6 +1029,7 @@ public class EditorGameObject implements Renderable, HierarchyItem {
             entity = new EditorGameObject(
                     data.getId(),
                     data.getPrefabId(),
+                    data.getPrefabNodeId(),
                     data.getName(),
                     null,  // No components for prefab instance
                     data.getComponentOverrides(),
@@ -995,6 +1045,7 @@ public class EditorGameObject implements Renderable, HierarchyItem {
             entity = new EditorGameObject(
                     data.getId(),
                     null,  // No prefabId
+                    null,  // No prefabNodeId
                     data.getName() != null ? data.getName() : "Entity",
                     components,
                     null,  // No overrides

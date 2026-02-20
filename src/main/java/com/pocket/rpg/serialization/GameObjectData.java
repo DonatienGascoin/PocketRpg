@@ -87,6 +87,13 @@ public class GameObjectData {
     private String prefabId;
 
     /**
+     * Identifies which node within the prefab hierarchy this entity represents.
+     * Null for root prefab instances and scratch entities.
+     * Set for child/grandchild nodes instantiated from a prefab hierarchy.
+     */
+    private String prefabNodeId;
+
+    /**
      * Component field overrides for prefab instances.
      * Structure: componentType -> (fieldName -> value)
      * <p>

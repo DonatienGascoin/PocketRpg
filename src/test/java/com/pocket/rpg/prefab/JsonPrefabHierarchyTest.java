@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Tests for JsonPrefab hierarchy support (gameObjects field, node lookup, etc.).
  * Uses the guard_tower fixture from the design plan (5 nodes, 3 levels deep).
  */
-class JsonPrefabHierarchyTest {
+public class JsonPrefabHierarchyTest {
 
     private JsonPrefab guardTower;
 
@@ -306,7 +306,7 @@ class JsonPrefabHierarchyTest {
      * └── Flag (flag0001)              zIndex=15
      * </pre>
      */
-    static JsonPrefab buildGuardTowerFixture() {
+    public static JsonPrefab buildGuardTowerFixture() {
         List<GameObjectData> nodes = new ArrayList<>();
 
         // Root: Guard Tower

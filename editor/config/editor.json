@@ -49,6 +49,7 @@
     "inspector": true,
     "tilesetPalette": true,
     "configuration": true,
-    "dialogueEditor": true
+    "dialogueEditor": true,
+    "pokedexEditor": true
   }
 }

@@ -116,6 +116,7 @@ public final class EditorShortcuts {
         public static final String ANIMATOR_EDITOR = "animatorEditor";
         public static final String CONFIGURATION = "configuration";
         public static final String DIALOGUE_EDITOR = "dialogueEditor";
+        public static final String POKEDEX_EDITOR = "pokedexEditor";
 
         private PanelIds() {
         }

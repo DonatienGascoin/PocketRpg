@@ -42,6 +42,14 @@ public class Pokedex {
         moves.put(move.getMoveId(), move);
     }
 
+    public void removeSpecies(String id) {
+        species.remove(id);
+    }
+
+    public void removeMove(String id) {
+        moves.remove(id);
+    }
+
     /**
      * Mutates this instance in place to match the other.
      * Required by the hot-reload contract.

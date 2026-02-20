@@ -1,6 +1,7 @@
 package com.pocket.rpg.pokemon;
 
 import lombok.Getter;
+import lombok.Setter;
 
 import java.util.List;
 
@@ -8,6 +9,7 @@ import java.util.List;
  * Template for a Pokemon species. Loaded from JSON via the Pokedex.
  */
 @Getter
+@Setter
 public class PokemonSpecies {
     private String speciesId;
     private String name;

@@ -75,7 +75,11 @@
     "editor.camera.panLeft": ":A",
     "editor.file.saveAs": "CS:S",
     "editor.zlevel.increase": ":]",
-    "editor.tool.fill": ":3"
+    "editor.tool.fill": ":3",
+    "editor.pokedex.save": "C:S",
+    "editor.pokedex.undo": "C:Z",
+    "editor.pokedex.redo": "CS:Z",
+    "editor.pokedex.redoAlt": "C:Y"
   },
   "azertyBindings": {
     "editor.entity.toggleEnabled": "CS:Q",
@@ -152,6 +156,10 @@
     "editor.camera.panLeft": ":A",
     "editor.file.saveAs": "CS:S",
     "editor.zlevel.increase": ":]",
-    "editor.tool.fill": ":3"
+    "editor.tool.fill": ":3",
+    "editor.pokedex.save": "C:S",
+    "editor.pokedex.undo": "C:W",
+    "editor.pokedex.redo": "CS:W",
+    "editor.pokedex.redoAlt": "C:Y"
   }
 }

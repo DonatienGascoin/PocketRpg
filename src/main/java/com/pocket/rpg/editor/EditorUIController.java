@@ -81,6 +81,9 @@ public class EditorUIController {
     private DialogueEditorPanel dialogueEditorPanel;
 
     @Getter
+    private PokedexEditorPanel pokedexEditorPanel;
+
+    @Getter
     private AudioBrowserPanel audioBrowserPanel;
 
     @Getter
@@ -151,6 +154,10 @@ public class EditorUIController {
         assetBrowserPanel.registerPanelHandler(
                 EditorPanelType.DIALOGUE_EDITOR,
                 dialogueEditorPanel::selectDialogueByPath
+        );
+        assetBrowserPanel.registerPanelHandler(
+                EditorPanelType.POKEDEX_EDITOR,
+                pokedexEditorPanel::selectPokedexByPath
         );
     }
 
@@ -295,6 +302,9 @@ public class EditorUIController {
 
         dialogueEditorPanel = new DialogueEditorPanel();
         dialogueEditorPanel.initPanel(context.getConfig());
+
+        pokedexEditorPanel = new PokedexEditorPanel();
+        pokedexEditorPanel.initPanel(context.getConfig());
 
         audioBrowserPanel = new AudioBrowserPanel();
         audioBrowserPanel.initPanel(context.getConfig());
@@ -793,6 +803,7 @@ public class EditorUIController {
         animatorEditorPanel.render();
         spriteEditorPanel.render();
         dialogueEditorPanel.render();
+        pokedexEditorPanel.render();
         consolePanel.render();
         audioBrowserPanel.render();
         if (gameViewPanel != null) {

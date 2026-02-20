@@ -10,6 +10,7 @@ import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.logging.Log;
 import com.pocket.rpg.logging.Logger;
 import com.pocket.rpg.pokemon.*;
+import com.pocket.rpg.editor.EditorPanelType;
 import com.pocket.rpg.resources.AssetLoader;
 
 import java.io.IOException;
@@ -225,6 +226,11 @@ public class PokedexLoader implements AssetLoader<Pokedex> {
             placeholder = new Pokedex();
         }
         return placeholder;
+    }
+
+    @Override
+    public EditorPanelType getEditorPanelType() {
+        return EditorPanelType.POKEDEX_EDITOR;
     }
 
     @Override

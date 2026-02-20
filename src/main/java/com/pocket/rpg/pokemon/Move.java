@@ -1,11 +1,13 @@
 package com.pocket.rpg.pokemon;
 
 import lombok.Getter;
+import lombok.Setter;
 
 /**
  * Template for a Pokemon move. Loaded from JSON via the Pokedex.
  */
 @Getter
+@Setter
 public class Move {
     private String moveId;
     private String name;

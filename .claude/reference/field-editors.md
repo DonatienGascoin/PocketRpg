@@ -12,6 +12,9 @@ When implementing new inspector UI or field types, **prioritize using and extend
 | `editor/ui/fields/EnumEditor.java` | Enum dropdown fields |
 | `editor/ui/fields/AssetEditor.java` | Asset reference fields with picker integration |
 | `editor/ui/fields/ListEditor.java` | List&lt;T&gt; fields (String, primitives, enums, assets) |
+| `editor/ui/fields/EnumSetEditor.java` | Enum flags-style checkboxes backed by `List<E>` |
+| `editor/ui/fields/StringComboEditor.java` | String combo from dynamic list (scene names, spawn IDs, etc.) |
+| `editor/ui/fields/MapEditor.java` | `Map<String, V>` fields (String, int, float, double, boolean values) |
 | `editor/ui/fields/TransformEditors.java` | Position/Rotation/Scale with axis coloring |
 | `editor/ui/fields/ReflectionFieldEditor.java` | Auto-discovers and renders component fields |
 | `editor/ui/fields/FieldEditorContext.java` | Override detection, required field highlighting |
@@ -56,6 +59,82 @@ UndoManager.getInstance().capture();
 // On widget deactivation (e.g., drag end, input blur)
 UndoManager.getInstance().push(command);
 ```
+
+**SetterUndoCommand** (for custom combo/dropdown selections without reflection):
+```java
+if (ImGui.selectable(option, isSelected)) {
+    String oldValue = component.getValue();
+    component.setValue(option);
+    UndoManager.getInstance().push(new SetterUndoCommand<>(
+        component::setValue, oldValue, option, "Change Value"
+    ));
+}
+```
+
+**dragInt2/dragFloat2 undo** (manual activation tracking for compound widgets):
+```java
+private static final Map<String, Object> undoStartValues = new HashMap<>();
+
+// In draw method:
+if (ImGui.isItemActivated()) {
+    undoStartValues.put(key, new int[]{startX, startY});
+}
+if (ImGui.isItemDeactivatedAfterEdit() && undoStartValues.containsKey(key)) {
+    int[] oldVals = (int[]) undoStartValues.remove(key);
+    if (oldVals[0] != vals[0] || oldVals[1] != vals[1]) {
+        UndoManager.getInstance().push(new SetterUndoCommand<>(
+            v -> { component.setX(v[0]); component.setY(v[1]); },
+            oldVals, new int[]{vals[0], vals[1]}, "Change Offset"
+        ));
+    }
+}
+```
+
+## New Editor Types
+
+### EnumSetEditor — Enum flags checkboxes
+
+Renders all values of an enum as inline checkboxes, backed by a `List<E>` field. Two variants:
+
+```java
+// Reflection-based (uses ListItemCommand for undo)
+FieldEditors.drawEnumSet("Interact From", component, "interactFrom", Direction.class, entity);
+
+// Getter/setter-based (uses SetterUndoCommand with list snapshots)
+EnumSetEditor.draw("Interact From", "key", getter, setter, Direction.class);
+```
+
+### StringComboEditor — Dynamic string combo
+
+Dropdown for selecting a string from a runtime-populated list. Undo via `SetterUndoCommand`.
+
+```java
+// Basic
+FieldEditors.drawStringCombo("Camera Bounds", "key", getter, setter, boundsIds);
+
+// Nullable (adds "None" option at top)
+FieldEditors.drawStringCombo("Camera Bounds", "key", getter, setter, boundsIds, true);
+```
+
+### MapEditor — Map field editor
+
+Edits `Map<String, V>` fields with add/remove/edit. Values: String, int, float, double, boolean. Undo via `MapItemCommand`.
+
+```java
+// Used by ReflectionFieldEditor automatically for @FieldMeta(keyType=..., valueType=...)
+// Or manually:
+MapEditor.drawMap("Variables", component, meta, entity);
+```
+
+## Undo Commands
+
+| Command | Use case |
+|---------|----------|
+| `SetComponentFieldCommand` | Reflection-based single field change (syncs prefab overrides) |
+| `SetterUndoCommand<T>` | Setter-based change — `Consumer<T>` + old/new values |
+| `ListItemCommand` | ADD/REMOVE/SET on component `List` fields via reflection |
+| `MapItemCommand` | PUT/REMOVE on component `Map` fields via reflection |
+| `CompoundCommand` | Batch multiple commands into one undo entry |
 
 ## ImGui NextItemData Pitfall
 

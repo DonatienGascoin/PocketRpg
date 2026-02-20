@@ -155,6 +155,34 @@ changed |= FieldEditors.drawAsset("Animation", component, "animation", Animation
 changed |= FieldEditors.drawAsset("Font", component, "font", Font.class, entity);
 ```
 
+### Enum Set (Flags-Style Checkboxes)
+
+Renders all values of an enum as inline checkboxes, backed by a `List<E>` field:
+
+```java
+// Reflection-based (undo via ListItemCommand)
+changed |= FieldEditors.drawEnumSet("Interact From", component, "interactFrom",
+        Direction.class, editorEntity());
+```
+
+### String Combo (Dynamic List)
+
+Dropdown for selecting from a runtime-populated list of strings:
+
+```java
+// Basic
+changed |= FieldEditors.drawStringCombo("Camera Bounds", "key",
+        component::getCameraBoundsId, component::setCameraBoundsId, boundsIds);
+
+// Nullable (adds "None" option to clear the field)
+changed |= FieldEditors.drawStringCombo("Camera Bounds", "key",
+        component::getCameraBoundsId, component::setCameraBoundsId, boundsIds, true);
+```
+
+### Map Fields
+
+`Map<String, V>` fields are rendered automatically by the reflection editor when `@FieldMeta` provides key/value types. Supports String, int, float, double, boolean values with undo.
+
 ### Transform Fields (for entities)
 
 ```java
@@ -268,26 +296,52 @@ ImGui.textDisabled("Callbacks are set via code at runtime.");
 
 ### Custom Undo Support
 
-For complex changes not handled by FieldEditors:
+For changes not handled by FieldEditors, use `SetterUndoCommand`:
 
 ```java
-// Capture old value before change
-float oldValue = component.getCustomValue();
-
-// Make the change
-component.setCustomValue(newValue);
-
-// Push undo command (guard for play mode!)
-if (editorEntity() != null) {
-    UndoManager.getInstance().push(
-        new SetterUndoCommand<>(
-            component::setCustomValue,
-            oldValue,
-            newValue,
-            "Change Custom Value"
-        )
-    );
+// Simple setter-based undo
+if (ImGui.selectable(option, isSelected)) {
+    String oldValue = component.getValue();
+    component.setValue(option);
+    UndoManager.getInstance().push(new SetterUndoCommand<>(
+        component::setValue, oldValue, option, "Change Value"
+    ));
 }
+```
+
+For compound widgets like `dragInt2` that need activation/deactivation tracking:
+
+```java
+private static final Map<String, Object> undoStartValues = new HashMap<>();
+
+// In draw method:
+if (ImGui.isItemActivated()) {
+    undoStartValues.put(key, new int[]{startX, startY});
+}
+// ... apply live changes ...
+if (ImGui.isItemDeactivatedAfterEdit() && undoStartValues.containsKey(key)) {
+    int[] old = (int[]) undoStartValues.remove(key);
+    UndoManager.getInstance().push(new SetterUndoCommand<>(
+        v -> { component.setX(v[0]); component.setY(v[1]); },
+        old, new int[]{vals[0], vals[1]}, "Change Offset"
+    ));
+}
+```
+
+For list/map mutations on component fields, use `ListItemCommand` and `MapItemCommand`:
+
+```java
+// Add to list
+UndoManager.getInstance().execute(new ListItemCommand(
+    component, "fieldName", ListItemCommand.Operation.ADD,
+    list.size(), null, newItem, editorEntity()
+));
+
+// Put to map
+UndoManager.getInstance().execute(new MapItemCommand(
+    component, "fieldName", MapItemCommand.Operation.PUT,
+    key, oldValue, newValue, editorEntity()
+));
 ```
 
 ### Play Mode Compatibility

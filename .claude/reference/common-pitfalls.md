@@ -88,6 +88,11 @@ FieldEditorUtils.inlineField("X", width, () -> ImGui.dragFloat("##x", buf));
 
 - Always capture state before modification, push after. Use `UndoManager.capture()` on widget activation, `push()` on deactivation.
 - Batch related changes into a single undo action when possible.
+- **Prefer `FieldEditors` methods** — they handle undo automatically via `FieldUndoTracker`.
+- **Custom combos** (with special entries like "(same scene)", "Random"): Use `SetterUndoCommand` on each `ImGui.selectable()` click. Capture old value before the setter call.
+- **dragInt2/dragFloat2** (compound values): Use manual `isItemActivated()` / `isItemDeactivatedAfterEdit()` tracking with a `Map<String, Object>` for start values, then push `SetterUndoCommand<int[]>` with a compound setter lambda.
+- **Nested list mutations** (e.g., conditions inside ConditionalDialogue): `ListItemCommand` only works on Component-level fields. For nested lists, snapshot before/after with `SetterUndoCommand` and the parent object's setter.
+- **Guard undo commands with `editorEntity() != null`** — in play mode there's no undo support.
 
 ---
 

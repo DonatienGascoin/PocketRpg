@@ -110,6 +110,168 @@ Without `prefabNodeId`, there is no way to link a scene child entity back to its
 
 ---
 
+## Grandchild Example (Depth > 1)
+
+This example validates that the flat-list + `parentId` approach supports arbitrary nesting depth.
+
+### Prefab definition
+```json
+{
+  "id": "guard_tower",
+  "displayName": "Guard Tower",
+  "category": "Structures",
+  "gameObjects": [
+    {
+      "id": "root0001",
+      "name": "Guard Tower",
+      "components": [
+        {"type": "...Transform", "properties": {
+          "localPosition": {"x": 0.0, "y": 0.0, "z": 0.0},
+          "localScale": {"x": 1.0, "y": 1.0, "z": 1.0}
+        }},
+        {"type": "...SpriteRenderer", "properties": {"zIndex": 5}}
+      ]
+    },
+    {
+      "id": "guard001",
+      "name": "Guard",
+      "parentId": "root0001",
+      "order": 0,
+      "components": [
+        {"type": "...Transform", "properties": {
+          "localPosition": {"x": 0.0, "y": 1.0, "z": 0.0}
+        }},
+        {"type": "...SpriteRenderer", "properties": {"zIndex": 10}}
+      ]
+    },
+    {
+      "id": "helm0001",
+      "name": "Helmet",
+      "parentId": "guard001",
+      "order": 0,
+      "components": [
+        {"type": "...Transform", "properties": {
+          "localPosition": {"x": 0.0, "y": 0.3, "z": 0.0}
+        }},
+        {"type": "...SpriteRenderer", "properties": {"zIndex": 12}}
+      ]
+    },
+    {
+      "id": "weap0001",
+      "name": "Spear",
+      "parentId": "guard001",
+      "order": 1,
+      "components": [
+        {"type": "...Transform", "properties": {
+          "localPosition": {"x": 0.3, "y": 0.0, "z": 0.0}
+        }},
+        {"type": "...SpriteRenderer", "properties": {"zIndex": 11}}
+      ]
+    },
+    {
+      "id": "flag0001",
+      "name": "Flag",
+      "parentId": "root0001",
+      "order": 1,
+      "components": [
+        {"type": "...Transform", "properties": {
+          "localPosition": {"x": 0.5, "y": 2.0, "z": 0.0}
+        }},
+        {"type": "...SpriteRenderer", "properties": {"zIndex": 15}}
+      ]
+    }
+  ]
+}
+```
+
+### Hierarchy
+```
+Guard Tower (root0001)           ← root, no parentId
+├── Guard (guard001)             ← child, parentId = root0001
+│   ├── Helmet (helm0001)        ← grandchild, parentId = guard001
+│   └── Spear (weap0001)        ← grandchild, parentId = guard001
+└── Flag (flag0001)              ← child, parentId = root0001
+```
+
+### Scene file with overrides at every level
+```json
+[
+  {
+    "id": "abc1",
+    "prefabId": "guard_tower",
+    "componentOverrides": {
+      "com.pocket.rpg.components.core.Transform": {
+        "localPosition": {"x": 5.0, "y": 3.0, "z": 0.0}
+      }
+    }
+  },
+  {
+    "id": "abc2",
+    "prefabId": "guard_tower",
+    "prefabNodeId": "guard001",
+    "parentId": "abc1",
+    "componentOverrides": {
+      "com.pocket.rpg.components.rendering.SpriteRenderer": {
+        "zIndex": 15
+      }
+    }
+  },
+  {
+    "id": "abc3",
+    "prefabId": "guard_tower",
+    "prefabNodeId": "helm0001",
+    "parentId": "abc2",
+    "componentOverrides": {
+      "com.pocket.rpg.components.rendering.SpriteRenderer": {
+        "sprite": "com.pocket.rpg.rendering.resources.Sprite:equipment.png#gold_helmet",
+        "zIndex": 17
+      }
+    }
+  },
+  {
+    "id": "abc4",
+    "prefabId": "guard_tower",
+    "prefabNodeId": "weap0001",
+    "parentId": "abc2",
+    "componentOverrides": {}
+  },
+  {
+    "id": "abc5",
+    "prefabId": "guard_tower",
+    "prefabNodeId": "flag0001",
+    "parentId": "abc1",
+    "componentOverrides": {
+      "com.pocket.rpg.components.core.Transform": {
+        "localPosition": {"x": -0.5, "y": 2.0, "z": 0.0}
+      },
+      "com.pocket.rpg.components.rendering.SpriteRenderer": {
+        "zIndex": 20
+      }
+    }
+  }
+]
+```
+
+### Override resolution
+
+| Entity | Field | Prefab Default | Override | Resolved |
+|--------|-------|---------------|----------|----------|
+| **Guard Tower** (root) | Transform.localPosition | 0, 0, 0 | **5, 3, 0** | **5, 3, 0** |
+| **Guard** (child) | SpriteRenderer.zIndex | 10 | **15** | **15** |
+| **Guard** (child) | Transform.localPosition | 0, 1, 0 | — | 0, 1, 0 |
+| **Helmet** (grandchild) | SpriteRenderer.sprite | *(none)* | **equipment.png#gold_helmet** | **gold_helmet** |
+| **Helmet** (grandchild) | SpriteRenderer.zIndex | 12 | **17** | **17** |
+| **Helmet** (grandchild) | Transform.localPosition | 0, 0.3, 0 | — | 0, 0.3, 0 |
+| **Spear** (grandchild) | *(all fields)* | *(from prefab)* | — | *(all defaults)* |
+| **Flag** (child) | Transform.localPosition | 0.5, 2, 0 | **-0.5, 2, 0** | **-0.5, 2, 0** |
+| **Flag** (child) | SpriteRenderer.zIndex | 15 | **20** | **20** |
+
+Each entity's `getFieldDefault()` resolves against **its own node** via `prefab.findNode(prefabNodeId)`. Resetting the Helmet's zIndex returns 12 (from `helm0001`), not 5 (from `root0001`) or 10 (from `guard001`). The override system is uniform regardless of depth.
+
+Note: `parentId` values in the scene file reference **scene entity IDs** (abc1, abc2...), not prefab node IDs. The `prefabNodeId` values reference back to the prefab definition for component resolution. This separation is what makes arbitrary depth work.
+
+---
+
 ## Override System for Children
 
 Overrides work **identically** for root and child entities because each is its own `EditorGameObject` with its own `componentOverrides` map. A parent and child can both have `SpriteRenderer` with different overrides -- there is no conflict because overrides are per-entity, not per-prefab.

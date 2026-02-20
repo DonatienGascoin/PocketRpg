@@ -227,6 +227,27 @@ public abstract class Component implements GizmoDrawable, GizmoDrawableSelected 
     }
 
     /**
+     * Called on all started, enabled components before the current scene is destroyed.
+     * Use this for flushing state that only matters at scene boundaries (e.g., position).
+     */
+    protected void onBeforeSceneUnload() {
+        // Override in subclasses
+    }
+
+    /**
+     * Internal trigger for onBeforeSceneUnload, called by Scene.notifyBeforeUnload().
+     */
+    public void triggerBeforeSceneUnload() {
+        if (started && isEnabled()) {
+            try {
+                onBeforeSceneUnload();
+            } catch (Exception e) {
+                Log.error(logTag(), "onBeforeSceneUnload() failed", e);
+            }
+        }
+    }
+
+    /**
      * Called when the component becomes disabled.
      * This can be called multiple times if the component is disabled and re-enabled.
      */

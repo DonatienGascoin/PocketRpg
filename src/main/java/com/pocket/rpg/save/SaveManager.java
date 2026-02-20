@@ -59,9 +59,15 @@ public final class SaveManager {
     private final Map<String, PersistentId> registeredEntities = new HashMap<>();
 
     /**
-     * Current scene name (set by SceneLifecycleListener).
+     * Current scene name (set by onPostSceneInitialize).
      */
     private String currentSceneName;
+
+    /**
+     * Whether saved states have been applied for the current scene.
+     * Used to determine if late-registered entities should get state applied immediately.
+     */
+    private boolean savedStatesApplied = false;
 
     /**
      * Play time accumulator (seconds) for current session.
@@ -97,12 +103,23 @@ public final class SaveManager {
         sceneManager.addLifecycleListener(new SceneLifecycleListener() {
             @Override
             public void onSceneLoaded(Scene scene) {
-                instance.onSceneLoaded(scene);
+                // No-op: currentSceneName set in onPostSceneInitialize,
+                // registeredEntities cleared in onSceneUnloaded
             }
 
             @Override
             public void onSceneUnloaded(Scene scene) {
-                instance.onSceneUnloaded(scene);
+                instance.registeredEntities.clear();
+                instance.savedStatesApplied = false;
+                System.out.println("[SaveManager] Scene unloaded: " + scene.getName());
+            }
+
+            @Override
+            public void onPostSceneInitialize(Scene scene) {
+                instance.currentSceneName = scene.getName();
+                instance.applyAllSavedStates();
+                instance.savedStatesApplied = true;
+                System.out.println("[SaveManager] Scene initialized: " + scene.getName());
             }
         });
 
@@ -321,20 +338,25 @@ public final class SaveManager {
     // SCENE LIFECYCLE
     // ========================================================================
 
-    private void onSceneLoaded(Scene scene) {
-        currentSceneName = scene.getName();
-        registeredEntities.clear();
+    /**
+     * Applies saved state to all registered entities.
+     * Called from onPostSceneInitialize, after all onStart() calls complete.
+     */
+    private void applyAllSavedStates() {
+        if (currentSave == null || currentSceneName == null) return;
 
-        System.out.println("[SaveManager] Scene loaded: " + currentSceneName);
-    }
-
-    private void onSceneUnloaded(Scene scene) {
-        // Could auto-capture scene state here if needed
-        System.out.println("[SaveManager] Scene unloaded: " + scene.getName());
+        // Snapshot: applySavedStateToEntity can destroy entities,
+        // which triggers PersistentId.onDestroy() → unregisterEntity(),
+        // modifying registeredEntities during iteration
+        for (PersistentId pid : new ArrayList<>(registeredEntities.values())) {
+            applySavedStateToEntity(pid);
+        }
     }
 
     /**
      * Called by PersistentId.onStart() to register entities.
+     * State application is deferred to onPostSceneInitialize, unless
+     * the entity is registered after scene init (dynamic spawn).
      */
     static void registerEntity(PersistentId pid) {
         if (instance == null) return;
@@ -348,8 +370,12 @@ public final class SaveManager {
 
         instance.registeredEntities.put(id, pid);
 
-        // Apply saved state if available
-        instance.applySavedStateToEntity(pid);
+        // If saved states have already been applied (entity added after scene init),
+        // apply immediately — safe because all onStart() calls completed before
+        // this entity was added to the scene
+        if (instance.savedStatesApplied) {
+            instance.applySavedStateToEntity(pid);
+        }
     }
 
     /**

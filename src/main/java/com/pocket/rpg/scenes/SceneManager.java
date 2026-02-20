@@ -181,6 +181,7 @@ public class SceneManager {
         // 1. Snapshot persistent entities from old scene
         List<GameObjectData> snapshots = Collections.emptyList();
         if (currentScene != null) {
+            currentScene.notifyBeforeUnload();
             snapshots = snapshotPersistentEntities(currentScene);
             currentScene.destroy();
             fireSceneUnloaded(currentScene);
@@ -199,7 +200,10 @@ public class SceneManager {
         // 2. Restore persistent entities
         restorePersistentEntities(currentScene, snapshots);
 
-        // 3. Teleport player to spawn point
+        // 3. Post-initialization hook (ISaveable state application, game code)
+        firePostSceneInitialize(currentScene);
+
+        // 4. Teleport player to spawn point
         if (spawnId != null && !spawnId.isEmpty()) {
             teleportPlayerToSpawn(currentScene, spawnId);
         }
@@ -535,6 +539,18 @@ public class SceneManager {
     private void fireSceneUnloaded(Scene scene) {
         for (SceneLifecycleListener listener : lifecycleListeners) {
             listener.onSceneUnloaded(scene);
+        }
+    }
+
+    /**
+     * Fires the post-scene-initialize event to all listeners.
+     * Called after scene.initialize() + applyCameraData(), before teleportPlayerToSpawn().
+     *
+     * @param scene the scene that was just initialized
+     */
+    private void firePostSceneInitialize(Scene scene) {
+        for (SceneLifecycleListener listener : lifecycleListeners) {
+            listener.onPostSceneInitialize(scene);
         }
     }
 }

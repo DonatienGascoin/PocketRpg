@@ -53,12 +53,12 @@ Reuse `GameObjectData` for the prefab's internal hierarchy -- the same format us
 }
 ```
 
-### Backward Compatibility
+### Format Migration
 
-- If `gameObjects` is present, it takes precedence. The `components` field is ignored.
-- If only `components` is present (old format), treated as single root entity.
-- `Prefab.getComponents()` returns root entity's components in either case.
-- When a prefab is saved from the editor, `components` is set to `null` and `gameObjects` is written. This prevents dual-format ambiguity.
+The existing prefab JSON files (`poke_player`, `test_barrel`, `entity_1`) were created for testing only and will be deleted. No backward compatibility with the old `components`-only format is needed.
+
+- All prefabs use the `gameObjects` format. The old `components` top-level field is removed from `JsonPrefab`.
+- `Prefab.getComponents()` delegates to `getRootNode().getComponents()`.
 - Entries in `gameObjects` must be scratch (no `prefabId` set). This is validated on load.
 
 ### Node ID Stability
@@ -352,32 +352,43 @@ Add `gameObjects` field to `JsonPrefab`.
 ### Modified Files
 
 **`src/main/java/com/pocket/rpg/prefab/JsonPrefab.java`**
-- [ ] Add `private List<GameObjectData> gameObjects`
+- [ ] Replace `private List<Component> components` with `private List<GameObjectData> gameObjects`
 - [ ] Add `private transient Map<String, GameObjectData> nodeIdIndex` -- lazy cached lookup map
-- [ ] `getGameObjects()` -- returns `gameObjects` if non-null; else wraps `components` in a single root `GameObjectData`
-- [ ] `setGameObjects(List<GameObjectData>)` -- sets `gameObjects`, clears `components = null`, clears `nodeIdIndex`
+- [ ] `getGameObjects()` -- returns `gameObjects`
+- [ ] `setGameObjects(List<GameObjectData>)` -- sets `gameObjects`, clears `nodeIdIndex`
 - [ ] `hasChildren()` -- true if `gameObjects` has entries with non-null `parentId`
 - [ ] `findNode(String nodeId)` -- uses `nodeIdIndex` for O(1) lookup. Builds index lazily on first call.
 - [ ] `getRootNode()` -- returns the `GameObjectData` with null `parentId`
-- [ ] Update `getComponents()` -- if `gameObjects` exists, delegate to `getRootNode().getComponents()`
-- [ ] On save: set `components = null` when `gameObjects` is non-null (prevents dual-format files)
+- [ ] `getComponents()` -- delegates to `getRootNode().getComponents()`
+- [ ] Delete old prefab test files (`poke_player.prefab.json`, `test_barrel.prefab.json`, `entity_1.prefab.json`)
 
 **`src/main/java/com/pocket/rpg/prefab/Prefab.java`**
-- [ ] Add default `getGameObjects()` → wraps `getComponents()` in single `GameObjectData`
+- [ ] Add `getGameObjects()` -- returns the prefab's `List<GameObjectData>`
 - [ ] Add default `hasChildren()` → `false`
 - [ ] Add default `findNode(String nodeId)` → `null`
 - [ ] Add default `getChildFieldDefault(nodeId, componentType, fieldName)` -- finds node, gets field via `ComponentReflectionUtils.getFieldValue()`
 - [ ] Add default `getNodeComponentsCopy(nodeId)` -- deep-clones a node's components
 - [ ] Update `instantiate()` to also create child GameObjects when `hasChildren()`, parent them to root
 
-### Verify
+### Unit Tests (`JsonPrefabHierarchyTest`)
+
+Uses guard_tower fixture (root + 2 children + 2 grandchildren).
+
+- [ ] `findNode_returnsChild` -- `findNode("guard001")` returns Guard node
+- [ ] `findNode_returnsGrandchild` -- `findNode("helm0001")` returns Helmet node
+- [ ] `findNode_invalidId_returnsNull` -- `findNode("doesNotExist")` returns null, no crash
+- [ ] `getRootNode_returnsNullParentId` -- `getRootNode().getId() == "root0001"`
+- [ ] `getRootNode_ignoresChildrenAndGrandchildren` -- root is not guard001 or helm0001
+- [ ] `emptyGameObjects_getRootNode_returnsNull` -- empty list, no crash
+- [ ] `hasChildren_withHierarchy_returnsTrue` -- guard_tower fixture
+- [ ] `hasChildren_singleRoot_returnsFalse` -- prefab with only root node
+- [ ] `getComponents_delegatesToRoot` -- returns root0001's components (not guard001's or helm0001's)
+- [ ] `nodeIdIndex_builtLazily` -- first `findNode()` call builds index, subsequent calls reuse it
+- [ ] `setGameObjects_clearsNodeIdIndex` -- after `setGameObjects()`, index is rebuilt on next `findNode()`
+
+### Manual Verify
 - [ ] `mvn compile`
-- [ ] Load `poke_player.prefab.json` -- `hasChildren() == false`, `getComponents()` unchanged
-- [ ] Create test prefab JSON with `gameObjects` (root + 2 children, one nested under other)
-- [ ] `findNode()` returns correct node for each ID, returns null for invalid ID
-- [ ] `getRootNode()` returns entry with null parentId
-- [ ] Empty `gameObjects` list: `getRootNode()` returns null without crash
-- [ ] `getGameObjects()` with old format: wraps `components` in single-entry list
+- [ ] Create guard_tower test prefab JSON (as shown in Grandchild Example section)
 
 ---
 
@@ -407,14 +418,24 @@ Add `prefabNodeId` to `EditorGameObject` and `GameObjectData`. Update all overri
 - [ ] **Update `fromData()`**: read `data.getPrefabNodeId()`, pass to constructor
 - [ ] **`setFieldValue()`**: call `invalidateComponentCache()` after storing override (currently missing for prefab instances)
 
-### Verify
-- [ ] Create `EditorGameObject` with `prefabNodeId` pointing to child node. `getComponents()` resolves child's components.
-- [ ] `getFieldDefault()` returns child node's values, not root's.
-- [ ] `isFieldOverridden()` compares against child node defaults.
-- [ ] `resetFieldToDefault()` reverts to child node default.
-- [ ] `toData()` / `fromData()` round-trip preserves `prefabNodeId`.
-- [ ] Stale `prefabNodeId` (node removed): `getMergedComponents()` returns empty, no NPE, warning logged.
-- [ ] Regression: existing prefab instances (`prefabNodeId == null`) behave identically.
+### Unit Tests (`EditorGameObjectPrefabNodeTest`)
+
+Uses guard_tower fixture. Tests child (guard001, zIndex default 10) and grandchild (helm0001, zIndex default 12) independently.
+
+- [ ] `childNode_getMergedComponents_resolvesChildComponents` -- `prefabNodeId = "guard001"`, merged components include SpriteRenderer with zIndex 10
+- [ ] `grandchildNode_getMergedComponents_resolvesGrandchildComponents` -- `prefabNodeId = "helm0001"`, merged components include SpriteRenderer with zIndex 12
+- [ ] `childNode_getFieldDefault_returnsChildDefault` -- Guard's Transform.localPosition default is (0, 1, 0), not root's (0, 0, 0)
+- [ ] `grandchildNode_getFieldDefault_returnsGrandchildDefault` -- Helmet's SpriteRenderer.zIndex default is 12, not Guard's 10 or root's 5
+- [ ] `childNode_isFieldOverridden_comparesAgainstChildDefault` -- override Guard zIndex to 15 → overridden; set to 10 (matches default) → not overridden
+- [ ] `grandchildNode_isFieldOverridden_comparesAgainstGrandchildDefault` -- override Helmet zIndex to 12 (matches default) → not overridden; set to 17 → overridden
+- [ ] `childNode_resetFieldToDefault_revertsToChildDefault` -- reset Guard zIndex → 10 (not root's 5)
+- [ ] `grandchildNode_resetFieldToDefault_revertsToGrandchildDefault` -- reset Helmet zIndex → 12 (not Guard's 10)
+- [ ] `toData_fromData_roundTrip_preservesPrefabNodeId` -- round-trip for both child and grandchild
+- [ ] `staleNodeId_getMergedComponents_returnsEmpty` -- `prefabNodeId = "removed"`, returns empty list, warning logged, no NPE
+- [ ] `nullNodeId_behavesAsRoot` -- `prefabNodeId == null` resolves root components unchanged
+
+### Manual Verify
+- [ ] Regression: existing scenes load and display correctly after `prefabNodeId` addition
 
 ---
 
@@ -455,14 +476,28 @@ When placing a prefab with children, create all child entities automatically.
 - [ ] `invalidateInstanceCaches()`: already iterates by `prefabId` -- children share the same `prefabId` so they're naturally included
 - [ ] `getInstanceCount()`: filter to `!isPrefabChildNode()` to avoid double-counting children as separate instances
 
-### Verify
-- [ ] Drop hierarchical prefab onto viewport. Root + children in hierarchy. Parent-first ordering verified.
-- [ ] Undo removes all. Redo restores all (parent-child links intact).
-- [ ] Duplicate hierarchical prefab: fresh IDs, same `prefabNodeId`, parent points to cloned root.
-- [ ] Drop flat prefab: single entity (regression).
+### Unit Tests (`PrefabHierarchyHelperTest`)
+
+Uses guard_tower fixture (5 nodes, 3 levels deep).
+
+- [ ] `expandChildren_createsAllDescendants` -- returns 4 descendants (Guard, Helmet, Spear, Flag) in parent-first order
+- [ ] `expandChildren_grandchildParentedToChild` -- Helmet's parent is Guard, not root
+- [ ] `expandChildren_setsCorrectPrefabNodeId` -- each expanded entity has matching `prefabNodeId` (guard001, helm0001, weap0001, flag0001)
+- [ ] `expandChildren_flatPrefab_returnsEmpty` -- single-root prefab returns empty list
+- [ ] `captureHierarchy_roundTrips` -- `expandChildren()` → `captureHierarchy()` produces equivalent `gameObjects` list
+- [ ] `collectAll_parentFirstOrder` -- root before Guard before Helmet/Spear, root before Flag
+- [ ] `reconcile_missingGrandchild_autoCreated` -- remove helm0001 from scene, reconcile → Helmet re-created with correct parentId under Guard and `prefabNodeId = "helm0001"`
+- [ ] `reconcile_missingChildWithGrandchildren_autoCreatesAll` -- remove guard001 + Helmet + Spear from scene, reconcile → Guard + Helmet + Spear all re-created with correct hierarchy
+- [ ] `reconcile_orphanedGrandchild_flaggedAsBroken` -- scene has entity with `prefabNodeId` pointing to removed node, flagged as broken
+
+### Manual Verify
+- [ ] Drop guard_tower onto viewport. Hierarchy shows: Guard Tower → Guard → Helmet + Spear, Guard Tower → Flag.
+- [ ] Undo removes all 5 entities. Redo restores all with parent-child links intact (Helmet still under Guard).
+- [ ] Duplicate guard_tower instance: fresh scene IDs, same `prefabNodeId` values, grandchildren parented to cloned Guard (not original).
+- [ ] Drop single-root prefab: single entity (regression).
 - [ ] Multiple rapid drops of same prefab: no ID collisions.
-- [ ] Scene with missing children (prefab gained a child since save): auto-created on load.
-- [ ] Scene with orphaned children (prefab lost a child since save): flagged, no crash.
+- [ ] Scene with missing grandchild (prefab gained helm0001 since save): auto-created under Guard on load.
+- [ ] Scene with orphaned grandchild (prefab removed helm0001 since save): flagged with warning, no crash.
 
 ---
 
@@ -480,12 +515,18 @@ Handle `prefabNodeId` during runtime instantiation.
 - [ ] If `goData.getPrefabNodeId() == null`: existing behavior
 - [ ] During hierarchy resolution: if a prefab root has missing children (present in prefab def but not scene data), auto-create them from prefab defaults
 
-### Verify
-- [ ] Play mode with hierarchical prefab: hierarchy correct, child components resolved
-- [ ] Play mode with child overrides: overrides applied
-- [ ] Play mode with stale `prefabNodeId`: warning logged, no crash
-- [ ] Play mode with flat prefabs: unchanged (regression)
-- [ ] @ComponentReference from root component to child component resolves correctly (Phase 4 of `loadGameObjectsWithHierarchy` handles this)
+### Unit Tests (`RuntimeSceneLoaderPrefabNodeTest`)
+- [ ] `childNode_resolvesChildComponents` -- `prefabNodeId = "guard001"`, instantiated GameObject has Guard's components (zIndex 10)
+- [ ] `grandchildNode_resolvesGrandchildComponents` -- `prefabNodeId = "helm0001"`, instantiated GameObject has Helmet's components (zIndex 12)
+- [ ] `grandchildOverrides_applied` -- Helmet with zIndex override 17, resolved zIndex is 17 (not 12)
+- [ ] `staleNodeId_logsWarning` -- `prefabNodeId = "removed"`, returns null, warning logged, no crash
+- [ ] `missingGrandchild_autoCreatedFromPrefabDefaults` -- scene data lacks helm0001 entry, runtime creates Helmet from prefab defaults with correct parent
+
+### Manual Verify
+- [ ] Play mode with guard_tower: hierarchy correct (Guard Tower → Guard → Helmet + Spear, Guard Tower → Flag)
+- [ ] Play mode with grandchild overrides (Helmet zIndex 17): override applied, renders at correct z-order
+- [ ] Play mode with single-root prefabs: unchanged (regression)
+- [ ] @ComponentReference from root component to grandchild component resolves correctly
 
 ---
 
@@ -508,16 +549,18 @@ Update `PrefabEditController` to edit the full hierarchy.
 - [ ] Metadata section (display name, category) only when root is selected.
 - [ ] Component list for any selected entity (root or child).
 
-### Verify
-- [ ] Open hierarchical prefab in edit mode. Children in hierarchy.
-- [ ] Select child. Inspector shows child's components.
-- [ ] Add component to child, save, verify JSON.
-- [ ] Add new child entity, save, verify new entry in `gameObjects` with fresh nodeId.
-- [ ] Delete child in edit mode, save, verify node removed from `gameObjects`.
-- [ ] Reorder children (drag-drop), save, verify order fields in JSON.
-- [ ] Revert restores original hierarchy.
-- [ ] Undo/redo within prefab edit mode works for add/remove/modify on children.
-- [ ] Flat prefab editing unchanged (regression).
+### Manual Verify
+- [ ] Open guard_tower in edit mode. Hierarchy shows root → Guard → Helmet + Spear, root → Flag.
+- [ ] Select grandchild (Helmet). Inspector shows Helmet's components (Transform + SpriteRenderer with zIndex 12).
+- [ ] Select child (Guard). Inspector shows Guard's components. Metadata section (displayName, category) NOT shown (only on root).
+- [ ] Add component to grandchild (Helmet), save, verify `helm0001` entry in JSON has new component.
+- [ ] Add new child under Guard (creating a new grandchild), save, verify new entry in `gameObjects` with fresh nodeId and `parentId = "guard001"`.
+- [ ] Delete Guard (which has grandchildren Helmet + Spear): all 3 removed. Save, verify guard001/helm0001/weap0001 gone from JSON.
+- [ ] Undo previous delete: Guard + Helmet + Spear restored with correct hierarchy.
+- [ ] Reorder Guard's children (Spear before Helmet), save, verify order fields updated in JSON.
+- [ ] Revert restores original hierarchy including grandchild order.
+- [ ] Undo/redo works for add/remove/modify on grandchildren.
+- [ ] Single-root prefab editing unchanged (regression).
 - [ ] Edit prefab, close without saving (discard): no changes persisted.
 - [ ] Two consecutive saves produce identical JSON (idempotency).
 
@@ -551,17 +594,19 @@ Visual distinction, interaction restrictions, and Save As Prefab updates.
 - [ ] Component summary: show collapsible tree (root + each child with their component lists)
 - [ ] If source entity has a mix of prefab children and scratch children: bake prefab children into scratch (deep-clone merged components, strip `prefabId`)
 
-### Verify
-- [ ] Prefab children show with distinct icon
-- [ ] Drag prefab child: blocked
-- [ ] Delete key on prefab child: no-op
-- [ ] No Delete/Unparent in context menu for prefab children
-- [ ] Delete root: all children removed. Confirmation mentions child count. Undo restores all.
-- [ ] Override a child field: bold display. "Reset to default" reverts to child node's default (not root's).
-- [ ] "Reset All" on child: resets only that child.
-- [ ] Save entity with children as new prefab: `gameObjects` in JSON, tree summary in popup.
-- [ ] Multi-select root + child + external entity → delete: root deleted (with children), external entity deleted, child-only selection ignored.
-- [ ] Selecting a prefab child in the **scene viewport** (click on sprite) selects the child entity.
+### Manual Verify
+- [ ] Prefab children and grandchildren show with distinct icon in hierarchy.
+- [ ] Drag prefab grandchild (Helmet): blocked.
+- [ ] Delete key on prefab grandchild: no-op.
+- [ ] No Delete/Unparent/Duplicate in context menu for grandchildren.
+- [ ] Delete root: all children + grandchildren removed (5 entities total). Confirmation mentions descendant count. Undo restores all with correct nesting.
+- [ ] Override grandchild field (Helmet zIndex → 17): bold display. "Reset to default" reverts to 12 (Helmet's default), not 10 (Guard's) or 5 (root's).
+- [ ] Override child field (Guard zIndex → 15): bold display. "Reset to default" reverts to 10 (Guard's default), not 5 (root's).
+- [ ] "Reset All" on grandchild (Helmet): resets only Helmet's overrides. Guard and root overrides untouched.
+- [ ] Save entity with grandchildren as new prefab: `gameObjects` in JSON with correct `parentId` nesting, tree summary in popup shows 3 levels.
+- [ ] Multi-select root + grandchild + external entity → delete: root deleted (with all descendants), external entity deleted, grandchild-only selection ignored.
+- [ ] Selecting a prefab grandchild in the **scene viewport** (click on Helmet sprite) selects the Helmet entity.
+- [ ] Inspector for grandchild shows: prefab name, node name ("Helmet in Guard Tower"), override count.
 
 ---
 
@@ -603,18 +648,25 @@ Visual distinction, interaction restrictions, and Save As Prefab updates.
 
 ## End-to-End Verification
 
-1. `mvn compile` after each phase
-2. Create test prefab JSON with `gameObjects` (root + children, including grandchild for depth > 1)
-3. Drop in editor -- full hierarchy appears
-4. Override a child's field -- bold display, reset works (uses child defaults, not root's)
-5. Save scene, reload -- children persist with correct overrides and `prefabNodeId`
-6. Enter play mode -- runtime hierarchy + overrides correct
-7. Open prefab in edit mode -- children editable, can add/remove/reorder
-8. Edit prefab to add a child, save. Load scene with existing instances. New child auto-created.
-9. Edit prefab to remove a child, save. Load scene. Orphaned child flagged with warning.
-10. Save As Prefab on entity with children -- `gameObjects` in JSON, tree summary in popup
-11. Regression: all existing flat prefabs (old `components` format) work unchanged
-12. Multiple instances of same hierarchical prefab with different child overrides in same scene
+Uses guard_tower fixture (root → Guard → Helmet + Spear, root → Flag) throughout.
+
+1. `mvn compile` + `mvn test` after each phase.
+2. Create guard_tower test prefab JSON. Load in editor — `hasChildren() == true`, 5 nodes in hierarchy.
+3. Drop guard_tower in editor — full 3-level hierarchy appears (root, children, grandchildren).
+4. Override root field (Transform.localPosition → 5,3,0) — bold display, reset reverts to (0,0,0).
+5. Override child field (Guard SpriteRenderer.zIndex → 15) — bold display, reset reverts to 10 (Guard's default, not root's 5).
+6. Override grandchild field (Helmet SpriteRenderer.zIndex → 17) — bold display, reset reverts to 12 (Helmet's default, not Guard's 10 or root's 5).
+7. Override grandchild sprite (Helmet sprite → gold_helmet) — bold display, reset clears override.
+8. "Reset All" on Helmet — only Helmet's overrides cleared, Guard and root overrides untouched.
+9. Save scene, reload — all 5 entities persist with correct `prefabNodeId`, `parentId`, and `componentOverrides` at every level.
+10. Enter play mode — runtime hierarchy correct. Guard parented to root, Helmet parented to Guard. All overrides applied.
+11. Open guard_tower in prefab edit mode — full hierarchy editable. Select grandchild (Helmet), inspector shows Helmet's components.
+12. In edit mode: add new grandchild under Guard, save. Load scene with existing instances. New grandchild auto-created on all instances.
+13. In edit mode: remove Helmet (grandchild), save. Load scene. Orphaned Helmet entity flagged with warning, no crash.
+14. In edit mode: delete Guard (has grandchildren). Helmet + Spear also removed. Undo restores all 3.
+15. Save As Prefab on entity with grandchildren — `gameObjects` in JSON with correct `parentId` nesting, tree summary in popup shows 3 levels.
+16. Two instances of guard_tower in same scene with different grandchild overrides (Helmet zIndex 17 vs 20) — independent, no cross-contamination.
+17. Regression: single-root prefabs work unchanged.
 
 ## Deferred / Future Work
 

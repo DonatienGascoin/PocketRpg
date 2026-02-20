@@ -1,0 +1,237 @@
+{
+  "species": [
+    {
+      "speciesId": "bulbasaur",
+      "name": "Bulbasaur",
+      "type": "GRASS",
+      "baseStats": { "hp": 45, "atk": 49, "def": 49, "spAtk": 65, "spDef": 65, "spd": 45 },
+      "learnset": [
+        { "level": 1, "moveId": "tackle" },
+        { "level": 3, "moveId": "growl" },
+        { "level": 7, "moveId": "vine_whip" },
+        { "level": 13, "moveId": "razor_leaf" }
+      ],
+      "baseExpYield": 64,
+      "catchRate": 45,
+      "growthRate": "MEDIUM_SLOW",
+      "spriteId": "sprites/pokemon/bulbasaur",
+      "evolutionMethod": "LEVEL",
+      "evolutionLevel": 16,
+      "evolutionItem": null,
+      "evolvesInto": "ivysaur"
+    },
+    {
+      "speciesId": "ivysaur",
+      "name": "Ivysaur",
+      "type": "GRASS",
+      "baseStats": { "hp": 60, "atk": 62, "def": 63, "spAtk": 80, "spDef": 80, "spd": 60 },
+      "learnset": [
+        { "level": 1, "moveId": "tackle" },
+        { "level": 3, "moveId": "growl" },
+        { "level": 7, "moveId": "vine_whip" },
+        { "level": 13, "moveId": "razor_leaf" }
+      ],
+      "baseExpYield": 142,
+      "catchRate": 45,
+      "growthRate": "MEDIUM_SLOW",
+      "spriteId": "sprites/pokemon/ivysaur",
+      "evolutionMethod": "NONE",
+      "evolutionLevel": 0,
+      "evolutionItem": null,
+      "evolvesInto": null
+    },
+    {
+      "speciesId": "charmander",
+      "name": "Charmander",
+      "type": "FIRE",
+      "baseStats": { "hp": 39, "atk": 52, "def": 43, "spAtk": 60, "spDef": 50, "spd": 65 },
+      "learnset": [
+        { "level": 1, "moveId": "scratch" },
+        { "level": 1, "moveId": "growl" },
+        { "level": 7, "moveId": "ember" }
+      ],
+      "baseExpYield": 62,
+      "catchRate": 45,
+      "growthRate": "MEDIUM_SLOW",
+      "spriteId": "sprites/pokemon/charmander",
+      "evolutionMethod": "LEVEL",
+      "evolutionLevel": 16,
+      "evolutionItem": null,
+      "evolvesInto": null
+    },
+    {
+      "speciesId": "squirtle",
+      "name": "Squirtle",
+      "type": "WATER",
+      "baseStats": { "hp": 44, "atk": 48, "def": 65, "spAtk": 50, "spDef": 64, "spd": 43 },
+      "learnset": [
+        { "level": 1, "moveId": "tackle" },
+        { "level": 4, "moveId": "tail_whip" },
+        { "level": 7, "moveId": "water_gun" }
+      ],
+      "baseExpYield": 63,
+      "catchRate": 45,
+      "growthRate": "MEDIUM_SLOW",
+      "spriteId": "sprites/pokemon/squirtle",
+      "evolutionMethod": "LEVEL",
+      "evolutionLevel": 16,
+      "evolutionItem": null,
+      "evolvesInto": null
+    },
+    {
+      "speciesId": "pikachu",
+      "name": "Pikachu",
+      "type": "ELECTRIC",
+      "baseStats": { "hp": 35, "atk": 55, "def": 40, "spAtk": 50, "spDef": 50, "spd": 90 },
+      "learnset": [
+        { "level": 1, "moveId": "thunder_shock" },
+        { "level": 1, "moveId": "growl" },
+        { "level": 5, "moveId": "tail_whip" },
+        { "level": 10, "moveId": "quick_attack" },
+        { "level": 26, "moveId": "thunderbolt" }
+      ],
+      "baseExpYield": 112,
+      "catchRate": 190,
+      "growthRate": "MEDIUM_FAST",
+      "spriteId": "sprites/pokemon/pikachu",
+      "evolutionMethod": "ITEM",
+      "evolutionLevel": 0,
+      "evolutionItem": "thunder_stone",
+      "evolvesInto": null
+    }
+  ],
+  "moves": [
+    {
+      "moveId": "tackle",
+      "name": "Tackle",
+      "type": "NORMAL",
+      "category": "PHYSICAL",
+      "power": 40,
+      "accuracy": 100,
+      "pp": 35,
+      "effect": "",
+      "effectChance": 0,
+      "priority": 0
+    },
+    {
+      "moveId": "scratch",
+      "name": "Scratch",
+      "type": "NORMAL",
+      "category": "PHYSICAL",
+      "power": 40,
+      "accuracy": 100,
+      "pp": 35,
+      "effect": "",
+      "effectChance": 0,
+      "priority": 0
+    },
+    {
+      "moveId": "growl",
+      "name": "Growl",
+      "type": "NORMAL",
+      "category": "STATUS",
+      "power": 0,
+      "accuracy": 100,
+      "pp": 40,
+      "effect": "",
+      "effectChance": 0,
+      "priority": 0
+    },
+    {
+      "moveId": "tail_whip",
+      "name": "Tail Whip",
+      "type": "NORMAL",
+      "category": "STATUS",
+      "power": 0,
+      "accuracy": 100,
+      "pp": 30,
+      "effect": "",
+      "effectChance": 0,
+      "priority": 0
+    },
+    {
+      "moveId": "vine_whip",
+      "name": "Vine Whip",
+      "type": "GRASS",
+      "category": "PHYSICAL",
+      "power": 45,
+      "accuracy": 100,
+      "pp": 25,
+      "effect": "",
+      "effectChance": 0,
+      "priority": 0
+    },
+    {
+      "moveId": "razor_leaf",
+      "name": "Razor Leaf",
+      "type": "GRASS",
+      "category": "PHYSICAL",
+      "power": 55,
+      "accuracy": 95,
+      "pp": 25,
+      "effect": "",
+      "effectChance": 0,
+      "priority": 0
+    },
+    {
+      "moveId": "ember",
+      "name": "Ember",
+      "type": "FIRE",
+      "category": "SPECIAL",
+      "power": 40,
+      "accuracy": 100,
+      "pp": 25,
+      "effect": "BURN",
+      "effectChance": 10,
+      "priority": 0
+    },
+    {
+      "moveId": "water_gun",
+      "name": "Water Gun",
+      "type": "WATER",
+      "category": "SPECIAL",
+      "power": 40,
+      "accuracy": 100,
+      "pp": 25,
+      "effect": "",
+      "effectChance": 0,
+      "priority": 0
+    },
+    {
+      "moveId": "thunder_shock",
+      "name": "Thunder Shock",
+      "type": "ELECTRIC",
+      "category": "SPECIAL",
+      "power": 40,
+      "accuracy": 100,
+      "pp": 30,
+      "effect": "PARALYZE",
+      "effectChance": 10,
+      "priority": 0
+    },
+    {
+      "moveId": "thunderbolt",
+      "name": "Thunderbolt",
+      "type": "ELECTRIC",
+      "category": "SPECIAL",
+      "power": 90,
+      "accuracy": 100,
+      "pp": 15,
+      "effect": "PARALYZE",
+      "effectChance": 10,
+      "priority": 0
+    },
+    {
+      "moveId": "quick_attack",
+      "name": "Quick Attack",
+      "type": "NORMAL",
+      "category": "PHYSICAL",
+      "power": 40,
+      "accuracy": 100,
+      "pp": 30,
+      "effect": "",
+      "effectChance": 0,
+      "priority": 1
+    }
+  ]
+}

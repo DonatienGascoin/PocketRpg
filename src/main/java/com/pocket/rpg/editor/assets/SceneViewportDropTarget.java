@@ -3,8 +3,7 @@ package com.pocket.rpg.editor.assets;
 import com.pocket.rpg.editor.camera.EditorCamera;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
-import com.pocket.rpg.editor.undo.UndoManager;
-import com.pocket.rpg.editor.undo.commands.AddEntityCommand;
+import com.pocket.rpg.prefab.PrefabHierarchyHelper;
 import imgui.ImGui;
 import imgui.ImVec2;
 import org.joml.Vector3f;
@@ -64,8 +63,8 @@ public class SceneViewportDropTarget {
                     EditorGameObject entity = AssetDropHandler.handleDrop(payload, worldPos);
 
                     if (entity != null) {
-                        // Add to scene with undo support
-                        UndoManager.getInstance().execute(new AddEntityCommand(scene, entity));
+                        // Add to scene with undo support (handles children if any)
+                        PrefabHierarchyHelper.addToSceneWithUndo(scene, entity);
                         scene.setSelectedEntity(entity);
                         scene.markDirty();
 

@@ -574,6 +574,28 @@ public class EditorScene implements DirtyTracker {
     }
 
     /**
+     * Reconciles prefab instances with their definitions.
+     * Auto-creates missing child nodes and flags orphans.
+     * Call after resolveHierarchy() during scene loading.
+     */
+    public void reconcilePrefabInstances() {
+        // Collect root prefab instances (not child nodes)
+        List<EditorGameObject> rootInstances = new ArrayList<>();
+        for (EditorGameObject entity : entities) {
+            if (entity.isPrefabInstance() && !entity.isPrefabChildNode()) {
+                rootInstances.add(entity);
+            }
+        }
+
+        for (EditorGameObject root : rootInstances) {
+            com.pocket.rpg.prefab.Prefab prefab = root.getPrefab();
+            if (prefab != null && prefab.hasChildren()) {
+                com.pocket.rpg.prefab.PrefabHierarchyHelper.reconcileInstance(root, prefab, this);
+            }
+        }
+    }
+
+    /**
      * Reindexes sibling order after hierarchy changes.
      * Pass null for root-level entities.
      */

@@ -2,8 +2,7 @@ package com.pocket.rpg.editor.assets;
 
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
-import com.pocket.rpg.editor.undo.UndoManager;
-import com.pocket.rpg.editor.undo.commands.AddEntityCommand;
+import com.pocket.rpg.prefab.PrefabHierarchyHelper;
 import imgui.ImGui;
 import org.joml.Vector3f;
 
@@ -61,7 +60,7 @@ public class HierarchyDropTarget {
                     EditorGameObject entity = AssetDropHandler.handleDrop(payload, new Vector3f(ORIGIN));
 
                     if (entity != null) {
-                        UndoManager.getInstance().execute(new AddEntityCommand(scene, entity));
+                        PrefabHierarchyHelper.addToSceneWithUndo(scene, entity);
                         scene.setSelectedEntity(entity);
                         scene.markDirty();
 
@@ -113,7 +112,7 @@ public class HierarchyDropTarget {
                         entity.setParent(parentEntity);
                         entity.setOrder(parentEntity.getChildren().size());
 
-                        UndoManager.getInstance().execute(new AddEntityCommand(scene, entity));
+                        PrefabHierarchyHelper.addToSceneWithUndo(scene, entity);
                         scene.setSelectedEntity(entity);
                         scene.markDirty();
 
@@ -162,7 +161,7 @@ public class HierarchyDropTarget {
                         EditorGameObject entity = AssetDropHandler.handleDrop(payload, new Vector3f(ORIGIN));
 
                         if (entity != null) {
-                            UndoManager.getInstance().execute(new AddEntityCommand(scene, entity));
+                            PrefabHierarchyHelper.addToSceneWithUndo(scene, entity);
                             scene.setSelectedEntity(entity);
                             scene.markDirty();
 
@@ -206,7 +205,7 @@ public class HierarchyDropTarget {
                     EditorGameObject entity = AssetDropHandler.handleDrop(payload, new Vector3f(ORIGIN));
 
                     if (entity != null) {
-                        UndoManager.getInstance().execute(new AddEntityCommand(scene, entity));
+                        PrefabHierarchyHelper.addToSceneWithUndo(scene, entity);
                         scene.setSelectedEntity(entity);
                         scene.markDirty();
 

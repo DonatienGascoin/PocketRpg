@@ -104,6 +104,9 @@ public class EditorSceneSerializer {
         validateUniqueIds(scene);
         scene.resolveHierarchy();
 
+        // Auto-create missing prefab children, flag orphans
+        scene.reconcilePrefabInstances();
+
         scene.clearDirty();
         return scene;
     }

@@ -232,18 +232,26 @@ public class EntityCreationService {
                     copy.addComponent(compCopy);
                 }
             }
+        } else if (original.isPrefabChildNode()) {
+            copy = new EditorGameObject(original.getPrefabId(), original.getPrefabNodeId(), position);
+            copy.setName(original.getName());
+            copyOverrides(original, copy);
         } else {
             copy = new EditorGameObject(original.getPrefabId(), position);
             copy.setName(original.getName());
-            for (Component comp : original.getComponents()) {
-                String componentType = comp.getClass().getName();
-                for (String fieldName : original.getOverriddenFields(componentType)) {
-                    Object value = original.getFieldValue(componentType, fieldName);
-                    copy.setFieldValue(componentType, fieldName, value);
-                }
-            }
+            copyOverrides(original, copy);
         }
         return copy;
+    }
+
+    private void copyOverrides(EditorGameObject original, EditorGameObject copy) {
+        for (Component comp : original.getComponents()) {
+            String componentType = comp.getClass().getName();
+            for (String fieldName : original.getOverriddenFields(componentType)) {
+                Object value = original.getFieldValue(componentType, fieldName);
+                copy.setFieldValue(componentType, fieldName, value);
+            }
+        }
     }
 
     private void duplicateChildrenRecursive(EditorGameObject original, EditorGameObject copyParent,

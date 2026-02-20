@@ -116,6 +116,11 @@ public class JsonPrefabLoader implements AssetLoader<JsonPrefab> {
             entity.setName(displayName + "_" + entity.getId().substring(0, 4));
         }
 
+        // Expand child entities from prefab hierarchy
+        if (asset.hasChildren()) {
+            PrefabHierarchyHelper.expandChildren(entity, asset);
+        }
+
         return entity;
     }
 

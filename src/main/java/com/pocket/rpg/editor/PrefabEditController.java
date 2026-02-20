@@ -357,7 +357,7 @@ public class PrefabEditController {
         String prefabId = targetPrefab.getId();
         int count = 0;
         for (EditorGameObject entity : scene.getEntities()) {
-            if (prefabId.equals(entity.getPrefabId())) {
+            if (prefabId.equals(entity.getPrefabId()) && !entity.isPrefabChildNode()) {
                 count++;
             }
         }

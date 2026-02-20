@@ -9,7 +9,7 @@
 
 ### Component-Based Entity System
 - `GameObject` - Entity container with parent-child hierarchy
-- `Component` - Base class with lifecycle hooks (`onStart`, `update`, `lateUpdate`, `onDestroy`)
+- `Component` - Base class with lifecycle hooks (`onStart`, `update`, `lateUpdate`, `onDestroy`, `onBeforeSceneUnload`)
 - `Transform` - Built-in component for position/rotation/scale (auto-added, cannot be removed)
 
 ### Rendering Pipeline (`rendering/pipeline/`)
@@ -19,8 +19,11 @@
 
 ### Scene Management (`scenes/`)
 - `Scene` - Contains GameObjects and manages component caches for renderers/UI
-- `SceneManager` - Loading/unloading with `RuntimeSceneLoader`
+  - `findGameObjectByComponent(Class)` - Recursive search returning the owning GameObject
+- `SceneManager` - Loading/unloading with `RuntimeSceneLoader`, fires lifecycle hooks only (no game logic)
+- `SceneLifecycleListener` - Hook interface: `onSceneLoaded`, `onSceneUnloaded`, `onPostSceneInitialize`
 - `TransitionManager` - Fade/wipe transitions between scenes
+- **Load flow**: `notifyBeforeUnload` → `destroy` → `initialize` → `applyCameraData` → `firePostSceneInitialize` → `fireSceneLoaded`
 
 ### Input System (`input/`)
 - Action-based (`Input.isActionPressed("JUMP")`) and raw key/mouse access
@@ -58,6 +61,20 @@
 - `CollisionType` enum: `SOLID`, `LEDGE_*`, `WATER`, `ICE`, `SAND`, `WARP`, etc.
 - `TileBehavior` interface - Extensible behaviors per collision type
 - `GridMovement` component - Smooth interpolation between tiles
+
+### Persistence System (`save/`)
+- `SaveManager` - Global state store (`SaveManager.getGlobal`/`setGlobal`), ISaveable entity registry, deferred state application
+- `PlayerData` - Cross-scene player state (position, direction, scene name, returningFromBattle). Serialized to `SaveManager.globalState` via Gson
+- `ISaveable` - Interface for per-entity per-scene state (`getSaveState`/`loadSaveState`). Applied after all `onStart()` calls complete
+- `PersistentId` - Component that registers entities for ISaveable persistence
+- `PlayerPlacementHandler` - `SceneLifecycleListener` handling player placement after scene load:
+  1. Battle return — teleports player to saved position when `returningFromBattle` is true
+  2. Spawn teleport — teleports to spawn point when spawnId is provided (overwrites battle return)
+- **Three persistence patterns**:
+  - **Write-through**: Immediate save to `PlayerData` (e.g., money, inventory)
+  - **`onBeforeSceneUnload`**: Flush on scene transition (e.g., `PlayerMovement` saves position)
+  - **ISaveable**: Per-entity per-scene state via `PersistentId` (e.g., `GridMovement` position for NPCs)
+- **Registration**: `PlayerPlacementHandler` must be registered in both `GameApplication` and `PlayModeController`
 
 ### Asset Pipeline (`resources/`)
 - `Assets` - Static facade for loading assets

@@ -72,6 +72,7 @@ FieldEditorUtils.inlineField("X", width, () -> ImGui.dragFloat("##x", buf));
 
 - `onStart()` is called after all components are added but before the first `update()`. Don't assume other GameObjects exist during construction.
 - `@ComponentReference` fields are resolved before `onStart()`, after hierarchy is established and `ComponentKeyRegistry` keys are registered. Hierarchy sources (`SELF`, `PARENT`, `CHILDREN`, `CHILDREN_RECURSIVE`) are transient. `KEY` source fields are non-transient, serialized as string keys, and resolved via `ComponentKeyRegistry`.
+- `onBeforeSceneUnload()` is called before the scene is destroyed during a transition. Use this to flush state (e.g., `PlayerMovement` saves position to `PlayerData`). This runs before `onDestroy()`.
 - When destroying GameObjects, `onDestroy()` is called on all components. Clean up any external references.
 
 ---
@@ -182,3 +183,22 @@ During dialogue, `PlayerDialogueManager` calls `onPause()` on all `IPausable` co
 ### Sealed interface for DialogueEntry
 
 `DialogueEntry` is a `sealed interface` permitting only `DialogueLine` and `DialogueChoiceGroup`. Use pattern matching (`instanceof`) or `switch` for exhaustive handling.
+
+---
+
+## Persistence & Scene Transitions
+
+### PlayerPlacementHandler dual registration
+
+`PlayerPlacementHandler` must be registered as a `SceneLifecycleListener` in **both** `GameApplication` (standalone game) and `PlayModeController` (editor play mode). Missing either registration means player placement silently fails with no error output.
+
+### Persistence pattern choice
+
+Three patterns exist — pick the right one:
+- **Write-through**: Immediate save to `PlayerData` (e.g., money, inventory). Simple but causes many writes.
+- **`onBeforeSceneUnload`**: Flush on scene transition (e.g., `PlayerMovement` saves position). Best for state that only matters when leaving a scene.
+- **ISaveable via `PersistentId`**: Per-entity per-scene state applied after all `onStart()` calls. Use for NPC positions or per-scene entity state that must survive save/load.
+
+### SceneManager contains no game logic
+
+All game-specific scene lifecycle behavior (player placement, battle return, spawn teleport) lives in `SceneLifecycleListener` implementations, not in `SceneManager`. The `SceneManager` only orchestrates lifecycle hooks and manages scene loading/unloading.

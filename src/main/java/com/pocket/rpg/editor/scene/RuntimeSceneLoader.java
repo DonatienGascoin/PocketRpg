@@ -3,7 +3,6 @@ package com.pocket.rpg.editor.scene;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.rendering.TilemapRenderer;
 import com.pocket.rpg.components.core.Transform;
-import com.pocket.rpg.components.core.PersistentEntity;
 import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.prefab.Prefab;
@@ -304,12 +303,6 @@ public class RuntimeSceneLoader {
                 gameObject.setName(instanceName);
             }
             gameObject.setEnabled(goData.isActive());
-
-            // Set sourcePrefabId on PersistentEntity for snapshot restoration
-            PersistentEntity pe = gameObject.getComponent(PersistentEntity.class);
-            if (pe != null && (pe.getSourcePrefabId() == null || pe.getSourcePrefabId().isEmpty())) {
-                pe.setSourcePrefabId(prefabId);
-            }
         } else {
             System.err.println("prefab.instantiate() returned null for " + prefabId);
         }

@@ -25,6 +25,7 @@ import com.pocket.rpg.rendering.postfx.PostEffectRegistry;
 import com.pocket.rpg.rendering.targets.ScreenTarget;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.resources.ErrorMode;
+import com.pocket.rpg.save.PlayerPlacementHandler;
 import com.pocket.rpg.save.SaveManager;
 import com.pocket.rpg.serialization.ComponentRegistry;
 import com.pocket.rpg.serialization.Serializer;
@@ -132,11 +133,15 @@ public class GameApplication {
         });
 
         // 11. Scene loading (game-specific)
+        // TODO: SaveManager, MusicManager, and PlayerPlacementHandler are game-level concerns
+        //  and should not be initialized in this engine-level class. Move to a game-specific
+        //  bootstrap once one exists.
         screenTarget = new ScreenTarget(engine.getViewportConfig());
         RuntimeSceneLoader sceneLoader = new RuntimeSceneLoader();
         engine.getSceneManager().setSceneLoader(sceneLoader, "gameData/scenes/");
         SaveManager.initialize(engine.getSceneManager());
         MusicManager.initialize(engine.getSceneManager(), Assets.getContext());
+        engine.getSceneManager().addLifecycleListener(new PlayerPlacementHandler(engine.getSceneManager()));
 
         // Load configurable start scene
         String startScene = gameConfig.getStartScene();

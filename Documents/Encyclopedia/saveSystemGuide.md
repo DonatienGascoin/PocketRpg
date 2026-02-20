@@ -1,6 +1,6 @@
-# Save System Guide
+# Save & Persistence Guide
 
-> **Summary:** The save system persists game state (player progress, world changes) across sessions. It's separate from scene files - scenes define initial state, saves capture runtime changes.
+> **Summary:** The persistence system manages game state across scene transitions and save/load cycles. It uses three distinct patterns depending on the type of data: write-through for immediate saves, scene-unload flush for position data, and ISaveable for per-entity state.
 
 ---
 
@@ -8,9 +8,9 @@
 
 1. [Quick Reference](#quick-reference)
 2. [Overview](#overview)
-3. [Setup](#setup)
-4. [Core Concepts](#core-concepts)
-5. [Workflows](#workflows)
+3. [Core Concepts](#core-concepts)
+4. [Persistence Patterns](#persistence-patterns)
+5. [Scene Transition Flow](#scene-transition-flow)
 6. [Code Integration](#code-integration)
 7. [Tips & Best Practices](#tips--best-practices)
 8. [Troubleshooting](#troubleshooting)
@@ -24,23 +24,25 @@
 |------|-----|
 | Initialize save system | `SaveManager.initialize(sceneManager)` at startup |
 | Start new game | `SaveManager.newGame()` then load starting scene |
-| Save game | `SaveManager.save("slot1", "My Save")` |
-| Load game | `SaveManager.load("slot1")` then `SceneManager.loadScene(SaveManager.getSavedSceneName())` |
+| Save game to disk | `SaveManager.save("slot1", "My Save")` |
+| Load game from disk | `SaveManager.load("slot1")` then load saved scene |
+| Store cross-scene data | `SaveManager.setGlobal("namespace", "key", value)` |
+| Store per-scene flags | `SaveManager.setSceneFlag("boss_defeated", true)` |
 | Make entity saveable | Add `PersistentId` component + implement `ISaveable` on components |
-| Store global data | `SaveManager.setGlobal("player", "gold", 500)` |
-| Mark entity destroyed | `SaveManager.markEntityDestroyed(persistentId)` |
+| Save player state immediately | `PlayerData.load()` → mutate → `data.save()` |
+| Save player position on transition | Override `onBeforeSceneUnload()` in your component |
+| Mark entity permanently destroyed | `SaveManager.markEntityDestroyed(persistentId)` |
 
 ---
 
 ## Overview
 
-The save system captures runtime changes to your game world:
+The persistence system has two layers:
 
-- **Player position and state** - Where the player is, their health, inventory
-- **World changes** - Opened chests, defeated enemies, triggered events
-- **Global progress** - Quest states, unlocked areas, statistics
+1. **In-memory persistence** — State that survives scene transitions but not application restarts. This is what currently powers gameplay (player position, battle return, spawn teleport).
+2. **Disk persistence** — Save slots written to disk that survive application restarts. Uses the same in-memory structures serialized to JSON files.
 
-**Key principle:** Scene files define the *initial* state of a level. Save files store *changes* from that initial state (delta approach). This keeps saves small and allows scene updates without breaking existing saves.
+**Key principle:** Scene files (`.scene`) define the *initial* state. Save files store *deltas* from that initial state. This keeps saves small and allows scene updates without breaking existing saves.
 
 **Save location:**
 - Windows: `%APPDATA%/PocketRpg/saves/`
@@ -48,121 +50,204 @@ The save system captures runtime changes to your game world:
 
 ---
 
-## Setup
+## Core Concepts
 
-### 1. Initialize at Game Startup
+### SaveManager
 
-In your game's initialization (e.g., `GameApplication`):
+Static API that coordinates all persistence. Hooks into the scene lifecycle as a `SceneLifecycleListener`.
+
+| Method | Purpose |
+|--------|---------|
+| `initialize(sceneManager)` | Set up save system at startup |
+| `newGame()` | Clear all state for a fresh start |
+| `save(slot, name)` | Write current state to disk |
+| `load(slot)` | Read state from disk |
+| `setGlobal(ns, key, val)` | Cross-scene key-value storage |
+| `getGlobal(ns, key, default)` | Read cross-scene data |
+| `setSceneFlag(key, val)` | Per-scene boolean/string flags |
+| `markEntityDestroyed(id)` | Permanently remove entity from scene |
+
+### PlayerData
+
+Single source of truth for player state that survives scene transitions. Stored as JSON in SaveManager's global state under the `"player"` namespace.
+
+| Field | Purpose |
+|-------|---------|
+| `lastOverworldScene` | Scene name for return transitions |
+| `lastGridX`, `lastGridY` | Grid position (flushed on scene unload) |
+| `lastDirection` | Facing direction |
+| `returningFromBattle` | Flag checked by PlayerPlacementHandler |
+| `playerName` | Player's chosen name |
+| `money` | Currency (write-through) |
+
+```java
+// Reading and writing PlayerData
+PlayerData data = PlayerData.load();   // Load from SaveManager (or fresh instance)
+data.money += 100;
+data.save();                           // Write back to SaveManager (in-memory)
+```
+
+### PersistentId Component
+
+Marks a GameObject for entity-level persistence. Add this in the editor to any entity whose state should survive save/load.
+
+| Field | Description |
+|-------|-------------|
+| `id` | Stable identifier (e.g., "chest_01"). Auto-generated if blank. |
+| `persistenceTag` | Optional grouping tag (e.g., "chest", "enemy") |
+
+On `onStart()`, the component registers itself with SaveManager. On `onDestroy()`, it unregisters.
+
+### ISaveable Interface
+
+Components implement this to participate in entity-level persistence.
+
+| Method | Description |
+|--------|-------------|
+| `getSaveState()` | Return a map of data to save |
+| `loadSaveState(state)` | Restore from a saved map |
+| `hasSaveableState()` | Return false to skip saving (default: true) |
+
+### PlayerPlacementHandler
+
+A `SceneLifecycleListener` that handles player positioning after a scene loads. Runs during `onPostSceneInitialize` with two concerns in fixed order:
+
+1. **Battle return** — If `PlayerData.returningFromBattle` is true, teleports the player to the saved grid position and clears the flag.
+2. **Spawn teleport** — If a `spawnId` was provided for this scene load, teleports the player to the matching `SpawnPoint` entity (overwrites battle-return position).
+
+The ordering is enforced inside the handler, not by listener registration order.
+
+---
+
+## Persistence Patterns
+
+The system uses three distinct patterns. Choose based on your data type:
+
+### 1. Write-Through
+
+**When to use:** Data that must be immediately persisted (currency, inventory, quest flags).
+
+```java
+// Immediately save when value changes
+PlayerData data = PlayerData.load();
+data.money += rewardAmount;
+data.save();  // Writes to SaveManager's in-memory global state
+```
+
+**Pros:** Simple, always up to date.
+**Cons:** Many writes if called frequently.
+
+### 2. Scene-Unload Flush (`onBeforeSceneUnload`)
+
+**When to use:** Data that changes frequently but only matters at scene boundaries (player position).
 
 ```java
 @Override
-public void initialize() {
-    // After creating SceneManager
-    SaveManager.initialize(sceneManager);
+public void onBeforeSceneUnload() {
+    PlayerData data = PlayerData.load();
+    data.lastOverworldScene = gameObject.getScene().getName();
+    data.lastGridX = movement.getGridX();
+    data.lastGridY = movement.getGridY();
+    data.lastDirection = movement.getFacingDirection();
+    data.save();
 }
 ```
 
-### 2. Add PersistentId to Saveable Entities
+**Pros:** One write per scene transition instead of every frame.
+**Cons:** Data lost if application crashes mid-scene.
 
-In the editor, add the `PersistentId` component to any entity that needs to persist:
-- Player character
-- Chests that can be opened
-- NPCs with dialogue state
-- Enemies that stay dead
-- Collectibles that don't respawn
+**Example:** `PlayerMovement` uses this pattern — position updates every frame via `GridMovement`, but only flushes to `PlayerData` when the scene unloads.
 
-Set the `id` field to a meaningful name (e.g., "player", "chest_01") or leave blank for auto-generation.
+### 3. ISaveable (Per-Entity Per-Scene)
 
-### 3. Implement ISaveable on Components
-
-Components that need custom save logic must implement `ISaveable`:
+**When to use:** Entity state that must survive save/load cycles (NPC positions, chest opened state, enemy defeated).
 
 ```java
-public class Inventory extends Component implements ISaveable {
-    private int gold;
-    private List<String> items;
+public class Chest extends Component implements ISaveable {
+    private boolean opened = false;
 
     @Override
     public Map<String, Object> getSaveState() {
-        return Map.of(
-            "gold", gold,
-            "items", new ArrayList<>(items)
-        );
+        return Map.of("opened", opened);
     }
 
     @Override
     public void loadSaveState(Map<String, Object> state) {
-        gold = ((Number) state.get("gold")).intValue();
-        items = new ArrayList<>((List<String>) state.get("items"));
+        opened = (Boolean) state.getOrDefault("opened", false);
+        if (opened) updateVisualToOpenState();
+    }
+
+    @Override
+    public boolean hasSaveableState() {
+        return opened;  // Only include in save if state changed
     }
 }
 ```
 
----
+**Requires:** `PersistentId` component on the same GameObject.
+**Timing:** `loadSaveState()` is called during `onPostSceneInitialize`, after all `onStart()` calls complete.
 
-## Core Concepts
+### Pattern Selection Guide
 
-### PersistentId Component
-
-Marks a GameObject as saveable with a stable identifier.
-
-| Field | Description |
-|-------|-------------|
-| `id` | Unique identifier (e.g., "player", "chest_01"). Auto-generated if blank. |
-| `persistenceTag` | Optional grouping tag (e.g., "chest", "enemy") |
-
-### ISaveable Interface
-
-Components implement this to save/load custom state.
-
-| Method | Description |
-|--------|-------------|
-| `getSaveState()` | Return map of data to save |
-| `loadSaveState(state)` | Restore from saved map |
-| `hasSaveableState()` | Return false to skip saving (default: true) |
-
-### Global vs Scene State
-
-| Type | Use For | Example |
-|------|---------|---------|
-| **Global** | Data that persists across all scenes | Player gold, quest progress, settings |
-| **Scene** | Data specific to one scene | Opened chests, defeated enemies |
+| Data Type | Pattern | Example |
+|-----------|---------|---------|
+| Currency, inventory | Write-through | `PlayerData.save()` on mutation |
+| Player position | Scene-unload flush | `onBeforeSceneUnload()` |
+| NPC/entity state | ISaveable + PersistentId | `getSaveState()`/`loadSaveState()` |
+| Quest progress | Global state | `SaveManager.setGlobal()` |
+| Per-scene flags | Scene flags | `SaveManager.setSceneFlag()` |
+| Dialogue events | Global state | `DialogueEventStore` wraps `SaveManager.setGlobal()` |
 
 ---
 
-## Workflows
+## Scene Transition Flow
 
-### New Game Flow
+Understanding the lifecycle is key to persistence:
 
-```java
-// Player clicks "New Game"
-SaveManager.newGame();
-SceneManager.loadScene("IntroScene");
+```
+Scene A unloading                    Scene B loading
+──────────────────                   ──────────────────
+1. notifyBeforeUnload()              4. initialize() (create objects)
+   └─ onBeforeSceneUnload()          5. onStart() on all components
+      on all components              6. applyCameraData()
+2. destroy() (Scene A)               7. onPostSceneInitialize()
+3. fireSceneUnloaded()                  ├─ SaveManager restores ISaveable state
+                                        └─ PlayerPlacementHandler places player
+                                     8. fireSceneLoaded()
 ```
 
-### Save Game Flow
+**Step 1** is where `PlayerMovement` flushes position to `PlayerData`.
+**Step 7** is where saved entity states are restored and the player is placed.
+
+---
+
+## Code Integration
+
+### Global State (Cross-Scene)
 
 ```java
-// Player opens pause menu, clicks Save
-if (SaveManager.save("slot1", "Village - Level 5")) {
-    StatusBar.showMessage("Game saved!");
+// Store progress that persists across all scenes
+SaveManager.setGlobal("quests", "main_quest", "COMPLETED");
+SaveManager.setGlobal("player", "level", 12);
+
+// Retrieve with defaults
+String quest = SaveManager.getGlobal("quests", "main_quest", "NOT_STARTED");
+int level = SaveManager.getGlobal("player", "level", 1);
+```
+
+### Scene Flags (Per-Scene)
+
+```java
+// Mark scene-specific events
+SaveManager.setSceneFlag("boss_defeated", true);
+
+// Check on next visit
+if (SaveManager.getSceneFlag("boss_defeated", false)) {
+    // Boss stays dead
 }
 ```
 
-### Load Game Flow
-
-```java
-// Player selects a save slot
-if (SaveManager.load("slot1")) {
-    String sceneName = SaveManager.getSavedSceneName();
-    SceneManager.loadScene(sceneName);
-    // State automatically restored via PersistentId components
-}
-```
-
-### Permanently Destroying an Entity
-
-When the player kills an enemy or collects a one-time pickup:
+### Permanently Destroying Entities
 
 ```java
 public void onEnemyKilled() {
@@ -174,99 +259,23 @@ public void onEnemyKilled() {
 }
 ```
 
----
-
-## Code Integration
-
-### Example: Health Component
+### Full Save/Load Cycle
 
 ```java
-public class Health extends Component implements ISaveable {
-    private float maxHealth = 100;
+// Save current game
+SaveManager.save("slot1", "Village - Level 5");
 
-    @HideInInspector
-    private float currentHealth;
-
-    @Override
-    protected void onStart() {
-        if (currentHealth <= 0) {
-            currentHealth = maxHealth;  // Initialize if not loaded
-        }
-    }
-
-    @Override
-    public Map<String, Object> getSaveState() {
-        return Map.of(
-            "currentHealth", currentHealth,
-            "maxHealth", maxHealth
-        );
-    }
-
-    @Override
-    public void loadSaveState(Map<String, Object> state) {
-        currentHealth = ((Number) state.get("currentHealth")).floatValue();
-        maxHealth = ((Number) state.get("maxHealth")).floatValue();
-    }
+// Load a save
+if (SaveManager.load("slot1")) {
+    String sceneName = SaveManager.getSavedSceneName();
+    SceneManager.loadScene(sceneName);
+    // ISaveable states restored automatically during scene load
 }
-```
 
-### Example: Chest Component
-
-```java
-public class Chest extends Component implements ISaveable {
-    private boolean opened = false;
-    private boolean looted = false;
-
-    public void interact(Inventory playerInventory) {
-        if (!opened) {
-            opened = true;
-            // Play animation, give loot...
-            looted = true;
-        }
-    }
-
-    @Override
-    public Map<String, Object> getSaveState() {
-        return Map.of("opened", opened, "looted", looted);
-    }
-
-    @Override
-    public void loadSaveState(Map<String, Object> state) {
-        opened = (Boolean) state.getOrDefault("opened", false);
-        looted = (Boolean) state.getOrDefault("looted", false);
-        if (opened) updateVisualToOpenState();
-    }
-
-    @Override
-    public boolean hasSaveableState() {
-        return opened;  // Only save if state changed
-    }
-}
-```
-
-### Example: Using Global State
-
-```java
-// Store player stats globally (persist across scenes)
-SaveManager.setGlobal("player", "gold", 500);
-SaveManager.setGlobal("player", "level", 12);
-SaveManager.setGlobal("quests", "main_quest", "COMPLETED");
-
-// Retrieve with defaults
-int gold = SaveManager.getGlobal("player", "gold", 0);
-String questState = SaveManager.getGlobal("quests", "main_quest", "NOT_STARTED");
-```
-
-### Example: Scene Flags
-
-```java
-// Mark scene-specific events
-SaveManager.setSceneFlag("boss_defeated", true);
-SaveManager.setSceneFlag("secret_door_opened", true);
-
-// Check flags
-if (SaveManager.getSceneFlag("boss_defeated", false)) {
-    // Boss stays dead
+// List available saves
+List<SaveSlotInfo> saves = SaveManager.listSaves();
+for (SaveSlotInfo info : saves) {
+    System.out.println(info.displayName() + " - " + info.sceneName());
 }
 ```
 
@@ -274,22 +283,22 @@ if (SaveManager.getSceneFlag("boss_defeated", false)) {
 
 ## Tips & Best Practices
 
-- **Only save what changes** - Don't save configuration values that come from prefabs/scene files
-- **Use `hasSaveableState()`** - Return false when entity hasn't been modified to keep saves small
-- **Use meaningful IDs** - "player", "chest_village_01" are better than auto-generated UUIDs for debugging
-- **Handle missing keys** - Use `getOrDefault()` in `loadSaveState()` for backwards compatibility
-- **Test save/load cycle** - Save, close game, load, verify all state restored correctly
-- **Keep runtime state transient** - Animation timers, cached values don't need saving
+- **Pick the right pattern** — Write-through for immediate data, scene-unload for position, ISaveable for entity state. Don't mix patterns for the same data.
+- **Only save what changes** — Use `hasSaveableState()` to skip entities with default state. Keeps saves small.
+- **Use meaningful PersistentId values** — "chest_village_01" is easier to debug than auto-generated UUIDs.
+- **Handle missing keys** — Use `getOrDefault()` in `loadSaveState()` for backwards compatibility with older saves.
+- **Keep transient state transient** — Animation timers, cached calculations, and component references don't need saving.
+- **Cast numbers safely** — Gson deserializes numbers generically. Use `((Number) value).intValue()` instead of direct casting.
 
 ### What to Save vs Not Save
 
 | Save | Don't Save |
 |------|------------|
 | Player gold, items | Animation frame/timer |
-| Current health | Cached calculations |
-| Quest progress | Component references (@ComponentReference) |
+| Grid position (via PlayerData) | Transform lerp progress |
+| Quest/dialogue progress | Component references |
 | Chest opened state | Default config values |
-| Entity position (if moved) | Static scenery state |
+| Enemy defeated state | Static scenery state |
 
 ---
 
@@ -297,16 +306,20 @@ if (SaveManager.getSceneFlag("boss_defeated", false)) {
 
 | Problem | Solution |
 |---------|----------|
-| Entity state not restored | Ensure entity has `PersistentId` component with ID set |
+| Entity state not restored after load | Ensure entity has `PersistentId` component with a unique ID |
 | Component state not saved | Implement `ISaveable` interface on the component |
-| Numbers wrong type after load | Use `((Number) value).intValue()` for safe conversion |
+| Player not placed at spawn after transition | Verify `PlayerPlacementHandler` is registered in both `GameApplication` and `PlayModeController` |
+| Player position not saved on scene change | Ensure component overrides `onBeforeSceneUnload()` and calls `PlayerData.save()` |
+| Numbers wrong type after load | Use `((Number) value).intValue()` for safe Gson number conversion |
 | Save file not created | Check `SaveManager.getSavesDirectory()` for path, ensure write permissions |
-| Entity destroyed on load but shouldn't be | Check if `markEntityDestroyed()` was called; entity ID might be in `destroyedEntities` |
+| ISaveable state applied too early | `loadSaveState()` runs after all `onStart()` — don't rely on it during `onStart()` |
+| Battle return not working in editor | `PlayerPlacementHandler` must be registered in `PlayModeController` (not just `GameApplication`) |
 
 ---
 
 ## Related
 
-- [Asset Loader Guide](assetLoaderGuide.md) — Loading assets referenced in saves
-- [Animation Editor Guide](animationEditorGuide.md) — Animation state is NOT saved (transient)
-- [Dialogue System Guide](dialogueSystemGuide.md) — `DialogueEventStore` uses `SaveManager` global state to persist fired events
+- [Warp & Spawn Guide](warpSpawnGuide.md) — SpawnPoint component and scene transitions
+- [Dialogue System Guide](dialogueSystemGuide.md) — `DialogueEventStore` uses `SaveManager` global state
+- [Components Guide](componentsGuide.md) — Component lifecycle hooks including `onBeforeSceneUnload`
+- [Play Mode Guide](playModeGuide.md) — Editor play mode initialization (where PlayerPlacementHandler also registers)

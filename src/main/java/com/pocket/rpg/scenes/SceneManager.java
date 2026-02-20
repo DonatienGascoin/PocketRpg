@@ -1,28 +1,21 @@
 package com.pocket.rpg.scenes;
 
-import com.pocket.rpg.components.pokemon.GridMovement;
 import com.pocket.rpg.components.interaction.CameraBoundsZone;
-import com.pocket.rpg.components.interaction.SpawnPoint;
-import com.pocket.rpg.components.core.PersistentEntity;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.core.camera.GameCamera;
 import com.pocket.rpg.core.window.ViewportConfig;
 import com.pocket.rpg.editor.scene.RuntimeSceneLoader;
 import com.pocket.rpg.save.SaveManager;
-import com.pocket.rpg.serialization.GameObjectData;
 import com.pocket.rpg.serialization.SceneData;
 import com.pocket.rpg.ui.ComponentKeyRegistry;
 import lombok.Getter;
 import lombok.NonNull;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * SceneManager handles loading, unloading, and managing scenes.
@@ -49,6 +42,7 @@ public class SceneManager {
     private String scenesBasePath;
 
     // Spawn point to teleport to after loading a scene
+    @Getter
     private String pendingSpawnId;
 
     public SceneManager(@NonNull ViewportConfig viewportConfig, @NonNull RenderingConfig renderingConfig) {
@@ -165,7 +159,6 @@ public class SceneManager {
     /**
      * Loads a scene directly.
      * Unloads the current scene if one is active.
-     * Handles persistent entity snapshot/restore and spawn point teleportation.
      *
      * @param scene the scene to load
      */
@@ -178,11 +171,8 @@ public class SceneManager {
      * Eliminates temporal coupling from the pendingSpawnId field.
      */
     private void loadSceneInternal(Scene scene, String spawnId) {
-        // 1. Snapshot persistent entities from old scene
-        List<GameObjectData> snapshots = Collections.emptyList();
         if (currentScene != null) {
             currentScene.notifyBeforeUnload();
-            snapshots = snapshotPersistentEntities(currentScene);
             currentScene.destroy();
             fireSceneUnloaded(currentScene);
         }
@@ -197,16 +187,8 @@ public class SceneManager {
             applyCameraData(runtimeScene);
         }
 
-        // 2. Restore persistent entities
-        restorePersistentEntities(currentScene, snapshots);
-
-        // 3. Post-initialization hook (ISaveable state application, game code)
+        // Post-initialization hook (ISaveable state application, game code, spawn teleport)
         firePostSceneInitialize(currentScene);
-
-        // 4. Teleport player to spawn point
-        if (spawnId != null && !spawnId.isEmpty()) {
-            teleportPlayerToSpawn(currentScene, spawnId);
-        }
 
         fireSceneLoaded(currentScene);
 
@@ -292,189 +274,6 @@ public class SceneManager {
             }
         }
         System.err.println("CameraBoundsZone not found: " + boundsId);
-    }
-
-    // ========================================================================
-    // PERSISTENT ENTITY MANAGEMENT
-    // ========================================================================
-
-    /**
-     * Snapshots all persistent entities in the scene.
-     *
-     * @param scene the scene to snapshot from
-     * @return list of snapshots (empty if no persistent entities)
-     */
-    private List<GameObjectData> snapshotPersistentEntities(Scene scene) {
-        List<GameObjectData> snapshots = new ArrayList<>();
-        for (GameObject obj : scene.getGameObjects()) {
-            collectPersistentSnapshots(obj, snapshots);
-        }
-        if (!snapshots.isEmpty()) {
-            System.out.println("[SceneManager] Snapshotted " + snapshots.size() + " persistent entities");
-        }
-        return snapshots;
-    }
-
-    /**
-     * Recursively collects persistent entity snapshots from an entity and its children.
-     */
-    private void collectPersistentSnapshots(GameObject obj, List<GameObjectData> snapshots) {
-        PersistentEntity pe = obj.getComponent(PersistentEntity.class);
-        if (pe != null) {
-            GameObjectData snapshot = PersistentEntitySnapshot.snapshot(obj);
-            if (snapshot != null) {
-                snapshots.add(snapshot);
-            }
-        }
-        for (GameObject child : obj.getChildren()) {
-            collectPersistentSnapshots(child, snapshots);
-        }
-    }
-
-    /**
-     * Restores persistent entities in the new scene from snapshots.
-     * <p>
-     * For each snapshot, finds a matching entity by PersistentEntity.entityTag.
-     * If found, applies the snapshot state. If not found, creates a new entity
-     * from the snapshot and adds it to the scene.
-     *
-     * @param scene     the new scene
-     * @param snapshots persistent entity snapshots from the old scene
-     */
-    private void restorePersistentEntities(Scene scene, List<GameObjectData> snapshots) {
-        if (snapshots.isEmpty()) {
-            return;
-        }
-
-        // Warn on duplicate entityTag values
-        Set<String> seenTags = new HashSet<>();
-        for (GameObjectData snapshot : snapshots) {
-            String tag = snapshot.getTag();
-            if (tag != null && !tag.isEmpty() && !seenTags.add(tag)) {
-                System.err.println("[SceneManager] WARNING: Duplicate entityTag '" + tag
-                        + "' found in persistent entity snapshots. Only the first match will be restored correctly.");
-            }
-        }
-
-        for (GameObjectData snapshot : snapshots) {
-            String entityTag = snapshot.getTag();
-            if (entityTag == null || entityTag.isEmpty()) {
-                continue;
-            }
-
-            GameObject existing = findPersistentEntity(scene, entityTag);
-            if (existing != null) {
-                // Apply snapshot state to existing entity
-                PersistentEntitySnapshot.applySnapshot(snapshot, existing);
-                System.out.println("[SceneManager] Restored persistent entity '" + entityTag
-                        + "' to existing entity: " + existing.getName());
-            } else {
-                // Create new entity from snapshot
-                GameObject created = PersistentEntitySnapshot.createFromSnapshot(snapshot);
-                if (created != null) {
-                    scene.addGameObject(created);
-                    System.out.println("[SceneManager] Created persistent entity '" + entityTag
-                            + "' from snapshot: " + created.getName());
-                }
-            }
-        }
-    }
-
-    /**
-     * Finds a persistent entity by entityTag in the scene.
-     */
-    private GameObject findPersistentEntity(Scene scene, String entityTag) {
-        for (GameObject obj : scene.getGameObjects()) {
-            GameObject found = findPersistentEntityRecursive(obj, entityTag);
-            if (found != null) {
-                return found;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Recursively searches for a persistent entity by entityTag.
-     */
-    private GameObject findPersistentEntityRecursive(GameObject obj, String entityTag) {
-        PersistentEntity pe = obj.getComponent(PersistentEntity.class);
-        if (pe != null && entityTag.equals(pe.getEntityTag())) {
-            return obj;
-        }
-        for (GameObject child : obj.getChildren()) {
-            GameObject found = findPersistentEntityRecursive(child, entityTag);
-            if (found != null) {
-                return found;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Teleports the player persistent entity to a spawn point.
-     * Applies facing direction and camera bounds from the spawn point.
-     *
-     * @param scene   the scene containing the spawn point
-     * @param spawnId the spawn point ID
-     */
-    private void teleportPlayerToSpawn(Scene scene, String spawnId) {
-        // Find the player entity (persistent entity with tag "Player")
-        GameObject player = findPersistentEntity(scene, "Player");
-        if (player == null) {
-            System.err.println("[SceneManager] No persistent entity with tag 'Player' found for spawn teleport");
-            return;
-        }
-
-        // Find the spawn point (recursively)
-        SpawnPoint spawn = findSpawnPointRecursive(scene, spawnId);
-
-        if (spawn == null) {
-            System.err.println("[SceneManager] Spawn point not found: " + spawnId);
-            return;
-        }
-
-        // Teleport
-        scene.teleportToSpawn(player, spawnId);
-
-        // Apply facing direction
-        GridMovement gridMovement = player.getComponent(GridMovement.class);
-        if (gridMovement != null && spawn.getFacingDirection() != null) {
-            gridMovement.setFacingDirection(spawn.getFacingDirection());
-        }
-
-        // Apply camera bounds from spawn point
-        if (scene.getCamera() != null) {
-            spawn.applyCameraBounds(scene.getCamera());
-        }
-
-        System.out.println("[SceneManager] Teleported player to spawn: " + spawnId);
-    }
-
-    /**
-     * Recursively searches a scene for a SpawnPoint with the given ID.
-     */
-    private SpawnPoint findSpawnPointRecursive(Scene scene, String spawnId) {
-        for (GameObject obj : scene.getGameObjects()) {
-            SpawnPoint found = findSpawnPointInHierarchy(obj, spawnId);
-            if (found != null) {
-                return found;
-            }
-        }
-        return null;
-    }
-
-    private SpawnPoint findSpawnPointInHierarchy(GameObject obj, String spawnId) {
-        SpawnPoint sp = obj.getComponent(SpawnPoint.class);
-        if (sp != null && spawnId.equals(sp.getSpawnId())) {
-            return sp;
-        }
-        for (GameObject child : obj.getChildren()) {
-            SpawnPoint found = findSpawnPointInHierarchy(child, spawnId);
-            if (found != null) {
-                return found;
-            }
-        }
-        return null;
     }
 
     // ========================================================================

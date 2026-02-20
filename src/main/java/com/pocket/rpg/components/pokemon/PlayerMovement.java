@@ -6,6 +6,8 @@ import com.pocket.rpg.components.ComponentMeta;
 import com.pocket.rpg.components.ComponentReference;
 import com.pocket.rpg.components.ComponentReference.Source;
 import com.pocket.rpg.components.player.PlayerInput;
+import com.pocket.rpg.save.PlayerData;
+import com.pocket.rpg.scenes.Scene;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -39,6 +41,21 @@ public class PlayerMovement extends Component {
     @Override
     protected void onStart() {
         // Grid position is now derived from the transform by GridMovement.onStart()
+    }
+
+    @Override
+    protected void onBeforeSceneUnload() {
+        if (movement == null) return;
+
+        PlayerData data = PlayerData.load();
+        Scene scene = gameObject.getScene();
+        if (scene != null) {
+            data.lastOverworldScene = scene.getName();
+        }
+        data.lastGridX = movement.getGridX();
+        data.lastGridY = movement.getGridY();
+        data.lastDirection = movement.getFacingDirection();
+        data.save();
     }
 
     @Override

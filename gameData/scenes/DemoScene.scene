@@ -510,12 +510,6 @@
           }
         },
         {
-          "type": "com.pocket.rpg.components.core.PersistentEntity",
-          "properties": {
-            "entityTag": "Player"
-          }
-        },
-        {
           "type": "com.pocket.rpg.components.dialogue.PlayerDialogueManager",
           "properties": {
             "charsPerSecond": 30.0,

@@ -16,6 +16,7 @@ import com.pocket.rpg.editor.serialization.EditorSceneSerializer;
 import com.pocket.rpg.rendering.postfx.PostProcessor;
 import com.pocket.rpg.rendering.targets.FramebufferTarget;
 import com.pocket.rpg.resources.Assets;
+import com.pocket.rpg.save.PlayerPlacementHandler;
 import com.pocket.rpg.save.SaveManager;
 import com.pocket.rpg.scenes.RuntimeScene;
 import com.pocket.rpg.scenes.Scene;
@@ -170,8 +171,11 @@ public class PlayModeController {
             // 6. Configure scene loading and load from snapshot
             RuntimeSceneLoader sceneLoader = new RuntimeSceneLoader();
             engine.getSceneManager().setSceneLoader(sceneLoader, "gameData/scenes/");
+            // TODO: SaveManager, MusicManager, and PlayerPlacementHandler are game-level concerns
+            //  and should not be initialized here. Move to a game-specific bootstrap once one exists.
             SaveManager.initialize(engine.getSceneManager());
             MusicManager.initialize(engine.getSceneManager(), Assets.getContext());
+            engine.getSceneManager().addLifecycleListener(new PlayerPlacementHandler(engine.getSceneManager()));
 
             SceneData runtimeCopy = Serializer.deepCopy(snapshot, SceneData.class);
             RuntimeScene runtimeScene = sceneLoader.load(runtimeCopy);

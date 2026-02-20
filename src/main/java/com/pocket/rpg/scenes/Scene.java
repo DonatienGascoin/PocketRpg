@@ -345,6 +345,32 @@ public abstract class Scene {
         return null;
     }
 
+    /**
+     * Finds the first GameObject that has a component of the given type.
+     * Searches recursively through all children.
+     *
+     * @param componentType the component class to search for
+     * @return the owning GameObject, or null if not found
+     */
+    public <T extends Component> GameObject findGameObjectByComponent(Class<T> componentType) {
+        for (GameObject go : gameObjects) {
+            GameObject found = findGameObjectByComponentRecursive(go, componentType);
+            if (found != null) return found;
+        }
+        return null;
+    }
+
+    private <T extends Component> GameObject findGameObjectByComponentRecursive(GameObject go, Class<T> componentType) {
+        if (go.getComponent(componentType) != null) {
+            return go;
+        }
+        for (GameObject child : go.getChildren()) {
+            GameObject found = findGameObjectByComponentRecursive(child, componentType);
+            if (found != null) return found;
+        }
+        return null;
+    }
+
     public List<GameObject> getGameObjects() {
         return new ArrayList<>(gameObjects);
     }

@@ -72,7 +72,7 @@ public class GameObjectData {
     private int order;
 
     /**
-     * Child entity snapshots (used by PersistentEntitySnapshot only).
+     * Child entity snapshots.
      * Scene files use flat lists with parentId references instead.
      */
     private List<GameObjectData> children;

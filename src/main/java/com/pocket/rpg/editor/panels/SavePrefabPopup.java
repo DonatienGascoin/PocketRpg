@@ -3,13 +3,16 @@ package com.pocket.rpg.editor.panels;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.prefab.JsonPrefab;
+import com.pocket.rpg.prefab.PrefabHierarchyHelper;
 import com.pocket.rpg.prefab.PrefabRegistry;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
+import com.pocket.rpg.serialization.GameObjectData;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImString;
 import lombok.Getter;
 
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -99,15 +102,22 @@ public class SavePrefabPopup {
 
             // Component summary
             ImGui.separator();
-            ImGui.text("Components to include:");
-            ImGui.beginChild("ComponentList", 0);
-            for (Component comp : sourceEntity.getComponents()) {
-                ImGui.bulletText(comp.getClass().getSimpleName());
+            if (sourceEntity.hasChildren()) {
+                ImGui.text("Hierarchy to include:");
+                ImGui.beginChild("ComponentList", 0);
+                renderEntitySummary(sourceEntity, 0);
+                ImGui.endChild();
+            } else {
+                ImGui.text("Components to include:");
+                ImGui.beginChild("ComponentList", 0);
+                for (Component comp : sourceEntity.getComponents()) {
+                    ImGui.bulletText(comp.getClass().getSimpleName());
+                }
+                if (sourceEntity.getComponents().isEmpty()) {
+                    ImGui.textDisabled("(no components)");
+                }
+                ImGui.endChild();
             }
-            if (sourceEntity.getComponents().isEmpty()) {
-                ImGui.textDisabled("(no components)");
-            }
-            ImGui.endChild();
 
             // Error display
             if (lastError != null) {
@@ -129,6 +139,15 @@ public class SavePrefabPopup {
             }
 
             ImGui.endPopup();
+        }
+    }
+
+    private void renderEntitySummary(EditorGameObject entity, int depth) {
+        String indent = "  ".repeat(depth);
+        int compCount = entity.getComponents().size();
+        ImGui.bulletText(indent + entity.getName() + " (" + compCount + " components)");
+        for (EditorGameObject child : entity.getChildren()) {
+            renderEntitySummary(child, depth + 1);
         }
     }
 
@@ -161,11 +180,17 @@ public class SavePrefabPopup {
         JsonPrefab prefab = new JsonPrefab(id, displayName);
         prefab.setCategory(category.isEmpty() ? null : category);
 
-        // Copy components from entity (clone each component)
-        for (Component comp : sourceEntity.getComponents()) {
-            Component copy = ComponentReflectionUtils.cloneComponent(comp);
-            if (copy != null) {
-                prefab.addComponent(copy);
+        if (sourceEntity.hasChildren()) {
+            // Capture full hierarchy
+            List<GameObjectData> hierarchy = PrefabHierarchyHelper.captureHierarchy(sourceEntity);
+            prefab.setGameObjects(hierarchy);
+        } else {
+            // Copy components from entity (clone each component)
+            for (Component comp : sourceEntity.getComponents()) {
+                Component copy = ComponentReflectionUtils.cloneComponent(comp);
+                if (copy != null) {
+                    prefab.addComponent(copy);
+                }
             }
         }
 

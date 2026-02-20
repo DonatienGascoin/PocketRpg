@@ -39,17 +39,36 @@ public class PrefabInspector {
         if (!controller.isActive()) return;
 
         JsonPrefab prefab = controller.getTargetPrefab();
-        EditorGameObject workingEntity = controller.getWorkingEntity();
-        if (prefab == null || workingEntity == null) return;
+        com.pocket.rpg.editor.scene.EditorScene workingScene = controller.getWorkingScene();
+        if (prefab == null || workingScene == null) return;
+
+        // Get selected entity from working scene, default to root
+        EditorGameObject selectedEntity = null;
+        java.util.Set<EditorGameObject> selected = workingScene.getSelectedEntities();
+        if (!selected.isEmpty()) {
+            selectedEntity = selected.iterator().next();
+        }
+        if (selectedEntity == null) {
+            selectedEntity = controller.getWorkingEntity();
+        }
+        if (selectedEntity == null) return;
 
         fieldEditor.setContext(controller::markDirty, null);
 
-        // Metadata section
-        renderMetadata(controller, prefab);
+        // Metadata section (only for root entity)
+        boolean isRoot = selectedEntity == controller.getWorkingEntity();
+        if (isRoot) {
+            renderMetadata(controller, prefab);
+        } else {
+            ImGui.spacing();
+            ImGui.textDisabled("Child Node");
+            ImGui.text(selectedEntity.getName());
+            ImGui.spacing();
+        }
         ImGui.separator();
 
         // Components section
-        renderComponents(controller, workingEntity);
+        renderComponents(controller, selectedEntity);
 
         componentListRenderer.renderPopup();
     }

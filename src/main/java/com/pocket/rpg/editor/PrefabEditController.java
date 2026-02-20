@@ -9,9 +9,11 @@ import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.logging.Log;
 import com.pocket.rpg.prefab.JsonPrefab;
+import com.pocket.rpg.prefab.PrefabHierarchyHelper;
 import com.pocket.rpg.prefab.PrefabRegistry;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import com.pocket.rpg.serialization.ComponentRegistry;
+import com.pocket.rpg.serialization.GameObjectData;
 import com.pocket.rpg.editor.core.EditorColors;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
@@ -50,7 +52,7 @@ public class PrefabEditController {
     @Getter
     private EditorScene workingScene;
 
-    private List<Component> savedComponents;
+    private List<GameObjectData> savedGameObjects;
     private String savedDisplayName;
     private String savedCategory;
 
@@ -112,13 +114,13 @@ public class PrefabEditController {
         // Push undo scope for isolation
         UndoManager.getInstance().pushScope();
 
-        // Deep-clone components for "Reset to Saved" baseline
-        savedComponents = deepCloneComponents(prefab.getComponents());
+        // Snapshot the hierarchy for "Reset to Saved" baseline
+        savedGameObjects = deepCloneGameObjects(prefab.getGameObjects());
         savedDisplayName = prefab.getDisplayName();
         savedCategory = prefab.getCategory();
 
-        // Build working entity as a scratch entity with cloned components
-        buildWorkingEntity(savedComponents);
+        // Build working scene from prefab hierarchy
+        buildWorkingScene();
 
         // Set mode
         context.getModeManager().setMode(EditorMode.PREFAB_EDIT);
@@ -165,16 +167,16 @@ public class PrefabEditController {
     public void save() {
         if (state != State.EDITING || targetPrefab == null) return;
 
-        // Deep-clone working entity's components into the prefab
-        List<Component> clonedComponents = deepCloneComponents(workingEntity.getComponents());
-        targetPrefab.setComponents(clonedComponents);
+        // Capture working hierarchy back into the prefab
+        List<GameObjectData> capturedHierarchy = PrefabHierarchyHelper.captureHierarchy(workingEntity);
+        targetPrefab.setGameObjects(capturedHierarchy);
 
         try {
             PrefabRegistry.getInstance().saveJsonPrefab(targetPrefab);
 
             // Success: update saved snapshot, clear undo, mark clean
             invalidateInstanceCaches();
-            savedComponents = deepCloneComponents(workingEntity.getComponents());
+            savedGameObjects = deepCloneGameObjects(targetPrefab.getGameObjects());
             savedDisplayName = targetPrefab.getDisplayName();
             savedCategory = targetPrefab.getCategory();
             UndoManager.getInstance().clear();
@@ -201,7 +203,7 @@ public class PrefabEditController {
         confirmationMessage = "Revert all changes to the prefab?\nThis cannot be undone.";
         isRevertConfirmation = true;
         pendingAction = () -> {
-            buildWorkingEntity(savedComponents);
+            buildWorkingScene();
             targetPrefab.setDisplayName(savedDisplayName);
             targetPrefab.setCategory(savedCategory);
             UndoManager.getInstance().clear();
@@ -251,7 +253,7 @@ public class PrefabEditController {
         workingEntity = null;
         workingScene = null;
         targetPrefab = null;
-        savedComponents = null;
+        savedGameObjects = null;
         savedDisplayName = null;
         savedCategory = null;
         dirty = false;
@@ -368,39 +370,71 @@ public class PrefabEditController {
     // PRIVATE
     // ========================================================================
 
-    private void buildWorkingEntity(List<Component> sourceComponents) {
-        // Create scratch entity with cloned components
-        workingEntity = new EditorGameObject(
-                targetPrefab.getDisplayName(),
-                new Vector3f(0, 0, 0),
-                false  // scratch, not prefab instance
-        );
-
-        // Remove the default Transform added by the constructor —
-        // we'll add our own from the cloned components
-        Transform defaultTransform = workingEntity.getTransform();
-        if (defaultTransform != null) {
-            workingEntity.getComponents().remove(defaultTransform);
-        }
-
-        // Add deep-cloned components
-        List<Component> cloned = deepCloneComponents(sourceComponents);
-        boolean hasTransform = false;
-        for (Component comp : cloned) {
-            if (comp instanceof Transform) {
-                hasTransform = true;
-            }
-            workingEntity.getComponents().add(comp);
-        }
-
-        // Ensure Transform exists
-        if (!hasTransform) {
-            workingEntity.getComponents().add(0, new Transform());
-        }
-
-        // Create temporary scene containing just the working entity
+    /**
+     * Builds the working scene from the prefab's hierarchy.
+     * Creates scratch entities from each node's components.
+     */
+    private void buildWorkingScene() {
         workingScene = new EditorScene();
-        workingScene.addEntity(workingEntity);
+
+        List<GameObjectData> nodes = savedGameObjects;
+        if (nodes == null || nodes.isEmpty()) {
+            // Fallback: create empty root
+            workingEntity = new EditorGameObject(
+                    targetPrefab.getDisplayName(), new Vector3f(), false);
+            workingEntity.getComponents().add(0, new Transform());
+            workingScene.addEntity(workingEntity);
+            return;
+        }
+
+        // Create scratch entities from each node
+        workingEntity = null;
+        for (GameObjectData node : nodes) {
+            EditorGameObject entity = createWorkingEntityFromNode(node);
+            workingScene.addEntity(entity);
+
+            if (node.getParentId() == null || node.getParentId().isEmpty()) {
+                workingEntity = entity;
+            }
+        }
+
+        // Resolve hierarchy
+        workingScene.resolveHierarchy();
+
+        // Fallback if no root found
+        if (workingEntity == null && !workingScene.getEntities().isEmpty()) {
+            workingEntity = workingScene.getEntities().getFirst();
+        }
+    }
+
+    /**
+     * Creates a scratch EditorGameObject from a prefab node's data.
+     */
+    private EditorGameObject createWorkingEntityFromNode(GameObjectData node) {
+        // Deep-clone components for the working entity
+        List<Component> cloned = deepCloneComponents(node.getComponents());
+
+        // Create via fromData to preserve id and parentId for hierarchy resolution
+        GameObjectData workingData = new GameObjectData(node.getId(), node.getName(), cloned);
+        workingData.setParentId(node.getParentId());
+        workingData.setOrder(node.getOrder());
+        workingData.setActive(node.isActive());
+
+        return EditorGameObject.fromData(workingData);
+    }
+
+    private List<GameObjectData> deepCloneGameObjects(List<GameObjectData> source) {
+        List<GameObjectData> result = new ArrayList<>();
+        if (source == null) return result;
+        for (GameObjectData node : source) {
+            List<Component> clonedComponents = deepCloneComponents(node.getComponents());
+            GameObjectData clone = new GameObjectData(node.getId(), node.getName(), clonedComponents);
+            clone.setParentId(node.getParentId());
+            clone.setOrder(node.getOrder());
+            clone.setActive(node.isActive());
+            result.add(clone);
+        }
+        return result;
     }
 
     private List<Component> deepCloneComponents(List<Component> source) {

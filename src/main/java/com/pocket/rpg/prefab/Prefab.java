@@ -262,7 +262,12 @@ public interface Prefab {
 
     /**
      * Applies field overrides to a component instance.
+     * Public for use by RuntimeSceneLoader.
      */
+    static void applyOverridesStatic(Component component, Map<String, Object> overrides) {
+        applyOverrides(component, overrides);
+    }
+
     private static void applyOverrides(Component component, Map<String, Object> overrides) {
         ComponentMeta meta = ComponentReflectionUtils.getMeta(component);
         if (meta == null) {

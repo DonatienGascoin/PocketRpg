@@ -25,7 +25,7 @@ public class DialogueEventsInspectorRenderer implements AssetInspectorRenderer<D
     private static final int MAX_UNDO = 50;
 
     private final DialogueEventsLoader loader = new DialogueEventsLoader();
-    private final ImString nameBuffer = new ImString(256);
+    private final ImString nameBuffer = new ImString();
 
     private String cachedPath;
     private boolean hasChanges = false;

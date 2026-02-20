@@ -23,8 +23,8 @@ public class PrefabInspector {
     private final ComponentFieldEditor fieldEditor;
     private final ComponentListRenderer componentListRenderer;
 
-    private final ImString displayNameBuffer = new ImString(256);
-    private final ImString categoryBuffer = new ImString(256);
+    private final ImString displayNameBuffer = new ImString();
+    private final ImString categoryBuffer = new ImString();
 
     // Undo support for metadata fields
     private String displayNameBeforeEdit = null;

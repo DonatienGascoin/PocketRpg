@@ -26,7 +26,7 @@ public class DialogueVariablesInspectorRenderer implements AssetInspectorRendere
     private static final int MAX_UNDO = 50;
 
     private final DialogueVariablesLoader loader = new DialogueVariablesLoader();
-    private final ImString nameBuffer = new ImString(256);
+    private final ImString nameBuffer = new ImString();
 
     private String cachedPath;
     private boolean hasChanges = false;

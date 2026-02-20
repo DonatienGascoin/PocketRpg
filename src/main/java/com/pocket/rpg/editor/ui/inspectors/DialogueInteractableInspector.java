@@ -35,7 +35,7 @@ public class DialogueInteractableInspector extends CustomComponentInspector<Dial
     private static final String EVENTS_ASSET_PATH = "dialogues/events.dialogue-events.json";
     private static final String VARIABLES_ASSET_PATH = "dialogues/variables.dialogue-vars.json";
 
-    private final ImString varBuffer = new ImString(256);
+    private final ImString varBuffer = new ImString();
 
     @Override
     public boolean draw() {

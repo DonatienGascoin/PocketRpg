@@ -398,7 +398,7 @@ public final class FieldEditors {
     private static final float[] floatBuf3 = new float[1];
     private static final float[] floatBuf4 = new float[1];
     private static final int[] intBuf = new int[1];
-    private static final ImString stringBuf = new ImString(256);
+    private static final ImString stringBuf = new ImString();
     private static final ImBoolean boolBuf = new ImBoolean();
 
     /**

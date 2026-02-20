@@ -27,7 +27,7 @@ public class DoorInspector extends CustomComponentInspector<Door> {
     private final ImBoolean lockedState = new ImBoolean();
     private final ImBoolean stayOpenState = new ImBoolean();
     private final ImBoolean consumeKeyState = new ImBoolean();
-    private final ImString keyIdBuffer = new ImString(256);
+    private final ImString keyIdBuffer = new ImString();
 
     @Override
     public boolean draw() {

@@ -28,7 +28,7 @@ public class TilemapLayersInspector {
     private EditorScene scene;
 
     private final float[] floatBuffer = new float[4];
-    private final ImString stringBuffer = new ImString(256);
+    private final ImString stringBuffer = new ImString();
     private final ImInt intBuffer = new ImInt();
     private int renamingLayerIndex = -1;
     private final ImString layerRenameBuffer = new ImString(64);

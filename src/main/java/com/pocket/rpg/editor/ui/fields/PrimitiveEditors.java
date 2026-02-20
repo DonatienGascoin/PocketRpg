@@ -19,7 +19,7 @@ import java.util.function.*;
  */
 public final class PrimitiveEditors {
 
-    private static final ImString stringBuffer = new ImString(256);
+    private static final ImString stringBuffer = new ImString();
     private static final ImInt intBuffer = new ImInt();
     private static final float[] floatBuffer = new float[1];
 

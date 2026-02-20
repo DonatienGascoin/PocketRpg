@@ -9,12 +9,15 @@ import com.pocket.rpg.editor.events.EditorEventBus;
 import com.pocket.rpg.editor.events.OpenDialogueEditorEvent;
 import com.pocket.rpg.editor.ui.fields.FieldEditorContext;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
+import com.pocket.rpg.editor.undo.UndoManager;
+import com.pocket.rpg.editor.undo.commands.ListItemCommand;
+import com.pocket.rpg.editor.undo.commands.MapItemCommand;
+import com.pocket.rpg.editor.undo.commands.SetterUndoCommand;
 import com.pocket.rpg.resources.Assets;
 import imgui.ImGui;
 import imgui.type.ImString;
 
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 /**
  * Custom inspector for {@link DialogueInteractable}.
@@ -36,6 +39,9 @@ public class DialogueInteractableInspector extends CustomComponentInspector<Dial
     private static final String VARIABLES_ASSET_PATH = "dialogues/variables.dialogue-vars.json";
 
     private final ImString varBuffer = new ImString(256);
+
+    /** Tracks start values for variable table input undo. */
+    private static final Map<String, Object> undoStartValues = new HashMap<>();
 
     @Override
     public boolean draw() {
@@ -94,24 +100,8 @@ public class DialogueInteractableInspector extends CustomComponentInspector<Dial
         changed |= FieldEditors.drawBoolean("Directional", component, "directionalInteraction");
 
         if (component.isDirectionalInteraction()) {
-            List<Direction> interactFrom = component.getInteractFrom();
-
-            FieldEditors.inspectorRow("Interact From", () -> {
-                for (Direction dir : Direction.values()) {
-                    boolean active = interactFrom.contains(dir);
-                    if (ImGui.checkbox(dir.name() + "##interactDir", active)) {
-                        if (active) {
-                            interactFrom.remove(dir);
-                        } else {
-                            interactFrom.add(dir);
-                        }
-                        markSceneDirty();
-                    }
-                    if (dir != Direction.RIGHT) {
-                        ImGui.sameLine();
-                    }
-                }
-            });
+            changed |= FieldEditors.drawEnumSet("Interact From", component, "interactFrom",
+                    Direction.class, editorEntity());
         }
 
         return changed;
@@ -171,14 +161,32 @@ public class DialogueInteractableInspector extends CustomComponentInspector<Dial
 
         // Remove deferred
         if (removeIndex >= 0) {
-            conditionals.remove(removeIndex);
+            ConditionalDialogue removed = conditionals.get(removeIndex);
+            if (editorEntity() != null) {
+                UndoManager.getInstance().execute(new ListItemCommand(
+                        component, "conditionalDialogues",
+                        ListItemCommand.Operation.REMOVE, removeIndex,
+                        removed, null, editorEntity()
+                ));
+            } else {
+                conditionals.remove(removeIndex);
+            }
             markSceneDirty();
             changed = true;
         }
 
         // Add button
         if (ImGui.button(MaterialIcons.Add + " Add Conditional Dialogue")) {
-            conditionals.add(new ConditionalDialogue());
+            ConditionalDialogue newCd = new ConditionalDialogue();
+            if (editorEntity() != null) {
+                UndoManager.getInstance().execute(new ListItemCommand(
+                        component, "conditionalDialogues",
+                        ListItemCommand.Operation.ADD, conditionals.size(),
+                        null, newCd, editorEntity()
+                ));
+            } else {
+                conditionals.add(newCd);
+            }
             markSceneDirty();
             changed = true;
         }
@@ -202,7 +210,11 @@ public class DialogueInteractableInspector extends CustomComponentInspector<Dial
             if (ImGui.beginCombo("##condEvent", eventLabel)) {
                 for (String name : eventNames) {
                     if (ImGui.selectable(name, name.equals(currentEvent))) {
+                        String oldValue = currentEvent;
                         cond.setEventName(name);
+                        UndoManager.getInstance().push(new SetterUndoCommand<>(
+                                cond::setEventName, oldValue, name, "Change Condition Event"
+                        ));
                         markSceneDirty();
                         changed = true;
                     }
@@ -218,7 +230,11 @@ public class DialogueInteractableInspector extends CustomComponentInspector<Dial
             if (ImGui.beginCombo("##condState", stateLabel)) {
                 for (DialogueCondition.ExpectedState state : DialogueCondition.ExpectedState.values()) {
                     if (ImGui.selectable(state.name(), state == currentState)) {
+                        DialogueCondition.ExpectedState oldState = currentState;
                         cond.setExpectedState(state);
+                        UndoManager.getInstance().push(new SetterUndoCommand<>(
+                                cond::setExpectedState, oldState, state, "Change Condition State"
+                        ));
                         markSceneDirty();
                         changed = true;
                     }
@@ -237,14 +253,24 @@ public class DialogueInteractableInspector extends CustomComponentInspector<Dial
 
         // Remove deferred
         if (removeCondIndex >= 0) {
+            List<DialogueCondition> before = new ArrayList<>(conditions);
             conditions.remove(removeCondIndex);
+            List<DialogueCondition> after = new ArrayList<>(conditions);
+            UndoManager.getInstance().push(new SetterUndoCommand<>(
+                    cd::setConditions, before, after, "Remove Condition"
+            ));
             markSceneDirty();
             changed = true;
         }
 
         // Add condition button
         if (ImGui.button(MaterialIcons.Add + " Add Condition")) {
+            List<DialogueCondition> before = new ArrayList<>(conditions);
             conditions.add(new DialogueCondition());
+            List<DialogueCondition> after = new ArrayList<>(conditions);
+            UndoManager.getInstance().push(new SetterUndoCommand<>(
+                    cd::setConditions, before, after, "Add Condition"
+            ));
             markSceneDirty();
             changed = true;
         }
@@ -307,11 +333,21 @@ public class DialogueInteractableInspector extends CustomComponentInspector<Dial
         ImGui.setNextItemWidth(120);
         if (ImGui.beginCombo("##onEndCategory", categoryLabel)) {
             if (ImGui.selectable("BUILT_IN", currentCategory == DialogueEventRef.Category.BUILT_IN)) {
-                component.setOnConversationEnd(DialogueEventRef.builtIn(DialogueEvent.END_CONVERSATION));
+                DialogueEventRef oldRef = component.getOnConversationEnd();
+                DialogueEventRef newRef = DialogueEventRef.builtIn(DialogueEvent.END_CONVERSATION);
+                component.setOnConversationEnd(newRef);
+                UndoManager.getInstance().push(new SetterUndoCommand<>(
+                        component::setOnConversationEnd, oldRef, newRef, "Change Event Category"
+                ));
                 markSceneDirty();
             }
             if (ImGui.selectable("CUSTOM", currentCategory == DialogueEventRef.Category.CUSTOM)) {
-                component.setOnConversationEnd(DialogueEventRef.custom(""));
+                DialogueEventRef oldRef = component.getOnConversationEnd();
+                DialogueEventRef newRef = DialogueEventRef.custom("");
+                component.setOnConversationEnd(newRef);
+                UndoManager.getInstance().push(new SetterUndoCommand<>(
+                        component::setOnConversationEnd, oldRef, newRef, "Change Event Category"
+                ));
                 markSceneDirty();
             }
             ImGui.endCombo();
@@ -327,7 +363,11 @@ public class DialogueInteractableInspector extends CustomComponentInspector<Dial
                 if (ImGui.beginCombo("##onEndBuiltIn", builtInLabel)) {
                     for (DialogueEvent event : DialogueEvent.values()) {
                         if (ImGui.selectable(event.name(), event == current)) {
+                            DialogueEvent oldEvent = current;
                             eventRef.setBuiltInEvent(event);
+                            UndoManager.getInstance().push(new SetterUndoCommand<>(
+                                    eventRef::setBuiltInEvent, oldEvent, event, "Change Built-in Event"
+                            ));
                             markSceneDirty();
                         }
                     }
@@ -339,7 +379,11 @@ public class DialogueInteractableInspector extends CustomComponentInspector<Dial
                 if (ImGui.beginCombo("##onEndCustom", currentCustom.isEmpty() ? "Select..." : currentCustom)) {
                     for (String name : eventNames) {
                         if (ImGui.selectable(name, name.equals(currentCustom))) {
+                            String oldValue = currentCustom;
                             eventRef.setCustomEvent(name);
+                            UndoManager.getInstance().push(new SetterUndoCommand<>(
+                                    eventRef::setCustomEvent, oldValue, name, "Change Custom Event"
+                            ));
                             markSceneDirty();
                         }
                     }
@@ -350,7 +394,11 @@ public class DialogueInteractableInspector extends CustomComponentInspector<Dial
             // Clear button
             ImGui.sameLine();
             if (ImGui.button(MaterialIcons.Close + "##clearOnEnd")) {
+                DialogueEventRef oldRef = component.getOnConversationEnd();
                 component.setOnConversationEnd(null);
+                UndoManager.getInstance().push(new SetterUndoCommand<>(
+                        component::setOnConversationEnd, oldRef, null, "Clear End Event"
+                ));
                 markSceneDirty();
             }
         }
@@ -389,30 +437,57 @@ public class DialogueInteractableInspector extends CustomComponentInspector<Dial
                     ImGui.textDisabled("runtime");
                     ImGui.endDisabled();
                 });
-                case STATIC -> {
-                    String currentValue = component.getVariables().getOrDefault(name, "");
-                    varBuffer.set(currentValue);
-
-                    FieldEditors.inspectorRow(name, () -> {
-                        // Warning icon when value is empty
-                        if (currentValue.isEmpty()) {
-                            EditorColors.textColored(EditorColors.WARNING, MaterialIcons.Warning);
-                            if (ImGui.isItemHovered()) {
-                                ImGui.setTooltip("Static variable has no value set");
-                            }
-                            ImGui.sameLine();
-                        }
-
-                        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-                        if (ImGui.inputText("##staticVar", varBuffer)) {
-                            component.getVariables().put(name, varBuffer.get());
-                            markSceneDirty();
-                        }
-                    });
-                }
+                case STATIC -> drawStaticVariable(name);
             }
 
             ImGui.popID();
+        }
+    }
+
+    private void drawStaticVariable(String name) {
+        String currentValue = component.getVariables().getOrDefault(name, "");
+        varBuffer.set(currentValue);
+        String undoKey = "var_" + System.identityHashCode(component) + "_" + name;
+
+        FieldEditors.inspectorRow(name, () -> {
+            // Warning icon when value is empty
+            if (currentValue.isEmpty()) {
+                EditorColors.textColored(EditorColors.WARNING, MaterialIcons.Warning);
+                if (ImGui.isItemHovered()) {
+                    ImGui.setTooltip("Static variable has no value set");
+                }
+                ImGui.sameLine();
+            }
+
+            ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+            ImGui.inputText("##staticVar", varBuffer);
+        });
+
+        // Undo tracking for the inputText
+        if (ImGui.isItemActivated()) {
+            undoStartValues.put(undoKey, currentValue);
+        }
+
+        if (ImGui.isItemDeactivatedAfterEdit() && undoStartValues.containsKey(undoKey)) {
+            String oldVal = (String) undoStartValues.remove(undoKey);
+            String newVal = varBuffer.get();
+            if (!Objects.equals(oldVal, newVal)) {
+                component.getVariables().put(name, newVal);
+                if (editorEntity() != null) {
+                    UndoManager.getInstance().push(new MapItemCommand(
+                            component, "variables",
+                            MapItemCommand.Operation.PUT, name,
+                            oldVal, newVal, editorEntity()
+                    ));
+                }
+                markSceneDirty();
+            }
+        } else {
+            // Apply live value while editing
+            String bufVal = varBuffer.get();
+            if (!Objects.equals(currentValue, bufVal)) {
+                component.getVariables().put(name, bufVal);
+            }
         }
     }
 

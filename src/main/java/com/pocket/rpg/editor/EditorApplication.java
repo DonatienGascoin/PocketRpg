@@ -371,13 +371,9 @@ public class EditorApplication {
         handlers.setModeManager(context.getModeManager());
         handlers.setActiveDirtyTracker(context.getCurrentScene());
 
-        // Wire dirty tracker into InspectorPanel for undo/redo routing
-        uiController.getInspectorPanel().setDirtyTracker(context.getCurrentScene());
-
         // Keep activeDirtyTracker in sync when scene changes
         context.onSceneChanged(scene -> {
             handlers.setActiveDirtyTracker(scene);
-            uiController.getInspectorPanel().setDirtyTracker(scene);
         });
 
         // Bind handlers to shortcuts

@@ -71,23 +71,25 @@ if (ImGui.selectable(option, isSelected)) {
 }
 ```
 
-**dragInt2/dragFloat2 undo** (manual activation tracking for compound widgets):
+**dragInt2/dragFloat2** (compound 2-value widget with undo):
 ```java
-private static final Map<String, Object> undoStartValues = new HashMap<>();
+// Int pair (offset, size, etc.)
+FieldEditors.drawDragInt2("Offset", "door.offset." + id,
+    component::getOffsetX, component::getOffsetY,
+    v -> { component.setOffsetX(v[0]); component.setOffsetY(v[1]); },
+    0.1f);
 
-// In draw method:
-if (ImGui.isItemActivated()) {
-    undoStartValues.put(key, new int[]{startX, startY});
-}
-if (ImGui.isItemDeactivatedAfterEdit() && undoStartValues.containsKey(key)) {
-    int[] oldVals = (int[]) undoStartValues.remove(key);
-    if (oldVals[0] != vals[0] || oldVals[1] != vals[1]) {
-        UndoManager.getInstance().push(new SetterUndoCommand<>(
-            v -> { component.setX(v[0]); component.setY(v[1]); },
-            oldVals, new int[]{vals[0], vals[1]}, "Change Offset"
-        ));
-    }
-}
+// Int pair with min/max
+FieldEditors.drawDragInt2("Size", "door.size." + id,
+    component::getWidth, component::getHeight,
+    v -> { component.setWidth(v[0]); component.setHeight(v[1]); },
+    0.1f, 1, 10);
+
+// Float pair
+FieldEditors.drawDragFloat2("Offset", "effect.offset." + id,
+    component::getOffsetX, component::getOffsetY,
+    v -> { component.setOffsetX(v[0]); component.setOffsetY(v[1]); },
+    0.01f);
 ```
 
 ## New Editor Types

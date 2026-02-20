@@ -122,6 +122,28 @@ changed |= PrimitiveEditors.drawFloatSlider("Amount", component, "amount", 0f, 1
 changed |= FieldEditors.drawString("Name", component, "name");
 ```
 
+### Compound Types (Int2 / Float2)
+
+```java
+// Two-value int drag (offset, size, etc.)
+changed |= FieldEditors.drawDragInt2("Offset", "door.offset." + id,
+        component::getOffsetX, component::getOffsetY,
+        v -> { component.setOffsetX(v[0]); component.setOffsetY(v[1]); },
+        0.1f);
+
+// With min/max limits
+changed |= FieldEditors.drawDragInt2("Size", "door.size." + id,
+        component::getWidth, component::getHeight,
+        v -> { component.setWidth(v[0]); component.setHeight(v[1]); },
+        0.1f, 1, 10);
+
+// Two-value float drag
+changed |= FieldEditors.drawDragFloat2("Offset", "effect.offset." + id,
+        component::getOffsetX, component::getOffsetY,
+        v -> { component.setOffsetX(v[0]); component.setOffsetY(v[1]); },
+        0.01f);
+```
+
 ### Vector Types
 
 ```java
@@ -309,24 +331,7 @@ if (ImGui.selectable(option, isSelected)) {
 }
 ```
 
-For compound widgets like `dragInt2` that need activation/deactivation tracking:
-
-```java
-private static final Map<String, Object> undoStartValues = new HashMap<>();
-
-// In draw method:
-if (ImGui.isItemActivated()) {
-    undoStartValues.put(key, new int[]{startX, startY});
-}
-// ... apply live changes ...
-if (ImGui.isItemDeactivatedAfterEdit() && undoStartValues.containsKey(key)) {
-    int[] old = (int[]) undoStartValues.remove(key);
-    UndoManager.getInstance().push(new SetterUndoCommand<>(
-        v -> { component.setX(v[0]); component.setY(v[1]); },
-        old, new int[]{vals[0], vals[1]}, "Change Offset"
-    ));
-}
-```
+For compound 2-value widgets, use the built-in `drawDragInt2` / `drawDragFloat2` (see [Compound Types](#compound-types-int2--float2) above) — they handle activation tracking and undo automatically.
 
 For list/map mutations on component fields, use `ListItemCommand` and `MapItemCommand`:
 

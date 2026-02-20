@@ -9,9 +9,6 @@ import com.pocket.rpg.editor.undo.commands.SetterUndoCommand;
 import imgui.ImGui;
 import org.joml.Vector3f;
 
-import java.util.HashMap;
-import java.util.Map;
-
 /**
  * Custom editor for Door component.
  * <p>
@@ -24,9 +21,6 @@ import java.util.Map;
  */
 @InspectorFor(Door.class)
 public class DoorInspector extends CustomComponentInspector<Door> {
-
-    /** Tracks start values for dragInt2 undo. */
-    private static final Map<String, Object> undoStartValues = new HashMap<>();
 
     @Override
     public boolean draw() {
@@ -102,80 +96,24 @@ public class DoorInspector extends CustomComponentInspector<Door> {
     }
 
     private boolean drawOffset(String id) {
-        String key = "door.offset." + id;
-        int startX = component.getOffsetX();
-        int startY = component.getOffsetY();
-        int[] offset = {startX, startY};
-
-        FieldEditors.inspectorRow("Offset", () -> {
-            ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-            ImGui.dragInt2("##offset", offset, 0.1f);
-        });
-
-        if (ImGui.isItemActivated()) {
-            undoStartValues.put(key, new int[]{startX, startY});
-        }
-
-        boolean changed = false;
-        if (offset[0] != startX || offset[1] != startY) {
-            component.setOffsetX(offset[0]);
-            component.setOffsetY(offset[1]);
-            changed = true;
-        }
-
-        if (ImGui.isItemDeactivatedAfterEdit() && undoStartValues.containsKey(key)) {
-            int[] oldValues = (int[]) undoStartValues.remove(key);
-            if (oldValues[0] != offset[0] || oldValues[1] != offset[1]) {
-                UndoManager.getInstance().push(new SetterUndoCommand<>(
-                        vals -> { component.setOffsetX(vals[0]); component.setOffsetY(vals[1]); },
-                        oldValues, new int[]{offset[0], offset[1]}, "Change Offset"
-                ));
-            }
-        }
-
+        boolean changed = FieldEditors.drawDragInt2("Offset", "door.offset." + id,
+                component::getOffsetX, component::getOffsetY,
+                v -> { component.setOffsetX(v[0]); component.setOffsetY(v[1]); },
+                0.1f);
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("Offset from entity position (in tiles)");
         }
-
         return changed;
     }
 
     private boolean drawSize(String id) {
-        String key = "door.size." + id;
-        int startW = component.getWidth();
-        int startH = component.getHeight();
-        int[] size = {startW, startH};
-
-        FieldEditors.inspectorRow("Size", () -> {
-            ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-            ImGui.dragInt2("##size", size, 0.1f, 1, 10);
-        });
-
-        if (ImGui.isItemActivated()) {
-            undoStartValues.put(key, new int[]{startW, startH});
-        }
-
-        boolean changed = false;
-        if (size[0] != startW || size[1] != startH) {
-            component.setWidth(size[0]);
-            component.setHeight(size[1]);
-            changed = true;
-        }
-
-        if (ImGui.isItemDeactivatedAfterEdit() && undoStartValues.containsKey(key)) {
-            int[] oldValues = (int[]) undoStartValues.remove(key);
-            if (oldValues[0] != size[0] || oldValues[1] != size[1]) {
-                UndoManager.getInstance().push(new SetterUndoCommand<>(
-                        vals -> { component.setWidth(vals[0]); component.setHeight(vals[1]); },
-                        oldValues, new int[]{size[0], size[1]}, "Change Size"
-                ));
-            }
-        }
-
+        boolean changed = FieldEditors.drawDragInt2("Size", "door.size." + id,
+                component::getWidth, component::getHeight,
+                v -> { component.setWidth(v[0]); component.setHeight(v[1]); },
+                0.1f, 1, 10);
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("Width x Height of the door (in tiles)");
         }
-
         return changed;
     }
 

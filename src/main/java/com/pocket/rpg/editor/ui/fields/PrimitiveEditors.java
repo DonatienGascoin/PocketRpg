@@ -508,6 +508,146 @@ public final class PrimitiveEditors {
     }
 
     // ========================================================================
+    // DRAG INT2 / FLOAT2 (compound value with undo support)
+    // ========================================================================
+
+    private static final int[] int2Buffer = new int[2];
+    private static final float[] float2Buffer = new float[2];
+
+    /**
+     * Draws a dragInt2 field using getter/setter pattern with undo support.
+     * Encapsulates the activation/deactivation tracking pattern for compound values.
+     *
+     * @param label   Display label
+     * @param key     Unique key for undo tracking
+     * @param getterX Supplier for the first int value
+     * @param getterY Supplier for the second int value
+     * @param setter  Consumer accepting int[2] to set both values
+     * @param speed   Drag speed
+     * @return true if either value was changed
+     */
+    public static boolean drawDragInt2(String label, String key,
+                                        IntSupplier getterX, IntSupplier getterY,
+                                        Consumer<int[]> setter,
+                                        float speed) {
+        return drawDragInt2(label, key, getterX, getterY, setter, speed, 0, 0);
+    }
+
+    /**
+     * Draws a dragInt2 field with min/max limits using getter/setter pattern with undo support.
+     */
+    public static boolean drawDragInt2(String label, String key,
+                                        IntSupplier getterX, IntSupplier getterY,
+                                        Consumer<int[]> setter,
+                                        float speed, int min, int max) {
+        int startX = getterX.getAsInt();
+        int startY = getterY.getAsInt();
+        int2Buffer[0] = startX;
+        int2Buffer[1] = startY;
+
+        ImGui.pushID(key);
+
+        FieldEditorUtils.inspectorRow(label, () -> {
+            ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+            if (min != 0 || max != 0) {
+                ImGui.dragInt2("##" + key, int2Buffer, speed, min, max);
+            } else {
+                ImGui.dragInt2("##" + key, int2Buffer, speed);
+            }
+        });
+
+        if (ImGui.isItemActivated()) {
+            undoStartValues.put(key, new int[]{startX, startY});
+        }
+        boolean deactivated = ImGui.isItemDeactivatedAfterEdit();
+
+        boolean changed = false;
+        if (int2Buffer[0] != startX || int2Buffer[1] != startY) {
+            setter.accept(new int[]{int2Buffer[0], int2Buffer[1]});
+            changed = true;
+        }
+
+        if (deactivated && undoStartValues.containsKey(key)) {
+            int[] oldValues = (int[]) undoStartValues.remove(key);
+            if (oldValues[0] != int2Buffer[0] || oldValues[1] != int2Buffer[1]) {
+                UndoManager.getInstance().push(new SetterUndoCommand<>(
+                        setter, oldValues, new int[]{int2Buffer[0], int2Buffer[1]},
+                        "Change " + label
+                ));
+            }
+        }
+
+        ImGui.popID();
+        return changed;
+    }
+
+    /**
+     * Draws a dragFloat2 field using getter/setter pattern with undo support.
+     *
+     * @param label   Display label
+     * @param key     Unique key for undo tracking
+     * @param getterX Supplier for the first float value
+     * @param getterY Supplier for the second float value
+     * @param setter  Consumer accepting float[2] to set both values
+     * @param speed   Drag speed
+     * @return true if either value was changed
+     */
+    public static boolean drawDragFloat2(String label, String key,
+                                          DoubleSupplier getterX, DoubleSupplier getterY,
+                                          Consumer<float[]> setter,
+                                          float speed) {
+        return drawDragFloat2(label, key, getterX, getterY, setter, speed, 0, 0, "%.3f");
+    }
+
+    /**
+     * Draws a dragFloat2 field with min/max limits using getter/setter pattern with undo support.
+     */
+    public static boolean drawDragFloat2(String label, String key,
+                                          DoubleSupplier getterX, DoubleSupplier getterY,
+                                          Consumer<float[]> setter,
+                                          float speed, float min, float max, String format) {
+        float startX = (float) getterX.getAsDouble();
+        float startY = (float) getterY.getAsDouble();
+        float2Buffer[0] = startX;
+        float2Buffer[1] = startY;
+
+        ImGui.pushID(key);
+
+        FieldEditorUtils.inspectorRow(label, () -> {
+            ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+            if (min != 0 || max != 0) {
+                ImGui.dragFloat2("##" + key, float2Buffer, speed, min, max, format);
+            } else {
+                ImGui.dragFloat2("##" + key, float2Buffer, speed);
+            }
+        });
+
+        if (ImGui.isItemActivated()) {
+            undoStartValues.put(key, new float[]{startX, startY});
+        }
+        boolean deactivated = ImGui.isItemDeactivatedAfterEdit();
+
+        boolean changed = false;
+        if (float2Buffer[0] != startX || float2Buffer[1] != startY) {
+            setter.accept(new float[]{float2Buffer[0], float2Buffer[1]});
+            changed = true;
+        }
+
+        if (deactivated && undoStartValues.containsKey(key)) {
+            float[] oldValues = (float[]) undoStartValues.remove(key);
+            if (oldValues[0] != float2Buffer[0] || oldValues[1] != float2Buffer[1]) {
+                UndoManager.getInstance().push(new SetterUndoCommand<>(
+                        setter, oldValues, new float[]{float2Buffer[0], float2Buffer[1]},
+                        "Change " + label
+                ));
+            }
+        }
+
+        ImGui.popID();
+        return changed;
+    }
+
+    // ========================================================================
     // INLINE VARIANTS (for side-by-side layouts)
     // ========================================================================
 

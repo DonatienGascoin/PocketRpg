@@ -240,6 +240,38 @@ public final class FieldEditors {
     }
 
     // ========================================================================
+    // DRAG INT2 / FLOAT2 (compound value with undo support)
+    // ========================================================================
+
+    public static boolean drawDragInt2(String label, String key,
+                                        IntSupplier getterX, IntSupplier getterY,
+                                        Consumer<int[]> setter,
+                                        float speed) {
+        return PrimitiveEditors.drawDragInt2(label, key, getterX, getterY, setter, speed);
+    }
+
+    public static boolean drawDragInt2(String label, String key,
+                                        IntSupplier getterX, IntSupplier getterY,
+                                        Consumer<int[]> setter,
+                                        float speed, int min, int max) {
+        return PrimitiveEditors.drawDragInt2(label, key, getterX, getterY, setter, speed, min, max);
+    }
+
+    public static boolean drawDragFloat2(String label, String key,
+                                          DoubleSupplier getterX, DoubleSupplier getterY,
+                                          Consumer<float[]> setter,
+                                          float speed) {
+        return PrimitiveEditors.drawDragFloat2(label, key, getterX, getterY, setter, speed);
+    }
+
+    public static boolean drawDragFloat2(String label, String key,
+                                          DoubleSupplier getterX, DoubleSupplier getterY,
+                                          Consumer<float[]> setter,
+                                          float speed, float min, float max, String format) {
+        return PrimitiveEditors.drawDragFloat2(label, key, getterX, getterY, setter, speed, min, max, format);
+    }
+
+    // ========================================================================
     // INLINE VARIANTS (for side-by-side layouts)
     // ========================================================================
 

@@ -406,6 +406,17 @@ public final class Assets {
     }
 
     /**
+     * Checks if assets of a given type can be saved back to disk.
+     * Delegates to the loader's canSave() method.
+     *
+     * @param type Asset type class
+     * @return true if this asset type supports saving
+     */
+    public static boolean canSave(Class<?> type) {
+        return getContext().canSave(type);
+    }
+
+    /**
      * Gets the editor panel that should open when an asset of this type is double-clicked.
      * Delegates to the loader's getEditorPanelType() method.
      *

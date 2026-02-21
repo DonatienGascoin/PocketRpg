@@ -166,7 +166,7 @@ public class AssetManager implements AssetContext {
      * @return The asset class, or null if it cannot be determined
      */
     private Class<?> extractAssetType(Class<?> loaderClass) {
-        // Check generic interfaces
+        // Check direct interface implementations (e.g., TextureLoader implements AssetLoader<Texture>)
         for (Type iface : loaderClass.getGenericInterfaces()) {
             if (iface instanceof ParameterizedType pType) {
                 if (pType.getRawType() == AssetLoader.class) {
@@ -178,7 +178,18 @@ public class AssetManager implements AssetContext {
             }
         }
 
-        // Check superclass chain (for loaders that extend an abstract base)
+        // Check generic superclass (e.g., DialogueLoader extends JsonAssetLoader<Dialogue>)
+        // When a loader extends a parameterized abstract base, the concrete type
+        // argument appears on getGenericSuperclass() rather than the raw superclass.
+        Type genericSuper = loaderClass.getGenericSuperclass();
+        if (genericSuper instanceof ParameterizedType pType) {
+            Type typeArg = pType.getActualTypeArguments()[0];
+            if (typeArg instanceof Class<?>) {
+                return (Class<?>) typeArg;
+            }
+        }
+
+        // Recurse through superclass chain
         Class<?> superclass = loaderClass.getSuperclass();
         if (superclass != null && superclass != Object.class) {
             return extractAssetType(superclass);
@@ -601,6 +612,11 @@ public class AssetManager implements AssetContext {
     }
 
     @Override
+    public boolean canSave(Class<?> type) {
+        AssetLoader<?> loader = loaders.get(type);
+        return loader != null && loader.canSave();
+    }
+
     public EditorPanelType getEditorPanelType(Class<?> type) {
         AssetLoader<?> loader = loaders.get(type);
         return loader != null ? loader.getEditorPanelType() : null;
@@ -691,6 +707,8 @@ public class AssetManager implements AssetContext {
             // Update cache and path tracking
             cache.put(normalizedPath, resource);
             resourcePaths.put(resource, normalizedPath);
+            cachedTypes.put(normalizedPath, type);
+            cachedFullPaths.put(normalizedPath, fullPath);
 
         } catch (IOException e) {
             throw new RuntimeException("Failed to save: " + normalizedPath, e);

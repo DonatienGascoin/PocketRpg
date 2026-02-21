@@ -11,7 +11,7 @@ import imgui.ImGui;
 public class FontPreviewRenderer implements AssetPreviewRenderer<Font> {
 
     @Override
-    public void render(Font font, float maxSize) {
+    public void renderPreview(Font font, float maxSize) {
         if (font == null) {
             ImGui.textDisabled("No font");
             return;

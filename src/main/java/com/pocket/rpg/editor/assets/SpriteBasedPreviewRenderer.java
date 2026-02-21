@@ -15,7 +15,7 @@ import imgui.ImGui;
 public class SpriteBasedPreviewRenderer implements AssetPreviewRenderer<Object> {
 
     @Override
-    public void render(Object asset, float maxSize) {
+    public void renderPreview(Object asset, float maxSize) {
         if (asset == null) {
             ImGui.textDisabled("No asset");
             return;

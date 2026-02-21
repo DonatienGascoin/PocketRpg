@@ -186,8 +186,9 @@ Hot-reload works for sprites, textures, and shaders. All existing references rem
 
 ## Related
 
-- [Inspector Panel Guide](inspector-panel-guide.md) — Viewing asset metadata
-- [Hierarchy Panel Guide](hierarchy-panel-guide.md) — Creating entities from assets
-- [Scene View Guide](scene-view-guide.md) — Dropping assets into the scene
-- [Sprite Editor Guide](sprite-editor-guide.md) — Editing spritesheets
-- [Asset Loader Guide](asset-loader-guide.md) — Creating custom asset loaders
+- [Inspector Panel Guide](inspectorPanelGuide.md) — Viewing asset metadata
+- [Hierarchy Panel Guide](hierarchyPanelGuide.md) — Creating entities from assets
+- [Scene View Guide](sceneViewGuide.md) — Dropping assets into the scene
+- [Sprite Editor Guide](spriteEditorGuide.md) — Editing spritesheets
+- [Asset Loader Guide](assetLoaderGuide.md) — Creating custom asset loaders
+- [Asset Editor Content Guide](assetEditorContentGuide.md) — The unified asset editor panel

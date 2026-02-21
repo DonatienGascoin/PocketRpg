@@ -1,10 +1,7 @@
 package com.pocket.rpg.resources.loaders;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.pocket.rpg.animation.Animation;
 import com.pocket.rpg.animation.AnimationFrame;
 import com.pocket.rpg.components.animations.AnimationComponent;
@@ -13,41 +10,25 @@ import com.pocket.rpg.editor.EditorPanelType;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.rendering.resources.Sprite;
-import com.pocket.rpg.resources.AssetLoader;
 import org.joml.Vector3f;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 
 /**
  * Asset loader for Animation files (.anim, .anim.json).
  * Handles JSON serialization and editor integration.
  */
-public class AnimationLoader implements AssetLoader<Animation> {
+public class AnimationLoader extends JsonAssetLoader<Animation> {
 
     private static final String[] EXTENSIONS = {".anim", ".anim.json"};
-    private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
-
-    private static Animation placeholder;
 
     // ========================================================================
-    // LOADING
+    // JSON PARSING
     // ========================================================================
 
     @Override
-    public Animation load(String path) throws IOException {
-        try {
-            String jsonContent = Files.readString(Paths.get(path));
-            JsonObject json = JsonParser.parseString(jsonContent).getAsJsonObject();
-            return fromJSON(json, path);
-        } catch (Exception e) {
-            throw new IOException("Failed to load animation: " + path, e);
-        }
-    }
-
-    private Animation fromJSON(JsonObject json, String path) throws IOException {
+    protected Animation fromJson(JsonObject json, String path) throws IOException {
         Animation anim = new Animation();
 
         // Required: name
@@ -94,28 +75,11 @@ public class AnimationLoader implements AssetLoader<Animation> {
     }
 
     // ========================================================================
-    // SAVING
+    // JSON SERIALIZATION
     // ========================================================================
 
     @Override
-    public void save(Animation animation, String path) throws IOException {
-        try {
-            JsonObject json = toJSON(animation);
-            String jsonString = gson.toJson(json);
-
-            Path filePath = Paths.get(path);
-            Path parentDir = filePath.getParent();
-            if (parentDir != null && !Files.exists(parentDir)) {
-                Files.createDirectories(parentDir);
-            }
-
-            Files.writeString(filePath, jsonString);
-        } catch (Exception e) {
-            throw new IOException("Failed to save animation: " + path, e);
-        }
-    }
-
-    private JsonObject toJSON(Animation anim) {
+    protected JsonObject toJson(Animation anim) {
         JsonObject json = new JsonObject();
 
         json.addProperty("name", anim.getName());
@@ -134,38 +98,43 @@ public class AnimationLoader implements AssetLoader<Animation> {
     }
 
     // ========================================================================
-    // ASSET LOADER INTERFACE
+    // JsonAssetLoader CONFIGURATION
     // ========================================================================
 
     @Override
-    public Animation getPlaceholder() {
-        if (placeholder == null) {
-            placeholder = new Animation("placeholder");
-            placeholder.setLooping(true);
-        }
+    protected Animation createPlaceholder() {
+        Animation placeholder = new Animation("placeholder");
+        placeholder.setLooping(true);
         return placeholder;
     }
 
     @Override
-    public String[] getSupportedExtensions() {
+    protected String[] extensions() {
         return EXTENSIONS;
     }
 
     @Override
-    public boolean supportsHotReload() {
-        return true;
+    protected String iconCodepoint() {
+        return MaterialIcons.Movie;
     }
 
     @Override
-    public Animation reload(Animation existing, String path) throws IOException {
+    protected void copyInto(Animation existing, Animation fresh) {
+        existing.copyFrom(fresh);
+    }
+
+    @Override
+    protected void beforeReloadCopy(Animation existing) {
         existing.invalidateCache();
-        Animation reloaded = load(path);
-        existing.copyFrom(reloaded);
-        return existing;
+    }
+
+    @Override
+    protected EditorPanelType editorPanelType() {
+        return EditorPanelType.ASSET_EDITOR;
     }
 
     // ========================================================================
-    // EDITOR INTEGRATION
+    // EDITOR INSTANTIATION
     // ========================================================================
 
     @Override
@@ -201,16 +170,6 @@ public class AnimationLoader implements AssetLoader<Animation> {
             return asset.getFrameSprite(0);
         }
         return null;
-    }
-
-    @Override
-    public String getIconCodepoint() {
-        return MaterialIcons.Movie;
-    }
-
-    @Override
-    public EditorPanelType getEditorPanelType() {
-        return EditorPanelType.ANIMATION_EDITOR;
     }
 
     private String extractEntityName(String path) {

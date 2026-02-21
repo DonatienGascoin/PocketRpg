@@ -24,6 +24,9 @@ public class UndoManager {
     // Scope stack for isolated undo/redo contexts (e.g., prefab edit mode)
     private final Deque<UndoScope> scopeStack = new ArrayDeque<>();
 
+    // Target override stack for panel-specific undo/redo (e.g., asset editor panels)
+    private final Deque<TargetOverride> targetStack = new ArrayDeque<>();
+
     private int maxHistorySize = 100;
     /**
      * -- SETTER --
@@ -74,16 +77,18 @@ public class UndoManager {
         command.execute();
 
         // Add to undo stack
-        undoStack.push(command);
+        Deque<EditorCommand> undo = activeUndoStack();
+        Deque<EditorCommand> redo = activeRedoStack();
+        undo.push(command);
         lastCommand = command;
         lastCommandTime = now;
 
         // Clear redo stack (new action invalidates redo history)
-        redoStack.clear();
+        redo.clear();
 
         // Enforce max history size
-        while (undoStack.size() > maxHistorySize) {
-            undoStack.removeLast();
+        while (undo.size() > maxHistorySize) {
+            undo.removeLast();
         }
     }
 
@@ -97,13 +102,14 @@ public class UndoManager {
             return;
         }
 
-        undoStack.push(command);
-        redoStack.clear();
+        Deque<EditorCommand> undo = activeUndoStack();
+        undo.push(command);
+        activeRedoStack().clear();
         lastCommand = command;
         lastCommandTime = System.currentTimeMillis();
 
-        while (undoStack.size() > maxHistorySize) {
-            undoStack.removeLast();
+        while (undo.size() > maxHistorySize) {
+            undo.removeLast();
         }
     }
 
@@ -113,13 +119,14 @@ public class UndoManager {
      * @return true if a command was undone
      */
     public boolean undo() {
-        if (undoStack.isEmpty()) {
+        Deque<EditorCommand> undo = activeUndoStack();
+        if (undo.isEmpty()) {
             return false;
         }
 
-        EditorCommand command = undoStack.pop();
+        EditorCommand command = undo.pop();
         command.undo();
-        redoStack.push(command);
+        activeRedoStack().push(command);
 
         lastCommand = null;  // Break merge chain
 
@@ -132,13 +139,14 @@ public class UndoManager {
      * @return true if a command was redone
      */
     public boolean redo() {
-        if (redoStack.isEmpty()) {
+        Deque<EditorCommand> redo = activeRedoStack();
+        if (redo.isEmpty()) {
             return false;
         }
 
-        EditorCommand command = redoStack.pop();
+        EditorCommand command = redo.pop();
         command.execute();
-        undoStack.push(command);
+        activeUndoStack().push(command);
 
         lastCommand = command;
         lastCommandTime = System.currentTimeMillis();
@@ -150,50 +158,52 @@ public class UndoManager {
      * Checks if undo is available.
      */
     public boolean canUndo() {
-        return !undoStack.isEmpty();
+        return !activeUndoStack().isEmpty();
     }
 
     /**
      * Checks if redo is available.
      */
     public boolean canRedo() {
-        return !redoStack.isEmpty();
+        return !activeRedoStack().isEmpty();
     }
 
     /**
      * Gets the description of the next undo action.
      */
     public String getUndoDescription() {
-        return undoStack.isEmpty() ? null : undoStack.peek().getDescription();
+        Deque<EditorCommand> undo = activeUndoStack();
+        return undo.isEmpty() ? null : undo.peek().getDescription();
     }
 
     /**
      * Gets the description of the next redo action.
      */
     public String getRedoDescription() {
-        return redoStack.isEmpty() ? null : redoStack.peek().getDescription();
+        Deque<EditorCommand> redo = activeRedoStack();
+        return redo.isEmpty() ? null : redo.peek().getDescription();
     }
 
     /**
      * Gets the undo stack size.
      */
     public int getUndoCount() {
-        return undoStack.size();
+        return activeUndoStack().size();
     }
 
     /**
      * Gets the redo stack size.
      */
     public int getRedoCount() {
-        return redoStack.size();
+        return activeRedoStack().size();
     }
 
     /**
-     * Clears all history.
+     * Clears all history (for the active target).
      */
     public void clear() {
-        undoStack.clear();
-        redoStack.clear();
+        activeUndoStack().clear();
+        activeRedoStack().clear();
         lastCommand = null;
     }
 
@@ -217,6 +227,65 @@ public class UndoManager {
             enabled = wasEnabled;
         }
     }
+
+    // ========================================================================
+    // TARGET REDIRECTION
+    // ========================================================================
+
+    /**
+     * Pushes a target override so all undo/redo operations go to the given stacks.
+     * Use this when a panel needs its own undo context while still using shared
+     * field editors (PrimitiveEditors, EnumEditor) that push to UndoManager.
+     * <p>
+     * Must be paired with {@link #popTarget()}.
+     *
+     * @param undo The panel's undo stack
+     * @param redo The panel's redo stack
+     */
+    public void pushTarget(Deque<EditorCommand> undo, Deque<EditorCommand> redo) {
+        targetStack.push(new TargetOverride(undo, redo, lastCommand, lastCommandTime));
+        lastCommand = null;  // reset merge chain for the new target
+        lastCommandTime = 0;
+    }
+
+    /**
+     * Pops the current target override and restores the previous merge state.
+     *
+     * @throws IllegalStateException if no target has been pushed
+     */
+    public void popTarget() {
+        if (targetStack.isEmpty()) {
+            throw new IllegalStateException("No target override to pop");
+        }
+        TargetOverride override = targetStack.pop();
+        lastCommand = override.savedLastCommand();
+        lastCommandTime = override.savedLastCommandTime();
+    }
+
+    /**
+     * Returns true if a target override is currently active.
+     */
+    public boolean hasTargetOverride() {
+        return !targetStack.isEmpty();
+    }
+
+    private Deque<EditorCommand> activeUndoStack() {
+        return targetStack.isEmpty() ? undoStack : targetStack.peek().undoStack();
+    }
+
+    private Deque<EditorCommand> activeRedoStack() {
+        return targetStack.isEmpty() ? redoStack : targetStack.peek().redoStack();
+    }
+
+    /**
+     * Saved state when a target override is pushed.
+     */
+    private record TargetOverride(
+            Deque<EditorCommand> undoStack,
+            Deque<EditorCommand> redoStack,
+            EditorCommand savedLastCommand,
+            long savedLastCommandTime
+    ) {}
 
     // ========================================================================
     // SCOPED STACKS

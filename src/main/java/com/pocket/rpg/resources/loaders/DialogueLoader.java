@@ -1,21 +1,13 @@
 package com.pocket.rpg.resources.loaders;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.pocket.rpg.dialogue.*;
-import com.pocket.rpg.editor.EditorPanelType;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.logging.Log;
 import com.pocket.rpg.logging.Logger;
-import com.pocket.rpg.resources.AssetLoader;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
@@ -23,35 +15,19 @@ import java.util.List;
 /**
  * Asset loader for Dialogue files ({@code .dialogue.json}).
  * <p>
- * Manual JSON parsing with type discrimination, following the
- * {@link AnimatorControllerLoader} pattern.
+ * Manual JSON parsing with type discrimination for polymorphic {@link DialogueEntry} types.
  */
-public class DialogueLoader implements AssetLoader<Dialogue> {
+public class DialogueLoader extends JsonAssetLoader<Dialogue> {
 
     private static final String[] EXTENSIONS = {".dialogue.json"};
     private static final Logger LOG = Log.getLogger(DialogueLoader.class);
-    private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
-
-    private static Dialogue placeholder;
 
     // ========================================================================
-    // LOADING
+    // JSON PARSING
     // ========================================================================
 
     @Override
-    public Dialogue load(String path) throws IOException {
-        try {
-            String jsonContent = Files.readString(Paths.get(path));
-            JsonObject json = JsonParser.parseString(jsonContent).getAsJsonObject();
-            Dialogue dialogue = fromJSON(json);
-            dialogue.setName(deriveNameFromPath(path));
-            return dialogue;
-        } catch (Exception e) {
-            throw new IOException("Failed to load dialogue: " + path, e);
-        }
-    }
-
-    private Dialogue fromJSON(JsonObject json) {
+    protected Dialogue fromJson(JsonObject json, String path) {
         Dialogue dialogue = new Dialogue();
         List<DialogueEntry> entries = new ArrayList<>();
 
@@ -181,28 +157,11 @@ public class DialogueLoader implements AssetLoader<Dialogue> {
     }
 
     // ========================================================================
-    // SAVING
+    // JSON SERIALIZATION
     // ========================================================================
 
     @Override
-    public void save(Dialogue dialogue, String path) throws IOException {
-        try {
-            JsonObject json = toJSON(dialogue);
-            String jsonString = gson.toJson(json);
-
-            Path filePath = Paths.get(path);
-            Path parentDir = filePath.getParent();
-            if (parentDir != null && !Files.exists(parentDir)) {
-                Files.createDirectories(parentDir);
-            }
-
-            Files.writeString(filePath, jsonString);
-        } catch (Exception e) {
-            throw new IOException("Failed to save dialogue: " + path, e);
-        }
-    }
-
-    private JsonObject toJSON(Dialogue dialogue) {
+    protected JsonObject toJson(Dialogue dialogue) {
         JsonObject json = new JsonObject();
 
         JsonArray entriesJson = new JsonArray();
@@ -290,12 +249,43 @@ public class DialogueLoader implements AssetLoader<Dialogue> {
     }
 
     // ========================================================================
+    // JsonAssetLoader CONFIGURATION
+    // ========================================================================
+
+    @Override
+    protected void afterLoad(Dialogue dialogue, String path) {
+        dialogue.setName(deriveNameFromPath(path));
+    }
+
+    @Override
+    protected Dialogue createPlaceholder() {
+        Dialogue placeholder = new Dialogue("placeholder");
+        placeholder.getEntries().add(new DialogueLine(""));
+        return placeholder;
+    }
+
+    @Override
+    protected String[] extensions() {
+        return EXTENSIONS;
+    }
+
+    @Override
+    protected String iconCodepoint() {
+        return MaterialIcons.ChatBubble;
+    }
+
+    @Override
+    protected void copyInto(Dialogue existing, Dialogue fresh) {
+        existing.copyFrom(fresh);
+    }
+
+    // ========================================================================
     // UTILITY
     // ========================================================================
 
     /**
      * Derives the display name from a file path.
-     * e.g. "dialogues/professor_greeting.dialogue.json" → "professor_greeting"
+     * e.g. "dialogues/professor_greeting.dialogue.json" -> "professor_greeting"
      */
     static String deriveNameFromPath(String path) {
         String fileName = Paths.get(path).getFileName().toString();
@@ -306,49 +296,5 @@ public class DialogueLoader implements AssetLoader<Dialogue> {
         // Fallback: strip last extension
         int dot = fileName.lastIndexOf('.');
         return dot > 0 ? fileName.substring(0, dot) : fileName;
-    }
-
-    // ========================================================================
-    // ASSET LOADER INTERFACE
-    // ========================================================================
-
-    @Override
-    public Dialogue getPlaceholder() {
-        if (placeholder == null) {
-            placeholder = new Dialogue("placeholder");
-            placeholder.getEntries().add(new DialogueLine(""));
-        }
-        return placeholder;
-    }
-
-    @Override
-    public String[] getSupportedExtensions() {
-        return EXTENSIONS;
-    }
-
-    @Override
-    public boolean supportsHotReload() {
-        return true;
-    }
-
-    @Override
-    public Dialogue reload(Dialogue existing, String path) throws IOException {
-        Dialogue reloaded = load(path);
-        existing.copyFrom(reloaded);
-        return existing;
-    }
-
-    // ========================================================================
-    // EDITOR INTEGRATION
-    // ========================================================================
-
-    @Override
-    public String getIconCodepoint() {
-        return MaterialIcons.ChatBubble;
-    }
-
-    @Override
-    public EditorPanelType getEditorPanelType() {
-        return EditorPanelType.DIALOGUE_EDITOR;
     }
 }

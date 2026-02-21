@@ -1,21 +1,13 @@
 package com.pocket.rpg.resources.loaders;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.pocket.rpg.animation.animator.*;
 import com.pocket.rpg.collision.Direction;
 import com.pocket.rpg.editor.EditorPanelType;
 import com.pocket.rpg.editor.core.MaterialIcons;
-import com.pocket.rpg.resources.AssetLoader;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,29 +15,16 @@ import java.util.List;
  * Asset loader for AnimatorController files (.animator.json).
  * Handles JSON serialization and editor integration.
  */
-public class AnimatorControllerLoader implements AssetLoader<AnimatorController> {
+public class AnimatorControllerLoader extends JsonAssetLoader<AnimatorController> {
 
     private static final String[] EXTENSIONS = {".animator.json"};
-    private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
-
-    private static AnimatorController placeholder;
 
     // ========================================================================
-    // LOADING
+    // JSON PARSING
     // ========================================================================
 
     @Override
-    public AnimatorController load(String path) throws IOException {
-        try {
-            String jsonContent = Files.readString(Paths.get(path));
-            JsonObject json = JsonParser.parseString(jsonContent).getAsJsonObject();
-            return fromJSON(json, path);
-        } catch (Exception e) {
-            throw new IOException("Failed to load animator controller: " + path, e);
-        }
-    }
-
-    private AnimatorController fromJSON(JsonObject json, String path) throws IOException {
+    protected AnimatorController fromJson(JsonObject json, String path) {
         AnimatorController controller = new AnimatorController();
 
         // Name
@@ -186,28 +165,11 @@ public class AnimatorControllerLoader implements AssetLoader<AnimatorController>
     }
 
     // ========================================================================
-    // SAVING
+    // JSON SERIALIZATION
     // ========================================================================
 
     @Override
-    public void save(AnimatorController controller, String path) throws IOException {
-        try {
-            JsonObject json = toJSON(controller);
-            String jsonString = gson.toJson(json);
-
-            Path filePath = Paths.get(path);
-            Path parentDir = filePath.getParent();
-            if (parentDir != null && !Files.exists(parentDir)) {
-                Files.createDirectories(parentDir);
-            }
-
-            Files.writeString(filePath, jsonString);
-        } catch (Exception e) {
-            throw new IOException("Failed to save animator controller: " + path, e);
-        }
-    }
-
-    private JsonObject toJSON(AnimatorController controller) {
+    protected JsonObject toJson(AnimatorController controller) {
         JsonObject json = new JsonObject();
 
         json.addProperty("name", controller.getName());
@@ -266,9 +228,9 @@ public class AnimatorControllerLoader implements AssetLoader<AnimatorController>
         } else if (state.getType() == StateType.DIRECTIONAL) {
             JsonObject animsObj = new JsonObject();
             for (Direction dir : Direction.values()) {
-                String path = state.getDirectionalAnimation(dir);
-                if (path != null) {
-                    animsObj.addProperty(dir.name(), path);
+                String animPath = state.getDirectionalAnimation(dir);
+                if (animPath != null) {
+                    animsObj.addProperty(dir.name(), animPath);
                 }
             }
             json.add("animations", animsObj);
@@ -313,52 +275,34 @@ public class AnimatorControllerLoader implements AssetLoader<AnimatorController>
     }
 
     // ========================================================================
-    // ASSET LOADER INTERFACE
+    // JsonAssetLoader CONFIGURATION
     // ========================================================================
 
     @Override
-    public AnimatorController getPlaceholder() {
-        if (placeholder == null) {
-            placeholder = new AnimatorController("placeholder");
-            AnimatorState idle = new AnimatorState("idle", StateType.SIMPLE);
-            placeholder.addState(idle);
-        }
+    protected AnimatorController createPlaceholder() {
+        AnimatorController placeholder = new AnimatorController("placeholder");
+        AnimatorState idle = new AnimatorState("idle", StateType.SIMPLE);
+        placeholder.addState(idle);
         return placeholder;
     }
 
     @Override
-    public String[] getSupportedExtensions() {
+    protected String[] extensions() {
         return EXTENSIONS;
     }
 
     @Override
-    public boolean supportsHotReload() {
-        return true;
-    }
-
-    @Override
-    public AnimatorController reload(AnimatorController existing, String path) throws IOException {
-        AnimatorController reloaded = load(path);
-        existing.copyFrom(reloaded);
-        return existing;
-    }
-
-    // ========================================================================
-    // EDITOR INTEGRATION
-    // ========================================================================
-
-    @Override
-    public boolean canInstantiate() {
-        return false; // Animator controllers aren't dropped into scenes directly
-    }
-
-    @Override
-    public String getIconCodepoint() {
+    protected String iconCodepoint() {
         return MaterialIcons.AccountTree;
     }
 
     @Override
-    public EditorPanelType getEditorPanelType() {
-        return EditorPanelType.ANIMATOR_EDITOR;
+    protected void copyInto(AnimatorController existing, AnimatorController fresh) {
+        existing.copyFrom(fresh);
+    }
+
+    @Override
+    protected EditorPanelType editorPanelType() {
+        return EditorPanelType.ASSET_EDITOR;
     }
 }

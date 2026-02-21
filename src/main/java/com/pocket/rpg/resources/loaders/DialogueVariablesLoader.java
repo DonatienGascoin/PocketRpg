@@ -1,22 +1,14 @@
 package com.pocket.rpg.resources.loaders;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.pocket.rpg.dialogue.DialogueVariable;
 import com.pocket.rpg.dialogue.DialogueVariables;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.logging.Log;
 import com.pocket.rpg.logging.Logger;
-import com.pocket.rpg.resources.AssetLoader;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -25,30 +17,13 @@ import java.util.List;
  * <p>
  * Convention path: {@code dialogues/variables.dialogue-vars.json}
  */
-public class DialogueVariablesLoader implements AssetLoader<DialogueVariables> {
+public class DialogueVariablesLoader extends JsonAssetLoader<DialogueVariables> {
 
     private static final String[] EXTENSIONS = {".dialogue-vars.json"};
     private static final Logger LOG = Log.getLogger(DialogueVariablesLoader.class);
-    private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
-
-    private static DialogueVariables placeholder;
-
-    // ========================================================================
-    // LOADING
-    // ========================================================================
 
     @Override
-    public DialogueVariables load(String path) throws IOException {
-        try {
-            String jsonContent = Files.readString(Paths.get(path));
-            JsonObject json = JsonParser.parseString(jsonContent).getAsJsonObject();
-            return fromJSON(json);
-        } catch (Exception e) {
-            throw new IOException("Failed to load dialogue variables: " + path, e);
-        }
-    }
-
-    private DialogueVariables fromJSON(JsonObject json) {
+    protected DialogueVariables fromJson(JsonObject json, String path) {
         List<DialogueVariable> variables = new ArrayList<>();
 
         if (json.has("variables") && json.get("variables").isJsonArray()) {
@@ -76,29 +51,8 @@ public class DialogueVariablesLoader implements AssetLoader<DialogueVariables> {
         return new DialogueVariable(name, type);
     }
 
-    // ========================================================================
-    // SAVING
-    // ========================================================================
-
     @Override
-    public void save(DialogueVariables variables, String path) throws IOException {
-        try {
-            JsonObject json = toJSON(variables);
-            String jsonString = gson.toJson(json);
-
-            Path filePath = Paths.get(path);
-            Path parentDir = filePath.getParent();
-            if (parentDir != null && !Files.exists(parentDir)) {
-                Files.createDirectories(parentDir);
-            }
-
-            Files.writeString(filePath, jsonString);
-        } catch (Exception e) {
-            throw new IOException("Failed to save dialogue variables: " + path, e);
-        }
-    }
-
-    private JsonObject toJSON(DialogueVariables variables) {
+    protected JsonObject toJson(DialogueVariables variables) {
         JsonObject json = new JsonObject();
         JsonArray varsArray = new JsonArray();
 
@@ -113,37 +67,23 @@ public class DialogueVariablesLoader implements AssetLoader<DialogueVariables> {
         return json;
     }
 
-    // ========================================================================
-    // ASSET LOADER INTERFACE
-    // ========================================================================
-
     @Override
-    public DialogueVariables getPlaceholder() {
-        if (placeholder == null) {
-            placeholder = new DialogueVariables();
-        }
-        return placeholder;
+    protected DialogueVariables createPlaceholder() {
+        return new DialogueVariables();
     }
 
     @Override
-    public String[] getSupportedExtensions() {
+    protected String[] extensions() {
         return EXTENSIONS;
     }
 
     @Override
-    public boolean supportsHotReload() {
-        return true;
-    }
-
-    @Override
-    public DialogueVariables reload(DialogueVariables existing, String path) throws IOException {
-        DialogueVariables reloaded = load(path);
-        existing.copyFrom(reloaded);
-        return existing;
-    }
-
-    @Override
-    public String getIconCodepoint() {
+    protected String iconCodepoint() {
         return MaterialIcons.Code;
+    }
+
+    @Override
+    protected void copyInto(DialogueVariables existing, DialogueVariables fresh) {
+        existing.copyFrom(fresh);
     }
 }

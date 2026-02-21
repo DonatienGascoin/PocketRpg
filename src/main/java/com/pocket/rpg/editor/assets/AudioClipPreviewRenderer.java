@@ -14,7 +14,7 @@ import imgui.flag.ImGuiCol;
 public class AudioClipPreviewRenderer implements AssetPreviewRenderer<AudioClip> {
 
     @Override
-    public void render(AudioClip clip, float maxSize) {
+    public void renderPreview(AudioClip clip, float maxSize) {
         if (clip == null) {
             ImGui.textDisabled("No audio clip");
             return;

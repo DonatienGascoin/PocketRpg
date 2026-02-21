@@ -2,6 +2,8 @@ package com.pocket.rpg.editor;
 
 import com.pocket.rpg.editor.events.*;
 import com.pocket.rpg.editor.events.EditorEventBus;
+import com.pocket.rpg.resources.Assets;
+import java.util.function.Consumer;
 import com.pocket.rpg.editor.events.OpenAnimationEditorEvent;
 import com.pocket.rpg.editor.events.OpenSpriteEditorEvent;
 import com.pocket.rpg.editor.events.TriggerFocusRequestEvent;
@@ -66,25 +68,13 @@ public class EditorUIController {
     private AssetBrowserPanel assetBrowserPanel;
 
     @Getter
-    private AnimationEditorPanel animationEditorPanel;
-
-    @Getter
-    private SpriteEditorPanel spriteEditorPanel;
-
-    @Getter
-    private AnimatorEditorPanel animatorEditorPanel;
-
-    @Getter
     private ConsolePanel consolePanel;
 
     @Getter
-    private DialogueEditorPanel dialogueEditorPanel;
-
-    @Getter
-    private PokedexEditorPanel pokedexEditorPanel;
-
-    @Getter
     private AudioBrowserPanel audioBrowserPanel;
+
+    @Getter
+    private AssetEditorPanel assetEditorPanel;
 
     @Getter
     private EditorMenuBar menuBar;
@@ -134,31 +124,14 @@ public class EditorUIController {
         createMenuAndStatus();
 
         sceneToolbar.setMessageCallback(statusBar::showMessage);
-        animationEditorPanel.setStatusCallback(statusBar::showMessage);
-        spriteEditorPanel.setStatusCallback(statusBar::showMessage);
-        animatorEditorPanel.setStatusCallback(statusBar::showMessage);
 
-        // Register panel handlers for asset double-click
+        // Register panel handler for asset double-click (unified panel handles all types)
         assetBrowserPanel.registerPanelHandler(
-                EditorPanelType.ANIMATION_EDITOR,
-                animationEditorPanel::selectAnimationByPath
+                EditorPanelType.ASSET_EDITOR,
+                assetEditorPanel::selectAssetByPath
         );
-        assetBrowserPanel.registerPanelHandler(
-                EditorPanelType.SPRITE_EDITOR,
-                spriteEditorPanel::open
-        );
-        assetBrowserPanel.registerPanelHandler(
-                EditorPanelType.ANIMATOR_EDITOR,
-                animatorEditorPanel::selectControllerByPath
-        );
-        assetBrowserPanel.registerPanelHandler(
-                EditorPanelType.DIALOGUE_EDITOR,
-                dialogueEditorPanel::selectDialogueByPath
-        );
-        assetBrowserPanel.registerPanelHandler(
-                EditorPanelType.POKEDEX_EDITOR,
-                pokedexEditorPanel::selectPokedexByPath
-        );
+
+        assetEditorPanel.setStatusCallback(statusBar::showMessage);
     }
 
     private void createPanels() {
@@ -187,13 +160,9 @@ public class EditorUIController {
 
         toolController.setCollisionPanel(collisionPanel);
 
-        // Create sprite editor before asset browser (needed for context menu)
-        spriteEditorPanel = new SpriteEditorPanel();
-
         assetBrowserPanel = new AssetBrowserPanel();
         assetBrowserPanel.initPanel(context.getConfig());
         assetBrowserPanel.initialize();
-        assetBrowserPanel.setSpriteEditorPanel(spriteEditorPanel);
         assetBrowserPanel.setSelectionManager(context.getSelectionGuard());
 
         hierarchyPanel = new HierarchyPanel();
@@ -211,6 +180,21 @@ public class EditorUIController {
         inspectorPanel.initPanel(context.getConfig());
         inspectorPanel.setScene(scene);
         inspectorPanel.setSelectionManager(context.getSelectionManager());
+        inspectorPanel.setOpenInEditorCallback(path -> {
+            Class<?> type = Assets.getTypeForPath(path);
+            if (type == null) return;
+            EditorPanelType panelType = Assets.getEditorPanelType(type);
+            if (panelType != null) {
+                Consumer<String> handler = assetBrowserPanel.getPanelHandler(panelType);
+                if (handler != null) {
+                    handler.accept(path);
+                    return;
+                }
+            }
+            if (Assets.canSave(type)) {
+                assetEditorPanel.selectAssetByPath(path);
+            }
+        });
 
         // Subscribe to trigger selection events (from collision panel or scene view)
         EditorEventBus.get().subscribe(TriggerSelectedEvent.class, event -> {
@@ -228,23 +212,21 @@ public class EditorUIController {
         // Subscribe to open sprite editor events (from inspector "Open Sprite Editor" button)
         EditorEventBus.get().subscribe(OpenSpriteEditorEvent.class, event -> {
             if (event.texturePath() != null) {
-                spriteEditorPanel.open(event.texturePath());
-            } else {
-                spriteEditorPanel.open();
+                assetEditorPanel.selectAssetByPath(event.texturePath());
             }
         });
 
         // Subscribe to open animation editor events (from inspector "Open Animation Editor" button)
         EditorEventBus.get().subscribe(OpenAnimationEditorEvent.class, event -> {
             if (event.animationPath() != null) {
-                animationEditorPanel.selectAnimationByPath(event.animationPath());
+                assetEditorPanel.selectAssetByPath(event.animationPath());
             }
         });
 
         // Subscribe to open dialogue editor events (from inspector "Open in Dialogue Editor" button)
         EditorEventBus.get().subscribe(OpenDialogueEditorEvent.class, event -> {
             if (event.dialoguePath() != null) {
-                dialogueEditorPanel.selectDialogueByPath(event.dialoguePath());
+                assetEditorPanel.selectAssetByPath(event.dialoguePath());
             }
         });
 
@@ -259,7 +241,8 @@ public class EditorUIController {
             inspectorPanel.clearAnimatorSelection();
         });
 
-        // Clear animator inspectors and graph selection when selection changes away from animator types
+        // Clear animator inspector when selection changes away from animator types
+        // (AnimatorEditorContent handles its own graph selection clearing internally)
         EditorEventBus.get().subscribe(SelectionChangedEvent.class, event -> {
             boolean wasAnimator = event.previousType() == EditorSelectionManager.SelectionType.ANIMATOR_STATE
                     || event.previousType() == EditorSelectionManager.SelectionType.ANIMATOR_TRANSITION;
@@ -267,7 +250,6 @@ public class EditorUIController {
                     || event.selectionType() == EditorSelectionManager.SelectionType.ANIMATOR_TRANSITION;
             if (wasAnimator && !isAnimator) {
                 inspectorPanel.clearAnimatorSelection();
-                animatorEditorPanel.clearGraphSelection();
             }
         });
 
@@ -290,24 +272,18 @@ public class EditorUIController {
 
         uiDesignerPanel = new UIDesignerPanel(context);
 
-        animationEditorPanel = new AnimationEditorPanel();
-        animationEditorPanel.initialize();
-
-        animatorEditorPanel = new AnimatorEditorPanel();
-        animatorEditorPanel.initialize();
-        animatorEditorPanel.setSelectionManager(context.getSelectionGuard());
-
         consolePanel = new ConsolePanel();
         consolePanel.initPanel(context.getConfig());
 
-        dialogueEditorPanel = new DialogueEditorPanel();
-        dialogueEditorPanel.initPanel(context.getConfig());
-
-        pokedexEditorPanel = new PokedexEditorPanel();
-        pokedexEditorPanel.initPanel(context.getConfig());
-
         audioBrowserPanel = new AudioBrowserPanel();
         audioBrowserPanel.initPanel(context.getConfig());
+
+        assetEditorPanel = new AssetEditorPanel();
+        assetEditorPanel.initPanel(context.getConfig());
+        assetEditorPanel.setSelectionManager(context.getSelectionManager());
+
+        // Auto-discover and register @EditorContentFor-annotated content implementations
+        assetEditorPanel.getContentRegistry().scanAndRegisterContent();
     }
 
     private void createMenuAndStatus() {
@@ -315,7 +291,6 @@ public class EditorUIController {
         menuBar.setCurrentScene(context.getCurrentScene());
         menuBar.setConfigurationPanel(configurationPanel);
         menuBar.setEditorConfig(context.getConfig());
-        menuBar.setOnOpenSpriteEditor(() -> spriteEditorPanel.open());
         menuBar.setOnToggleGizmos(() -> {
             sceneViewport.setShowGizmos(menuBar.isGizmosEnabled());
         });
@@ -651,15 +626,9 @@ public class EditorUIController {
 
             ImGui.separator();
 
-            // Animation panels
-            if (ImGui.menuItem("Animation Editor", "", animationEditorPanel.isOpen())) {
-                animationEditorPanel.toggle();
-            }
-            if (ImGui.menuItem("Animator Editor", "", animatorEditorPanel.isOpen())) {
-                animatorEditorPanel.toggle();
-            }
-            if (ImGui.menuItem("Dialogue Editor", "", dialogueEditorPanel.isOpen())) {
-                dialogueEditorPanel.toggle();
+            // Asset editor (unified panel for all asset types)
+            if (ImGui.menuItem("Asset Editor", "", assetEditorPanel.isOpen())) {
+                assetEditorPanel.toggle();
             }
 
             ImGui.separator();
@@ -799,13 +768,9 @@ public class EditorUIController {
         // Other panels
         configurationPanel.render();
         uiDesignerPanel.render();
-        animationEditorPanel.render();
-        animatorEditorPanel.render();
-        spriteEditorPanel.render();
-        dialogueEditorPanel.render();
-        pokedexEditorPanel.render();
         consolePanel.render();
         audioBrowserPanel.render();
+        assetEditorPanel.render();
         if (gameViewPanel != null) {
             gameViewPanel.render();
             // Focus Game panel if requested (must happen after render creates the window)
@@ -828,8 +793,8 @@ public class EditorUIController {
         if (sceneViewport != null) {
             sceneViewport.destroy();
         }
-        if (animationEditorPanel != null) {
-            animationEditorPanel.destroy();
+        if (assetEditorPanel != null) {
+            assetEditorPanel.destroy();
         }
     }
 

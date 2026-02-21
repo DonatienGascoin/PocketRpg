@@ -47,6 +47,8 @@ PocketRpg is a 2D game engine with a scene editor, built in Java 25. Uses LWJGL 
 
 **Read `.claude/workflows/plan-design.md`** - Plan structure, existing systems to leverage.
 
+**MANDATORY:** All plans must be written to `Documents/Plans/active/` (not just `.claude/plans/`). Plans in `.claude/plans/` are lost on context compaction. The `Documents/Plans/active/` folder is persistent and can be referenced across sessions. Move completed plans to `Documents/Plans/finished/`.
+
 ## Reference Files
 
 - **Architecture**: `.claude/reference/architecture.md`
@@ -61,7 +63,8 @@ When modifying core systems, update corresponding reference files:
 |------------------|-----------|
 | `animation/`, `AnimationComponent` | `architecture.md` - Animation System |
 | `collision/`, `GridMovement` | `architecture.md` - Collision System |
-| `resources/`, `AssetLoader` | `architecture.md` - Asset Pipeline |
+| `resources/`, `AssetLoader`, `JsonAssetLoader` | `architecture.md` - Asset Pipeline |
+| `editor/panels/AssetEditor*`, `AssetEditorContent` | `architecture.md` - Editor Architecture |
 | `editor/gizmos/`, Component gizmos | `architecture.md` - Gizmos System, `common-pitfalls.md` |
 | `editor/ui/fields/` | `field-editors.md` |
 | Component lifecycle | `common-pitfalls.md` |

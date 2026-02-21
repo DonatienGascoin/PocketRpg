@@ -1,6 +1,8 @@
 package com.pocket.rpg.editor.assets;
 
+import com.pocket.rpg.animation.Animation;
 import com.pocket.rpg.audio.clips.AudioClip;
+import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.ui.text.Font;
 import imgui.ImGui;
 
@@ -8,20 +10,18 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Central registry for asset preview renderers.
+ * Central registry for asset preview and inspector renderers.
  * <p>
- * Maps asset types to their preview renderers. Most assets use the default
+ * Maps asset types to their {@link AssetPreviewRenderer}. Most assets use the default
  * {@link SpriteBasedPreviewRenderer}, while special cases have custom renderers.
  * <p>
  * Usage:
  * <pre>
- * Object asset = Assets.load(path, type);
- * AssetPreviewRegistry.render(asset, 180f);
- * </pre>
- * <p>
- * Custom renderers can be registered:
- * <pre>
- * AssetPreviewRegistry.register(MyAsset.class, new MyAssetPreviewRenderer());
+ * // Compact thumbnail (picker popup, browser grid)
+ * AssetPreviewRegistry.renderPreview(asset, 180f);
+ *
+ * // Detailed inspector (inspector panel)
+ * AssetPreviewRegistry.renderInspector(asset, assetPath, 200f);
  * </pre>
  */
 public final class AssetPreviewRegistry {
@@ -30,9 +30,10 @@ public final class AssetPreviewRegistry {
     private static final SpriteBasedPreviewRenderer defaultRenderer = new SpriteBasedPreviewRenderer();
 
     static {
-        // Register custom renderers for special cases
         register(Font.class, new FontPreviewRenderer());
         register(AudioClip.class, new AudioClipPreviewRenderer());
+        register(Sprite.class, new SpritePreviewRenderer());
+        register(Animation.class, new AnimationPreviewRenderer());
     }
 
     private AssetPreviewRegistry() {
@@ -51,40 +52,40 @@ public final class AssetPreviewRegistry {
     }
 
     /**
-     * Renders a preview of the asset.
-     * <p>
-     * Uses a custom renderer if registered, otherwise falls back to default
-     * sprite-based rendering.
+     * Renders a compact preview/thumbnail of the asset.
      *
      * @param asset   The asset to preview
      * @param maxSize Maximum preview size
      */
     @SuppressWarnings("unchecked")
-    public static void render(Object asset, float maxSize) {
+    public static void renderPreview(Object asset, float maxSize) {
         if (asset == null) {
             ImGui.textDisabled("No asset selected");
             return;
         }
 
-        // Look for exact type match
-        AssetPreviewRenderer renderer = renderers.get(asset.getClass());
+        AssetPreviewRenderer renderer = findRenderer(asset.getClass());
+        renderer.renderPreview(asset, maxSize);
+    }
 
-        // Check superclass/interface matches
-        if (renderer == null) {
-            for (Map.Entry<Class<?>, AssetPreviewRenderer<?>> entry : renderers.entrySet()) {
-                if (entry.getKey().isInstance(asset)) {
-                    renderer = entry.getValue();
-                    break;
-                }
-            }
+    /**
+     * Renders a detailed inspector view of the asset.
+     * <p>
+     * Falls back to {@link #renderPreview} for types without a custom inspector.
+     *
+     * @param asset     The asset to inspect
+     * @param assetPath Path to the asset (for metadata loading)
+     * @param maxSize   Maximum preview size
+     */
+    @SuppressWarnings("unchecked")
+    public static void renderInspector(Object asset, String assetPath, float maxSize) {
+        if (asset == null) {
+            ImGui.textDisabled("No asset selected");
+            return;
         }
 
-        // Fallback to default
-        if (renderer == null) {
-            renderer = defaultRenderer;
-        }
-
-        renderer.render(asset, maxSize);
+        AssetPreviewRenderer renderer = findRenderer(asset.getClass());
+        renderer.renderInspector(asset, assetPath, maxSize);
     }
 
     /**
@@ -103,5 +104,22 @@ public final class AssetPreviewRegistry {
             }
         }
         return false;
+    }
+
+    private static AssetPreviewRenderer<?> findRenderer(Class<?> assetClass) {
+        // Look for exact type match
+        AssetPreviewRenderer<?> renderer = renderers.get(assetClass);
+
+        // Check superclass/interface matches
+        if (renderer == null) {
+            for (Map.Entry<Class<?>, AssetPreviewRenderer<?>> entry : renderers.entrySet()) {
+                if (entry.getKey().isInstance(assetClass)) {
+                    renderer = entry.getValue();
+                    break;
+                }
+            }
+        }
+
+        return renderer != null ? renderer : defaultRenderer;
     }
 }

@@ -34,7 +34,6 @@ public class EditorMenuBar {
     private Consumer<String> onSaveSceneAs;
     private Runnable onExit;
     private Runnable onReloadScene;
-    private Runnable onOpenSpriteEditor;
     private Runnable onToggleGizmos;
     private boolean gizmosEnabled = true;
 
@@ -189,14 +188,6 @@ public class EditorMenuBar {
 
             if (ImGui.menuItem("Select All", getShortcutLabel(EditorShortcuts.EDIT_SELECT_ALL), false, false)) {
                 // TODO
-            }
-
-            ImGui.separator();
-
-            if (ImGui.menuItem("Sprite Editor...", "")) {
-                if (onOpenSpriteEditor != null) {
-                    onOpenSpriteEditor.run();
-                }
             }
 
             ImGui.endMenu();
@@ -679,10 +670,6 @@ public class EditorMenuBar {
 
     public void setRecentFiles(String[] files) {
         this.recentFiles = files != null ? files : new String[0];
-    }
-
-    public void setOnOpenSpriteEditor(Runnable callback) {
-        this.onOpenSpriteEditor = callback;
     }
 
     public void setOnToggleGizmos(Runnable callback) {

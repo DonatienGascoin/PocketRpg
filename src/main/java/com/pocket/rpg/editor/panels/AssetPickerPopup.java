@@ -179,12 +179,11 @@ public class AssetPickerPopup {
      */
     public void render() {
         if (shouldOpen) {
+            ImGui.setNextWindowSize(520, 480);
             ImGui.openPopup(POPUP_ID);
             shouldOpen = false;
             focusSearchNextFrame = true;
         }
-
-        ImGui.setNextWindowSize(520, 480);
 
         if (ImGui.beginPopupModal(POPUP_ID, ImGuiWindowFlags.NoResize)) {
             renderPopupContent();
@@ -408,7 +407,7 @@ public class AssetPickerPopup {
         }
 
         // Delegate to registry - handles all types generically (including AudioClip)
-        AssetPreviewRegistry.render(previewAsset, PREVIEW_MAX_SIZE);
+        AssetPreviewRegistry.renderPreview(previewAsset, PREVIEW_MAX_SIZE);
     }
 
     private void confirmSelection() {

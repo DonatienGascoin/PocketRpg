@@ -78,14 +78,15 @@
 
 ### Asset Pipeline (`resources/`)
 - `Assets` - Static facade for loading assets
-- `AssetManager` - Loader registry, caching, path normalization
+- `AssetManager` - Loader registry, caching, path normalization. Discovers loaders via Reflections. Resolves generic type params through both interfaces and superclass chains.
 - `AssetLoader<T>` - Interface for custom asset types
+- `JsonAssetLoader<T>` - Abstract base class for JSON-backed loaders. 6 abstract methods (`fromJson`, `toJson`, `createPlaceholder`, `extensions`, `iconCodepoint`, `copyInto`) + 3 optional hooks (`afterLoad`, `beforeReloadCopy`, `editorPanelType`). Provides `final` implementations of `load()`, `save()`, `getPlaceholder()`, `getSupportedExtensions()`.
 - Metadata stored in `gameData/.metadata/` (pivots, 9-slice borders)
 - Sub-asset syntax: `"spritesheets/player.spritesheet#3"` loads sprite index 3
 - **Hot-reload**: `Assets.reload(path)` / `Assets.reloadAll()` mutate cached assets in place
   - Loaders implement `supportsHotReload()` and `reload(existing, path)`
   - Contract: `reload()` must mutate existing instance, not return new reference
-  - Supported: Texture, Sprite, Shader
+  - `JsonAssetLoader` supports hot-reload by default via `copyInto()`
 
 ## Serialization
 
@@ -102,6 +103,20 @@ Controller pattern with shared `EditorContext`:
 - `EditorToolController` - Selection, brush, and other tools
 - `EditorUIController` - ImGui panels (Inspector, Hierarchy, TilesetPalette)
 - `PlayModeController` - Test scenes in-editor
+
+### Unified Asset Editor (`editor/panels/`)
+- `AssetEditorPanel` - Shell that hosts pluggable content implementations. Owns toolbar, sidebar, undo stacks, dirty tracking, save.
+- `AssetEditorContent` - Interface for pluggable content. Implementations own full internal layout.
+- `AssetEditorShell` - Shell API exposed to content (`markDirty()`, `createAsset()`, `getSelectionManager()`, etc.)
+- `AssetEditorContentRegistry` - Maps asset types to content factories. `scanAndRegisterContent()` auto-discovers via Reflections.
+- `@EditorContentFor(AssetClass.class)` - Annotation for auto-discovery. Content classes must have no-arg constructor.
+- `ReflectionEditorContent` - Default fallback that auto-generates editor UI from asset fields.
+- `AssetCreationInfo` - Record holding extension + subdirectory for `shell.createAsset()`.
+
+### Asset Preview System (`editor/assets/`)
+- `AssetPreviewRenderer<T>` - Interface with `renderPreview()` (thumbnail) and `renderInspector()` (detailed view, defaults to preview).
+- `AssetPreviewRegistry` - Static registry dispatching `renderPreview()` and `renderInspector()` by asset type. Falls back to `SpriteBasedPreviewRenderer`.
+- Built-in: `SpritePreviewRenderer` (grid overlay + properties), `AnimationPreviewRenderer` (playback controls), `FontPreviewRenderer`, `AudioClipPreviewRenderer`.
 
 ### Gizmos System (`editor/gizmos/`)
 

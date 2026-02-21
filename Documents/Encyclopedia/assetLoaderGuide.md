@@ -1,6 +1,6 @@
 # Asset Loader Guide
 
-> **Summary:** Create custom asset loaders to handle new file types. Loaders are automatically discovered via reflection - just implement `AssetLoader<T>` and provide a no-arg constructor.
+> **Summary:** Create custom asset loaders to handle new file types. For JSON assets, extend `JsonAssetLoader<T>` (6 abstract methods, ~40 lines). For other formats, implement `AssetLoader<T>` directly. Both are auto-discovered via reflection.
 
 ---
 
@@ -23,7 +23,8 @@
 
 | Task | How |
 |------|-----|
-| Create a loader | Implement `AssetLoader<MyAsset>` with no-arg constructor |
+| Create a JSON loader | Extend `JsonAssetLoader<MyAsset>`, implement 6 abstract methods |
+| Create a binary loader | Implement `AssetLoader<MyAsset>` with no-arg constructor |
 | Load an asset | `MyAsset asset = Assets.load("path/to/file.ext", MyAsset.class)` |
 | Load by extension | `MyAsset asset = Assets.load("path/to/file.ext")` (auto-detects type) |
 | Save an asset | `Assets.persist(asset, "path/to/file.ext")` |
@@ -53,12 +54,148 @@ Asset loaders handle the loading, saving, and editor integration for specific fi
 | `ShaderLoader` | `Shader` | `.glsl`, `.shader`, `.vs`, `.fs` |
 | `FontLoader` | `Font` | `.font`, `.font.json`, `.ttf`, `.otf` |
 | `AnimationLoader` | `Animation` | `.anim`, `.anim.json` |
+| `AnimatorControllerLoader` | `AnimatorController` | `.animator`, `.animator.json` |
+| `DialogueLoader` | `Dialogue` | `.dialogue.json` |
+| `DialogueEventsLoader` | `DialogueEvents` | `.dialogue-events.json` |
+| `DialogueVariablesLoader` | `DialogueVariables` | `.dialogue-vars.json` |
+| `PokedexLoader` | `Pokedex` | `.pokedex.json` |
+| `AudioClipLoader` | `AudioClip` | `.wav`, `.ogg`, `.mp3` |
 | `SceneDataLoader` | `SceneData` | `.scene`, `.scene.json` |
 | `JsonPrefabLoader` | `JsonPrefab` | `.prefab`, `.prefab.json` |
 
 ---
 
-## Creating an Asset Loader
+## Creating a JSON Asset Loader (Recommended)
+
+Most game assets are JSON files. The `JsonAssetLoader<T>` abstract base class eliminates ~60 lines of boilerplate per loader — you only define 6 abstract methods covering the unique parts.
+
+### Step 1: Create the Asset Class
+
+```java
+public class QuestLog {
+    private String name;
+    private List<QuestEntry> entries = new ArrayList<>();
+
+    // Getters, setters, copyFrom(), etc.
+    public void copyFrom(QuestLog other) {
+        this.name = other.name;
+        this.entries = new ArrayList<>(other.entries);
+    }
+}
+```
+
+### Step 2: Create the Loader
+
+Extend `JsonAssetLoader<T>` and implement 6 abstract methods:
+
+```java
+package com.pocket.rpg.resources.loaders;
+
+import com.pocket.rpg.editor.core.MaterialIcons;
+import com.google.gson.JsonObject;
+import java.io.IOException;
+
+public class QuestLogLoader extends JsonAssetLoader<QuestLog> {
+
+    @Override
+    protected QuestLog fromJson(JsonObject json, String path) throws IOException {
+        return gson.fromJson(json, QuestLog.class);
+    }
+
+    @Override
+    protected JsonObject toJson(QuestLog asset) {
+        return gson.toJsonTree(asset).getAsJsonObject();
+    }
+
+    @Override
+    protected QuestLog createPlaceholder() {
+        return new QuestLog();
+    }
+
+    @Override
+    protected String[] extensions() {
+        return new String[]{".questlog.json"};
+    }
+
+    @Override
+    protected String iconCodepoint() {
+        return MaterialIcons.MenuBook;
+    }
+
+    @Override
+    protected void copyInto(QuestLog existing, QuestLog fresh) {
+        existing.copyFrom(fresh);
+    }
+}
+```
+
+That's it! The base class handles file I/O, placeholder caching, hot-reload, save, and editor integration.
+
+### What JsonAssetLoader Provides
+
+The base class implements these `AssetLoader` methods as `final`:
+- `load()` — reads file, parses JSON, calls `fromJson()`, calls `afterLoad()` hook
+- `save()` — calls `toJson()`, pretty-prints, creates parent dirs, writes file
+- `getPlaceholder()` — lazy singleton via `createPlaceholder()`
+- `getSupportedExtensions()` — delegates to `extensions()`
+
+And these as overridable defaults:
+- `supportsHotReload()` — returns `true`
+- `reload()` — calls `beforeReloadCopy()` hook, loads fresh, calls `copyInto()`
+- `canSave()` — returns `true`
+- `getEditorPanelType()` — returns `ASSET_EDITOR`
+- `getIconCodepoint()` — delegates to `iconCodepoint()`
+
+### Optional Hooks
+
+Override these for special cases:
+
+```java
+// Post-processing after load (e.g., derive name from path)
+@Override
+protected void afterLoad(QuestLog asset, String path) {
+    asset.setName(deriveNameFromPath(path));
+}
+
+// Pre-reload cleanup (e.g., invalidate caches)
+@Override
+protected void beforeReloadCopy(QuestLog existing) {
+    existing.invalidateCache();
+}
+
+// Custom editor panel type (default: ASSET_EDITOR)
+@Override
+protected EditorPanelType editorPanelType() {
+    return EditorPanelType.MY_CUSTOM_EDITOR;
+}
+```
+
+### Overriding Additional AssetLoader Methods
+
+`JsonAssetLoader` doesn't prevent you from overriding other `AssetLoader` methods:
+
+```java
+// Enable drag-drop to scene
+@Override
+public boolean canInstantiate() { return true; }
+
+@Override
+public EditorGameObject instantiate(QuestLog asset, String path, Vector3f pos) {
+    // Create entity with QuestLog component
+}
+
+// Custom preview sprite
+@Override
+public Sprite getPreviewSprite(QuestLog asset) {
+    return asset.getIconSprite();
+}
+```
+
+---
+
+## Creating a Custom Asset Loader (Non-JSON)
+
+For binary or non-JSON formats (textures, audio, shaders), implement `AssetLoader<T>` directly.
 
 ### Step 1: Create the Asset Class
 
@@ -344,10 +481,12 @@ public <S> S getSubAsset(MyAsset parent, String subId, Class<S> subType) {
 
 ## Tips & Best Practices
 
-- **Use Gson for JSON assets** - Consistent with other loaders, handles most cases well
+- **Use `JsonAssetLoader<T>` for JSON assets** - Eliminates boilerplate; only 6 methods to implement
+- **Use raw `AssetLoader<T>` only for binary formats** - Textures, audio, shaders, etc.
 - **Validate on load** - Check required fields and throw descriptive `IOException` messages
 - **Support compound extensions** - Use `.myasset.json` for JSON-based formats (easier debugging)
 - **Create meaningful placeholders** - Make missing assets visually obvious (magenta textures, etc.)
+- **Implement `copyFrom()` on your asset class** - Required for hot-reload via `copyInto()`
 - **Handle hot reload carefully** - Clean up OpenGL resources, reset caches, preserve references
 - **Keep loaders stateless** - Don't store instance data; use the asset class for state
 
@@ -357,7 +496,7 @@ public <S> S getSubAsset(MyAsset parent, String subId, Class<S> subType) {
 
 | Problem | Solution |
 |---------|----------|
-| Loader not registered | Ensure class is in `com.pocket.rpg` package and has no-arg constructor |
+| Loader not registered | Ensure class is in `com.pocket.rpg` package and has no-arg constructor. For `JsonAssetLoader` subclasses, ensure the generic type parameter is specified directly (not via another intermediate class) |
 | Wrong loader used | Check extension order - more specific extensions should be first |
 | Asset not caching | Ensure path normalization is consistent (forward slashes) |
 | Hot reload not working | Override both `supportsHotReload()` and `reload()` |
@@ -368,6 +507,8 @@ public <S> S getSubAsset(MyAsset parent, String subId, Class<S> subType) {
 
 ## Related
 
-- [Custom Inspector Guide](custom-inspector-guide.md) - Creating custom component inspectors
-- [Sprite Editor Guide](sprite-editor-guide.md) - Editing sprite properties
-- [Animation Editor Guide](animation-editor-guide.md) - Creating animations
+- [Asset Editor Content Guide](assetEditorContentGuide.md) - Creating custom editor UIs for asset types
+- [Custom Inspector Guide](customInspectorGuide.md) - Creating custom component inspectors
+- [Sprite Editor Guide](spriteEditorGuide.md) - Editing sprite properties
+- [Animation Editor Guide](animationEditorGuide.md) - Creating animations
+- [Asset Browser Guide](assetBrowserGuide.md) - Browsing and managing assets

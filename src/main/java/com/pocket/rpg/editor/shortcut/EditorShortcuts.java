@@ -96,6 +96,7 @@ public final class EditorShortcuts {
     public static final String PLAY_STOP = "editor.play.stop";
 
     // NOTE: Configuration shortcuts (editor.config.*) moved to ConfigurationPanel.provideShortcuts()
+    // NOTE: Animation shortcuts (editor.animation.*) moved to AnimationEditorPanel.provideShortcuts()
     // NOTE: Animator shortcuts (editor.animator.*) moved to AnimatorEditorPanel.provideShortcuts()
 
     // ========================================================================
@@ -112,11 +113,8 @@ public final class EditorShortcuts {
         public static final String PALETTE = "palette";
         public static final String PREFABS = "prefabs";
         public static final String CONSOLE = "console";
-        public static final String ANIMATION_EDITOR = "animationEditor";
-        public static final String ANIMATOR_EDITOR = "animatorEditor";
         public static final String CONFIGURATION = "configuration";
-        public static final String DIALOGUE_EDITOR = "dialogueEditor";
-        public static final String POKEDEX_EDITOR = "pokedexEditor";
+        public static final String ASSET_EDITOR = "assetEditor";
 
         private PanelIds() {
         }

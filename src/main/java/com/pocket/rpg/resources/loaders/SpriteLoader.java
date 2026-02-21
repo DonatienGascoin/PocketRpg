@@ -445,7 +445,7 @@ public class SpriteLoader implements AssetLoader<Sprite> {
 
     @Override
     public EditorPanelType getEditorPanelType() {
-        return EditorPanelType.SPRITE_EDITOR;
+        return EditorPanelType.ASSET_EDITOR;
     }
 
     /**

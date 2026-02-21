@@ -64,6 +64,11 @@ public class AudioClipLoader implements AssetLoader<AudioClip> {
         return MaterialIcons.AudioFile;
     }
 
+    @Override
+    public com.pocket.rpg.editor.EditorPanelType getEditorPanelType() {
+        return com.pocket.rpg.editor.EditorPanelType.ASSET_EDITOR;
+    }
+
     // ========================================================================
     // EDITOR INSTANTIATION SUPPORT
     // ========================================================================

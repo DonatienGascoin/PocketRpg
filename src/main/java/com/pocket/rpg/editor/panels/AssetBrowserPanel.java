@@ -103,10 +103,6 @@ public class AssetBrowserPanel extends EditorPanel {
     // Panel handlers for double-click (keyed by EditorPanelType)
     private final Map<EditorPanelType, Consumer<String>> panelHandlers = new EnumMap<>(EditorPanelType.class);
 
-    // Sprite editor panel reference for context menu and double-click
-    @Setter
-    private SpriteEditorPanel spriteEditorPanel;
-
     // Selection guard for mode-aware asset selection
     @Setter
     private SelectionGuard selectionManager;
@@ -657,6 +653,11 @@ public class AssetBrowserPanel extends EditorPanel {
                 if (handler != null) {
                     handler.accept(entry.path);
                 }
+            } else if (Assets.canSave(entry.type)) {
+                Consumer<String> handler = panelHandlers.get(EditorPanelType.ASSET_EDITOR);
+                if (handler != null) {
+                    handler.accept(entry.path);
+                }
             }
         }
 
@@ -686,8 +687,9 @@ public class AssetBrowserPanel extends EditorPanel {
             Set<EditorCapability> caps = Assets.getEditorCapabilities(entry.type);
             if (caps.contains(EditorCapability.PIVOT_EDITING)) {
                 if (ImGui.menuItem(MaterialIcons.Edit + " Sprite Editor...")) {
-                    if (spriteEditorPanel != null) {
-                        spriteEditorPanel.open(entry.path);
+                    Consumer<String> handler = panelHandlers.get(EditorPanelType.ASSET_EDITOR);
+                    if (handler != null) {
+                        handler.accept(entry.path);
                     }
                 }
             }
@@ -872,6 +874,11 @@ public class AssetBrowserPanel extends EditorPanel {
                 if (handler != null) {
                     handler.accept(entry.path);
                 }
+            } else if (Assets.canSave(entry.type)) {
+                Consumer<String> handler = panelHandlers.get(EditorPanelType.ASSET_EDITOR);
+                if (handler != null) {
+                    handler.accept(entry.path);
+                }
             }
         }
 
@@ -923,8 +930,9 @@ public class AssetBrowserPanel extends EditorPanel {
             // Sprite Editor (pivot and 9-slice editing)
             if (caps.contains(EditorCapability.PIVOT_EDITING)) {
                 if (ImGui.menuItem(MaterialIcons.Edit + " Sprite Editor...")) {
-                    if (spriteEditorPanel != null) {
-                        spriteEditorPanel.open(entry.path);
+                    Consumer<String> handler = panelHandlers.get(EditorPanelType.ASSET_EDITOR);
+                    if (handler != null) {
+                        handler.accept(entry.path);
                     }
                 }
             }
@@ -1067,6 +1075,16 @@ public class AssetBrowserPanel extends EditorPanel {
      */
     public void registerPanelHandler(EditorPanelType panel, Consumer<String> handler) {
         panelHandlers.put(panel, handler);
+    }
+
+    /**
+     * Gets the handler registered for the given panel type.
+     *
+     * @param panel The panel type
+     * @return The handler, or null if none registered
+     */
+    public Consumer<String> getPanelHandler(EditorPanelType panel) {
+        return panelHandlers.get(panel);
     }
 
     /**

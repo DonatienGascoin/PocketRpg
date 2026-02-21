@@ -53,6 +53,12 @@ public abstract class EditorPanel {
     private boolean open;
 
     /**
+     * Whether focus was requested for this panel.
+     * Consumed by {@link #consumePendingFocus()} in the panel's render method.
+     */
+    private boolean pendingFocus;
+
+    /**
      * Whether the panel content was visible in the last frame.
      * This is true only when the panel is open AND ImGui.begin() returned true
      * (meaning the panel is not collapsed and is the active tab in its dock).
@@ -116,6 +122,34 @@ public abstract class EditorPanel {
      */
     public void toggle() {
         setOpen(!open);
+    }
+
+    /**
+     * Opens the panel and requests focus on next render.
+     * Call this from {@code selectByPath()} methods instead of manual
+     * {@code setOpen(true)} + {@code ImGui.setWindowFocus()} calls.
+     * <p>
+     * The panel's {@code render()} method must call {@link #consumePendingFocus()}
+     * after {@code ImGui.begin()} to apply the focus.
+     */
+    public void requestFocus() {
+        setOpen(true);
+        pendingFocus = true;
+    }
+
+    /**
+     * Consumes the pending focus request. Call after {@code ImGui.begin(title)}
+     * in the panel's render method, then pass the same title to
+     * {@code ImGui.setWindowFocus(title)} if this returns true.
+     *
+     * @return true if focus was requested and should be applied
+     */
+    protected boolean consumePendingFocus() {
+        if (pendingFocus) {
+            pendingFocus = false;
+            return true;
+        }
+        return false;
     }
 
     /**

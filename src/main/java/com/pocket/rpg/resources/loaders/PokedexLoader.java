@@ -1,21 +1,13 @@
 package com.pocket.rpg.resources.loaders;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.logging.Log;
 import com.pocket.rpg.logging.Logger;
 import com.pocket.rpg.pokemon.*;
-import com.pocket.rpg.editor.EditorPanelType;
-import com.pocket.rpg.resources.AssetLoader;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -25,30 +17,17 @@ import java.util.List;
  * Loads species and move definitions from JSON. Supports hot-reload
  * by mutating the existing Pokedex instance in place.
  */
-public class PokedexLoader implements AssetLoader<Pokedex> {
+public class PokedexLoader extends JsonAssetLoader<Pokedex> {
 
     private static final String[] EXTENSIONS = {".pokedex.json"};
     private static final Logger LOG = Log.getLogger(PokedexLoader.class);
-    private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
-
-    private static Pokedex placeholder;
 
     // ========================================================================
-    // LOADING
+    // JSON PARSING
     // ========================================================================
 
     @Override
-    public Pokedex load(String path) throws IOException {
-        try {
-            String jsonContent = Files.readString(Paths.get(path));
-            JsonObject json = JsonParser.parseString(jsonContent).getAsJsonObject();
-            return fromJson(json);
-        } catch (Exception e) {
-            throw new IOException("Failed to load pokedex: " + path, e);
-        }
-    }
-
-    private Pokedex fromJson(JsonObject json) {
+    protected Pokedex fromJson(JsonObject json, String path) {
         Pokedex pokedex = new Pokedex();
 
         if (json.has("species") && json.get("species").isJsonArray()) {
@@ -123,11 +102,11 @@ public class PokedexLoader implements AssetLoader<Pokedex> {
     }
 
     // ========================================================================
-    // SAVING
+    // JSON SERIALIZATION
     // ========================================================================
 
     @Override
-    public void save(Pokedex pokedex, String path) throws IOException {
+    protected JsonObject toJson(Pokedex pokedex) {
         JsonObject root = new JsonObject();
 
         JsonArray speciesArray = new JsonArray();
@@ -142,7 +121,7 @@ public class PokedexLoader implements AssetLoader<Pokedex> {
         }
         root.add("moves", movesArray);
 
-        Files.writeString(Paths.get(path), gson.toJson(root));
+        return root;
     }
 
     private JsonObject serializeSpecies(PokemonSpecies sp) {
@@ -196,45 +175,26 @@ public class PokedexLoader implements AssetLoader<Pokedex> {
     }
 
     // ========================================================================
-    // HOT RELOAD
+    // JsonAssetLoader CONFIGURATION
     // ========================================================================
 
     @Override
-    public boolean supportsHotReload() {
-        return true;
+    protected Pokedex createPlaceholder() {
+        return new Pokedex();
     }
 
     @Override
-    public Pokedex reload(Pokedex existing, String path) throws IOException {
-        Pokedex fresh = load(path);
-        existing.copyFrom(fresh);
-        return existing;
-    }
-
-    // ========================================================================
-    // METADATA
-    // ========================================================================
-
-    @Override
-    public String[] getSupportedExtensions() {
+    protected String[] extensions() {
         return EXTENSIONS;
     }
 
     @Override
-    public Pokedex getPlaceholder() {
-        if (placeholder == null) {
-            placeholder = new Pokedex();
-        }
-        return placeholder;
-    }
-
-    @Override
-    public EditorPanelType getEditorPanelType() {
-        return EditorPanelType.POKEDEX_EDITOR;
-    }
-
-    @Override
-    public String getIconCodepoint() {
+    protected String iconCodepoint() {
         return MaterialIcons.MenuBook;
+    }
+
+    @Override
+    protected void copyInto(Pokedex existing, Pokedex fresh) {
+        existing.copyFrom(fresh);
     }
 }

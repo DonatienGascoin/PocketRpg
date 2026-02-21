@@ -136,6 +136,16 @@ public interface AssetLoader<T> {
     // ========================================================================
 
     /**
+     * Returns whether this loader supports saving assets back to disk.
+     * Override to return true for loaders that implement {@link #save(Object, String)}.
+     *
+     * @return true if this loader can save assets
+     */
+    default boolean canSave() {
+        return false;
+    }
+
+    /**
      * Returns the editor panel to open when this asset is double-clicked.
      * Return null if no dedicated editor exists for this asset type.
      *

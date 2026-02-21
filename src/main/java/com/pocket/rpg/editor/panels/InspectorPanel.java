@@ -12,7 +12,6 @@ import com.pocket.rpg.editor.PlayModeSelectionManager;
 import com.pocket.rpg.editor.PrefabEditController;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.inspector.*;
-import com.pocket.rpg.editor.panels.inspector.AssetInspectorRegistry;
 import com.pocket.rpg.editor.scene.DirtyTracker;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
@@ -33,6 +32,7 @@ import org.joml.Vector3f;
 
 import java.util.List;
 import java.util.Set;
+import java.util.function.Consumer;
 
 /**
  * Context-sensitive inspector panel - orchestrates specialized inspectors.
@@ -74,9 +74,6 @@ public class InspectorPanel extends EditorPanel {
     private final AnimatorStateInspector animatorStateInspector = new AnimatorStateInspector();
     private final AnimatorTransitionInspector animatorTransitionInspector = new AnimatorTransitionInspector();
 
-    // Track if we were showing asset inspector last frame
-    private boolean wasShowingAssetInspector = false;
-
     public InspectorPanel() {
         super(PANEL_ID, true); // Default open - core panel
     }
@@ -116,29 +113,8 @@ public class InspectorPanel extends EditorPanel {
         multiSelectionInspector.setScene(scene);
         triggerInspector.setScene(scene);
 
-        // Determine what should be shown
         boolean shouldShowAsset = selectionManager != null && selectionManager.isAssetSelected();
-
-        // Check if asset inspector has a pending popup that needs to be handled
-        if (assetInspector.hasPendingPopup()) {
-            // Keep showing asset inspector while popup is active
-            assetInspector.render();
-        } else if (wasShowingAssetInspector && !shouldShowAsset) {
-            // Switching away from asset inspector - check for unsaved changes
-            if (assetInspector.checkUnsavedChangesBeforeLeaving()) {
-                // Has unsaved changes, show popup (will be rendered next frame)
-                assetInspector.render();
-            } else {
-                // No unsaved changes, render the new inspector
-                renderCurrentInspector(shouldShowAsset);
-            }
-        } else {
-            // Normal rendering
-            renderCurrentInspector(shouldShowAsset);
-        }
-
-        // Track state for next frame
-        wasShowingAssetInspector = shouldShowAsset || assetInspector.hasPendingPopup();
+        renderCurrentInspector(shouldShowAsset);
     }
 
     private void renderPlayModeInspector() {
@@ -264,6 +240,13 @@ public class InspectorPanel extends EditorPanel {
         triggerInspector.clearSelection();
     }
 
+    /**
+     * Sets the callback for the asset inspector's "Open in Editor" button.
+     */
+    public void setOpenInEditorCallback(Consumer<String> callback) {
+        assetInspector.setOpenInEditorCallback(callback);
+    }
+
     // ========================================================================
     // SHORTCUTS
     // ========================================================================
@@ -303,30 +286,21 @@ public class InspectorPanel extends EditorPanel {
     }
 
     /**
-     * Routes undo to the correct system based on current inspection context.
-     * When inspecting an asset, delegates to the asset's undo stack.
-     * Otherwise, delegates to the scene-level UndoManager.
+     * Delegates undo to the scene-level UndoManager.
+     * Asset undo is handled by dedicated editor panels (Asset Editor, etc.).
      */
     private void handleUndo() {
-        if (isShowingAssetInspector()) {
-            AssetInspectorRegistry.undo();
-        } else {
-            if (UndoManager.getInstance().undo()) {
-                markSceneDirtyAfterUndoRedo();
-            }
+        if (UndoManager.getInstance().undo()) {
+            markSceneDirtyAfterUndoRedo();
         }
     }
 
     /**
-     * Routes redo to the correct system based on current inspection context.
+     * Delegates redo to the scene-level UndoManager.
      */
     private void handleRedo() {
-        if (isShowingAssetInspector()) {
-            AssetInspectorRegistry.redo();
-        } else {
-            if (UndoManager.getInstance().redo()) {
-                markSceneDirtyAfterUndoRedo();
-            }
+        if (UndoManager.getInstance().redo()) {
+            markSceneDirtyAfterUndoRedo();
         }
     }
 
@@ -338,28 +312,6 @@ public class InspectorPanel extends EditorPanel {
         if (dirtyTracker != null) {
             dirtyTracker.markDirty();
         }
-    }
-
-    /**
-     * Returns true if the InspectorPanel is currently showing an asset inspector
-     * (i.e., the undo target is the asset's own undo stack, not the scene UndoManager).
-     *
-     * Checks both the selection state AND the visual state: when the user clicks
-     * from an asset to an entity, EditorSelectionManager.selectEntity() clears the
-     * asset selection immediately, but the asset inspector may still be visible due
-     * to the unsaved-changes popup. In that case, undo should still target the
-     * asset's undo stack.
-     *
-     * Note: the ShortcutRegistry already blocks all shortcuts when ImGui popups are
-     * open, so the popup path is technically unreachable. The check is included as
-     * a defensive guard.
-     */
-    private boolean isShowingAssetInspector() {
-        if (selectionManager == null) return false;
-        if (prefabEditController != null && prefabEditController.isActive()) return false;
-        return selectionManager.isAssetSelected()
-                || wasShowingAssetInspector
-                || assetInspector.hasPendingPopup();
     }
 
     // ========================================================================

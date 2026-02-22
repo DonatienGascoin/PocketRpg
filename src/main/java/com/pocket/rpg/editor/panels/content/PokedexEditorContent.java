@@ -5,17 +5,19 @@ import com.pocket.rpg.editor.events.AssetChangedEvent;
 import com.pocket.rpg.editor.events.EditorEventBus;
 import com.pocket.rpg.editor.panels.AssetEditorContent;
 import com.pocket.rpg.editor.panels.AssetEditorShell;
+import com.pocket.rpg.editor.ui.fields.AssetEditor;
 import com.pocket.rpg.editor.ui.fields.EnumEditor;
 import com.pocket.rpg.editor.ui.fields.FieldEditorUtils;
 import com.pocket.rpg.editor.ui.fields.PrimitiveEditors;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.SnapshotCommand;
 import com.pocket.rpg.pokemon.*;
+import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.resources.Assets;
+import com.pocket.rpg.resources.SpriteReference;
 import com.pocket.rpg.resources.loaders.PokedexLoader;
 import imgui.ImGui;
 import imgui.flag.*;
-import imgui.type.ImBoolean;
 import imgui.type.ImInt;
 import imgui.type.ImString;
 
@@ -55,6 +57,10 @@ public class PokedexEditorContent implements AssetEditorContent {
 
     // Learnset combo buffer
     private final ImInt learnsetMoveBuffer = new ImInt();
+
+    // Drag/edit undo tracking (shared — only one widget active at a time)
+    private PokedexSnapshot statDragBeforeSnapshot = null;
+    private PokedexSnapshot attrEditBeforeSnapshot = null;
 
     // Event subscription
     private Consumer<AssetChangedEvent> assetChangedHandler;
@@ -313,95 +319,161 @@ public class PokedexEditorContent implements AssetEditorContent {
         PokemonSpecies sp = selectedSpecies;
         String sid = sp.getSpeciesId();
 
-        ImGui.text("Species: " + sid);
-        ImGui.separator();
-
-        // Species ID — special handling for rename
-        PrimitiveEditors.drawString("Species ID", "species." + sid + ".speciesId",
-                sp::getSpeciesId, newId -> {
-                    String trimmed = newId.trim();
-                    if (!trimmed.isEmpty() && !trimmed.equals(sp.getSpeciesId())
-                            && editingPokedex.getSpecies(trimmed) == null) {
-                        captureStructuralUndo("Rename Species", () -> {
-                            editingPokedex.removeSpecies(sp.getSpeciesId());
-                            sp.setSpeciesId(trimmed);
-                            editingPokedex.addSpecies(sp);
-                        });
-                    }
-                });
-
-        if (PrimitiveEditors.drawString("Name", "species." + sid + ".name",
-                sp::getName, val -> captureStructuralUndo("Edit Species Name", () -> sp.setName(val)))) {
+        // --- Identity: always visible (pinned at top) ---
+        if (ImGui.collapsingHeader(MaterialIcons.Badge + " Identity", ImGuiTreeNodeFlags.DefaultOpen)) {
+            renderIdentitySection(sp, sid);
         }
 
-        if (EnumEditor.drawEnum("Type", "species." + sid + ".type",
-                sp::getType, val -> captureStructuralUndo("Edit Species Type", () -> sp.setType(val)),
-                PokemonType.class)) {
-        }
-
-        ImGui.spacing();
-        ImGui.separator();
-        ImGui.text("Base Stats");
         ImGui.separator();
 
-        renderBaseStats(sp);
+        // --- Scrollable area for remaining sections ---
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 0, 0);
+        ImGui.pushStyleVar(ImGuiStyleVar.IndentSpacing, 0);
+        if (ImGui.beginChild("##speciesScroll")) {
+            if (ImGui.collapsingHeader(MaterialIcons.BarChart + " Stats & Attributes", ImGuiTreeNodeFlags.DefaultOpen)) {
+                renderStatsAndAttributes(sp, sid);
+            }
 
-        ImGui.spacing();
-        ImGui.separator();
-        ImGui.text("Attributes");
-        ImGui.separator();
+            if (ImGui.collapsingHeader(MaterialIcons.TrendingUp + " Evolution", ImGuiTreeNodeFlags.DefaultOpen)) {
+                EnumEditor.drawEnum("Method", "species." + sid + ".evoMethod",
+                        sp::getEvolutionMethod, val -> captureStructuralUndo("Edit Evolution Method", () -> sp.setEvolutionMethod(val)),
+                        EvolutionMethod.class);
 
-        if (PrimitiveEditors.drawInt("Base EXP", "species." + sid + ".baseExpYield",
-                sp::getBaseExpYield, val -> captureStructuralUndo("Edit Base EXP", () -> sp.setBaseExpYield(Math.max(0, val))))) {
+                if (sp.getEvolutionMethod() == EvolutionMethod.LEVEL) {
+                    PrimitiveEditors.drawInt("Level", "species." + sid + ".evoLevel",
+                            sp::getEvolutionLevel, val -> captureStructuralUndo("Edit Evolution Level", () -> sp.setEvolutionLevel(Math.max(1, val))));
+                }
+
+                if (sp.getEvolutionMethod() == EvolutionMethod.ITEM) {
+                    PrimitiveEditors.drawString("Item", "species." + sid + ".evoItem",
+                            () -> sp.getEvolutionItem() != null ? sp.getEvolutionItem() : "",
+                            val -> captureStructuralUndo("Edit Evolution Item", () -> sp.setEvolutionItem(val.isEmpty() ? null : val)));
+                }
+
+                if (sp.getEvolutionMethod() != EvolutionMethod.NONE) {
+                    renderEvolvesIntoCombo(sp);
+                }
+            }
+
+            if (ImGui.collapsingHeader(MaterialIcons.School + " Learnset", ImGuiTreeNodeFlags.DefaultOpen)) {
+                renderLearnsetEditor(sp);
+            }
+        }
+        ImGui.endChild();
+        ImGui.popStyleVar(2);
+    }
+
+    // ========================================================================
+    // IDENTITY SECTION (sprite button left, fields right)
+    // ========================================================================
+
+    private void renderIdentitySection(PokemonSpecies sp, String sid) {
+        Sprite resolvedSprite = resolveSprite(sp.getSpriteId());
+
+        float spriteSize = 64;
+        if (ImGui.beginTable("##identity_layout", 2, ImGuiTableFlags.None)) {
+            ImGui.tableSetupColumn("sprite", ImGuiTableColumnFlags.WidthFixed, spriteSize + 16);
+            ImGui.tableSetupColumn("fields", ImGuiTableColumnFlags.WidthStretch);
+            ImGui.tableNextRow();
+
+            // --- Left: Sprite button ---
+            ImGui.tableNextColumn();
+            renderSpriteButton(sp, resolvedSprite, spriteSize);
+
+            // --- Right: Name, ID, Type ---
+            ImGui.tableNextColumn();
+            PrimitiveEditors.drawString("Species ID", "species." + sid + ".speciesId",
+                    sp::getSpeciesId, newId -> {
+                        String trimmed = newId.trim();
+                        if (!trimmed.isEmpty() && !trimmed.equals(sp.getSpeciesId())
+                                && editingPokedex.getSpecies(trimmed) == null) {
+                            captureStructuralUndo("Rename Species", () -> {
+                                editingPokedex.removeSpecies(sp.getSpeciesId());
+                                sp.setSpeciesId(trimmed);
+                                editingPokedex.addSpecies(sp);
+                            });
+                        }
+                    });
+
+            PrimitiveEditors.drawString("Name", "species." + sid + ".name",
+                    sp::getName, val -> captureStructuralUndo("Edit Species Name", () -> sp.setName(val)));
+
+            EnumEditor.drawEnum("Type", "species." + sid + ".type",
+                    sp::getType, val -> captureStructuralUndo("Edit Species Type", () -> sp.setType(val)),
+                    PokemonType.class);
+
+            ImGui.endTable();
+        }
+    }
+
+    private void renderSpriteButton(PokemonSpecies sp, Sprite resolvedSprite, float size) {
+        ImGui.pushID("##spritePicker");
+
+        boolean clicked;
+        if (resolvedSprite != null && resolvedSprite.getTexture() != null) {
+            int texId = resolvedSprite.getTexture().getTextureId();
+            clicked = ImGui.imageButton("##sprBtn", texId, size, size,
+                    resolvedSprite.getU0(), resolvedSprite.getV1(),
+                    resolvedSprite.getU1(), resolvedSprite.getV0());
+        } else {
+            clicked = ImGui.button(MaterialIcons.Image, size, size);
         }
 
-        if (PrimitiveEditors.drawInt("Catch Rate", "species." + sid + ".catchRate",
-                sp::getCatchRate, val -> captureStructuralUndo("Edit Catch Rate", () -> sp.setCatchRate(Math.max(0, Math.min(255, val)))))) {
+        if (clicked) {
+            String currentPath = resolvedSprite != null
+                    ? Assets.getPathForResource(resolvedSprite) : null;
+            AssetEditor.openPicker(Sprite.class, currentPath, selectedAsset -> {
+                Sprite picked = (Sprite) selectedAsset;
+                String newPath = SpriteReference.toPath(picked);
+                captureStructuralUndo("Change Sprite", () -> sp.setSpriteId(newPath));
+            });
         }
 
-        if (EnumEditor.drawEnum("Growth Rate", "species." + sid + ".growthRate",
-                sp::getGrowthRate, val -> captureStructuralUndo("Edit Growth Rate", () -> sp.setGrowthRate(val)),
-                GrowthRate.class)) {
-        }
-
-        if (PrimitiveEditors.drawString("Sprite ID", "species." + sid + ".spriteId",
-                () -> sp.getSpriteId() != null ? sp.getSpriteId() : "",
-                val -> captureStructuralUndo("Edit Sprite ID", () -> sp.setSpriteId(val.isEmpty() ? null : val)))) {
-        }
-
-        ImGui.spacing();
-        ImGui.separator();
-        ImGui.text("Evolution");
-        ImGui.separator();
-
-        if (EnumEditor.drawEnum("Method", "species." + sid + ".evoMethod",
-                sp::getEvolutionMethod, val -> captureStructuralUndo("Edit Evolution Method", () -> sp.setEvolutionMethod(val)),
-                EvolutionMethod.class)) {
-        }
-
-        if (sp.getEvolutionMethod() == EvolutionMethod.LEVEL) {
-            if (PrimitiveEditors.drawInt("Level", "species." + sid + ".evoLevel",
-                    sp::getEvolutionLevel, val -> captureStructuralUndo("Edit Evolution Level", () -> sp.setEvolutionLevel(Math.max(1, val))))) {
+        if (ImGui.isItemHovered()) {
+            String spriteId = sp.getSpriteId();
+            if (spriteId != null && !spriteId.isEmpty()) {
+                ImGui.setTooltip(spriteId);
+            } else {
+                ImGui.setTooltip("Click to set sprite");
             }
         }
 
-        if (sp.getEvolutionMethod() == EvolutionMethod.ITEM) {
-            if (PrimitiveEditors.drawString("Item", "species." + sid + ".evoItem",
-                    () -> sp.getEvolutionItem() != null ? sp.getEvolutionItem() : "",
-                    val -> captureStructuralUndo("Edit Evolution Item", () -> sp.setEvolutionItem(val.isEmpty() ? null : val)))) {
-            }
+        ImGui.popID();
+    }
+
+    private Sprite resolveSprite(String spriteId) {
+        if (spriteId == null || spriteId.isEmpty()) return null;
+        try {
+            return SpriteReference.fromPath(spriteId);
+        } catch (Exception ignored) {
+            return null;
         }
+    }
 
-        if (sp.getEvolutionMethod() != EvolutionMethod.NONE) {
-            renderEvolvesIntoCombo(sp);
+    // ========================================================================
+    // STATS & ATTRIBUTES (side by side)
+    // ========================================================================
+
+    private void renderStatsAndAttributes(PokemonSpecies sp, String sid) {
+        if (ImGui.beginTable("##statsAttrs", 2, ImGuiTableFlags.None)) {
+            ImGui.tableSetupColumn("stats", ImGuiTableColumnFlags.WidthStretch);
+            ImGui.tableSetupColumn("attrs", ImGuiTableColumnFlags.WidthStretch);
+            ImGui.tableNextRow();
+
+            // --- Left: Base Stats ---
+            ImGui.tableNextColumn();
+            renderBaseStats(sp);
+
+            // --- Right: Attributes (stacked label-above-field for narrow column) ---
+            ImGui.tableNextColumn();
+            renderAttributeInt("Base EXP", "##baseExp_" + sid, sp.getBaseExpYield(),
+                    val -> { sp.setBaseExpYield(Math.max(0, val)); shell.markDirty(); });
+            renderAttributeInt("Catch Rate", "##catchRate_" + sid, sp.getCatchRate(),
+                    val -> { sp.setCatchRate(Math.max(0, Math.min(255, val))); shell.markDirty(); });
+            renderAttributeEnum(sp, sid);
+
+            ImGui.endTable();
         }
-
-        ImGui.spacing();
-        ImGui.separator();
-        ImGui.text("Learnset");
-        ImGui.separator();
-
-        renderLearnsetEditor(sp);
     }
 
     private void renderBaseStats(PokemonSpecies sp) {
@@ -413,34 +485,137 @@ public class PokedexEditorContent implements AssetEditorContent {
         int[] spDef = {stats.spDef()};
         int[] spd = {stats.spd()};
 
-        boolean changed = false;
-        changed |= renderStatRow("HP", "hp", hp);
-        changed |= renderStatRow("ATK", "atk", atk);
-        changed |= renderStatRow("DEF", "def", def);
-        changed |= renderStatRow("SP ATK", "spAtk", spAtk);
-        changed |= renderStatRow("SP DEF", "spDef", spDef);
-        changed |= renderStatRow("SPD", "spd", spd);
+        boolean[] dragStarted = {false};
+        boolean[] dragEnded = {false};
+        boolean anyChanged = false;
 
-        if (changed) {
-            captureStructuralUndo("Change Stats", () ->
-                    sp.setBaseStats(new Stats(hp[0], atk[0], def[0], spAtk[0], spDef[0], spd[0])));
+        anyChanged |= renderStatBar("HP", "hp", hp, dragStarted, dragEnded);
+        anyChanged |= renderStatBar("ATK", "atk", atk, dragStarted, dragEnded);
+        anyChanged |= renderStatBar("DEF", "def", def, dragStarted, dragEnded);
+        anyChanged |= renderStatBar("SP ATK", "spAtk", spAtk, dragStarted, dragEnded);
+        anyChanged |= renderStatBar("SP DEF", "spDef", spDef, dragStarted, dragEnded);
+        anyChanged |= renderStatBar("SPD", "spd", spd, dragStarted, dragEnded);
+
+        // Capture snapshot at drag start
+        if (dragStarted[0] && statDragBeforeSnapshot == null) {
+            statDragBeforeSnapshot = PokedexSnapshot.capture(editingPokedex);
+        }
+
+        // Live-update stats during drag
+        if (anyChanged) {
+            sp.setBaseStats(new Stats(hp[0], atk[0], def[0], spAtk[0], spDef[0], spd[0]));
+            shell.markDirty();
+        }
+
+        // Push undo when drag ends
+        if (dragEnded[0] && statDragBeforeSnapshot != null) {
+            PokedexSnapshot afterSnap = PokedexSnapshot.capture(editingPokedex);
+            UndoManager.getInstance().push(new SnapshotCommand<>(
+                    editingPokedex, statDragBeforeSnapshot, afterSnap,
+                    (target, snapshot) -> ((PokedexSnapshot) snapshot).restore(target),
+                    "Change Stats"
+            ));
+            statDragBeforeSnapshot = null;
         }
 
         int total = hp[0] + atk[0] + def[0] + spAtk[0] + spDef[0] + spd[0];
         ImGui.text("Total: " + total);
     }
 
-    private boolean renderStatRow(String label, String id, int[] value) {
-        ImInt buf = new ImInt(value[0]);
+    private boolean renderStatBar(String label, String id, int[] value,
+                                  boolean[] dragStarted, boolean[] dragEnded) {
+        int[] buf = {value[0]};
         FieldEditorUtils.inspectorRow(label, () -> {
-            ImGui.inputInt("##stat_" + id, buf);
+            float availWidth = ImGui.getContentRegionAvailX();
+            float height = ImGui.getFrameHeight();
+
+            int capped = Math.max(0, Math.min(255, buf[0]));
+            float fraction = capped / 255.0f;
+
+            // Gradient color: red → yellow → green
+            float t = Math.min(1.0f, capped / 200.0f);
+            float cr = Math.min(1.0f, 2.0f * (1.0f - t));
+            float cg = Math.min(1.0f, 2.0f * t);
+
+            // Draw custom background + fill BEFORE the slider
+            float startX = ImGui.getCursorScreenPosX();
+            float startY = ImGui.getCursorScreenPosY();
+
+            var drawList = ImGui.getWindowDrawList();
+            drawList.addRectFilled(startX, startY, startX + availWidth, startY + height,
+                    ImGui.getColorU32(0.12f, 0.12f, 0.15f, 1.0f));
+            if (fraction > 0.001f) {
+                drawList.addRectFilled(startX, startY, startX + availWidth * fraction, startY + height,
+                        ImGui.getColorU32(cr, cg, 0.15f, 0.7f));
+            }
+
+            // Transparent slider on top for drag interaction + value overlay
+            ImGui.pushStyleColor(ImGuiCol.FrameBg, 0, 0, 0, 0);
+            ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, 1, 1, 1, 0.06f);
+            ImGui.pushStyleColor(ImGuiCol.FrameBgActive, 1, 1, 1, 0.03f);
+            ImGui.pushStyleColor(ImGuiCol.SliderGrab, 0, 0, 0, 0);
+            ImGui.pushStyleColor(ImGuiCol.SliderGrabActive, 0, 0, 0, 0);
+            ImGui.setNextItemWidth(availWidth);
+            ImGui.sliderInt("##stat_" + id, buf, 0, 255);
+            ImGui.popStyleColor(5);
+
+            if (ImGui.isItemActivated()) dragStarted[0] = true;
+            if (ImGui.isItemDeactivatedAfterEdit()) dragEnded[0] = true;
         });
-        int clamped = Math.max(0, Math.min(255, buf.get()));
+
+        int clamped = Math.max(0, Math.min(255, buf[0]));
         if (clamped != value[0]) {
             value[0] = clamped;
             return true;
         }
         return false;
+    }
+
+    // ========================================================================
+    // ATTRIBUTE FIELDS (stacked label-above-field, bypasses inspectorRow)
+    // ========================================================================
+
+    private void renderAttributeInt(String label, String imguiId, int currentValue,
+                                    java.util.function.IntConsumer liveSetter) {
+        ImGui.textDisabled(label);
+        ImInt buf = new ImInt(currentValue);
+        ImGui.setNextItemWidth(-1);
+        if (ImGui.inputInt(imguiId, buf)) {
+            liveSetter.accept(buf.get());
+        }
+        if (ImGui.isItemActivated() && attrEditBeforeSnapshot == null) {
+            attrEditBeforeSnapshot = PokedexSnapshot.capture(editingPokedex);
+        }
+        if (ImGui.isItemDeactivatedAfterEdit() && attrEditBeforeSnapshot != null) {
+            PokedexSnapshot afterSnap = PokedexSnapshot.capture(editingPokedex);
+            UndoManager.getInstance().push(new SnapshotCommand<>(
+                    editingPokedex, attrEditBeforeSnapshot, afterSnap,
+                    (target, snapshot) -> ((PokedexSnapshot) snapshot).restore(target),
+                    "Edit " + label
+            ));
+            attrEditBeforeSnapshot = null;
+        }
+    }
+
+    private void renderAttributeEnum(PokemonSpecies sp, String sid) {
+        ImGui.textDisabled("Growth Rate");
+        ImGui.setNextItemWidth(-1);
+
+        GrowthRate[] values = GrowthRate.values();
+        String[] names = new String[values.length];
+        int currentIdx = 0;
+        for (int i = 0; i < values.length; i++) {
+            names[i] = values[i].name();
+            if (values[i] == sp.getGrowthRate()) currentIdx = i;
+        }
+
+        ImInt selected = new ImInt(currentIdx);
+        if (ImGui.combo("##growthRate_" + sid, selected, names)) {
+            GrowthRate newVal = values[selected.get()];
+            if (newVal != sp.getGrowthRate()) {
+                captureStructuralUndo("Edit Growth Rate", () -> sp.setGrowthRate(newVal));
+            }
+        }
     }
 
     private void renderEvolvesIntoCombo(PokemonSpecies sp) {

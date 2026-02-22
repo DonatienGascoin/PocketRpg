@@ -801,6 +801,11 @@ public class AssetEditorPanel extends EditorPanel implements AssetEditorShell {
         panelUndoStack.clear();
         panelRedoStack.clear();
 
+        // Notify selection manager so the Inspector shows this asset
+        if (selectionManager != null) {
+            selectionManager.selectAsset(path, type);
+        }
+
         // Scroll sidebar to show newly selected asset
         if (sidebarOpen) {
             sidebarScrollToSelected = true;

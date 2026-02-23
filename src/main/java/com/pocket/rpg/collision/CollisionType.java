@@ -82,7 +82,11 @@ public enum CollisionType {
 
     SAND(9, "Sand", CollisionCategory.TERRAIN,
             "Sand - slows movement",
-            new float[]{0.9f, 0.85f, 0.6f, 0.6f}, null, MaterialIcons.Terrain, 0),
+            new float[]{0.9f, 0.85f, 0.6f, 0.6f}, null, MaterialIcons.Sunny, 0),
+
+    CAVE_PATH(7, "Cave encounter", CollisionCategory.TERRAIN,
+        "Triggers wild encounters",
+        new float[]{0.5f, 0.3f, 0.1f, 0.8f}, null, MaterialIcons.Landscape, 0),
 
     // === ELEVATION ===
     STAIRS(13, "Stairs", CollisionCategory.ELEVATION,

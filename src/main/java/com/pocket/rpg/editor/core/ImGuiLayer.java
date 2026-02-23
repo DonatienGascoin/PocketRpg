@@ -214,8 +214,12 @@ public class ImGuiLayer {
         System.out.println("Destroying ImGui...");
 
         // Shutdown in reverse order of initialization
-        imGuiGl3.shutdown();
-        imGuiGlfw.shutdown();
+        if (imGuiGl3 != null) {
+            imGuiGl3.shutdown();
+        }
+        if (imGuiGlfw != null) {
+            imGuiGlfw.shutdown();
+        }
         ImGui.destroyContext();
 
         initialized = false;

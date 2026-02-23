@@ -16,6 +16,8 @@ import com.pocket.rpg.components.interaction.TriggerZone;
 import com.pocket.rpg.components.core.Transform;
 import com.pocket.rpg.editor.gizmos.GizmoColors;
 import com.pocket.rpg.editor.gizmos.GizmoContext;
+import java.util.ArrayList;
+import java.util.function.Consumer;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector2f;
@@ -124,6 +126,13 @@ public class GridMovement extends Component implements IPausable, ISaveable {
     private Vector2f manualAnchor = new Vector2f(0.5f, 0.5f);
 
     // ========================================================================
+    // Events
+    // ========================================================================
+
+    private transient List<Consumer<MovementModifier>> onMoveStartedListeners;
+    private transient List<Consumer<MovementModifier>> onMoveFinishedListeners;
+
+    // ========================================================================
     // RUNTIME STATE (transient - derived on start or during movement)
     // ========================================================================
 
@@ -169,6 +178,8 @@ public class GridMovement extends Component implements IPausable, ISaveable {
      * Creates GridMovement with default settings.
      */
     public GridMovement() {
+        this.onMoveFinishedListeners = new ArrayList<>();
+        this.onMoveStartedListeners = new ArrayList<>();
     }
 
     /**
@@ -177,6 +188,8 @@ public class GridMovement extends Component implements IPausable, ISaveable {
      * @param tileSize Size of each tile in world units
      */
     public GridMovement(float tileSize) {
+        this.onMoveFinishedListeners = new ArrayList<>();
+        this.onMoveStartedListeners = new ArrayList<>();
         this.tileSize = tileSize;
     }
 
@@ -449,6 +462,10 @@ public class GridMovement extends Component implements IPausable, ISaveable {
 
         // Track if we're starting a slide
         isSliding = (modifier == MovementModifier.SLIDE);
+
+        for(Consumer<MovementModifier> listener : onMoveStartedListeners) {
+            listener.accept(modifier);
+        }
     }
 
     // ========================================================================
@@ -563,6 +580,10 @@ public class GridMovement extends Component implements IPausable, ISaveable {
         // and the current tile is also ice
         if (isSliding) {
             handleIceSliding();
+        }
+
+        for(Consumer<MovementModifier> listener : onMoveFinishedListeners) {
+            listener.accept(finishedModifier);
         }
     }
 
@@ -703,6 +724,22 @@ public class GridMovement extends Component implements IPausable, ISaveable {
      */
     public boolean isJumping() {
         return isMoving && currentModifier == MovementModifier.JUMP;
+    }
+
+    public void addFinishedListener(Consumer<MovementModifier> listener) {
+        onMoveFinishedListeners.add(listener);
+    }
+
+    public void removeFinishedListener(Consumer<MovementModifier> listener) {
+        onMoveFinishedListeners.remove(listener);
+    }
+
+    public void addStartedListener(Consumer<MovementModifier> listener) {
+        onMoveStartedListeners.add(listener);
+    }
+
+    public void removeStartedListener(Consumer<MovementModifier> listener) {
+        onMoveStartedListeners.remove(listener);
     }
 
     // ========================================================================

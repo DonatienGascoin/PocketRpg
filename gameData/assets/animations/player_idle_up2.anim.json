@@ -1,0 +1,10 @@
+{
+  "name": "player_idle_up2",
+  "looping": true,
+  "frames": [
+    {
+      "sprite": "sprites/Male_Spritesheet.png#4",
+      "duration": 1.0
+    }
+  ]
+}

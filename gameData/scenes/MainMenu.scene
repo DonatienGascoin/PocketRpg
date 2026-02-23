@@ -1,0 +1,979 @@
+{
+  "version": 4,
+  "name": "MainMenu",
+  "gameObjects": [
+    {
+      "id": "91366bb1",
+      "name": "Ground",
+      "active": true,
+      "order": 0,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.core.Transform",
+          "properties": {
+            "localPosition": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            }
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.rendering.TilemapRenderer",
+          "properties": "P4AAAP////YAAAAFAAhGcmFtZV8xNAAdc3ByaXRlcy9ncmFzczFfdGlsZXNldC5wbmcjMTQAAAAHRnJhbWVfOQAcc3ByaXRlcy9ncmFzczFfdGlsZXNldC5wbmcjOQAAAAdGcmFtZV8xABxzcHJpdGVzL2dyYXNzMV90aWxlc2V0LnBuZyMxAAAACEZyYW1lXzEwAB1zcHJpdGVzL2dyYXNzMV90aWxlc2V0LnBuZyMxMAAAAAdGcmFtZV8yABxzcHJpdGVzL2dyYXNzMV90aWxlc2V0LnBuZyMyAAAAAAAEAAAAAAAAAAAAAAEUAAAAAAAAAAEAAAAAAAIAAAAAAAMAAAAAAAQAAAAAAAUAAAAAAAYAAAAAAAcAAAAAAAgAAAAAAAkAAAAAAAoAAAAAAAsAAAAAAQAAAAAAAQEAAAAAAQIAAAAAAQMAAAAAAQQAAAAAAQUAAAAAAQYAAAAAAQcAAAAAAQgAAAAAAQkAAAAAAQoAAAAAAQsAAAAAAgAAAAAAAgEAAAAAAgIAAAAAAgMAAAAAAgQAAAAAAgUAAAAAAgYAAAAAAgcAAAAAAggAAAAAAgkAAAAAAgoAAAAAAgsAAAAAAwAAAAAAAwEAAAAAAwIAAAAAAwMAAAAAAwQAAAAAAwUAAAAAAwYAAAAAAwcAAAAAAwgAAAAAAwkAAAAAAwoAAAAAAwsAAAAABAAAAAAABAEAAAAABAIAAAAABAMAAAAABAQAAAAABAUAAAAABAYAAAAABAcAAAAABAgAAAAABAkAAAAABAoAAAAABAsAAAAABQAAAAAABQEAAAAABQIAAAAABQMAAAAABQQAAAAABQUAAAAABQYAAAAABQcAAAAABQgAAAAABQkAAAAABQoAAAAABQsAAAAABgAAAAAABgEAAAAABgIAAAAABgMAAAAABgQAAAAABgUAAAAABgYAAAAABgcAAAAABggAAAAABgkAAAAABgoAAAAABgsAAAAABwAAAAAABwEAAAAABwIAAAAABwMAAAAABwQAAAAABwUAAAAABwYAAAAABwcAAAAABwgAAAAABwkAAAAABwoAAAAABwsAAAAACAAAAAAACAEAAAAACAIAAAAACAMAAAAACAQAAAAACAUAAAAACAYAAAAACAcAAAAACAgAAAAACAkAAAAACAoAAAAACAsAAAAACQAAAAAACQEAAAAACQIAAAAACQMAAAAACQQAAAAACQUAAAAACQYAAAAACQcAAAAACQgAAAAACQkAAAAACQoAAAAACQsAAAAACgAAAAAACgEAAAAACgIAAAAACgMAAAAACgQAAAAACgUAAAAACgYAAAAACgcAAAAACggAAAAACgkAAAAACgoAAAAACgsAAAAACwAAAAAACwEAAAAACwIAAAAACwMAAAAACwQAAAAACwUAAAAACwYAAAAACwcAAAAACwgAAAAACwkAAAAACwoAAAAACwsAAAAADAAAAAAADAEAAAAADAIAAAAADAMAAAAADAQAAAAADAUAAAAADAYAAAAADAcAAAAADAgAAAAADAkAAAAADAoAAAAADAsAAAAADQAAAAAADQEAAAAADQIAAAAADQMAAAAADQQAAAAADQUAAAAADQYAAAAADQcAAAAADQgAAAAADQkAAAAADQoAAAAADQsAAAAADgAAAAAADgEAAAAADgIAAAAADgMAAAAADgQAAAAADgUAAAAADgYAAAAADgcAAAAADggAAAAADgkAAAAADgoAAAAADgsAAAAADwAAAAAADwEAAAAADwIAAAAADwMAAAAADwQAAAAADwUAAAAADwYAAAAADwcAAAAADwgAAAAADwkAAAAADwoAAAAADwsAAAAAEAAAAAAAEAEAAAAAEAIAAAAAEAMAAAAAEAQAAAAAEAUAAAAAEAYAAAAAEAcAAAAAEAgAAAAAEAkAAAAAEAoAAAAAEAsAAAAAEQAAAAAAEQEAAAAAEQIAAAAAEQMAAAAAEQQAAAAAEQUAAAAAEQYAAAAAEQcAAAAAEQgAAAAAEQkAAAAAEQoAAAAAEQsAAAAAEgAAAAAAEgEAAAAAEgIAAAAAEgMAAAAAEgQAAAAAEgUAAAAAEgYAAAAAEgcAAAAAEggAAAAAEgkAAAAAEgoAAAAAEgsAAAAAEwAAAAAAEwEAAAAAEwIAAAAAEwMAAAAAEwQAAAAAEwUAAAAAEwYAAAAAEwcAAAAAEwgAAAAAEwkAAAAAEwoAAAAAEwsAAAAAFAAAAAAAFAEAAAAAFAIAAAAAFAMAAAAAFAQAAAAAFAUAAAAAFAYAAAAAFAcAAAAAFAgAAAAAFAkAAAAAFAoAAAAAFAsAAAAAFQAAAAAAFQEAAAAAFQIAAAAAFQMAAAAAFQQAAAAAFQUAAAAAFQYAAAAAFQcAAAAAFQgAAAAAFQkAAAAAFQoAAAAAFQsAAAAAFgAAAAAAFgEAAAAAFgIAAAAAFgMAAAAAFgQAAAAAFgUAAAAAFgYAAAAAFgcAAAAAFggAAAAAFgkAAAAAFgoAAAAAFgsAAAAA/////wAAAAAAAAD8CwAAAAAACwEAAAAACwIAAAAACwMAAAAACwQAAAAACwUAAAAACwYAAAAACwcAAAAACwgAAAAACwkAAAAACwoAAAAACwsAAAAADAAAAAAADAEAAAAADAIAAAAADAMAAAAADAQAAAAADAUAAAAADAYAAAAADAcAAAAADAgAAAAADAkAAAAADAoAAAAADAsAAAAADQAAAAAADQEAAAAADQIAAAAADQMAAAAADQQAAAAADQUAAAAADQYAAAAADQcAAAAADQgAAAAADQkAAAAADQoAAAAADQsAAAAADgAAAAAADgEAAAAADgIAAAAADgMAAAAADgQAAAAADgUAAAAADgYAAAAADgcAAAAADggAAAAADgkAAAAADgoAAAAADgsAAAAADwAAAAAADwEAAAAADwIAAAAADwMAAAAADwQAAAAADwUAAAAADwYAAAAADwcAAAAADwgAAAAADwkAAAAADwoAAAAADwsAAAAAEAAAAAAAEAEAAAAAEAIAAAAAEAMAAAAAEAQAAAAAEAUAAAAAEAYAAAAAEAcAAAAAEAgAAAAAEAkAAAAAEAoAAAAAEAsAAAAAEQAAAAAAEQEAAAAAEQIAAAAAEQMAAAAAEQQAAAAAEQUAAAAAEQYAAAAAEQcAAAAAEQgAAAAAEQkAAAAAEQoAAAAAEQsAAAAAEgAAAAAAEgEAAAAAEgIAAAAAEgMAAAAAEgQAAAAAEgUAAAAAEgYAAAAAEgcAAAAAEggAAAAAEgkAAAAAEgoAAAAAEgsAAAAAEwAAAAAAEwEAAAAAEwIAAAAAEwMAAAAAEwQAAAAAEwUAAAAAEwYAAAAAEwcAAAAAEwgAAAAAEwkAAAAAEwoAAAAAEwsAAAAAFAAAAAAAFAEAAAAAFAIAAAAAFAMAAAAAFAQAAAAAFAUAAAAAFAYAAAAAFAcAAAAAFAgAAAAAFAkAAAAAFAoAAAAAFAsAAAAAFQAAAAAAFQEAAAAAFQIAAAAAFQMAAAAAFQQAAAAAFQUAAAAAFQYAAAAAFQcAAAAAFQgAAAAAFQkAAAAAFQoAAAAAFQsAAAAAFgAAAAABFgEAAAACFgIAAAAAFgMAAAAAFgQAAAAAFgUAAAAAFgYAAAAAFgcAAAAAFggAAAAAFgkAAAAAFgoAAAAAFgsAAAAAFwAAAAABFwEAAAACFwIAAAAAFwMAAAAAFwQAAAAAFwUAAAAAFwYAAAAAFwcAAAAAFwgAAAAAFwkAAAAAFwoAAAAAFwsAAAAAGAAAAAABGAEAAAACGAIAAAAAGAMAAAAAGAQAAAAAGAUAAAAAGAYAAAAAGAcAAAAAGAgAAAAAGAkAAAAAGAoAAAAAGAsAAAAAGQAAAAABGQEAAAACGQIAAAAAGQMAAAAAGQQAAAAAGQUAAAAAGQYAAAAAGQcAAAAAGQgAAAAAGQkAAAAAGQoAAAAAGQsAAAAAGgAAAAABGgEAAAACGgIAAAAAGgMAAAAAGgQAAAAAGgUAAAAAGgYAAAAAGgcAAAAAGggAAAAAGgkAAAAAGgoAAAAAGgsAAAAAGwAAAAADGwEAAAAEGwIAAAAAGwMAAAAAGwQAAAAAGwUAAAAAGwYAAAAAGwcAAAAAGwgAAAAAGwkAAAAAGwoAAAAAGwsAAAAAHAAAAAAAHAEAAAAAHAIAAAAAHAMAAAAAHAQAAAAAHAUAAAAAHAYAAAAAHAcAAAAAHAgAAAAAHAkAAAAAHAoAAAAAHAsAAAAAHQAAAAAAHQEAAAAAHQIAAAAAHQMAAAAAHQQAAAAAHQUAAAAAHQYAAAAAHQcAAAAAHQgAAAAAHQkAAAAAHQoAAAAAHQsAAAAAHgAAAAAAHgEAAAAAHgIAAAAAHgMAAAAAHgQAAAAAHgUAAAAAHgYAAAAAHgcAAAAAHggAAAAAHgkAAAAAHgoAAAAAHgsAAAAAHwAAAAAAHwEAAAAAHwIAAAAAHwMAAAAAHwQAAAAAHwUAAAAAHwYAAAAAHwcAAAAAHwgAAAAAHwkAAAAAHwoAAAAAHwsAAAAA//////////8AAADSCxYAAAAACxcAAAAACxgAAAAACxkAAAAACxoAAAAACxsAAAAACxwAAAAACx0AAAAACx4AAAAACx8AAAAADBYAAAAADBcAAAAADBgAAAAADBkAAAAADBoAAAAADBsAAAAADBwAAAAADB0AAAAADB4AAAAADB8AAAAADRYAAAAADRcAAAAADRgAAAAADRkAAAAADRoAAAAADRsAAAAADRwAAAAADR0AAAAADR4AAAAADR8AAAAADhYAAAAADhcAAAAADhgAAAAADhkAAAAADhoAAAAADhsAAAAADhwAAAAADh0AAAAADh4AAAAADh8AAAAADxYAAAAADxcAAAAADxgAAAAADxkAAAAADxoAAAAADxsAAAAADxwAAAAADx0AAAAADx4AAAAADx8AAAAAEBYAAAAAEBcAAAAAEBgAAAAAEBkAAAAAEBoAAAAAEBsAAAAAEBwAAAAAEB0AAAAAEB4AAAAAEB8AAAAAERYAAAAAERcAAAAAERgAAAAAERkAAAAAERoAAAAAERsAAAAAERwAAAAAER0AAAAAER4AAAAAER8AAAAAEhYAAAAAEhcAAAAAEhgAAAAAEhkAAAAAEhoAAAAAEhsAAAAAEhwAAAAAEh0AAAAAEh4AAAAAEh8AAAAAExYAAAAAExcAAAAAExgAAAAAExkAAAAAExoAAAAAExsAAAAAExwAAAAAEx0AAAAAEx4AAAAAEx8AAAAAFBYAAAAAFBcAAAAAFBgAAAAAFBkAAAAAFBoAAAAAFBsAAAAAFBwAAAAAFB0AAAAAFB4AAAAAFB8AAAAAFRYAAAAAFRcAAAAAFRgAAAAAFRkAAAAAFRoAAAAAFRsAAAAAFRwAAAAAFR0AAAAAFR4AAAAAFR8AAAAAFhYAAAAAFhcAAAAAFhgAAAAAFhkAAAAAFhoAAAAAFhsAAAAAFhwAAAAAFh0AAAAAFh4AAAAAFh8AAAAAFxYAAAAAFxcAAAAAFxgAAAAAFxkAAAAAFxoAAAAAFxsAAAAAFxwAAAAAFx0AAAAAFx4AAAAAFx8AAAAAGBYAAAAAGBcAAAAAGBgAAAAAGBkAAAAAGBoAAAAAGBsAAAAAGBwAAAAAGB0AAAAAGB4AAAAAGB8AAAAAGRYAAAAAGRcAAAAAGRgAAAAAGRkAAAAAGRoAAAAAGRsAAAAAGRwAAAAAGR0AAAAAGR4AAAAAGR8AAAAAGhYAAAAAGhcAAAAAGhgAAAAAGhkAAAAAGhoAAAAAGhsAAAAAGhwAAAAAGh0AAAAAGh4AAAAAGh8AAAAAGxYAAAAAGxcAAAAAGxgAAAAAGxkAAAAAGxoAAAAAGxsAAAAAGxwAAAAAGx0AAAAAGx4AAAAAGx8AAAAAHBYAAAAAHBcAAAAAHBgAAAAAHBkAAAAAHBoAAAAAHBsAAAAAHBwAAAAAHB0AAAAAHB4AAAAAHB8AAAAAHRYAAAAAHRcAAAAAHRgAAAAAHRkAAAAAHRoAAAAAHRsAAAAAHRwAAAAAHR0AAAAAHR4AAAAAHR8AAAAAHhYAAAAAHhcAAAAAHhgAAAAAHhkAAAAAHhoAAAAAHhsAAAAAHhwAAAAAHh0AAAAAHh4AAAAAHh8AAAAAHxYAAAAAHxcAAAAAHxgAAAAAHxkAAAAAHxoAAAAAHxsAAAAAHxwAAAAAHx0AAAAAHx4AAAAAHx8AAAAAAAAAAP////8AAADmABYAAAAAABcAAAAAABgAAAAAABkAAAAAABoAAAAAABsAAAAAABwAAAAAAB0AAAAAAB4AAAAAAB8AAAAAARYAAAAAARcAAAAAARgAAAAAARkAAAAAARoAAAAAARsAAAAAARwAAAAAAR0AAAAAAR4AAAAAAR8AAAAAAhYAAAAAAhcAAAAAAhgAAAAAAhkAAAAAAhoAAAAAAhsAAAAAAhwAAAAAAh0AAAAAAh4AAAAAAh8AAAAAAxYAAAAAAxcAAAAAAxgAAAAAAxkAAAAAAxoAAAAAAxsAAAAAAxwAAAAAAx0AAAAAAx4AAAAAAx8AAAAABBYAAAAABBcAAAAABBgAAAAABBkAAAAABBoAAAAABBsAAAAABBwAAAAABB0AAAAABB4AAAAABB8AAAAABRYAAAAABRcAAAAABRgAAAAABRkAAAAABRoAAAAABRsAAAAABRwAAAAABR0AAAAABR4AAAAABR8AAAAABhYAAAAABhcAAAAABhgAAAAABhkAAAAABhoAAAAABhsAAAAABhwAAAAABh0AAAAABh4AAAAABh8AAAAABxYAAAAABxcAAAAABxgAAAAABxkAAAAABxoAAAAABxsAAAAABxwAAAAABx0AAAAABx4AAAAABx8AAAAACBYAAAAACBcAAAAACBgAAAAACBkAAAAACBoAAAAACBsAAAAACBwAAAAACB0AAAAACB4AAAAACB8AAAAACRYAAAAACRcAAAAACRgAAAAACRkAAAAACRoAAAAACRsAAAAACRwAAAAACR0AAAAACR4AAAAACR8AAAAAChYAAAAAChcAAAAAChgAAAAAChkAAAAAChoAAAAAChsAAAAAChwAAAAACh0AAAAACh4AAAAACh8AAAAACxYAAAAACxcAAAAACxgAAAAACxkAAAAACxoAAAAACxsAAAAACxwAAAAACx0AAAAACx4AAAAACx8AAAAADBYAAAAADBcAAAAADBgAAAAADBkAAAAADBoAAAAADBsAAAAADBwAAAAADB0AAAAADB4AAAAADB8AAAAADRYAAAAADRcAAAAADRgAAAAADRkAAAAADRoAAAAADRsAAAAADRwAAAAADR0AAAAADR4AAAAADR8AAAAADhYAAAAADhcAAAAADhgAAAAADhkAAAAADhoAAAAADhsAAAAADhwAAAAADh0AAAAADh4AAAAADh8AAAAADxYAAAAADxcAAAAADxgAAAAADxkAAAAADxoAAAAADxsAAAAADxwAAAAADx0AAAAADx4AAAAADx8AAAAAEBYAAAAAEBcAAAAAEBgAAAAAEBkAAAAAEBoAAAAAEBsAAAAAEBwAAAAAEB0AAAAAEB4AAAAAEB8AAAAAERYAAAAAERcAAAAAERgAAAAAERkAAAAAERoAAAAAERsAAAAAERwAAAAAER0AAAAAER4AAAAAER8AAAAAEhYAAAAAEhcAAAAAEhgAAAAAEhkAAAAAEhoAAAAAEhsAAAAAEhwAAAAAEh0AAAAAEh4AAAAAEh8AAAAAExYAAAAAExcAAAAAExgAAAAAExkAAAAAExoAAAAAExsAAAAAExwAAAAAEx0AAAAAEx4AAAAAEx8AAAAAFBYAAAAAFBcAAAAAFBgAAAAAFBkAAAAAFBoAAAAAFBsAAAAAFBwAAAAAFB0AAAAAFB4AAAAAFB8AAAAAFRYAAAAAFRcAAAAAFRgAAAAAFRkAAAAAFRoAAAAAFRsAAAAAFRwAAAAAFR0AAAAAFR4AAAAAFR8AAAAAFhYAAAAAFhcAAAAAFhgAAAAAFhkAAAAAFhoAAAAAFhsAAAAAFhwAAAAAFh0AAAAAFh4AAAAAFh8AAAAA"
+        }
+      ]
+    },
+    {
+      "id": "5e7bded2",
+      "name": "Ground decoration",
+      "active": true,
+      "order": 0,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.core.Transform",
+          "properties": {
+            "localPosition": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            }
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.rendering.TilemapRenderer",
+          "properties": "P4AAAP////cAAAAFAAdGcmFtZV83ABxzcHJpdGVzL2dyYXNzMV90aWxlc2V0LnBuZyM3AAAACEZyYW1lXzExAB1zcHJpdGVzL2dyYXNzMV90aWxlc2V0LnBuZyMxMQAAAAhGcmFtZV8xNQAdc3ByaXRlcy9ncmFzczFfdGlsZXNldC5wbmcjMTUAAAAHRnJhbWVfMwAcc3ByaXRlcy9ncmFzczFfdGlsZXNldC5wbmcjMwAAAAdGcmFtZV8xABhzcHJpdGVzL3RhbGxfZ3Jhc3MucG5nIzEAAAAAAAQAAAAAAAAAAAAAABMAAwAAAAAABAAAAAABAwAAAAEBBgAAAAIBBwAAAAICAAAAAAACBgAAAAEDAAAAAAEDAQAAAAMDBAAAAAAEAwAAAAAFAAAAAAMFBAAAAAIHAQAAAAEIAgAAAAIJBgAAAAILAQAAAAILBQAAAAIMAgAAAAIAAAAA/////wAAABoAFwAAAAEAGQAAAAEAGwAAAAIAHQAAAAMAHwAAAAABGAAAAAIBHAAAAAICGwAAAAMDFwAAAAMDGQAAAAMDHgAAAAIEGgAAAAIEHgAAAAIFFwAAAAIFHAAAAAEFHwAAAAIGGQAAAAIIHgAAAAIIHwAAAAIJGwAAAAMKHgAAAAMLGQAAAAELHQAAAAIMGgAAAAENHwAAAAIOHgAAAAH/////AAAAAAAAAAsWBgAAAAEYAwAAAAEaAgAAAAAbAwAAAAEbBAAAAAEcBgAAAAIdBAAAAAMdBgAAAAIeAwAAAAIfAQAAAAAfBAAAAAH//////////wAAABwVHAAAAAEWFgAAAAAXGwAAAAQXHAAAAAQXHQAAAAQXHgAAAAQYGwAAAAQYHAAAAAQYHQAAAAQYHgAAAAQZGAAAAAAZGgAAAAIZGwAAAAQZHAAAAAQZHQAAAAQZHgAAAAQaGwAAAAQaHAAAAAQaHQAAAAQaHgAAAAQbGwAAAAIbHQAAAAAcFwAAAAEcGwAAAAAdGQAAAAEdHwAAAAMeFwAAAAIfHwAAAAI="
+        }
+      ]
+    },
+    {
+      "id": "67ecd77d",
+      "name": "Object",
+      "active": true,
+      "order": 0,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.core.Transform",
+          "properties": {
+            "localPosition": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            }
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.rendering.TilemapRenderer",
+          "properties": "P4AAAAAAAAAAAAAjAAhGcmFtZV80NAAec3ByaXRlcy9CdWlsZGluZzZfNjR4OTYucG5nIzQ0AAAACEZyYW1lXzQ1AB5zcHJpdGVzL0J1aWxkaW5nNl82NHg5Ni5wbmcjNDUAAAAIRnJhbWVfNDYAHnNwcml0ZXMvQnVpbGRpbmc2XzY0eDk2LnBuZyM0NgAAAAhGcmFtZV8xNgAcc3ByaXRlcy9PdXRkb29yc19taXNjLnBuZyMxNgAAAAhGcmFtZV80NwAec3ByaXRlcy9CdWlsZGluZzZfNjR4OTYucG5nIzQ3AAAACEZyYW1lXzQwABRzcHJpdGVzL3RyZWVzLnBuZyM0MAAAAAhGcmFtZV8yMAAUc3ByaXRlcy90cmVlcy5wbmcjMjAAAAAIRnJhbWVfNDEAFHNwcml0ZXMvdHJlZXMucG5nIzQxAAAACEZyYW1lXzIxABRzcHJpdGVzL3RyZWVzLnBuZyMyMQAAAAdGcmFtZV83ABxzcHJpdGVzL2ZlbmNlMV90aWxlc2V0LnBuZyM3AAAAB0ZyYW1lXzEAHHNwcml0ZXMvZmVuY2UxX3RpbGVzZXQucG5nIzEAAAAHRnJhbWVfOAAcc3ByaXRlcy9mZW5jZTFfdGlsZXNldC5wbmcjOAAAAAdGcmFtZV81ABxzcHJpdGVzL2ZlbmNlMV90aWxlc2V0LnBuZyM1AAAAB0ZyYW1lXzIAHHNwcml0ZXMvZmVuY2UxX3RpbGVzZXQucG5nIzIAAAAIRnJhbWVfMzYAHnNwcml0ZXMvQnVpbGRpbmc2XzY0eDk2LnBuZyMzNgAAAAhGcmFtZV8yOAAec3ByaXRlcy9CdWlsZGluZzZfNjR4OTYucG5nIzI4AAAACEZyYW1lXzIwAB5zcHJpdGVzL0J1aWxkaW5nNl82NHg5Ni5wbmcjMjAAAAAIRnJhbWVfMTIAHnNwcml0ZXMvQnVpbGRpbmc2XzY0eDk2LnBuZyMxMgAAAAdGcmFtZV80AB1zcHJpdGVzL0J1aWxkaW5nNl82NHg5Ni5wbmcjNAAAAAhGcmFtZV8zNwAec3ByaXRlcy9CdWlsZGluZzZfNjR4OTYucG5nIzM3AAAACEZyYW1lXzI5AB5zcHJpdGVzL0J1aWxkaW5nNl82NHg5Ni5wbmcjMjkAAAAIRnJhbWVfMjEAHnNwcml0ZXMvQnVpbGRpbmc2XzY0eDk2LnBuZyMyMQAAAAhGcmFtZV8xMwAec3ByaXRlcy9CdWlsZGluZzZfNjR4OTYucG5nIzEzAAAAB0ZyYW1lXzUAHXNwcml0ZXMvQnVpbGRpbmc2XzY0eDk2LnBuZyM1AAAACEZyYW1lXzM4AB5zcHJpdGVzL0J1aWxkaW5nNl82NHg5Ni5wbmcjMzgAAAAIRnJhbWVfMzAAHnNwcml0ZXMvQnVpbGRpbmc2XzY0eDk2LnBuZyMzMAAAAAhGcmFtZV8yMgAec3ByaXRlcy9CdWlsZGluZzZfNjR4OTYucG5nIzIyAAAACEZyYW1lXzE0AB5zcHJpdGVzL0J1aWxkaW5nNl82NHg5Ni5wbmcjMTQAAAAHRnJhbWVfNgAdc3ByaXRlcy9CdWlsZGluZzZfNjR4OTYucG5nIzYAAAAIRnJhbWVfMzkAHnNwcml0ZXMvQnVpbGRpbmc2XzY0eDk2LnBuZyMzOQAAAAhGcmFtZV8zMQAec3ByaXRlcy9CdWlsZGluZzZfNjR4OTYucG5nIzMxAAAACEZyYW1lXzIzAB5zcHJpdGVzL0J1aWxkaW5nNl82NHg5Ni5wbmcjMjMAAAAIRnJhbWVfMTUAHnNwcml0ZXMvQnVpbGRpbmc2XzY0eDk2LnBuZyMxNQAAAAdGcmFtZV83AB1zcHJpdGVzL0J1aWxkaW5nNl82NHg5Ni5wbmcjNwAAAAhGcmFtZV84MgAcc3ByaXRlcy9PdXRkb29yc19taXNjLnBuZyM4MgAAAAAABAAAAAD/////AAAAKQAfAAAAAAEfAAAAAQIfAAAAAgMdAAAAAwMfAAAABAccAAAABQcdAAAABggcAAAABwgdAAAACAgeAAAABQgfAAAABgkcAAAABQkdAAAABgkeAAAABwkfAAAACAocAAAABwodAAAACAoeAAAABQofAAAABgscAAAABQsdAAAABgseAAAABwsfAAAACAwcAAAABwwdAAAACAweAAAABQwfAAAABg0cAAAABQ0dAAAABg0eAAAABw0fAAAACA4cAAAABw4dAAAACA4eAAAABQ4fAAAABg8cAAAABQ8dAAAABg8eAAAABw8fAAAACBAcAAAABxAdAAAACP//////////AAAAFBcaAAAACRcfAAAAChgaAAAACRgfAAAAChkaAAAACRkfAAAAChoaAAAACRofAAAAChsaAAAACxsbAAAADBscAAAADBsdAAAADBseAAAADBsfAAAADR0YAAAABR0ZAAAABh0dAAAAAx4YAAAABx4ZAAAACB8cAAAAAwAAAAAAAAAAAAAAWQAAAAAADgABAAAADwACAAAAEAADAAAAEQAEAAAAEgEAAAAAEwEBAAAAFAECAAAAFQEDAAAAFgEEAAAAFwIAAAAAGAIBAAAAGQICAAAAGgIDAAAAGwIEAAAAHAMAAAAAHQMBAAAAHgMCAAAAHwMDAAAAIAMEAAAAIQQBAAAAAwQGAAAABQQHAAAABgUAAAAABQUBAAAABgUGAAAABwUHAAAACAYAAAAABwYBAAAACAYCAAAABQYDAAAABgYGAAAABQYHAAAABgcAAAAABQcBAAAABgcCAAAABwcDAAAACAcEAAAABQcFAAAABgcGAAAABwcHAAAACAgAAAAABwgBAAAACAgCAAAABQgDAAAABggEAAAABwgFAAAACAgGAAAABQgHAAAABgkAAAAABQkBAAAABgkCAAAABwkDAAAACAkEAAAABQkFAAAABgkGAAAABwkHAAAACAoAAAAABwoBAAAACAoCAAAABQoDAAAABgoEAAAABwoFAAAACAoGAAAABQoHAAAABgsAAAAABQsBAAAABgsCAAAABwsDAAAACAsEAAAABQsFAAAABgsGAAAABwsHAAAACAwAAAAABwwBAAAACAwCAAAABQwDAAAABgwEAAAABwwFAAAACAwGAAAABQwHAAAABg0AAAAABQ0BAAAABg0CAAAABw0DAAAACA0GAAAABw0HAAAACA4AAAAABw4BAAAACP////8AAAAAAAAAERYCAAAABRYDAAAABhcCAAAABxcDAAAACBgCAAAABRgDAAAABhkCAAAABxkDAAAACBkEAAAABRkFAAAABhoCAAAABRoDAAAABhoEAAAABxoFAAAACBsCAAAABxsDAAAACBwCAAAAIg=="
+        }
+      ]
+    },
+    {
+      "id": "9863a8f8",
+      "name": "abovePlayer",
+      "active": true,
+      "order": 0,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.core.Transform",
+          "properties": {
+            "localPosition": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            }
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.rendering.TilemapRenderer",
+          "properties": "P4AAAAAAAAoAAAAGAAdGcmFtZV8wABNzcHJpdGVzL3RyZWVzLnBuZyMwAAAAB0ZyYW1lXzEAE3Nwcml0ZXMvdHJlZXMucG5nIzEAAAAIRnJhbWVfNDAAFHNwcml0ZXMvdHJlZXMucG5nIzQwAAAACEZyYW1lXzIwABRzcHJpdGVzL3RyZWVzLnBuZyMyMAAAAAhGcmFtZV80MQAUc3ByaXRlcy90cmVlcy5wbmcjNDEAAAAIRnJhbWVfMjEAFHNwcml0ZXMvdHJlZXMucG5nIzIxAAAAAAAEAAAAAAAAAAAAAAAqBAgAAAAABQIAAAAABQgAAAABBgIAAAABBgQAAAAABggAAAAABwIAAAAABwQAAAABBwYAAAAABwgAAAABCAAAAAAACAIAAAABCAQAAAAACAYAAAABCAgAAAAACQAAAAABCQIAAAAACQQAAAABCQYAAAAACQgAAAABCgAAAAAACgIAAAABCgQAAAAACgYAAAABCggAAAAACwAAAAABCwIAAAAACwQAAAABCwYAAAAACwgAAAABDAAAAAAADAIAAAABDAQAAAAADAYAAAABDAgAAAAADQAAAAABDQIAAAAADQQAAAABDQgAAAABDgAAAAAADgIAAAABDwAAAAABAAAAAP////8AAAAQBBkAAAACBBoAAAADBBsAAAAABRkAAAAEBRoAAAAFBRsAAAABBx4AAAAACB4AAAABCR4AAAAACh4AAAABCx4AAAAADB4AAAABDR4AAAAADh4AAAABDx4AAAAAEB4AAAAB//////////8AAAACHRoAAAAAHhoAAAAB/////wAAAAAAAAAIFgQAAAAAFwQAAAABGAQAAAAAGQQAAAABGQYAAAAAGgQAAAAAGgYAAAABGwQAAAAB"
+        }
+      ]
+    },
+    {
+      "id": "c06d0802",
+      "name": "UI Canvas",
+      "active": true,
+      "order": 0,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.ui.UITransform",
+          "properties": {
+            "localPosition": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            },
+            "anchor": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "pivot": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "width": 640.0,
+            "height": 480.0,
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
+            "matchParentRotation": false,
+            "matchParentScale": false
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.ui.UICanvas",
+          "properties": {
+            "raycastTarget": true,
+            "renderMode": "SCREEN_SPACE_OVERLAY",
+            "sortOrder": 0,
+            "planeDistance": 100.0
+          }
+        }
+      ]
+    },
+    {
+      "id": "0747b0e5",
+      "name": "Image",
+      "active": true,
+      "parentId": "c06d0802",
+      "order": 0,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.ui.UITransform",
+          "properties": {
+            "componentKey": "mainMenuTransform",
+            "localPosition": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            },
+            "anchor": {
+              "x": 1.0,
+              "y": 1.0
+            },
+            "pivot": {
+              "x": 1.0,
+              "y": 1.0
+            },
+            "width": 240.0,
+            "height": 240.0,
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
+            "matchParentRotation": false,
+            "matchParentScale": false
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.ui.UIImage",
+          "properties": {
+            "raycastTarget": true,
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/Battle/dialogueChoiceBg.png",
+            "color": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0,
+              "w": 1.0
+            },
+            "imageType": "SLICED",
+            "fillCenter": true,
+            "fillMethod": "HORIZONTAL",
+            "fillOrigin": "LEFT",
+            "fillAmount": 1.0,
+            "fillClockwise": true,
+            "pixelsPerUnit": 100.0
+          }
+        }
+      ]
+    },
+    {
+      "id": "2e933969",
+      "name": "Player",
+      "active": true,
+      "order": 1,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.core.Transform",
+          "properties": {
+            "localPosition": {
+              "x": 2.4516983,
+              "y": -2.4516983,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            }
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.rendering.SpriteRenderer",
+          "properties": {
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/Male_Spritesheet.png#1",
+            "tintColor": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0,
+              "w": 1.0
+            },
+            "zIndex": 0,
+            "clipBottom": 0.0
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.player.PlayerInput",
+          "properties": {}
+        },
+        {
+          "type": "com.pocket.rpg.components.pokemon.MainMenuController",
+          "properties": {
+            "menuTransform": "mainMenuTransform",
+            "menuTweenDuration": 0.5,
+            "waitDurationBeforeMenu": 1.5
+          }
+        }
+      ]
+    },
+    {
+      "id": "57788a51",
+      "name": "Vertical Layout",
+      "active": true,
+      "parentId": "0747b0e5",
+      "order": 0,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.ui.UITransform",
+          "properties": {
+            "localPosition": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            },
+            "anchor": {
+              "x": 1.0,
+              "y": 0.5
+            },
+            "pivot": {
+              "x": 1.0,
+              "y": 0.5
+            },
+            "width": 100.0,
+            "height": 200.0,
+            "widthMode": "PERCENT",
+            "heightMode": "PERCENT",
+            "widthPercent": 80.0,
+            "heightPercent": 75.0,
+            "matchParentRotation": false,
+            "matchParentScale": false
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.ui.UIVerticalLayoutGroup",
+          "properties": {
+            "paddingLeft": 0.0,
+            "paddingRight": 0.0,
+            "paddingTop": 0.0,
+            "paddingBottom": 0.0,
+            "spacing": 0.0,
+            "childForceExpandWidth": true,
+            "childForceExpandHeight": true,
+            "childAlignment": "LEFT"
+          }
+        }
+      ]
+    },
+    {
+      "id": "d7a5a18d",
+      "name": "Entity_5",
+      "active": true,
+      "parentId": "57788a51",
+      "order": 0,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.ui.UITransform",
+          "properties": {
+            "localPosition": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            },
+            "anchor": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "pivot": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "width": 192.0,
+            "height": 60.0,
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
+            "matchParentRotation": false,
+            "matchParentScale": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "ab52c37d",
+      "name": "Text",
+      "active": true,
+      "parentId": "d7a5a18d",
+      "order": 1,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.ui.UITransform",
+          "properties": {
+            "localPosition": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            },
+            "anchor": {
+              "x": 1.0,
+              "y": 0.0
+            },
+            "pivot": {
+              "x": 1.0,
+              "y": 0.0
+            },
+            "width": 200.0,
+            "height": 30.0,
+            "widthMode": "PERCENT",
+            "heightMode": "PERCENT",
+            "widthPercent": 70.0,
+            "heightPercent": 100.0,
+            "matchParentRotation": false,
+            "matchParentScale": false
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.ui.UIText",
+          "properties": {
+            "raycastTarget": true,
+            "fontPath": "fonts/Pokemon-Red.ttf",
+            "fontSize": 25,
+            "text": "Continue",
+            "color": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0,
+              "w": 1.0
+            },
+            "horizontalAlignment": "LEFT",
+            "verticalAlignment": "MIDDLE",
+            "wordWrap": false,
+            "autoFit": false,
+            "minFontSize": 8,
+            "maxFontSize": 72,
+            "shadow": false,
+            "shadowColor": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0,
+              "w": 0.5
+            },
+            "shadowOffset": {
+              "x": 2.0,
+              "y": 2.0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "07c6320a",
+      "name": "Text_copy",
+      "active": true,
+      "parentId": "d7a5a18d",
+      "order": 0,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.ui.UITransform",
+          "properties": {
+            "localPosition": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            },
+            "anchor": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "pivot": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "width": 200.0,
+            "height": 30.0,
+            "widthMode": "PERCENT",
+            "heightMode": "PERCENT",
+            "widthPercent": 30.0,
+            "heightPercent": 100.0,
+            "matchParentRotation": false,
+            "matchParentScale": false
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.ui.UIText",
+          "properties": {
+            "raycastTarget": true,
+            "fontPath": "fonts/Pokemon-Red.ttf",
+            "fontSize": 25,
+            "text": "<",
+            "color": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0,
+              "w": 1.0
+            },
+            "horizontalAlignment": "CENTER",
+            "verticalAlignment": "MIDDLE",
+            "wordWrap": false,
+            "autoFit": false,
+            "minFontSize": 8,
+            "maxFontSize": 72,
+            "shadow": false,
+            "shadowColor": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0,
+              "w": 0.5
+            },
+            "shadowOffset": {
+              "x": 2.0,
+              "y": 2.0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "040d675f",
+      "name": "Entity_5_copy",
+      "active": true,
+      "parentId": "57788a51",
+      "order": 1,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.ui.UITransform",
+          "properties": {
+            "localPosition": {
+              "x": 0.0,
+              "y": 60.0,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            },
+            "anchor": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "pivot": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "width": 192.0,
+            "height": 60.0,
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
+            "matchParentRotation": false,
+            "matchParentScale": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "615c0706",
+      "name": "Text",
+      "active": true,
+      "parentId": "040d675f",
+      "order": 1,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.ui.UITransform",
+          "properties": {
+            "localPosition": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            },
+            "anchor": {
+              "x": 1.0,
+              "y": 0.0
+            },
+            "pivot": {
+              "x": 1.0,
+              "y": 0.0
+            },
+            "width": 200.0,
+            "height": 30.0,
+            "widthMode": "PERCENT",
+            "heightMode": "PERCENT",
+            "widthPercent": 70.0,
+            "heightPercent": 100.0,
+            "matchParentRotation": false,
+            "matchParentScale": false
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.ui.UIText",
+          "properties": {
+            "raycastTarget": true,
+            "fontPath": "fonts/Pokemon-Red.ttf",
+            "fontSize": 25,
+            "text": "New game",
+            "color": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0,
+              "w": 1.0
+            },
+            "horizontalAlignment": "LEFT",
+            "verticalAlignment": "MIDDLE",
+            "wordWrap": false,
+            "autoFit": false,
+            "minFontSize": 8,
+            "maxFontSize": 72,
+            "shadow": false,
+            "shadowColor": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0,
+              "w": 0.5
+            },
+            "shadowOffset": {
+              "x": 2.0,
+              "y": 2.0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "3e4f7627",
+      "name": "Text_copy",
+      "active": true,
+      "parentId": "040d675f",
+      "order": 0,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.ui.UITransform",
+          "properties": {
+            "localPosition": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            },
+            "anchor": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "pivot": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "width": 200.0,
+            "height": 30.0,
+            "widthMode": "PERCENT",
+            "heightMode": "PERCENT",
+            "widthPercent": 30.0,
+            "heightPercent": 100.0,
+            "matchParentRotation": false,
+            "matchParentScale": false
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.ui.UIText",
+          "properties": {
+            "raycastTarget": true,
+            "fontPath": "fonts/Pokemon-Red.ttf",
+            "fontSize": 25,
+            "text": "<",
+            "color": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0,
+              "w": 1.0
+            },
+            "horizontalAlignment": "CENTER",
+            "verticalAlignment": "MIDDLE",
+            "wordWrap": false,
+            "autoFit": false,
+            "minFontSize": 8,
+            "maxFontSize": 72,
+            "shadow": false,
+            "shadowColor": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0,
+              "w": 0.5
+            },
+            "shadowOffset": {
+              "x": 2.0,
+              "y": 2.0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "f5dfadf1",
+      "name": "Entity_5_copy_copy",
+      "active": true,
+      "parentId": "57788a51",
+      "order": 2,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.ui.UITransform",
+          "properties": {
+            "localPosition": {
+              "x": 0.0,
+              "y": 120.0,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            },
+            "anchor": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "pivot": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "width": 192.0,
+            "height": 60.0,
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
+            "matchParentRotation": false,
+            "matchParentScale": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "f61d9d43",
+      "name": "Text",
+      "active": true,
+      "parentId": "f5dfadf1",
+      "order": 1,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.ui.UITransform",
+          "properties": {
+            "localPosition": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            },
+            "anchor": {
+              "x": 1.0,
+              "y": 0.0
+            },
+            "pivot": {
+              "x": 1.0,
+              "y": 0.0
+            },
+            "width": 200.0,
+            "height": 30.0,
+            "widthMode": "PERCENT",
+            "heightMode": "PERCENT",
+            "widthPercent": 70.0,
+            "heightPercent": 100.0,
+            "matchParentRotation": false,
+            "matchParentScale": false
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.ui.UIText",
+          "properties": {
+            "raycastTarget": true,
+            "fontPath": "fonts/Pokemon-Red.ttf",
+            "fontSize": 25,
+            "text": "Exit",
+            "color": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0,
+              "w": 1.0
+            },
+            "horizontalAlignment": "LEFT",
+            "verticalAlignment": "MIDDLE",
+            "wordWrap": false,
+            "autoFit": false,
+            "minFontSize": 8,
+            "maxFontSize": 72,
+            "shadow": false,
+            "shadowColor": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0,
+              "w": 0.5
+            },
+            "shadowOffset": {
+              "x": 2.0,
+              "y": 2.0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "793e5628",
+      "name": "Text_copy",
+      "active": true,
+      "parentId": "f5dfadf1",
+      "order": 0,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.ui.UITransform",
+          "properties": {
+            "localPosition": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            },
+            "anchor": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "pivot": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "width": 200.0,
+            "height": 30.0,
+            "widthMode": "PERCENT",
+            "heightMode": "PERCENT",
+            "widthPercent": 30.0,
+            "heightPercent": 100.0,
+            "matchParentRotation": false,
+            "matchParentScale": false
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.ui.UIText",
+          "properties": {
+            "raycastTarget": true,
+            "fontPath": "fonts/Pokemon-Red.ttf",
+            "fontSize": 25,
+            "text": "<",
+            "color": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0,
+              "w": 1.0
+            },
+            "horizontalAlignment": "CENTER",
+            "verticalAlignment": "MIDDLE",
+            "wordWrap": false,
+            "autoFit": false,
+            "minFontSize": 8,
+            "maxFontSize": 72,
+            "shadow": false,
+            "shadowColor": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0,
+              "w": 0.5
+            },
+            "shadowOffset": {
+              "x": 2.0,
+              "y": 2.0
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "camera": {
+    "position": [
+      3.0,
+      -2.0,
+      0.0
+    ],
+    "orthographicSize": 0.0,
+    "initialBoundsId": "",
+    "useBounds": false,
+    "bounds": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  "collisionData": "AAAAAA=="
+}

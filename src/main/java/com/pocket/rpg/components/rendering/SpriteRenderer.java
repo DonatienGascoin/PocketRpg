@@ -52,6 +52,18 @@ public class SpriteRenderer extends Component implements Renderable {
     @Setter
     private int zIndex = 0;
 
+    /**
+     * Number of world units to clip from the bottom of the sprite.
+     * Used by GrassClip to hide the lower portion of a character
+     * when standing in tall grass (Pokémon-style effect).
+     * <p>
+     * The clip adjusts both the source UVs and the pivot so the
+     * top of the sprite stays pinned in place.
+     */
+    @Getter
+    @Setter
+    private float clipBottom = 0f;
+
     public SpriteRenderer() {
 
     }
@@ -201,9 +213,9 @@ public class SpriteRenderer extends Component implements Renderable {
 
     @Override
     public String toString() {
-        return String.format("SpriteRenderer[sprite=%s, pivot=(%.2f,%.2f), zIndex=%d]",
-                sprite != null ? sprite.getName() : "null",
-                getEffectiveOriginX(), getEffectiveOriginY(),
-                zIndex);
+        return String.format("SpriteRenderer[sprite=%s, pivot=(%.2f,%.2f), zIndex=%d, clipBottom=%.2f]",
+            sprite != null ? sprite.getName() : "null",
+            getEffectiveOriginX(), getEffectiveOriginY(),
+            zIndex, clipBottom);
     }
 }

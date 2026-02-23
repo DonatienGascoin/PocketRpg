@@ -1,0 +1,22 @@
+{
+  "name": "player_move_left2",
+  "looping": true,
+  "frames": [
+    {
+      "sprite": "sprites/Male_Spritesheet.png#6",
+      "duration": 0.2
+    },
+    {
+      "sprite": "sprites/Male_Spritesheet.png#7",
+      "duration": 0.2
+    },
+    {
+      "sprite": "sprites/Male_Spritesheet.png#8",
+      "duration": 0.2
+    },
+    {
+      "sprite": "sprites/Male_Spritesheet.png#7",
+      "duration": 0.2
+    }
+  ]
+}

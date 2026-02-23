@@ -411,24 +411,41 @@ public class SpriteBatch {
 
         float width = sprite.getWorldWidth() * scale.x;
         float height = sprite.getWorldHeight() * scale.y;
+        float clipBottom = sr.getClipBottom();
+
+        float u0 = sprite.getU0();
+        float v0 = sprite.getV0();
+        float u1 = sprite.getU1();
+        float v1 = sprite.getV1();
+        float originX = sr.getEffectiveOriginX();
+        float originY = sr.getEffectiveOriginY();
+
+        if (clipBottom > 0f) {
+            float clipRatio = Math.min(clipBottom / height, 1f);
+            v0 = v0 + (v1 - v0) * clipRatio;
+            float clippedHeight = height * (1f - clipRatio);
+            float originalTop = (1f - originY) * height;
+            originY = 1f - (originalTop / clippedHeight);
+            height = clippedHeight;
+        }
 
         // Pre-multiply tints
         Vector4f tint = sub.tintColor();
         Vector4f spriteTint = sr.getTintColor();
 
         return new RenderableQuad(
-                sprite.getTexture().getTextureId(),
-                pos.x, pos.y,
-                width, height,
-                transform.getRotation().z,
-                sr.getEffectiveOriginX(), sr.getEffectiveOriginY(),
-                sprite.getU0(), sprite.getV0(), sprite.getU1(), sprite.getV1(),
-                sr.getZIndex(),
-                pos.y,
-                spriteTint.x * tint.x,
-                spriteTint.y * tint.y,
-                spriteTint.z * tint.z,
-                spriteTint.w * tint.w
+            sprite.getTexture().getTextureId(),
+            pos.x, pos.y,
+            width, height,
+            transform.getRotation().z,
+            originX, originY,
+            u0, v0, u1, v1,
+            sr.getZIndex(),
+            pos.y,
+            spriteTint.x * tint.x,
+            spriteTint.y * tint.y,
+            spriteTint.z * tint.z,
+            spriteTint.w * tint.w
         );
     }
 

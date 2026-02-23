@@ -52,6 +52,7 @@ public class CollisionBehaviorRegistry {
         register(new IceBehavior());
         register(new SandBehavior());
         register(new TallGrassBehavior());
+        register(new CaveBehavior());
 
         // NONE, WARP, DOOR, SCRIPT_TRIGGER use default behavior (allow movement)
     }

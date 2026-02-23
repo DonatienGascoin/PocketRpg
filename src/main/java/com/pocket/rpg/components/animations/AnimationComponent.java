@@ -62,6 +62,8 @@ public class AnimationComponent extends Component {
     @ComponentReference(source = Source.SELF)
     private SpriteRenderer spriteRenderer;
 
+    private transient Sprite originalSprite; // To restore when animation stops
+
     // ========================================================================
     // STATE ENUM (for API compatibility)
     // ========================================================================
@@ -90,6 +92,7 @@ public class AnimationComponent extends Component {
 
     @Override
     protected void onStart() {
+        originalSprite = spriteRenderer != null ? spriteRenderer.getSprite() : null;
         // Sync animation to player
         if (animation != null) {
             player.setAnimationWithoutPlaying(animation);
@@ -177,10 +180,7 @@ public class AnimationComponent extends Component {
         player.stop();
 
         if (spriteRenderer != null) {
-            Sprite sprite = player.getCurrentSprite();
-            if (sprite != null) {
-                spriteRenderer.setSprite(sprite);
-            }
+            spriteRenderer.setSprite(originalSprite);
         }
     }
 

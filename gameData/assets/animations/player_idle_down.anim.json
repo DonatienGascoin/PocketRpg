@@ -3,7 +3,7 @@
   "looping": true,
   "frames": [
     {
-      "sprite": "spritesheets/player.spritesheet#0",
+      "sprite": "sprites/characters/Char1_32x32.png#0",
       "duration": 1.0
     }
   ]

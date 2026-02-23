@@ -29,7 +29,7 @@
   "maxZoom": 10.0,
   "cameraPanSpeed": 10.0,
   "zoomSpeed": 0.1,
-  "trackpadPanMode": true,
+  "trackpadPanMode": false,
   "scenesDirectory": "gameData/scenes",
   "editorAssetsDirectory": "editor/assets",
   "gameAssetsDirectory": "gameData/assets",
@@ -38,8 +38,9 @@
   "showTileCoordinates": true,
   "defaultUiFont": "gameData/assets/fonts/zelda.ttf",
   "recentScenes": [
-    "DemoScene.scene",
+    "MainMenu.scene",
     "Battle.scene",
+    "DemoScene.scene",
     "Test.scene"
   ],
   "panelVisibility": {

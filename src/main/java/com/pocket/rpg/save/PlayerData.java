@@ -4,6 +4,7 @@ import com.pocket.rpg.collision.Direction;
 import com.pocket.rpg.serialization.Serializer;
 
 import com.pocket.rpg.items.InventoryData;
+import com.pocket.rpg.pokemon.PokemonInstanceData;
 
 import java.util.List;
 
@@ -58,9 +59,13 @@ public class PlayerData {
     // Written by PlayerInventoryComponent via write-through
     public InventoryData inventory;
 
-    // --- Fields added by other plans when their types exist ---
-    // team: List<PokemonInstanceData>           — added by pokemon-ecs
-    // boxes: List<List<PokemonInstanceData>>    — added by pokemon-ecs
+    // --- Party (pokemon-ecs) ---
+    // Written by PlayerPartyComponent via write-through
+    public List<PokemonInstanceData> team;
+
+    // --- PC Storage (pokemon-ecs) ---
+    // Written by PokemonStorageComponent via write-through
+    public List<List<PokemonInstanceData>> boxes;
 
     // --- Persistence ---
 

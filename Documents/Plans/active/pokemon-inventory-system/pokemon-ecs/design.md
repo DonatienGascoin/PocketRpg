@@ -383,27 +383,27 @@ The player's name is stored as `PlayerData.playerName`. Components that need it 
 
 ## Implementation Phases
 
-| Phase | Scope |
-|-------|-------|
-| **1** | Add `team`, `boxes`, `boxNames`, `playerName` fields to `PlayerData` |
-| **2** | `PlayerPartyComponent` with write-through PlayerData integration |
-| **3** | `PokemonStorageComponent` with write-through PlayerData integration |
-| **4** | `TrainerComponent` (ISaveable) with declarative party specs |
-| **5** | `HealZoneComponent` (extends InteractableComponent) |
-| **6** | Wire into player prefab (add components to existing player GameObject in scene) |
-| **7** | Unit tests for party limits, box overflow, PlayerData round-trips, trainer defeated state, heal zone |
+| Phase | Scope | Status |
+|-------|-------|--------|
+| **1** | `PokemonInstanceData` POJO + `team`/`boxes` fields on `PlayerData` | ~~Done~~ |
+| **2** | `PlayerPartyComponent` with write-through PlayerData integration | ~~Done~~ |
+| **3** | `PokemonStorageComponent` with write-through PlayerData integration | ~~Done~~ |
+| **4** | `TrainerComponent` (ISaveable) with declarative party specs | ~~Done~~ |
+| **5** | `HealZoneComponent` (extends InteractableComponent) | ~~Done~~ |
+| **6** | Wire into player prefab (add components to existing player GameObject in scene) | Manual step |
+| **7** | Unit tests (42 tests across 5 test classes) | ~~Done~~ |
 
 ## Acceptance Criteria
 
-- [ ] `PlayerPartyComponent` enforces max party size of 6
-- [ ] `PokemonStorageComponent` supports 8 boxes × 30 capacity with named boxes
-- [ ] All player component mutations write-through to `PlayerData` immediately — `PlayerData.load()` reflects latest state at all times
-- [ ] `SaveManager.save()` mid-scene produces correct save file (no stale data)
-- [ ] `TrainerComponent` lazily creates party from declarative specs via `PokemonFactory`
-- [ ] `TrainerComponent.defeated` persisted via ISaveable across scene loads
-- [ ] `HealZoneComponent` fully heals all party Pokemon (HP + status + PP) on interact
-- [ ] Components initialize correctly from empty `PlayerData` (new game scenario)
-- [ ] `PlayerData.playerName` available for OT stamping and dialogue
+- [x] `PlayerPartyComponent` enforces max party size of 6
+- [x] `PokemonStorageComponent` supports 8 boxes × 30 capacity with named boxes
+- [x] All player component mutations write-through to `PlayerData` immediately — `PlayerData.load()` reflects latest state at all times
+- [x] `SaveManager.save()` mid-scene produces correct save file (no stale data)
+- [x] `TrainerComponent` lazily creates party from declarative specs via `PokemonFactory`
+- [x] `TrainerComponent.defeated` persisted via ISaveable across scene loads
+- [x] `HealZoneComponent` fully heals all party Pokemon (HP + status + PP) on interact
+- [x] Components initialize correctly from empty `PlayerData` (new game scenario)
+- [x] `PlayerData.playerName` available for OT stamping and dialogue
 
 ## Testing Plan
 

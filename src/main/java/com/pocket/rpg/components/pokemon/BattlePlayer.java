@@ -6,6 +6,8 @@ import com.pocket.rpg.input.Input;
 import com.pocket.rpg.input.InputAction;
 import com.pocket.rpg.logging.Log;
 import com.pocket.rpg.logging.Logger;
+import com.pocket.rpg.pokemon.PokemonInstance;
+import com.pocket.rpg.pokemon.PokemonInstanceData;
 import com.pocket.rpg.save.PlayerData;
 import com.pocket.rpg.scenes.transitions.SceneTransition;
 
@@ -29,7 +31,23 @@ public class BattlePlayer extends Component {
     @Override
     protected void onStart() {
         PlayerData data = PlayerData.load();
-        LOG.info("Battle started — return scene: %s", data.lastOverworldScene);
+        LOG.info("=== BATTLE START ===");
+        LOG.info("  Player: %s | Return scene: %s (%d, %d)",
+                data.playerName, data.lastOverworldScene, data.lastGridX, data.lastGridY);
+
+        if (data.team != null && !data.team.isEmpty()) {
+            LOG.info("  Player party (%d):", data.team.size());
+            for (PokemonInstanceData pid : data.team) {
+                LOG.info("    - %s Lv.%d  HP: %d  Status: %s",
+                        pid.species, pid.level, pid.currentHp,
+                        pid.statusCondition != null ? pid.statusCondition : "NONE");
+            }
+        } else {
+            LOG.info("  Player party: (empty)");
+        }
+
+        LOG.info("  Money: %d", data.money);
+        LOG.info("  Press INTERACT to end battle and return to overworld");
     }
 
     @Override

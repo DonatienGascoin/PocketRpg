@@ -49,8 +49,14 @@ public class ItemRegistryLoader extends JsonAssetLoader<ItemRegistry> {
         if (json.has("usableOutside")) b.usableOutside(json.get("usableOutside").getAsBoolean());
         if (json.has("consumable")) b.consumable(json.get("consumable").getAsBoolean());
         if (json.has("stackLimit")) b.stackLimit(json.get("stackLimit").getAsInt());
-        if (json.has("spriteId") && !json.get("spriteId").isJsonNull())
-            b.sprite(SpriteReference.fromPath(json.get("spriteId").getAsString()));
+        if (json.has("spriteId") && !json.get("spriteId").isJsonNull()) {
+            try {
+                b.sprite(SpriteReference.fromPath(json.get("spriteId").getAsString()));
+            } catch (Exception e) {
+                System.err.println("ItemRegistryLoader: Failed to load sprite '"
+                        + json.get("spriteId").getAsString() + "': " + e.getMessage());
+            }
+        }
         if (json.has("effect") && !json.get("effect").isJsonNull())
             b.effect(ItemEffect.valueOf(json.get("effect").getAsString()));
         if (json.has("effectValue")) b.effectValue(json.get("effectValue").getAsInt());

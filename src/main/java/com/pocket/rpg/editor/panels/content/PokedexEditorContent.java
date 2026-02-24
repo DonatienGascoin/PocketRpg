@@ -58,6 +58,12 @@ public class PokedexEditorContent implements AssetEditorContent {
     // Learnset combo buffer
     private final ImInt learnsetMoveBuffer = new ImInt();
 
+    // ID editing (stable key + deferred rename)
+    private final ImString speciesIdBuffer = new ImString(256);
+    private boolean speciesIdActive = false;
+    private final ImString moveIdBuffer = new ImString(256);
+    private boolean moveIdActive = false;
+
     // Drag/edit undo tracking (shared — only one widget active at a time)
     private PokedexSnapshot statDragBeforeSnapshot = null;
     private PokedexSnapshot attrEditBeforeSnapshot = null;
@@ -382,18 +388,25 @@ public class PokedexEditorContent implements AssetEditorContent {
 
             // --- Right: Name, ID, Type ---
             ImGui.tableNextColumn();
-            PrimitiveEditors.drawString("Species ID", "species." + sid + ".speciesId",
-                    sp::getSpeciesId, newId -> {
-                        String trimmed = newId.trim();
-                        if (!trimmed.isEmpty() && !trimmed.equals(sp.getSpeciesId())
-                                && editingPokedex.getSpecies(trimmed) == null) {
-                            captureStructuralUndo("Rename Species", () -> {
-                                editingPokedex.removeSpecies(sp.getSpeciesId());
-                                sp.setSpeciesId(trimmed);
-                                editingPokedex.addSpecies(sp);
-                            });
-                        }
+            // Species ID — stable key, rename only on deactivation
+            if (!speciesIdActive) {
+                speciesIdBuffer.set(sp.getSpeciesId() != null ? sp.getSpeciesId() : "");
+            }
+            FieldEditorUtils.inspectorRow("Species ID", () -> {
+                ImGui.inputText("##speciesId_edit", speciesIdBuffer);
+            });
+            speciesIdActive = ImGui.isItemActive();
+            if (ImGui.isItemDeactivatedAfterEdit()) {
+                String newId = speciesIdBuffer.get().trim();
+                if (!newId.isEmpty() && !newId.equals(sp.getSpeciesId())
+                        && editingPokedex.getSpecies(newId) == null) {
+                    captureStructuralUndo("Rename Species", () -> {
+                        editingPokedex.removeSpecies(sp.getSpeciesId());
+                        sp.setSpeciesId(newId);
+                        editingPokedex.addSpecies(sp);
                     });
+                }
+            }
 
             PrimitiveEditors.drawString("Name", "species." + sid + ".name",
                     sp::getName, val -> captureStructuralUndo("Edit Species Name", () -> sp.setName(val)));
@@ -742,19 +755,25 @@ public class PokedexEditorContent implements AssetEditorContent {
         ImGui.text("Move: " + mid);
         ImGui.separator();
 
-        // Move ID — special handling for rename
-        PrimitiveEditors.drawString("Move ID", "move." + mid + ".moveId",
-                m::getMoveId, newId -> {
-                    String trimmed = newId.trim();
-                    if (!trimmed.isEmpty() && !trimmed.equals(m.getMoveId())
-                            && editingPokedex.getMove(trimmed) == null) {
-                        captureStructuralUndo("Rename Move", () -> {
-                            editingPokedex.removeMove(m.getMoveId());
-                            m.setMoveId(trimmed);
-                            editingPokedex.addMove(m);
-                        });
-                    }
+        // Move ID — stable key, rename only on deactivation
+        if (!moveIdActive) {
+            moveIdBuffer.set(m.getMoveId() != null ? m.getMoveId() : "");
+        }
+        FieldEditorUtils.inspectorRow("Move ID", () -> {
+            ImGui.inputText("##moveId_edit", moveIdBuffer);
+        });
+        moveIdActive = ImGui.isItemActive();
+        if (ImGui.isItemDeactivatedAfterEdit()) {
+            String newId = moveIdBuffer.get().trim();
+            if (!newId.isEmpty() && !newId.equals(m.getMoveId())
+                    && editingPokedex.getMove(newId) == null) {
+                captureStructuralUndo("Rename Move", () -> {
+                    editingPokedex.removeMove(m.getMoveId());
+                    m.setMoveId(newId);
+                    editingPokedex.addMove(m);
                 });
+            }
+        }
 
         if (PrimitiveEditors.drawString("Name", "move." + mid + ".name",
                 m::getName, val -> captureStructuralUndo("Edit Move Name", () -> m.setName(val)))) {

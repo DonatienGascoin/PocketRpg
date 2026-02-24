@@ -26,25 +26,23 @@ Unlike the Pokedex editor, no tab bar is needed — the item registry contains o
 |  +--- Item List --------+  +--- Item Editor ----------------------+   |
 |  |                       |  |                                      |   |
 |  | [Search...         ]  |  |  > Identity                         |   |
-|  | [All Categories   v]  |  |    Item ID    [potion             ] |   |
-|  |                       |  |    Name       [Potion              ] |   |
-|  | > Antidote            |  |    Description[Restores 20 HP.     ] |   |
-|  |   Burn Heal           |  |                                      |   |
-|  |   Great Ball          |  |  > Category & Pricing                |   |
-|  |   Ice Heal            |  |    Category   [MEDICINE           v] |   |
-|  | * Potion              |  |    Price      [  200              ] |   |
-|  |   Poke Ball           |  |    Sell Price [  100              ] |   |
-|  |   Revive              |  |                                      |   |
-|  |   Super Potion        |  |  > Behavior                         |   |
-|  |   TM24                |  |    Battle Use [x]  Outside Use [x]  |   |
-|  |   Thunder Stone       |  |    Consumable [x]  Stack Limit[99] |   |
+|  | [All Categories   v]  |  |  +--------+  Item ID  [potion     ] |   |
+|  |                       |  |  |        |  Name     [Potion      ] |   |
+|  | > Antidote            |  |  | [icon] |  Desc     [Restores 20 ] |   |
+|  |   Burn Heal           |  |  +--------+                          |   |
+|  |   Great Ball          |  |                                      |   |
+|  |   Ice Heal            |  |  > Category & Pricing                |   |
+|  | * Potion              |  |    Category   [MEDICINE           v] |   |
+|  |   Poke Ball           |  |    Price      [  200              ] |   |
+|  |   Revive              |  |    Sell Price [  100              ] |   |
+|  |   Super Potion        |  |                                      |   |
+|  |   TM24                |  |  > Behavior                         |   |
+|  |   Thunder Stone       |  |    Battle Use [x]  Outside Use [x]  |   |
+|  |                       |  |    Consumable [x]  Stack Limit[99] |   |
 |  |                       |  |                                      |   |
 |  |                       |  |  > Effect                            |   |
 |  |                       |  |    Effect     [HEAL_HP            v] |   |
 |  |                       |  |    Value      [   20              ] |   |
-|  |                       |  |                                      |   |
-|  |                       |  |  > Sprite                            |   |
-|  |                       |  |    Sprite    [potion.png#0] [...]   |   |
 |  |                       |  |                                      |   |
 |  +-[+ Add]----[x Delete]-+  +--------------------------------------+   |
 |                                                                        |
@@ -70,10 +68,7 @@ The data model is already editor-ready:
 - `ItemRegistry` already has `addItem()`, `removeItem()`, `copyFrom()`, and `getAll()`
 - `ItemRegistryLoader` already supports `load()`, `save()`, `copyInto()` (hot-reload)
 
-The only changes needed are to the editor infrastructure:
-
-- Add `ITEM_REGISTRY_EDITOR("Item Registry Editor")` to `EditorPanelType`
-- Override `getEditorPanelType()` in `ItemRegistryLoader` to return the new enum value
+No infrastructure changes are needed. The `@EditorContentFor(ItemRegistry.class)` annotation on the content class is the sole routing mechanism — the `AssetEditorContentRegistry` auto-discovers it via Reflections. `ItemRegistryLoader` already defaults to `EditorPanelType.ASSET_EDITOR` which routes to the `AssetEditorPanel` shell (same as `PokedexLoader`).
 
 ---
 
@@ -108,11 +103,11 @@ public class ItemRegistryEditorContent implements AssetEditorContent {
     +render(): void                            // Two-column layout dispatch
     -renderItemList(): void                    // Left column: search, filter, list, buttons
     -renderItemEditor(): void                  // Right column: field editors for selected item
-    -renderIdentitySection(): void             // itemId, name, description
+    -renderIdentitySection(): void             // sprite button (left) + itemId, name, description (right)
+    -renderSpriteButton(): void                // 64px image button with picker, same as PokedexEditorContent
     -renderCategorySection(): void             // category, price, sellPrice
     -renderBehaviorSection(): void             // usableInBattle, usableOutside, consumable, stackLimit
     -renderEffectSection(): void               // effect, effectValue, conditional fields
-    -renderSpriteSection(): void               // sprite (Sprite asset picker)
     +renderPopups(): void                      // Delete confirmation modal
 
     // --- CRUD ---
@@ -168,11 +163,14 @@ Organized into collapsible sections using `ImGui.collapsingHeader()`:
 
 #### Identity Section (MaterialIcons.Badge)
 
-| Field | Widget | Notes |
-|-------|--------|-------|
-| `itemId` | `PrimitiveEditors.drawString()` | Editable — rename updates registry key. Validated: no spaces, no duplicates |
-| `name` | `PrimitiveEditors.drawString()` | Display name |
-| `description` | `PrimitiveEditors.drawString()` | Multiline or single-line |
+Two-column table layout matching `PokedexEditorContent.renderIdentitySection()`:
+
+| Column | Content | Notes |
+|--------|---------|-------|
+| Left (64px fixed) | `renderSpriteButton()` | 64x64 `ImGui.imageButton()` showing item sprite, falls back to `MaterialIcons.Image` placeholder. Click opens `AssetEditor.openPicker(Sprite.class, ...)` with `captureStructuralUndo()` callback. Tooltip shows asset path. |
+| Right (stretch) | `itemId` | `PrimitiveEditors.drawString()` — rename updates registry key. Validated: no empty, no duplicates |
+| | `name` | `PrimitiveEditors.drawString()` — display name |
+| | `description` | `PrimitiveEditors.drawString()` — item description |
 
 #### Category & Pricing Section (MaterialIcons.Category)
 
@@ -214,12 +212,6 @@ The `targetStatus` field uses a custom combo dropdown rather than a raw text inp
 - Options: "Cure All" (null/empty), "BURN", "PARALYZE", "SLEEP", "POISON", "FREEZE"
 - Maps to the `StatusCondition` enum names (or null/empty for "cure all")
 
-#### Sprite Section (MaterialIcons.Image)
-
-| Field | Widget | Notes |
-|-------|--------|-------|
-| `sprite` | `AssetEditor.drawAsset()` | Sprite asset picker — uses getter/setter variant: `AssetEditor.drawAsset("Sprite", key, item::getSprite, val -> captureStructuralUndo(..., () -> item.setSprite(val)), Sprite.class)`. Renders clickable asset name + `[...]` picker button. |
-
 ---
 
 ## Undo/Redo Strategy
@@ -246,12 +238,7 @@ Follows the `PokedexEditorContent` pattern — full-registry snapshots via `Snap
 
 ## Phases
 
-### Phase 1: Infrastructure Wiring
-
-- [ ] Add `ITEM_REGISTRY_EDITOR("Item Registry Editor")` to `EditorPanelType`
-- [ ] Override `getEditorPanelType()` in `ItemRegistryLoader` to return `EditorPanelType.ITEM_REGISTRY_EDITOR`
-
-### Phase 2: Panel Skeleton
+### Phase 1: Panel Skeleton
 
 - [ ] Create `ItemRegistryEditorContent` implementing `AssetEditorContent`
 - [ ] Add `@EditorContentFor(ItemRegistry.class)` annotation
@@ -261,7 +248,7 @@ Follows the `PokedexEditorContent` pattern — full-registry snapshots via `Snap
 - [ ] Stub out `render()` with two-column layout (empty left/right panes)
 - [ ] Verify: double-clicking `.items.json` in Asset Browser opens the editor with the two-column skeleton
 
-### Phase 3: Item List (Left Column)
+### Phase 2: Item List (Left Column)
 
 - [ ] Search box with `ImGui.inputTextWithHint()` — filters by itemId or name (case-insensitive)
 - [ ] Category filter dropdown — "All Categories" + 7 `ItemCategory` values
@@ -274,9 +261,11 @@ Follows the `PokedexEditorContent` pattern — full-registry snapshots via `Snap
 - [ ] Implement `captureStructuralUndo()` helper
 - [ ] Wire add/delete through `captureStructuralUndo()` for undo support
 
-### Phase 4: Item Editor (Right Column)
+### Phase 3: Item Editor (Right Column)
 
-- [ ] Identity section: `itemId`, `name`, `description` — using `PrimitiveEditors.drawString()` with getter/setter lambdas
+- [ ] Identity section with sprite button + fields table layout (matching PokedexEditorContent):
+  - Left cell: 64px sprite image button via `AssetEditor.openPicker(Sprite.class, ...)` + `captureStructuralUndo()`
+  - Right cell: `itemId`, `name`, `description` via `PrimitiveEditors.drawString()` with getter/setter lambdas
 - [ ] `itemId` edit with rename logic: validate no duplicates, update registry key (remove old, add with new key)
 - [ ] Category & Pricing section: `category` enum dropdown, `price`/`sellPrice` int fields
 - [ ] Behavior section: `usableInBattle`, `usableOutside`, `consumable` checkboxes, `stackLimit` int field
@@ -285,11 +274,10 @@ Follows the `PokedexEditorContent` pattern — full-registry snapshots via `Snap
 - [ ] Conditional field: `targetStatus` combo dropdown (visible when `effect == HEAL_STATUS`)
   - Options: "Cure All (any)", "BURN", "PARALYZE", "SLEEP", "POISON", "FREEZE"
   - Maps to null/empty or the StatusCondition enum name string
-- [ ] Sprite section: `sprite` field using `AssetEditor.drawAsset()` with getter/setter variant and `Sprite.class` type
 - [ ] All field edits routed through `captureStructuralUndo()` for undo support
 - [ ] Implement `onAfterUndoRedo()` to re-resolve `selectedItem` from `selectedItemId`
 
-### Phase 5: Polish & Edge Cases
+### Phase 4: Polish & Edge Cases
 
 - [ ] Delete confirmation popup in `renderPopups()` using `ImGui.beginPopupModal()`
 - [ ] Empty state: show help text when no item is selected ("Select an item to edit")
@@ -298,7 +286,7 @@ Follows the `PokedexEditorContent` pattern — full-registry snapshots via `Snap
 - [ ] Validate `itemId` on rename: no empty string, no whitespace, no duplicate IDs
 - [ ] Effect change side-effects: when switching `effect` away from `TEACH_MOVE`, clear `teachesMove`; when switching away from `HEAL_STATUS`, clear `targetStatus`
 
-### Phase 6: Testing
+### Phase 5: Testing
 
 - [ ] Manual test: open `.items.json` from Asset Browser — editor opens with item list
 - [ ] Manual test: add new item — appears in list with default values, auto-selected
@@ -317,9 +305,7 @@ Follows the `PokedexEditorContent` pattern — full-registry snapshots via `Snap
 
 | File | Change | Phase |
 |------|--------|-------|
-| `editor/EditorPanelType.java` | Add `ITEM_REGISTRY_EDITOR` | 1 |
-| `resources/loaders/ItemRegistryLoader.java` | Override `getEditorPanelType()` | 1 |
-| `editor/panels/ItemRegistryEditorContent.java` | **NEW** — Full editor content | 2–5 |
+| `editor/panels/content/ItemRegistryEditorContent.java` | **NEW** — Full editor content | 1–4 |
 
 ---
 
@@ -330,7 +316,7 @@ Follows the `PokedexEditorContent` pattern — full-registry snapshots via `Snap
 - **Getter/setter field editors**: `PrimitiveEditors.drawString()`, `PrimitiveEditors.drawInt()`, `PrimitiveEditors.drawBoolean()`, `EnumEditor.drawEnum()`, `AssetEditor.drawAsset()` — all accept `Supplier`/`Consumer` lambdas for asset editors without reflection
 - **Snapshot undo**: Full registry deep-copy before/after each mutation via `SnapshotCommand.capture()` — same as `PokedexEditorContent`
 - **Custom save**: `hasCustomSave()` = true, `customSave()` calls `ItemRegistryLoader.save()` then `Assets.reload()` for hot-reload
-- **Sprite asset field**: `ItemDefinition.sprite` is a `Sprite` object (not a String path). Use `AssetEditor.drawAsset("Sprite", key, getter, setter, Sprite.class)` which renders a clickable asset name + picker button. The `Sprite` reference is an asset cache object — safe to share across snapshot copies
+- **Sprite image button**: Identity section uses same table layout as `PokedexEditorContent.renderIdentitySection()` — 64px image button on left, fields on right. `AssetEditor.openPicker(Sprite.class, ...)` with `captureStructuralUndo()` callback (not `AssetEditor.drawAsset()`, which pushes its own `SetterUndoCommand` conflicting with snapshot undo)
 - **Conditional visibility**: Check `selectedItem.getEffect()` before rendering effect-specific fields — same ImGui frame, no push/pop asymmetry risk
 - **ID stability**: Track `selectedItemId` (String) separately from `selectedItem` (reference) — re-resolve in `onAfterUndoRedo()` since undo replaces the entire registry contents
 

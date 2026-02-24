@@ -391,5 +391,6 @@ class DeferredStateApplicationTest {
         @Override public com.pocket.rpg.editor.EditorPanelType getEditorPanelType(Class<?> type) { return null; }
         @Override public java.util.Set<com.pocket.rpg.resources.EditorCapability> getEditorCapabilities(Class<?> type) { return java.util.Collections.emptySet(); }
         @Override public String getIconCodepoint(Class<?> type) { return null; }
+        @Override public boolean canSave(Class<?> type) { return false; }
     }
 }

@@ -1,10 +1,10 @@
 package com.pocket.rpg.components.pokemon;
 
-import com.pocket.rpg.collision.Direction;
 import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.core.window.ViewportConfig;
+import com.pocket.rpg.items.*;
 import com.pocket.rpg.save.PlayerData;
 import com.pocket.rpg.save.SaveManager;
 import com.pocket.rpg.scenes.Scene;
@@ -14,28 +14,33 @@ import com.pocket.rpg.serialization.Serializer;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
 
-import java.lang.reflect.Method;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Tests for BattlePlayer component.
- * <p>
- * Tests the endBattle() side-effects on PlayerData. Actual input
- * detection and SceneTransition calls require full engine initialization
- * and are covered by manual testing.
+ * Component-level tests for PlayerInventoryComponent.
+ * Validates write-through persistence and onStart initialization.
  */
-class BattlePlayerTest {
+class PlayerInventoryComponentTest {
 
     @TempDir
     Path tempDir;
 
     private SceneManager sceneManager;
+    private static ItemRegistry testRegistry;
 
     @BeforeAll
     static void initSerializer() {
-        com.pocket.rpg.resources.Assets.setContext(new StubAssetContext());
+        testRegistry = new ItemRegistry();
+        testRegistry.addItem(ItemDefinition.builder("potion", "Potion", ItemCategory.MEDICINE)
+                .price(200).sellPrice(100).usableInBattle(true).usableOutside(true).consumable(true)
+                .effect(ItemEffect.HEAL_HP).effectValue(20).build());
+        testRegistry.addItem(ItemDefinition.builder("pokeball", "Poke Ball", ItemCategory.POKEBALL)
+                .price(200).sellPrice(100).usableInBattle(true).consumable(true)
+                .effect(ItemEffect.CAPTURE).effectValue(1).build());
+
+        com.pocket.rpg.resources.Assets.setContext(new ItemRegistryStubContext(testRegistry));
         Serializer.init(com.pocket.rpg.resources.Assets.getContext());
         ComponentRegistry.initialize();
     }
@@ -53,73 +58,93 @@ class BattlePlayerTest {
         SaveManager.newGame();
     }
 
-    @Test
-    @DisplayName("onStart reads PlayerData without crashing")
-    void onStartReadsBattleData() {
-        // Set up PlayerData as if coming from overworld
-        PlayerData data = PlayerData.load();
-        data.lastOverworldScene = "route_1";
-        data.lastGridX = 5;
-        data.lastGridY = 10;
-        data.lastDirection = Direction.DOWN;
-        data.save();
-
-        // Create battle scene with BattlePlayer
-        TestScene scene = new TestScene("battle");
+    private PlayerInventoryComponent loadSceneWithInventory() {
+        TestScene scene = new TestScene("test");
         scene.setSetupAction(() -> {
-            GameObject go = new GameObject("BattleEntity");
-            go.addComponent(new BattlePlayer());
-            scene.addGameObject(go);
+            GameObject player = new GameObject("Player");
+            player.addComponent(new PlayerInventoryComponent());
+            scene.addGameObject(player);
         });
-
-        // Should not crash
-        assertDoesNotThrow(() -> sceneManager.loadScene(scene));
+        sceneManager.loadScene(scene);
+        return scene.findGameObject("Player").getComponent(PlayerInventoryComponent.class);
     }
 
     @Test
-    @DisplayName("endBattle sets returningFromBattle flag and preserves return scene")
-    void endBattleSetsFlag() throws Exception {
+    @DisplayName("addItem writes through to PlayerData immediately")
+    void writeThroughAddItem() {
+        PlayerInventoryComponent inv = loadSceneWithInventory();
+
+        int added = inv.addItem("potion", 3);
+        assertEquals(3, added);
+
+        // Verify write-through
         PlayerData data = PlayerData.load();
-        data.lastOverworldScene = "route_1";
-        data.lastGridX = 12;
-        data.lastGridY = 8;
-        data.lastDirection = Direction.LEFT;
+        assertNotNull(data.inventory);
+        Inventory restored = Inventory.fromSaveData(data.inventory);
+        assertEquals(3, restored.getCount("potion"));
+    }
+
+    @Test
+    @DisplayName("spendMoney writes through to PlayerData immediately")
+    void writeThroughSpendMoney() {
+        PlayerInventoryComponent inv = loadSceneWithInventory();
+
+        inv.addMoney(500);
+        assertEquals(500, inv.getMoney());
+
+        assertTrue(inv.spendMoney(200));
+        assertEquals(300, inv.getMoney());
+
+        // Verify write-through
+        PlayerData data = PlayerData.load();
+        assertEquals(300, data.money);
+    }
+
+    @Test
+    @DisplayName("spendMoney with insufficient funds returns false, no change")
+    void spendMoneyInsufficient() {
+        PlayerInventoryComponent inv = loadSceneWithInventory();
+
+        inv.addMoney(100);
+        assertFalse(inv.spendMoney(200));
+        assertEquals(100, inv.getMoney());
+
+        // PlayerData should still show 100
+        PlayerData data = PlayerData.load();
+        assertEquals(100, data.money);
+    }
+
+    @Test
+    @DisplayName("onStart populates from existing PlayerData")
+    void onStartPopulated() {
+        // Pre-populate PlayerData with inventory and money
+        PlayerData data = new PlayerData();
+        data.money = 750;
+        Inventory inv = new Inventory();
+        inv.addItem("potion", 5, testRegistry);
+        data.inventory = inv.toSaveData();
         data.save();
 
-        TestScene scene = new TestScene("battle");
-        BattlePlayer battlePlayer = new BattlePlayer();
-        scene.setSetupAction(() -> {
-            GameObject go = new GameObject("BattleEntity");
-            go.addComponent(battlePlayer);
-            scene.addGameObject(go);
-        });
+        // Load scene — PlayerInventoryComponent.onStart() should read from PlayerData
+        PlayerInventoryComponent component = loadSceneWithInventory();
 
-        sceneManager.loadScene(scene);
+        assertEquals(750, component.getMoney());
+        assertEquals(5, component.getItemCount("potion"));
+    }
 
-        // Invoke endBattle via reflection (since it's private and normally triggered by input)
-        // We can't call SceneTransition.loadScene without full engine init, so we test
-        // only the PlayerData side-effects by catching the expected exception
-        Method endBattle = BattlePlayer.class.getDeclaredMethod("endBattle");
-        endBattle.setAccessible(true);
+    @Test
+    @DisplayName("onStart with empty PlayerData yields clean defaults")
+    void onStartEmpty() {
+        // SaveManager.newGame() already clears state
+        PlayerInventoryComponent component = loadSceneWithInventory();
 
-        try {
-            endBattle.invoke(battlePlayer);
-        } catch (Exception e) {
-            // SceneTransition.loadScene will throw IllegalStateException since
-            // TransitionManager is not initialized in tests — that's expected
-        }
-
-        // Verify PlayerData was updated
-        PlayerData updated = PlayerData.load();
-        assertTrue(updated.returningFromBattle);
-        assertEquals("route_1", updated.lastOverworldScene);
-        assertEquals(12, updated.lastGridX);
-        assertEquals(8, updated.lastGridY);
-        assertEquals(Direction.LEFT, updated.lastDirection);
+        assertEquals(0, component.getMoney());
+        assertFalse(component.hasItem("potion"));
+        assertEquals(0, component.getInventory().getAllItems().size());
     }
 
     // ========================================================================
-    // Test Helpers
+    // Test infrastructure
     // ========================================================================
 
     private static class TestScene extends Scene {
@@ -139,11 +164,25 @@ class BattlePlayerTest {
         }
     }
 
-    /** Minimal AssetContext stub for Serializer initialization. */
-    private static class StubAssetContext implements com.pocket.rpg.resources.AssetContext {
+    /**
+     * StubAssetContext that returns a test ItemRegistry for the items path.
+     * All other asset loads return null.
+     */
+    private static class ItemRegistryStubContext implements com.pocket.rpg.resources.AssetContext {
+        private final ItemRegistry registry;
+
+        ItemRegistryStubContext(ItemRegistry registry) {
+            this.registry = registry;
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override public <T> T load(String path, Class<T> type) {
+            if (type == ItemRegistry.class) return (T) registry;
+            return null;
+        }
+
         @Override public <T> T load(String path) { return null; }
         @Override public <T> T load(String path, com.pocket.rpg.resources.LoadOptions loadOptions) { return null; }
-        @Override public <T> T load(String path, Class<T> type) { return null; }
         @Override public <T> T load(String path, com.pocket.rpg.resources.LoadOptions loadOptions, Class<T> type) { return null; }
         @Override public <T> T get(String path) { return null; }
         @Override public <T> java.util.List<T> getAll(Class<T> type) { return java.util.Collections.emptyList(); }

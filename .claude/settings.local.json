@@ -50,7 +50,8 @@
       "Bash(wc:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
-      "Bash(mvn clean compile:*)"
+      "Bash(mvn clean compile:*)",
+      "mcp__trello__get_board_labels"
     ]
   },
   "outputStyle": "default"

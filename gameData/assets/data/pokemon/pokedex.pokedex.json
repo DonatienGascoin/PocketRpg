@@ -108,7 +108,7 @@
       "baseExpYield": 112,
       "catchRate": 190,
       "growthRate": "MEDIUM_FAST",
-      "spriteId": "sprites/pokemon/pikachu",
+      "spriteId": "sprites/UIs/Battle/pikachu.png",
       "evolutionMethod": "ITEM",
       "evolutionLevel": 0,
       "evolutionItem": "thunder_stone"

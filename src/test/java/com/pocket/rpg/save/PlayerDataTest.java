@@ -1,6 +1,7 @@
 package com.pocket.rpg.save;
 
 import com.pocket.rpg.collision.Direction;
+import com.pocket.rpg.items.*;
 import com.pocket.rpg.resources.AssetContext;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.resources.AssetsConfiguration;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -75,6 +77,7 @@ class PlayerDataTest {
         @Override public com.pocket.rpg.editor.EditorPanelType getEditorPanelType(Class<?> type) { return null; }
         @Override public Set<com.pocket.rpg.resources.EditorCapability> getEditorCapabilities(Class<?> type) { return Collections.emptySet(); }
         @Override public String getIconCodepoint(Class<?> type) { return null; }
+        @Override public boolean canSave(Class<?> type) { return false; }
     }
 
     // ========================================================================
@@ -94,6 +97,16 @@ class PlayerDataTest {
         data.money = 3000;
         data.boxNames = List.of("Box 1", "Box 2", "Box 3");
 
+        // Build inventory save data
+        Inventory inv = new Inventory();
+        ItemRegistry registry = new ItemRegistry();
+        registry.addItem(ItemDefinition.builder("potion", "Potion", ItemCategory.MEDICINE)
+                .price(200).sellPrice(100).usableInBattle(true).usableOutside(true).consumable(true)
+                .effect(ItemEffect.HEAL_HP).effectValue(20).build());
+        inv.addItem("potion", 5, registry);
+        inv.registerItem("potion");
+        data.inventory = inv.toSaveData();
+
         data.save();
 
         PlayerData loaded = PlayerData.load();
@@ -106,6 +119,12 @@ class PlayerDataTest {
         assertEquals("Red", loaded.playerName);
         assertEquals(3000, loaded.money);
         assertEquals(List.of("Box 1", "Box 2", "Box 3"), loaded.boxNames);
+
+        // Verify inventory round-trip
+        assertNotNull(loaded.inventory);
+        Inventory restored = Inventory.fromSaveData(loaded.inventory);
+        assertEquals(5, restored.getCount("potion"));
+        assertEquals(List.of("potion"), restored.getRegisteredItems());
     }
 
     // ========================================================================
@@ -124,6 +143,15 @@ class PlayerDataTest {
         data.playerName = "Blue";
         data.money = 500;
         data.boxNames = List.of("My Box");
+
+        // Build inventory with items
+        Inventory inv = new Inventory();
+        ItemRegistry registry = new ItemRegistry();
+        registry.addItem(ItemDefinition.builder("pokeball", "Poke Ball", ItemCategory.POKEBALL)
+                .price(200).sellPrice(100).usableInBattle(true).consumable(true)
+                .effect(ItemEffect.CAPTURE).effectValue(1).build());
+        inv.addItem("pokeball", 10, registry);
+        data.inventory = inv.toSaveData();
 
         data.save();
 
@@ -148,6 +176,11 @@ class PlayerDataTest {
         assertEquals("Blue", loaded.playerName);
         assertEquals(500, loaded.money);
         assertEquals(List.of("My Box"), loaded.boxNames);
+
+        // Verify inventory survives disk round-trip
+        assertNotNull(loaded.inventory);
+        Inventory restored = Inventory.fromSaveData(loaded.inventory);
+        assertEquals(10, restored.getCount("pokeball"));
     }
 
     // ========================================================================
@@ -167,6 +200,7 @@ class PlayerDataTest {
         assertNull(data.playerName);
         assertEquals(0, data.money);
         assertNull(data.boxNames);
+        assertNull(data.inventory);
     }
 
     // ========================================================================
@@ -174,7 +208,7 @@ class PlayerDataTest {
     // ========================================================================
 
     @Test
-    @DisplayName("Gson handles missing fields gracefully (old save file without new fields)")
+    @DisplayName("Gson handles missing fields gracefully (old save file without inventory)")
     void testForwardCompatibility() {
         // Simulate an old save file that only has playerName and money
         String oldJson = "{\"playerName\":\"Old\",\"money\":100}";
@@ -191,6 +225,8 @@ class PlayerDataTest {
         assertNull(loaded.lastDirection);
         assertFalse(loaded.returningFromBattle);
         assertNull(loaded.boxNames);
+        // inventory should be null — PlayerInventoryComponent.onStart() handles this
+        assertNull(loaded.inventory);
     }
 
     // ========================================================================

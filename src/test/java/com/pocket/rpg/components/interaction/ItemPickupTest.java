@@ -1,11 +1,11 @@
-package com.pocket.rpg.components.pokemon;
+package com.pocket.rpg.components.interaction;
 
-import com.pocket.rpg.collision.Direction;
+import com.pocket.rpg.components.pokemon.PlayerInventoryComponent;
 import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.core.window.ViewportConfig;
-import com.pocket.rpg.save.PlayerData;
+import com.pocket.rpg.items.*;
 import com.pocket.rpg.save.SaveManager;
 import com.pocket.rpg.scenes.Scene;
 import com.pocket.rpg.scenes.SceneManager;
@@ -14,28 +14,30 @@ import com.pocket.rpg.serialization.Serializer;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
 
-import java.lang.reflect.Method;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Tests for BattlePlayer component.
- * <p>
- * Tests the endBattle() side-effects on PlayerData. Actual input
- * detection and SceneTransition calls require full engine initialization
- * and are covered by manual testing.
+ * Interaction tests for ItemPickup component.
+ * Validates pickup adds items, destroy/disable behavior, and full-pocket rejection.
  */
-class BattlePlayerTest {
+class ItemPickupTest {
 
     @TempDir
     Path tempDir;
 
     private SceneManager sceneManager;
+    private static ItemRegistry testRegistry;
 
     @BeforeAll
     static void initSerializer() {
-        com.pocket.rpg.resources.Assets.setContext(new StubAssetContext());
+        testRegistry = new ItemRegistry();
+        testRegistry.addItem(ItemDefinition.builder("potion", "Potion", ItemCategory.MEDICINE)
+                .price(200).sellPrice(100).usableInBattle(true).usableOutside(true).consumable(true)
+                .effect(ItemEffect.HEAL_HP).effectValue(20).build());
+
+        com.pocket.rpg.resources.Assets.setContext(new ItemRegistryStubContext(testRegistry));
         Serializer.init(com.pocket.rpg.resources.Assets.getContext());
         ComponentRegistry.initialize();
     }
@@ -53,73 +55,99 @@ class BattlePlayerTest {
         SaveManager.newGame();
     }
 
-    @Test
-    @DisplayName("onStart reads PlayerData without crashing")
-    void onStartReadsBattleData() {
-        // Set up PlayerData as if coming from overworld
-        PlayerData data = PlayerData.load();
-        data.lastOverworldScene = "route_1";
-        data.lastGridX = 5;
-        data.lastGridY = 10;
-        data.lastDirection = Direction.DOWN;
-        data.save();
+    private record SceneFixture(Scene scene, GameObject player, GameObject item) {}
 
-        // Create battle scene with BattlePlayer
-        TestScene scene = new TestScene("battle");
+    private SceneFixture loadScene(String itemId, int quantity, boolean destroyOnPickup) {
+        TestScene scene = new TestScene("test");
         scene.setSetupAction(() -> {
-            GameObject go = new GameObject("BattleEntity");
-            go.addComponent(new BattlePlayer());
-            scene.addGameObject(go);
-        });
+            // Player with inventory
+            GameObject player = new GameObject("Player");
+            player.addComponent(new PlayerInventoryComponent());
+            scene.addGameObject(player);
 
-        // Should not crash
-        assertDoesNotThrow(() -> sceneManager.loadScene(scene));
+            // Item pickup
+            GameObject item = new GameObject("Item");
+            item.addComponent(new TriggerZone());
+            ItemPickup pickup = new ItemPickup();
+            pickup.setItemId(itemId);
+            pickup.setQuantity(quantity);
+            pickup.setDestroyOnPickup(destroyOnPickup);
+            pickup.setDirectionalInteraction(false); // disable direction checks for test
+            item.addComponent(pickup);
+            scene.addGameObject(item);
+        });
+        sceneManager.loadScene(scene);
+        return new SceneFixture(
+                scene,
+                scene.findGameObject("Player"),
+                scene.findGameObject("Item")
+        );
     }
 
     @Test
-    @DisplayName("endBattle sets returningFromBattle flag and preserves return scene")
-    void endBattleSetsFlag() throws Exception {
-        PlayerData data = PlayerData.load();
-        data.lastOverworldScene = "route_1";
-        data.lastGridX = 12;
-        data.lastGridY = 8;
-        data.lastDirection = Direction.LEFT;
-        data.save();
+    @DisplayName("interact adds item to player inventory")
+    void interactAddsItem() {
+        SceneFixture f = loadScene("potion", 3, true);
+        ItemPickup pickup = f.item.getComponent(ItemPickup.class);
+        PlayerInventoryComponent inv = f.player.getComponent(PlayerInventoryComponent.class);
 
-        TestScene scene = new TestScene("battle");
-        BattlePlayer battlePlayer = new BattlePlayer();
-        scene.setSetupAction(() -> {
-            GameObject go = new GameObject("BattleEntity");
-            go.addComponent(battlePlayer);
-            scene.addGameObject(go);
-        });
+        pickup.interact(f.player);
 
-        sceneManager.loadScene(scene);
+        assertEquals(3, inv.getItemCount("potion"));
+    }
 
-        // Invoke endBattle via reflection (since it's private and normally triggered by input)
-        // We can't call SceneTransition.loadScene without full engine init, so we test
-        // only the PlayerData side-effects by catching the expected exception
-        Method endBattle = BattlePlayer.class.getDeclaredMethod("endBattle");
-        endBattle.setAccessible(true);
+    @Test
+    @DisplayName("interact with destroyOnPickup=true removes GameObject from scene")
+    void destroyOnPickupRemoves() {
+        SceneFixture f = loadScene("potion", 1, true);
+        ItemPickup pickup = f.item.getComponent(ItemPickup.class);
 
-        try {
-            endBattle.invoke(battlePlayer);
-        } catch (Exception e) {
-            // SceneTransition.loadScene will throw IllegalStateException since
-            // TransitionManager is not initialized in tests — that's expected
+        pickup.interact(f.player);
+
+        // GameObject should be removed from scene
+        assertNull(f.scene.findGameObject("Item"));
+    }
+
+    @Test
+    @DisplayName("interact with destroyOnPickup=false disables GameObject")
+    void disableOnPickup() {
+        SceneFixture f = loadScene("potion", 1, false);
+        ItemPickup pickup = f.item.getComponent(ItemPickup.class);
+
+        pickup.interact(f.player);
+
+        // GameObject should still exist but be disabled
+        GameObject item = f.scene.findGameObject("Item");
+        assertNotNull(item);
+        assertFalse(item.isEnabled());
+    }
+
+    @Test
+    @DisplayName("interact with full pocket does NOT add item, GameObject stays active")
+    void fullPocketStays() {
+        SceneFixture f = loadScene("potion", 1, true);
+        PlayerInventoryComponent inv = f.player.getComponent(PlayerInventoryComponent.class);
+
+        // Fill the MEDICINE pocket to capacity
+        for (int i = 0; i < Inventory.POCKET_CAPACITY; i++) {
+            testRegistry.addItem(ItemDefinition.builder("fill_" + i, "Fill " + i, ItemCategory.MEDICINE)
+                    .price(100).sellPrice(50).usableInBattle(true).usableOutside(true).consumable(true)
+                    .effect(ItemEffect.HEAL_HP).effectValue(10).build());
+            inv.addItem("fill_" + i, 1);
         }
 
-        // Verify PlayerData was updated
-        PlayerData updated = PlayerData.load();
-        assertTrue(updated.returningFromBattle);
-        assertEquals("route_1", updated.lastOverworldScene);
-        assertEquals(12, updated.lastGridX);
-        assertEquals(8, updated.lastGridY);
-        assertEquals(Direction.LEFT, updated.lastDirection);
+        // Now try to interact — pocket is full, potion is a new item
+        ItemPickup pickup = f.item.getComponent(ItemPickup.class);
+        pickup.interact(f.player);
+
+        // Item should NOT have been added, pickup should still exist
+        assertEquals(0, inv.getItemCount("potion"));
+        assertNotNull(f.scene.findGameObject("Item"));
+        assertTrue(f.item.isEnabled());
     }
 
     // ========================================================================
-    // Test Helpers
+    // Test infrastructure
     // ========================================================================
 
     private static class TestScene extends Scene {
@@ -139,11 +167,24 @@ class BattlePlayerTest {
         }
     }
 
-    /** Minimal AssetContext stub for Serializer initialization. */
-    private static class StubAssetContext implements com.pocket.rpg.resources.AssetContext {
+    /**
+     * StubAssetContext that returns a test ItemRegistry for the items path.
+     */
+    private static class ItemRegistryStubContext implements com.pocket.rpg.resources.AssetContext {
+        private final ItemRegistry registry;
+
+        ItemRegistryStubContext(ItemRegistry registry) {
+            this.registry = registry;
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override public <T> T load(String path, Class<T> type) {
+            if (type == ItemRegistry.class) return (T) registry;
+            return null;
+        }
+
         @Override public <T> T load(String path) { return null; }
         @Override public <T> T load(String path, com.pocket.rpg.resources.LoadOptions loadOptions) { return null; }
-        @Override public <T> T load(String path, Class<T> type) { return null; }
         @Override public <T> T load(String path, com.pocket.rpg.resources.LoadOptions loadOptions, Class<T> type) { return null; }
         @Override public <T> T get(String path) { return null; }
         @Override public <T> java.util.List<T> getAll(Class<T> type) { return java.util.Collections.emptyList(); }

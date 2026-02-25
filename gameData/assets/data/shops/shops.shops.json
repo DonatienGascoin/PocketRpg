@@ -1,0 +1,52 @@
+{
+  "shops": [
+    {
+      "shopId": "pewter_pokemart",
+      "shopName": "Pewter City Pokemart",
+      "items": [
+        {
+          "itemId": "potion",
+          "stock": -1
+        },
+        {
+          "itemId": "super_potion",
+          "stock": -1
+        },
+        {
+          "itemId": "pokeball",
+          "stock": -1
+        },
+        {
+          "itemId": "great_ball",
+          "stock": -1
+        },
+        {
+          "itemId": "repel",
+          "stock": -1
+        }
+      ]
+    },
+    {
+      "shopId": "viridian_pokemart",
+      "shopName": "Viridian City Pokemart",
+      "items": [
+        {
+          "itemId": "potion",
+          "stock": -1
+        },
+        {
+          "itemId": "pokeball",
+          "stock": -1
+        },
+        {
+          "itemId": "antidote",
+          "stock": -1
+        },
+        {
+          "itemId": "repel",
+          "stock": 10
+        }
+      ]
+    }
+  ]
+}

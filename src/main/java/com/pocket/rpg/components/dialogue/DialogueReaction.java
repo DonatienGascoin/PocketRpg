@@ -8,5 +8,8 @@ public enum DialogueReaction {
     ENABLE_GAME_OBJECT,
     DISABLE_GAME_OBJECT,
     DESTROY_GAME_OBJECT,
-    RUN_ANIMATION
+    RUN_ANIMATION,
+    GIVE_ITEM,
+    GIVE_POKEMON,
+    HEAL_PARTY
 }

@@ -1,5 +1,8 @@
 {
   "events": [
-    "HEARD_CAVE_RUMOR"
+    "HEARD_CAVE_RUMOR",
+    "GIVE_STARTER_POKEMON",
+    "GIVE_STARTER_POKEBALLS",
+    "HEAL_PARTY"
   ]
 }

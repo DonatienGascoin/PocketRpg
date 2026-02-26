@@ -70,23 +70,78 @@ Blue defeated!
 Transitioning to Battle scene...
 Then the Battle scene loads, BattlePlayer logs your full party details, and pressing INTERACT returns you to the overworld at your saved position.
 
-4. Nurse NPC — heal zone
+4. Dialogue Rewards — give items, give Pokemon, heal party
 
-Create a new GameObject "Nurse":
+These tests use the DialogueEventListener component with the new GIVE_ITEM, GIVE_POKEMON, and HEAL_PARTY reactions. Each test requires a dialogue that fires a custom event.
 
-┌───────────────────────────────────────────┬────────────────────────┐
-│                 Component                 │         Config         │
-├───────────────────────────────────────────┼────────────────────────┤
-│ Transform                                 │ Place it somewhere     │
-├───────────────────────────────────────────┼────────────────────────┤
-│ SpriteRenderer                            │ Any NPC sprite         │
-├───────────────────────────────────────────┼────────────────────────┤
-│ HealZoneComponent (category: Interaction) │ TriggerZone auto-added │
-└───────────────────────────────────────────┴────────────────────────┘
+4a. Give Items via Dialogue
 
-Result: OK, though it will need to be replaced/refactor once the dialogue reward is done
+Create a new GameObject "ItemReward_Pokeballs":
 
-5. Item Pickup (optional)
+┌─────────────────────────────────────────┬──────────────────────────────────────┐
+│               Component                 │               Config                 │
+├─────────────────────────────────────────┼──────────────────────────────────────┤
+│ DialogueEventListener (category: Dialogue) │ eventName: GIVE_STARTER_POKEBALLS │
+│                                         │ reaction: GIVE_ITEM                  │
+│                                         │ itemId: pokeball                     │
+│                                         │ quantity: 5                          │
+└─────────────────────────────────────────┴──────────────────────────────────────┘
+
+Set up an NPC with a DialogueInteractable whose dialogue has a line with onCompleteEvent = "GIVE_STARTER_POKEBALLS".
+
+Expected: Interact with NPC → dialogue plays → line completes → 5 Poke Balls added to inventory.
+Verify: Check console for no warnings. Check inventory has 5 pokeball entries.
+
+4b. Give Pokemon via Dialogue
+
+Create a new GameObject "PokemonReward_Starter":
+
+┌─────────────────────────────────────────┬──────────────────────────────────────┐
+│               Component                 │               Config                 │
+├─────────────────────────────────────────┼──────────────────────────────────────┤
+│ DialogueEventListener (category: Dialogue) │ eventName: GIVE_STARTER_POKEMON  │
+│                                         │ reaction: GIVE_POKEMON               │
+│                                         │ speciesId: bulbasaur                 │
+│                                         │ level: 5                             │
+└─────────────────────────────────────────┴──────────────────────────────────────┘
+
+Set up an NPC with a DialogueInteractable whose dialogue has a line with onCompleteEvent = "GIVE_STARTER_POKEMON".
+
+Expected: Interact with NPC → dialogue plays → line completes → Bulbasaur Lv.5 added to party.
+Verify: Party inspector shows new Bulbasaur. OT name matches player name.
+
+4c. Give Pokemon with Full Party
+
+Fill the party to 6 members first (use DebugStarterGiver or repeat 4b with different events), then trigger another GIVE_POKEMON event.
+
+Expected: Pokemon goes to PC storage via depositToFirstAvailable().
+Verify: Party stays at 6. PC storage inspector shows the new Pokemon in the first available box.
+
+4d. Replay Guard — No Duplicate Rewards
+
+After completing 4a or 4b, leave the scene and return (or save/reload).
+
+Expected: The event is marked as fired in DialogueEventStore. On scene reload, onStart() calls onDialogueEvent() but the replay guard early-returns without adding duplicate items/Pokemon.
+Verify: Inventory count and party size unchanged after reload.
+
+4e. Heal Party via Dialogue
+
+Create a new GameObject "HealReward":
+
+┌─────────────────────────────────────────┬──────────────────────────────────┐
+│               Component                 │             Config               │
+├─────────────────────────────────────────┼──────────────────────────────────┤
+│ DialogueEventListener (category: Dialogue) │ eventName: HEAL_PARTY         │
+│                                         │ reaction: HEAL_PARTY             │
+└─────────────────────────────────────────┴──────────────────────────────────┘
+
+Set up an NPC (e.g. Nurse) with a DialogueInteractable whose dialogue fires the "HEAL_PARTY" event.
+
+Expected: Interact → dialogue plays → event fires → all party Pokemon fully healed (HP, status, PP).
+Verify: Console shows "Healed N Pokemon in party". Party inspector shows full HP on all members.
+Note: Unlike GIVE_ITEM/GIVE_POKEMON, HEAL_PARTY has no replay guard — healing is idempotent and safe to repeat.
+
+5\. Item Pickup (optional)
 
 Create a new GameObject "Potion Pickup":
 
@@ -104,7 +159,7 @@ Create a new GameObject "Potion Pickup":
 │ ItemPickup (category: Interaction) │ itemId: potion, quantity: 3 │
 └────────────────────────────────────┴─────────────────────────────┘
 
-6. Shopkeeper NPC — buy/sell items
+6\. Shopkeeper NPC — buy/sell items
 
 Create a new GameObject "Shopkeeper":
 
@@ -138,6 +193,9 @@ Suggested Play Order
 3. Walk to Rival → battle triggers, logs both parties, transitions to Battle scene
 4. Press INTERACT in Battle scene → returns to overworld at saved position
 5. Talk to Rival again → nothing happens (defeated, persisted via ISaveable)
-6. Talk to Nurse → heals party
-7. Pick up the potion → adds to inventory
-8. Talk to Shopkeeper → logs shop inventory and player money to console
+6. Talk to Nurse (dialogue reward) → heals party via HEAL_PARTY event
+7. Talk to NPC that gives items (dialogue reward) → Poke Balls added to inventory via GIVE_ITEM event
+8. Talk to NPC that gives Pokemon (dialogue reward) → Bulbasaur added to party via GIVE_POKEMON event
+9. Leave scene and return → verify no duplicate rewards (replay guard)
+10. Pick up the potion → adds to inventory
+11. Talk to Shopkeeper → logs shop inventory and player money to console

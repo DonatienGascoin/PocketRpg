@@ -14,6 +14,7 @@ The player needs core game-data systems to support a classic Pokemon-style RPG. 
 | **Pokemon ECS** | `pokemon-ecs/` | PlayerPartyComponent, PokemonStorageComponent (PlayerData), TrainerComponent (ISaveable) | core-persistence, pokemon-data, item-inventory |
 | **Shop System** | `shop-system/` | ShopInventory, ShopRegistry, ShopComponent, buy/sell logic | item-inventory |
 | **Shop Editor** | `shop-editor/` | ShopRegistryEditorContent — visual editor for `.shops.json` files | shop-system, item-editor |
+| **Trainer Registry** | `trainer-registry/` | TrainerDefinition, TrainerRegistry, `.trainers.json` editor — centralized trainer catalog (like Pokedex for trainers) | pokemon-ecs, pokemon-data |
 | **Dialogue Rewards** | `dialogue-rewards/` | GIVE_ITEM + GIVE_POKEMON reactions on DialogueEventListener | core-persistence, pokemon-data, item-inventory, pokemon-ecs |
 
 ## Dependency Graph

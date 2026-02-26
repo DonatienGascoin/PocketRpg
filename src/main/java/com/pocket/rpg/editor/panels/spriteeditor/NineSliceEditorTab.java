@@ -210,25 +210,25 @@ public class NineSliceEditorTab {
         ImGui.text("9-Slice Borders");
 
         ImGui.setNextItemWidth(80);
-        if (ImGui.inputInt("L##SliceL", sliceLeft)) {
+        if (ImGui.inputInt("L##SliceL", sliceLeft, 0, 0)) {
             if (sliceLeft.get() < 0) sliceLeft.set(0);
             notifySliceChanged();
         }
         ImGui.sameLine();
         ImGui.setNextItemWidth(80);
-        if (ImGui.inputInt("R##SliceR", sliceRight)) {
+        if (ImGui.inputInt("R##SliceR", sliceRight, 0, 0)) {
             if (sliceRight.get() < 0) sliceRight.set(0);
             notifySliceChanged();
         }
 
         ImGui.setNextItemWidth(80);
-        if (ImGui.inputInt("T##SliceT", sliceTop)) {
+        if (ImGui.inputInt("T##SliceT", sliceTop, 0, 0)) {
             if (sliceTop.get() < 0) sliceTop.set(0);
             notifySliceChanged();
         }
         ImGui.sameLine();
         ImGui.setNextItemWidth(80);
-        if (ImGui.inputInt("B##SliceB", sliceBottom)) {
+        if (ImGui.inputInt("B##SliceB", sliceBottom, 0, 0)) {
             if (sliceBottom.get() < 0) sliceBottom.set(0);
             notifySliceChanged();
         }

@@ -102,6 +102,16 @@ public interface AssetEditorContent {
     }
 
     /**
+     * Selects a sub-item within the editor content by ID.
+     * Called after {@link #onAssetLoaded} when the caller wants to navigate
+     * to a specific item (e.g. a trainer ID within a trainer registry).
+     *
+     * @param subItemId The ID of the sub-item to select
+     */
+    default void selectSubItem(String subItemId) {
+    }
+
+    /**
      * Called once when the content is first created. Use for one-time setup.
      */
     default void initialize() {

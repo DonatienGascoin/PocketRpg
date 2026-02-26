@@ -130,13 +130,13 @@ public class SlicingEditorTab {
         // Sprite size
         ImGui.text("Sprite Size:");
         ImGui.setNextItemWidth(80);
-        if (ImGui.inputInt("W##GridW", spriteWidth)) {
+        if (ImGui.inputInt("W##GridW", spriteWidth, 0, 0)) {
             if (spriteWidth.get() < 1) spriteWidth.set(1);
             notifyChange();
         }
         ImGui.sameLine();
         ImGui.setNextItemWidth(80);
-        if (ImGui.inputInt("H##GridH", spriteHeight)) {
+        if (ImGui.inputInt("H##GridH", spriteHeight, 0, 0)) {
             if (spriteHeight.get() < 1) spriteHeight.set(1);
             notifyChange();
         }
@@ -169,13 +169,13 @@ public class SlicingEditorTab {
         // Spacing
         ImGui.text("Spacing:");
         ImGui.setNextItemWidth(80);
-        if (ImGui.inputInt("X##SpacingX", spacingX)) {
+        if (ImGui.inputInt("X##SpacingX", spacingX, 0, 0)) {
             if (spacingX.get() < 0) spacingX.set(0);
             notifyChange();
         }
         ImGui.sameLine();
         ImGui.setNextItemWidth(80);
-        if (ImGui.inputInt("Y##SpacingY", spacingY)) {
+        if (ImGui.inputInt("Y##SpacingY", spacingY, 0, 0)) {
             if (spacingY.get() < 0) spacingY.set(0);
             notifyChange();
         }
@@ -183,13 +183,13 @@ public class SlicingEditorTab {
         // Offset
         ImGui.text("Offset:");
         ImGui.setNextItemWidth(80);
-        if (ImGui.inputInt("X##OffsetX", offsetX)) {
+        if (ImGui.inputInt("X##OffsetX", offsetX, 0, 0)) {
             if (offsetX.get() < 0) offsetX.set(0);
             notifyChange();
         }
         ImGui.sameLine();
         ImGui.setNextItemWidth(80);
-        if (ImGui.inputInt("Y##OffsetY", offsetY)) {
+        if (ImGui.inputInt("Y##OffsetY", offsetY, 0, 0)) {
             if (offsetY.get() < 0) offsetY.set(0);
             notifyChange();
         }

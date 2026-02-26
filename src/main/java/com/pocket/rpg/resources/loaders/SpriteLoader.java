@@ -329,10 +329,23 @@ public class SpriteLoader implements AssetLoader<Sprite> {
             }
             existing.reloadMetadata(meta);
 
-            // 3. Clear grid cache (grid sprites share parent's texture, so they're updated too)
-            SpriteGrid grid = gridCache.remove(existing);
+            // 3. Update grid sprites in-place so existing SpriteRenderer references
+            //    see the new metadata. Only remove+clear when grid settings change.
+            SpriteGrid grid = gridCache.get(existing);
             if (grid != null) {
-                grid.clearCache();
+                if (meta != null && meta.isMultiple() && meta.grid != null) {
+                    boolean gridSettingsChanged = !meta.grid.equals(grid.getGrid());
+                    grid.updateCachedSprites(meta);
+                    if (gridSettingsChanged) {
+                        // Grid dimensions changed — remove and recreate on next access
+                        gridCache.remove(existing);
+                        grid.clearCache();
+                    }
+                } else {
+                    // No longer multiple mode — remove grid
+                    gridCache.remove(existing);
+                    grid.clearCache();
+                }
             }
 
             // 4. Update metadata cache

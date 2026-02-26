@@ -25,8 +25,8 @@ public class PokemonStorageComponent extends Component {
     public static final int BOX_CAPACITY = 30;
     private static final String POKEDEX_PATH = "data/pokemon/pokedex.pokedex.json";
 
-    private transient List<List<PokemonInstance>> boxes;
-    private transient List<String> boxNames;
+    private transient List<List<PokemonInstance>> boxes = initEmptyBoxes();
+    private transient List<String> boxNames = initDefaultBoxNames();
 
     @Override
     protected void onStart() {

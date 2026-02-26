@@ -175,12 +175,12 @@ public class CreateSpritesheetDialog {
 
         boolean changed = false;
 
-        if (ImGui.inputInt("Width##sw", spriteWidth)) {
+        if (ImGui.inputInt("Width##sw", spriteWidth, 0, 0)) {
             if (spriteWidth.get() < 1) spriteWidth.set(1);
             changed = true;
         }
         ImGui.sameLine();
-        if (ImGui.inputInt("Height##sh", spriteHeight)) {
+        if (ImGui.inputInt("Height##sh", spriteHeight, 0, 0)) {
             if (spriteHeight.get() < 1) spriteHeight.set(1);
             changed = true;
         }
@@ -209,24 +209,24 @@ public class CreateSpritesheetDialog {
 
         // Spacing
         ImGui.text("Spacing (between sprites):");
-        if (ImGui.inputInt("X##spacingX", spacingX)) {
+        if (ImGui.inputInt("X##spacingX", spacingX, 0, 0)) {
             if (spacingX.get() < 0) spacingX.set(0);
             changed = true;
         }
         ImGui.sameLine();
-        if (ImGui.inputInt("Y##spacingY", spacingY)) {
+        if (ImGui.inputInt("Y##spacingY", spacingY, 0, 0)) {
             if (spacingY.get() < 0) spacingY.set(0);
             changed = true;
         }
 
         // Offset
         ImGui.text("Offset (from texture edge):");
-        if (ImGui.inputInt("X##offsetX", offsetX)) {
+        if (ImGui.inputInt("X##offsetX", offsetX, 0, 0)) {
             if (offsetX.get() < 0) offsetX.set(0);
             changed = true;
         }
         ImGui.sameLine();
-        if (ImGui.inputInt("Y##offsetY", offsetY)) {
+        if (ImGui.inputInt("Y##offsetY", offsetY, 0, 0)) {
             if (offsetY.get() < 0) offsetY.set(0);
             changed = true;
         }

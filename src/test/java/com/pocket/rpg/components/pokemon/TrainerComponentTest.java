@@ -5,7 +5,6 @@ import com.pocket.rpg.serialization.ComponentRegistry;
 import com.pocket.rpg.serialization.Serializer;
 import org.junit.jupiter.api.*;
 
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -14,59 +13,68 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Tests for TrainerComponent. These test the ISaveable contract and party lazy-creation
- * without needing SaveManager or scene loading — TrainerComponent doesn't use PlayerData.
+ * via a TrainerRegistry stub loaded through the AssetContext.
  */
 class TrainerComponentTest {
 
     private static Pokedex testPokedex;
+    private static TrainerRegistry testRegistry;
 
     @BeforeAll
     static void initSerializer() {
         testPokedex = PlayerPartyComponentTest.createTestPokedex();
-        com.pocket.rpg.resources.Assets.setContext(new PlayerPartyComponentTest.PokedexStubContext(testPokedex));
+        testRegistry = new TrainerRegistry();
+
+        // Create test trainer definitions
+        TrainerDefinition brock = new TrainerDefinition("brock");
+        brock.setTrainerName("Brock");
+        brock.setDefeatMoney(1200);
+        brock.setParty(List.of(
+                new TrainerPokemonSpec("bulbasaur", 12, null),
+                new TrainerPokemonSpec("charmander", 14, null)
+        ));
+        testRegistry.addTrainer(brock);
+
+        TrainerDefinition brockMoves = new TrainerDefinition("brock_moves");
+        brockMoves.setTrainerName("Brock");
+        brockMoves.setDefeatMoney(1200);
+        brockMoves.setParty(List.of(
+                new TrainerPokemonSpec("bulbasaur", 10, List.of("tackle", "growl"))
+        ));
+        testRegistry.addTrainer(brockMoves);
+
+        TrainerDefinition brockAuto = new TrainerDefinition("brock_auto");
+        brockAuto.setTrainerName("Brock");
+        brockAuto.setDefeatMoney(1200);
+        brockAuto.setParty(List.of(
+                new TrainerPokemonSpec("bulbasaur", 10, null)
+        ));
+        testRegistry.addTrainer(brockAuto);
+
+        TrainerDefinition brockEmpty = new TrainerDefinition("brock_empty");
+        brockEmpty.setTrainerName("Brock");
+        brockEmpty.setDefeatMoney(1200);
+        brockEmpty.setParty(new ArrayList<>());
+        testRegistry.addTrainer(brockEmpty);
+
+        TrainerDefinition brockSingle = new TrainerDefinition("brock_single");
+        brockSingle.setTrainerName("Brock");
+        brockSingle.setDefeatMoney(1200);
+        brockSingle.setParty(List.of(
+                new TrainerPokemonSpec("bulbasaur", 12, null)
+        ));
+        testRegistry.addTrainer(brockSingle);
+
+        com.pocket.rpg.resources.Assets.setContext(
+                new PokedexAndRegistryStubContext(testPokedex, testRegistry));
         Serializer.init(com.pocket.rpg.resources.Assets.getContext());
         ComponentRegistry.initialize();
     }
 
-    private TrainerComponent createTrainer(String name, List<TrainerComponent.TrainerPokemonSpec> specs, int money) {
-        try {
-            TrainerComponent trainer = new TrainerComponent();
-            setField(trainer, "trainerName", name);
-            setField(trainer, "partySpecs", new ArrayList<>(specs));
-            setField(trainer, "defeatMoney", money);
-            setField(trainer, "preDialogue", "pre_" + name.toLowerCase());
-            setField(trainer, "postDialogue", "post_" + name.toLowerCase());
-            return trainer;
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to create TrainerComponent for test", e);
-        }
-    }
-
-    private TrainerComponent.TrainerPokemonSpec createSpec(String speciesId, int level) {
-        try {
-            TrainerComponent.TrainerPokemonSpec spec = new TrainerComponent.TrainerPokemonSpec();
-            setField(spec, "speciesId", speciesId);
-            setField(spec, "level", level);
-            return spec;
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to create TrainerPokemonSpec for test", e);
-        }
-    }
-
-    private TrainerComponent.TrainerPokemonSpec createSpecWithMoves(String speciesId, int level, List<String> moves) {
-        try {
-            TrainerComponent.TrainerPokemonSpec spec = createSpec(speciesId, level);
-            setField(spec, "moves", new ArrayList<>(moves));
-            return spec;
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to create TrainerPokemonSpec for test", e);
-        }
-    }
-
-    private static void setField(Object target, String fieldName, Object value) throws Exception {
-        Field field = target.getClass().getDeclaredField(fieldName);
-        field.setAccessible(true);
-        field.set(target, value);
+    private TrainerComponent createTrainer(String trainerId) {
+        TrainerComponent trainer = new TrainerComponent();
+        trainer.setTrainerId(trainerId);
+        return trainer;
     }
 
     // ========================================================================
@@ -74,11 +82,9 @@ class TrainerComponentTest {
     // ========================================================================
 
     @Test
-    @DisplayName("getParty lazily creates PokemonInstance list from partySpecs")
+    @DisplayName("getParty lazily creates PokemonInstance list from definition")
     void getPartyLazyCreation() {
-        TrainerComponent trainer = createTrainer("Brock",
-                List.of(createSpec("bulbasaur", 12), createSpec("charmander", 14)),
-                1200);
+        TrainerComponent trainer = createTrainer("brock");
 
         List<PokemonInstance> party = trainer.getParty();
         assertEquals(2, party.size());
@@ -91,9 +97,7 @@ class TrainerComponentTest {
     @Test
     @DisplayName("getParty second call returns same cached list (no re-creation)")
     void getPartyCached() {
-        TrainerComponent trainer = createTrainer("Brock",
-                List.of(createSpec("bulbasaur", 12)),
-                1200);
+        TrainerComponent trainer = createTrainer("brock_single");
 
         List<PokemonInstance> first = trainer.getParty();
         List<PokemonInstance> second = trainer.getParty();
@@ -103,9 +107,7 @@ class TrainerComponentTest {
     @Test
     @DisplayName("getParty with explicit moves — moves match spec")
     void getPartyWithExplicitMoves() {
-        TrainerComponent trainer = createTrainer("Brock",
-                List.of(createSpecWithMoves("bulbasaur", 10, List.of("tackle", "growl"))),
-                1200);
+        TrainerComponent trainer = createTrainer("brock_moves");
 
         List<PokemonInstance> party = trainer.getParty();
         assertEquals(2, party.getFirst().getMoveCount());
@@ -116,12 +118,45 @@ class TrainerComponentTest {
     @Test
     @DisplayName("getParty with null moves — auto-selected from learnset")
     void getPartyAutoMoves() {
-        TrainerComponent trainer = createTrainer("Brock",
-                List.of(createSpec("bulbasaur", 10)),
-                1200);
+        TrainerComponent trainer = createTrainer("brock_auto");
 
         List<PokemonInstance> party = trainer.getParty();
         assertTrue(party.getFirst().getMoveCount() > 0);
+    }
+
+    // ========================================================================
+    // getDefinition + delegation
+    // ========================================================================
+
+    @Test
+    @DisplayName("getTrainerName delegates to definition")
+    void getTrainerName() {
+        TrainerComponent trainer = createTrainer("brock");
+        assertEquals("Brock", trainer.getTrainerName());
+    }
+
+    @Test
+    @DisplayName("getDefeatMoney delegates to definition")
+    void getDefeatMoney() {
+        TrainerComponent trainer = createTrainer("brock");
+        assertEquals(1200, trainer.getDefeatMoney());
+    }
+
+    @Test
+    @DisplayName("getDialogueVariables includes TRAINER_NAME")
+    void getDialogueVariables() {
+        TrainerComponent trainer = createTrainer("brock");
+        Map<String, String> vars = trainer.getDialogueVariables();
+        assertEquals("Brock", vars.get("TRAINER_NAME"));
+    }
+
+    @Test
+    @DisplayName("missing trainerId returns empty name")
+    void missingTrainerId() {
+        TrainerComponent trainer = createTrainer("nonexistent");
+        assertEquals("", trainer.getTrainerName());
+        assertEquals(0, trainer.getDefeatMoney());
+        assertTrue(trainer.getParty().isEmpty());
     }
 
     // ========================================================================
@@ -131,9 +166,7 @@ class TrainerComponentTest {
     @Test
     @DisplayName("getFirstAlive returns first non-fainted trainer Pokemon")
     void getFirstAlive() {
-        TrainerComponent trainer = createTrainer("Brock",
-                List.of(createSpec("bulbasaur", 12), createSpec("charmander", 14)),
-                1200);
+        TrainerComponent trainer = createTrainer("brock");
 
         assertEquals("bulbasaur", trainer.getFirstAlive().getSpecies());
 
@@ -153,7 +186,7 @@ class TrainerComponentTest {
     @Test
     @DisplayName("markDefeated → isDefeated returns true")
     void markDefeated() {
-        TrainerComponent trainer = createTrainer("Brock", List.of(), 1200);
+        TrainerComponent trainer = createTrainer("brock_empty");
 
         assertFalse(trainer.isDefeated());
         trainer.markDefeated();
@@ -163,7 +196,7 @@ class TrainerComponentTest {
     @Test
     @DisplayName("ISaveable getSaveState returns defeated flag")
     void getSaveState() {
-        TrainerComponent trainer = createTrainer("Brock", List.of(), 1200);
+        TrainerComponent trainer = createTrainer("brock_empty");
 
         Map<String, Object> state = trainer.getSaveState();
         assertEquals(false, state.get("defeated"));
@@ -176,7 +209,7 @@ class TrainerComponentTest {
     @Test
     @DisplayName("ISaveable loadSaveState restores defeated flag")
     void loadSaveState() {
-        TrainerComponent trainer = createTrainer("Brock", List.of(), 1200);
+        TrainerComponent trainer = createTrainer("brock_empty");
 
         trainer.loadSaveState(Map.of("defeated", true));
         assertTrue(trainer.isDefeated());
@@ -188,7 +221,7 @@ class TrainerComponentTest {
     @Test
     @DisplayName("hasSaveableState returns true only when defeated")
     void hasSaveableState() {
-        TrainerComponent trainer = createTrainer("Brock", List.of(), 1200);
+        TrainerComponent trainer = createTrainer("brock_empty");
 
         assertFalse(trainer.hasSaveableState());
         trainer.markDefeated();
@@ -198,7 +231,63 @@ class TrainerComponentTest {
     @Test
     @DisplayName("loadSaveState handles null gracefully")
     void loadSaveStateNull() {
-        TrainerComponent trainer = createTrainer("Brock", List.of(), 1200);
+        TrainerComponent trainer = createTrainer("brock_empty");
         assertDoesNotThrow(() -> trainer.loadSaveState(null));
+    }
+
+    // ========================================================================
+    // Stub AssetContext
+    // ========================================================================
+
+    static class PokedexAndRegistryStubContext implements com.pocket.rpg.resources.AssetContext {
+        private final Pokedex pokedex;
+        private final TrainerRegistry registry;
+
+        PokedexAndRegistryStubContext(Pokedex pokedex, TrainerRegistry registry) {
+            this.pokedex = pokedex;
+            this.registry = registry;
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override public <T> T load(String path, Class<T> type) {
+            if (type == Pokedex.class) return (T) pokedex;
+            if (type == TrainerRegistry.class) return (T) registry;
+            return null;
+        }
+
+        @Override public <T> T load(String path) { return null; }
+        @Override public <T> T load(String path, com.pocket.rpg.resources.LoadOptions loadOptions) { return null; }
+        @Override public <T> T load(String path, com.pocket.rpg.resources.LoadOptions loadOptions, Class<T> type) { return null; }
+        @Override public <T> T get(String path) { return null; }
+        @Override public <T> java.util.List<T> getAll(Class<T> type) { return java.util.Collections.emptyList(); }
+        @Override public boolean isLoaded(String path) { return false; }
+        @Override public java.util.Set<String> getLoadedPaths() { return java.util.Collections.emptySet(); }
+        @Override public String getPathForResource(Object resource) { return null; }
+        @Override public void persist(Object resource) {}
+        @Override public void persist(Object resource, String path) {}
+        @Override public void persist(Object resource, String path, com.pocket.rpg.resources.LoadOptions options) {}
+        @Override public com.pocket.rpg.resources.AssetsConfiguration configure() { return null; }
+        @Override public com.pocket.rpg.resources.CacheStats getStats() { return null; }
+        @Override public java.util.List<String> scanByType(Class<?> type) { return java.util.Collections.emptyList(); }
+        @Override public java.util.List<String> scanByType(Class<?> type, String directory) { return java.util.Collections.emptyList(); }
+        @Override public java.util.List<String> scanAll() { return java.util.Collections.emptyList(); }
+        @Override public java.util.List<String> scanAll(String directory) { return java.util.Collections.emptyList(); }
+        @Override public void setAssetRoot(String assetRoot) {}
+        @Override public String getAssetRoot() { return null; }
+        @Override public com.pocket.rpg.resources.ResourceCache getCache() { return null; }
+        @Override public void setErrorMode(com.pocket.rpg.resources.ErrorMode errorMode) {}
+        @Override public void setStatisticsEnabled(boolean enableStatistics) {}
+        @Override public String getRelativePath(String fullPath) { return null; }
+        @Override public com.pocket.rpg.rendering.resources.Sprite getPreviewSprite(String path, Class<?> type) { return null; }
+        @Override public Class<?> getTypeForPath(String path) { return null; }
+        @Override public void registerResource(Object resource, String path) {}
+        @Override public void unregisterResource(Object resource) {}
+        @Override public boolean isAssetType(Class<?> type) { return false; }
+        @Override public boolean canInstantiate(Class<?> type) { return false; }
+        @Override public com.pocket.rpg.editor.scene.EditorGameObject instantiate(String path, Class<?> type, org.joml.Vector3f position) { return null; }
+        @Override public com.pocket.rpg.editor.EditorPanelType getEditorPanelType(Class<?> type) { return null; }
+        @Override public java.util.Set<com.pocket.rpg.resources.EditorCapability> getEditorCapabilities(Class<?> type) { return java.util.Collections.emptySet(); }
+        @Override public String getIconCodepoint(Class<?> type) { return null; }
+        @Override public boolean canSave(Class<?> type) { return false; }
     }
 }

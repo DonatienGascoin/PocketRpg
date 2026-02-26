@@ -1,0 +1,25 @@
+{
+  "trainers": [
+    {
+      "trainerId": "rival_1",
+      "trainerName": "Rival",
+      "tag": "Rival",
+      "defeatMoney": 500,
+      "preDialogue": "dialogues/rival_fight.dialogue.json",
+      "party": [
+        {
+          "speciesId": "pikachu",
+          "level": 5,
+          "moves": [
+            "growl",
+            "thunder_shock"
+          ]
+        },
+        {
+          "speciesId": "bulbasaur",
+          "level": 5
+        }
+      ]
+    }
+  ]
+}

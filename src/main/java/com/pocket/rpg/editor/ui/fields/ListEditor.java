@@ -174,9 +174,28 @@ public final class ListEditor {
                     }, assetClass);
         }
 
+        // Complex object type — render nested fields in a tree node
+        Object elem = list.get(index);
+        if (elem == null) {
+            ImGui.textDisabled("(null)");
+            return false;
+        }
+        List<FieldMeta> elemFields = AssetFieldCollector.getFields(type);
+        if (!elemFields.isEmpty()) {
+            String elemKey = stateKey;
+            if (ImGui.treeNode(elemKey, elem.getClass().getSimpleName())) {
+                boolean changed = ReflectionAssetEditor.drawObject(elem, elemFields, elemKey);
+                if (changed) {
+                    onChanged.run();
+                }
+                ImGui.treePop();
+                return changed;
+            }
+            return false;
+        }
+
         // Unsupported type
-        Object value = list.get(index);
-        ImGui.textDisabled(value != null ? value.toString() : "(null)");
+        ImGui.textDisabled(elem.toString());
         return false;
     }
 
@@ -222,7 +241,14 @@ public final class ListEditor {
             Object[] constants = type.getEnumConstants();
             return constants.length > 0 ? constants[0] : null;
         }
-        // For asset types and other objects, return null
-        return null;
+        if (Assets.isAssetType(type)) {
+            return null;
+        }
+        // Try reflective instantiation for complex types
+        try {
+            return type.getDeclaredConstructor().newInstance();
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

@@ -40,8 +40,8 @@ public class Texture {
         int[] heightArr = new int[1];
         int[] channelsArr = new int[1];
 
-        // Load image data
-        ByteBuffer imageData = stbi_load(filepath, widthArr, heightArr, channelsArr, 0);
+        // Load image data, forcing RGBA to avoid AMD driver crashes with non-4-byte-aligned rows
+        ByteBuffer imageData = stbi_load(filepath, widthArr, heightArr, channelsArr, 4);
         if (imageData == null) {
             throw new RuntimeException("Failed to load texture: " + filepath +
                     "\nReason: " + stbi_failure_reason());
@@ -49,28 +49,7 @@ public class Texture {
 
         this.width = widthArr[0];
         this.height = heightArr[0];
-        this.channels = channelsArr[0];
-
-        // Determine format based on channels
-        int format;
-        int internalFormat;
-        switch (channels) {
-            case 1:
-                format = GL_RED;
-                internalFormat = GL_RED;
-                break;
-            case 3:
-                format = GL_RGB;
-                internalFormat = GL_RGB;
-                break;
-            case 4:
-                format = GL_RGBA;
-                internalFormat = GL_RGBA;
-                break;
-            default:
-                stbi_image_free(imageData);
-                throw new RuntimeException("Unsupported number of channels: " + channels);
-        }
+        this.channels = 4;
 
         // Create and bind texture
         textureId = glGenTextures();
@@ -82,16 +61,10 @@ public class Texture {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-        // Upload texture data
-        glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0,
-                format, GL_UNSIGNED_BYTE, imageData);
-
-        // For single-channel textures, replicate R into G and B so they
-        // display as grayscale instead of red
-        if (channels == 1) {
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, GL_RED);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_RED);
-        }
+        // Upload texture data (alignment=1 since STB packs rows tightly)
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0,
+                GL_RGBA, GL_UNSIGNED_BYTE, imageData);
 
         // Free image data
         stbi_image_free(imageData);
@@ -192,7 +165,7 @@ public class Texture {
         int[] heightArr = new int[1];
         int[] channelsArr = new int[1];
 
-        ByteBuffer imageData = stbi_load(path, widthArr, heightArr, channelsArr, 0);
+        ByteBuffer imageData = stbi_load(path, widthArr, heightArr, channelsArr, 4);
         if (imageData == null) {
             throw new RuntimeException("Failed to reload texture: " + path +
                     "\nReason: " + stbi_failure_reason());
@@ -200,28 +173,6 @@ public class Texture {
 
         int newWidth = widthArr[0];
         int newHeight = heightArr[0];
-        int newChannels = channelsArr[0];
-
-        // Determine format based on channels
-        int format;
-        int internalFormat;
-        switch (newChannels) {
-            case 1:
-                format = GL_RED;
-                internalFormat = GL_RED;
-                break;
-            case 3:
-                format = GL_RGB;
-                internalFormat = GL_RGB;
-                break;
-            case 4:
-                format = GL_RGBA;
-                internalFormat = GL_RGBA;
-                break;
-            default:
-                stbi_image_free(imageData);
-                throw new RuntimeException("Unsupported number of channels: " + newChannels);
-        }
 
         // 2. Create new GL texture
         int newTextureId = glGenTextures();
@@ -232,13 +183,9 @@ public class Texture {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-        glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, newWidth, newHeight, 0,
-                format, GL_UNSIGNED_BYTE, imageData);
-
-        if (newChannels == 1) {
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, GL_RED);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_RED);
-        }
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, newWidth, newHeight, 0,
+                GL_RGBA, GL_UNSIGNED_BYTE, imageData);
 
         glBindTexture(GL_TEXTURE_2D, 0);
 
@@ -252,7 +199,7 @@ public class Texture {
         this.textureId = newTextureId;
         this.width = newWidth;
         this.height = newHeight;
-        this.channels = newChannels;
+        this.channels = 4;
     }
 
     // Getters

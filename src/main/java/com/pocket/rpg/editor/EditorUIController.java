@@ -230,6 +230,13 @@ public class EditorUIController {
             }
         });
 
+        // Subscribe to generic open asset editor event
+        EditorEventBus.get().subscribe(OpenAssetEditorEvent.class, event -> {
+            if (event.assetPath() != null) {
+                assetEditorPanel.selectAssetByPath(event.assetPath(), event.subItemId());
+            }
+        });
+
         // Subscribe to animator selection events (from Animator Editor)
         EditorEventBus.get().subscribe(AnimatorStateSelectedEvent.class, event -> {
             inspectorPanel.setAnimatorState(event.state(), event.controller(), event.onModified());

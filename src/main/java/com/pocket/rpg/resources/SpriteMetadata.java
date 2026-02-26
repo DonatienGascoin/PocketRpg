@@ -155,6 +155,29 @@ public class SpriteMetadata {
         }
 
         @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof GridSettings other)) return false;
+            return spriteWidth == other.spriteWidth
+                    && spriteHeight == other.spriteHeight
+                    && spacingX == other.spacingX
+                    && spacingY == other.spacingY
+                    && offsetX == other.offsetX
+                    && offsetY == other.offsetY;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = spriteWidth;
+            result = 31 * result + spriteHeight;
+            result = 31 * result + spacingX;
+            result = 31 * result + spacingY;
+            result = 31 * result + offsetX;
+            result = 31 * result + offsetY;
+            return result;
+        }
+
+        @Override
         public String toString() {
             return String.format("GridSettings[%dx%d, spacing=(%d,%d), offset=(%d,%d)]",
                     spriteWidth, spriteHeight, spacingX, spacingY, offsetX, offsetY);

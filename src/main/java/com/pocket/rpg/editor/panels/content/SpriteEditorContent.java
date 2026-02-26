@@ -713,7 +713,7 @@ public class SpriteEditorContent implements AssetEditorContent,
             if (metadata.isMultiple()) {
                 SpriteGrid grid = Assets.getSpriteGrid(sprite);
                 if (grid != null) {
-                    grid.clearCache();
+                    grid.updateCachedSprites(metadata);
                 }
             }
         }

@@ -261,15 +261,17 @@ public class SceneViewport {
     public void renderToolOverlay() {
         if (!renderer.isContentVisible()) return;
         if (isPlayModeActive()) return;
-        if (ImGui.isPopupOpen("", imgui.flag.ImGuiPopupFlags.AnyPopupId)) return;
 
         // Determine which scene to use for gizmos/tools
         EditorScene activeScene = prefabEditActive ? prefabEditScene : scene;
 
-        // Render gizmos for selected entities
+        // Gizmos use window draw list (behind popups) — always safe to render
         if (activeScene != null) {
             gizmoRenderer.render(activeScene, camera, viewportX, viewportY, viewportWidth, viewportHeight);
         }
+
+        // Tool overlays use foreground draw list (above everything) — skip during popups
+        if (ImGui.isPopupOpen("", imgui.flag.ImGuiPopupFlags.AnyPopupId)) return;
 
         // Render tool overlay
         EditorTool activeTool = inputHandler.getToolManager() != null

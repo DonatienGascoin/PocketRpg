@@ -56,7 +56,7 @@ public class DebugStarterGiver extends InteractableComponent {
     public void interact(GameObject player) {
         Pokedex pokedex = Assets.load(POKEDEX_PATH, Pokedex.class);
         if (pokedex == null) {
-            LOG.warn("Pokedex not found at {}", POKEDEX_PATH);
+            LOG.warn("Pokedex not found at %s", POKEDEX_PATH);
             return;
         }
 
@@ -73,10 +73,10 @@ public class DebugStarterGiver extends InteractableComponent {
             String trainerName = PlayerData.load().playerName;
             PokemonInstance starter = PokemonFactory.createStarter(pokedex, speciesId, level, trainerName);
             if (party.addToParty(starter)) {
-                LOG.info("[Debug] Gave {} Lv.{} to player (party size: {})",
+                LOG.info("[Debug] Gave %s Lv.%d to player (party size: %d)",
                         speciesId, level, party.partySize());
             } else {
-                LOG.info("[Debug] Party full! Cannot give {}", speciesId);
+                LOG.info("[Debug] Party full! Cannot give %s", speciesId);
             }
         }
 

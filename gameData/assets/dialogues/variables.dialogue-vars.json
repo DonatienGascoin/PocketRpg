@@ -1,3 +1,5 @@
 {
-  "variables": []
+  "variables": [
+    {"name": "TRAINER_NAME", "type": "STATIC"}
+  ]
 }

@@ -54,7 +54,7 @@ public final class PrimitiveEditors {
 
         final boolean[] changed = {false};
         FieldEditorUtils.inspectorRow(label, () -> {
-            changed[0] = ImGui.inputInt("##" + fieldName, intBuffer);
+            changed[0] = ImGui.inputInt("##" + fieldName, intBuffer, 0, 0);
         });
 
         // Undo tracking
@@ -321,7 +321,7 @@ public final class PrimitiveEditors {
 
         final boolean[] changed = {false};
         FieldEditorUtils.inspectorRow(label, () -> {
-            changed[0] = ImGui.inputInt("##" + key, intBuffer);
+            changed[0] = ImGui.inputInt("##" + key, intBuffer, 0, 0);
         });
 
         if (ImGui.isItemActivated()) {

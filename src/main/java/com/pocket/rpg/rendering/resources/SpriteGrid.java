@@ -45,7 +45,7 @@ import java.util.Map;
 public class SpriteGrid {
 
     private final Texture texture;
-    private final SpriteMetadata metadata;
+    private SpriteMetadata metadata;
     private final GridSettings grid;
     private final String basePath;
 
@@ -447,9 +447,46 @@ public class SpriteGrid {
     /**
      * Clears the sprite cache, freeing memory.
      * Sprites will be recreated on next access.
+     * <p>
+     * <b>WARNING:</b> This severs the connection between the grid and any Sprite objects
+     * held by SpriteRenderers/AnimationComponents. Those components hold direct references
+     * to cached Sprite objects — after clearing, future calls to {@link #updateCachedSprites}
+     * won't find them. Prefer {@link #updateCachedSprites} for metadata-only changes.
+     * Only call this when the grid must be fully rebuilt (e.g., grid dimensions changed).
      */
     public void clearCache() {
         spriteCache.clear();
+    }
+
+    /**
+     * Updates all cached sprites in-place with new metadata (pivot, 9-slice, PPU).
+     * <p>
+     * This allows existing references (held by SpriteRenderers, AnimationComponents, etc.)
+     * to see metadata changes immediately without needing to re-fetch from the grid.
+     * Also updates the internal metadata reference so future {@link #createSprite(int)}
+     * calls use fresh metadata.
+     * <p>
+     * Note: {@code this.grid} (GridSettings) is NOT updated — grid dimensions remain from
+     * construction. If grid settings change, the grid should be removed from the cache
+     * and recreated instead.
+     *
+     * @param newMeta The updated sprite metadata
+     */
+    public void updateCachedSprites(SpriteMetadata newMeta) {
+        this.metadata = newMeta;
+        for (Map.Entry<Integer, Sprite> entry : spriteCache.entrySet()) {
+            int index = entry.getKey();
+            Sprite sprite = entry.getValue();
+
+            PivotData pivot = newMeta.getEffectivePivot(index);
+            sprite.setPivot(pivot.x, pivot.y);
+
+            NineSliceData nineSlice = newMeta.getEffectiveNineSlice(index);
+            sprite.setNineSliceData(nineSlice != null ? nineSlice.copy() : null);
+
+            // Unconditional — null resets to global PPU (handles removal of override)
+            sprite.setPixelsPerUnitOverride(newMeta.pixelsPerUnitOverride);
+        }
     }
 
     /**

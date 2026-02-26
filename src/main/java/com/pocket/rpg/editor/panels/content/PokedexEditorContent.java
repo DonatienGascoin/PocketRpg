@@ -593,7 +593,7 @@ public class PokedexEditorContent implements AssetEditorContent {
         ImGui.textDisabled(label);
         ImInt buf = new ImInt(currentValue);
         ImGui.setNextItemWidth(-1);
-        if (ImGui.inputInt(imguiId, buf)) {
+        if (ImGui.inputInt(imguiId, buf, 0, 0)) {
             liveSetter.accept(buf.get());
         }
         if (ImGui.isItemActivated() && attrEditBeforeSnapshot == null) {
@@ -696,7 +696,7 @@ public class PokedexEditorContent implements AssetEditorContent {
                 ImGui.tableNextColumn();
                 ImInt levelBuf = new ImInt(lm.getLevel());
                 ImGui.setNextItemWidth(-1);
-                if (ImGui.inputInt("##lvl", levelBuf)) {
+                if (ImGui.inputInt("##lvl", levelBuf, 0, 0)) {
                     int newLevel = Math.max(1, levelBuf.get());
                     if (newLevel != lm.getLevel()) {
                         captureStructuralUndo("Change Level", () -> lm.setLevel(newLevel));

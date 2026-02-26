@@ -34,6 +34,8 @@ Console on interact:
 [Debug] Gave pikachu Lv.5 to player (party size: 1)
 [Debug] Gave starter kit: 5 Potions, 5 Poke Balls, 3000 money
 
+Result: OK
+
 3. Rival Trainer NPC — battle with full logging
 
 Create a new GameObject "Rival":
@@ -54,7 +56,9 @@ Create a new GameObject "Rival":
 │ DebugBattleTrigger (category: Debug) │ No config needed                                                                     │
 └──────────────────────────────────────┴──────────────────────────────────────────────────────────────────────────────────────┘
 
-Console on interact:
+Result : OK
+
+Expected console on interact:
 === TRAINER BATTLE: vs Blue ===
 Player party (1):
 - pikachu Lv.5  HP: 20/20
@@ -79,6 +83,8 @@ Create a new GameObject "Nurse":
 ├───────────────────────────────────────────┼────────────────────────┤
 │ HealZoneComponent (category: Interaction) │ TriggerZone auto-added │
 └───────────────────────────────────────────┴────────────────────────┘
+
+Result: OK, though it will need to be replaced/refactor once the dialogue reward is done
 
 5. Item Pickup (optional)
 

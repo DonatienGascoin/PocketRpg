@@ -235,7 +235,7 @@ public class TilemapLayersInspector {
 
         intBuffer.set(layer.getZIndex());
         ImGui.setNextItemWidth(80);
-        if (ImGui.inputInt("Z-Index", intBuffer)) {
+        if (ImGui.inputInt("Z-Index", intBuffer, 0, 0)) {
             layer.setZIndex(intBuffer.get());
             scene.markDirty();
         }

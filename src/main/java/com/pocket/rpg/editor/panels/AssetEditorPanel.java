@@ -78,6 +78,7 @@ public class AssetEditorPanel extends EditorPanel implements AssetEditorShell {
     // Unsaved changes guard
     private boolean showUnsavedChangesPopup = false;
     private String pendingSwitchPath = null;
+    private String pendingSubItemId = null;
     private Runnable pendingAction = null;
 
     // Event handling
@@ -630,6 +631,7 @@ public class AssetEditorPanel extends EditorPanel implements AssetEditorShell {
             ImGui.sameLine();
             if (ImGui.button("Cancel", 130, 0)) {
                 pendingSwitchPath = null;
+                pendingSubItemId = null;
                 pendingAction = null;
                 ImGui.closeCurrentPopup();
             }
@@ -645,8 +647,13 @@ public class AssetEditorPanel extends EditorPanel implements AssetEditorShell {
     private void runPendingAction() {
         if (pendingSwitchPath != null) {
             String path = pendingSwitchPath;
+            String subItem = pendingSubItemId;
             pendingSwitchPath = null;
+            pendingSubItemId = null;
             forceSelectAssetByPath(path);
+            if (subItem != null && activeContent != null) {
+                activeContent.selectSubItem(subItem);
+            }
         } else if (pendingAction != null) {
             Runnable action = pendingAction;
             pendingAction = null;
@@ -752,17 +759,31 @@ public class AssetEditorPanel extends EditorPanel implements AssetEditorShell {
      */
     @Override
     public void selectAssetByPath(String path) {
+        selectAssetByPath(path, null);
+    }
+
+    /**
+     * Selects an asset and optionally a sub-item within it.
+     *
+     * @param path      Asset path (relative to asset root)
+     * @param subItemId Optional sub-item to select within the content (e.g. trainer ID)
+     */
+    public void selectAssetByPath(String path, String subItemId) {
         if (path == null) return;
 
         // Guard: unsaved changes on a different asset
         if (dirty && editingPath != null && !path.equals(editingPath)) {
             pendingSwitchPath = path;
+            pendingSubItemId = subItemId;
             showUnsavedChangesPopup = true;
             requestFocus();
             return;
         }
 
         forceSelectAssetByPath(path);
+        if (subItemId != null && activeContent != null) {
+            activeContent.selectSubItem(subItemId);
+        }
     }
 
     /**

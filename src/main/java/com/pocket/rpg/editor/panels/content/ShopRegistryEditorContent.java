@@ -346,7 +346,7 @@ public class ShopRegistryEditorContent implements AssetEditorContent {
         } else {
             ImInt stockBuf = new ImInt(entry.getStock());
             ImGui.setNextItemWidth(-1);
-            if (ImGui.inputInt("##stock", stockBuf, 1, 10, ImGuiInputTextFlags.EnterReturnsTrue)) {
+            if (ImGui.inputInt("##stock", stockBuf, 0, 0, ImGuiInputTextFlags.EnterReturnsTrue)) {
                 int newStock = Math.max(0, stockBuf.get());
                 captureStructuralUndo("Change Entry Stock", () -> entry.setStock(newStock));
             }

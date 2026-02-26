@@ -100,6 +100,14 @@ FieldEditorUtils.inlineField("X", width, () -> ImGui.dragFloat("##x", buf));
 
 ---
 
+## SpriteGrid Cache — Live References
+
+**Never call `SpriteGrid.clearCache()` to propagate metadata changes. Use `updateCachedSprites()` instead.**
+
+`SpriteRenderer` and `AnimationComponent` hold direct references to `Sprite` objects from `SpriteGrid.spriteCache`. Clearing the cache severs that connection — the components still have the old objects, but the grid can no longer find them to update. Use `grid.updateCachedSprites(newMeta)` for pivot/9-slice/PPU changes. Reserve `clearCache()` for full grid teardown (dimension changes, mode switches).
+
+---
+
 ## Custom Inspectors (Play Mode)
 
 Custom inspectors work in both editor mode and play mode. The `entity` field type changed from `EditorGameObject` to `HierarchyItem` to support this.

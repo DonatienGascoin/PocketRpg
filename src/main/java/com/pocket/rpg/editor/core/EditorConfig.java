@@ -261,6 +261,72 @@ public class EditorConfig {
         return toFullPath(recentScenes.get(0));
     }
 
+    // ===== ASSET EDITOR =====
+
+    /**
+     * Recently opened asset paths (most recent first). Limited to 15 entries.
+     */
+    @Builder.Default
+    private List<String> recentAssets = new ArrayList<>();
+
+    private static final int MAX_RECENT_ASSETS = 15;
+
+    /**
+     * Timestamps of when assets were last opened (path -> epoch millis).
+     */
+    @Builder.Default
+    private Map<String, Long> recentAssetTimestamps = new HashMap<>();
+
+    /**
+     * Favorite (pinned) asset paths.
+     */
+    @Builder.Default
+    private List<String> favoriteAssets = new ArrayList<>();
+
+    /**
+     * Adds an asset path to the recent list.
+     * Moves it to the front if already present. Records the open timestamp.
+     */
+    public void addRecentAsset(String path) {
+        if (path == null || path.isEmpty()) return;
+        String normalized = path.replace('\\', '/');
+        recentAssets.remove(normalized);
+        recentAssets.add(0, normalized);
+        recentAssetTimestamps.put(normalized, System.currentTimeMillis());
+        while (recentAssets.size() > MAX_RECENT_ASSETS) {
+            String removed = recentAssets.remove(recentAssets.size() - 1);
+            recentAssetTimestamps.remove(removed);
+        }
+        save();
+    }
+
+    /**
+     * Returns the timestamp (epoch millis) when the given asset was last opened, or 0.
+     */
+    public long getRecentAssetTimestamp(String path) {
+        return recentAssetTimestamps.getOrDefault(path.replace('\\', '/'), 0L);
+    }
+
+    /**
+     * Toggles whether an asset path is in the favorites list.
+     */
+    public void toggleFavoriteAsset(String path) {
+        String normalized = path.replace('\\', '/');
+        if (favoriteAssets.contains(normalized)) {
+            favoriteAssets.remove(normalized);
+        } else {
+            favoriteAssets.add(normalized);
+        }
+        save();
+    }
+
+    /**
+     * Returns whether the given asset path is a favorite.
+     */
+    public boolean isFavoriteAsset(String path) {
+        return favoriteAssets.contains(path.replace('\\', '/'));
+    }
+
     // ===== PANEL VISIBILITY =====
 
     /**

@@ -42,6 +42,32 @@
     "Battle.scene",
     "Test.scene"
   ],
+  "recentAssets": [
+    "data/pokemon/pokedex.pokedex.json",
+    "data/items/items.items.json",
+    "data/pokemon/trainers.trainers.json",
+    "Fantasy UI SFX - Lite Edition/Armor 1-4.wav",
+    "Fantasy UI SFX - Lite Edition/Bag Handle 1-12.wav",
+    "data/shops/shops.shops.json",
+    "Fantasy UI SFX - Lite Edition/Blacksmithing 2-2.wav",
+    "Fantasy UI SFX - Lite Edition/Arrow & Bow 2-7.wav"
+  ],
+  "recentAssetTimestamps": {
+    "data/pokemon/pokedex.pokedex.json": 1772200487342,
+    "Fantasy UI SFX - Lite Edition/Armor 1-4.wav": 1772199114716,
+    "Fantasy UI SFX - Lite Edition/Arrow & Bow 2-7.wav": 1772183976744,
+    "Fantasy UI SFX - Lite Edition/Blacksmithing 2-2.wav": 1772183977862,
+    "data/items/items.items.json": 1772200486138,
+    "data/pokemon/trainers.trainers.json": 1772199122385,
+    "data/shops/shops.shops.json": 1772184340662,
+    "Fantasy UI SFX - Lite Edition/Bag Handle 1-12.wav": 1772184341259
+  },
+  "favoriteAssets": [
+    "data/pokemon/pokedex.pokedex.json",
+    "data/items/items.items.json",
+    "data/pokemon/trainers.trainers.json",
+    "data/shops/shops.shops.json"
+  ],
   "panelVisibility": {
     "assetBrowser": true,
     "hierarchy": true,

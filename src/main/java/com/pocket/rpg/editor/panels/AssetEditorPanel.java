@@ -2,8 +2,10 @@ package com.pocket.rpg.editor.panels;
 
 import com.pocket.rpg.editor.EditorSelectionManager;
 import com.pocket.rpg.editor.core.EditorColors;
+import com.pocket.rpg.editor.core.EditorConfig;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.events.AssetChangedEvent;
+import com.pocket.rpg.editor.events.AssetFocusRequestEvent;
 import com.pocket.rpg.editor.events.EditorEventBus;
 import com.pocket.rpg.editor.panels.content.ReflectionEditorContent;
 import com.pocket.rpg.editor.shortcut.EditorShortcuts;
@@ -18,9 +20,13 @@ import imgui.ImGui;
 import imgui.type.ImBoolean;
 import imgui.type.ImInt;
 import imgui.type.ImString;
+import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiFocusedFlags;
 import imgui.flag.ImGuiKey;
+import imgui.flag.ImGuiSelectableFlags;
 import imgui.flag.ImGuiStyleVar;
+import imgui.flag.ImGuiTableColumnFlags;
+import imgui.flag.ImGuiTableFlags;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.flag.ImGuiWindowFlags;
 
@@ -68,7 +74,9 @@ public class AssetEditorPanel extends EditorPanel implements AssetEditorShell {
     private final ImString sidebarSearchFilter = new ImString(128);
     private final ImInt sidebarTypeFilterIndex = new ImInt(0); // 0 = All
     private List<String> sidebarAssetPaths = new ArrayList<>();
+    private List<String> sidebarAllScannedPaths = new ArrayList<>(); // cached scanAll() result
     private List<Class<?>> sidebarTypeOptions = new ArrayList<>();
+    private String[] sidebarTypeLabels = new String[]{"All"}; // cached combo labels
     private SidebarFolderNode sidebarRoot = new SidebarFolderNode("root");
     private boolean sidebarExpandAll = false;
     private boolean sidebarCollapseAll = false;
@@ -89,6 +97,35 @@ public class AssetEditorPanel extends EditorPanel implements AssetEditorShell {
 
     // Selection manager (set by EditorUIController after construction)
     private EditorSelectionManager selectionManager;
+
+    // New asset dropdown
+    private List<CreatableAssetType> creatableTypes;
+    private boolean pendingOpenNewDropdown = false;
+
+    // Popup viewers (floating asset windows)
+    private final List<AssetPopupViewer> popupViewers = new ArrayList<>();
+    private int popupViewerCounter = 0;
+
+    // New asset creation popup (panel-level, for dropdown)
+    private boolean showNewAssetPopup = false;
+    private CreatableAssetType pendingNewAssetType = null;
+    private final ImString newAssetName = new ImString(128);
+
+    // Sidebar context menu
+    private String pendingRenamePath = null;
+    private final ImString renameBuffer = new ImString(128);
+    private boolean showRenamePopup = false;
+    private String pendingDeletePath = null;
+    private boolean showDeleteConfirmPopup = false;
+
+    // Navigation history
+    private final List<String> navigationHistory = new ArrayList<>();
+    private int navigationIndex = -1;
+    private static final int MAX_HISTORY = 50;
+    private boolean navigatingHistory = false;
+
+    // Quick search popup
+    private final AssetQuickSearchPopup quickSearchPopup = new AssetQuickSearchPopup();
 
     // ========================================================================
     // CONSTRUCTOR
@@ -136,12 +173,22 @@ public class AssetEditorPanel extends EditorPanel implements AssetEditorShell {
                 ? ShortcutBinding.ctrlShift(ImGuiKey.W)
                 : ShortcutBinding.ctrlShift(ImGuiKey.Z);
 
+        ShortcutBinding closeBinding = layout == KeyboardLayout.AZERTY
+                ? ShortcutBinding.ctrl(ImGuiKey.Z)   // physical W on AZERTY
+                : ShortcutBinding.ctrl(ImGuiKey.W);  // physical W on QWERTY
+
         List<ShortcutAction> shortcuts = new ArrayList<>(List.of(
-                panelShortcut()
+                ShortcutAction.builder().panelVisible(getPanelId())
                         .id("editor.asset.new")
                         .displayName("New Asset")
                         .defaultBinding(ShortcutBinding.ctrl(ImGuiKey.N))
-                        .handler(() -> { if (activeContent != null) activeContent.onNewRequested(); })
+                        .handler(() -> {
+                            if (activeContent != null) {
+                                activeContent.onNewRequested();
+                            } else {
+                                pendingOpenNewDropdown = true;
+                            }
+                        })
                         .build(),
                 panelShortcut()
                         .id("editor.asset.refresh")
@@ -176,6 +223,37 @@ public class AssetEditorPanel extends EditorPanel implements AssetEditorShell {
                         .defaultBinding(ShortcutBinding.ctrl(ImGuiKey.Y))
                         .allowInInput(true)
                         .handler(this::redo)
+                        .build(),
+                panelShortcut()
+                        .id("editor.asset.back")
+                        .displayName("Navigate Back")
+                        .defaultBinding(ShortcutBinding.alt(ImGuiKey.LeftArrow))
+                        .handler(() -> { if (canGoBack()) requestDirtyGuard(this::goBack); })
+                        .build(),
+                panelShortcut()
+                        .id("editor.asset.forward")
+                        .displayName("Navigate Forward")
+                        .defaultBinding(ShortcutBinding.alt(ImGuiKey.RightArrow))
+                        .handler(() -> { if (canGoForward()) requestDirtyGuard(this::goForward); })
+                        .build(),
+                panelShortcut()
+                        .id("editor.asset.quickSearch")
+                        .displayName("Quick Open Asset")
+                        .defaultBinding(ShortcutBinding.ctrl(ImGuiKey.P))
+                        .handler(() -> {
+                            EditorConfig cfg = getConfig();
+                            List<String> recents = cfg != null ? cfg.getRecentAssets() : List.of();
+                            List<String> favs = cfg != null ? cfg.getFavoriteAssets() : List.of();
+                            quickSearchPopup.open(this::selectAssetByPath, recents, favs);
+                        })
+                        .build(),
+                panelShortcut()
+                        .id("editor.asset.close")
+                        .displayName("Close Asset")
+                        .defaultBinding(closeBinding)
+                        .handler(() -> {
+                            if (editingAsset != null) requestDirtyGuard(this::clearEditingAsset);
+                        })
                         .build()
         ));
 
@@ -210,7 +288,8 @@ public class AssetEditorPanel extends EditorPanel implements AssetEditorShell {
         setFocused(ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows));
 
         if (visible) {
-            renderToolbar();
+            renderShellToolbar();
+            renderBreadcrumb();
             ImGui.separator();
             renderBody();
         }
@@ -220,15 +299,34 @@ public class AssetEditorPanel extends EditorPanel implements AssetEditorShell {
             activeContent.renderPopups();
         }
         renderUnsavedChangesPopup();
+        renderNewAssetPopup();
+        renderRenamePopup();
+        renderDeleteConfirmPopup();
+        quickSearchPopup.render();
 
         ImGui.end();
+
+        // Popup viewers render as independent top-level windows (outside main panel)
+        for (AssetPopupViewer viewer : popupViewers) {
+            viewer.render();
+        }
+        popupViewers.removeIf(v -> !v.isOpen());
     }
 
     // ========================================================================
-    // TOOLBAR
+    // SHELL TOOLBAR (always visible)
     // ========================================================================
 
-    private void renderToolbar() {
+    private void renderShellToolbar() {
+        // Calculate right-aligned section width upfront
+        float spacing = ImGui.getStyle().getItemSpacingX();
+        float framePadX = ImGui.getStyle().getFramePaddingX();
+        float newBtnW = ImGui.calcTextSize(MaterialIcons.Add + " New " + MaterialIcons.ArrowDropDown).x + framePadX * 2;
+        float closeBtnW = ImGui.calcTextSize(MaterialIcons.Close).x + framePadX * 2;
+        float rightWidth = newBtnW;
+        if (editingAsset != null) rightWidth += spacing + closeBtnW;
+        float rightEdge = ImGui.getCursorPosX() + ImGui.getContentRegionAvailX();
+
         // Hamburger toggle
         String hamburgerIcon = sidebarOpen ? MaterialIcons.MenuOpen : MaterialIcons.Menu;
         if (ImGui.button(hamburgerIcon + "##hamburger")) {
@@ -239,31 +337,70 @@ public class AssetEditorPanel extends EditorPanel implements AssetEditorShell {
             ImGui.setTooltip("Toggle asset sidebar");
         }
 
-        // Only show asset controls when an asset is loaded
-        if (editingAsset == null) return;
-
         ImGui.sameLine();
 
-        // Asset name + dirty indicator
-        String name = editingPath != null ? extractFilename(editingPath) : "Unknown";
-        if (dirty) {
-            EditorColors.textColored(EditorColors.WARNING, name + " *");
+        // Back / Forward navigation
+        boolean canBack = canGoBack();
+        if (!canBack) ImGui.beginDisabled();
+        if (ImGui.button(MaterialIcons.ArrowBack + "##back")) {
+            requestDirtyGuard(this::goBack);
+        }
+        if (!canBack) ImGui.endDisabled();
+        if (ImGui.isItemHovered()) ImGui.setTooltip("Back (Alt+Left)");
+        ImGui.sameLine();
+
+        boolean canFwd = canGoForward();
+        if (!canFwd) ImGui.beginDisabled();
+        if (ImGui.button(MaterialIcons.ArrowForward + "##forward")) {
+            requestDirtyGuard(this::goForward);
+        }
+        if (!canFwd) ImGui.endDisabled();
+        if (ImGui.isItemHovered()) ImGui.setTooltip("Forward (Alt+Right)");
+
+        ImGui.sameLine();
+        ImGui.text("|");
+        ImGui.sameLine();
+
+        // Asset name (or "No asset selected" when nothing loaded)
+        if (editingAsset != null) {
+            String name = editingPath != null ? extractFilename(editingPath) : "Unknown";
+            if (dirty) {
+                EditorColors.textColored(EditorColors.WARNING, name + " *");
+            } else {
+                ImGui.text(name);
+            }
+
+            // Favorite star toggle
+            ImGui.sameLine();
+            EditorConfig cfg = getConfig();
+            boolean isFav = cfg != null && editingPath != null && cfg.isFavoriteAsset(editingPath);
+            String starIcon = isFav ? MaterialIcons.Star : MaterialIcons.StarBorder;
+            if (isFav) ImGui.pushStyleColor(ImGuiCol.Text, EditorColors.WARNING[0], EditorColors.WARNING[1], EditorColors.WARNING[2], EditorColors.WARNING[3]);
+            if (ImGui.smallButton(starIcon + "##favToggle")) {
+                if (cfg != null && editingPath != null) {
+                    cfg.toggleFavoriteAsset(editingPath);
+                }
+            }
+            if (isFav) ImGui.popStyleColor();
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip(isFav ? "Remove from Favorites" : "Add to Favorites");
+            }
         } else {
-            ImGui.text(name);
+            ImGui.textDisabled("No asset selected");
         }
 
         ImGui.sameLine();
-        ImGui.text(" | ");
+        ImGui.text("|");
         ImGui.sameLine();
 
-        // Save button
-        boolean canSave = dirty;
+        // Save button (disabled when no asset or not dirty)
+        boolean canSave = editingAsset != null && dirty;
         if (canSave) {
             EditorColors.pushWarningButton();
         } else {
             ImGui.beginDisabled();
         }
-        if (ImGui.button(MaterialIcons.Save + " Save")) {
+        if (ImGui.button(MaterialIcons.Save + "##save")) {
             save();
         }
         if (canSave) {
@@ -278,26 +415,50 @@ public class AssetEditorPanel extends EditorPanel implements AssetEditorShell {
         ImGui.sameLine();
 
         // Undo button
-        boolean canUndo = !panelUndoStack.isEmpty();
+        boolean canUndo = editingAsset != null && !panelUndoStack.isEmpty();
         if (!canUndo) ImGui.beginDisabled();
-        if (ImGui.button(MaterialIcons.Undo)) {
+        if (ImGui.button(MaterialIcons.Undo + "##undo")) {
             undo();
         }
         if (!canUndo) ImGui.endDisabled();
+        if (ImGui.isItemHovered()) {
+            ShortcutBinding undoBind = ShortcutRegistry.getInstance().getBinding("editor.asset.undo");
+            String hint = undoBind != null ? " (" + undoBind.getDisplayString() + ")" : "";
+            ImGui.setTooltip("Undo" + hint);
+        }
 
         ImGui.sameLine();
 
         // Redo button
-        boolean canRedo = !panelRedoStack.isEmpty();
+        boolean canRedo = editingAsset != null && !panelRedoStack.isEmpty();
         if (!canRedo) ImGui.beginDisabled();
-        if (ImGui.button(MaterialIcons.Redo)) {
+        if (ImGui.button(MaterialIcons.Redo + "##redo")) {
             redo();
         }
         if (!canRedo) ImGui.endDisabled();
+        if (ImGui.isItemHovered()) {
+            ShortcutBinding redoBind = ShortcutRegistry.getInstance().getBinding("editor.asset.redo");
+            String hint = redoBind != null ? " (" + redoBind.getDisplayString() + ")" : "";
+            ImGui.setTooltip("Redo" + hint);
+        }
 
-        // Content-specific toolbar extras
-        if (activeContent != null) {
-            activeContent.renderToolbarExtras();
+        // Right-aligned section: New dropdown + Close
+        ImGui.sameLine(rightEdge - rightWidth);
+
+        // New asset dropdown — always visible
+        renderNewAssetDropdown();
+
+        // Close current asset (only when asset loaded)
+        if (editingAsset != null) {
+            ImGui.sameLine();
+            if (ImGui.button(MaterialIcons.Close + "##closeAsset")) {
+                requestDirtyGuard(this::clearEditingAsset);
+            }
+            if (ImGui.isItemHovered()) {
+                ShortcutBinding closeBind = ShortcutRegistry.getInstance().getBinding("editor.asset.close");
+                String closeHint = closeBind != null ? " (" + closeBind.getDisplayString() + ")" : "";
+                ImGui.setTooltip("Close asset" + closeHint);
+            }
         }
     }
 
@@ -321,8 +482,7 @@ public class AssetEditorPanel extends EditorPanel implements AssetEditorShell {
             if (ImGui.beginChild("##contentArea", 0, -1, false,
                     ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)) {
                 if (editingAsset == null) {
-                    ImGui.textDisabled("No asset selected. Double-click an asset in the Asset Browser,");
-                    ImGui.textDisabled("or select one from the sidebar.");
+                    renderEmptyState();
                 } else {
                     renderContentArea();
                 }
@@ -331,8 +491,7 @@ public class AssetEditorPanel extends EditorPanel implements AssetEditorShell {
         } else {
             // Content area — takes full width
             if (editingAsset == null) {
-                ImGui.textDisabled("No asset selected. Double-click an asset in the Asset Browser,");
-                ImGui.textDisabled("or select one from the sidebar.");
+                renderEmptyState();
             } else {
                 renderContentArea();
             }
@@ -354,9 +513,8 @@ public class AssetEditorPanel extends EditorPanel implements AssetEditorShell {
         float spacing = ImGui.getStyle().getItemSpacingX();
         float buttonsWidth = btnSize * 2 + spacing;
         if (!sidebarTypeOptions.isEmpty()) {
-            String[] typeNames = buildTypeFilterLabels();
             ImGui.setNextItemWidth(-1 - buttonsWidth - spacing);
-            if (ImGui.combo("##typeFilter", sidebarTypeFilterIndex, typeNames)) {
+            if (ImGui.combo("##typeFilter", sidebarTypeFilterIndex, sidebarTypeLabels)) {
                 refreshSidebarAssetList();
             }
         } else {
@@ -397,8 +555,11 @@ public class AssetEditorPanel extends EditorPanel implements AssetEditorShell {
 
         ImGui.separator();
 
-        // Asset tree — increase indent for clearer hierarchy
+        // Pinned favorites — rendered outside the scrolling child so they stay sticky
         String filter = sidebarSearchFilter.get().toLowerCase().trim();
+        renderSidebarPinnedSection(filter);
+
+        // Asset tree — scrollable, increase indent for clearer hierarchy
         if (ImGui.beginChild("##assetList", -1, -1, false, ImGuiWindowFlags.HorizontalScrollbar)) {
             ImGui.pushStyleVar(ImGuiStyleVar.IndentSpacing, 16f);
             renderSidebarTree(sidebarRoot, filter);
@@ -413,11 +574,8 @@ public class AssetEditorPanel extends EditorPanel implements AssetEditorShell {
     }
 
     private void renderSidebarTree(SidebarFolderNode node, String filter) {
-        // Render child folders sorted alphabetically
-        List<Map.Entry<String, SidebarFolderNode>> sortedChildren = new ArrayList<>(node.children.entrySet());
-        sortedChildren.sort(Comparator.comparing(Map.Entry::getKey));
-
-        for (var entry : sortedChildren) {
+        // Children are already sorted (TreeMap)
+        for (var entry : node.children.entrySet()) {
             SidebarFolderNode child = entry.getValue();
 
             // Skip folders with no matching descendants when filtering
@@ -454,20 +612,14 @@ public class AssetEditorPanel extends EditorPanel implements AssetEditorShell {
     }
 
     private void renderSidebarFiles(SidebarFolderNode node, String filter) {
-        List<String> sortedFiles = new ArrayList<>(node.files);
-        sortedFiles.sort(Comparator.naturalOrder());
-
-        for (String path : sortedFiles) {
-            String filename = extractFilename(path);
-            if (!filter.isEmpty() && !filename.toLowerCase().contains(filter)) {
+        // Files are pre-sorted at build time
+        for (SidebarFileEntry file : node.files) {
+            if (!filter.isEmpty() && !file.displayName().toLowerCase().contains(filter)) {
                 continue;
             }
 
+            String path = file.path();
             boolean isSelected = path.equals(editingPath);
-
-            // Get icon for asset type
-            Class<?> type = Assets.getTypeForPath(path);
-            String icon = type != null ? Assets.getIconCodepoint(type) : MaterialIcons.InsertDriveFile;
 
             // Annotation from content (e.g., warning icon)
             String annotation = null;
@@ -475,10 +627,9 @@ public class AssetEditorPanel extends EditorPanel implements AssetEditorShell {
                 annotation = activeContent.getAssetAnnotation(path);
             }
 
-            String displayName = stripExtension(filename);
             String label = annotation != null
-                    ? icon + " " + displayName + " " + annotation
-                    : icon + " " + displayName;
+                    ? file.label() + " " + annotation
+                    : file.label();
 
             // Use leaf tree node so files get proper tree indentation
             int flags = ImGuiTreeNodeFlags.Leaf | ImGuiTreeNodeFlags.NoTreePushOnOpen
@@ -496,12 +647,49 @@ public class AssetEditorPanel extends EditorPanel implements AssetEditorShell {
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip(path);
             }
+
+            // Context menu
+            renderSidebarFileContextMenu(path);
+        }
+    }
+
+    private void renderSidebarFileContextMenu(String path) {
+        if (ImGui.beginPopupContextItem("##ctx_" + path)) {
+            if (ImGui.selectable("Open")) {
+                selectAssetByPath(path);
+            }
+            if (ImGui.selectable("Rename...")) {
+                pendingRenamePath = path;
+                renameBuffer.set(stripExtension(extractFilename(path)));
+                showRenamePopup = true;
+            }
+            if (ImGui.selectable("Delete")) {
+                pendingDeletePath = path;
+                showDeleteConfirmPopup = true;
+            }
+            if (ImGui.selectable("Duplicate")) {
+                duplicateAsset(path);
+            }
+            ImGui.separator();
+            EditorConfig cfg = getConfig();
+            boolean isFav = cfg != null && cfg.isFavoriteAsset(path);
+            if (ImGui.selectable(isFav ? "Remove from Favorites" : "Add to Favorites")) {
+                if (cfg != null) cfg.toggleFavoriteAsset(path);
+            }
+            ImGui.separator();
+            if (ImGui.selectable("Copy Path")) {
+                ImGui.setClipboardText(path);
+            }
+            if (ImGui.selectable("Reveal in Browser")) {
+                EditorEventBus.get().publish(new AssetFocusRequestEvent(path));
+            }
+            ImGui.endPopup();
         }
     }
 
     private boolean folderContainsPath(SidebarFolderNode node, String targetPath) {
-        for (String path : node.files) {
-            if (path.equals(targetPath)) return true;
+        for (SidebarFileEntry file : node.files) {
+            if (file.path().equals(targetPath)) return true;
         }
         for (SidebarFolderNode child : node.children.values()) {
             if (folderContainsPath(child, targetPath)) return true;
@@ -510,41 +698,39 @@ public class AssetEditorPanel extends EditorPanel implements AssetEditorShell {
     }
 
     private boolean folderHasMatch(SidebarFolderNode node, String filter) {
-        // Check direct files
-        for (String path : node.files) {
-            String filename = extractFilename(path);
-            if (filename.toLowerCase().contains(filter)) {
+        for (SidebarFileEntry file : node.files) {
+            if (file.displayName().toLowerCase().contains(filter)) {
                 return true;
             }
         }
-        // Check child folders recursively
         for (SidebarFolderNode child : node.children.values()) {
-            if (folderHasMatch(child, filter)) {
-                return true;
-            }
+            if (folderHasMatch(child, filter)) return true;
         }
         return false;
     }
 
     private void refreshSidebarData() {
-        // Discover saveable types by scanning all assets and checking canSave()
+        // Single filesystem walk — reuse result for type discovery and asset list
+        sidebarAllScannedPaths = Assets.scanAll();
         sidebarTypeOptions.clear();
-        Set<Class<?>> discoveredTypes = new LinkedHashSet<>();
 
-        // Include types registered in the content registry
-        discoveredTypes.addAll(contentRegistry.getRegisteredTypes());
-
-        // Scan all assets to discover types with canSave()
-        List<String> allPaths = Assets.scanAll();
-        for (String path : allPaths) {
+        Set<Class<?>> discoveredTypes = new LinkedHashSet<>(contentRegistry.getRegisteredTypes());
+        for (String path : sidebarAllScannedPaths) {
             Class<?> type = Assets.getTypeForPath(path);
-            if (type != null && Assets.canSave(type) && !discoveredTypes.contains(type)) {
+            if (type != null && Assets.canSave(type)) {
                 discoveredTypes.add(type);
             }
         }
 
         sidebarTypeOptions.addAll(discoveredTypes);
         sidebarTypeOptions.sort(Comparator.comparing(Class::getSimpleName));
+
+        // Cache combo labels
+        sidebarTypeLabels = new String[sidebarTypeOptions.size() + 1];
+        sidebarTypeLabels[0] = "All";
+        for (int i = 0; i < sidebarTypeOptions.size(); i++) {
+            sidebarTypeLabels[i + 1] = sidebarTypeOptions.get(i).getSimpleName();
+        }
 
         // Clamp filter index
         if (sidebarTypeFilterIndex.get() > sidebarTypeOptions.size()) {
@@ -555,40 +741,37 @@ public class AssetEditorPanel extends EditorPanel implements AssetEditorShell {
     }
 
     private void refreshSidebarAssetList() {
-        sidebarAssetPaths.clear();
-
+        // Filter the cached scan result in memory — no filesystem I/O
+        Set<Class<?>> acceptedTypes;
         if (sidebarTypeFilterIndex.get() == 0 || sidebarTypeOptions.isEmpty()) {
-            // "All" — scan all saveable types
-            Set<String> paths = new TreeSet<>();
-            for (Class<?> type : sidebarTypeOptions) {
-                paths.addAll(Assets.scanByType(type));
-            }
-            // If no types registered yet, show nothing
-            sidebarAssetPaths.addAll(paths);
+            acceptedTypes = new HashSet<>(sidebarTypeOptions);
         } else {
-            // Specific type
             int typeIdx = sidebarTypeFilterIndex.get() - 1;
             if (typeIdx < sidebarTypeOptions.size()) {
-                Class<?> type = sidebarTypeOptions.get(typeIdx);
-                sidebarAssetPaths.addAll(Assets.scanByType(type));
-                Collections.sort(sidebarAssetPaths);
+                acceptedTypes = Set.of(sidebarTypeOptions.get(typeIdx));
+            } else {
+                acceptedTypes = Set.of();
             }
         }
 
-        // Rebuild folder tree from flat path list
+        sidebarAssetPaths.clear();
         sidebarRoot = new SidebarFolderNode("root");
-        for (String path : sidebarAssetPaths) {
-            sidebarRoot.addPath(path);
-        }
-    }
 
-    private String[] buildTypeFilterLabels() {
-        String[] labels = new String[sidebarTypeOptions.size() + 1];
-        labels[0] = "All";
-        for (int i = 0; i < sidebarTypeOptions.size(); i++) {
-            labels[i + 1] = sidebarTypeOptions.get(i).getSimpleName();
+        for (String path : sidebarAllScannedPaths) {
+            Class<?> type = Assets.getTypeForPath(path);
+            if (type != null && acceptedTypes.contains(type)) {
+                sidebarAssetPaths.add(path);
+
+                // Pre-resolve display data at build time
+                String filename = extractFilename(path);
+                String displayName = stripExtension(filename);
+                String icon = Assets.getIconCodepoint(type);
+                if (icon == null) icon = MaterialIcons.InsertDriveFile;
+                sidebarRoot.addFile(path, new SidebarFileEntry(path, displayName, icon, icon + " " + displayName));
+            }
         }
-        return labels;
+
+        sidebarRoot.sortFiles();
     }
 
     // ========================================================================
@@ -596,10 +779,9 @@ public class AssetEditorPanel extends EditorPanel implements AssetEditorShell {
     // ========================================================================
 
     private void renderUnsavedChangesPopup() {
-        // Re-open every frame while a pending action exists. This keeps the popup
-        // alive even if ImGui.setWindowFocus() (from consumePendingFocus) closes
-        // it on the frame after it first opened.
-        if (showUnsavedChangesPopup || pendingSwitchPath != null || pendingAction != null) {
+        boolean hasPending = pendingSwitchPath != null || pendingAction != null;
+
+        if (showUnsavedChangesPopup || hasPending) {
             ImGui.openPopup("Unsaved Changes##assetEditor");
             showUnsavedChangesPopup = false;
         }
@@ -630,14 +812,22 @@ public class AssetEditorPanel extends EditorPanel implements AssetEditorShell {
             }
             ImGui.sameLine();
             if (ImGui.button("Cancel", 130, 0)) {
-                pendingSwitchPath = null;
-                pendingSubItemId = null;
-                pendingAction = null;
+                clearPendingAction();
                 ImGui.closeCurrentPopup();
             }
 
             ImGui.endPopup();
+        } else if (hasPending) {
+            // Popup was closed externally (e.g. Escape key) — treat as Cancel
+            clearPendingAction();
         }
+    }
+
+    private void clearPendingAction() {
+        pendingSwitchPath = null;
+        pendingSubItemId = null;
+        pendingAction = null;
+        navigatingHistory = false;
     }
 
     /**
@@ -671,6 +861,8 @@ public class AssetEditorPanel extends EditorPanel implements AssetEditorShell {
         UndoManager um = UndoManager.getInstance();
         um.pushTarget(panelUndoStack, panelRedoStack);
         try {
+            // Content toolbar renders inside the content child window
+            activeContent.renderToolbarExtras();
             activeContent.render();
         } finally {
             um.popTarget();
@@ -832,6 +1024,12 @@ public class AssetEditorPanel extends EditorPanel implements AssetEditorShell {
             sidebarScrollToSelected = true;
         }
 
+        // Track navigation history and recent assets
+        pushHistory(path);
+        navigatingHistory = false;
+        EditorConfig cfg = getConfig();
+        if (cfg != null) cfg.addRecentAsset(path);
+
         // Load new asset into content
         if (activeContent != null) {
             activeContent.onAssetLoaded(path, asset, this);
@@ -901,6 +1099,21 @@ public class AssetEditorPanel extends EditorPanel implements AssetEditorShell {
     }
 
     @Override
+    public void openPopupViewer(String assetPath, Class<?> assetType) {
+        // Check if already open — focus existing
+        for (AssetPopupViewer v : popupViewers) {
+            if (assetPath.equals(v.getAssetPath())) {
+                v.requestFocus();
+                return;
+            }
+        }
+        AssetPopupViewer viewer = new AssetPopupViewer(contentRegistry, String.valueOf(popupViewerCounter++));
+        viewer.setStatusCallback(statusCallback);
+        viewer.open(assetPath, assetType);
+        popupViewers.add(viewer);
+    }
+
+    @Override
     public void clearEditingAsset() {
         if (activeContent != null) {
             activeContent.onAssetUnloaded();
@@ -955,6 +1168,57 @@ public class AssetEditorPanel extends EditorPanel implements AssetEditorShell {
     }
 
     // ========================================================================
+    // NAVIGATION HISTORY
+    // ========================================================================
+
+    private void pushHistory(String path) {
+        if (navigatingHistory) return;
+        if (path == null) return;
+
+        // Don't push duplicate of current position
+        if (navigationIndex >= 0 && navigationIndex < navigationHistory.size()
+                && path.equals(navigationHistory.get(navigationIndex))) {
+            return;
+        }
+
+        // Truncate forward history
+        if (navigationIndex < navigationHistory.size() - 1) {
+            navigationHistory.subList(navigationIndex + 1, navigationHistory.size()).clear();
+        }
+
+        navigationHistory.add(path);
+        navigationIndex = navigationHistory.size() - 1;
+
+        // Cap size
+        if (navigationHistory.size() > MAX_HISTORY) {
+            navigationHistory.remove(0);
+            navigationIndex--;
+        }
+    }
+
+    private boolean canGoBack() {
+        return navigationIndex > 0;
+    }
+
+    private boolean canGoForward() {
+        return navigationIndex < navigationHistory.size() - 1;
+    }
+
+    private void goBack() {
+        if (!canGoBack()) return;
+        navigatingHistory = true;
+        navigationIndex--;
+        selectAssetByPath(navigationHistory.get(navigationIndex));
+    }
+
+    private void goForward() {
+        if (!canGoForward()) return;
+        navigatingHistory = true;
+        navigationIndex++;
+        selectAssetByPath(navigationHistory.get(navigationIndex));
+    }
+
+    // ========================================================================
     // CLEANUP
     // ========================================================================
 
@@ -972,6 +1236,556 @@ public class AssetEditorPanel extends EditorPanel implements AssetEditorShell {
     }
 
     // ========================================================================
+    // NEW ASSET DROPDOWN
+    // ========================================================================
+
+    private void initCreatableTypes() {
+        creatableTypes = new ArrayList<>();
+        for (Class<?> type : contentRegistry.getRegisteredTypes()) {
+            AssetEditorContent temp = contentRegistry.createContent(type);
+            if (temp != null) {
+                AssetCreationInfo info = temp.getCreationInfo();
+                if (info != null) {
+                    String name = formatClassName(type.getSimpleName());
+                    creatableTypes.add(new CreatableAssetType(name, type, info));
+                }
+                temp.destroy();
+            }
+        }
+        creatableTypes.sort(Comparator.comparing(CreatableAssetType::displayName));
+    }
+
+    private void renderNewAssetDropdown() {
+        if (creatableTypes == null) initCreatableTypes();
+
+        if (pendingOpenNewDropdown) {
+            ImGui.openPopup("##newAssetDropdown");
+            pendingOpenNewDropdown = false;
+        }
+
+        if (ImGui.button(MaterialIcons.Add + " New " + MaterialIcons.ArrowDropDown)) {
+            ImGui.openPopup("##newAssetDropdown");
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("Create new asset (Ctrl+N)");
+        }
+
+        if (ImGui.beginPopup("##newAssetDropdown")) {
+            ImGui.textDisabled("Create");
+            ImGui.separator();
+            for (CreatableAssetType ct : creatableTypes) {
+                String icon = Assets.getIconCodepoint(ct.assetClass());
+                if (ImGui.selectable(icon + " " + ct.displayName())) {
+                    openNewAssetDialog(ct);
+                }
+            }
+            ImGui.endPopup();
+        }
+    }
+
+    private void openNewAssetDialog(CreatableAssetType type) {
+        Runnable doCreate = () -> {
+            // Switch content type if needed
+            if (activeContent == null || activeContent.getAssetClass() != type.assetClass()) {
+                switchContentForNewAsset(type.assetClass());
+            }
+
+            if (activeContent != null && activeContent.hasCreationDialog()) {
+                // Content has its own creation dialog — set shell and delegate
+                activeContent.setShell(this);
+                activeContent.onNewRequested();
+            } else {
+                // Fall back to generic name popup
+                pendingNewAssetType = type;
+                newAssetName.set("");
+                showNewAssetPopup = true;
+            }
+        };
+
+        if (dirty && editingAsset != null) {
+            requestDirtyGuard(doCreate);
+        } else {
+            doCreate.run();
+        }
+    }
+
+    private void renderNewAssetPopup() {
+        if (showNewAssetPopup) {
+            ImGui.openPopup("New Asset##newAssetPopup");
+            showNewAssetPopup = false;
+        }
+
+        if (ImGui.beginPopupModal("New Asset##newAssetPopup", new ImBoolean(true),
+                ImGuiWindowFlags.AlwaysAutoResize)) {
+            if (pendingNewAssetType != null) {
+                String icon = Assets.getIconCodepoint(pendingNewAssetType.assetClass());
+                ImGui.text("Type: " + icon + " " + pendingNewAssetType.displayName());
+                ImGui.spacing();
+                ImGui.text("Name:");
+                ImGui.sameLine();
+                ImGui.setNextItemWidth(250);
+                ImGui.inputText("##newAssetName", newAssetName);
+
+                ImGui.spacing();
+
+                if (ImGui.button("Create", 120, 0)) {
+                    String name = newAssetName.get().trim();
+                    if (!name.isEmpty()) {
+                        createNewAssetFromType(pendingNewAssetType, name);
+                        ImGui.closeCurrentPopup();
+                    }
+                }
+                ImGui.sameLine();
+                if (ImGui.button("Cancel", 120, 0)) {
+                    ImGui.closeCurrentPopup();
+                }
+            }
+            ImGui.endPopup();
+        }
+    }
+
+    private void createNewAssetFromType(CreatableAssetType type, String name) {
+        // Switch content type if needed
+        if (activeContent == null || activeContent.getAssetClass() != type.assetClass()) {
+            switchContentForNewAsset(type.assetClass());
+        }
+        if (activeContent != null) {
+            try {
+                Object defaultAsset = type.assetClass().getDeclaredConstructor().newInstance();
+                createAsset(name, defaultAsset);
+            } catch (Exception e) {
+                showStatus("Error creating asset: " + e.getMessage());
+            }
+        }
+    }
+
+    private void switchContentForNewAsset(Class<?> type) {
+        if (activeContent != null) {
+            activeContent.onAssetUnloaded();
+            activeContent.destroy();
+        }
+        activeContent = contentRegistry.createContent(type);
+        if (activeContent != null) {
+            activeContent.initialize();
+        }
+        editingType = type;
+    }
+
+    // ========================================================================
+    // BREADCRUMB
+    // ========================================================================
+
+    private void renderBreadcrumb() {
+        if (editingPath == null) return;
+
+        String[] segments = editingPath.split("/");
+        for (int i = 0; i < segments.length; i++) {
+            boolean isLast = (i == segments.length - 1);
+            String segment = segments[i];
+
+            if (isLast) {
+                ImGui.text(segment);
+            } else {
+                ImGui.textDisabled(segment);
+                ImGui.sameLine(0, 2);
+                ImGui.textDisabled(">");
+                ImGui.sameLine(0, 2);
+            }
+        }
+    }
+
+    // ========================================================================
+    // EMPTY STATE
+    // ========================================================================
+
+    private void renderEmptyState() {
+        if (creatableTypes == null) initCreatableTypes();
+
+        ImGui.spacing();
+
+        // Two-column layout with vertical separator
+        if (ImGui.beginTable("##emptyStateLayout", 2, ImGuiTableFlags.BordersInnerV)) {
+            ImGui.tableSetupColumn("left", ImGuiTableColumnFlags.WidthStretch, 0.4f);
+            ImGui.tableSetupColumn("right", ImGuiTableColumnFlags.WidthStretch, 0.6f);
+
+            ImGui.tableNextRow();
+
+            // === LEFT COLUMN: Quick Actions ===
+            ImGui.tableSetColumnIndex(0);
+            renderEmptyStateLeftColumn();
+
+            // === RIGHT COLUMN: Favorites + Recently Opened ===
+            ImGui.tableSetColumnIndex(1);
+            renderEmptyStateRightColumn();
+
+            ImGui.endTable();
+        }
+
+        // Tip — anchored at bottom of available space
+        float tipHeight = ImGui.getTextLineHeightWithSpacing() + ImGui.getStyle().getItemSpacingY() * 2;
+        float remainingY = ImGui.getContentRegionAvailY() - tipHeight;
+        if (remainingY > 0) {
+            ImGui.setCursorPosY(ImGui.getCursorPosY() + remainingY);
+        }
+        ImGui.separator();
+        ImGui.spacing();
+        ImGui.textDisabled("Tip: Open the sidebar " + MaterialIcons.Menu
+                + " to browse all assets, or press Ctrl+P to search");
+    }
+
+    private void renderEmptyStateLeftColumn() {
+        ImGui.text("Quick Actions");
+        ImGui.spacing();
+
+        // Open Asset button
+        if (ImGui.button(MaterialIcons.Search + " Open Asset##emptyOpen", -1, 32)) {
+            EditorConfig cfg = getConfig();
+            List<String> recents = cfg != null ? cfg.getRecentAssets() : List.of();
+            List<String> favs = cfg != null ? cfg.getFavoriteAssets() : List.of();
+            quickSearchPopup.open(this::selectAssetByPath, recents, favs);
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("Quick search assets (Ctrl+P)");
+        }
+
+        ImGui.spacing();
+        ImGui.spacing();
+
+        // Create New section — 2 buttons per row
+        ImGui.text("Create New");
+        ImGui.spacing();
+
+        float cardSpacing = ImGui.getStyle().getItemSpacingX();
+        float totalW = ImGui.getContentRegionAvailX();
+        float cardWidth = (totalW - cardSpacing) / 2;
+
+        for (int i = 0; i < creatableTypes.size(); i++) {
+            CreatableAssetType ct = creatableTypes.get(i);
+            String icon = Assets.getIconCodepoint(ct.assetClass());
+            if (ImGui.button(icon + " " + ct.displayName() + "##create_" + ct.displayName(),
+                    cardWidth, 28)) {
+                openNewAssetDialog(ct);
+            }
+            // Same line for odd-indexed items (second column)
+            if (i % 2 == 0 && i + 1 < creatableTypes.size()) {
+                ImGui.sameLine();
+            }
+        }
+    }
+
+    private void renderEmptyStateRightColumn() {
+        EditorConfig cfg = getConfig();
+
+        // Favorites section — always show, even when empty
+        ImGui.text(MaterialIcons.Star + " Favorites");
+        ImGui.spacing();
+
+        if (cfg != null && !cfg.getFavoriteAssets().isEmpty()) {
+            int favFlags = ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg;
+            if (ImGui.beginTable("##favoritesTable", 1, favFlags)) {
+                ImGui.tableSetupColumn("Asset", ImGuiTableColumnFlags.WidthStretch);
+
+                for (String path : List.copyOf(cfg.getFavoriteAssets())) {
+                    ImGui.tableNextRow();
+                    ImGui.tableSetColumnIndex(0);
+                    Class<?> type = Assets.getTypeForPath(path);
+                    String icon = type != null ? Assets.getIconCodepoint(type) : MaterialIcons.InsertDriveFile;
+                    if (ImGui.selectable(icon + " " + stripExtension(extractFilename(path))
+                            + "##fav_" + path, false, ImGuiSelectableFlags.SpanAllColumns)) {
+                        selectAssetByPath(path);
+                    }
+                    if (ImGui.isItemHovered()) {
+                        ImGui.setTooltip(path);
+                    }
+                }
+
+                ImGui.endTable();
+            }
+        } else {
+            ImGui.textDisabled("No favorites yet. Use " + MaterialIcons.StarBorder + " to pin assets.");
+        }
+
+        ImGui.spacing();
+        ImGui.spacing();
+
+        // Recently Opened section — table with borders
+        ImGui.text(MaterialIcons.History + " Recently Opened");
+        ImGui.spacing();
+
+        if (cfg != null && !cfg.getRecentAssets().isEmpty()) {
+            int tableFlags = ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg;
+            if (ImGui.beginTable("##recentAssetsTable", 1, tableFlags)) {
+                ImGui.tableSetupColumn("Asset", ImGuiTableColumnFlags.WidthStretch);
+
+                for (String path : List.copyOf(cfg.getRecentAssets())) {
+                    ImGui.tableNextRow();
+                    ImGui.tableSetColumnIndex(0);
+                    Class<?> type = Assets.getTypeForPath(path);
+                    String icon = type != null ? Assets.getIconCodepoint(type) : MaterialIcons.InsertDriveFile;
+                    if (ImGui.selectable(icon + " " + stripExtension(extractFilename(path))
+                            + "##recent_" + path, false, ImGuiSelectableFlags.SpanAllColumns)) {
+                        selectAssetByPath(path);
+                    }
+                    if (ImGui.isItemHovered()) {
+                        ImGui.setTooltip(path);
+                    }
+                }
+
+                ImGui.endTable();
+            }
+        } else {
+            ImGui.textDisabled("No recently opened assets.");
+        }
+    }
+
+    // ========================================================================
+    // SIDEBAR PINNED SECTION
+    // ========================================================================
+
+    private void renderSidebarPinnedSection(String filter) {
+        EditorConfig cfg = getConfig();
+        if (cfg == null) return;
+        List<String> favorites = List.copyOf(cfg.getFavoriteAssets());
+        if (favorites.isEmpty()) return;
+
+        // Apply search filter to pinned items too
+        List<String> visible = favorites;
+        if (!filter.isEmpty()) {
+            visible = favorites.stream()
+                    .filter(p -> extractFilename(p).toLowerCase().contains(filter))
+                    .toList();
+            if (visible.isEmpty()) return;
+        }
+
+        if (ImGui.collapsingHeader(MaterialIcons.Star + " Favorites (" + visible.size() + ")##sidebarPinned",
+                ImGuiTreeNodeFlags.DefaultOpen)) {
+            for (String path : visible) {
+                Class<?> type = Assets.getTypeForPath(path);
+                String icon = type != null ? Assets.getIconCodepoint(type) : MaterialIcons.InsertDriveFile;
+                String display = icon + " " + stripExtension(extractFilename(path));
+
+                boolean selected = path.equals(editingPath);
+                if (ImGui.selectable(display + "##fav_" + path, selected)) {
+                    selectAssetByPath(path);
+                }
+                if (ImGui.isItemHovered()) {
+                    ImGui.setTooltip(path);
+                }
+
+                // Context menu for pinned items
+                renderSidebarFileContextMenu(path);
+            }
+        }
+        ImGui.separator();
+    }
+
+    // ========================================================================
+    // RENAME / DELETE / DUPLICATE
+    // ========================================================================
+
+    private void renderRenamePopup() {
+        if (showRenamePopup) {
+            ImGui.openPopup("Rename Asset##assetRename");
+            showRenamePopup = false;
+        }
+
+        if (ImGui.beginPopupModal("Rename Asset##assetRename", new ImBoolean(true),
+                ImGuiWindowFlags.AlwaysAutoResize)) {
+            ImGui.text("Name:");
+            ImGui.sameLine();
+            ImGui.setNextItemWidth(250);
+            ImGui.inputText("##renameName", renameBuffer);
+
+            ImGui.spacing();
+
+            // Warning about broken references
+            ImGui.pushStyleColor(ImGuiCol.Text, EditorColors.WARNING[0], EditorColors.WARNING[1], EditorColors.WARNING[2], EditorColors.WARNING[3]);
+            ImGui.text(MaterialIcons.Warning + " Renaming an asset referenced by other assets");
+            ImGui.text("  will break those references.");
+            ImGui.popStyleColor();
+
+            ImGui.spacing();
+
+            if (ImGui.button("Rename", 120, 0)) {
+                String newName = renameBuffer.get().trim();
+                if (!newName.isEmpty() && pendingRenamePath != null) {
+                    renameAsset(pendingRenamePath, newName);
+                }
+                ImGui.closeCurrentPopup();
+            }
+            ImGui.sameLine();
+            if (ImGui.button("Cancel", 120, 0)) {
+                ImGui.closeCurrentPopup();
+            }
+
+            ImGui.endPopup();
+        }
+    }
+
+    private void renderDeleteConfirmPopup() {
+        if (showDeleteConfirmPopup) {
+            ImGui.openPopup("Delete Asset?##assetDelete");
+            showDeleteConfirmPopup = false;
+        }
+
+        if (ImGui.beginPopupModal("Delete Asset?##assetDelete", new ImBoolean(true),
+                ImGuiWindowFlags.AlwaysAutoResize)) {
+            String name = pendingDeletePath != null
+                    ? stripExtension(extractFilename(pendingDeletePath)) : "this asset";
+            ImGui.text("Are you sure you want to delete \"" + name + "\"?");
+            ImGui.spacing();
+            ImGui.textDisabled("This cannot be undone.");
+            ImGui.spacing();
+
+            EditorColors.pushDangerButton();
+            if (ImGui.button("Delete", 120, 0)) {
+                if (pendingDeletePath != null) {
+                    deleteAsset(pendingDeletePath);
+                }
+                ImGui.closeCurrentPopup();
+            }
+            EditorColors.popButtonColors();
+            ImGui.sameLine();
+            if (ImGui.button("Cancel", 120, 0)) {
+                ImGui.closeCurrentPopup();
+            }
+
+            ImGui.endPopup();
+        }
+    }
+
+    private void renameAsset(String oldPath, String newName) {
+        try {
+            String dir = oldPath.substring(0, oldPath.lastIndexOf('/') + 1);
+            String filename = extractFilename(oldPath);
+            String ext = filename.contains(".") ? filename.substring(filename.indexOf('.')) : "";
+            String newPath = dir + newName + ext;
+
+            Path oldFile = Paths.get(Assets.getAssetRoot(), oldPath);
+            Path newFile = Paths.get(Assets.getAssetRoot(), newPath);
+
+            if (Files.exists(newFile)) {
+                showStatus("A file named \"" + newName + "\" already exists");
+                return;
+            }
+
+            Files.move(oldFile, newFile);
+
+            EditorEventBus.get().publish(
+                    new AssetChangedEvent(oldPath, AssetChangedEvent.ChangeType.DELETED));
+            EditorEventBus.get().publish(
+                    new AssetChangedEvent(newPath, AssetChangedEvent.ChangeType.CREATED));
+
+            // Update editing path
+            if (oldPath.equals(editingPath)) {
+                editingPath = newPath;
+            }
+
+            // Evict old cache entry so stale path isn't kept in memory
+            Assets.unload(oldPath);
+
+            // Update navigation history
+            for (int i = 0; i < navigationHistory.size(); i++) {
+                if (navigationHistory.get(i).equals(oldPath)) {
+                    navigationHistory.set(i, newPath);
+                }
+            }
+
+            // Update favorites and recents
+            EditorConfig cfg = getConfig();
+            if (cfg != null) {
+                String normalizedOld = oldPath.replace('\\', '/');
+                String normalizedNew = newPath.replace('\\', '/');
+                List<String> recents = cfg.getRecentAssets();
+                for (int i = 0; i < recents.size(); i++) {
+                    if (recents.get(i).equals(normalizedOld)) {
+                        recents.set(i, normalizedNew);
+                    }
+                }
+                List<String> favs = cfg.getFavoriteAssets();
+                for (int i = 0; i < favs.size(); i++) {
+                    if (favs.get(i).equals(normalizedOld)) {
+                        favs.set(i, normalizedNew);
+                    }
+                }
+                // Update timestamps map
+                Long ts = cfg.getRecentAssetTimestamps().remove(normalizedOld);
+                if (ts != null) {
+                    cfg.getRecentAssetTimestamps().put(normalizedNew, ts);
+                }
+                cfg.save();
+            }
+
+            sidebarRefreshRequested = true;
+            showStatus("Renamed to: " + extractFilename(newPath));
+        } catch (Exception e) {
+            showStatus("Error renaming: " + e.getMessage());
+        }
+    }
+
+    private void deleteAsset(String path) {
+        try {
+            Path file = Paths.get(Assets.getAssetRoot(), path);
+            Files.deleteIfExists(file);
+
+            EditorEventBus.get().publish(
+                    new AssetChangedEvent(path, AssetChangedEvent.ChangeType.DELETED));
+
+            // If we just deleted the currently open asset, clear it
+            if (path.equals(editingPath)) {
+                clearEditingAsset();
+            }
+
+            // Remove from favorites/recents if present
+            EditorConfig cfg = getConfig();
+            if (cfg != null) {
+                if (cfg.isFavoriteAsset(path)) cfg.toggleFavoriteAsset(path);
+                cfg.getRecentAssets().remove(path.replace('\\', '/'));
+                cfg.save();
+            }
+
+            sidebarRefreshRequested = true;
+            showStatus("Deleted: " + extractFilename(path));
+        } catch (Exception e) {
+            showStatus("Error deleting: " + e.getMessage());
+        }
+    }
+
+    private void duplicateAsset(String originalPath) {
+        try {
+            Class<?> type = Assets.getTypeForPath(originalPath);
+            Object asset = Assets.load(originalPath, type);
+            if (asset == null) {
+                showStatus("Failed to load asset for duplication");
+                return;
+            }
+
+            String dir = originalPath.substring(0, originalPath.lastIndexOf('/') + 1);
+            String origFilename = extractFilename(originalPath);
+            String ext = origFilename.contains(".") ? origFilename.substring(origFilename.indexOf('.')) : "";
+            String baseName = stripExtension(origFilename);
+            String newName = baseName + "_copy";
+            String newPath = dir + newName + ext;
+            int counter = 2;
+            while (Files.exists(Paths.get(Assets.getAssetRoot(), newPath))) {
+                newName = baseName + "_copy_" + counter++;
+                newPath = dir + newName + ext;
+            }
+
+            Assets.persist(asset, newPath);
+            // Evict so the next load reads fresh from disk (avoids shared reference)
+            Assets.unload(newPath);
+            EditorEventBus.get().publish(
+                    new AssetChangedEvent(newPath, AssetChangedEvent.ChangeType.CREATED));
+            sidebarRefreshRequested = true;
+            selectAssetByPath(newPath);
+            showStatus("Duplicated: " + extractFilename(newPath));
+        } catch (Exception e) {
+            showStatus("Error duplicating: " + e.getMessage());
+        }
+    }
+
+    // ========================================================================
     // UTILITIES
     // ========================================================================
 
@@ -985,6 +1799,14 @@ public class AssetEditorPanel extends EditorPanel implements AssetEditorShell {
         return dot > 0 ? filename.substring(0, dot) : filename;
     }
 
+    /**
+     * Formats a camelCase class name into a human-readable form.
+     * E.g. "AnimatorController" → "Animator Controller", "ItemRegistry" → "Item Registry".
+     */
+    private static String formatClassName(String name) {
+        return name.replaceAll("([a-z])([A-Z])", "$1 $2");
+    }
+
     @Override
     public void showStatus(String message) {
         if (statusCallback != null) {
@@ -993,25 +1815,38 @@ public class AssetEditorPanel extends EditorPanel implements AssetEditorShell {
     }
 
     // ========================================================================
-    // SIDEBAR TREE NODE
+    // INNER TYPES
     // ========================================================================
+
+    private record CreatableAssetType(String displayName, Class<?> assetClass, AssetCreationInfo info) {}
+
+    /** Pre-resolved file entry to avoid per-frame type/icon lookups. */
+    private record SidebarFileEntry(String path, String displayName, String icon, String label) {}
 
     private static class SidebarFolderNode {
         final String name;
-        final Map<String, SidebarFolderNode> children = new LinkedHashMap<>();
-        final List<String> files = new ArrayList<>();
+        final Map<String, SidebarFolderNode> children = new TreeMap<>();
+        final List<SidebarFileEntry> files = new ArrayList<>();
 
         SidebarFolderNode(String name) {
             this.name = name;
         }
 
-        void addPath(String fullPath) {
+        void addFile(String fullPath, SidebarFileEntry entry) {
             String[] segments = fullPath.split("/");
             SidebarFolderNode current = this;
             for (int i = 0; i < segments.length - 1; i++) {
                 current = current.children.computeIfAbsent(segments[i], SidebarFolderNode::new);
             }
-            current.files.add(fullPath);
+            current.files.add(entry);
+        }
+
+        /** Sort files in all nodes recursively. Call once after tree is built. */
+        void sortFiles() {
+            files.sort(Comparator.comparing(SidebarFileEntry::displayName));
+            for (SidebarFolderNode child : children.values()) {
+                child.sortFiles();
+            }
         }
     }
 }

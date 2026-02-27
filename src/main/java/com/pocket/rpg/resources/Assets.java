@@ -641,6 +641,22 @@ public final class Assets {
     }
 
     /**
+     * Unloads an asset from the cache, removing all associated tracking data.
+     * Use this when an asset file has been deleted from disk.
+     *
+     * @param path Asset path (e.g., "animations/walk.anim.json")
+     * @return true if the asset was cached and removed, false if not found
+     */
+    public static boolean unload(String path) {
+        AssetContext ctx = getContext();
+        if (!(ctx instanceof AssetManager manager)) {
+            return false;
+        }
+
+        return manager.evict(path) != null;
+    }
+
+    /**
      * Reloads all cached assets that support hot-reload.
      *
      * @return Number of assets successfully reloaded

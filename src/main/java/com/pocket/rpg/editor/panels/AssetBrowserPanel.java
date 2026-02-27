@@ -127,6 +127,13 @@ public class AssetBrowserPanel extends EditorPanel {
 
     private void onAssetChanged(AssetChangedEvent event) {
         if (isRefreshing) return; // Ignore events from our own refresh
+
+        // Evict deleted assets from cache before refreshing — avoids
+        // "Failed to reload" errors when reloadAll() tries to read a removed file.
+        if (event.changeType() == AssetChangedEvent.ChangeType.DELETED) {
+            Assets.unload(event.path());
+        }
+
         // Force refresh (bypass cooldown) when assets change
         lastRefreshTime = 0;
         refresh();

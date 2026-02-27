@@ -29,6 +29,15 @@ public class ShortcutConfig {
             .create();
 
     /**
+     * Config format version. Increment when default bindings change to force regeneration.
+     * Version history:
+     *   1 - Initial version
+     *   2 - Fixed AZERTY close binding (Ctrl+Q -> Ctrl+Z)
+     */
+    public static final int CURRENT_VERSION = 2;
+    private int version = 0;
+
+    /**
      * Currently active keyboard layout.
      */
     private KeyboardLayout keyboardLayout = KeyboardLayout.QWERTY;
@@ -97,6 +106,11 @@ public class ShortcutConfig {
             JsonObject json = JsonParser.parseReader(reader).getAsJsonObject();
 
             ShortcutConfig config = new ShortcutConfig();
+
+            // Read config version
+            if (json.has("version")) {
+                config.setVersion(json.get("version").getAsInt());
+            }
 
             // Read keyboard layout
             if (json.has("keyboardLayout")) {

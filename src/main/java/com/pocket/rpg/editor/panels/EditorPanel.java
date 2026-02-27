@@ -75,6 +75,11 @@ public abstract class EditorPanel {
 
     private EditorConfig config;
 
+    /** Returns the editor config, or null if not yet initialized. */
+    protected EditorConfig getConfig() {
+        return config;
+    }
+
     /** Cached display name computed from panelId. */
     private final String displayName;
 

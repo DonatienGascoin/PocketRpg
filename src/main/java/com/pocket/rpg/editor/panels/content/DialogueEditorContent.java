@@ -4,7 +4,6 @@ import com.pocket.rpg.dialogue.*;
 import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.events.AssetChangedEvent;
-import com.pocket.rpg.editor.events.AssetSelectionRequestEvent;
 import com.pocket.rpg.editor.events.EditorEventBus;
 import com.pocket.rpg.editor.panels.AssetCreationInfo;
 import com.pocket.rpg.editor.panels.AssetEditorContent;
@@ -183,17 +182,17 @@ public class DialogueEditorContent implements AssetEditorContent {
 
         // Right-aligned: Variables, Events, Refresh
         float refreshWidth = ImGui.calcTextSize(MaterialIcons.Refresh).x + ImGui.getStyle().getFramePaddingX() * 2;
-        float eventsWidth = ImGui.calcTextSize("Events " + MaterialIcons.OpenInNew).x + ImGui.getStyle().getFramePaddingX() * 2;
-        float varsWidth = ImGui.calcTextSize("Variables " + MaterialIcons.OpenInNew).x + ImGui.getStyle().getFramePaddingX() * 2;
+        float eventsWidth = ImGui.calcTextSize("Events " + MaterialIcons.Visibility).x + ImGui.getStyle().getFramePaddingX() * 2;
+        float varsWidth = ImGui.calcTextSize("Variables " + MaterialIcons.Visibility).x + ImGui.getStyle().getFramePaddingX() * 2;
         float spacing = ImGui.getStyle().getItemSpacingX();
         float rightEdge = ImGui.getContentRegionAvailX() + ImGui.getCursorPosX();
 
         ImGui.sameLine(rightEdge - refreshWidth - spacing - eventsWidth - spacing - varsWidth);
-        if (ImGui.button("Variables " + MaterialIcons.OpenInNew)) {
+        if (ImGui.button("Variables " + MaterialIcons.Visibility)) {
             openVariablesAsset();
         }
         ImGui.sameLine();
-        if (ImGui.button("Events " + MaterialIcons.OpenInNew)) {
+        if (ImGui.button("Events " + MaterialIcons.Visibility)) {
             openEventsAsset();
         }
         ImGui.sameLine();
@@ -280,6 +279,16 @@ public class DialogueEditorContent implements AssetEditorContent {
     @Override
     public void onNewRequested() {
         openNewDialog();
+    }
+
+    @Override
+    public boolean hasCreationDialog() {
+        return true;
+    }
+
+    @Override
+    public void setShell(AssetEditorShell shell) {
+        this.shell = shell;
     }
 
     private void openNewDialog() {
@@ -536,7 +545,7 @@ public class DialogueEditorContent implements AssetEditorContent {
             DialogueVariables empty = new DialogueVariables();
             new DialogueVariablesLoader().save(empty, Paths.get(Assets.getAssetRoot(), VARIABLES_ASSET_PATH).toString());
         });
-        EditorEventBus.get().publish(new AssetSelectionRequestEvent(VARIABLES_ASSET_PATH, DialogueVariables.class));
+        shell.openPopupViewer(VARIABLES_ASSET_PATH, DialogueVariables.class);
     }
 
     private void openEventsAsset() {
@@ -544,7 +553,7 @@ public class DialogueEditorContent implements AssetEditorContent {
             DialogueEvents empty = new DialogueEvents();
             new DialogueEventsLoader().save(empty, Paths.get(Assets.getAssetRoot(), EVENTS_ASSET_PATH).toString());
         });
-        EditorEventBus.get().publish(new AssetSelectionRequestEvent(EVENTS_ASSET_PATH, DialogueEvents.class));
+        shell.openPopupViewer(EVENTS_ASSET_PATH, DialogueEvents.class);
     }
 
     private void ensureAssetExists(String relativePath, IORunnable creator) {

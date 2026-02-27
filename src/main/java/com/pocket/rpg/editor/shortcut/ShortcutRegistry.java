@@ -352,12 +352,17 @@ public class ShortcutRegistry {
             return;
         }
 
-        // Get bindings for the active layout
+        // Get bindings for the active layout — only apply bindings that differ
+        // from the registered default so that code-level default changes take effect.
         Map<String, ShortcutBinding> layoutBindings = config.getActiveBindings();
         if (layoutBindings != null && !layoutBindings.isEmpty()) {
             for (Map.Entry<String, ShortcutBinding> entry : layoutBindings.entrySet()) {
-                if (actions.containsKey(entry.getKey()) && entry.getValue() != null) {
-                    customBindings.put(entry.getKey(), entry.getValue());
+                ShortcutAction action = actions.get(entry.getKey());
+                if (action != null && entry.getValue() != null) {
+                    // Skip if the config binding matches the current default
+                    if (!entry.getValue().equals(action.getDefaultBinding())) {
+                        customBindings.put(entry.getKey(), entry.getValue());
+                    }
                 }
             }
             rebuildBindingIndex();
@@ -415,12 +420,22 @@ public class ShortcutRegistry {
 
         config.setKeyboardLayout(keyboardLayout);
 
+        // Check if config version is outdated — if so, regenerate all defaults
+        boolean forceRegenerate = config.getVersion() < ShortcutConfig.CURRENT_VERSION;
+        if (forceRegenerate) {
+            System.out.println("[ShortcutRegistry] Config version " + config.getVersion()
+                    + " < " + ShortcutConfig.CURRENT_VERSION + ", regenerating defaults");
+            // Clear stale custom bindings that came from the old config
+            customBindings.clear();
+            rebuildBindingIndex();
+        }
+
         // Generate/update bindings for both layouts
         for (KeyboardLayout layout : KeyboardLayout.values()) {
             Map<String, ShortcutBinding> existingBindings = config.getBindingsForLayout(layout);
 
-            if (existingBindings == null || existingBindings.isEmpty()) {
-                // No existing bindings - generate defaults
+            if (forceRegenerate || existingBindings == null || existingBindings.isEmpty()) {
+                // No existing bindings or version bump - generate fresh defaults
                 Map<String, ShortcutBinding> defaults = defaultsGenerator.apply(layout);
                 config.setBindingsForLayout(layout, defaults);
                 System.out.println("[ShortcutRegistry] Generated " + layout + " defaults with " + defaults.size() + " shortcuts");
@@ -436,6 +451,8 @@ public class ShortcutRegistry {
                 config.setBindingsForLayout(layout, merged);
             }
         }
+
+        config.setVersion(ShortcutConfig.CURRENT_VERSION);
 
         config.save(configPath);
         System.out.println("[ShortcutRegistry] Generated complete config for both layouts at " + configPath);

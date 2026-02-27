@@ -848,6 +848,23 @@ public class AssetManager implements AssetContext {
         resourcePaths.remove(resource);
     }
 
+    /**
+     * Fully evicts an asset from all caches and tracking maps.
+     * Use when an asset file has been deleted from disk.
+     *
+     * @param path Normalized asset path
+     * @return The evicted asset object, or null if not cached
+     */
+    public Object evict(String path) {
+        Object removed = cache.remove(path);
+        if (removed != null) {
+            resourcePaths.remove(removed);
+        }
+        cachedTypes.remove(path);
+        cachedFullPaths.remove(path);
+        return removed;
+    }
+
     @Override
     public String toString() {
         return String.format("AssetManager[root=%s, errorMode=%s, %s]",

@@ -338,6 +338,16 @@ public class AnimatorEditorContent implements AssetEditorContent {
     }
 
     @Override
+    public boolean hasCreationDialog() {
+        return true;
+    }
+
+    @Override
+    public void setShell(AssetEditorShell shell) {
+        this.shell = shell;
+    }
+
+    @Override
     public boolean hasCustomSave() {
         return true;
     }

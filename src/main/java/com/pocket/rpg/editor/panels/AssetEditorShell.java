@@ -59,4 +59,13 @@ public interface AssetEditorShell {
 
     /** Returns the editor selection manager for panel-specific selection operations. */
     EditorSelectionManager getSelectionManager();
+
+    /**
+     * Opens the given asset in a floating popup viewer window.
+     * The main editor remains on its current asset. If the asset is already
+     * open in a popup, focuses the existing window instead of opening a new one.
+     */
+    default void openPopupViewer(String assetPath, Class<?> assetType) {
+        // Default no-op — only the main AssetEditorPanel implements this
+    }
 }

@@ -102,6 +102,22 @@ public interface AssetEditorContent {
     }
 
     /**
+     * Whether this content type has its own creation dialog (shown via {@link #onNewRequested()}).
+     * When true, the shell will call {@link #setShell} then {@link #onNewRequested()} instead
+     * of showing the generic name-only creation popup.
+     */
+    default boolean hasCreationDialog() {
+        return false;
+    }
+
+    /**
+     * Sets the shell reference without loading an asset. Used by the creation flow
+     * when the content's own creation dialog needs the shell before any asset is loaded.
+     */
+    default void setShell(AssetEditorShell shell) {
+    }
+
+    /**
      * Selects a sub-item within the editor content by ID.
      * Called after {@link #onAssetLoaded} when the caller wants to navigate
      * to a specific item (e.g. a trainer ID within a trainer registry).

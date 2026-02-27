@@ -2,6 +2,8 @@ package com.pocket.rpg.editor.assets;
 
 import com.pocket.rpg.animation.Animation;
 import com.pocket.rpg.audio.clips.AudioClip;
+import com.pocket.rpg.dialogue.DialogueEvents;
+import com.pocket.rpg.dialogue.DialogueVariables;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.ui.text.Font;
 import imgui.ImGui;
@@ -30,10 +32,13 @@ public final class AssetPreviewRegistry {
     private static final SpriteBasedPreviewRenderer defaultRenderer = new SpriteBasedPreviewRenderer();
 
     static {
+        // TODO: Automatic loading would be better
         register(Font.class, new FontPreviewRenderer());
         register(AudioClip.class, new AudioClipPreviewRenderer());
         register(Sprite.class, new SpritePreviewRenderer());
         register(Animation.class, new AnimationPreviewRenderer());
+        register(DialogueEvents.class, new DialogueEventsPreviewRenderer());
+        register(DialogueVariables.class, new DialogueVariablesPreviewRenderer());
     }
 
     private AssetPreviewRegistry() {

@@ -128,40 +128,61 @@ public class RenderDispatcher {
     // EDITOR TYPES
     // ========================================================================
 
-    private void submitEditorGameObject(EditorGameObject entity, SpriteBatch batch, Vector4f tint) {
+    /**
+     * Resolved geometry data for an editor entity.
+     * Used by both the normal render pass and the GPU picking pass to avoid code duplication.
+     */
+    public record ResolvedGeometry(
+            Sprite sprite, float x, float y, float width, float height,
+            float rotation, float originX, float originY, float zIndex
+    ) {}
+
+    /**
+     * Resolves the renderable geometry for an editor entity.
+     * Returns null if the entity has no sprite (not renderable).
+     *
+     * @param entity The editor entity to resolve
+     * @return Resolved geometry, or null if no sprite
+     */
+    public static ResolvedGeometry resolveEntityGeometry(EditorGameObject entity) {
         Sprite sprite = entity.getCurrentSprite();
-        if (sprite == null) return;
+        if (sprite == null) return null;
 
         Vector3f pos = entity.getPosition();
         Vector2f size = entity.getCurrentSize();
         Vector3f scale = entity.getScale();
         Vector3f rotation = entity.getRotation();
 
-        // Apply scale to size
         float width = size.x * scale.x;
         float height = size.y * scale.y;
 
-        // Get origin and tint from SpriteRenderer if available
         float originX = 0.5f;
         float originY = 0.5f;
-        Vector4f finalTint = tint;
         SpriteRenderer sr = entity.getComponent(SpriteRenderer.class);
         if (sr != null) {
             originX = sr.getEffectiveOriginX();
             originY = sr.getEffectiveOriginY();
-            // Combine SpriteRenderer's tint with editor tint
-            Vector4f spriteTint = sr.getTintColor();
-            finalTint = combineTints(spriteTint, tint);
+        }
+
+        return new ResolvedGeometry(sprite, pos.x, pos.y, width, height,
+                rotation.z, originX, originY, entity.getZIndex());
+    }
+
+    private void submitEditorGameObject(EditorGameObject entity, SpriteBatch batch, Vector4f tint) {
+        ResolvedGeometry geom = resolveEntityGeometry(entity);
+        if (geom == null) return;
+
+        Vector4f finalTint = tint;
+        SpriteRenderer sr = entity.getComponent(SpriteRenderer.class);
+        if (sr != null) {
+            finalTint = combineTints(sr.getTintColor(), tint);
         }
 
         batch.submit(
-                sprite,
-                pos.x, pos.y,
-                width, height,
-                rotation.z,
-                originX, originY,
-                entity.getZIndex(),
-                finalTint
+                geom.sprite(), geom.x(), geom.y(),
+                geom.width(), geom.height(),
+                geom.rotation(), geom.originX(), geom.originY(),
+                geom.zIndex(), finalTint
         );
     }
 

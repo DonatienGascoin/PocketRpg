@@ -9,6 +9,7 @@ import com.pocket.rpg.editor.events.EditorEventBus;
 import com.pocket.rpg.editor.events.TriggerSelectedEvent;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
+import com.pocket.rpg.editor.tools.gizmo.TransformGizmoRenderer;
 import com.pocket.rpg.rendering.resources.Sprite;
 import imgui.ImDrawList;
 import imgui.ImGui;
@@ -18,6 +19,8 @@ import lombok.Setter;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
 
+import java.util.HashSet;
+import java.util.Set;
 import java.util.function.Consumer;
 
 /**
@@ -55,10 +58,9 @@ public class SelectionTool implements EditorTool, ViewportAwareTool {
     @Setter
     private int collisionZLevel = 0;
 
-    // Drag state
-    private EditorGameObject draggedEntity = null;
-    private Vector2f dragOffset = new Vector2f();
-    private boolean isDragging = false;
+    // Marquee state
+    private boolean isMarqueeActive = false;
+    private float marqueeStartScreenX, marqueeStartScreenY;
 
     // Viewport bounds for overlay rendering
     private float viewportX, viewportY, viewportWidth, viewportHeight;
@@ -111,8 +113,10 @@ public class SelectionTool implements EditorTool, ViewportAwareTool {
             return;
         }
 
-        // Normal entity selection mode (deselect)
-        handleEntitySelection(tileX, tileY);
+        // Start marquee drag - selection finalized on mouseUp
+        isMarqueeActive = true;
+        marqueeStartScreenX = ImGui.getMousePosX();
+        marqueeStartScreenY = ImGui.getMousePosY();
     }
 
     /**
@@ -155,7 +159,7 @@ public class SelectionTool implements EditorTool, ViewportAwareTool {
     }
 
     /**
-     * Handles normal entity selection.
+     * Handles entity selection when an entity is known to exist at the given tile.
      */
     private void handleEntitySelection(int tileX, int tileY) {
         // Calculate world position (approximate - center of tile)
@@ -164,64 +168,84 @@ public class SelectionTool implements EditorTool, ViewportAwareTool {
 
         // Find entity at position
         EditorGameObject entity = scene.findEntityAt(worldX, worldY);
+        if (entity == null) return;
 
-        if (entity != null) {
-            // Select entity via EditorSelectionManager (properly exits collision mode)
-            if (selectionManager != null) {
-                selectionManager.selectEntity(entity);
-            } else {
-                scene.setSelectedEntity(entity);
-            }
-
-            // Switch to Move tool for immediate manipulation
-            if (onSwitchToTransformTool != null) {
-                onSwitchToTransformTool.accept("Move");
-            }
+        // Select entity via EditorSelectionManager (properly exits collision mode)
+        if (selectionManager != null) {
+            selectionManager.selectEntity(entity);
         } else {
-            // Deselect - clear selection via manager
-            if (selectionManager != null) {
-                selectionManager.clearSelection();
-            } else {
-                scene.setSelectedEntity(null);
-            }
-            draggedEntity = null;
-            isDragging = false;
+            scene.setSelectedEntity(entity);
+        }
+
+        // Switch to Move tool for immediate manipulation
+        if (onSwitchToTransformTool != null) {
+            onSwitchToTransformTool.accept("Move");
         }
     }
 
     @Override
     public void onMouseDrag(int tileX, int tileY, int button) {
-        if (!isDragging || draggedEntity == null) {
-            return;
-        }
-
-        // Calculate new position
-        float worldX = tileX + 0.5f + dragOffset.x;
-        float worldY = tileY + 0.5f + dragOffset.y;
-
-        // Update entity position
-        draggedEntity.setPosition(worldX, worldY);
-        scene.markDirty();
+        // No-op: marquee visual is drawn in renderOverlay using live mouse position
     }
 
     @Override
     public void onMouseUp(int tileX, int tileY, int button) {
-        if (button == 0) {
-            draggedEntity = null;
-            isDragging = false;
+        if (button != 0) return;
+
+        if (isMarqueeActive) {
+            isMarqueeActive = false;
+            float endX = ImGui.getMousePosX(), endY = ImGui.getMousePosY();
+            float dx = endX - marqueeStartScreenX, dy = endY - marqueeStartScreenY;
+
+            if (dx * dx + dy * dy < 9) {
+                // Tiny drag = click on empty space -> clear selection
+                if (selectionManager != null) {
+                    selectionManager.clearSelection();
+                } else {
+                    scene.setSelectedEntity(null);
+                }
+            } else {
+                // Convert screen corners to world, find entities in rectangle
+                Vector2f worldStart = TransformGizmoRenderer.screenToWorld(camera,
+                        marqueeStartScreenX, marqueeStartScreenY, viewportX, viewportY);
+                Vector2f worldEnd = TransformGizmoRenderer.screenToWorld(camera,
+                        endX, endY, viewportX, viewportY);
+
+                float minX = Math.min(worldStart.x, worldEnd.x);
+                float maxX = Math.max(worldStart.x, worldEnd.x);
+                float minY = Math.min(worldStart.y, worldEnd.y);
+                float maxY = Math.max(worldStart.y, worldEnd.y);
+
+                Set<EditorGameObject> selected = new HashSet<>();
+                for (EditorGameObject entity : scene.getEntities()) {
+                    if (!entity.isRenderVisible()) continue;
+                    Vector3f pos = entity.getPosition();
+                    if (pos.x >= minX && pos.x <= maxX && pos.y >= minY && pos.y <= maxY) {
+                        selected.add(entity);
+                    }
+                }
+
+                if (!selected.isEmpty() && selectionManager != null) {
+                    selectionManager.selectEntities(selected);
+                } else {
+                    if (selectionManager != null) {
+                        selectionManager.clearSelection();
+                    } else {
+                        scene.setSelectedEntity(null);
+                    }
+                }
+            }
         }
     }
 
     @Override
     public void onActivate() {
-        draggedEntity = null;
-        isDragging = false;
+        isMarqueeActive = false;
     }
 
     @Override
     public void onDeactivate() {
-        draggedEntity = null;
-        isDragging = false;
+        isMarqueeActive = false;
     }
 
     // ========================================================================
@@ -264,6 +288,20 @@ public class SelectionTool implements EditorTool, ViewportAwareTool {
                 renderTriggerHoverHighlight(drawList, camera, hoveredTileX, hoveredTileY);
                 ImGui.setMouseCursor(ImGuiMouseCursor.Hand);
             }
+        }
+
+        // Draw marquee rectangle
+        if (isMarqueeActive) {
+            float curX = ImGui.getMousePosX(), curY = ImGui.getMousePosY();
+            float x1 = Math.min(marqueeStartScreenX, curX);
+            float y1 = Math.min(marqueeStartScreenY, curY);
+            float x2 = Math.max(marqueeStartScreenX, curX);
+            float y2 = Math.max(marqueeStartScreenY, curY);
+
+            int fill = ImGui.colorConvertFloat4ToU32(0.3f, 0.6f, 1.0f, 0.15f);
+            int border = ImGui.colorConvertFloat4ToU32(0.3f, 0.6f, 1.0f, 0.8f);
+            drawList.addRectFilled(x1, y1, x2, y2, fill);
+            drawList.addRect(x1, y1, x2, y2, border, 0, 0, 1.0f);
         }
 
         drawList.popClipRect();

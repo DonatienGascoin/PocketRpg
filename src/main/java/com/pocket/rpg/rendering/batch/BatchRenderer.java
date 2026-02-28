@@ -24,9 +24,12 @@ import static org.lwjgl.opengl.GL33.*;
  */
 public class BatchRenderer extends Renderer {
 
+    private static final String DEFAULT_SHADER_PATH = "gameData/assets/shaders/batch_sprite.glsl";
+
     @Getter
     private SpriteBatch batch;
     private Shader batchShader;
+    private final String shaderPath;
 
     private Matrix4f projectionMatrix;
     private Matrix4f viewMatrix;
@@ -35,13 +38,19 @@ public class BatchRenderer extends Renderer {
 
     public BatchRenderer(RenderingConfig config) {
         this.config = config;
+        this.shaderPath = DEFAULT_SHADER_PATH;
+    }
+
+    public BatchRenderer(RenderingConfig config, String shaderPath) {
+        this.config = config;
+        this.shaderPath = shaderPath;
     }
 
     @Override
     public void init(int gameWidth, int gameHeight) {
         batch = new SpriteBatch(config);
 
-        batchShader = new Shader("gameData/assets/shaders/batch_sprite.glsl");
+        batchShader = new Shader(shaderPath);
         batchShader.compileAndLink();
 
         projectionMatrix = new Matrix4f();

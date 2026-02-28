@@ -134,6 +134,7 @@ public class SceneViewport {
         calculateViewportBounds();
         renderer.render(viewportX, viewportY, viewportWidth, viewportHeight);
         updateHoveredTile();
+        updateAllToolViewportBounds();
 
         gridRenderer.render(camera, viewportX, viewportY, viewportWidth, viewportHeight);
         coordRenderer.render(camera, viewportX, viewportY, viewportWidth, viewportHeight,
@@ -172,6 +173,7 @@ public class SceneViewport {
         if (prefabEditActive) {
             renderPrefabEditOverlay();
             updateHoveredTile();
+            updateAllToolViewportBounds();
             gridRenderer.render(camera, viewportX, viewportY, viewportWidth, viewportHeight);
             coordRenderer.render(camera, viewportX, viewportY, viewportWidth, viewportHeight,
                     hoveredTileX, hoveredTileY, isHovered);
@@ -188,6 +190,7 @@ public class SceneViewport {
         }
 
         updateHoveredTile();
+        updateAllToolViewportBounds();
 
         gridRenderer.render(camera, viewportX, viewportY, viewportWidth, viewportHeight);
         coordRenderer.render(camera, viewportX, viewportY, viewportWidth, viewportHeight,
@@ -326,6 +329,20 @@ public class SceneViewport {
 
         hoveredTileX = (int) Math.floor(worldPos.x);
         hoveredTileY = (int) Math.floor(worldPos.y);
+    }
+
+    /**
+     * Updates viewport bounds for ALL registered tools before input handling.
+     * This prevents first-frame coordinate mismatches when switching tools
+     * (e.g., SelectionTool → MoveTool) since the new tool needs correct
+     * viewport bounds immediately for screen-to-world conversion.
+     */
+    private void updateAllToolViewportBounds() {
+        ToolManager tm = inputHandler.getToolManager();
+        if (tm == null) return;
+        for (EditorTool tool : tm.getTools()) {
+            updateToolViewportBounds(tool);
+        }
     }
 
     private void updateToolViewportBounds(EditorTool tool) {

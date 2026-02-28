@@ -527,6 +527,15 @@ public class EditorApplication {
         uiController.setupDocking();
         uiController.renderUI();
 
+        // Feed viewport bounds to renderer for GPU picking coordinate conversion.
+        // Must happen AFTER renderUI() which computes the viewport bounds for this frame.
+        if (sceneRenderer != null && uiController != null) {
+            var sv = uiController.getSceneViewport();
+            if (sv != null) {
+                sceneRenderer.setViewportScreenOrigin(sv.getViewportX(), sv.getViewportY());
+            }
+        }
+
         // Render prefab edit confirmation popup
         prefabEditController.renderConfirmationPopup();
 

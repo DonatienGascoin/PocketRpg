@@ -17,6 +17,7 @@ import org.joml.Vector4f;
 
 import java.util.*;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -113,6 +114,21 @@ public class EditorScene implements DirtyTracker {
     private final List<EditorGameObject> entities = new ArrayList<>();
 
     private final Set<EditorGameObject> selectedEntities = new HashSet<>();
+
+    // ========================================================================
+    // GPU PICKING
+    // ========================================================================
+
+    /**
+     * GPU-based entity picker. When set, findEntityAt() delegates to this
+     * supplier instead of the CPU-based bounding box hit test.
+     * Returns the entity under the actual mouse cursor (screen-space, not world-space).
+     */
+    private Supplier<EditorGameObject> gpuPicker;
+
+    public void setGpuPicker(Supplier<EditorGameObject> picker) {
+        this.gpuPicker = picker;
+    }
 
     // ========================================================================
     // CAMERA SETTINGS
@@ -374,14 +390,29 @@ public class EditorScene implements DirtyTracker {
 
     /**
      * Finds an entity at the given world position.
-     * Searches in reverse order (top entities first).
-     * Accounts for pivot, scale, and rotation.
+     * <p>
+     * When GPU picking is available, delegates to the GPU picker which uses
+     * screen-space pixel readback for pixel-accurate selection (ignoring the
+     * world coordinate parameters). Falls back to CPU-based bounding box
+     * hit testing when GPU picking is not available.
      */
     public EditorGameObject findEntityAt(float worldX, float worldY) {
+        if (gpuPicker != null) {
+            return gpuPicker.get();
+        }
+        return cpuFindEntityAt(worldX, worldY);
+    }
+
+    /**
+     * CPU-based entity hit testing fallback.
+     * Searches in reverse order (top entities first).
+     * Accounts for pivot, scale, and rotation using AABB.
+     */
+    private EditorGameObject cpuFindEntityAt(float worldX, float worldY) {
         for (int i = entities.size() - 1; i >= 0; i--) {
             EditorGameObject entity = entities.get(i);
-            if (!entity.isEnabled()) continue; // Skip disabled entities
-            if (entity.hasComponent(UITransform.class)) continue; // UI elements only selectable in UI Designer
+            if (!entity.isEnabled()) continue;
+            if (entity.hasComponent(UITransform.class)) continue;
             if (isPointInsideEntity(entity, worldX, worldY)) {
                 return entity;
             }

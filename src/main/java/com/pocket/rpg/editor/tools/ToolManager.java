@@ -110,13 +110,20 @@ public class ToolManager {
      */
     public void handleMouseDown(int tileX, int tileY, int button) {
         if (activeTool == null) return;
-        
+
         isMouseDown = true;
         activeButton = button;
         lastTileX = tileX;
         lastTileY = tileY;
-        
+
+        EditorTool toolBefore = activeTool;
         activeTool.onMouseDown(tileX, tileY, button);
+
+        // If the tool changed during onMouseDown (e.g., SelectionTool → MoveTool),
+        // forward the mouse-down to the new tool so it can initiate a drag
+        if (activeTool != null && activeTool != toolBefore) {
+            activeTool.onMouseDown(tileX, tileY, button);
+        }
     }
     
     /**

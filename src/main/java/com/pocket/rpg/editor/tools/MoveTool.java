@@ -90,12 +90,13 @@ public class MoveTool implements EditorTool, ViewportAwareTool, ContinuousDragTo
 
         EditorGameObject selected = getSelectedEntity();
         if (selected == null) {
-            // Try to select entity at position
+            // Try to select entity at position and start drag immediately
             float worldX = tileX + 0.5f;
             float worldY = tileY + 0.5f;
             EditorGameObject entity = scene.findEntityAt(worldX, worldY);
             if (entity != null && selectionManager != null) {
                 selectionManager.selectEntity(entity);
+                startDrag(DragAxis.FREE);
             }
             return;
         }
@@ -111,10 +112,11 @@ public class MoveTool implements EditorTool, ViewportAwareTool, ContinuousDragTo
 
             if (clickedEntity != null) {
                 if (clickedEntity != selected) {
-                    // Select the clicked entity
+                    // Select the clicked entity and start drag immediately
                     if (selectionManager != null) {
                         selectionManager.selectEntity(clickedEntity);
                     }
+                    startDrag(DragAxis.FREE);
                 } else {
                     // Start free drag on current entity
                     startDrag(DragAxis.FREE);

@@ -14,6 +14,7 @@ import lombok.Setter;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -191,26 +192,14 @@ public class EntityCreationService {
     }
 
     /**
-     * Duplicates an entity and all its children.
+     * Duplicates an entity and all its children with its own undo command.
      * Does NOT change selection — caller is responsible for that.
      *
      * @return the root-level copy
      */
     public EditorGameObject duplicateEntity(EditorGameObject original) {
-        Vector3f newPos = new Vector3f(original.getPosition()).add(1, 0, 0);
-        EditorGameObject copy = cloneEntity(original, newPos);
-        copy.setName(original.getName() + "_copy");
-
-        copy.setParent(original.getParent());
-        copy.setOrder(original.getOrder() + 1);
-
-        // Shift siblings after the original
-        shiftSiblingsAfter(original);
-
-        // Collect the copy and all descendant clones for a single undo action
         List<EditorGameObject> allCopies = new ArrayList<>();
-        allCopies.add(copy);
-        duplicateChildrenRecursive(original, copy, allCopies);
+        EditorGameObject copy = duplicateEntityInto(original, allCopies);
 
         if (allCopies.size() == 1) {
             UndoManager.getInstance().execute(new AddEntityCommand(scene, copy));
@@ -219,6 +208,31 @@ public class EntityCreationService {
         }
 
         scene.markDirty();
+        return copy;
+    }
+
+    /**
+     * Duplicates an entity and all its children, collecting copies into the output list.
+     * Does NOT push undo or mark dirty — caller is responsible.
+     *
+     * @param original      the entity to duplicate
+     * @param allCopiesOut  list to collect all created copies (root + descendants)
+     * @return the root-level copy
+     */
+    public EditorGameObject duplicateEntityInto(EditorGameObject original, List<EditorGameObject> allCopiesOut) {
+        Vector3f newPos = new Vector3f(original.getPosition()).add(1, 0, 0);
+        EditorGameObject copy = cloneEntity(original, newPos);
+        copy.setName(generateCopyName(original.getName(), original.getParent()));
+
+        copy.setParent(original.getParent());
+        copy.setOrder(original.getOrder() + 1);
+
+        // Shift siblings after the original
+        shiftSiblingsAfter(original);
+
+        allCopiesOut.add(copy);
+        duplicateChildrenRecursive(original, copy, allCopiesOut);
+
         return copy;
     }
 
@@ -280,6 +294,31 @@ public class EntityCreationService {
                 sibling.setOrder(sibling.getOrder() + 1);
             }
         }
+    }
+
+    /**
+     * Generates a unique copy name, stripping any existing _copy/_copy_N suffix
+     * and checking siblings for conflicts.
+     */
+    private String generateCopyName(String originalName, EditorGameObject parent) {
+        // Strip existing _copy or _copy_N suffix to get the base name
+        String baseName = originalName.replaceAll("_copy(_\\d+)?$", "");
+
+        // Collect sibling names for conflict detection
+        List<EditorGameObject> siblings = (parent != null) ? parent.getChildren() : scene.getRootEntities();
+        Set<String> siblingNames = new HashSet<>();
+        for (EditorGameObject sibling : siblings) {
+            siblingNames.add(sibling.getName());
+        }
+
+        String candidate = baseName + "_copy";
+        if (!siblingNames.contains(candidate)) return candidate;
+
+        int counter = 2;
+        while (siblingNames.contains(baseName + "_copy_" + counter)) {
+            counter++;
+        }
+        return baseName + "_copy_" + counter;
     }
 
     /**

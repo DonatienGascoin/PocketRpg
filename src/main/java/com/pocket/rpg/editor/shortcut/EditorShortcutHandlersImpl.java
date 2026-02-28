@@ -18,6 +18,8 @@ import com.pocket.rpg.editor.tools.EditorTool;
 import com.pocket.rpg.editor.tools.ToolManager;
 import com.pocket.rpg.editor.undo.EditorCommand;
 import com.pocket.rpg.editor.undo.UndoManager;
+import com.pocket.rpg.editor.undo.commands.AddEntitiesCommand;
+import com.pocket.rpg.editor.undo.commands.AddEntityCommand;
 import com.pocket.rpg.editor.undo.commands.CompoundCommand;
 import com.pocket.rpg.editor.undo.commands.RemoveEntityCommand;
 import com.pocket.rpg.editor.undo.commands.ToggleEntityEnabledCommand;
@@ -219,14 +221,30 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
             return;
         }
 
-        Set<EditorGameObject> copies = new HashSet<>();
-        for (EditorGameObject entity : selected) {
-            copies.add(entityCreationService.duplicateEntity(entity));
+        // Filter out children whose ancestor is also selected (parent duplication handles them)
+        Set<EditorGameObject> selectedSet = new HashSet<>(selected);
+        List<EditorGameObject> roots = selected.stream()
+                .filter(e -> !isAncestorSelected(e, selectedSet))
+                .toList();
+
+        // Duplicate all roots, collecting all copies for a single undo command
+        List<EditorGameObject> allCopies = new ArrayList<>();
+        Set<EditorGameObject> rootCopies = new HashSet<>();
+        for (EditorGameObject entity : roots) {
+            rootCopies.add(entityCreationService.duplicateEntityInto(entity, allCopies));
         }
-        scene.setSelection(copies);
-        showMessage(selected.size() == 1
-                ? "Duplicated: " + selected.get(0).getName()
-                : "Duplicated " + selected.size() + " entities");
+
+        // Single undo command for the entire operation
+        EditorCommand cmd = allCopies.size() == 1
+                ? new AddEntityCommand(scene, allCopies.get(0))
+                : new AddEntitiesCommand(scene, allCopies);
+        UndoManager.getInstance().execute(cmd);
+        scene.markDirty();
+
+        scene.setSelection(rootCopies);
+        showMessage(roots.size() == 1
+                ? "Duplicated: " + roots.get(0).getName()
+                : "Duplicated " + roots.size() + " entities");
     }
 
     // ========================================================================

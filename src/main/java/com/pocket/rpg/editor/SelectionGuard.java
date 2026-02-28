@@ -6,6 +6,7 @@ import com.pocket.rpg.animation.animator.AnimatorTransition;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 
 import java.util.Set;
+import java.util.function.Predicate;
 
 /**
  * Wraps EditorSelectionManager to intercept selection changes based on editor mode.
@@ -28,6 +29,13 @@ public class SelectionGuard {
     }
 
     private SelectionInterceptor interceptor = Runnable::run;
+
+    /**
+     * Predicate that identifies entities exempt from the guard (e.g., working scene entities
+     * during prefab edit mode). Returns true if the entity should bypass the guard.
+     * Null when no exemption is active.
+     */
+    private Predicate<EditorGameObject> guardExemption;
 
     public SelectionGuard(EditorSelectionManager selectionManager,
                           EditorModeManager modeManager) {
@@ -52,12 +60,21 @@ public class SelectionGuard {
         this.interceptor = interceptor != null ? interceptor : Runnable::run;
     }
 
+    /**
+     * Sets a predicate that identifies entities exempt from the guard.
+     * During prefab edit mode, working scene entities should bypass the guard
+     * so the user can freely select within the prefab hierarchy.
+     */
+    public void setGuardExemption(Predicate<EditorGameObject> exemption) {
+        this.guardExemption = exemption != null ? exemption : e -> false;
+    }
+
     // ========================================================================
     // GUARDED SELECTION METHODS
     // ========================================================================
 
     public void selectEntity(EditorGameObject entity) {
-        if (needsGuard()) {
+        if (needsGuard() && !isExempt(entity)) {
             interceptor.intercept(() -> selectionManager.selectEntity(entity));
         } else {
             selectionManager.selectEntity(entity);
@@ -65,7 +82,7 @@ public class SelectionGuard {
     }
 
     public void selectEntities(Set<EditorGameObject> entities) {
-        if (needsGuard()) {
+        if (needsGuard() && entities.stream().anyMatch(e -> !isExempt(e))) {
             interceptor.intercept(() -> selectionManager.selectEntities(entities));
         } else {
             selectionManager.selectEntities(entities);
@@ -73,7 +90,7 @@ public class SelectionGuard {
     }
 
     public void toggleEntitySelection(EditorGameObject entity) {
-        if (needsGuard()) {
+        if (needsGuard() && !isExempt(entity)) {
             interceptor.intercept(() -> selectionManager.toggleEntitySelection(entity));
         } else {
             selectionManager.toggleEntitySelection(entity);
@@ -127,7 +144,7 @@ public class SelectionGuard {
     }
 
     public void clearSelection() {
-        if (needsGuard()) {
+        if (needsGuard() && !hasGuardExemption()) {
             interceptor.intercept(selectionManager::clearSelection);
         } else {
             selectionManager.clearSelection();
@@ -140,5 +157,13 @@ public class SelectionGuard {
 
     private boolean needsGuard() {
         return modeManager.isPrefabEditMode();
+    }
+
+    private boolean isExempt(EditorGameObject entity) {
+        return guardExemption != null && guardExemption.test(entity);
+    }
+
+    private boolean hasGuardExemption() {
+        return guardExemption != null;
     }
 }

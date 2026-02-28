@@ -380,6 +380,7 @@ public class HierarchyDragDropHandler {
                 }
             }
             case ON -> {
+                if (entity.isPrefabChildNode()) break;
                 int insertIdx = entity.getChildren().size();
                 int offset = 0;
                 for (EditorGameObject dragged : selected) {

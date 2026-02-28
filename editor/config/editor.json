@@ -29,7 +29,7 @@
   "maxZoom": 10.0,
   "cameraPanSpeed": 10.0,
   "zoomSpeed": 0.1,
-  "trackpadPanMode": false,
+  "trackpadPanMode": true,
   "scenesDirectory": "gameData/scenes",
   "editorAssetsDirectory": "editor/assets",
   "gameAssetsDirectory": "gameData/assets",
@@ -71,7 +71,7 @@
   "panelVisibility": {
     "assetBrowser": true,
     "hierarchy": true,
-    "collisionPanel": true,
+    "collisionPanel": false,
     "inspector": true,
     "tilesetPalette": true,
     "configuration": true,

@@ -10,9 +10,8 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.UUID;
 
 /**
  * A prefab loaded from a JSON file.
@@ -56,7 +55,6 @@ public class JsonPrefab implements Prefab {
     private List<GameObjectData> gameObjects;
 
     // Runtime fields (not serialized)
-    private transient Map<String, GameObjectData> nodeIdIndex;
     private transient Sprite cachedPreviewSprite;
     private transient boolean previewLoaded = false;
     private transient String sourcePath;  // Path to the JSON file
@@ -74,8 +72,8 @@ public class JsonPrefab implements Prefab {
     public JsonPrefab(String id, String displayName) {
         this.id = id;
         this.displayName = displayName;
-        // Create default root node
-        GameObjectData root = new GameObjectData(null, displayName, new ArrayList<>());
+        // Create default root node with generated ID
+        GameObjectData root = new GameObjectData(UUID.randomUUID().toString().substring(0, 8), displayName, new ArrayList<>());
         this.gameObjects = new ArrayList<>();
         this.gameObjects.add(root);
     }
@@ -155,7 +153,6 @@ public class JsonPrefab implements Prefab {
     @Override
     public void setGameObjects(List<GameObjectData> gameObjects) {
         this.gameObjects = gameObjects;
-        this.nodeIdIndex = null;
     }
 
     /**
@@ -192,21 +189,12 @@ public class JsonPrefab implements Prefab {
         if (nodeId == null || gameObjects == null) {
             return null;
         }
-        if (nodeIdIndex == null) {
-            buildNodeIdIndex();
-        }
-        return nodeIdIndex.get(nodeId);
-    }
-
-    private void buildNodeIdIndex() {
-        nodeIdIndex = new HashMap<>();
-        if (gameObjects != null) {
-            for (GameObjectData node : gameObjects) {
-                if (node.getId() != null) {
-                    nodeIdIndex.put(node.getId(), node);
-                }
+        for (GameObjectData node : gameObjects) {
+            if (nodeId.equals(node.getId())) {
+                return node;
             }
         }
+        return null;
     }
 
     @Override
@@ -217,9 +205,18 @@ public class JsonPrefab implements Prefab {
         return cachedPreviewSprite;
     }
 
+    /**
+     * Clears the cached preview sprite so it will be regenerated on next access.
+     */
+    public void clearPreviewCache() {
+        cachedPreviewSprite = null;
+        previewLoaded = false;
+    }
+
     private void loadPreviewSprite() {
         previewLoaded = true;
 
+        // Tier 1: explicit preview sprite path
         if (previewSpritePath != null && !previewSpritePath.isEmpty()) {
             try {
                 cachedPreviewSprite = Assets.load(previewSpritePath, Sprite.class);
@@ -229,25 +226,30 @@ public class JsonPrefab implements Prefab {
             }
         }
 
-        // Fallback: try to get sprite from root's SpriteRenderer component
-        List<Component> rootComponents = getComponents();
-        if (cachedPreviewSprite == null && rootComponents != null) {
-            for (Component comp : rootComponents) {
-                if (comp instanceof SpriteRenderer sr) {
-                    Sprite sprite = sr.getSprite();
-                    if (sprite != null) {
-                        cachedPreviewSprite = sprite;
-                        break;
-                    }
-                } else if (comp.getClass().getSimpleName().equals("SpriteRenderer")) {
-                    Object sprite = ComponentReflectionUtils.getFieldValue(comp, "sprite");
-                    if (sprite instanceof Sprite s) {
-                        cachedPreviewSprite = s;
-                        break;
-                    }
+        // Tier 2: search all nodes for first SpriteRenderer
+        if (cachedPreviewSprite == null && gameObjects != null) {
+            for (GameObjectData node : gameObjects) {
+                Sprite found = findSpriteInComponents(node.getComponents());
+                if (found != null) {
+                    cachedPreviewSprite = found;
+                    break;
                 }
             }
         }
+    }
+
+    private Sprite findSpriteInComponents(List<Component> components) {
+        if (components == null) return null;
+        for (Component comp : components) {
+            if (comp instanceof SpriteRenderer sr) {
+                Sprite sprite = sr.getSprite();
+                if (sprite != null) return sprite;
+            } else if (comp.getClass().getSimpleName().equals("SpriteRenderer")) {
+                Object sprite = ComponentReflectionUtils.getFieldValue(comp, "sprite");
+                if (sprite instanceof Sprite s) return s;
+            }
+        }
+        return null;
     }
 
     @Override

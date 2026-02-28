@@ -215,31 +215,35 @@ public class JsonPrefabHierarchyTest {
     }
 
     // ========================================================================
-    // NODE ID INDEX
+    // CONSTRUCTOR & FIND ROBUSTNESS
     // ========================================================================
 
     @Nested
-    class NodeIdIndex {
+    class ConstructorAndFindRobustness {
 
         @Test
-        void builtLazilyOnFirstFindNode() {
-            // nodeIdIndex starts null
-            assertNull(guardTower.getNodeIdIndex());
-
-            // First findNode triggers build
-            guardTower.findNode("guard001");
-            assertNotNull(guardTower.getNodeIdIndex());
+        void constructor_rootNodeHasNonNullId() {
+            JsonPrefab prefab = new JsonPrefab("test_id", "Test Prefab");
+            GameObjectData root = prefab.getRootNode();
+            assertNotNull(root);
+            assertNotNull(root.getId(), "Root node ID should be generated, not null");
+            assertFalse(root.getId().isEmpty());
         }
 
         @Test
-        void setGameObjects_clearsIndex() {
-            // Build the index
-            guardTower.findNode("guard001");
-            assertNotNull(guardTower.getNodeIdIndex());
+        void findNode_worksAfterListMutation() {
+            // Verify findNode works even after the gameObjects list is mutated
+            guardTower.findNode("guard001"); // warm up
 
-            // setGameObjects should clear it
-            guardTower.setGameObjects(guardTower.getGameObjects());
-            assertNull(guardTower.getNodeIdIndex());
+            // Mutate the list by adding a new node
+            GameObjectData newNode = new GameObjectData("new001", "NewChild", new ArrayList<>());
+            newNode.setParentId("root0001");
+            guardTower.getGameObjects().add(newNode);
+
+            // findNode should find the new node since there's no stale cache
+            GameObjectData found = guardTower.findNode("new001");
+            assertNotNull(found, "findNode should find newly added nodes without cache issues");
+            assertEquals("NewChild", found.getName());
         }
     }
 

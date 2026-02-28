@@ -3,6 +3,7 @@ package com.pocket.rpg.editor.scene;
 import com.pocket.rpg.collision.CollisionMap;
 import com.pocket.rpg.collision.trigger.TriggerDataMap;
 import com.pocket.rpg.components.rendering.SpriteRenderer;
+import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.rendering.core.Renderable;
 import com.pocket.rpg.rendering.resources.Sprite;
@@ -380,6 +381,7 @@ public class EditorScene implements DirtyTracker {
         for (int i = entities.size() - 1; i >= 0; i--) {
             EditorGameObject entity = entities.get(i);
             if (!entity.isEnabled()) continue; // Skip disabled entities
+            if (entity.hasComponent(UITransform.class)) continue; // UI elements only selectable in UI Designer
             if (isPointInsideEntity(entity, worldX, worldY)) {
                 return entity;
             }

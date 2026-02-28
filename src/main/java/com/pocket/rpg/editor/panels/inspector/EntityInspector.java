@@ -18,6 +18,7 @@ import com.pocket.rpg.editor.events.EditorEventBus;
 import com.pocket.rpg.editor.events.RequestPrefabEditEvent;
 import com.pocket.rpg.prefab.JsonPrefab;
 import com.pocket.rpg.prefab.Prefab;
+import com.pocket.rpg.prefab.PrefabHierarchyHelper;
 import com.pocket.rpg.prefab.PrefabRegistry;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
@@ -115,7 +116,10 @@ public class EntityInspector {
         ImGui.sameLine();
         if (entity.isScratchEntity() && !entity.getComponents().isEmpty()) {
             if (ImGui.button(MaterialIcons.Save + "##save")) {
-                savePrefabPopup.open(entity, p -> System.out.println("Saved prefab: " + p.getId()));
+                savePrefabPopup.open(entity, savedPrefab -> {
+                    PrefabHierarchyHelper.replaceScratchWithPrefabInstance(
+                            scene, entity, savedPrefab, null);
+                });
             }
             if (ImGui.isItemHovered()) ImGui.setTooltip("Save as Prefab");
             ImGui.sameLine();

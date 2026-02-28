@@ -132,23 +132,33 @@ public class GizmoRenderer {
 
     /**
      * Renders gizmos for selected entities (GizmoDrawableSelected).
+     * Also recurses into children so that child component gizmos
+     * (e.g. SpriteRenderer bounds) appear when the parent is selected.
      */
     private void renderSelectedGizmos(EditorScene scene, GizmoContext ctx) {
         for (EditorGameObject entity : scene.getSelectedEntities()) {
             if (!entity.isEnabled()) continue; // Skip disabled entities
 
-            Transform transform = entity.getComponent(Transform.class);
-            ctx.setTransform(transform);
+            renderSelectedGizmosForEntity(entity, ctx);
+        }
+    }
 
-            for (Component component : entity.getComponents()) {
-                if (component instanceof GizmoDrawableSelected gizmoDrawableSelected && component.isOwnEnabled()) {
-                    // Reset style for each component
-                    ctx.setColor(GizmoColors.DEFAULT);
-                    ctx.setThickness(2.0f);
+    private void renderSelectedGizmosForEntity(EditorGameObject entity, GizmoContext ctx) {
+        Transform transform = entity.getComponent(Transform.class);
+        ctx.setTransform(transform);
 
-                    gizmoDrawableSelected.onDrawGizmosSelected(ctx);
-                }
+        for (Component component : entity.getComponents()) {
+            if (component instanceof GizmoDrawableSelected gizmoDrawableSelected && component.isOwnEnabled()) {
+                ctx.setColor(GizmoColors.DEFAULT);
+                ctx.setThickness(2.0f);
+                gizmoDrawableSelected.onDrawGizmosSelected(ctx);
             }
+        }
+
+        // Recurse into children
+        for (EditorGameObject child : entity.getChildren()) {
+            if (!child.isEnabled()) continue;
+            renderSelectedGizmosForEntity(child, ctx);
         }
     }
 }

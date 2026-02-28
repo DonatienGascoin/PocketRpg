@@ -1,0 +1,90 @@
+{
+  "id": "chest_copy",
+  "displayName": "Chest_copy",
+  "category": "Custom",
+  "gameObjects": [
+    {
+      "id": "97b42611",
+      "name": "Chest_copy",
+      "active": true,
+      "order": 0,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.core.Transform",
+          "properties": {
+            "localPosition": {
+              "x": 13.5,
+              "y": 0.5,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            }
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.rendering.SpriteRenderer",
+          "properties": {
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/chests/Chest 06-Sheet.png#0",
+            "tintColor": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0,
+              "w": 1.0
+            },
+            "zIndex": 0
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.interaction.StaticOccupant",
+          "properties": {
+            "offsetX": 0,
+            "offsetY": 0,
+            "width": 1,
+            "height": 1,
+            "elevation": 0
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.animations.AnimationComponent",
+          "properties": {
+            "animation": "com.pocket.rpg.animation.Animation:animations/chest.anim.json",
+            "autoPlay": false,
+            "speed": 1.0
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.interaction.TriggerZone",
+          "properties": {
+            "offsetX": 0,
+            "offsetY": 0,
+            "width": 1,
+            "height": 1,
+            "oneShot": false,
+            "playerOnly": true,
+            "elevation": 0
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.interaction.Chest",
+          "properties": {
+            "directionalInteraction": true,
+            "interactFrom": [
+              "DOWN"
+            ],
+            "contents": "Gold Coins",
+            "open": false,
+            "reopenable": false
+          }
+        }
+      ]
+    }
+  ]
+}

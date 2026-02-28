@@ -38,8 +38,8 @@ public class EntityCreationService {
 
         EditorGameObject entity = new EditorGameObject(name, position, false);
 
-        // Parent under selected entity if any
-        EditorGameObject selected = scene.getSelectedEntity();
+        // Parent under selected entity if any (walk up from prefab children)
+        EditorGameObject selected = resolveNonPrefabChild(scene.getSelectedEntity());
         if (selected != null) {
             entity.setParent(selected);
             entity.setOrder(selected.getChildren().size());
@@ -95,7 +95,7 @@ public class EntityCreationService {
      * @return Parent entity, or null if creating at root level
      */
     private EditorGameObject determineParentForUIElement(String uiType, List<EditorGameObject> newEntitiesToAdd) {
-        EditorGameObject selected = scene.getSelectedEntity();
+        EditorGameObject selected = resolveNonPrefabChild(scene.getSelectedEntity());
         boolean isCreatingCanvas = "Canvas".equals(uiType);
 
         // Case 1: Something is selected
@@ -292,6 +292,17 @@ public class EntityCreationService {
         } else {
             scene.setSelection(Set.of(entity));
         }
+    }
+
+    /**
+     * Walks up from the given entity if it's a prefab child node,
+     * returning the nearest non-prefab-child ancestor (or null if none).
+     */
+    private EditorGameObject resolveNonPrefabChild(EditorGameObject entity) {
+        while (entity != null && entity.isPrefabChildNode()) {
+            entity = entity.getParent();
+        }
+        return entity;
     }
 
     private int getNextRootOrder() {

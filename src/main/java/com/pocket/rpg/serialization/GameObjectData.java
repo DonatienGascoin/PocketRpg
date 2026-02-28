@@ -16,7 +16,7 @@ import java.util.Map;
  * <p>
  * Supports both prefab instances and scratch entities:
  * <ul>
- *   <li>Prefab instance: prefabId + componentOverrides (position in Transform override)</li>
+ *   <li>Prefab instance: prefab (asset path) + componentOverrides + childOverrides</li>
  *   <li>Scratch entity: components list (includes Transform)</li>
  * </ul>
  * <p>
@@ -78,18 +78,27 @@ public class GameObjectData {
     private List<GameObjectData> children;
 
     // ========================================================================
-    // PREFAB INSTANCE (when prefabId is set)
+    // PREFAB INSTANCE
     // ========================================================================
 
     /**
-     * Reference to prefab template (null for scratch entities).
+     * Asset path to the prefab file (e.g. "gameData/prefabs/guard_tower.prefab").
+     * Null for scratch entities. Replaces the old prefabId field.
+     */
+    private String prefab;
+
+    /**
+     * Reference to prefab template by ID (null for scratch entities).
+     * Used at runtime to resolve the prefab from PrefabRegistry.
+     * Legacy format: the primary prefab reference.
+     * New format: derived from the loaded prefab (prefab path is preferred).
      */
     private String prefabId;
 
     /**
      * Identifies which node within the prefab hierarchy this entity represents.
      * Null for root prefab instances and scratch entities.
-     * Set for child/grandchild nodes instantiated from a prefab hierarchy.
+     * Only used in the legacy serialization format (new format uses childOverrides).
      */
     private String prefabNodeId;
 
@@ -101,6 +110,14 @@ public class GameObjectData {
      * "com.pocket.rpg.components.core.Transform" -> {"localPosition": [x, y, z]}
      */
     private Map<String, Map<String, Object>> componentOverrides;
+
+    /**
+     * Per-child-node overrides for prefab instances with hierarchy.
+     * Structure: nodeId -> ChildNodeOverrides
+     * <p>
+     * Children without overrides are omitted (instantiated with prefab defaults).
+     */
+    private Map<String, ChildNodeOverrides> childOverrides;
 
     // ========================================================================
     // SCRATCH ENTITY (when prefabId is null)
@@ -147,14 +164,16 @@ public class GameObjectData {
      * Checks if this is a scratch entity (no prefab reference).
      */
     public boolean isScratchEntity() {
-        return prefabId == null || prefabId.isEmpty();
+        return !isPrefabInstance();
     }
 
     /**
      * Checks if this is a prefab instance.
+     * True if either the new-format 'prefab' path or legacy 'prefabId' is set.
      */
     public boolean isPrefabInstance() {
-        return prefabId != null && !prefabId.isEmpty();
+        return (prefab != null && !prefab.isEmpty())
+                || (prefabId != null && !prefabId.isEmpty());
     }
 
     // ========================================================================
@@ -250,13 +269,31 @@ public class GameObjectData {
     @Override
     public String toString() {
         if (isPrefabInstance()) {
+            String ref = prefab != null ? prefab : prefabId;
             return String.format("GameObjectData[id=%s, name=%s, prefab=%s, overrides=%d]",
-                    id, name, prefabId,
+                    id, name, ref,
                     componentOverrides != null ? componentOverrides.size() : 0);
         } else {
             return String.format("GameObjectData[id=%s, name=%s, components=%d]",
                     id, name,
                     components != null ? components.size() : 0);
         }
+    }
+
+    // ========================================================================
+    // CHILD NODE OVERRIDES
+    // ========================================================================
+
+    /**
+     * Per-child-node overrides within a prefab instance.
+     * Stores name, active, and component field overrides for a specific child node.
+     */
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    public static class ChildNodeOverrides {
+        private String name;
+        private Boolean active;
+        private Map<String, Map<String, Object>> componentOverrides;
     }
 }

@@ -483,6 +483,19 @@ public class EditorUIController {
      * Renders the menu bar - delegates to EditorMenuBar for File and Edit menus.
      */
     private void renderMenuBar() {
+        // Snapshot state BEFORE push — state may change mid-frame (common pitfall!)
+        boolean wasPrefabEdit = prefabEditActive;
+        boolean wasPlaying = playModeController != null
+                && playModeController.getState() != PlayModeController.PlayState.STOPPED;
+
+        if (wasPrefabEdit) {
+            float[] c = EditorColors.withAlpha(EditorColors.PREFAB, 0.35f);
+            ImGui.pushStyleColor(ImGuiCol.MenuBarBg, c[0], c[1], c[2], c[3]);
+        } else if (wasPlaying) {
+            float[] c = EditorColors.withAlpha(EditorColors.WARNING, 0.35f);
+            ImGui.pushStyleColor(ImGuiCol.MenuBarBg, c[0], c[1], c[2], c[3]);
+        }
+
         if (ImGui.beginMainMenuBar()) {
             // File menu (from EditorMenuBar)
             menuBar.renderFileMenu();
@@ -506,6 +519,11 @@ public class EditorUIController {
             renderSceneInfo();
 
             ImGui.endMainMenuBar();
+        }
+
+        // Pop uses snapshot — same condition as push, safe if state changed mid-frame
+        if (wasPrefabEdit || wasPlaying) {
+            ImGui.popStyleColor();
         }
 
         // Render dialogs from EditorMenuBar (migration dialog, etc.)
@@ -830,6 +848,7 @@ public class EditorUIController {
         inspectorPanel.setPrefabEditController(controller);
         hierarchyPanel.setPrefabEditController(controller);
         statusBar.setPrefabEditController(controller);
+        uiDesignerPanel.setPrefabEditController(controller);
 
         // Wire display name and working scene to viewport and toolbar
         com.pocket.rpg.editor.events.EditorEventBus.get().subscribe(

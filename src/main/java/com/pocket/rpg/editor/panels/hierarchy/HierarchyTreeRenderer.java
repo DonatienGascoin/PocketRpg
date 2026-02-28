@@ -17,6 +17,7 @@ import com.pocket.rpg.editor.undo.commands.ReparentEntityCommand;
 import com.pocket.rpg.editor.undo.commands.ToggleEntityEnabledCommand;
 import com.pocket.rpg.editor.utils.IconUtils;
 import com.pocket.rpg.prefab.Prefab;
+import com.pocket.rpg.prefab.PrefabHierarchyHelper;
 import com.pocket.rpg.editor.core.EditorColors;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
@@ -223,10 +224,6 @@ public class HierarchyTreeRenderer {
             Set<EditorGameObject> selected = scene.getSelectedEntities();
             boolean multiSelect = selected.size() > 1;
 
-            // Create options (entity is already selected via right-click)
-            renderCreateMenuItems();
-            ImGui.separator();
-
             if (multiSelect) {
                 ImGui.text(selected.size() + " entities selected");
                 ImGui.separator();
@@ -251,18 +248,35 @@ public class HierarchyTreeRenderer {
                     }
                 }
 
-                if (ImGui.menuItem(MaterialIcons.Delete + " Delete All")) {
-                    UndoManager.getInstance().execute(new BulkDeleteCommand(scene, selected));
+                // Filter out prefab children for destructive operations
+                Set<EditorGameObject> nonPrefabChildren = new HashSet<>();
+                int prefabChildCount = 0;
+                for (EditorGameObject e : selected) {
+                    if (e.isPrefabChildNode()) {
+                        prefabChildCount++;
+                    } else {
+                        nonPrefabChildren.add(e);
+                    }
                 }
 
-                if (ImGui.menuItem(MaterialIcons.CallMade + " Unparent All")) {
-                    for (EditorGameObject e : selected) {
-                        if (e.getParent() != null) {
-                            UndoManager.getInstance().execute(
-                                    new ReparentEntityCommand(scene, e, null, getNextChildOrder(null))
-                            );
+                if (!nonPrefabChildren.isEmpty()) {
+                    if (ImGui.menuItem(MaterialIcons.Delete + " Delete All")) {
+                        UndoManager.getInstance().execute(new BulkDeleteCommand(scene, nonPrefabChildren));
+                    }
+
+                    if (ImGui.menuItem(MaterialIcons.CallMade + " Unparent All")) {
+                        for (EditorGameObject e : nonPrefabChildren) {
+                            if (e.getParent() != null) {
+                                UndoManager.getInstance().execute(
+                                        new ReparentEntityCommand(scene, e, null, getNextChildOrder(null))
+                                );
+                            }
                         }
                     }
+                }
+
+                if (prefabChildCount > 0) {
+                    ImGui.textDisabled(prefabChildCount + " prefab children excluded");
                 }
             } else if (entity.isPrefabChildNode()) {
                 // Restricted context menu for prefab child nodes
@@ -289,6 +303,9 @@ public class HierarchyTreeRenderer {
                     }
                 }
             } else {
+                renderCreateMenuItems();
+                ImGui.separator();
+
                 if (ImGui.menuItem(MaterialIcons.Edit + " Rename")) {
                     renamingItem = entity;
                     nameBeforeRename = entity.getName();
@@ -321,7 +338,9 @@ public class HierarchyTreeRenderer {
                 if (entity.isScratchEntity() && !entity.getComponents().isEmpty()) {
                     if (ImGui.menuItem(MaterialIcons.Save + " Save as Prefab...")) {
                         savePrefabPopup.open(entity, savedPrefab -> {
-                            System.out.println("Saved prefab: " + savedPrefab.getId());
+                            EditorGameObject newRoot = PrefabHierarchyHelper.replaceScratchWithPrefabInstance(
+                                    scene, entity, savedPrefab, null);
+                            selectionHandler.handleEntityClick(newRoot);
                         });
                     }
                 }

@@ -228,6 +228,7 @@ public class EditorGameObject implements Renderable, HierarchyItem {
         } else {
             // Prefab instance: store in overrides
             setTransformVector("localPosition", pos);
+            syncCachedTransformPosition(pos);
         }
     }
 
@@ -252,6 +253,7 @@ public class EditorGameObject implements Renderable, HierarchyItem {
             }
         } else {
             setTransformVector("localRotation", rotation);
+            syncCachedTransformRotation(rotation);
         }
     }
 
@@ -285,6 +287,7 @@ public class EditorGameObject implements Renderable, HierarchyItem {
             }
         } else {
             setTransformVector("localScale", scale);
+            syncCachedTransformScale(scale);
         }
     }
 
@@ -324,6 +327,32 @@ public class EditorGameObject implements Renderable, HierarchyItem {
     private void setTransformVector(String fieldName, Vector3f value) {
         componentOverrides.computeIfAbsent(TRANSFORM_TYPE, k -> new HashMap<>())
                 .put(fieldName, new float[]{value.x, value.y, value.z});
+    }
+
+    /**
+     * Finds the cached Transform component (if cache exists) and returns it.
+     */
+    private Transform findCachedTransform() {
+        if (cachedMergedComponents == null) return null;
+        for (Component comp : cachedMergedComponents) {
+            if (comp instanceof Transform t) return t;
+        }
+        return null;
+    }
+
+    private void syncCachedTransformPosition(Vector3f pos) {
+        Transform t = findCachedTransform();
+        if (t != null) t.setPosition(pos);
+    }
+
+    private void syncCachedTransformRotation(Vector3f rotation) {
+        Transform t = findCachedTransform();
+        if (t != null) t.setRotation(rotation);
+    }
+
+    private void syncCachedTransformScale(Vector3f scale) {
+        Transform t = findCachedTransform();
+        if (t != null) t.setScale(scale);
     }
 
     // ========================================================================
@@ -934,12 +963,9 @@ public class EditorGameObject implements Renderable, HierarchyItem {
             }
         }
 
-        if (isPrefabInstance()) {
-            if (isPrefabValid()) {
-                return PrefabRegistry.getInstance().getPreviewSprite(prefabId);
-            } else {
-                return Assets.load("editor/brokenPrefabLink.png");
-            }
+        // Show broken link icon for invalid prefab instances (file missing/deleted)
+        if (isPrefabInstance() && !isPrefabChildNode() && !isPrefabValid()) {
+            return Assets.load("editor/brokenPrefabLink.png");
         }
 
         return null;
@@ -986,6 +1012,12 @@ public class EditorGameObject implements Renderable, HierarchyItem {
         if (isPrefabInstance()) {
             // Prefab instance: store prefabId + all overrides (including Transform)
             data = new GameObjectData(id, name, prefabId, copyOverrides(componentOverrides));
+
+            // Set prefab asset path if available (new serialization format)
+            Prefab p = getPrefab();
+            if (p instanceof com.pocket.rpg.prefab.JsonPrefab jsonPrefab && jsonPrefab.getSourcePath() != null) {
+                data.setPrefab(jsonPrefab.getSourcePath());
+            }
         } else {
             // Scratch entity: DEEP COPY all components
             // Filter out base Transform if UITransform exists (they should not co-exist)

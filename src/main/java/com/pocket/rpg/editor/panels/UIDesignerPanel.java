@@ -5,6 +5,7 @@ import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.core.window.ViewportConfig;
 import com.pocket.rpg.editor.EditorContext;
+import com.pocket.rpg.editor.PrefabEditController;
 import com.pocket.rpg.editor.camera.PreviewCamera;
 import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
@@ -70,6 +71,9 @@ public class UIDesignerPanel {
 
     @Setter
     private ToolManager toolManager;
+
+    @Setter
+    private PrefabEditController prefabEditController;
 
     // ========================================================================
     // CONSTRUCTOR
@@ -153,8 +157,15 @@ public class UIDesignerPanel {
             state.setBackgroundMode(UIDesignerState.BackgroundMode.GRAY);
         }
         ImGui.sameLine();
+        boolean inPrefabEditMode = prefabEditController != null && prefabEditController.isActive();
+        if (inPrefabEditMode) {
+            ImGui.beginDisabled();
+        }
         if (ImGui.radioButton("World", state.getBackgroundMode() == UIDesignerState.BackgroundMode.WORLD)) {
             state.setBackgroundMode(UIDesignerState.BackgroundMode.WORLD);
+        }
+        if (inPrefabEditMode) {
+            ImGui.endDisabled();
         }
 
         ImGui.sameLine();
@@ -208,6 +219,13 @@ public class UIDesignerPanel {
         ImGui.text(String.format("Zoom: %.0f%%", state.getZoom() * 100));
     }
 
+    private EditorScene getEffectiveScene() {
+        if (prefabEditController != null && prefabEditController.isActive()) {
+            return prefabEditController.getWorkingScene();
+        }
+        return context.getCurrentScene();
+    }
+
     // ========================================================================
     // VIEWPORT
     // ========================================================================
@@ -241,11 +259,12 @@ public class UIDesignerPanel {
                 mousePos.y >= viewportY && mousePos.y <= viewportY + viewportHeight;
         state.setHovered(isHovered);
 
-        // Get current scene
-        EditorScene scene = context.getCurrentScene();
+        // Get effective scene (prefab working scene when in prefab edit mode)
+        EditorScene scene = getEffectiveScene();
+        boolean inPrefabEdit = prefabEditController != null && prefabEditController.isActive();
 
-        // Render scene background to texture (for WORLD mode)
-        if (state.getBackgroundMode() == UIDesignerState.BackgroundMode.WORLD) {
+        // Render scene background to texture (for WORLD mode, skip in prefab edit)
+        if (state.getBackgroundMode() == UIDesignerState.BackgroundMode.WORLD && !inPrefabEdit) {
             renderSceneToTexture(scene);
             renderer.setSceneTextureId(sceneFramebuffer != null ? sceneFramebuffer.getTextureId() : 0);
         }

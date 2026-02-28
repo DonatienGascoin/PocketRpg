@@ -121,11 +121,14 @@ public class PrefabEditController {
 
         // Build working scene from prefab hierarchy
         buildWorkingScene();
+        if (workingScene != null) {
+            workingScene.clearDirty();
+        }
 
         // Set mode
         context.getModeManager().setMode(EditorMode.PREFAB_EDIT);
 
-        // Set SelectionGuard interceptor
+        // Set SelectionGuard interceptor (for non-working-scene selections)
         context.getSelectionGuard().setInterceptor(action -> {
             if (dirty) {
                 requestExit(action);
@@ -134,6 +137,11 @@ public class PrefabEditController {
                 action.run();
             }
         });
+
+        // Exempt working scene entities from the guard so clicks within the
+        // prefab hierarchy don't trigger the exit/unsaved-changes flow
+        context.getSelectionGuard().setGuardExemption(entity ->
+                workingScene != null && workingScene.getEntities().contains(entity));
 
         // Set activeDirtyTracker to our markDirty
         if (dirtyTrackerSetter != null) {
@@ -173,6 +181,7 @@ public class PrefabEditController {
 
         try {
             PrefabRegistry.getInstance().saveJsonPrefab(targetPrefab);
+            targetPrefab.clearPreviewCache();
 
             // Success: update saved snapshot, clear undo, mark clean
             invalidateInstanceCaches();
@@ -204,6 +213,9 @@ public class PrefabEditController {
         isRevertConfirmation = true;
         pendingAction = () -> {
             buildWorkingScene();
+            if (workingScene != null) {
+                workingScene.clearDirty();
+            }
             targetPrefab.setDisplayName(savedDisplayName);
             targetPrefab.setCategory(savedCategory);
             UndoManager.getInstance().clear();
@@ -235,8 +247,9 @@ public class PrefabEditController {
         // Pop undo scope
         UndoManager.getInstance().popScope();
 
-        // Clear SelectionGuard interceptor
+        // Clear SelectionGuard interceptor and exemption
         context.getSelectionGuard().setInterceptor(null);
+        context.getSelectionGuard().setGuardExemption(null);
 
         // Restore activeDirtyTracker to current scene
         if (dirtyTrackerSetter != null) {

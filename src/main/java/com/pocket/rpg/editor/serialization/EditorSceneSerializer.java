@@ -7,6 +7,10 @@ import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.TilemapLayer;
+import com.pocket.rpg.prefab.JsonPrefab;
+import com.pocket.rpg.prefab.Prefab;
+import com.pocket.rpg.prefab.PrefabHierarchyHelper;
+import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.serialization.GameObjectData;
 import com.pocket.rpg.serialization.SceneData;
 
@@ -51,8 +55,22 @@ public class EditorSceneSerializer {
         }
 
         // Convert EditorGameObjects to GameObjectData
+        // Skip prefab child nodes — they are encoded in the root's childOverrides
         for (EditorGameObject entity : editorScene.getEntities()) {
+            if (entity.isPrefabChildNode()) {
+                continue;
+            }
+
             GameObjectData goData = entity.toData();
+
+            // For root prefab instances with children, build childOverrides
+            if (entity.isPrefabInstance() && entity.hasChildren()) {
+                Map<String, GameObjectData.ChildNodeOverrides> childOverridesMap = buildChildOverrides(entity);
+                if (!childOverridesMap.isEmpty()) {
+                    goData.setChildOverrides(childOverridesMap);
+                }
+            }
+
             data.addGameObject(goData);
         }
 
@@ -78,8 +96,16 @@ public class EditorSceneSerializer {
                 // Tilemap → TilemapLayer
                 TilemapLayer layer = convertToTilemapLayer(goData);
                 scene.addExistingLayer(layer);
+            } else if (goData.getPrefab() != null && !goData.getPrefab().isEmpty()) {
+                // New format: prefab instance with asset path
+                try {
+                    loadPrefabInstance(goData, scene);
+                } catch (Exception e) {
+                    System.err.println("Failed to load prefab instance from '" + goData.getPrefab() + "': " + e.getMessage());
+                    e.printStackTrace();
+                }
             } else {
-                // Regular entity → EditorGameObject
+                // Regular entity or legacy format → EditorGameObject
                 try {
                     EditorGameObject entity = EditorGameObject.fromData(goData);
                     scene.addEntity(entity);
@@ -104,11 +130,189 @@ public class EditorSceneSerializer {
         validateUniqueIds(scene);
         scene.resolveHierarchy();
 
-        // Auto-create missing prefab children, flag orphans
+        // Reconcile legacy-format prefab instances (old format without 'prefab' path)
         scene.reconcilePrefabInstances();
 
         scene.clearDirty();
         return scene;
+    }
+
+    // ========================================================================
+    // PREFAB INSTANCE SERIALIZATION
+    // ========================================================================
+
+    /**
+     * Builds the childOverrides map from a root prefab instance's descendant children.
+     * Only includes children that have overrides, name changes, or enabled changes.
+     */
+    private static Map<String, GameObjectData.ChildNodeOverrides> buildChildOverrides(EditorGameObject root) {
+        Map<String, GameObjectData.ChildNodeOverrides> result = new LinkedHashMap<>();
+        collectChildOverrides(root, result);
+        return result;
+    }
+
+    private static void collectChildOverrides(EditorGameObject parent,
+                                               Map<String, GameObjectData.ChildNodeOverrides> result) {
+        for (EditorGameObject child : parent.getChildren()) {
+            if (!child.isPrefabChildNode()) continue;
+
+            String nodeId = child.getPrefabNodeId();
+            GameObjectData.ChildNodeOverrides overrides = new GameObjectData.ChildNodeOverrides();
+            boolean hasOverrides = false;
+
+            // Check name override (compare with prefab default name)
+            Prefab prefab = child.getPrefab();
+            if (prefab != null) {
+                GameObjectData prefabNode = prefab.findNode(nodeId);
+                if (prefabNode != null) {
+                    // Name: only record if different from prefab's node name
+                    String prefabName = prefabNode.getName();
+                    String childName = child.getName();
+                    // Strip auto-generated suffix for comparison
+                    if (childName != null && !childName.equals(prefabName)
+                            && !childName.startsWith(prefabName + "_")) {
+                        overrides.setName(childName);
+                        hasOverrides = true;
+                    }
+                }
+            }
+
+            // Active override
+            if (!child.isOwnEnabled()) {
+                overrides.setActive(false);
+                hasOverrides = true;
+            }
+
+            // Component overrides
+            Map<String, Map<String, Object>> compOverrides = child.getComponentOverrides();
+            if (compOverrides != null && !compOverrides.isEmpty()) {
+                // Filter to only actually overridden fields
+                Map<String, Map<String, Object>> filteredOverrides = new LinkedHashMap<>();
+                for (Map.Entry<String, Map<String, Object>> entry : compOverrides.entrySet()) {
+                    List<String> overriddenFields = child.getOverriddenFields(entry.getKey());
+                    if (!overriddenFields.isEmpty()) {
+                        Map<String, Object> fieldMap = new LinkedHashMap<>();
+                        for (String field : overriddenFields) {
+                            fieldMap.put(field, entry.getValue().get(field));
+                        }
+                        filteredOverrides.put(entry.getKey(), fieldMap);
+                    }
+                }
+                if (!filteredOverrides.isEmpty()) {
+                    overrides.setComponentOverrides(filteredOverrides);
+                    hasOverrides = true;
+                }
+            }
+
+            if (hasOverrides) {
+                result.put(nodeId, overrides);
+            }
+
+            // Recurse into grandchildren
+            collectChildOverrides(child, result);
+        }
+    }
+
+    /**
+     * Loads a prefab instance from the new format (asset path + childOverrides).
+     * Expands the full hierarchy from the prefab definition and applies overrides.
+     */
+    private static void loadPrefabInstance(GameObjectData goData, EditorScene scene) {
+        String prefabPath = goData.getPrefab();
+        JsonPrefab jsonPrefab = null;
+
+        // Try loading from asset path
+        try {
+            jsonPrefab = Assets.load(prefabPath, JsonPrefab.class);
+        } catch (Exception e) {
+            // Fall through to registry fallback
+        }
+
+        // Fallback: resolve from PrefabRegistry using prefabId
+        if (jsonPrefab == null && goData.getPrefabId() != null) {
+            Prefab registryPrefab = com.pocket.rpg.prefab.PrefabRegistry.getInstance()
+                    .getPrefab(goData.getPrefabId());
+            if (registryPrefab instanceof JsonPrefab jp) {
+                jsonPrefab = jp;
+            }
+        }
+
+        if (jsonPrefab == null) {
+            System.err.println("Failed to load prefab from path '" + prefabPath +
+                    "' and registry fallback for '" + goData.getPrefabId() + "'");
+            return;
+        }
+
+        // Create root EditorGameObject
+        String prefabId = jsonPrefab.getId();
+        float[] pos = goData.getPosition();
+        org.joml.Vector3f position = new org.joml.Vector3f(
+                pos.length > 0 ? pos[0] : 0,
+                pos.length > 1 ? pos[1] : 0,
+                pos.length > 2 ? pos[2] : 0
+        );
+
+        EditorGameObject root = new EditorGameObject(prefabId, position);
+        root.setId(goData.getId());
+        if (goData.getName() != null) {
+            root.setName(goData.getName());
+        }
+        root.setEnabled(goData.isActive());
+        root.setParentId(goData.getParentId());
+        root.setOrder(goData.getOrder());
+
+        // Apply root component overrides
+        if (goData.getComponentOverrides() != null) {
+            for (Map.Entry<String, Map<String, Object>> entry : goData.getComponentOverrides().entrySet()) {
+                for (Map.Entry<String, Object> field : entry.getValue().entrySet()) {
+                    root.setFieldValue(entry.getKey(), field.getKey(), field.getValue());
+                }
+            }
+        }
+
+        scene.addEntity(root);
+
+        // Expand children from prefab definition
+        List<EditorGameObject> descendants = PrefabHierarchyHelper.expandChildren(root, jsonPrefab);
+        for (EditorGameObject child : descendants) {
+            scene.addEntity(child);
+        }
+
+        // Apply child overrides
+        Map<String, GameObjectData.ChildNodeOverrides> childOverrides = goData.getChildOverrides();
+        if (childOverrides != null) {
+            // Build lookup: prefabNodeId -> EditorGameObject
+            Map<String, EditorGameObject> nodeIdMap = new HashMap<>();
+            for (EditorGameObject desc : descendants) {
+                if (desc.getPrefabNodeId() != null) {
+                    nodeIdMap.put(desc.getPrefabNodeId(), desc);
+                }
+            }
+
+            for (Map.Entry<String, GameObjectData.ChildNodeOverrides> entry : childOverrides.entrySet()) {
+                EditorGameObject child = nodeIdMap.get(entry.getKey());
+                if (child == null) {
+                    System.err.println("childOverrides references unknown node: " + entry.getKey());
+                    continue;
+                }
+
+                GameObjectData.ChildNodeOverrides overrides = entry.getValue();
+
+                if (overrides.getName() != null) {
+                    child.setName(overrides.getName());
+                }
+                if (overrides.getActive() != null) {
+                    child.setEnabled(overrides.getActive());
+                }
+                if (overrides.getComponentOverrides() != null) {
+                    for (Map.Entry<String, Map<String, Object>> compEntry : overrides.getComponentOverrides().entrySet()) {
+                        for (Map.Entry<String, Object> field : compEntry.getValue().entrySet()) {
+                            child.setFieldValue(compEntry.getKey(), field.getKey(), field.getValue());
+                        }
+                    }
+                }
+            }
+        }
     }
 
     // ========================================================================

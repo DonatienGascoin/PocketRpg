@@ -5,6 +5,7 @@ import com.pocket.rpg.components.rendering.TilemapRenderer;
 import com.pocket.rpg.components.core.Transform;
 import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.core.GameObject;
+import com.pocket.rpg.prefab.JsonPrefab;
 import com.pocket.rpg.prefab.Prefab;
 import com.pocket.rpg.prefab.PrefabRegistry;
 import com.pocket.rpg.resources.Assets;
@@ -277,12 +278,20 @@ public class RuntimeSceneLoader {
     /**
      * Creates a prefab instance.
      * <p>
-     * For root instances: creates GameObject from root components + overrides
-     * (children are handled as separate scene data entries).
-     * For child nodes (prefabNodeId set): resolves components from the correct
-     * hierarchy node.
+     * New format (prefab asset path): loads prefab from path, instantiates full
+     * hierarchy, applies root and child overrides.
+     * <p>
+     * Legacy format (prefabId only): resolves from PrefabRegistry, creates single
+     * GameObject with overrides (children handled as separate scene entries).
      */
     private GameObject createPrefabInstance(GameObjectData goData) {
+        // New format: prefab asset path
+        String prefabPath = goData.getPrefab();
+        if (prefabPath != null && !prefabPath.isEmpty()) {
+            return createPrefabInstanceFromPath(goData, prefabPath);
+        }
+
+        // Legacy format: prefabId from registry
         String prefabId = goData.getPrefabId();
         Prefab prefab = PrefabRegistry.getInstance().getPrefab(prefabId);
 
@@ -291,20 +300,7 @@ public class RuntimeSceneLoader {
             return null;
         }
 
-        String nodeId = goData.getPrefabNodeId();
-
-        // Resolve the correct component templates
-        List<Component> templateComponents;
-        if (nodeId != null && !nodeId.isEmpty()) {
-            GameObjectData node = prefab.findNode(nodeId);
-            if (node == null) {
-                System.err.println("Prefab node '" + nodeId + "' not found in " + prefabId);
-                return null;
-            }
-            templateComponents = node.getComponents();
-        } else {
-            templateComponents = prefab.getComponents();
-        }
+        List<Component> templateComponents = prefab.getComponents();
 
         // Get position from Transform overrides
         float[] pos = goData.getPosition();
@@ -331,6 +327,141 @@ public class RuntimeSceneLoader {
         }
 
         return gameObject;
+    }
+
+    /**
+     * Creates a prefab instance from an asset path (new serialization format).
+     * Instantiates the full hierarchy from the prefab and applies overrides.
+     */
+    private GameObject createPrefabInstanceFromPath(GameObjectData goData, String prefabPath) {
+        JsonPrefab jsonPrefab;
+        try {
+            jsonPrefab = Assets.load(prefabPath, JsonPrefab.class);
+        } catch (Exception e) {
+            System.err.println("Failed to load prefab from path '" + prefabPath + "': " + e.getMessage());
+            return null;
+        }
+
+        if (jsonPrefab == null) {
+            System.err.println("Prefab not found at path: " + prefabPath);
+            return null;
+        }
+
+        // Get position from Transform overrides
+        float[] pos = goData.getPosition();
+        Vector3f position = new Vector3f(
+                pos != null && pos.length > 0 ? pos[0] : 0,
+                pos != null && pos.length > 1 ? pos[1] : 0,
+                pos != null && pos.length > 2 ? pos[2] : 0
+        );
+
+        // Instantiate full hierarchy from prefab
+        GameObject root = jsonPrefab.instantiate(position, goData.getComponentOverrides());
+        if (root == null) {
+            System.err.println("Failed to instantiate prefab: " + prefabPath);
+            return null;
+        }
+
+        // Apply root-level properties
+        if (goData.getName() != null && !goData.getName().isBlank()) {
+            root.setName(goData.getName());
+        }
+        root.setEnabled(goData.isActive());
+
+        // Apply child overrides
+        Map<String, GameObjectData.ChildNodeOverrides> childOverrides = goData.getChildOverrides();
+        if (childOverrides != null && !childOverrides.isEmpty()) {
+            // Build nodeId -> GameObject map from the prefab's hierarchy
+            Map<String, GameObject> nodeIdMap = buildNodeIdMap(root, jsonPrefab);
+
+            for (Map.Entry<String, GameObjectData.ChildNodeOverrides> entry : childOverrides.entrySet()) {
+                GameObject child = nodeIdMap.get(entry.getKey());
+                if (child == null) {
+                    System.err.println("childOverrides references unknown node: " + entry.getKey());
+                    continue;
+                }
+
+                GameObjectData.ChildNodeOverrides overrides = entry.getValue();
+                if (overrides.getName() != null) {
+                    child.setName(overrides.getName());
+                }
+                if (overrides.getActive() != null) {
+                    child.setEnabled(overrides.getActive());
+                }
+                if (overrides.getComponentOverrides() != null) {
+                    applyComponentOverrides(child, overrides.getComponentOverrides());
+                }
+            }
+        }
+
+        return root;
+    }
+
+    /**
+     * Builds a map from prefab nodeId to instantiated GameObject.
+     * Uses depth-first traversal matching the prefab's node ordering.
+     */
+    private Map<String, GameObject> buildNodeIdMap(GameObject root, JsonPrefab prefab) {
+        Map<String, GameObject> result = new HashMap<>();
+        List<GameObjectData> nodes = prefab.getGameObjects();
+        if (nodes == null) return result;
+
+        GameObjectData rootNode = prefab.getRootNode();
+        if (rootNode == null) return result;
+
+        result.put(rootNode.getId(), root);
+
+        // Match children by traversal order
+        Map<String, List<GameObjectData>> childrenByParent = new HashMap<>();
+        for (GameObjectData node : nodes) {
+            if (node == rootNode || node.getParentId() == null) continue;
+            childrenByParent.computeIfAbsent(node.getParentId(), k -> new ArrayList<>()).add(node);
+        }
+        // Sort by order
+        for (List<GameObjectData> list : childrenByParent.values()) {
+            list.sort((a, b) -> Integer.compare(a.getOrder(), b.getOrder()));
+        }
+
+        mapChildrenRecursive(rootNode.getId(), root, childrenByParent, result);
+        return result;
+    }
+
+    private void mapChildrenRecursive(String nodeId, GameObject go,
+                                       Map<String, List<GameObjectData>> childrenByParent,
+                                       Map<String, GameObject> result) {
+        List<GameObjectData> childNodes = childrenByParent.get(nodeId);
+        if (childNodes == null) return;
+
+        List<GameObject> goChildren = go.getChildren();
+        for (int i = 0; i < childNodes.size() && i < goChildren.size(); i++) {
+            GameObjectData childNode = childNodes.get(i);
+            GameObject childGo = goChildren.get(i);
+            if (childNode.getId() != null) {
+                result.put(childNode.getId(), childGo);
+                mapChildrenRecursive(childNode.getId(), childGo, childrenByParent, result);
+            }
+        }
+    }
+
+    /**
+     * Applies component field overrides to a runtime GameObject.
+     */
+    private void applyComponentOverrides(GameObject go, Map<String, Map<String, Object>> overrides) {
+        for (Map.Entry<String, Map<String, Object>> entry : overrides.entrySet()) {
+            String componentType = entry.getKey();
+            Map<String, Object> fieldOverrides = entry.getValue();
+
+            for (Component comp : go.getComponents()) {
+                if (comp.getClass().getName().equals(componentType)) {
+                    Prefab.applyOverridesStatic(comp, fieldOverrides);
+                    break;
+                }
+            }
+            // Also check Transform
+            if (componentType.equals(Transform.class.getName())) {
+                Prefab.applyOverridesStatic(go.getTransform(), fieldOverrides);
+            }
+        }
     }
 
     /**

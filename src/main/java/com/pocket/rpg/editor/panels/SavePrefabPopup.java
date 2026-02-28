@@ -198,6 +198,7 @@ public class SavePrefabPopup {
         try {
             String filename = id + ".prefab.json";
             PrefabRegistry.getInstance().saveJsonPrefab(prefab, filename);
+            prefab.clearPreviewCache();
 
             if (onSaved != null) {
                 onSaved.accept(prefab);

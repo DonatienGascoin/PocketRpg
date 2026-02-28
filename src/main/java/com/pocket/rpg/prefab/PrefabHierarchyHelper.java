@@ -4,8 +4,11 @@ import com.pocket.rpg.components.core.Transform;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.undo.UndoManager;
+import com.pocket.rpg.editor.EditorSelectionManager;
 import com.pocket.rpg.editor.undo.commands.AddEntitiesCommand;
 import com.pocket.rpg.editor.undo.commands.AddEntityCommand;
+import com.pocket.rpg.editor.undo.commands.CompoundCommand;
+import com.pocket.rpg.editor.undo.commands.RemoveEntityCommand;
 import com.pocket.rpg.serialization.GameObjectData;
 import org.joml.Vector3f;
 
@@ -192,6 +195,56 @@ public final class PrefabHierarchyHelper {
             }
             collectByNodeId(child, map);
         }
+    }
+
+    /**
+     * Replaces a scratch entity with a prefab instance after "Save as Prefab".
+     * Uses a CompoundCommand (remove + add) for single-step undo.
+     *
+     * @param scene            the editor scene
+     * @param scratchEntity    the original scratch entity to replace
+     * @param savedPrefab      the newly saved prefab
+     * @param selectionManager optional selection manager to select the new root (may be null)
+     * @return the new prefab instance root
+     */
+    public static EditorGameObject replaceScratchWithPrefabInstance(
+            EditorScene scene, EditorGameObject scratchEntity,
+            JsonPrefab savedPrefab, EditorSelectionManager selectionManager) {
+
+        // Capture position from scratch entity
+        Vector3f position = new Vector3f(scratchEntity.getPosition());
+        int order = scratchEntity.getOrder();
+        String parentId = scratchEntity.getParentId();
+
+        // Create prefab instance root
+        EditorGameObject root = new EditorGameObject(savedPrefab.getId(), position);
+        root.setName(scratchEntity.getName());
+        root.setOrder(order);
+        root.setParentId(parentId);
+
+        // Expand children from prefab hierarchy
+        List<EditorGameObject> descendants = expandChildren(root, savedPrefab);
+
+        // Collect all new entities (root + descendants)
+        List<EditorGameObject> allNew = new ArrayList<>();
+        allNew.add(root);
+        allNew.addAll(descendants);
+
+        // Compound undo: remove scratch + add prefab instance
+        UndoManager.getInstance().execute(new CompoundCommand(
+                "Replace with Prefab",
+                new RemoveEntityCommand(scene, scratchEntity),
+                new AddEntitiesCommand(scene, allNew)
+        ));
+
+        scene.resolveHierarchy();
+
+        // Select the new root
+        if (selectionManager != null) {
+            selectionManager.selectEntity(root);
+        }
+
+        return root;
     }
 
     /**

@@ -54,7 +54,8 @@
       "mcp__trello__get_board_labels",
       "WebFetch(domain:docs.unity3d.com)",
       "WebFetch(domain:dev.epicgames.com)",
-      "WebFetch(domain:discussions.unity.com)"
+      "WebFetch(domain:discussions.unity.com)",
+      "Bash(pip3 list:*)"
     ]
   },
   "outputStyle": "default"

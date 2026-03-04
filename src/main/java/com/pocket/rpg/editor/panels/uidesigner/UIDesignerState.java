@@ -54,6 +54,7 @@ public class UIDesignerState {
     private BackgroundMode backgroundMode = BackgroundMode.GRAY;
     private boolean snapEnabled = false;
     private boolean showAnchorLines = false;
+    private boolean showElementBounds = true;
 
     public static final float SNAP_THRESHOLD = 8f;
 
@@ -121,6 +122,8 @@ public class UIDesignerState {
     public static final int COLOR_SNAP_GUIDE = ImGui.colorConvertFloat4ToU32(1f, 0.5f, 0.2f, 0.8f);
     public static final int COLOR_CANVAS_BORDER = ImGui.colorConvertFloat4ToU32(0.4f, 0.4f, 0.4f, 1f);
     public static final int COLOR_CANVAS_LABEL = ImGui.colorConvertFloat4ToU32(0.6f, 0.6f, 0.6f, 1f);
+    public static final int COLOR_PADDING_FILL = ImGui.colorConvertFloat4ToU32(0.6f, 0.9f, 0.2f, 0.15f);
+    public static final int COLOR_CONTENT_OUTLINE = ImGui.colorConvertFloat4ToU32(0.6f, 0.9f, 0.2f, 0.4f);
 
     // ========================================================================
     // CONSTRUCTOR

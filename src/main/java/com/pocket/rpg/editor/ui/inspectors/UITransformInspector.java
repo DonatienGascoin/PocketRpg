@@ -668,7 +668,8 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
 
         if (oldMode == UITransform.SizeMode.FIXED) {
             // Switching to PERCENT: calculate what percent the current pixel size is
-            float parentSize = isWidth ? t.getParentWidth() : t.getParentHeight();
+            // Use the layout's percentage reference if available (accounts for padding/spacing)
+            float parentSize = isWidth ? t.getPercentReferenceWidth() : t.getPercentReferenceHeight();
             float newPercent = (parentSize > 0) ? (oldPixelSize / parentSize) * 100f : 100f;
 
             if (isWidth) {

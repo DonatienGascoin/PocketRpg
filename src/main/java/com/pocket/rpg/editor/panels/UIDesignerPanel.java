@@ -86,6 +86,7 @@ public class UIDesignerPanel {
 
         // Create sub-components
         this.state = new UIDesignerState(gameConfig);
+        this.state.setShowElementBounds(context.getConfig().isShowElementBounds());
         this.coords = new UIDesignerCoordinates(state);
         this.gizmoDrawer = new UIDesignerGizmoDrawer(state, coords);
         this.inputHandler = new UIDesignerInputHandler(state, coords, context);
@@ -205,6 +206,25 @@ public class UIDesignerPanel {
         }
 
         ImGui.sameLine();
+
+        // Element Bounds button with icon and green highlight when active
+        boolean showBounds = state.isShowElementBounds();
+        if (showBounds) {
+            EditorColors.pushSuccessButton();
+        }
+        if (ImGui.button(MaterialIcons.BorderAll + " Bounds")) {
+            state.setShowElementBounds(!showBounds);
+            context.getConfig().setShowElementBounds(!showBounds);
+            context.getConfig().save();
+        }
+        if (showBounds) {
+            EditorColors.popButtonColors();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("Toggle bounds visibility");
+        }
+
+        ImGui.sameLine();
         ImGui.text(" | ");
         ImGui.sameLine();
 
@@ -293,8 +313,11 @@ public class UIDesignerPanel {
         // Display rendered UI texture
         displayUITexture(drawList);
 
-        // Draw selection borders
-        gizmoDrawer.drawSelectionBorders(drawList, scene);
+        // Draw selection borders and layout padding (if enabled)
+        if (state.isShowElementBounds()) {
+            gizmoDrawer.drawSelectionBorders(drawList, scene);
+            gizmoDrawer.drawLayoutPadding(drawList, scene);
+        }
 
         // Draw selection gizmos (handles, anchor, pivot)
         gizmoDrawer.drawSelectionGizmos(drawList, scene);

@@ -1,5 +1,6 @@
 package com.pocket.rpg.editor.panels.uidesigner;
 
+import com.pocket.rpg.components.ui.LayoutGroup;
 import com.pocket.rpg.components.ui.UICanvas;
 import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.editor.scene.EditorGameObject;
@@ -63,6 +64,7 @@ public class UIDesignerGizmoDrawer {
         for (EditorGameObject entity : scene.getEntities()) {
             if (!coords.isUIEntity(entity)) continue;
             if (entity.hasComponent(UICanvas.class)) continue;
+            if (!entity.isEnabled()) continue;
 
             UITransform transform = entity.getComponent(UITransform.class);
             // Negate rotation to convert to screen space (Y-down)
@@ -374,6 +376,180 @@ public class UIDesignerGizmoDrawer {
             String label = String.format("Pivot (%.2f, %.2f)", pivot.x, pivot.y);
             drawList.addText(sx + 10, sy + 5, UIDesignerState.COLOR_PIVOT, label);
         }
+    }
+
+    // ========================================================================
+    // LAYOUT PADDING VISUALIZATION
+    // ========================================================================
+
+    /**
+     * Draws padding region fills and content area outlines for selected layout groups.
+     */
+    public void drawLayoutPadding(ImDrawList drawList, EditorScene scene) {
+        if (scene == null) return;
+
+        for (EditorGameObject entity : scene.getSelectedEntities()) {
+            if (!coords.isUIEntity(entity)) continue;
+            if (entity.hasComponent(UICanvas.class)) continue;
+
+            LayoutGroup layout = entity.getComponent(LayoutGroup.class);
+            if (layout == null) continue;
+
+            float padL = layout.getPaddingLeft();
+            float padR = layout.getPaddingRight();
+            float padT = layout.getPaddingTop();
+            float padB = layout.getPaddingBottom();
+
+            if (padL == 0 && padR == 0 && padT == 0 && padB == 0) continue;
+
+            UITransform transform = entity.getComponent(UITransform.class);
+            float rotation = transform != null ? -transform.getComputedWorldRotation2D() : 0;
+
+            if (Math.abs(rotation) < 0.001f) {
+                drawPaddingAxisAligned(drawList, entity, padL, padR, padT, padB);
+            } else {
+                drawPaddingRotated(drawList, entity, transform, rotation, padL, padR, padT, padB);
+            }
+        }
+    }
+
+    /**
+     * Draws padding strips and content outline for an axis-aligned (non-rotated) element.
+     */
+    private void drawPaddingAxisAligned(ImDrawList drawList, EditorGameObject entity,
+                                        float padL, float padR, float padT, float padB) {
+        float[] bounds = coords.calculateElementBounds(entity);
+        if (bounds == null) return;
+
+        float x = bounds[0], y = bounds[1], w = bounds[2], h = bounds[3];
+
+        // Clamp inner rect so content area never inverts
+        float innerL = x + Math.min(padL, w);
+        float innerT = y + Math.min(padT, h);
+        float innerR = x + w - Math.min(padR, w);
+        float innerB = y + h - Math.min(padB, h);
+        if (innerL > innerR) { float mid = (innerL + innerR) / 2; innerL = mid; innerR = mid; }
+        if (innerT > innerB) { float mid = (innerT + innerB) / 2; innerT = mid; innerB = mid; }
+
+        // Convert to screen space
+        float vpX = state.getViewportX();
+        float vpY = state.getViewportY();
+
+        Vector2f sOTL = coords.canvasToScreen(x, y);
+        Vector2f sOBR = coords.canvasToScreen(x + w, y + h);
+        Vector2f sITL = coords.canvasToScreen(innerL, innerT);
+        Vector2f sIBR = coords.canvasToScreen(innerR, innerB);
+
+        float oLeft = vpX + sOTL.x, oTop = vpY + sOTL.y;
+        float oRight = vpX + sOBR.x, oBottom = vpY + sOBR.y;
+        float iLeft = vpX + sITL.x, iTop = vpY + sITL.y;
+        float iRight = vpX + sIBR.x, iBottom = vpY + sIBR.y;
+
+        int fillColor = UIDesignerState.COLOR_PADDING_FILL;
+
+        // Top strip (full width)
+        if (oTop < iTop) {
+            drawList.addRectFilled(oLeft, oTop, oRight, iTop, fillColor);
+        }
+        // Bottom strip (full width)
+        if (iBottom < oBottom) {
+            drawList.addRectFilled(oLeft, iBottom, oRight, oBottom, fillColor);
+        }
+        // Left strip (between top and bottom strips)
+        if (oLeft < iLeft) {
+            drawList.addRectFilled(oLeft, iTop, iLeft, iBottom, fillColor);
+        }
+        // Right strip (between top and bottom strips)
+        if (iRight < oRight) {
+            drawList.addRectFilled(iRight, iTop, oRight, iBottom, fillColor);
+        }
+
+        // Content area outline
+        drawList.addRect(iLeft, iTop, iRight, iBottom, UIDesignerState.COLOR_CONTENT_OUTLINE, 0, 0, 1f);
+    }
+
+    /**
+     * Draws padding strips and content outline for a rotated element using quads.
+     */
+    private void drawPaddingRotated(ImDrawList drawList, EditorGameObject entity,
+                                    UITransform transform, float rotation,
+                                    float padL, float padR, float padT, float padB) {
+        float[] bounds = coords.calculateElementBounds(entity);
+        if (bounds == null) return;
+
+        float x = bounds[0], y = bounds[1], w = bounds[2], h = bounds[3];
+
+        // Clamp padding
+        float clampedPadL = Math.min(padL, w);
+        float clampedPadR = Math.min(padR, w);
+        float clampedPadT = Math.min(padT, h);
+        float clampedPadB = Math.min(padB, h);
+        float innerW = w - clampedPadL - clampedPadR;
+        float innerH = h - clampedPadT - clampedPadB;
+        if (innerW < 0) { clampedPadL = w / 2; clampedPadR = w / 2; }
+        if (innerH < 0) { clampedPadT = h / 2; clampedPadB = h / 2; }
+
+        // Outer corners already computed via existing method
+        float[] outer = calculateRotatedScreenCorners(entity, transform, rotation);
+        if (outer == null) return;
+
+        // Compute inner corners in canvas space, then rotate
+        float ix = x + clampedPadL;
+        float iy = y + clampedPadT;
+        float iw = w - clampedPadL - clampedPadR;
+        float ih = h - clampedPadT - clampedPadB;
+        if (iw < 0) iw = 0;
+        if (ih < 0) ih = 0;
+
+        // Pivot and rotation setup (same as calculateRotatedScreenCorners)
+        Vector2f pivot = transform != null ? transform.getEffectivePivot() : new Vector2f(0.5f, 0.5f);
+        float pivotCanvasX = x + pivot.x * w;
+        float pivotCanvasY = y + pivot.y * h;
+        Vector2f screenPivot = coords.canvasToScreen(pivotCanvasX, pivotCanvasY);
+        float spx = state.getViewportX() + screenPivot.x;
+        float spy = state.getViewportY() + screenPivot.y;
+        float zoom = state.getZoom();
+        float cos = (float) Math.cos(Math.toRadians(rotation));
+        float sin = (float) Math.sin(Math.toRadians(rotation));
+
+        // Inner corners in local space relative to pivot (in screen units)
+        float[] inner = new float[8];
+        float iLocalL = (ix - pivotCanvasX) * zoom;
+        float iLocalT = (iy - pivotCanvasY) * zoom;
+        float iLocalR = (ix + iw - pivotCanvasX) * zoom;
+        float iLocalB = (iy + ih - pivotCanvasY) * zoom;
+
+        // Rotate inner corners around pivot
+        inner[0] = spx + iLocalL * cos - iLocalT * sin; // TL.x
+        inner[1] = spy + iLocalL * sin + iLocalT * cos; // TL.y
+        inner[2] = spx + iLocalR * cos - iLocalT * sin; // TR.x
+        inner[3] = spy + iLocalR * sin + iLocalT * cos; // TR.y
+        inner[4] = spx + iLocalR * cos - iLocalB * sin; // BR.x
+        inner[5] = spy + iLocalR * sin + iLocalB * cos; // BR.y
+        inner[6] = spx + iLocalL * cos - iLocalB * sin; // BL.x
+        inner[7] = spy + iLocalL * sin + iLocalB * cos; // BL.y
+
+        int fillColor = UIDesignerState.COLOR_PADDING_FILL;
+
+        // Top strip: outer TL -> outer TR -> inner TR -> inner TL
+        drawList.addQuadFilled(outer[0], outer[1], outer[2], outer[3],
+                inner[2], inner[3], inner[0], inner[1], fillColor);
+        // Bottom strip: inner BL -> inner BR -> outer BR -> outer BL
+        drawList.addQuadFilled(inner[6], inner[7], inner[4], inner[5],
+                outer[4], outer[5], outer[6], outer[7], fillColor);
+        // Left strip: outer TL -> inner TL -> inner BL -> outer BL
+        drawList.addQuadFilled(outer[0], outer[1], inner[0], inner[1],
+                inner[6], inner[7], outer[6], outer[7], fillColor);
+        // Right strip: inner TR -> outer TR -> outer BR -> inner BR
+        drawList.addQuadFilled(inner[2], inner[3], outer[2], outer[3],
+                outer[4], outer[5], inner[4], inner[5], fillColor);
+
+        // Content outline: 4 lines connecting inner corners
+        int outlineColor = UIDesignerState.COLOR_CONTENT_OUTLINE;
+        drawList.addLine(inner[0], inner[1], inner[2], inner[3], outlineColor, 1f);
+        drawList.addLine(inner[2], inner[3], inner[4], inner[5], outlineColor, 1f);
+        drawList.addLine(inner[4], inner[5], inner[6], inner[7], outlineColor, 1f);
+        drawList.addLine(inner[6], inner[7], inner[0], inner[1], outlineColor, 1f);
     }
 
     // ========================================================================

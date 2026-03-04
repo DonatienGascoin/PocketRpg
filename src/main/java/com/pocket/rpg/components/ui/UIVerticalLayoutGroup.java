@@ -40,11 +40,11 @@ public class UIVerticalLayoutGroup extends LayoutGroup {
         float availableHeight = ownTransform.getEffectiveHeight();
         float contentWidth = availableWidth - paddingLeft - paddingRight;
         float contentHeight = availableHeight - paddingTop - paddingBottom;
+        float totalSpacing = spacing * Math.max(0, children.size() - 1);
 
         // Calculate expanded height per child if force-expanding
         float expandedHeight = 0;
         if (childForceExpandHeight) {
-            float totalSpacing = spacing * Math.max(0, children.size() - 1);
             expandedHeight = (contentHeight - totalSpacing) / children.size();
         }
 
@@ -52,9 +52,27 @@ public class UIVerticalLayoutGroup extends LayoutGroup {
 
         for (GameObject child : children) {
             UITransform ct = child.getComponent(UITransform.class);
+            ct.clearLayoutOverrides();
 
-            float childWidth = childForceExpandWidth ? contentWidth : ct.getEffectiveWidth();
-            float childHeight = childForceExpandHeight ? expandedHeight : ct.getEffectiveHeight();
+            // Layout axis (height): resolve percentage against content area minus spacing
+            float childHeight;
+            if (childForceExpandHeight) {
+                childHeight = expandedHeight;
+            } else if (ct.getHeightMode() == UITransform.SizeMode.PERCENT) {
+                childHeight = (contentHeight - totalSpacing) * ct.getHeightPercent() / 100f;
+            } else {
+                childHeight = ct.getEffectiveHeight();
+            }
+
+            // Cross axis (width): resolve percentage against content width
+            float childWidth;
+            if (childForceExpandWidth) {
+                childWidth = contentWidth;
+            } else if (ct.getWidthMode() == UITransform.SizeMode.PERCENT) {
+                childWidth = contentWidth * ct.getWidthPercent() / 100f;
+            } else {
+                childWidth = ct.getEffectiveWidth();
+            }
 
             // Horizontal alignment within the column
             float x = switch (childAlignment) {
@@ -66,6 +84,19 @@ public class UIVerticalLayoutGroup extends LayoutGroup {
             ct.setAnchor(0, 0);
             ct.setPivot(0, 0);
             ct.setOffset(x, y);
+
+            // Store the percentage reference bases so the editor can round-trip correctly
+            // Vertical layout: height is layout axis (content - spacing), width is cross axis (content)
+            ct.setLayoutPercentReference(contentWidth, contentHeight - totalSpacing);
+
+            // Set layout overrides for percentage or force-expanded children
+            // so getEffectiveWidth/Height returns layout-computed values
+            if (childForceExpandWidth || ct.getWidthMode() == UITransform.SizeMode.PERCENT) {
+                ct.setLayoutOverrideWidth(childWidth);
+            }
+            if (childForceExpandHeight || ct.getHeightMode() == UITransform.SizeMode.PERCENT) {
+                ct.setLayoutOverrideHeight(childHeight);
+            }
 
             if (childForceExpandWidth) {
                 ct.setWidth(childWidth);

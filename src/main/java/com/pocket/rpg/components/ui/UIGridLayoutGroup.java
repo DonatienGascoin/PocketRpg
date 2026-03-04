@@ -163,11 +163,15 @@ public class UIGridLayoutGroup extends LayoutGroup {
             float y = baseY + row * (actualCellHeight + spacing);
 
             UITransform ct = children.get(i).getComponent(UITransform.class);
+            ct.clearLayoutOverrides();
             ct.setAnchor(0, 0);
             ct.setPivot(0, 0);
             ct.setOffset(x, y);
             ct.setWidth(actualCellWidth);
             ct.setHeight(actualCellHeight);
+            ct.setLayoutOverrideWidth(actualCellWidth);
+            ct.setLayoutOverrideHeight(actualCellHeight);
+            ct.setLayoutPercentReference(actualCellWidth, actualCellHeight);
         }
     }
 }

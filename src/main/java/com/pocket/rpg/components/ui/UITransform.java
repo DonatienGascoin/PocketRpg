@@ -106,6 +106,27 @@ public class UITransform extends Transform {
     private transient boolean uiMatrixDirty = true;
 
     // ========================================================================
+    // LAYOUT OVERRIDE (set by layout groups)
+    // ========================================================================
+
+    /**
+     * Layout override sizes. When set (not NaN), these override the normal
+     * effective size calculation. Used by layout groups to ensure percentage
+     * children resolve against content area (minus padding and spacing)
+     * rather than raw parent size.
+     */
+    private transient float layoutOverrideWidth = Float.NaN;
+    private transient float layoutOverrideHeight = Float.NaN;
+
+    /**
+     * The base size that the parent layout used to resolve this child's percentage.
+     * When set, the editor toggle uses this instead of getParentWidth/Height to
+     * compute a percent value that round-trips correctly through the layout.
+     */
+    private transient float layoutPercentReferenceWidth = Float.NaN;
+    private transient float layoutPercentReferenceHeight = Float.NaN;
+
+    // ========================================================================
     // SIZE MODE (Per-axis percentage sizing)
     // ========================================================================
 
@@ -289,30 +310,19 @@ public class UITransform extends Transform {
 
     /**
      * Gets the effective pivot for rendering.
-     * For axes that fill the parent (PERCENT at 100%), returns the parent's pivot
-     * on that axis so rotation happens around the correct point.
-     * Non-filling PERCENT axes (e.g. 80%) use this element's own pivot.
+     * When filling parent completely (both axes PERCENT at 100%), returns the parent's pivot
+     * so rotation happens around the correct point. buildUIWorldMatrix() has a corresponding
+     * adjustment that sets worldPivotPosition to the parent's pivot position.
+     * Single-axis fills use this element's own pivot since the matrix path doesn't
+     * adjust worldPivotPosition for partial fills.
      *
      * @return Effective pivot ratio (0-1)
      */
     public Vector2f getEffectivePivot() {
-        boolean wFills = widthMode == SizeMode.PERCENT && widthPercent == 100f;
-        boolean hFills = heightMode == SizeMode.PERCENT && heightPercent == 100f;
-
-        if (wFills && hFills) {
+        if (isFillingParent()) {
             UITransform parentTransform = getParentUITransform();
             if (parentTransform != null) {
                 return parentTransform.getPivot();
-            }
-        } else if (wFills) {
-            UITransform parentTransform = getParentUITransform();
-            if (parentTransform != null) {
-                return new Vector2f(parentTransform.getPivot().x, pivot.y);
-            }
-        } else if (hFills) {
-            UITransform parentTransform = getParentUITransform();
-            if (parentTransform != null) {
-                return new Vector2f(pivot.x, parentTransform.getPivot().y);
             }
         }
         return pivot;
@@ -340,6 +350,7 @@ public class UITransform extends Transform {
      * @return Effective width in pixels
      */
     public float getEffectiveWidth() {
+        if (!Float.isNaN(layoutOverrideWidth)) return layoutOverrideWidth;
         if (widthMode == SizeMode.PERCENT) {
             return getParentWidth() * widthPercent / 100f;
         }
@@ -353,10 +364,73 @@ public class UITransform extends Transform {
      * @return Effective height in pixels
      */
     public float getEffectiveHeight() {
+        if (!Float.isNaN(layoutOverrideHeight)) return layoutOverrideHeight;
         if (heightMode == SizeMode.PERCENT) {
             return getParentHeight() * heightPercent / 100f;
         }
         return height;
+    }
+
+    /**
+     * Sets a layout override for the effective width.
+     * When set, getEffectiveWidth() returns this value instead of computing from parent.
+     * Used by layout groups to resolve percentages against content area.
+     *
+     * @param width Override width in pixels
+     */
+    public void setLayoutOverrideWidth(float width) {
+        this.layoutOverrideWidth = width;
+        markDirty();
+    }
+
+    /**
+     * Sets a layout override for the effective height.
+     * When set, getEffectiveHeight() returns this value instead of computing from parent.
+     * Used by layout groups to resolve percentages against content area.
+     *
+     * @param height Override height in pixels
+     */
+    public void setLayoutOverrideHeight(float height) {
+        this.layoutOverrideHeight = height;
+        markDirty();
+    }
+
+    /**
+     * Clears any layout override sizes and percent references,
+     * reverting to normal effective size calculation.
+     */
+    public void clearLayoutOverrides() {
+        this.layoutOverrideWidth = Float.NaN;
+        this.layoutOverrideHeight = Float.NaN;
+        this.layoutPercentReferenceWidth = Float.NaN;
+        this.layoutPercentReferenceHeight = Float.NaN;
+        markDirty();
+    }
+
+    /**
+     * Sets the percentage reference base for each axis.
+     * This is the denominator the layout used when computing percentage sizes.
+     * The editor uses this to correctly round-trip between PERCENT and FIXED modes.
+     */
+    public void setLayoutPercentReference(float width, float height) {
+        this.layoutPercentReferenceWidth = width;
+        this.layoutPercentReferenceHeight = height;
+    }
+
+    /**
+     * Gets the base size to use when computing a percentage for the width axis.
+     * Returns the layout's reference if set, otherwise the parent's effective width.
+     */
+    public float getPercentReferenceWidth() {
+        return Float.isNaN(layoutPercentReferenceWidth) ? getParentWidth() : layoutPercentReferenceWidth;
+    }
+
+    /**
+     * Gets the base size to use when computing a percentage for the height axis.
+     * Returns the layout's reference if set, otherwise the parent's effective height.
+     */
+    public float getPercentReferenceHeight() {
+        return Float.isNaN(layoutPercentReferenceHeight) ? getParentHeight() : layoutPercentReferenceHeight;
     }
 
     /**
@@ -684,8 +758,8 @@ public class UITransform extends Transform {
         // Apply world scale to dimensions for pivot calculation
         // This ensures pivot offset accounts for scaled visual size
         Vector2f worldScale = getWorldScale2D();
-        float scaledWidth = width * worldScale.x;
-        float scaledHeight = height * worldScale.y;
+        float scaledWidth = getEffectiveWidth() * worldScale.x;
+        float scaledHeight = getEffectiveHeight() * worldScale.y;
 
         // Apply pivot (shift so pivot point is at anchor+offset)
         localX -= pivot.x * scaledWidth;

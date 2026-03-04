@@ -173,6 +173,12 @@ public class EditorConfig {
     @Builder.Default
     private String defaultUiFont = "gameData/assets/fonts/zelda.ttf";
 
+    /**
+     * Whether to show element bounds in the UI Designer.
+     */
+    @Builder.Default
+    private boolean showElementBounds = true;
+
     // ===== RECENT FILES =====
 
     /**

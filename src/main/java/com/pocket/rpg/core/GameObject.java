@@ -95,6 +95,13 @@ public class GameObject implements IGameObject {
 
         this.parent = newParent;
 
+        // Clear stale layout overrides when reparenting
+        // (the old parent's layout group no longer manages this child)
+        var uiTransform = getComponent(com.pocket.rpg.components.ui.UITransform.class);
+        if (uiTransform != null) {
+            uiTransform.clearLayoutOverrides();
+        }
+
         // Add to new parent
         if (newParent != null) {
             newParent.children.add(this);

@@ -2,6 +2,7 @@ package com.pocket.rpg.editor.panels.uidesigner;
 
 import com.pocket.rpg.components.ui.LayoutGroup;
 import com.pocket.rpg.components.ui.UICanvas;
+import com.pocket.rpg.components.ui.UIScrollbar;
 import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
@@ -65,6 +66,9 @@ public class UIDesignerGizmoDrawer {
             if (!coords.isUIEntity(entity)) continue;
             if (entity.hasComponent(UICanvas.class)) continue;
             if (!entity.isEnabled()) continue;
+
+            // Skip handle children of scrollbar (entirely driven, would just add clutter)
+            if (entity.getParent() != null && entity.getParent().hasComponent(UIScrollbar.class)) continue;
 
             UITransform transform = entity.getComponent(UITransform.class);
             // Negate rotation to convert to screen space (Y-down)
@@ -550,6 +554,47 @@ public class UIDesignerGizmoDrawer {
         drawList.addLine(inner[2], inner[3], inner[4], inner[5], outlineColor, 1f);
         drawList.addLine(inner[4], inner[5], inner[6], inner[7], outlineColor, 1f);
         drawList.addLine(inner[6], inner[7], inner[0], inner[1], outlineColor, 1f);
+    }
+
+    // ========================================================================
+    // SCROLLBAR TRACK PADDING VISUALIZATION
+    // ========================================================================
+
+    /**
+     * Draws track padding boundary lines for all scrollbar entities with non-zero padding.
+     * Two horizontal lines on the scrollbar track showing where the handle stops.
+     * Always visible (not just when selected).
+     */
+    public void drawTrackPadding(ImDrawList drawList, EditorScene scene) {
+        if (scene == null) return;
+
+        for (EditorGameObject entity : scene.getEntities()) {
+            if (!coords.isUIEntity(entity)) continue;
+            if (!entity.isEnabled()) continue;
+
+            UIScrollbar scrollbar = entity.getComponent(UIScrollbar.class);
+            if (scrollbar == null || scrollbar.getTrackPadding() <= 0) continue;
+
+            float[] bounds = coords.calculateElementBounds(entity);
+            if (bounds == null) continue;
+
+            float x = bounds[0], y = bounds[1], w = bounds[2], h = bounds[3];
+            float pad = scrollbar.getTrackPadding();
+
+            float vpX = state.getViewportX();
+            float vpY = state.getViewportY();
+            int lineColor = UIDesignerState.COLOR_CONTENT_OUTLINE;
+
+            // Top boundary: handle cannot go above this line
+            Vector2f topL = coords.canvasToScreen(x, y + pad);
+            Vector2f topR = coords.canvasToScreen(x + w, y + pad);
+            drawList.addLine(vpX + topL.x, vpY + topL.y, vpX + topR.x, vpY + topR.y, lineColor, 2f);
+
+            // Bottom boundary: handle cannot go below this line
+            Vector2f botL = coords.canvasToScreen(x, y + h - pad);
+            Vector2f botR = coords.canvasToScreen(x + w, y + h - pad);
+            drawList.addLine(vpX + botL.x, vpY + botL.y, vpX + botR.x, vpY + botR.y, lineColor, 2f);
+        }
     }
 
     // ========================================================================

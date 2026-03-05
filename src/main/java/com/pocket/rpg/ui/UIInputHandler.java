@@ -2,6 +2,9 @@ package com.pocket.rpg.ui;
 
 import com.pocket.rpg.components.ui.UIButton;
 import com.pocket.rpg.components.ui.UICanvas;
+import com.pocket.rpg.components.ui.UIScrollView;
+import com.pocket.rpg.components.ui.UIScrollbar;
+import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.input.Input;
@@ -48,11 +51,20 @@ public class UIInputHandler {
     // All buttons in the scene (refreshed each frame from canvases)
     private final List<UIButton> buttons = new ArrayList<>();
 
+    // All scroll views in the scene (refreshed each frame)
+    private final List<UIScrollView> scrollViews = new ArrayList<>();
+
+    // All scrollbars in the scene (refreshed each frame)
+    private final List<UIScrollbar> scrollbars = new ArrayList<>();
+
     // Currently hovered button (null if none)
     private UIButton hoveredButton = null;
 
     // Button that was pressed (for tracking release)
     private UIButton pressedButton = null;
+
+    // Active scrollbar being dragged
+    private UIScrollbar activeScrollbar = null;
 
     public UIInputHandler(GameConfig config) {
         this.config = config;
@@ -69,9 +81,71 @@ public class UIInputHandler {
         // Reset consumed state at start of frame
         Input.setMouseConsumed(false);
 
-        // Collect all buttons from canvases (in render order)
-        collectButtons(canvases);
+        // Collect all interactive UI elements from canvases (in render order)
+        collectInteractables(canvases);
 
+        // Handle scrollbar drag (takes priority — continues even if mouse leaves scrollbar)
+        if (activeScrollbar != null) {
+            if (Input.getMouseButtonRaw(KeyCode.MOUSE_BUTTON_LEFT)) {
+                activeScrollbar.updateDrag(mouseY);
+                Input.setMouseConsumed(true);
+            }
+            if (Input.getMouseButtonUpRaw(KeyCode.MOUSE_BUTTON_LEFT)) {
+                activeScrollbar.endDrag();
+                activeScrollbar = null;
+                Input.setMouseConsumed(true);
+            }
+            // During drag, skip other input processing
+            return;
+        }
+
+        // Handle mouse scroll over scroll views
+        float scrollDelta = Input.getMouseScrollDelta();
+        if (scrollDelta != 0) {
+            for (int i = scrollViews.size() - 1; i >= 0; i--) {
+                UIScrollView sv = scrollViews.get(i);
+                if (!sv.canScroll()) continue;
+
+                GameObject viewport = sv.getViewport();
+                if (viewport == null) continue;
+
+                UITransform vt = viewport.getComponent(UITransform.class);
+                if (vt == null) continue;
+
+                var pos = vt.getScreenPosition();
+                float vw = vt.getEffectiveWidth();
+                float vh = vt.getEffectiveHeight();
+
+                if (mouseX >= pos.x && mouseX < pos.x + vw
+                        && mouseY >= pos.y && mouseY < pos.y + vh) {
+                    sv.scroll(-scrollDelta * sv.getScrollSensitivity());
+                    Input.setMouseConsumed(true);
+                    break;
+                }
+            }
+        }
+
+        // Handle scrollbar click/drag
+        if (Input.getMouseButtonDownRaw(KeyCode.MOUSE_BUTTON_LEFT)) {
+            for (int i = scrollbars.size() - 1; i >= 0; i--) {
+                UIScrollbar sb = scrollbars.get(i);
+                UIScrollView sv = sb.getScrollView();
+                if (sv == null || !sv.isScrollbarVisible()) continue;
+
+                if (sb.isPointOverHandle(mouseX, mouseY)) {
+                    sb.beginDrag(mouseY);
+                    activeScrollbar = sb;
+                    Input.setMouseConsumed(true);
+                    break;
+                } else if (sb.isPointOverTrack(mouseX, mouseY)) {
+                    sb.jumpToTrackPosition(mouseY);
+                    Input.setMouseConsumed(true);
+                    break;
+                }
+            }
+        }
+
+        // Handle buttons
         if (buttons.isEmpty()) {
             clearHoverState();
             return;
@@ -133,32 +207,45 @@ public class UIInputHandler {
     }
 
     /**
-     * Collects all UIButton components from canvas subtrees.
-     * Buttons are added in render order (earlier = bottom, later = top).
+     * Collects all interactive UI components from canvas subtrees.
+     * Elements are added in render order (earlier = bottom, later = top).
      */
-    private void collectButtons(List<UICanvas> canvases) {
+    private void collectInteractables(List<UICanvas> canvases) {
         buttons.clear();
+        scrollViews.clear();
+        scrollbars.clear();
 
         for (UICanvas canvas : canvases) {
             if (!canvas.isEnabled()) continue;
-            collectButtonsRecursive(canvas.getGameObject());
+            collectInteractablesRecursive(canvas.getGameObject());
         }
     }
 
-    private void collectButtonsRecursive(GameObject go) {
+    private void collectInteractablesRecursive(GameObject go) {
         if (!go.isEnabled()) return;
 
         // Check for UIButton
         UIButton button = go.getComponent(UIButton.class);
         if (button != null && button.isEnabled()) {
-            // Ensure button has config reference
             button.setConfig(config);
             buttons.add(button);
         }
 
+        // Check for UIScrollView
+        UIScrollView scrollView = go.getComponent(UIScrollView.class);
+        if (scrollView != null && scrollView.isEnabled()) {
+            scrollViews.add(scrollView);
+        }
+
+        // Check for UIScrollbar
+        UIScrollbar scrollbar = go.getComponent(UIScrollbar.class);
+        if (scrollbar != null && scrollbar.isEnabled()) {
+            scrollbars.add(scrollbar);
+        }
+
         // Process children
         for (GameObject child : go.getChildren()) {
-            collectButtonsRecursive(child);
+            collectInteractablesRecursive(child);
         }
     }
 
@@ -176,5 +263,8 @@ public class UIInputHandler {
     public void reset() {
         clearHoverState();
         buttons.clear();
+        scrollViews.clear();
+        scrollbars.clear();
+        activeScrollbar = null;
     }
 }

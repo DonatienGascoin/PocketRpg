@@ -158,7 +158,9 @@ public class RenderPipeline {
 
         // Stage 2: UI (after post-fx, never blurred/bloomed)
         if (params.isRenderUI() && params.getUiCanvases() != null && !params.getUiCanvases().isEmpty()) {
+            uiRenderer.setRenderTarget(target);
             uiRenderer.render(params.getUiCanvases());
+            uiRenderer.setRenderTarget(null);
         }
 
         // Stage 3: Overlay (transitions)
@@ -250,7 +252,9 @@ public class RenderPipeline {
      */
     public void renderUI(List<UICanvas> canvases) {
         if (canvases != null && !canvases.isEmpty()) {
+            uiRenderer.setRenderTarget(currentTarget);
             uiRenderer.render(canvases);
+            uiRenderer.setRenderTarget(null);
         }
     }
 

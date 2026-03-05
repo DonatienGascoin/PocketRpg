@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.BiFunction;
 
 /**
  * Handles mouse and keyboard input for the UI Designer panel.
@@ -29,10 +30,17 @@ public class UIDesignerInputHandler {
     private final UIDesignerCoordinates coords;
     private final EditorContext context;
 
+    /** GPU picking function: (canvasX, canvasY) -> EditorGameObject or null */
+    private BiFunction<Float, Float, EditorGameObject> gpuPicker;
+
     public UIDesignerInputHandler(UIDesignerState state, UIDesignerCoordinates coords, EditorContext context) {
         this.state = state;
         this.coords = coords;
         this.context = context;
+    }
+
+    public void setGpuPicker(BiFunction<Float, Float, EditorGameObject> gpuPicker) {
+        this.gpuPicker = gpuPicker;
     }
 
     // ========================================================================
@@ -193,11 +201,20 @@ public class UIDesignerInputHandler {
     }
 
     private EditorGameObject findEntityAtPosition(EditorScene scene, float canvasX, float canvasY) {
+        // GPU picking: pixel-accurate selection that respects transparency
+        if (gpuPicker != null) {
+            EditorGameObject picked = gpuPicker.apply(canvasX, canvasY);
+            if (picked != null) return picked;
+        }
+
+        // CPU fallback: bounding box check for non-visual containers
+        // (GPU picking only renders visual elements, so containers need CPU fallback)
         var entities = scene.getEntities();
         for (int i = entities.size() - 1; i >= 0; i--) {
             EditorGameObject entity = entities.get(i);
             if (!coords.isUIEntity(entity)) continue;
             if (entity.hasComponent(UICanvas.class)) continue;
+            if (!entity.isEnabled()) continue;
 
             if (coords.isPointInElement(entity, canvasX, canvasY)) {
                 return entity;

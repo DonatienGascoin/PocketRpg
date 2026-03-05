@@ -110,6 +110,10 @@ public class UIImage extends UIComponent {
     @Getter @Setter
     private float pixelsPerUnit = 100f;
 
+    /** For SIMPLE type: fit image within bounds while preserving sprite aspect ratio */
+    @Getter @Setter
+    private boolean preserveAspectRatio = false;
+
     // ========================================================================
     // CONSTRUCTORS
     // ========================================================================
@@ -197,8 +201,40 @@ public class UIImage extends UIComponent {
     }
 
     private void renderSimple(UIRendererBackend backend, RenderBounds bounds) {
-        backend.drawSprite(bounds.x(), bounds.y(), bounds.width(), bounds.height(),
-                bounds.rotation(), bounds.pivotX(), bounds.pivotY(), sprite, color);
+        RenderBounds adjusted = preserveAspectRatio ? fitToAspectRatio(bounds) : bounds;
+        backend.drawSprite(adjusted.x(), adjusted.y(), adjusted.width(), adjusted.height(),
+                adjusted.rotation(), adjusted.pivotX(), adjusted.pivotY(), sprite, color);
+    }
+
+    private RenderBounds fitToAspectRatio(RenderBounds bounds) {
+        if (sprite == null || sprite.getWidth() <= 0 || sprite.getHeight() <= 0
+                || bounds.width() <= 0 || bounds.height() <= 0) {
+            return bounds;
+        }
+
+        float spriteAspect = sprite.getWidth() / sprite.getHeight();
+        float boundsAspect = bounds.width() / bounds.height();
+
+        float newW, newH;
+        if (spriteAspect > boundsAspect) {
+            // Sprite is wider — fit to width, shrink height
+            newW = bounds.width();
+            newH = bounds.width() / spriteAspect;
+        } else {
+            // Sprite is taller — fit to height, shrink width
+            newH = bounds.height();
+            newW = bounds.height() * spriteAspect;
+        }
+
+        // Center within the original bounds
+        float offsetX = (bounds.width() - newW) * bounds.pivotX();
+        float offsetY = (bounds.height() - newH) * bounds.pivotY();
+
+        return new RenderBounds(
+                bounds.x() + offsetX, bounds.y() + offsetY,
+                newW, newH,
+                bounds.rotation(), bounds.pivotX(), bounds.pivotY()
+        );
     }
 
     private void renderSliced(UIRendererBackend backend, RenderBounds bounds) {

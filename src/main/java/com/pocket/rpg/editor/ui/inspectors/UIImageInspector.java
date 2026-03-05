@@ -97,9 +97,21 @@ public class UIImageInspector extends CustomComponentInspector<UIImage> {
             case SLICED -> changed |= drawSlicedOptions();
             case TILED -> changed |= drawTiledOptions();
             case FILLED -> changed |= drawFilledOptions();
-            default -> {} // SIMPLE has no extra options
+            case SIMPLE -> changed |= drawSimpleOptions();
         }
 
+        return changed;
+    }
+
+    private boolean drawSimpleOptions() {
+        boolean changed = false;
+
+        ImGui.spacing();
+        ImGui.indent();
+
+        changed |= PrimitiveEditors.drawBoolean("Preserve Aspect Ratio", component, "preserveAspectRatio");
+
+        ImGui.unindent();
         return changed;
     }
 

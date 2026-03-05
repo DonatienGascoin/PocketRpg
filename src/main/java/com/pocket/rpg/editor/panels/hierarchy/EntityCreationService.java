@@ -76,6 +76,9 @@ public class EntityCreationService {
 
         newEntitiesToAdd.add(newEntity);
 
+        // Collect pre-attached children (e.g. ScrollView hierarchy)
+        collectDescendants(newEntity, newEntitiesToAdd);
+
         // Single undo command for all new entities
         if (newEntitiesToAdd.size() == 1) {
             UndoManager.getInstance().execute(new AddEntityCommand(scene, newEntity));
@@ -342,6 +345,18 @@ public class EntityCreationService {
             entity = entity.getParent();
         }
         return entity;
+    }
+
+    /**
+     * Collects all descendants of an entity into the list.
+     * Used for factory-created hierarchies (e.g. ScrollView) where
+     * children are pre-attached before being added to the scene.
+     */
+    private void collectDescendants(EditorGameObject entity, List<EditorGameObject> out) {
+        for (EditorGameObject child : entity.getChildren()) {
+            out.add(child);
+            collectDescendants(child, out);
+        }
     }
 
     private int getNextRootOrder() {

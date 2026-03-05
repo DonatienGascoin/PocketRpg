@@ -1,6 +1,7 @@
 package com.pocket.rpg.resources;
 
 import com.pocket.rpg.rendering.resources.NineSliceData;
+import com.pocket.rpg.rendering.resources.Texture;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -260,6 +261,11 @@ public class SpriteMetadata {
      */
     public Float pixelsPerUnitOverride;
 
+    /**
+     * Texture filter mode. Null means use default (NEAREST).
+     */
+    public Texture.FilterMode filterMode;
+
     // ========================================================================
     // SINGLE MODE FIELDS
     // ========================================================================
@@ -393,10 +399,12 @@ public class SpriteMetadata {
         if (isMultiple()) {
             return grid == null && defaultPivot == null && defaultNineSlice == null
                     && (sprites == null || sprites.isEmpty())
-                    && (usableAsTileset == null || !usableAsTileset);
+                    && (usableAsTileset == null || !usableAsTileset)
+                    && filterMode == null;
         }
         return pivotX == null && pivotY == null && pixelsPerUnitOverride == null
-                && (nineSlice == null || nineSlice.isEmpty());
+                && (nineSlice == null || nineSlice.isEmpty())
+                && filterMode == null;
     }
 
     /**

@@ -24,6 +24,12 @@ public class IconUtils {
             return getUIVerticalLayoutIcon();
         } else if (entity.hasComponent(UIGridLayoutGroup.class)) {
             return getUIGridLayoutIcon();
+        } else if (entity.hasComponent(UIScrollView.class)) {
+            return getUIScrollViewIcon();
+        } else if (entity.hasComponent(UIScrollbar.class)) {
+            return getUIScrollbarIcon();
+        } else if (entity.hasComponent(UIMask.class)) {
+            return getUIMaskIcon();
         } else if (entity.hasComponent(UITransform.class)) {
             return getUITransformIcon();
         }
@@ -90,6 +96,18 @@ public class IconUtils {
 
     public static String getUIGridLayoutIcon() {
         return MaterialIcons.GridView;
+    }
+
+    public static String getUIScrollViewIcon() {
+        return MaterialIcons.ViewList;
+    }
+
+    public static String getUIScrollbarIcon() {
+        return MaterialIcons.UnfoldMore;
+    }
+
+    public static String getUIMaskIcon() {
+        return MaterialIcons.CropFree;
     }
 
     public static String getMultipleEntitiesIcon() {

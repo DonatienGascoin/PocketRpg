@@ -389,6 +389,12 @@ public class HierarchyTreeRenderer {
             }
             ImGui.separator();
 
+            // Scroll View
+            if (ImGui.menuItem(IconUtils.getUIScrollViewIcon() + " Scroll View")) {
+                creationService.createUIElement("ScrollView");
+            }
+            ImGui.separator();
+
             // Layout submenu
             if (ImGui.beginMenu(MaterialIcons.ViewModule + " Layout")) {
                 if (ImGui.menuItem(IconUtils.getUIHorizontalLayoutIcon() + " Horizontal Layout")) {

@@ -107,5 +107,8 @@ public class UIHorizontalLayoutGroup extends LayoutGroup {
 
             x += childWidth + spacing;
         }
+
+        // Height extent: padding + tallest child (cross axis)
+        contentExtentHeight = paddingTop + contentHeight + paddingBottom;
     }
 }

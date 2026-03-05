@@ -4,7 +4,11 @@ import com.pocket.rpg.components.ui.LayoutGroup;
 import com.pocket.rpg.components.ui.UICanvas;
 import com.pocket.rpg.components.ui.UIComponent;
 import com.pocket.rpg.components.ui.UIImage;
+import com.pocket.rpg.components.ui.UIMask;
+import com.pocket.rpg.components.ui.UIScrollbar;
+import com.pocket.rpg.components.ui.UIScrollView;
 import com.pocket.rpg.components.ui.UITransform;
+import com.pocket.rpg.rendering.core.RenderTarget;
 import com.pocket.rpg.rendering.resources.NineSlice;
 import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.core.window.ViewportConfig;
@@ -18,6 +22,8 @@ import org.lwjgl.BufferUtils;
 
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.List;
 
 import static org.lwjgl.opengl.GL33.*;
@@ -50,6 +56,9 @@ public class UIRenderer implements UIRendererBackend {
 
     // Optional - set via constructor for RenderPipeline usage
     private ViewportConfig viewportConfig;
+
+    // Current render target - when offscreen, scissor uses 1:1 mapping
+    private RenderTarget currentTarget;
 
     // Game resolution (fixed)
     private int gameWidth;
@@ -100,6 +109,23 @@ public class UIRenderer implements UIRendererBackend {
     private boolean initialized = false;
 
     // ========================================================================
+    // SCISSOR CLIPPING (UIMask support)
+    // ========================================================================
+
+    /** Stack of scissor rects in game coordinates (x, y, width, height). */
+    private final Deque<float[]> scissorStack = new ArrayDeque<>();
+
+    /** Height of the current render target in pixels. Used for scissor Y-flip. */
+    private int renderTargetHeight = 0;
+
+    /**
+     * When true, scissor calculations use game coordinates directly (1:1 mapping)
+     * instead of viewportConfig window scaling. Set when rendering to a framebuffer
+     * whose dimensions match the game resolution.
+     */
+    private boolean renderingToFramebuffer = false;
+
+    // ========================================================================
     // CONSTRUCTORS
     // ========================================================================
 
@@ -118,6 +144,14 @@ public class UIRenderer implements UIRendererBackend {
      */
     public UIRenderer(ViewportConfig viewportConfig) {
         this.viewportConfig = viewportConfig;
+    }
+
+    /**
+     * Sets the current render target. When offscreen, applyScissor uses 1:1
+     * game-to-pixel mapping instead of viewportConfig scaling.
+     */
+    public void setRenderTarget(RenderTarget target) {
+        this.currentTarget = target;
     }
 
     // ========================================================================
@@ -205,6 +239,8 @@ public class UIRenderer implements UIRendererBackend {
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glDisable(GL_DEPTH_TEST);
+        glDisable(GL_SCISSOR_TEST);
+        scissorStack.clear();
 
         for (UICanvas canvas : canvases) {
             if (!canvas.isEnabled()) {
@@ -221,6 +257,7 @@ public class UIRenderer implements UIRendererBackend {
             renderCanvasSubtree(root, 0, 0, gameWidth, gameHeight);
         }
 
+        glDisable(GL_SCISSOR_TEST);
         glEnable(GL_DEPTH_TEST);
     }
 
@@ -252,8 +289,29 @@ public class UIRenderer implements UIRendererBackend {
             transform.markDirty();
         }
 
+        // Render culling: skip this subtree if entirely outside the active scissor rect.
+        // Skip this check for scroll content — its bounding box doesn't reflect the full
+        // scrollable extent, so it gets falsely culled. The UIMask scissor handles clipping.
+        if (!scissorStack.isEmpty() && transform != null && !isScrollContent(root)) {
+            Vector2f screenPos = transform.getScreenPosition();
+            float w = transform.getEffectiveWidth();
+            float h = transform.getEffectiveHeight();
+            if (isOutsideScissor(screenPos.x, screenPos.y, w, h)) {
+                return;
+            }
+        }
+
+        // Check for UIMask component
+        UIMask mask = root.getComponent(UIMask.class);
+        boolean hasMask = mask != null && mask.isEnabled();
+
         // Render this object's UI components
-        renderGameObjectUI(root);
+        if (hasMask && !mask.isShowMaskGraphic()) {
+            // UIMask with showMaskGraphic=false: skip rendering visual components on this GO
+            // (don't render UIPanel/UIImage, only use bounds for clipping)
+        } else {
+            renderGameObjectUI(root);
+        }
 
         // Calculate bounds for children
         float childParentX = parentX;
@@ -269,6 +327,26 @@ public class UIRenderer implements UIRendererBackend {
             childParentHeight = transform.getEffectiveHeight();
         }
 
+        // Push scissor rect if this has a UIMask
+        if (hasMask && transform != null) {
+            Vector2f screenPos = transform.getScreenPosition();
+            pushScissor(screenPos.x, screenPos.y,
+                    transform.getEffectiveWidth(), transform.getEffectiveHeight());
+        }
+
+        // Handle UIScrollView: update metrics and apply scroll offset
+        UIScrollView scrollView = root.getComponent(UIScrollView.class);
+        if (scrollView != null && scrollView.isEnabled()) {
+            scrollView.updateMetrics();
+            scrollView.applyScrollOffset();
+        }
+
+        // Handle UIScrollbar: update handle position/size
+        UIScrollbar scrollbar = root.getComponent(UIScrollbar.class);
+        if (scrollbar != null && scrollbar.isEnabled()) {
+            scrollbar.updateHandle();
+        }
+
         // Apply layout group before rendering children
         LayoutGroup layoutGroup = root.getComponent(LayoutGroup.class);
         if (layoutGroup != null && layoutGroup.isEnabled()) {
@@ -278,6 +356,11 @@ public class UIRenderer implements UIRendererBackend {
         // Render children
         for (GameObject child : root.getChildren()) {
             renderCanvasSubtree(child, childParentX, childParentY, childParentWidth, childParentHeight);
+        }
+
+        // Pop scissor rect if we pushed one
+        if (hasMask && transform != null) {
+            popScissor();
         }
     }
 
@@ -423,6 +506,16 @@ public class UIRenderer implements UIRendererBackend {
             top *= scale;
             bottom *= scale;
         }
+
+        // Snap positions and sizes to integer pixels to prevent sub-pixel seams between regions
+        x = Math.round(x);
+        y = Math.round(y);
+        width = Math.round(width);
+        height = Math.round(height);
+        left = Math.round(left);
+        right = Math.round(right);
+        top = Math.round(top);
+        bottom = Math.round(bottom);
 
         // Calculate center region size (may be 0 or negative if borders fill/exceed the space)
         float centerWidth = Math.max(0, width - left - right);
@@ -1075,6 +1168,117 @@ public class UIRenderer implements UIRendererBackend {
         glUseProgram(0);
 
         batchSpriteCount = 0;
+    }
+
+    // ========================================================================
+    // SCISSOR CLIPPING
+    // ========================================================================
+
+    /**
+     * Pushes a scissor rect in game coordinates. Nested calls intersect
+     * with the current scissor rect so inner masks clip correctly.
+     */
+    private void pushScissor(float x, float y, float width, float height) {
+        // Intersect with current scissor if nested
+        if (!scissorStack.isEmpty()) {
+            float[] current = scissorStack.peek();
+            float cx = current[0], cy = current[1], cw = current[2], ch = current[3];
+
+            float newX = Math.max(x, cx);
+            float newY = Math.max(y, cy);
+            float newRight = Math.min(x + width, cx + cw);
+            float newBottom = Math.min(y + height, cy + ch);
+
+            width = Math.max(0, newRight - newX);
+            height = Math.max(0, newBottom - newY);
+            x = newX;
+            y = newY;
+        }
+
+        scissorStack.push(new float[]{x, y, width, height});
+        applyScissor(x, y, width, height);
+    }
+
+    /**
+     * Pops the current scissor rect and restores the previous one.
+     */
+    private void popScissor() {
+        if (scissorStack.isEmpty()) return;
+        scissorStack.pop();
+
+        if (scissorStack.isEmpty()) {
+            glDisable(GL_SCISSOR_TEST);
+        } else {
+            float[] prev = scissorStack.peek();
+            applyScissor(prev[0], prev[1], prev[2], prev[3]);
+        }
+    }
+
+    /**
+     * Applies a scissor rect, converting from game coordinates to window pixels.
+     * OpenGL scissor origin is bottom-left, so we flip Y.
+     */
+    private void applyScissor(float gameX, float gameY, float gameW, float gameH) {
+        glEnable(GL_SCISSOR_TEST);
+
+        int sx, sy, sw, sh;
+
+        if (currentTarget != null && currentTarget.isOffscreen()) {
+            // Offscreen FBO: scissor operates in FBO pixel space (1:1 with game coords)
+            sx = (int) gameX;
+            sy = (int) (currentTarget.getHeight() - gameY - gameH);
+            sw = (int) Math.ceil(gameW);
+            sh = (int) Math.ceil(gameH);
+        } else if (viewportConfig != null) {
+            // Default framebuffer: convert game coords to window pixel coords
+            float winX = viewportConfig.gameToWindowX(gameX);
+            float winY = viewportConfig.gameToWindowY(gameY);
+            float winW = gameW * viewportConfig.getScale();
+            float winH = gameH * viewportConfig.getScale();
+
+            // OpenGL scissor: origin at bottom-left, Y flipped
+            sx = (int) winX;
+            sy = (int) (viewportConfig.getWindowHeight() - winY - winH);
+            sw = (int) Math.ceil(winW);
+            sh = (int) Math.ceil(winH);
+        } else {
+            // No viewport config: assume 1:1 game-to-window mapping
+            sx = (int) gameX;
+            sy = (int) (gameHeight - gameY - gameH);
+            sw = (int) Math.ceil(gameW);
+            sh = (int) Math.ceil(gameH);
+        }
+
+        // Clamp to non-negative
+        sw = Math.max(0, sw);
+        sh = Math.max(0, sh);
+
+        glScissor(sx, sy, sw, sh);
+    }
+
+    /**
+     * Checks if a rect in game coordinates is entirely outside the current scissor rect.
+     * Used for render culling — if true, skip rendering this element and its subtree.
+     */
+    private boolean isOutsideScissor(float x, float y, float w, float h) {
+        if (scissorStack.isEmpty()) return false;
+
+        float[] scissor = scissorStack.peek();
+        float sx = scissor[0], sy = scissor[1], sw = scissor[2], sh = scissor[3];
+
+        // No overlap if one rect is entirely to the left/right/above/below the other
+        return (x >= sx + sw) || (x + w <= sx) || (y >= sy + sh) || (y + h <= sy);
+    }
+
+    /**
+     * Checks if a GO is the content child of a scroll view's viewport.
+     * The parent has UIMask and the grandparent has UIScrollView.
+     */
+    private boolean isScrollContent(GameObject go) {
+        GameObject parent = go.getParent();
+        if (parent == null || parent.getComponent(UIMask.class) == null) return false;
+        GameObject grandparent = parent.getParent();
+        return grandparent != null && grandparent.getComponent(UIScrollView.class) != null;
     }
 
     // ========================================================================

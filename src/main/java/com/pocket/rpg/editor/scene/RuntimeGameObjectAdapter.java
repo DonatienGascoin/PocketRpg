@@ -92,6 +92,17 @@ public class RuntimeGameObjectAdapter implements HierarchyItem {
         return gameObject.hasChildren();
     }
 
+    @Override
+    public RuntimeGameObjectAdapter getParent() {
+        GameObject parent = gameObject.getParent();
+        return parent != null ? RuntimeGameObjectAdapter.of(parent) : null;
+    }
+
+    @Override
+    public List<GameObject> getChildren() {
+        return gameObject.getChildren();
+    }
+
     // ========================================================================
     // HierarchyItem
     // ========================================================================

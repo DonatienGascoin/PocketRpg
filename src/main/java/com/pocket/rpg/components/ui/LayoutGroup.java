@@ -3,6 +3,7 @@ package com.pocket.rpg.components.ui;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.components.ComponentMeta;
+import com.pocket.rpg.editor.panels.hierarchy.HierarchyItem;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -19,7 +20,7 @@ import java.util.List;
  * to their specific layout strategy (horizontal, vertical, grid).
  */
 @ComponentMeta(category = "UI")
-public abstract class LayoutGroup extends Component {
+public abstract class LayoutGroup extends Component implements UITransformDriver {
 
     // ========================================================================
     // ALIGNMENT ENUMS
@@ -52,6 +53,10 @@ public abstract class LayoutGroup extends Component {
     @Getter @Setter
     protected float spacing = 0;
 
+    /** Total height of laid-out content including all padding. Computed during applyLayout. */
+    @Getter
+    protected transient float contentExtentHeight = 0;
+
     @Getter @Setter
     protected boolean childForceExpandWidth = false;
 
@@ -70,6 +75,18 @@ public abstract class LayoutGroup extends Component {
      * to position them according to the layout strategy.
      */
     public abstract void applyLayout();
+
+    // ========================================================================
+    // UITransformDriver
+    // ========================================================================
+
+    @Override
+    public TransformDriverInfo getChildDriverInfo(HierarchyItem child) {
+        boolean isGrid = this instanceof UIGridLayoutGroup;
+        boolean widthDriven = isGrid || childForceExpandWidth;
+        boolean heightDriven = isGrid || childForceExpandHeight;
+        return new TransformDriverInfo(false, widthDriven, heightDriven, true, "parent layout");
+    }
 
     // ========================================================================
     // HELPERS

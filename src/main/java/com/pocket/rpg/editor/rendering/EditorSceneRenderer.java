@@ -18,9 +18,6 @@ import imgui.ImGui;
 import imgui.ImVec2;
 import org.joml.Vector4f;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import static org.lwjgl.opengl.GL33.*;
 
 /**
@@ -48,11 +45,8 @@ public class EditorSceneRenderer {
     private RenderDispatcher dispatcher;
     private boolean initialized = false;
 
-    // GPU picking state
-    private PickingBuffer pickingBuffer;
-    private BatchRenderer pickingBatchRenderer;
-    private Map<Integer, EditorGameObject> entityIdMap;
-    private boolean pickingInitialized = false;
+    // GPU picking
+    private PickingPass pickingPass;
 
     // Viewport bounds for lazy pixel readback (updated each frame from SceneViewport)
     private float viewportScreenX, viewportScreenY;
@@ -71,11 +65,8 @@ public class EditorSceneRenderer {
         dispatcher = new RenderDispatcher();
 
         // Initialize GPU picking
-        pickingBuffer = new PickingBuffer(framebuffer.getWidth(), framebuffer.getHeight());
-        pickingBuffer.init();
-        pickingBatchRenderer = new BatchRenderer(renderingConfig, "gameData/assets/shaders/picking.glsl");
-        pickingBatchRenderer.init(framebuffer.getWidth(), framebuffer.getHeight());
-        pickingInitialized = pickingBuffer.isInitialized();
+        pickingPass = new PickingPass(renderingConfig);
+        pickingPass.init(framebuffer.getWidth(), framebuffer.getHeight());
 
         initialized = true;
         System.out.println("[EditorSceneRenderer] Initialized");
@@ -103,8 +94,8 @@ public class EditorSceneRenderer {
 
         // Sync picking buffer size with the main framebuffer (which tracks viewport size).
         // Cannot use onResize() for this — that receives window dimensions, not viewport dimensions.
-        if (pickingBuffer != null) {
-            pickingBuffer.resize(framebuffer.getWidth(), framebuffer.getHeight());
+        if (pickingPass != null) {
+            pickingPass.resize(framebuffer.getWidth(), framebuffer.getHeight());
         }
 
         // Picking pass runs after the main FBO is unbound (no interference)
@@ -152,57 +143,32 @@ public class EditorSceneRenderer {
      * {@code findEntityAt()} is called via the GPU picker supplier.
      */
     private void renderPickingPass(EditorScene scene, EditorCamera camera) {
-        if (!pickingInitialized) return;
+        if (!pickingPass.isInitialized()) return;
 
-        entityIdMap = new HashMap<>();
-        int nextId = 1;
-
-        // Disable blending — entity IDs must not blend
-        glDisable(GL_BLEND);
-
-        pickingBuffer.bind();
-        pickingBuffer.clear();
-
-        pickingBatchRenderer.beginWithMatrices(
+        pickingPass.execute(
                 camera.getProjectionMatrix(),
                 camera.getViewMatrix(),
-                null
+                (batch, entityIdMap) -> {
+                    TilemapLayer activeLayer = scene.getActiveLayer();
+                    for (EditorGameObject entity : scene.getEntities()) {
+                        if (!entity.isRenderVisible()) continue;
+                        if (entity.hasComponent(UITransform.class)) continue;
+
+                        Vector4f tint = getEntityTint(entity, activeLayer, scene);
+                        if (tint == null) continue;
+
+                        ResolvedGeometry geom = RenderDispatcher.resolveEntityGeometry(entity);
+                        if (geom == null) continue;
+
+                        Vector4f idColor = PickingPass.registerEntity(entityIdMap, entity);
+                        batch.submit(geom.sprite(), geom.x(), geom.y(),
+                                geom.width(), geom.height(), geom.rotation(),
+                                geom.originX(), geom.originY(), geom.zIndex(), idColor);
+                    }
+                }
         );
 
-        SpriteBatch batch = pickingBatchRenderer.getBatch();
-
-        TilemapLayer activeLayer = scene.getActiveLayer();
-        for (EditorGameObject entity : scene.getEntities()) {
-            if (!entity.isRenderVisible()) continue;
-            if (entity.hasComponent(UITransform.class)) continue;
-
-            // Apply same layer visibility filtering as main render
-            Vector4f tint = getEntityTint(entity, activeLayer, scene);
-            if (tint == null) continue;
-
-            // Resolve geometry via shared helper
-            ResolvedGeometry geom = RenderDispatcher.resolveEntityGeometry(entity);
-            if (geom == null) continue;
-
-            // Encode entity ID as color
-            Vector4f idColor = PickingBuffer.encodeEntityId(nextId);
-            entityIdMap.put(nextId, entity);
-            nextId++;
-
-            batch.submit(geom.sprite(), geom.x(), geom.y(),
-                    geom.width(), geom.height(), geom.rotation(),
-                    geom.originX(), geom.originY(), geom.zIndex(), idColor);
-        }
-
-        pickingBatchRenderer.end();
-        pickingBuffer.unbind();
-
-        // Restore GL state
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-        // Wire lazy GPU picker — reads the pixel on demand when findEntityAt() is called,
-        // using the current ImGui mouse position (not a stale cached value)
+        // Wire lazy GPU picker — reads the pixel on demand when findEntityAt() is called
         scene.setGpuPicker(this::pickEntityUnderMouse);
     }
 
@@ -212,20 +178,16 @@ public class EditorSceneRenderer {
      * Uses {@code ImGui.getMousePos()} at call time for accurate coordinates.
      */
     private EditorGameObject pickEntityUnderMouse() {
-        if (!pickingInitialized || entityIdMap == null) return null;
+        if (!pickingPass.isInitialized()) return null;
 
         ImVec2 mousePos = ImGui.getMousePos();
         float localX = mousePos.x - viewportScreenX;
         float localY = mousePos.y - viewportScreenY;
 
-        int pixelX = Math.clamp((int) localX, 0, pickingBuffer.getWidth() - 1);
-        int pixelY = Math.clamp((pickingBuffer.getHeight() - 1) - (int) localY,
-                0, pickingBuffer.getHeight() - 1);
+        int pixelX = (int) localX;
+        int pixelY = (pickingPass.getHeight() - 1) - (int) localY;
 
-        int entityId = pickingBuffer.readEntityId(pixelX, pixelY);
-
-        if (entityId == 0) return null;
-        return entityIdMap.getOrDefault(entityId, null);
+        return pickingPass.readEntityAt(pixelX, pixelY);
     }
 
     /**
@@ -331,17 +293,11 @@ public class EditorSceneRenderer {
             batchRenderer.destroy();
             batchRenderer = null;
         }
-        if (pickingBuffer != null) {
-            pickingBuffer.destroy();
-            pickingBuffer = null;
-        }
-        if (pickingBatchRenderer != null) {
-            pickingBatchRenderer.destroy();
-            pickingBatchRenderer = null;
+        if (pickingPass != null) {
+            pickingPass.destroy();
+            pickingPass = null;
         }
         dispatcher = null;
-        entityIdMap = null;
-        pickingInitialized = false;
         initialized = false;
         System.out.println("[EditorSceneRenderer] Destroyed");
     }

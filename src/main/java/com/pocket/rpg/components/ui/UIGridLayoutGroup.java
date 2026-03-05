@@ -173,5 +173,7 @@ public class UIGridLayoutGroup extends LayoutGroup {
             ct.setLayoutOverrideHeight(actualCellHeight);
             ct.setLayoutPercentReference(actualCellWidth, actualCellHeight);
         }
+
+        contentExtentHeight = baseY + gridHeight + paddingBottom;
     }
 }

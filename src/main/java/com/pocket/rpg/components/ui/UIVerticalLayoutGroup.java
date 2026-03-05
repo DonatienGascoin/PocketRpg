@@ -107,5 +107,8 @@ public class UIVerticalLayoutGroup extends LayoutGroup {
 
             y += childHeight + spacing;
         }
+
+        // Total extent: last child bottom + bottom padding (remove trailing spacing)
+        contentExtentHeight = y - spacing + paddingBottom;
     }
 }

@@ -156,6 +156,133 @@ class UITransformTest {
     }
 
     // ========================================================================
+    // Layout + FillingParent interaction
+    // ========================================================================
+
+    @Nested
+    class LayoutWithFillingParent {
+
+        /**
+         * Simulates what a layout group does: sets anchor/pivot/offset/overrides on a child.
+         */
+        private void simulateLayoutOnChild(float offsetX, float offsetY,
+                                            float overrideWidth, float overrideHeight) {
+            childTransform.clearLayoutOverrides();
+            childTransform.setAnchor(0, 0);
+            childTransform.setPivot(0, 0);
+            childTransform.setOffset(offsetX, offsetY);
+            childTransform.setLayoutOverrideWidth(overrideWidth);
+            childTransform.setLayoutOverrideHeight(overrideHeight);
+        }
+
+        @Test
+        void fillingParentWithLayoutOverrideRespectsOffset() {
+            // Child at 100%/100% — isFillingParent() returns true
+            childTransform.setWidthMode(UITransform.SizeMode.PERCENT);
+            childTransform.setHeightMode(UITransform.SizeMode.PERCENT);
+            childTransform.setWidthPercent(100);
+            childTransform.setHeightPercent(100);
+            assertTrue(childTransform.isFillingParent());
+
+            // Layout sets padding offset and size overrides (simulating padding=10)
+            simulateLayoutOnChild(10, 10, 380, 280);
+
+            parentTransform.setScreenBounds(400, 300);
+            childTransform.setScreenBounds(400, 300);
+
+            Vector2f pos = childTransform.getScreenPosition();
+            // Should be at parent origin + layout offset, NOT at raw parent origin
+            assertEquals(10, pos.x, 0.01f);
+            assertEquals(10, pos.y, 0.01f);
+        }
+
+        @Test
+        void fillingParentWithoutLayoutOverrideSnapsToParent() {
+            // Child at 100%/100% with NO layout overrides — original shortcut should work
+            childTransform.setWidthMode(UITransform.SizeMode.PERCENT);
+            childTransform.setHeightMode(UITransform.SizeMode.PERCENT);
+            childTransform.setWidthPercent(100);
+            childTransform.setHeightPercent(100);
+            childTransform.setAnchor(0.5f, 0.5f);
+            childTransform.setPivot(0.5f, 0.5f);
+            childTransform.setOffset(5, 5);
+
+            parentTransform.setScreenBounds(400, 300);
+            childTransform.setScreenBounds(400, 300);
+
+            Vector2f pos = childTransform.getScreenPosition();
+            // isFillingParent shortcut: snaps to parent origin, ignores offset/anchor/pivot
+            assertEquals(0, pos.x, 0.01f);
+            assertEquals(0, pos.y, 0.01f);
+        }
+
+        @Test
+        void fillingParentWithLayoutOverrideUsesOwnPivot() {
+            childTransform.setWidthMode(UITransform.SizeMode.PERCENT);
+            childTransform.setHeightMode(UITransform.SizeMode.PERCENT);
+            childTransform.setWidthPercent(100);
+            childTransform.setHeightPercent(100);
+
+            // Layout sets pivot to (0,0)
+            simulateLayoutOnChild(10, 10, 380, 280);
+
+            // Should return own pivot (0,0), NOT parent's pivot
+            Vector2f effectivePivot = childTransform.getEffectivePivot();
+            assertEquals(0, effectivePivot.x, 0.01f);
+            assertEquals(0, effectivePivot.y, 0.01f);
+        }
+
+        @Test
+        void fillingParentWithoutLayoutOverrideInheritsParentPivot() {
+            childTransform.setWidthMode(UITransform.SizeMode.PERCENT);
+            childTransform.setHeightMode(UITransform.SizeMode.PERCENT);
+            childTransform.setWidthPercent(100);
+            childTransform.setHeightPercent(100);
+            childTransform.setPivot(0, 0);
+            parentTransform.setPivot(0.5f, 0.5f);
+
+            // No layout overrides — should inherit parent's pivot
+            Vector2f effectivePivot = childTransform.getEffectivePivot();
+            assertEquals(0.5f, effectivePivot.x, 0.01f);
+            assertEquals(0.5f, effectivePivot.y, 0.01f);
+        }
+
+        @Test
+        void fillingParentWithLayoutOverrideSizeIsOverrideNotParent() {
+            childTransform.setWidthMode(UITransform.SizeMode.PERCENT);
+            childTransform.setHeightMode(UITransform.SizeMode.PERCENT);
+            childTransform.setWidthPercent(100);
+            childTransform.setHeightPercent(100);
+
+            // Layout overrides to content area (parent 400x300 minus 10px padding each side)
+            simulateLayoutOnChild(10, 10, 380, 280);
+
+            // Effective size should be the layout override, not 100% of parent
+            assertEquals(380, childTransform.getEffectiveWidth(), 0.01f);
+            assertEquals(280, childTransform.getEffectiveHeight(), 0.01f);
+        }
+
+        @Test
+        void percent99WithLayoutOverrideAlsoRespectsOffset() {
+            // 99% — isFillingParent() returns false, normal path always runs
+            childTransform.setWidthMode(UITransform.SizeMode.PERCENT);
+            childTransform.setHeightMode(UITransform.SizeMode.PERCENT);
+            childTransform.setWidthPercent(99);
+            childTransform.setHeightPercent(99);
+            assertFalse(childTransform.isFillingParent());
+
+            simulateLayoutOnChild(10, 10, 376, 277);
+
+            parentTransform.setScreenBounds(400, 300);
+            childTransform.setScreenBounds(400, 300);
+
+            Vector2f pos = childTransform.getScreenPosition();
+            assertEquals(10, pos.x, 0.01f);
+            assertEquals(10, pos.y, 0.01f);
+        }
+    }
+
+    // ========================================================================
     // Percent Reference
     // ========================================================================
 
@@ -1001,6 +1128,247 @@ class UITransformTest {
             // No parent, pivot(0,0): both should return the same position
             assertEquals(screenPos.x, pivotPos.x, 1f);
             assertEquals(screenPos.y, pivotPos.y, 1f);
+        }
+
+        /**
+         * Regression test: child of a filling parent whose raw pivot differs from
+         * its effective pivot should still be positioned inside the parent bounds.
+         * <p>
+         * Hierarchy: grandparent (pivot 0,0) → middle (filling, pivot 0.5,0.5) → grandchild
+         * <p>
+         * The filling middle layer inherits grandparent's worldPivotPosition (top-left).
+         * The grandchild's matrix calculation must use the parent's effective pivot (0,0)
+         * rather than the raw pivot (0.5,0.5), otherwise it ends up at negative coordinates.
+         */
+        @Test
+        void childOfFillingParentWithNonZeroPivotPositionedCorrectly() {
+            // Grandparent: fixed size, pivot (0,0) at origin
+            GameObject grandparent = new GameObject("Grandparent");
+            UITransform gpTransform = new UITransform(640, 480);
+            grandparent.addComponent(gpTransform);
+            gpTransform.setScreenBounds(640, 480);
+            gpTransform.setAnchor(0, 0);
+            gpTransform.setOffset(0, 0);
+            gpTransform.setPivot(0, 0);
+
+            // Middle: fills grandparent, but has raw pivot (0.5, 0.5)
+            GameObject middle = new GameObject("Middle");
+            UITransform midTransform = new UITransform(640, 480);
+            middle.addComponent(midTransform);
+            middle.setParent(grandparent);
+            midTransform.setWidthMode(UITransform.SizeMode.PERCENT);
+            midTransform.setWidthPercent(100);
+            midTransform.setHeightMode(UITransform.SizeMode.PERCENT);
+            midTransform.setHeightPercent(100);
+            midTransform.setPivot(0.5f, 0.5f);
+            midTransform.setAnchor(0.5f, 0.5f);
+            midTransform.setScreenBounds(640, 480);
+
+            // Grandchild: anchored at (0,0) with offset, not filling
+            GameObject gc = new GameObject("Grandchild");
+            UITransform gcTransform = new UITransform(100, 100);
+            gc.addComponent(gcTransform);
+            gc.setParent(middle);
+            gcTransform.setAnchor(0, 0);
+            gcTransform.setPivot(0, 0);
+            gcTransform.setOffset(25, 25);
+            gcTransform.setScreenBounds(640, 480);
+
+            // Grandchild's world pivot should be at (25, 25) — inside parent bounds
+            Vector2f gcPivot = gcTransform.getWorldPivotPosition2D();
+            assertEquals(25f, gcPivot.x, 1f, "Grandchild X should be at offset from parent top-left");
+            assertEquals(25f, gcPivot.y, 1f, "Grandchild Y should be at offset from parent top-left");
+
+            // Also verify via calculateElementBounds-style calculation
+            Vector2f effPivot = gcTransform.getEffectivePivot();
+            float x = gcPivot.x - effPivot.x * gcTransform.getEffectiveWidth();
+            float y = gcPivot.y - effPivot.y * gcTransform.getEffectiveHeight();
+            assertTrue(x >= 0 && x < 640, "Grandchild bounds X should be within canvas");
+            assertTrue(y >= 0 && y < 480, "Grandchild bounds Y should be within canvas");
+        }
+
+        /**
+         * Regression test: calculatePosition() rotation path must use effective pivot
+         * for the rotation center when the parent fills its own parent.
+         * <p>
+         * Hierarchy: root (pivot 0,0, rotation 45°) → middle (filling, pivot 0.5,0.5) → child
+         * <p>
+         * The middle layer inherits root's rotation. When the child calculates its position,
+         * the rotation center should be at the effective pivot (root's pivot), not the raw pivot.
+         */
+        @Test
+        void childOfFillingParentWithRotationUsesEffectivePivotForRotationCenter() {
+            // Root: fixed size, pivot (0,0), 45° rotation
+            GameObject root = new GameObject("Root");
+            UITransform rootTransform = new UITransform(400, 300);
+            root.addComponent(rootTransform);
+            rootTransform.setScreenBounds(400, 300);
+            rootTransform.setAnchor(0, 0);
+            rootTransform.setOffset(0, 0);
+            rootTransform.setPivot(0, 0);
+            rootTransform.setRotation2D(45);
+
+            // Middle: fills root, raw pivot (0.5, 0.5), no own rotation
+            GameObject mid = new GameObject("Middle");
+            UITransform midTransform = new UITransform(400, 300);
+            mid.addComponent(midTransform);
+            mid.setParent(root);
+            midTransform.setWidthMode(UITransform.SizeMode.PERCENT);
+            midTransform.setWidthPercent(100);
+            midTransform.setHeightMode(UITransform.SizeMode.PERCENT);
+            midTransform.setHeightPercent(100);
+            midTransform.setPivot(0.5f, 0.5f);
+            midTransform.setAnchor(0.5f, 0.5f);
+            midTransform.setScreenBounds(400, 300);
+
+            // Child A: under the filling parent
+            GameObject childA = new GameObject("ChildA");
+            UITransform childATransform = new UITransform(50, 50);
+            childA.addComponent(childATransform);
+            childA.setParent(mid);
+            childATransform.setAnchor(0, 0);
+            childATransform.setPivot(0, 0);
+            childATransform.setOffset(0, 0);
+            childATransform.setScreenBounds(400, 300);
+
+            // Child B: under root directly (for comparison)
+            GameObject childB = new GameObject("ChildB");
+            UITransform childBTransform = new UITransform(50, 50);
+            childB.addComponent(childBTransform);
+            childB.setParent(root);
+            childBTransform.setAnchor(0, 0);
+            childBTransform.setPivot(0, 0);
+            childBTransform.setOffset(0, 0);
+            childBTransform.setScreenBounds(400, 300);
+
+            // Both children should have the same screen position since
+            // the filling middle layer is transparent to positioning
+            Vector2f posA = childATransform.getScreenPosition();
+            Vector2f posB = childBTransform.getScreenPosition();
+
+            assertEquals(posB.x, posA.x, 1f,
+                    "Child through filling parent should match child directly under root (X)");
+            assertEquals(posB.y, posA.y, 1f,
+                    "Child through filling parent should match child directly under root (Y)");
+        }
+
+        /**
+         * Tests that multiple levels of filling parents don't compound the pivot error.
+         * <p>
+         * Hierarchy: root (pivot 0,0) → fill1 (pivot 0.5,0.5) → fill2 (pivot 0.3,0.7) → child
+         */
+        @Test
+        void multipleFillingParentsDoNotCompoundPivotError() {
+            GameObject root = new GameObject("Root");
+            UITransform rootT = new UITransform(640, 480);
+            root.addComponent(rootT);
+            rootT.setScreenBounds(640, 480);
+            rootT.setAnchor(0, 0);
+            rootT.setPivot(0, 0);
+            rootT.setOffset(0, 0);
+
+            // First filling layer with non-zero pivot
+            GameObject fill1 = new GameObject("Fill1");
+            UITransform fill1T = new UITransform(640, 480);
+            fill1.addComponent(fill1T);
+            fill1.setParent(root);
+            fill1T.setWidthMode(UITransform.SizeMode.PERCENT);
+            fill1T.setWidthPercent(100);
+            fill1T.setHeightMode(UITransform.SizeMode.PERCENT);
+            fill1T.setHeightPercent(100);
+            fill1T.setPivot(0.5f, 0.5f);
+            fill1T.setScreenBounds(640, 480);
+
+            // Second filling layer with different non-zero pivot
+            GameObject fill2 = new GameObject("Fill2");
+            UITransform fill2T = new UITransform(640, 480);
+            fill2.addComponent(fill2T);
+            fill2.setParent(fill1);
+            fill2T.setWidthMode(UITransform.SizeMode.PERCENT);
+            fill2T.setWidthPercent(100);
+            fill2T.setHeightMode(UITransform.SizeMode.PERCENT);
+            fill2T.setHeightPercent(100);
+            fill2T.setPivot(0.3f, 0.7f);
+            fill2T.setScreenBounds(640, 480);
+
+            // Grandchild at offset
+            GameObject gc = new GameObject("Grandchild");
+            UITransform gcT = new UITransform(100, 100);
+            gc.addComponent(gcT);
+            gc.setParent(fill2);
+            gcT.setAnchor(0, 0);
+            gcT.setPivot(0, 0);
+            gcT.setOffset(10, 20);
+            gcT.setScreenBounds(640, 480);
+
+            // Matrix path: should be (10, 20) regardless of intermediate filling pivots
+            Vector2f gcPivot = gcT.getWorldPivotPosition2D();
+            assertEquals(10f, gcPivot.x, 1f, "X should not be affected by intermediate filling pivots");
+            assertEquals(20f, gcPivot.y, 1f, "Y should not be affected by intermediate filling pivots");
+
+            // Position path: should also be (10, 20)
+            Vector2f gcPos = gcT.getScreenPosition();
+            assertEquals(10f, gcPos.x, 1f, "Screen position X should match");
+            assertEquals(20f, gcPos.y, 1f, "Screen position Y should match");
+        }
+
+        /**
+         * Tests that both position paths agree for a child of a filling parent
+         * that has a centered anchor/pivot (the exact PokedexMenu scenario).
+         */
+        @Test
+        void matrixAndPositionPathsAgreeForChildOfFillingParent() {
+            // Canvas root
+            GameObject canvas = new GameObject("Canvas");
+            UITransform canvasT = new UITransform(640, 480);
+            canvas.addComponent(canvasT);
+            canvasT.setScreenBounds(640, 480);
+            canvasT.setAnchor(0, 0);
+            canvasT.setPivot(0, 0);
+
+            // BGImage: filling canvas, pivot (0,0)
+            GameObject bg = new GameObject("BGImage");
+            UITransform bgT = new UITransform(640, 480);
+            bg.addComponent(bgT);
+            bg.setParent(canvas);
+            bgT.setWidthMode(UITransform.SizeMode.PERCENT);
+            bgT.setWidthPercent(100);
+            bgT.setHeightMode(UITransform.SizeMode.PERCENT);
+            bgT.setHeightPercent(100);
+            bgT.setPivot(0, 0);
+            bgT.setScreenBounds(640, 480);
+
+            // PokedexMenu: filling BGImage, pivot (0.5, 0.5), anchor (0.5, 0.5)
+            GameObject menu = new GameObject("PokedexMenu");
+            UITransform menuT = new UITransform(640, 480);
+            menu.addComponent(menuT);
+            menu.setParent(bg);
+            menuT.setWidthMode(UITransform.SizeMode.PERCENT);
+            menuT.setWidthPercent(100);
+            menuT.setHeightMode(UITransform.SizeMode.PERCENT);
+            menuT.setHeightPercent(100);
+            menuT.setAnchor(0.5f, 0.5f);
+            menuT.setPivot(0.5f, 0.5f);
+            menuT.setScreenBounds(640, 480);
+
+            // Child entity (layout-managed): anchor (0,0), pivot (0,0), offset (25, 25)
+            GameObject entity = new GameObject("Entity_27");
+            UITransform entityT = new UITransform(100, 100);
+            entity.addComponent(entityT);
+            entity.setParent(menu);
+            entityT.setAnchor(0, 0);
+            entityT.setPivot(0, 0);
+            entityT.setOffset(25, 25);
+            entityT.setScreenBounds(640, 480);
+
+            // Both paths should agree: child at (25, 25)
+            Vector2f screenPos = entityT.getScreenPosition();
+            Vector2f pivotWorld = entityT.getWorldPivotPosition2D();
+
+            assertEquals(25f, screenPos.x, 1f, "Screen position X");
+            assertEquals(25f, screenPos.y, 1f, "Screen position Y");
+            assertEquals(25f, pivotWorld.x, 1f, "Matrix pivot X");
+            assertEquals(25f, pivotWorld.y, 1f, "Matrix pivot Y");
         }
     }
 

@@ -5,7 +5,10 @@ import com.pocket.rpg.components.ui.UICanvas;
 import com.pocket.rpg.components.ui.UIGridLayoutGroup;
 import com.pocket.rpg.components.ui.UIHorizontalLayoutGroup;
 import com.pocket.rpg.components.ui.UIImage;
+import com.pocket.rpg.components.ui.UIMask;
 import com.pocket.rpg.components.ui.UIPanel;
+import com.pocket.rpg.components.ui.UIScrollView;
+import com.pocket.rpg.components.ui.UIScrollbar;
 import com.pocket.rpg.components.ui.UIText;
 import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.components.ui.UIVerticalLayoutGroup;
@@ -43,6 +46,7 @@ public class UIEntityFactory {
             case "HorizontalLayout" -> createHorizontalLayout(name);
             case "VerticalLayout" -> createVerticalLayout(name);
             case "GridLayout" -> createGridLayout(name);
+            case "ScrollView" -> createScrollView(name);
             default -> null;
         };
     }
@@ -226,6 +230,125 @@ public class UIEntityFactory {
         entity.addComponent(layout);
 
         return entity;
+    }
+
+    /**
+     * Creates a UIScrollView entity with full hierarchy.
+     * <pre>
+     * ScrollView (UIScrollView + UIPanel)
+     * ├── Viewport (UIMask + UITransform)
+     * │   └── Content (UITransform + UIVerticalLayoutGroup)
+     * └── Scrollbar (UIScrollbar + UIImage)
+     *     └── Handle (UIImage + UITransform)
+     * </pre>
+     */
+    public EditorGameObject createScrollView(String name) {
+        float scrollbarWidth = 12f;
+
+        // Root: ScrollView
+        EditorGameObject root = new EditorGameObject(
+                name != null ? name : "Scroll View",
+                new Vector3f(0, 0, 0),
+                false
+        );
+
+        UITransform rootTransform = new UITransform();
+        rootTransform.setWidth(200f);
+        rootTransform.setHeight(300f);
+        rootTransform.setAnchor(new Vector2f(0, 0));
+        rootTransform.setOffset(new Vector2f(10, 10));
+        rootTransform.setPivot(new Vector2f(0, 0));
+        root.addComponent(rootTransform);
+
+        UIPanel rootPanel = new UIPanel();
+        rootPanel.setColor(new Vector4f(0.15f, 0.15f, 0.15f, 1f));
+        root.addComponent(rootPanel);
+
+        UIScrollView scrollView = new UIScrollView();
+        root.addComponent(scrollView);
+
+        // Viewport: clips children
+        EditorGameObject viewport = new EditorGameObject(
+                "Viewport", new Vector3f(0, 0, 0), false
+        );
+
+        UITransform vpTransform = new UITransform();
+        vpTransform.setAnchor(new Vector2f(0, 0));
+        vpTransform.setPivot(new Vector2f(0, 0));
+        vpTransform.setOffset(new Vector2f(0, 0));
+        // Fill parent size — UIScrollView dynamically adjusts width for scrollbar
+        vpTransform.setWidthMode(UITransform.SizeMode.PERCENT);
+        vpTransform.setWidthPercent(100);
+        vpTransform.setHeightMode(UITransform.SizeMode.PERCENT);
+        vpTransform.setHeightPercent(100);
+        viewport.addComponent(vpTransform);
+
+        UIMask mask = new UIMask();
+        mask.setShowMaskGraphic(false);
+        viewport.addComponent(mask);
+
+        viewport.setParent(root);
+
+        // Content: holds scrollable items
+        EditorGameObject content = new EditorGameObject(
+                "Content", new Vector3f(0, 0, 0), false
+        );
+
+        UITransform contentTransform = new UITransform();
+        contentTransform.setAnchor(new Vector2f(0, 0));
+        contentTransform.setPivot(new Vector2f(0, 0));
+        contentTransform.setOffset(new Vector2f(0, 0));
+        contentTransform.setWidthMode(UITransform.SizeMode.PERCENT);
+        contentTransform.setWidthPercent(100);
+        contentTransform.setHeight(0); // Will grow with children
+        content.addComponent(contentTransform);
+
+        content.setParent(viewport);
+
+        // Scrollbar: track
+        EditorGameObject scrollbarGo = new EditorGameObject(
+                "Scrollbar", new Vector3f(0, 0, 0), false
+        );
+
+        UITransform sbTransform = new UITransform();
+        sbTransform.setAnchor(new Vector2f(1, 0));
+        sbTransform.setPivot(new Vector2f(1, 0));
+        sbTransform.setOffset(new Vector2f(0, 0));
+        sbTransform.setWidth(scrollbarWidth);
+        sbTransform.setHeightMode(UITransform.SizeMode.PERCENT);
+        sbTransform.setHeightPercent(100);
+        scrollbarGo.addComponent(sbTransform);
+
+        UIPanel trackPanel = new UIPanel();
+        trackPanel.setColor(new Vector4f(0.2f, 0.2f, 0.2f, 0.5f));
+        scrollbarGo.addComponent(trackPanel);
+
+        UIScrollbar scrollbar = new UIScrollbar();
+        scrollbarGo.addComponent(scrollbar);
+
+        scrollbarGo.setParent(root);
+
+        // Handle: draggable
+        EditorGameObject handle = new EditorGameObject(
+                "Handle", new Vector3f(0, 0, 0), false
+        );
+
+        UITransform handleTransform = new UITransform();
+        handleTransform.setAnchor(new Vector2f(0, 0));
+        handleTransform.setPivot(new Vector2f(0, 0));
+        handleTransform.setOffset(new Vector2f(0, 0));
+        handleTransform.setWidthMode(UITransform.SizeMode.PERCENT);
+        handleTransform.setWidthPercent(100);
+        handleTransform.setHeight(40); // Will be resized dynamically
+        handle.addComponent(handleTransform);
+
+        UIPanel handlePanel = new UIPanel();
+        handlePanel.setColor(new Vector4f(0.6f, 0.6f, 0.6f, 1f));
+        handle.addComponent(handlePanel);
+
+        handle.setParent(scrollbarGo);
+
+        return root;
     }
 
     /**

@@ -1,7 +1,7 @@
 package com.pocket.rpg.components.ui;
 
 import com.pocket.rpg.components.core.Transform;
-import com.pocket.rpg.core.GameObject;
+import com.pocket.rpg.core.IGameObject;
 import com.pocket.rpg.ui.AnchorPreset;
 import lombok.Getter;
 import lombok.Setter;
@@ -319,10 +319,11 @@ public class UITransform extends Transform {
      * @return Effective pivot ratio (0-1)
      */
     public Vector2f getEffectivePivot() {
-        if (isFillingParent()) {
+        boolean hasLayoutOverrides = !Float.isNaN(layoutOverrideWidth) || !Float.isNaN(layoutOverrideHeight);
+        if (isFillingParent() && !hasLayoutOverrides) {
             UITransform parentTransform = getParentUITransform();
             if (parentTransform != null) {
-                return parentTransform.getPivot();
+                return parentTransform.getEffectivePivot();
             }
         }
         return pivot;
@@ -640,11 +641,11 @@ public class UITransform extends Transform {
      * @return Parent UITransform or null if no parent with UITransform
      */
     private UITransform getParentUITransform() {
-        if (gameObject == null) {
+        if (owner == null) {
             return null;
         }
 
-        GameObject parent = gameObject.getParent();
+        IGameObject parent = owner.getParent();
         if (parent == null) {
             return null;
         }
@@ -741,7 +742,10 @@ public class UITransform extends Transform {
         UITransform parentTransform = getParentUITransform();
 
         // When filling parent (both axes PERCENT at 100%), element fills parent entirely
-        if (isFillingParent()) {
+        // Skip this shortcut when a parent layout group is actively positioning us,
+        // since the layout sets offset to account for padding
+        boolean hasLayoutOverrides = !Float.isNaN(layoutOverrideWidth) || !Float.isNaN(layoutOverrideHeight);
+        if (isFillingParent() && !hasLayoutOverrides) {
             calculatedPosition.set(parentX, parentY);
             positionDirty = false;
             return;
@@ -771,7 +775,8 @@ public class UITransform extends Transform {
             float parentRotation = parentTransform.getWorldRotation2D();
             if (Math.abs(parentRotation) > 0.001f) {
                 // Get parent's pivot point in world coordinates
-                Vector2f parentPivot = parentTransform.getPivot();
+                // Use effective pivot: filling parents inherit their parent's pivot position
+                Vector2f parentPivot = parentTransform.getEffectivePivot();
                 float parentPivotX = parentX + parentPivot.x * parentWidth;
                 float parentPivotY = parentY + parentPivot.y * parentHeight;
 
@@ -816,11 +821,11 @@ public class UITransform extends Transform {
         positionDirty = true;
         uiMatrixDirty = true;
 
-        if (gameObject == null) {
+        if (owner == null) {
             return;
         }
 
-        for (GameObject child : gameObject.getChildren()) {
+        for (IGameObject child : owner.getChildren()) {
             UITransform childTransform = child.getComponent(UITransform.class);
             if (childTransform != null) {
                 childTransform.markDirtyRecursive();
@@ -937,7 +942,9 @@ public class UITransform extends Transform {
         UITransform parentTransform = getParentUITransform();
 
         // When filling parent (both axes PERCENT at 100%), child fills parent completely and rotates with it
-        if (isFillingParent()) {
+        // Skip this shortcut when a parent layout group is actively positioning us
+        boolean hasLayoutOverrides = !Float.isNaN(layoutOverrideWidth) || !Float.isNaN(layoutOverrideHeight);
+        if (isFillingParent() && !hasLayoutOverrides) {
             if (parentTransform != null) {
                 // Ensure parent has screen bounds set (propagate up the chain)
                 parentTransform.setScreenBounds(screenWidth, screenHeight);
@@ -982,7 +989,7 @@ public class UITransform extends Transform {
             // Get parent's world pivot and transform info
             Vector2f parentWorldPivot = parentTransform.getWorldPivotPosition2D();
             Vector2f parentScale = parentTransform.getComputedWorldScale2D();
-            Vector2f parentPivotRatio = parentTransform.getPivot();
+            Vector2f parentPivotRatio = parentTransform.getEffectivePivot();
             float parentWorldRot = parentTransform.getComputedWorldRotation2D();
 
             // Use parent's effective dimensions for anchor calculation (not scaled)
@@ -1084,9 +1091,9 @@ public class UITransform extends Transform {
      * Marks all children's UI matrices as dirty.
      */
     private void markChildrenUIMatrixDirty() {
-        if (gameObject == null) return;
+        if (owner == null) return;
 
-        for (GameObject child : gameObject.getChildren()) {
+        for (IGameObject child : owner.getChildren()) {
             UITransform childTransform = child.getComponent(UITransform.class);
             if (childTransform != null) {
                 childTransform.markUIMatrixDirty();

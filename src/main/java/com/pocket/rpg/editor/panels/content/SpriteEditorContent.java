@@ -321,6 +321,33 @@ public class SpriteEditorContent implements AssetEditorContent,
             }
         }
 
+        // Filter mode combo
+        ImGui.sameLine();
+        ImGui.text(" | ");
+        ImGui.sameLine();
+        ImGui.text("Filter:");
+        ImGui.sameLine();
+        ImGui.setNextItemWidth(90);
+        Texture.FilterMode currentFilter = metadata.filterMode != null ? metadata.filterMode : Texture.FilterMode.NEAREST;
+        if (ImGui.beginCombo("##FilterMode", currentFilter == Texture.FilterMode.LINEAR ? "Linear" : "Nearest")) {
+            for (Texture.FilterMode mode : Texture.FilterMode.values()) {
+                String label = mode == Texture.FilterMode.LINEAR ? "Linear" : "Nearest";
+                boolean selected = mode == currentFilter;
+                if (ImGui.selectable(label, selected)) {
+                    captureUndoState(true);
+                    metadata.filterMode = (mode == Texture.FilterMode.NEAREST) ? null : mode;
+                    shell.markDirty();
+                }
+                if (selected) {
+                    ImGui.setItemDefaultFocus();
+                }
+            }
+            ImGui.endCombo();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("Texture filtering: Nearest for pixel art, Linear for smooth sprites");
+        }
+
         // Tilemap checkbox (only visible in Multiple mode)
         if (isMultipleMode) {
             ImGui.sameLine();
@@ -700,6 +727,12 @@ public class SpriteEditorContent implements AssetEditorContent,
         Sprite sprite = Assets.load(texturePath, Sprite.class);
         if (sprite == null) return;
 
+        // Apply filter mode to the texture
+        Texture tex = sprite.getTexture();
+        if (tex != null) {
+            tex.setFilterMode(metadata.filterMode != null ? metadata.filterMode : Texture.FilterMode.NEAREST);
+        }
+
         boolean spriteIsMultiple = Assets.isMultipleMode(sprite);
 
         if (!spriteIsMultiple) {
@@ -767,6 +800,7 @@ public class SpriteEditorContent implements AssetEditorContent,
         // Copy all fields from source into current metadata
         metadata.spriteMode = source.spriteMode;
         metadata.pixelsPerUnitOverride = source.pixelsPerUnitOverride;
+        metadata.filterMode = source.filterMode;
         metadata.pivotX = source.pivotX;
         metadata.pivotY = source.pivotY;
         metadata.nineSlice = source.nineSlice != null ? source.nineSlice.copy() : null;
@@ -844,6 +878,7 @@ public class SpriteEditorContent implements AssetEditorContent,
         SpriteMetadata copy = new SpriteMetadata();
         copy.spriteMode = source.spriteMode;
         copy.pixelsPerUnitOverride = source.pixelsPerUnitOverride;
+        copy.filterMode = source.filterMode;
         copy.pivotX = source.pivotX;
         copy.pivotY = source.pivotY;
         copy.nineSlice = source.nineSlice != null ? source.nineSlice.copy() : null;

@@ -1,6 +1,6 @@
 package com.pocket.rpg.editor.panels;
 
-import com.pocket.rpg.components.ui.UICanvas;
+import com.pocket.rpg.components.ui.*;
 import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.core.window.ViewportConfig;
@@ -12,22 +12,30 @@ import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.uidesigner.*;
 import com.pocket.rpg.editor.rendering.EditorFramebuffer;
 import com.pocket.rpg.editor.rendering.EditorUIBridge;
+import com.pocket.rpg.editor.rendering.PickingPass;
 import com.pocket.rpg.editor.rendering.PreviewCameraAdapter;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.SceneCameraSettings;
 import com.pocket.rpg.editor.tools.ToolManager;
+import com.pocket.rpg.rendering.batch.SpriteBatch;
 import com.pocket.rpg.rendering.core.Renderable;
 import com.pocket.rpg.rendering.pipeline.RenderParams;
 import com.pocket.rpg.rendering.pipeline.RenderPipeline;
+import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.rendering.targets.FramebufferTarget;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
 import imgui.flag.ImGuiWindowFlags;
 import lombok.Setter;
+import org.joml.Matrix4f;
+import org.joml.Vector2f;
 import org.joml.Vector4f;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * UI Designer panel - visual editor for UI elements.
@@ -66,6 +74,9 @@ public class UIDesignerPanel {
     private PreviewCamera previewCamera;
     private PreviewCameraAdapter cameraAdapter;
 
+    // GPU picking for pixel-accurate UI selection
+    private PickingPass pickingPass;
+
     // Clear color for UI rendering (transparent)
     private static final Vector4f CLEAR_COLOR = new Vector4f(0f, 0f, 0f, 0f);
 
@@ -90,6 +101,7 @@ public class UIDesignerPanel {
         this.coords = new UIDesignerCoordinates(state);
         this.gizmoDrawer = new UIDesignerGizmoDrawer(state, coords);
         this.inputHandler = new UIDesignerInputHandler(state, coords, context);
+        this.inputHandler.setGpuPicker(this::pickEntityAtCanvasPosition);
         this.renderer = new UIDesignerRenderer(state, coords, renderingConfig);
     }
 
@@ -121,6 +133,10 @@ public class UIDesignerPanel {
         // Create pipeline (no post-processing for UI)
         pipeline = new RenderPipeline(viewportConfig, renderingConfig);
         pipeline.init();
+
+        // Initialize GPU picking
+        pickingPass = new PickingPass(renderingConfig);
+        pickingPass.init(width, height);
 
         pipelineInitialized = true;
         System.out.println("[UIDesignerPanel] Pipeline initialized (" + width + "x" + height + ")");
@@ -292,6 +308,9 @@ public class UIDesignerPanel {
         // Render UI elements to texture using unified RenderPipeline
         renderUIToTexture(scene);
 
+        // Render picking pass for pixel-accurate selection
+        renderPickingPass(scene);
+
         // Get draw list
         ImDrawList drawList = ImGui.getWindowDrawList();
 
@@ -317,6 +336,7 @@ public class UIDesignerPanel {
         if (state.isShowElementBounds()) {
             gizmoDrawer.drawSelectionBorders(drawList, scene);
             gizmoDrawer.drawLayoutPadding(drawList, scene);
+            gizmoDrawer.drawTrackPadding(drawList, scene);
         }
 
         // Draw selection gizmos (handles, anchor, pivot)
@@ -396,6 +416,130 @@ public class UIDesignerPanel {
         pipeline.execute(target, params);
     }
 
+    // ========================================================================
+    // GPU PICKING
+    // ========================================================================
+
+    /**
+     * Renders entity IDs to the picking framebuffer for pixel-accurate UI selection.
+     * Traverses the UI hierarchy and renders each visual element with its entity ID
+     * encoded as color. The picking shader discards transparent pixels, so clicking
+     * on a transparent area of a top image will select the visible element behind it.
+     */
+    private void renderPickingPass(EditorScene scene) {
+        if (pickingPass == null || !pickingPass.isInitialized() || scene == null) return;
+
+        // Build UITransform -> EditorGameObject lookup (shared component instances)
+        Map<UITransform, EditorGameObject> transformToEntity = new HashMap<>();
+        for (EditorGameObject entity : scene.getEntities()) {
+            UITransform t = entity.getComponent(UITransform.class);
+            if (t != null) transformToEntity.put(t, entity);
+        }
+
+        // Use same ortho projection as UIRenderer: top-left origin
+        int width = state.getCanvasWidth();
+        int height = state.getCanvasHeight();
+        Matrix4f projection = new Matrix4f().ortho(0, width, height, 0, -1, 1);
+        Matrix4f view = new Matrix4f(); // Identity — screen-space UI
+
+        pickingPass.execute(projection, view, (batch, entityIdMap) -> {
+            // Traverse UI hierarchy in render order (same as UIRenderer)
+            // Use incrementing z-index to preserve paint order (SpriteBatch sorts by z-index)
+            float[] zCounter = {0f};
+            List<UICanvas> canvases = uiBridge.getUICanvases(scene);
+            for (UICanvas canvas : canvases) {
+                var root = canvas.getGameObject();
+                if (root == null) continue;
+                canvas.updateScreenSize(width, height);
+                submitPickingHierarchy(root, batch, entityIdMap, transformToEntity, zCounter);
+            }
+        });
+    }
+
+    /**
+     * Recursively submits UI elements to the picking batch in hierarchy order.
+     */
+    private void submitPickingHierarchy(com.pocket.rpg.core.IGameObject go,
+                                         SpriteBatch batch,
+                                         Map<Integer, EditorGameObject> entityIdMap,
+                                         Map<UITransform, EditorGameObject> transformToEntity,
+                                         float[] zCounter) {
+        if (!go.isEnabled()) return;
+
+        UITransform transform = go.getComponent(UITransform.class);
+        if (transform != null) {
+            transform.setScreenBounds(state.getCanvasWidth(), state.getCanvasHeight());
+            transform.markDirty();
+        }
+
+        // Find the EditorGameObject via shared UITransform instance
+        EditorGameObject editorGo = transform != null ? transformToEntity.get(transform) : null;
+
+        // Submit visual components for picking
+        if (editorGo != null) {
+            Sprite sprite = null;
+            boolean isSolidQuad = false;
+
+            UIImage image = go.getComponent(UIImage.class);
+            UIButton button = go.getComponent(UIButton.class);
+            UIPanel panel = go.getComponent(UIPanel.class);
+            UIText text = go.getComponent(UIText.class);
+
+            if (button != null && button.isEnabled()) {
+                sprite = button.getSprite();
+                if (sprite == null) isSolidQuad = true;
+            } else if (image != null && image.isEnabled()) {
+                sprite = image.getSprite();
+            } else if (panel != null && panel.isEnabled()) {
+                isSolidQuad = true;
+            } else if (text != null && text.isEnabled()) {
+                // Text renders glyphs — use solid quad for its bounding box
+                isSolidQuad = true;
+            }
+
+            if (sprite != null || isSolidQuad) {
+                Vector4f idColor = PickingPass.registerEntity(entityIdMap, editorGo);
+
+                Vector2f pivotWorld = transform.getWorldPivotPosition2D();
+                Vector2f scale = transform.getComputedWorldScale2D();
+                float w = transform.getEffectiveWidth() * scale.x;
+                float h = transform.getEffectiveHeight() * scale.y;
+                float rotation = transform.getComputedWorldRotation2D();
+                Vector2f pivot = transform.getEffectivePivot();
+
+                // SpriteBatch expects (x,y) = pivot/origin position, not top-left
+                // It computes corners as: left = x - originX*w, top = y - originY*h
+                Sprite pickSprite = sprite != null ? sprite : pickingPass.getWhiteSprite();
+                batch.submit(pickSprite, pivotWorld.x, pivotWorld.y, w, h,
+                        rotation, pivot.x, pivot.y, zCounter[0]++, idColor);
+            }
+        }
+
+        // Recurse into children
+        for (var child : go.getChildren()) {
+            submitPickingHierarchy(child, batch, entityIdMap, transformToEntity, zCounter);
+        }
+    }
+
+    /**
+     * Picks the entity at the given canvas coordinates using the GPU picking buffer.
+     * Returns null if no entity at that position or picking is not available.
+     */
+    public EditorGameObject pickEntityAtCanvasPosition(float canvasX, float canvasY) {
+        if (pickingPass == null || !pickingPass.isInitialized()) return null;
+
+        int pixelX = Math.round(canvasX);
+        // OpenGL readPixels uses bottom-left origin, so flip Y
+        int pixelY = state.getCanvasHeight() - Math.round(canvasY);
+
+        if (pixelX < 0 || pixelX >= pickingPass.getWidth() ||
+            pixelY < 0 || pixelY >= pickingPass.getHeight()) {
+            return null;
+        }
+
+        return pickingPass.readEntityAt(pixelX, pixelY);
+    }
+
     /**
      * Displays the rendered UI texture in the viewport.
      */
@@ -468,6 +612,11 @@ public class UIDesignerPanel {
         if (sceneFramebuffer != null) {
             sceneFramebuffer.destroy();
             sceneFramebuffer = null;
+        }
+
+        if (pickingPass != null) {
+            pickingPass.destroy();
+            pickingPass = null;
         }
 
         uiBridge.clear();

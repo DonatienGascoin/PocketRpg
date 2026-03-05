@@ -96,6 +96,11 @@ public class SpriteLoader implements AssetLoader<Sprite> {
             sprite.setPixelsPerUnitOverride(meta.pixelsPerUnitOverride);
         }
 
+        // Apply filter mode (applies to both modes)
+        if (meta.filterMode != null) {
+            texture.setFilterMode(meta.filterMode);
+        }
+
         if (meta.isSingle()) {
             // Single mode: apply direct pivot and 9-slice to the main sprite
             if (meta.hasPivot()) {
@@ -328,6 +333,13 @@ public class SpriteLoader implements AssetLoader<Sprite> {
                 meta = AssetMetadata.load(relativePath, SpriteMetadata.class);
             }
             existing.reloadMetadata(meta);
+
+            // Apply filter mode (or reset to NEAREST if no metadata)
+            if (meta != null && meta.filterMode != null) {
+                texture.setFilterMode(meta.filterMode);
+            } else {
+                texture.setFilterMode(Texture.FilterMode.NEAREST);
+            }
 
             // 3. Update grid sprites in-place so existing SpriteRenderer references
             //    see the new metadata. Only remove+clear when grid settings change.

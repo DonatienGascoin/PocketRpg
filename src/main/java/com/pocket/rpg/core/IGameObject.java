@@ -107,4 +107,18 @@ public interface IGameObject {
     }
 
     boolean hasChildren();
+
+    // ========================================================================
+    // HIERARCHY
+    // ========================================================================
+
+    /**
+     * Returns the parent game object, or null if this is a root object.
+     */
+    IGameObject getParent();
+
+    /**
+     * Returns the children of this game object.
+     */
+    List<? extends IGameObject> getChildren();
 }

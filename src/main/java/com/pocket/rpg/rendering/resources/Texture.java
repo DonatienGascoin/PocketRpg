@@ -15,6 +15,25 @@ import static org.lwjgl.stb.STBImage.stbi_load;
  * Supports common image formats (PNG, JPG, BMP, etc.) via STB Image.
  */
 public class Texture {
+
+    /**
+     * Texture filtering mode for minification and magnification.
+     */
+    public enum FilterMode {
+        NEAREST(GL_NEAREST),
+        LINEAR(GL_LINEAR);
+
+        private final int glValue;
+
+        FilterMode(int glValue) {
+            this.glValue = glValue;
+        }
+
+        public int getGlValue() {
+            return glValue;
+        }
+    }
+
     @Getter
     private final String filePath;
     private int textureId;
@@ -22,6 +41,8 @@ public class Texture {
     private int height;
     private int channels;
     private final boolean ownsTexture;
+    @Getter
+    private FilterMode filterMode = FilterMode.NEAREST;
 
     /**
      * Loads a texture from the specified file path.
@@ -58,8 +79,8 @@ public class Texture {
         // Set texture parameters for pixel-perfect rendering
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filterMode.getGlValue());
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filterMode.getGlValue());
 
         // Upload texture data (alignment=1 since STB packs rows tightly)
         glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
@@ -180,8 +201,8 @@ public class Texture {
 
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filterMode.getGlValue());
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filterMode.getGlValue());
 
         glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, newWidth, newHeight, 0,
@@ -200,6 +221,18 @@ public class Texture {
         this.width = newWidth;
         this.height = newHeight;
         this.channels = 4;
+    }
+
+    /**
+     * Sets the texture filtering mode and updates GL texture parameters.
+     * Must be called on the GL thread.
+     */
+    public void setFilterMode(FilterMode filterMode) {
+        this.filterMode = filterMode;
+        glBindTexture(GL_TEXTURE_2D, textureId);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filterMode.getGlValue());
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filterMode.getGlValue());
+        glBindTexture(GL_TEXTURE_2D, 0);
     }
 
     // Getters

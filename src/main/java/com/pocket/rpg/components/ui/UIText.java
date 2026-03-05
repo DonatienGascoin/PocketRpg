@@ -383,7 +383,7 @@ public class UIText extends UIComponent {
         }
 
         int low = minFontSize;
-        int high = Math.min(maxFontSize, fontSize);  // Don't exceed specified fontSize
+        int high = maxFontSize;
         int bestSize = low;
 
         while (low <= high) {

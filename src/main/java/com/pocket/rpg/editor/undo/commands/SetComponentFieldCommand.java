@@ -7,13 +7,16 @@ import com.pocket.rpg.serialization.ComponentReflectionUtils;
 
 /**
  * Command for changing a component field value.
+ * Stores the component type string for field access via findComponentByType,
+ * preventing stale references after re-cloning (e.g. refreshFromTemplate).
  */
 public class SetComponentFieldCommand implements EditorCommand {
 
-    private final Component component;
+    private final String componentType;
     private final String fieldName;
     private final Object oldValue;
     private final EditorGameObject entity;
+    private final Component component; // retained for merge identity only
     private Object newValue;
     private Runnable afterApply;
 
@@ -21,6 +24,7 @@ public class SetComponentFieldCommand implements EditorCommand {
                                     Object oldValue, Object newValue,
                                     EditorGameObject entity) {
         this.component = component;
+        this.componentType = component.getClass().getName();
         this.fieldName = fieldName;
         this.oldValue = oldValue;
         this.newValue = newValue;
@@ -38,14 +42,20 @@ public class SetComponentFieldCommand implements EditorCommand {
 
     @Override
     public void execute() {
-        ComponentReflectionUtils.setFieldValue(component, fieldName, newValue);
+        Component comp = findComponent();
+        if (comp != null) {
+            ComponentReflectionUtils.setFieldValue(comp, fieldName, newValue);
+        }
         syncOverride(newValue);
         if (afterApply != null) afterApply.run();
     }
 
     @Override
     public void undo() {
-        ComponentReflectionUtils.setFieldValue(component, fieldName, oldValue);
+        Component comp = findComponent();
+        if (comp != null) {
+            ComponentReflectionUtils.setFieldValue(comp, fieldName, oldValue);
+        }
         syncOverride(oldValue);
         if (afterApply != null) afterApply.run();
     }
@@ -72,22 +82,12 @@ public class SetComponentFieldCommand implements EditorCommand {
         }
     }
 
-    private void syncOverride(Object value) {
-        if (entity == null || !entity.isPrefabInstance()) return;
-
-        String componentType = component.getClass().getName();
-        Object defaultValue = entity.getFieldDefault(componentType, fieldName);
-
-        if (valuesEqual(value, defaultValue)) {
-            entity.resetFieldToDefault(componentType, fieldName);
-        } else {
-            entity.setFieldValue(componentType, fieldName, value);
-        }
+    private Component findComponent() {
+        return entity != null ? entity.findComponentByType(componentType) : null;
     }
 
-    private boolean valuesEqual(Object a, Object b) {
-        if (a == null && b == null) return true;
-        if (a == null || b == null) return false;
-        return a.equals(b);
+    private void syncOverride(Object value) {
+        if (entity == null) return;
+        entity.syncFieldOverride(componentType, fieldName, value);
     }
 }

@@ -146,8 +146,8 @@ public class SavePrefabPopup {
         String indent = "  ".repeat(depth);
         int compCount = entity.getComponents().size();
         ImGui.bulletText(indent + entity.getName() + " (" + compCount + " components)");
-        for (EditorGameObject child : entity.getChildren()) {
-            renderEntitySummary(child, depth + 1);
+        for (var go : entity.getChildren()) {
+            renderEntitySummary((EditorGameObject) go, depth + 1);
         }
     }
 

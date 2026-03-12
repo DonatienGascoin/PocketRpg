@@ -68,18 +68,17 @@ public class MusicManager implements SceneLifecycleListener {
     /**
      * Initialize the music manager.
      *
-     * @param sceneManager Scene manager to listen to
-     * @param assets       Asset context for loading audio clips
+     * @param assets Asset context for loading audio clips
      */
-    public static void initialize(SceneManager sceneManager, AssetContext assets) {
+    public static void initialize(AssetContext assets) {
         if (instance != null) {
             System.out.println("MusicManager already initialized, reinitializing...");
         }
 
         instance = new MusicManager(assets);
 
-        if (sceneManager != null) {
-            sceneManager.addLifecycleListener(instance);
+        if (SceneManager.hasContext()) {
+            SceneManager.addLifecycleListener(instance);
         }
 
         System.out.println("MusicManager initialized");

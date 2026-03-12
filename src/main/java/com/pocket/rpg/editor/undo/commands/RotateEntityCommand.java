@@ -1,5 +1,6 @@
 package com.pocket.rpg.editor.undo.commands;
 
+import com.pocket.rpg.components.core.Transform;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.undo.EditorCommand;
 import org.joml.Vector3f;
@@ -18,11 +19,17 @@ public class RotateEntityCommand implements EditorCommand {
     @Override
     public void execute() {
         entity.setRotation(newRot);
+        syncOverride(newRot);
     }
 
     @Override
     public void undo() {
         entity.setRotation(oldRot);
+        syncOverride(oldRot);
+    }
+
+    private void syncOverride(Vector3f value) {
+        entity.syncFieldOverride(Transform.class.getName(), "localRotation", value);
     }
 
     @Override
@@ -37,7 +44,7 @@ public class RotateEntityCommand implements EditorCommand {
     @Override
     public void mergeWith(EditorCommand other) {
         if (other instanceof RotateEntityCommand cmd) {
-            this.newRot = cmd.newRot;
+            this.newRot = new Vector3f(cmd.newRot);
         }
     }
 

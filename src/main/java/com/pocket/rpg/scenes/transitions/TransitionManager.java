@@ -40,15 +40,6 @@ public class TransitionManager {
     private ISceneTransition currentTransition;
     private String targetSceneName;
     private String targetSpawnId;
-    /**
-     * -- GETTER --
-     *  Gets the scene manager.
-     *  Package-private for SceneTransition static API.
-     *
-     * @return the scene manager
-     */
-    @Getter
-    private final SceneManager sceneManager;
     private final OverlayRenderer overlayRenderer;
     private final TransitionConfig defaultConfig;
     private final List<TransitionEntry> transitionEntries;
@@ -57,33 +48,26 @@ public class TransitionManager {
     /**
      * Creates a transition manager.
      *
-     * @param sceneManager    the scene manager to control
      * @param overlayRenderer the overlay renderer for drawing transition effects
      * @param defaultConfig   the default transition configuration
      */
-    public TransitionManager(SceneManager sceneManager,
-                             OverlayRenderer overlayRenderer,
+    public TransitionManager(OverlayRenderer overlayRenderer,
                              TransitionConfig defaultConfig) {
-        this(sceneManager, overlayRenderer, defaultConfig, new ArrayList<>(), "");
+        this(overlayRenderer, defaultConfig, new ArrayList<>(), "");
     }
 
     /**
      * Creates a transition manager with named transition entries.
      *
-     * @param sceneManager          the scene manager to control
      * @param overlayRenderer       the overlay renderer for drawing transition effects
      * @param defaultConfig         the default transition configuration
      * @param transitionEntries     the available named luma transitions
      * @param defaultTransitionName the default transition name to use when config has no name set
      */
-    public TransitionManager(SceneManager sceneManager,
-                             OverlayRenderer overlayRenderer,
+    public TransitionManager(OverlayRenderer overlayRenderer,
                              TransitionConfig defaultConfig,
                              List<TransitionEntry> transitionEntries,
                              String defaultTransitionName) {
-        if (sceneManager == null) {
-            throw new IllegalArgumentException("SceneManager cannot be null");
-        }
         if (overlayRenderer == null) {
             throw new IllegalArgumentException("OverlayRenderer cannot be null");
         }
@@ -91,7 +75,6 @@ public class TransitionManager {
             throw new IllegalArgumentException("Default TransitionConfig cannot be null");
         }
 
-        this.sceneManager = sceneManager;
         this.overlayRenderer = overlayRenderer;
         this.defaultConfig = new TransitionConfig(defaultConfig); // Defensive copy
         this.transitionEntries = transitionEntries != null ? transitionEntries : new ArrayList<>();
@@ -365,9 +348,9 @@ public class TransitionManager {
                 // Scene transition: load the target scene
                 System.out.println("Switching to scene: " + targetSceneName);
                 if (targetSpawnId != null && !targetSpawnId.isEmpty()) {
-                    sceneManager.loadScene(targetSceneName, targetSpawnId);
+                    SceneManager.loadScene(targetSceneName, targetSpawnId);
                 } else {
-                    sceneManager.loadScene(targetSceneName);
+                    SceneManager.loadScene(targetSceneName);
                 }
             } else if (midpointCallback != null) {
                 // Fade effect: execute the callback

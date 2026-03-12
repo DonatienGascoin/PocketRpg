@@ -3,6 +3,7 @@ package com.pocket.rpg.editor.panels.hierarchy;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ui.UICanvas;
 import com.pocket.rpg.components.ui.UITransform;
+import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.UIEntityFactory;
@@ -161,9 +162,9 @@ public class EntityCreationService {
      * Finds an existing canvas that is a direct child of the given parent.
      */
     private EditorGameObject findCanvasChildOf(EditorGameObject parent) {
-        for (EditorGameObject child : parent.getChildren()) {
-            if (child.hasComponent(UICanvas.class)) {
-                return child;
+        for (var child : parent.getChildren()) {
+            if (child.getComponent(UICanvas.class) != null) {
+                return (EditorGameObject) child;
             }
         }
         return null;
@@ -225,9 +226,9 @@ public class EntityCreationService {
     public EditorGameObject duplicateEntityInto(EditorGameObject original, List<EditorGameObject> allCopiesOut) {
         Vector3f newPos = new Vector3f(original.getPosition()).add(1, 0, 0);
         EditorGameObject copy = cloneEntity(original, newPos);
-        copy.setName(generateCopyName(original.getName(), original.getParent()));
+        copy.setName(generateCopyName(original.getName(), (EditorGameObject) original.getParent()));
 
-        copy.setParent(original.getParent());
+        copy.setParent((EditorGameObject) original.getParent());
         copy.setOrder(original.getOrder() + 1);
 
         // Shift siblings after the original
@@ -262,25 +263,20 @@ public class EntityCreationService {
     }
 
     private void copyOverrides(EditorGameObject original, EditorGameObject copy) {
-        for (Component comp : original.getComponents()) {
-            String componentType = comp.getClass().getName();
-            for (String fieldName : original.getOverriddenFields(componentType)) {
-                Object value = original.getFieldValue(componentType, fieldName);
-                copy.setFieldValue(componentType, fieldName, value);
-            }
-        }
+        copy.applySerializedOverrides(original.getComponentOverrides());
     }
 
     private void duplicateChildrenRecursive(EditorGameObject original, EditorGameObject copyParent,
                                             List<EditorGameObject> allCopies) {
-        for (EditorGameObject child : original.getChildren()) {
-            Vector3f childPos = new Vector3f(child.getPosition());
-            EditorGameObject childCopy = cloneEntity(child, childPos);
+        for (var child : original.getChildren()) {
+            EditorGameObject egoChild = (EditorGameObject) child;
+            Vector3f childPos = new Vector3f(egoChild.getPosition());
+            EditorGameObject childCopy = cloneEntity(egoChild, childPos);
             childCopy.setParent(copyParent);
-            childCopy.setOrder(child.getOrder());
+            childCopy.setOrder(egoChild.getOrder());
             allCopies.add(childCopy);
 
-            duplicateChildrenRecursive(child, childCopy, allCopies);
+            duplicateChildrenRecursive(egoChild, childCopy, allCopies);
         }
     }
 
@@ -288,11 +284,12 @@ public class EntityCreationService {
      * Shifts the order of siblings that come after the given entity.
      */
     private void shiftSiblingsAfter(EditorGameObject entity) {
-        List<EditorGameObject> siblings = (entity.getParent() != null)
-                ? entity.getParent().getChildrenMutable()
+        List<? extends GameObject> siblings = (entity.getParent() != null)
+                ? entity.getParent().getChildren()
                 : scene.getRootEntities();
 
-        for (EditorGameObject sibling : siblings) {
+        for (var go : siblings) {
+            EditorGameObject sibling = (EditorGameObject) go;
             if (sibling != entity && sibling.getOrder() > entity.getOrder()) {
                 sibling.setOrder(sibling.getOrder() + 1);
             }
@@ -308,9 +305,9 @@ public class EntityCreationService {
         String baseName = originalName.replaceAll("_copy(_\\d+)?$", "");
 
         // Collect sibling names for conflict detection
-        List<EditorGameObject> siblings = (parent != null) ? parent.getChildren() : scene.getRootEntities();
+        List<? extends GameObject> siblings = (parent != null) ? parent.getChildren() : scene.getRootEntities();
         Set<String> siblingNames = new HashSet<>();
-        for (EditorGameObject sibling : siblings) {
+        for (GameObject sibling : siblings) {
             siblingNames.add(sibling.getName());
         }
 
@@ -342,7 +339,7 @@ public class EntityCreationService {
      */
     private EditorGameObject resolveNonPrefabChild(EditorGameObject entity) {
         while (entity != null && entity.isPrefabChildNode()) {
-            entity = entity.getParent();
+            entity = (EditorGameObject) entity.getParent();
         }
         return entity;
     }
@@ -353,9 +350,10 @@ public class EntityCreationService {
      * children are pre-attached before being added to the scene.
      */
     private void collectDescendants(EditorGameObject entity, List<EditorGameObject> out) {
-        for (EditorGameObject child : entity.getChildren()) {
-            out.add(child);
-            collectDescendants(child, out);
+        for (var child : entity.getChildren()) {
+            EditorGameObject egoChild = (EditorGameObject) child;
+            out.add(egoChild);
+            collectDescendants(egoChild, out);
         }
     }
 

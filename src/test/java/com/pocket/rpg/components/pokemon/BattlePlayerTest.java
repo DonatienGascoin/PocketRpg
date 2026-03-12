@@ -7,6 +7,7 @@ import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.core.window.ViewportConfig;
 import com.pocket.rpg.save.PlayerData;
 import com.pocket.rpg.save.SaveManager;
+import com.pocket.rpg.scenes.DefaultSceneManagerContext;
 import com.pocket.rpg.scenes.Scene;
 import com.pocket.rpg.scenes.SceneManager;
 import com.pocket.rpg.serialization.ComponentRegistry;
@@ -31,8 +32,6 @@ class BattlePlayerTest {
     @TempDir
     Path tempDir;
 
-    private SceneManager sceneManager;
-
     @BeforeAll
     static void initSerializer() {
         com.pocket.rpg.resources.Assets.setContext(new StubAssetContext());
@@ -42,15 +41,20 @@ class BattlePlayerTest {
 
     @BeforeEach
     void setUp() {
-        sceneManager = new SceneManager(
+        SceneManager.setContext(new DefaultSceneManagerContext(
                 new ViewportConfig(GameConfig.builder()
                         .gameWidth(800).gameHeight(600)
                         .windowWidth(800).windowHeight(600)
                         .build()),
                 RenderingConfig.builder().defaultOrthographicSize(7.5f).build()
-        );
-        SaveManager.initialize(sceneManager, tempDir);
+        ));
+        SaveManager.initialize(tempDir);
         SaveManager.newGame();
+    }
+
+    @AfterEach
+    void tearDown() {
+        SceneManager.setContext(null);
     }
 
     @Test
@@ -73,7 +77,7 @@ class BattlePlayerTest {
         });
 
         // Should not crash
-        assertDoesNotThrow(() -> sceneManager.loadScene(scene));
+        assertDoesNotThrow(() -> SceneManager.loadScene(scene));
     }
 
     @Test
@@ -94,7 +98,7 @@ class BattlePlayerTest {
             scene.addGameObject(go);
         });
 
-        sceneManager.loadScene(scene);
+        SceneManager.loadScene(scene);
 
         // Invoke endBattle via reflection (since it's private and normally triggered by input)
         // We can't call SceneTransition.loadScene without full engine init, so we test

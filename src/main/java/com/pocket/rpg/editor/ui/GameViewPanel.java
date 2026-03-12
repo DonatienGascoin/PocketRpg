@@ -15,9 +15,9 @@ import com.pocket.rpg.editor.PlayModeController.PlayState;
 import com.pocket.rpg.editor.camera.PreviewCamera;
 import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
-import com.pocket.rpg.editor.rendering.EditorFramebuffer;
-import com.pocket.rpg.editor.rendering.EditorUIBridge;
+import com.pocket.rpg.rendering.targets.Framebuffer;
 import com.pocket.rpg.editor.rendering.PreviewCameraAdapter;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.SceneCameraSettings;
 import com.pocket.rpg.rendering.targets.FramebufferTarget;
@@ -68,7 +68,7 @@ public class GameViewPanel {
 
     // Unified rendering pipeline for preview
     private RenderPipeline previewPipeline;
-    private EditorFramebuffer previewFramebuffer;
+    private Framebuffer previewFramebuffer;
     private ViewportConfig viewportConfig;
     private PreviewCamera previewCamera;
     private PreviewCameraAdapter cameraAdapter;
@@ -76,8 +76,6 @@ public class GameViewPanel {
     // Cached aspect ratio
     private float aspectRatio;
 
-    // UI canvas bridge (cached wrappers)
-    private final EditorUIBridge uiBridge = new EditorUIBridge();
 
     // Track scene for dirty detection
     private EditorScene lastScene;
@@ -139,7 +137,7 @@ public class GameViewPanel {
         int height = gameConfig.getGameHeight();
 
         // Create framebuffer for preview
-        previewFramebuffer = new EditorFramebuffer(width, height);
+        previewFramebuffer = new Framebuffer(width, height);
         previewFramebuffer.init();
 
         // Create viewport and camera
@@ -583,8 +581,8 @@ public class GameViewPanel {
         // Get renderables (tilemaps + entities)
         List<Renderable> renderables = scene != null ? scene.getRenderables() : List.of();
 
-        // Get UI canvases via cached bridge (O(1) when hierarchy unchanged)
-        List<UICanvas> uiCanvases = uiBridge.getUICanvases(scene);
+        // Collect UI canvases from scene entities
+        List<UICanvas> uiCanvases = collectUICanvases(scene);
 
         // Create render target
         FramebufferTarget target = new FramebufferTarget(previewFramebuffer);
@@ -700,6 +698,27 @@ public class GameViewPanel {
     public void markPreviewDirty() {
         previewDirty = true;
     }
+
+    /**
+     * Collects root UICanvas components from the scene.
+     * Since EditorGameObject extends GameObject, the UICanvas components
+     * already have proper parent-child hierarchy via GameObject.
+     */
+    private List<UICanvas> collectUICanvases(EditorScene scene) {
+        if (scene == null) return List.of();
+
+        List<UICanvas> canvases = new ArrayList<>();
+        for (EditorGameObject entity : scene.getEntities()) {
+            if (!entity.isEnabled()) continue;
+            UICanvas canvas = entity.getComponent(UICanvas.class);
+            if (canvas != null && entity.getParent() == null) {
+                canvases.add(canvas);
+            }
+        }
+        canvases.sort(java.util.Comparator.comparingInt(UICanvas::getSortOrder));
+        return canvases;
+    }
+
     public void destroy() {
         if (previewPostProcessor != null) {
             previewPostProcessor.destroy();
@@ -716,7 +735,6 @@ public class GameViewPanel {
             previewFramebuffer = null;
         }
 
-        uiBridge.clear();
         viewportConfig = null;
         previewCamera = null;
         cameraAdapter = null;

@@ -2,7 +2,6 @@ package com.pocket.rpg.components;
 
 import com.pocket.rpg.components.core.Transform;
 import com.pocket.rpg.core.GameObject;
-import com.pocket.rpg.core.IGameObject;
 import com.pocket.rpg.editor.gizmos.GizmoContext;
 import com.pocket.rpg.editor.gizmos.GizmoDrawable;
 import com.pocket.rpg.editor.gizmos.GizmoDrawableSelected;
@@ -23,14 +22,12 @@ import java.util.List;
 public abstract class Component implements GizmoDrawable, GizmoDrawableSelected {
 
     /**
-     * The owning game object. Works in both runtime and editor contexts.
-     */
-    @Getter
-    protected IGameObject owner;
+     * The owning game object.
+     * -- SETTER --
+     *  Sets the owning game object.
 
-    /**
-     * Use {@link #owner} via {@link #getOwner()} instead.
      */
+    @Setter
     @Getter
     protected GameObject gameObject;
 
@@ -48,7 +45,7 @@ public abstract class Component implements GizmoDrawable, GizmoDrawableSelected 
     protected boolean started = false;
 
     public boolean isEnabled() {
-        return enabled && owner != null && owner.isEnabled();
+        return enabled && gameObject != null && gameObject.isEnabled();
     }
 
     /**
@@ -70,7 +67,7 @@ public abstract class Component implements GizmoDrawable, GizmoDrawableSelected 
         this.enabled = enabled;
 
         // Only trigger callbacks if owner is also enabled and component has started
-        if (owner != null && owner.isEnabled() && started) {
+        if (gameObject != null && gameObject.isEnabled() && started) {
             try {
                 if (enabled) {
                     onEnable();
@@ -81,22 +78,6 @@ public abstract class Component implements GizmoDrawable, GizmoDrawableSelected 
                 Log.error(logTag(), enabled ? "onEnable() failed" : "onDisable() failed", e);
             }
         }
-    }
-
-    /**
-     * Sets the owning game object. Works with both runtime and editor objects.
-     */
-    public void setOwner(IGameObject owner) {
-        this.owner = owner;
-        this.gameObject = (owner instanceof GameObject go) ? go : null;
-    }
-
-    /**
-     * @deprecated Use {@link #setOwner(IGameObject)} instead.
-     */
-    @Deprecated
-    public void setGameObject(GameObject gameObject) {
-        setOwner(gameObject);
     }
 
     // =======================================================================
@@ -150,7 +131,7 @@ public abstract class Component implements GizmoDrawable, GizmoDrawableSelected 
             started = true;
 
             // Trigger onEnable after start if component is enabled
-            if (enabled && owner != null && owner.isEnabled()) {
+            if (enabled && gameObject != null && gameObject.isEnabled()) {
                 try {
                     onEnable();
                 } catch (Exception e) {
@@ -303,26 +284,25 @@ public abstract class Component implements GizmoDrawable, GizmoDrawableSelected 
      * Format: "ClassName(OwnerName)" or "ClassName(?)" if no owner.
      */
     public String logTag() {
-        String ownerName = owner != null ? owner.getName() : "?";
+        String ownerName = gameObject != null ? gameObject.getName() : "?";
         return getClass().getSimpleName() + "(" + ownerName + ")";
     }
 
     protected Transform getTransform() {
-        return owner != null ? owner.getTransform() : null;
+        return gameObject != null ? gameObject.getTransform() : null;
     }
 
     /**
      * Gets a sibling component of the specified type.
-     * Works in both runtime and editor contexts.
      */
     protected <T extends Component> T getComponent(Class<T> type) {
-        return owner != null ? owner.getComponent(type) : null;
+        return gameObject != null ? gameObject.getComponent(type) : null;
     }
 
     /**
      * Gets all sibling components of the specified type.
      */
     protected <T extends Component> List<T> getComponents(Class<T> type) {
-        return owner != null ? owner.getComponents(type) : Collections.emptyList();
+        return gameObject != null ? gameObject.getComponents(type) : Collections.emptyList();
     }
 }

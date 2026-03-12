@@ -1,5 +1,6 @@
 package com.pocket.rpg.editor.undo.commands;
 
+import com.pocket.rpg.components.rendering.SpritePostEffect;
 import com.pocket.rpg.components.rendering.SpriteRenderer;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
@@ -96,7 +97,7 @@ class UndoEdgeCasesTest {
             var entity = createEntity("E");
             // Entity already has Transform at index 0
             var comp1 = new SpriteRenderer();
-            var comp2 = new SpriteRenderer();
+            var comp2 = new SpritePostEffect();
             entity.addComponent(comp1); // index 1
             entity.addComponent(comp2); // index 2
 

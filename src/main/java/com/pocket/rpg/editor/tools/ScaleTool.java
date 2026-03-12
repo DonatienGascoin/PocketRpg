@@ -1,5 +1,6 @@
 package com.pocket.rpg.editor.tools;
 
+import com.pocket.rpg.components.core.Transform;
 import com.pocket.rpg.components.rendering.SpriteRenderer;
 import com.pocket.rpg.editor.EditorSelectionManager;
 import com.pocket.rpg.editor.camera.EditorCamera;
@@ -349,22 +350,17 @@ public class ScaleTool implements EditorTool, ViewportAwareTool, ContinuousDragT
         Vector3f pos = entity.getPosition();
         Vector3f scale = entity.getScale();
         Vector3f rotation = entity.getRotation();
-        Vector2f size = entity.getCurrentSize();
+        SpriteRenderer sr = entity.getComponent(SpriteRenderer.class);
+        Sprite sprite = (sr != null && sr.isOwnEnabled()) ? sr.getSprite() : null;
+        Vector2f size = (sprite != null)
+                ? new Vector2f(sprite.getWorldWidth(), sprite.getWorldHeight())
+                : new Vector2f(1f, 1f);
 
-        if (size == null) {
-            size = new Vector2f(1f, 1f);
-        }
-
-        // Get pivot from sprite
         float pivotX = 0.5f;
         float pivotY = 0.5f;
-        SpriteRenderer sr = entity.getComponent(SpriteRenderer.class);
-        if (sr != null) {
-            Sprite sprite = sr.getSprite();
-            if (sprite != null) {
-                pivotX = sprite.getPivotX();
-                pivotY = sprite.getPivotY();
-            }
+        if (sprite != null) {
+            pivotX = sprite.getPivotX();
+            pivotY = sprite.getPivotY();
         }
 
         // Calculate scaled size
@@ -427,6 +423,7 @@ public class ScaleTool implements EditorTool, ViewportAwareTool, ContinuousDragT
             UndoManager.getInstance().push(
                     new ScaleEntityCommand(selected, dragStartScale, newScale)
             );
+            selected.syncFieldOverride(Transform.class.getName(), "localScale", newScale);
         }
     }
 

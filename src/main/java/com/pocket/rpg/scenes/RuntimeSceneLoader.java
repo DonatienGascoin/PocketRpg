@@ -1,4 +1,4 @@
-package com.pocket.rpg.editor.scene;
+package com.pocket.rpg.scenes;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.rendering.TilemapRenderer;
@@ -10,7 +10,6 @@ import com.pocket.rpg.prefab.Prefab;
 import com.pocket.rpg.prefab.PrefabRegistry;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.resources.LoadOptions;
-import com.pocket.rpg.scenes.RuntimeScene;
 import com.pocket.rpg.serialization.*;
 import org.joml.Vector3f;
 
@@ -451,7 +450,7 @@ public class RuntimeSceneLoader {
             String componentType = entry.getKey();
             Map<String, Object> fieldOverrides = entry.getValue();
 
-            for (Component comp : go.getComponents()) {
+            for (Component comp : go.getAllComponents()) {
                 if (comp.getClass().getName().equals(componentType)) {
                     Prefab.applyOverridesStatic(comp, fieldOverrides);
                     break;

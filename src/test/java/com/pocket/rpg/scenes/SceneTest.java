@@ -5,6 +5,8 @@ import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.core.window.ViewportConfig;
+import com.pocket.rpg.testing.MockSceneManagerContext;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -17,6 +19,12 @@ class SceneTest {
     @BeforeEach
     void setUp() {
         scene = new TestScene("TestScene");
+        SceneManager.setContext(new MockSceneManagerContext(scene));
+    }
+
+    @AfterEach
+    void tearDown() {
+        SceneManager.setContext(null);
     }
 
     @Test
@@ -30,7 +38,6 @@ class SceneTest {
         scene.addGameObject(go);
 
         assertTrue(scene.getGameObjects().contains(go));
-        assertSame(scene, go.getScene());
     }
 
     @Test
@@ -105,7 +112,7 @@ class SceneTest {
             @Override
             public void update(float dt) {
                 GameObject newObj = new GameObject("Spawned");
-                getGameObject().getScene().addGameObject(newObj);
+                SceneManager.getActiveScene().addGameObject(newObj);
             }
         });
         scene.addGameObject(spawner);
@@ -127,7 +134,7 @@ class SceneTest {
             @Override
             public void update(float dt) {
                 // Remove obj2 during update
-                getGameObject().getScene().removeGameObject(obj2);
+                obj2.destroy();
             }
         });
 

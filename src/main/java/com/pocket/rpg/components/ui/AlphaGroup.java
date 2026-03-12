@@ -3,9 +3,7 @@ package com.pocket.rpg.components.ui;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ComponentMeta;
 import com.pocket.rpg.core.GameObject;
-import com.pocket.rpg.core.IGameObject;
 import com.pocket.rpg.editor.gizmos.GizmoContext;
-import com.pocket.rpg.editor.scene.EditorGameObject;
 import lombok.Getter;
 
 @ComponentMeta(category = "UI")
@@ -48,39 +46,24 @@ public class AlphaGroup extends Component {
         // Clamp alpha to valid range
         alpha = Math.max(0f, Math.min(1f, alpha));
 
-        IGameObject owner = getOwner();
-        if (owner == null) {
+        if (gameObject == null) {
             return;
         }
 
-        if (owner.isRuntime() && gameObject != null) {
-            applyAlphaToGameObject(gameObject);
-        } else if (owner instanceof EditorGameObject editorGO) {
-            applyAlphaToEditorGameObject(editorGO);
-        }
+        applyAlphaRecursive(gameObject);
     }
 
-    private void applyAlphaToGameObject(GameObject gameObject) {
-        if (!gameObject.hasChildren()) {
+    private void applyAlphaRecursive(GameObject go) {
+        if (!go.hasChildren()) {
             return;
         }
-        for (GameObject child : gameObject.getChildren()) {
+        for (GameObject child : go.getChildren()) {
             applyAlphaToComponents(child);
-            applyAlphaToGameObject(child);
+            applyAlphaRecursive(child);
         }
     }
 
-    private void applyAlphaToEditorGameObject(EditorGameObject editorGO) {
-        if (!editorGO.hasChildren()) {
-            return;
-        }
-        for (EditorGameObject child : editorGO.getChildren()) {
-            applyAlphaToComponents(child);
-            applyAlphaToEditorGameObject(child);
-        }
-    }
-
-    private void applyAlphaToComponents(IGameObject target) {
+    private void applyAlphaToComponents(GameObject target) {
         for (var comp : target.getAllComponents()) {
             if (comp instanceof UIImage img) {
                 img.setAlpha(alpha);

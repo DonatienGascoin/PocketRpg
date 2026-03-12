@@ -42,7 +42,7 @@ public class AddEntitiesCommand implements EditorCommand {
                 entity.setParent(entityInfos[i].parent);
                 entity.setOrder(entityInfos[i].order);
             } else {
-                entityInfos[i] = new EntityInfo(entity.getParent(), entity.getOrder());
+                entityInfos[i] = new EntityInfo((EditorGameObject) entity.getParent(), entity.getOrder());
             }
             scene.addEntity(entity);
         }

@@ -13,6 +13,7 @@ import com.pocket.rpg.items.*;
 import com.pocket.rpg.pokemon.*;
 import com.pocket.rpg.save.PlayerData;
 import com.pocket.rpg.save.SaveManager;
+import com.pocket.rpg.scenes.DefaultSceneManagerContext;
 import com.pocket.rpg.scenes.Scene;
 import com.pocket.rpg.scenes.SceneManager;
 import com.pocket.rpg.serialization.ComponentRegistry;
@@ -33,7 +34,6 @@ class DialogueRewardTest {
     @TempDir
     Path tempDir;
 
-    private SceneManager sceneManager;
     private static Pokedex testPokedex;
     private static ItemRegistry testRegistry;
 
@@ -48,20 +48,25 @@ class DialogueRewardTest {
 
     @BeforeEach
     void setUp() {
-        sceneManager = new SceneManager(
+        SceneManager.setContext(new DefaultSceneManagerContext(
                 new ViewportConfig(GameConfig.builder()
                         .gameWidth(800).gameHeight(600)
                         .windowWidth(800).windowHeight(600)
                         .build()),
                 RenderingConfig.builder().defaultOrthographicSize(7.5f).build()
-        );
-        SaveManager.initialize(sceneManager, tempDir);
+        ));
+        SaveManager.initialize(tempDir);
         SaveManager.newGame();
 
         // Set player name for PokemonFactory
         PlayerData data = PlayerData.load();
         data.playerName = "Red";
         data.save();
+    }
+
+    @AfterEach
+    void tearDown() {
+        SceneManager.setContext(null);
     }
 
     // ========================================================================
@@ -115,7 +120,7 @@ class DialogueRewardTest {
             listenerObj.addComponent(listener);
             scene.addGameObject(listenerObj);
         });
-        sceneManager.loadScene(scene);
+        SceneManager.loadScene(scene);
 
         DialogueEventListener listener = scene.findGameObject("Reward")
                 .getComponent(DialogueEventListener.class);
@@ -244,7 +249,7 @@ class DialogueRewardTest {
             listenerObj.addComponent(listener);
             scene.addGameObject(listenerObj);
         });
-        sceneManager.loadScene(scene);
+        SceneManager.loadScene(scene);
 
         DialogueEventListener listener = scene.findGameObject("Reward")
                 .getComponent(DialogueEventListener.class);
@@ -312,7 +317,7 @@ class DialogueRewardTest {
             listenerObj.addComponent(listener);
             scene.addGameObject(listenerObj);
         });
-        sceneManager.loadScene(scene);
+        SceneManager.loadScene(scene);
 
         DialogueEventListener listener = scene.findGameObject("Reward")
                 .getComponent(DialogueEventListener.class);
@@ -364,7 +369,7 @@ class DialogueRewardTest {
             listenerObj.addComponent(listener);
             scene.addGameObject(listenerObj);
         });
-        sceneManager.loadScene(scene);
+        SceneManager.loadScene(scene);
         return new SceneFixture(
                 scene,
                 scene.findGameObject("Player"),

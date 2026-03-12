@@ -3,6 +3,7 @@ package com.pocket.rpg.collision.trigger;
 import com.pocket.rpg.collision.Direction;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.scenes.Scene;
+import com.pocket.rpg.scenes.SceneManager;
 
 /**
  * Context passed to trigger handlers when a trigger activates.
@@ -50,7 +51,7 @@ public record TriggerContext(
      * @return The scene, or null if entity has no scene
      */
     public Scene getScene() {
-        return entity != null ? entity.getScene() : null;
+        return SceneManager.getActiveScene();
     }
 
     /**

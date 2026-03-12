@@ -3,6 +3,7 @@ package com.pocket.rpg.transitions;
 import com.pocket.rpg.config.TransitionConfig;
 import com.pocket.rpg.rendering.MockOverlayRenderer;
 import com.pocket.rpg.scenes.MockSceneManager;
+import com.pocket.rpg.scenes.SceneManager;
 import com.pocket.rpg.scenes.transitions.SceneTransition;
 import com.pocket.rpg.scenes.transitions.TransitionManager;
 import org.joml.Vector4f;
@@ -32,6 +33,7 @@ class SceneTransitionTest {
         resetSceneTransitionStaticState();
 
         sceneManager = new MockSceneManager();
+        SceneManager.setContext(sceneManager);
         overlayRenderer = new MockOverlayRenderer();
 
         defaultConfig = TransitionConfig.builder()
@@ -40,13 +42,14 @@ class SceneTransitionTest {
                 .fadeColor(new Vector4f(0, 0, 0, 1))
                 .build();
 
-        transitionManager = new TransitionManager(sceneManager, overlayRenderer, defaultConfig);
+        transitionManager = new TransitionManager(overlayRenderer, defaultConfig);
     }
 
     @AfterEach
     void tearDown() {
         // Clean up static state after each test
         resetSceneTransitionStaticState();
+        SceneManager.setContext(null);
     }
 
     /**
@@ -86,7 +89,7 @@ class SceneTransitionTest {
         SceneTransition.initialize(transitionManager);
 
         TransitionManager anotherManager = new TransitionManager(
-                sceneManager, overlayRenderer, defaultConfig);
+                overlayRenderer, defaultConfig);
 
         assertThrows(IllegalStateException.class, () ->
                 SceneTransition.initialize(anotherManager));

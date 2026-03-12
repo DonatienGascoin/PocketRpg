@@ -12,6 +12,7 @@ import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.editor.gizmos.GizmoColors;
 import com.pocket.rpg.editor.gizmos.GizmoContext;
 import com.pocket.rpg.editor.gizmos.GizmoDrawable;
+import com.pocket.rpg.scenes.SceneManager;
 import com.pocket.rpg.scenes.transitions.SceneTransition;
 import lombok.Getter;
 import lombok.Setter;
@@ -235,8 +236,8 @@ public class WarpZone extends Component implements GizmoDrawable {
         }
 
         // Apply camera bounds from spawn point
-        if (player.getScene() != null && player.getScene().getCamera() != null) {
-            spawn.applyCameraBounds(player.getScene().getCamera());
+        if (SceneManager.getActiveScene() != null && SceneManager.getActiveScene().getCamera() != null) {
+            spawn.applyCameraBounds(SceneManager.getActiveScene().getCamera());
         }
 
         System.out.println("[WarpZone] Warped player to grid: (" + targetGridX + ", " + targetGridY + ")");
@@ -274,12 +275,12 @@ public class WarpZone extends Component implements GizmoDrawable {
      * Finds a SpawnPoint in the current scene by ID.
      */
     private SpawnPoint findSpawnPoint(String spawnId) {
-        if (gameObject == null || gameObject.getScene() == null) {
+        if (SceneManager.getActiveScene() == null) {
             return null;
         }
 
         // Search all game objects for matching SpawnPoint
-        for (GameObject obj : gameObject.getScene().getGameObjects()) {
+        for (GameObject obj : SceneManager.getActiveScene().getGameObjects()) {
             SpawnPoint spawn = obj.getComponent(SpawnPoint.class);
             if (spawn != null && spawnId.equals(spawn.getSpawnId())) {
                 return spawn;

@@ -8,6 +8,7 @@ import com.pocket.rpg.components.ComponentReference.Source;
 import com.pocket.rpg.components.player.PlayerInput;
 import com.pocket.rpg.save.PlayerData;
 import com.pocket.rpg.scenes.Scene;
+import com.pocket.rpg.scenes.SceneManager;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -48,7 +49,7 @@ public class PlayerMovement extends Component {
         if (movement == null) return;
 
         PlayerData data = PlayerData.load();
-        Scene scene = gameObject.getScene();
+        Scene scene = SceneManager.getActiveScene();
         if (scene != null) {
             data.lastOverworldScene = scene.getName();
         }

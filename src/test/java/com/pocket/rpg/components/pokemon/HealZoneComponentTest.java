@@ -6,6 +6,7 @@ import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.core.window.ViewportConfig;
 import com.pocket.rpg.pokemon.*;
 import com.pocket.rpg.save.SaveManager;
+import com.pocket.rpg.scenes.DefaultSceneManagerContext;
 import com.pocket.rpg.scenes.Scene;
 import com.pocket.rpg.scenes.SceneManager;
 import com.pocket.rpg.serialization.ComponentRegistry;
@@ -22,7 +23,6 @@ class HealZoneComponentTest {
     @TempDir
     Path tempDir;
 
-    private SceneManager sceneManager;
     private static Pokedex testPokedex;
 
     @BeforeAll
@@ -35,15 +35,20 @@ class HealZoneComponentTest {
 
     @BeforeEach
     void setUp() {
-        sceneManager = new SceneManager(
+        SceneManager.setContext(new DefaultSceneManagerContext(
                 new ViewportConfig(GameConfig.builder()
                         .gameWidth(800).gameHeight(600)
                         .windowWidth(800).windowHeight(600)
                         .build()),
                 RenderingConfig.builder().defaultOrthographicSize(7.5f).build()
-        );
-        SaveManager.initialize(sceneManager, tempDir);
+        ));
+        SaveManager.initialize(tempDir);
         SaveManager.newGame();
+    }
+
+    @AfterEach
+    void tearDown() {
+        SceneManager.setContext(null);
     }
 
     @Test
@@ -55,7 +60,7 @@ class HealZoneComponentTest {
             player.addComponent(new PlayerPartyComponent());
             scene.addGameObject(player);
         });
-        sceneManager.loadScene(scene);
+        SceneManager.loadScene(scene);
 
         GameObject player = scene.findGameObject("Player");
         PlayerPartyComponent party = player.getComponent(PlayerPartyComponent.class);
@@ -85,7 +90,7 @@ class HealZoneComponentTest {
             GameObject player = new GameObject("Player");
             scene.addGameObject(player);
         });
-        sceneManager.loadScene(scene);
+        SceneManager.loadScene(scene);
 
         GameObject player = scene.findGameObject("Player");
         HealZoneComponent healZone = new HealZoneComponent();

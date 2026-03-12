@@ -1,5 +1,6 @@
 package com.pocket.rpg.editor.tools;
 
+import com.pocket.rpg.components.core.Transform;
 import com.pocket.rpg.editor.EditorSelectionManager;
 import com.pocket.rpg.editor.camera.EditorCamera;
 import com.pocket.rpg.editor.scene.EditorGameObject;
@@ -280,6 +281,7 @@ public class RotateTool implements EditorTool, ViewportAwareTool, ContinuousDrag
             UndoManager.getInstance().push(
                     new RotateEntityCommand(selected, dragStartRotation, newRotation)
             );
+            selected.syncFieldOverride(Transform.class.getName(), "localRotation", newRotation);
         }
     }
 }

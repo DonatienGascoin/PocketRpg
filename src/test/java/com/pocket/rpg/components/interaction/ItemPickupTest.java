@@ -7,6 +7,7 @@ import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.core.window.ViewportConfig;
 import com.pocket.rpg.items.*;
 import com.pocket.rpg.save.SaveManager;
+import com.pocket.rpg.scenes.DefaultSceneManagerContext;
 import com.pocket.rpg.scenes.Scene;
 import com.pocket.rpg.scenes.SceneManager;
 import com.pocket.rpg.serialization.ComponentRegistry;
@@ -27,7 +28,6 @@ class ItemPickupTest {
     @TempDir
     Path tempDir;
 
-    private SceneManager sceneManager;
     private static ItemRegistry testRegistry;
 
     @BeforeAll
@@ -44,15 +44,20 @@ class ItemPickupTest {
 
     @BeforeEach
     void setUp() {
-        sceneManager = new SceneManager(
+        SceneManager.setContext(new DefaultSceneManagerContext(
                 new ViewportConfig(GameConfig.builder()
                         .gameWidth(800).gameHeight(600)
                         .windowWidth(800).windowHeight(600)
                         .build()),
                 RenderingConfig.builder().defaultOrthographicSize(7.5f).build()
-        );
-        SaveManager.initialize(sceneManager, tempDir);
+        ));
+        SaveManager.initialize(tempDir);
         SaveManager.newGame();
+    }
+
+    @AfterEach
+    void tearDown() {
+        SceneManager.setContext(null);
     }
 
     private record SceneFixture(Scene scene, GameObject player, GameObject item) {}
@@ -76,7 +81,7 @@ class ItemPickupTest {
             item.addComponent(pickup);
             scene.addGameObject(item);
         });
-        sceneManager.loadScene(scene);
+        SceneManager.loadScene(scene);
         return new SceneFixture(
                 scene,
                 scene.findGameObject("Player"),

@@ -15,7 +15,9 @@ import com.pocket.rpg.rendering.postfx.PostProcessing;
 import com.pocket.rpg.rendering.postfx.PostProcessor;
 import com.pocket.rpg.rendering.core.RenderTarget;
 import com.pocket.rpg.scenes.Scene;
+import com.pocket.rpg.scenes.DefaultSceneManagerContext;
 import com.pocket.rpg.scenes.SceneManager;
+import com.pocket.rpg.scenes.SceneManagerContext;
 import com.pocket.rpg.scenes.transitions.SceneTransition;
 import com.pocket.rpg.scenes.transitions.TransitionManager;
 import com.pocket.rpg.time.Time;
@@ -63,7 +65,7 @@ public class GameEngine {
     @Getter private ViewportConfig viewportConfig;
     @Getter private PostProcessor postProcessor;
     @Getter private RenderPipeline pipeline;
-    @Getter private SceneManager sceneManager;
+    @Getter private SceneManagerContext sceneManagerContext;
     @Getter private TransitionManager transitionManager;
     @Getter private GameLoop gameLoop;
     @Getter private UIInputHandler uiInputHandler;
@@ -104,11 +106,11 @@ public class GameEngine {
         pipeline.init();
 
         // 6. Scene manager
-        sceneManager = new SceneManager(viewportConfig, renderingConfig);
+        sceneManagerContext = new DefaultSceneManagerContext(viewportConfig, renderingConfig);
+        SceneManager.setContext(sceneManagerContext);
 
         // 7. Transition manager
         transitionManager = new TransitionManager(
-                sceneManager,
                 pipeline.getOverlayRenderer(),
                 renderingConfig.getDefaultTransitionConfig(),
                 renderingConfig.getTransitions(),
@@ -118,7 +120,7 @@ public class GameEngine {
         SceneTransition.forceInitialize(transitionManager);
 
         // 8. Game loop
-        gameLoop = new GameLoop(sceneManager, transitionManager);
+        gameLoop = new GameLoop(transitionManager);
     }
 
     /**
@@ -132,7 +134,7 @@ public class GameEngine {
      * Renders the current scene to the given target.
      */
     public void render(RenderTarget target) {
-        Scene scene = sceneManager.getCurrentScene();
+        Scene scene = SceneManager.getCurrentScene();
         if (scene == null) return;
 
         RenderParams params = RenderParams.builder()
@@ -156,7 +158,7 @@ public class GameEngine {
      * @param gameMouseY mouse Y in game coordinates
      */
     public void updateUIInput(float gameMouseX, float gameMouseY) {
-        Scene currentScene = sceneManager.getCurrentScene();
+        Scene currentScene = SceneManager.getCurrentScene();
         if (currentScene != null && uiInputHandler != null) {
             uiInputHandler.update(currentScene.getUICanvases(), gameMouseX, gameMouseY);
         }

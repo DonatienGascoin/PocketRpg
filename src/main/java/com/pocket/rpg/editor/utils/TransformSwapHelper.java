@@ -29,9 +29,9 @@ public class TransformSwapHelper {
         }
 
         // Check ancestors for UICanvas
-        EditorGameObject parent = entity.getParent();
+        var parent = entity.getParent();
         while (parent != null) {
-            if (parent.hasComponent(UICanvas.class)) {
+            if (parent.getComponent(UICanvas.class) != null) {
                 return true;
             }
             parent = parent.getParent();

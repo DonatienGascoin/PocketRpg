@@ -1,6 +1,5 @@
 package com.pocket.rpg.editor.undo.commands;
 
-import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.core.Transform;
 import com.pocket.rpg.components.ui.UICanvas;
 import com.pocket.rpg.components.ui.UITransform;
@@ -46,14 +45,15 @@ public class ReparentEntityCommand implements EditorCommand {
 
     @Override
     public void execute() {
-        oldParent = entity.getParent();
+        oldParent = (EditorGameObject) entity.getParent();
 
         // Save actual position in sibling list (not just order field)
         List<EditorGameObject> oldSiblings;
         if (oldParent == null) {
             oldSiblings = scene.getRootEntities();
         } else {
-            oldSiblings = new ArrayList<>(oldParent.getChildren());
+            oldSiblings = new ArrayList<>(oldParent.getChildren().stream()
+                    .map(c -> (EditorGameObject) c).toList());
         }
         oldSiblings.sort(Comparator.comparingInt(EditorGameObject::getOrder));
         oldIndex = oldSiblings.indexOf(entity);
@@ -100,8 +100,8 @@ public class ReparentEntityCommand implements EditorCommand {
     private void autoSwapTransformsRecursively(EditorGameObject target, boolean shouldBeUITransform) {
         autoSwapTransformIfNeeded(target, shouldBeUITransform);
 
-        for (EditorGameObject child : target.getChildren()) {
-            autoSwapTransformsRecursively(child, shouldBeUITransform);
+        for (var child : target.getChildren()) {
+            autoSwapTransformsRecursively((EditorGameObject) child, shouldBeUITransform);
         }
     }
 
@@ -151,11 +151,7 @@ public class ReparentEntityCommand implements EditorCommand {
         }
 
         // Replace in components list
-        List<Component> components = target.getComponents();
-        int index = components.indexOf(current);
-        if (index >= 0) {
-            components.set(index, newTransform);
-        }
+        target.replaceComponent(current, newTransform);
     }
 
     /**
@@ -183,7 +179,7 @@ public class ReparentEntityCommand implements EditorCommand {
         uiTransform.setPivot(0f, 0f);
 
         // Set the owner reference
-        uiTransform.setOwner(transform.getOwner());
+        uiTransform.setGameObject(transform.getGameObject());
 
         return uiTransform;
     }
@@ -208,7 +204,7 @@ public class ReparentEntityCommand implements EditorCommand {
         transform.setLocalScale(scale2D.x, scale2D.y, 1f);
 
         // Set the owner reference
-        transform.setOwner(uiTransform.getOwner());
+        transform.setGameObject(uiTransform.getGameObject());
 
         return transform;
     }

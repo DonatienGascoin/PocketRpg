@@ -7,6 +7,7 @@ import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ComponentMeta;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.editor.gizmos.GizmoColors;
+import com.pocket.rpg.scenes.SceneManager;
 import com.pocket.rpg.editor.gizmos.GizmoContext;
 import com.pocket.rpg.editor.gizmos.GizmoDrawableSelected;
 import lombok.Getter;
@@ -364,10 +365,10 @@ public class Door extends Component implements Interactable, BlockingComponent, 
     }
 
     private TileEntityMap getTileEntityMap() {
-        if (gameObject == null || gameObject.getScene() == null) {
+        if (SceneManager.getActiveScene() == null) {
             return null;
         }
-        return gameObject.getScene().getCollisionSystem().getTileEntityMap();
+        return SceneManager.getActiveScene().getCollisionSystem().getTileEntityMap();
     }
 
     // ========================================================================

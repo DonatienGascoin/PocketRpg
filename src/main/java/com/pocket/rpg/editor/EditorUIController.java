@@ -810,7 +810,7 @@ public class EditorUIController {
         context.getCamera().setViewportSize(width, height);
     }
 
-    public com.pocket.rpg.editor.rendering.EditorFramebuffer getFramebuffer() {
+    public com.pocket.rpg.rendering.targets.Framebuffer getFramebuffer() {
         return sceneViewport.getFramebuffer();
     }
 

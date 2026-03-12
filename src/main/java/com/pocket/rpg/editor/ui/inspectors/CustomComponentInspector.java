@@ -66,7 +66,7 @@ public abstract class CustomComponentInspector<T extends Component> {
      * use {@link #entity} directly — it is always non-null.
      */
     protected EditorGameObject editorEntity() {
-        return entity instanceof EditorGameObject ego ? ego : null;
+        return entity.isEditor() ? (EditorGameObject) entity : null;
     }
 
     /**

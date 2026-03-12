@@ -11,6 +11,7 @@ import imgui.flag.ImGuiKey;
 import lombok.Setter;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Handles selection logic for the hierarchy panel.
@@ -163,8 +164,10 @@ public class HierarchySelectionHandler {
         for (EditorGameObject entity : entities) {
             result.add(entity);
             if (entity.hasChildren()) {
-                List<EditorGameObject> children = new ArrayList<>(entity.getChildren());
-                children.sort(Comparator.comparingInt(EditorGameObject::getOrder));
+                List<EditorGameObject> children = entity.getChildren().stream()
+                        .map(go -> (EditorGameObject) go)
+                        .sorted(Comparator.comparingInt(EditorGameObject::getOrder))
+                        .collect(Collectors.toCollection(ArrayList::new));
                 flattenEntities(children, result);
             }
         }

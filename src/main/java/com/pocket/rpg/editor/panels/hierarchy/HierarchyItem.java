@@ -1,49 +1,32 @@
 package com.pocket.rpg.editor.panels.hierarchy;
 
 import com.pocket.rpg.components.Component;
-import com.pocket.rpg.core.IGameObject;
+import com.pocket.rpg.components.core.Transform;
 
 import java.util.List;
 
 /**
- * Extended interface for game objects that can be displayed in the hierarchy panel.
- * Extends {@link IGameObject} to add hierarchy navigation and editability.
- * <p>
- * Implemented by {@code EditorGameObject} directly and by {@code RuntimeGameObjectAdapter}
- * which wraps runtime {@code GameObject}s for hierarchy display.
+ * Interface for game objects that can be displayed in the hierarchy panel.
+ * Implemented by EditorGameObject directly and by RuntimeGameObjectAdapter
+ * which wraps runtime GameObjects for hierarchy display.
  */
-public interface HierarchyItem extends IGameObject {
-
-    /**
-     * Returns the parent item in the hierarchy, or null if this is a root item.
-     */
+public interface HierarchyItem {
+    String getName();
+    String getId();
+    Transform getTransform();
+    <T extends Component> T getComponent(Class<T> type);
+    <T extends Component> List<T> getComponents(Class<T> type);
+    List<Component> getAllComponents();
+    boolean isEnabled();
+    boolean isActiveInHierarchy();
+    boolean hasChildren();
+    boolean isEditor();
+    boolean isRuntime();
     HierarchyItem getHierarchyParent();
-
-    /**
-     * Returns child items for hierarchy tree display.
-     */
     List<? extends HierarchyItem> getHierarchyChildren();
 
-    /**
-     * Returns whether this item has children to display.
-     */
-    default boolean hasHierarchyChildren() {
-        return !getHierarchyChildren().isEmpty();
-    }
-
-    /**
-     * Returns whether this item can be edited (rename, delete, reparent, etc.)
-     * Returns true for editor objects, false for runtime objects during play mode.
-     */
-    default boolean isEditable() {
-        return isEditor();
-    }
-
-    /**
-     * Walks the parent hierarchy looking for a component of the given type.
-     * Returns the first match, or null if none found.
-     * Depth-guarded to prevent infinite loops from hierarchy cycles.
-     */
+    default boolean hasHierarchyChildren() { return !getHierarchyChildren().isEmpty(); }
+    default boolean isEditable() { return isEditor(); }
     default <T extends Component> T findComponentInParent(Class<T> type) {
         HierarchyItem parent = getHierarchyParent();
         int depth = 0;
@@ -55,4 +38,5 @@ public interface HierarchyItem extends IGameObject {
         }
         return null;
     }
+    default boolean hasComponent(Class<? extends Component> type) { return getComponent(type) != null; }
 }

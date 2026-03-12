@@ -4,7 +4,6 @@ import com.pocket.rpg.audio.clips.AudioClip;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ComponentReference;
 import com.pocket.rpg.components.Tooltip;
-import com.pocket.rpg.core.IGameObject;
 import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.hierarchy.HierarchyItem;
@@ -38,7 +37,7 @@ public class ReflectionFieldEditor {
         if (component == null) return false;
 
         // Extract EditorGameObject for undo/override paths (null in play mode)
-        EditorGameObject editorEntity = hierarchyEntity instanceof EditorGameObject ego ? ego : null;
+        EditorGameObject editorEntity = hierarchyEntity.isEditor() ? (EditorGameObject) hierarchyEntity : null;
 
         ComponentMeta meta = ComponentReflectionUtils.getMeta(component);
         if (meta == null) {
@@ -337,7 +336,7 @@ public class ReflectionFieldEditor {
     /**
      * Checks if an entity has a component of the given type.
      */
-    private static boolean hasComponentOfType(IGameObject entity, Class<?> componentType) {
+    private static boolean hasComponentOfType(HierarchyItem entity, Class<?> componentType) {
         for (Component comp : entity.getAllComponents()) {
             if (componentType.isInstance(comp)) {
                 return true;

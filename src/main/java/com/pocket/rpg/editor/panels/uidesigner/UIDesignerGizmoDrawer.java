@@ -65,10 +65,10 @@ public class UIDesignerGizmoDrawer {
         for (EditorGameObject entity : scene.getEntities()) {
             if (!coords.isUIEntity(entity)) continue;
             if (entity.hasComponent(UICanvas.class)) continue;
-            if (!entity.isEnabled()) continue;
+            if (!entity.isActiveInHierarchy()) continue;
 
             // Skip handle children of scrollbar (entirely driven, would just add clutter)
-            if (entity.getParent() != null && entity.getParent().hasComponent(UIScrollbar.class)) continue;
+            if (entity.getParent() != null && entity.getParent().getComponent(UIScrollbar.class) != null) continue;
 
             UITransform transform = entity.getComponent(UITransform.class);
             // Negate rotation to convert to screen space (Y-down)
@@ -570,7 +570,7 @@ public class UIDesignerGizmoDrawer {
 
         for (EditorGameObject entity : scene.getEntities()) {
             if (!coords.isUIEntity(entity)) continue;
-            if (!entity.isEnabled()) continue;
+            if (!entity.isActiveInHierarchy()) continue;
 
             UIScrollbar scrollbar = entity.getComponent(UIScrollbar.class);
             if (scrollbar == null || scrollbar.getTrackPadding() <= 0) continue;

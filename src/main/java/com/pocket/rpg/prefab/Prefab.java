@@ -120,7 +120,8 @@ public interface Prefab {
         }
         for (Component comp : node.getComponents()) {
             if (comp.getClass().getName().equals(componentType)) {
-                return ComponentReflectionUtils.getFieldValue(comp, fieldName);
+                Object value = ComponentReflectionUtils.getFieldValue(comp, fieldName);
+                return value != null ? ComponentReflectionUtils.deepCopyValue(value) : null;
             }
         }
         return null;
@@ -300,7 +301,8 @@ public interface Prefab {
 
         for (Component comp : components) {
             if (comp.getClass().getName().equals(componentType)) {
-                return ComponentReflectionUtils.getFieldValue(comp, fieldName);
+                Object value = ComponentReflectionUtils.getFieldValue(comp, fieldName);
+                return value != null ? ComponentReflectionUtils.deepCopyValue(value) : null;
             }
         }
         return null;

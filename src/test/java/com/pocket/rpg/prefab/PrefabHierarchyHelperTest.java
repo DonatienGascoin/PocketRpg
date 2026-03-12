@@ -271,20 +271,22 @@ class PrefabHierarchyHelperTest {
     // ========================================================================
 
     private static EditorGameObject findChildByNodeId(EditorGameObject parent, String nodeId) {
-        for (EditorGameObject child : parent.getChildren()) {
-            if (nodeId.equals(child.getPrefabNodeId())) {
-                return child;
+        for (var child : parent.getChildren()) {
+            EditorGameObject egoChild = (EditorGameObject) child;
+            if (nodeId.equals(egoChild.getPrefabNodeId())) {
+                return egoChild;
             }
         }
         return null;
     }
 
     private static EditorGameObject findDescendantByNodeId(EditorGameObject root, String nodeId) {
-        for (EditorGameObject child : root.getChildren()) {
-            if (nodeId.equals(child.getPrefabNodeId())) {
-                return child;
+        for (var child : root.getChildren()) {
+            EditorGameObject egoChild = (EditorGameObject) child;
+            if (nodeId.equals(egoChild.getPrefabNodeId())) {
+                return egoChild;
             }
-            EditorGameObject found = findDescendantByNodeId(child, nodeId);
+            EditorGameObject found = findDescendantByNodeId(egoChild, nodeId);
             if (found != null) return found;
         }
         return null;

@@ -1,5 +1,6 @@
 package com.pocket.rpg.editor.panels.hierarchy;
 
+import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.undo.UndoManager;
@@ -11,6 +12,7 @@ import imgui.flag.ImGuiDragDropFlags;
 import imgui.flag.ImGuiKey;
 import lombok.Setter;
 
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -284,16 +286,17 @@ public class HierarchyDragDropHandler {
         while (current != null) {
             if (!isLastAmongSiblings(current)) break;
             minDepth--;
-            current = current.getParent();
+            current = (EditorGameObject) current.getParent();
         }
 
         return Math.max(0, minDepth);
     }
 
     private boolean isLastAmongSiblings(EditorGameObject entity) {
-        EditorGameObject parent = entity.getParent();
-        var siblings = (parent != null) ? parent.getChildren() : scene.getRootEntities();
-        for (EditorGameObject sibling : siblings) {
+        EditorGameObject parent = (EditorGameObject) entity.getParent();
+        List<? extends GameObject> siblings = (parent != null) ? parent.getChildren() : scene.getRootEntities();
+        for (var go : siblings) {
+            EditorGameObject sibling = (EditorGameObject) go;
             if (sibling != entity && sibling.getOrder() > entity.getOrder()) {
                 return false;
             }
@@ -313,7 +316,7 @@ public class HierarchyDragDropHandler {
      * For ABOVE zone: insert before this entity at the same level.
      */
     private ResolvedTarget resolveAboveTarget(EditorGameObject entity, int depth) {
-        EditorGameObject parent = entity.getParent();
+        EditorGameObject parent = (EditorGameObject) entity.getParent();
         int insertIndex = entity.getOrder();
         return new ResolvedTarget(parent, insertIndex, depth);
     }
@@ -328,7 +331,7 @@ public class HierarchyDragDropHandler {
         EditorGameObject ancestor = entity;
         int currentDepth = entityDepth;
         while (currentDepth > targetDepth && ancestor != null) {
-            ancestor = ancestor.getParent();
+            ancestor = (EditorGameObject) ancestor.getParent();
             currentDepth--;
         }
 
@@ -336,7 +339,7 @@ public class HierarchyDragDropHandler {
             return new ResolvedTarget(null, scene.getRootEntities().size(), 0);
         }
 
-        EditorGameObject parent = ancestor.getParent();
+        EditorGameObject parent = (EditorGameObject) ancestor.getParent();
         int insertIndex = ancestor.getOrder() + 1;
         int resolvedDepth;
 
@@ -351,7 +354,7 @@ public class HierarchyDragDropHandler {
 
     private int getDepth(EditorGameObject entity) {
         int depth = 0;
-        EditorGameObject current = entity.getParent();
+        GameObject current = entity.getParent();
         while (current != null) {
             depth++;
             current = current.getParent();

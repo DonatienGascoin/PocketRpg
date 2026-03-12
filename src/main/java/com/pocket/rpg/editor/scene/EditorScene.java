@@ -61,13 +61,6 @@ public class EditorScene implements DirtyTracker {
                 : fileName;
     }
 
-    /**
-     * Incremented when hierarchy changes (entity add/remove/reparent).
-     * Used by EditorUIBridge for cache invalidation.
-     */
-    @Getter
-    private int hierarchyVersion = 0;
-
     // ========================================================================
     // LAYER MANAGEMENT
     // ========================================================================
@@ -136,14 +129,6 @@ public class EditorScene implements DirtyTracker {
 
     @Getter
     private final SceneCameraSettings cameraSettings = new SceneCameraSettings();
-
-    // ========================================================================
-    // LEGACY SELECTION (for non-entity objects)
-    // ========================================================================
-
-    @Getter
-    @Setter
-    private GameObject selectedObject = null;
 
     // ========================================================================
     // CONSTRUCTORS
@@ -352,7 +337,7 @@ public class EditorScene implements DirtyTracker {
         }
 
         entities.add(entity);
-        hierarchyVersion++;
+
         markDirty();
     }
 
@@ -363,13 +348,13 @@ public class EditorScene implements DirtyTracker {
         if (entity == null) return;
 
         // Remove children first (copy list to avoid concurrent modification)
-        List<EditorGameObject> children = new ArrayList<>(entity.getChildren());
-        for (EditorGameObject child : children) {
-            removeEntity(child);
+        List<GameObject> children = new ArrayList<>(entity.getChildren());
+        for (GameObject child : children) {
+            removeEntity((EditorGameObject) child);
         }
 
         // Clear from parent
-        entity.clearParent();
+        entity.setParent(null);
 
         // Remove from entities list
         entities.remove(entity);
@@ -377,7 +362,7 @@ public class EditorScene implements DirtyTracker {
         // Remove from selection
         selectedEntities.remove(entity);
 
-        hierarchyVersion++;
+
         markDirty();
     }
 
@@ -411,7 +396,7 @@ public class EditorScene implements DirtyTracker {
     private EditorGameObject cpuFindEntityAt(float worldX, float worldY) {
         for (int i = entities.size() - 1; i >= 0; i--) {
             EditorGameObject entity = entities.get(i);
-            if (!entity.isEnabled()) continue;
+            if (!entity.isActiveInHierarchy()) continue;
             if (entity.hasComponent(UITransform.class)) continue;
             if (isPointInsideEntity(entity, worldX, worldY)) {
                 return entity;
@@ -428,22 +413,17 @@ public class EditorScene implements DirtyTracker {
         Vector3f pos = entity.getPosition();
         Vector3f scale = entity.getScale();
         Vector3f rotation = entity.getRotation();
-        Vector2f size = entity.getCurrentSize();
+        SpriteRenderer sr = entity.getComponent(SpriteRenderer.class);
+        Sprite sprite = (sr != null && sr.isOwnEnabled()) ? sr.getSprite() : null;
+        Vector2f size = (sprite != null)
+                ? new Vector2f(sprite.getWorldWidth(), sprite.getWorldHeight())
+                : new Vector2f(1f, 1f);
 
-        if (size == null) {
-            size = new Vector2f(1f, 1f);
-        }
-
-        // Get pivot from sprite (default to center if no sprite)
         float pivotX = 0.5f;
         float pivotY = 0.5f;
-        SpriteRenderer sr = entity.getComponent(SpriteRenderer.class);
-        if (sr != null) {
-            Sprite sprite = sr.getSprite();
-            if (sprite != null) {
-                pivotX = sprite.getPivotX();
-                pivotY = sprite.getPivotY();
-            }
+        if (sprite != null) {
+            pivotX = sprite.getPivotX();
+            pivotY = sprite.getPivotY();
         }
 
         // Calculate scaled size
@@ -546,7 +526,6 @@ public class EditorScene implements DirtyTracker {
         selectedEntities.clear();
         if (entity != null) {
             selectedEntities.add(entity);
-            this.selectedObject = null;
         }
     }
 
@@ -577,9 +556,13 @@ public class EditorScene implements DirtyTracker {
         Map<String, EditorGameObject> byId = entities.stream()
                 .collect(Collectors.toMap(EditorGameObject::getId, Function.identity()));
 
-        // Clear existing transient relationships
+        // Clear existing transient relationships without triggering side effects
+        // (setParent(null) would clear layout overrides — use direct ref manipulation)
         for (EditorGameObject entity : entities) {
-            entity.getChildrenMutable().clear();
+            for (GameObject child : new ArrayList<>(entity.getChildren())) {
+                ((EditorGameObject) child).clearParentRef();
+            }
+            entity.clearChildrenDirect();
         }
 
         // Rebuild relationships
@@ -637,7 +620,10 @@ public class EditorScene implements DirtyTracker {
         if (parent == null) {
             siblings = getRootEntities();
         } else {
-            siblings = new ArrayList<>(parent.getChildren());
+            siblings = new ArrayList<>();
+            for (GameObject child : parent.getChildren()) {
+                siblings.add((EditorGameObject) child);
+            }
         }
 
         siblings.sort(Comparator.comparingInt(EditorGameObject::getOrder));
@@ -656,38 +642,21 @@ public class EditorScene implements DirtyTracker {
      * @param insertIndex Position to insert at (0 = first)
      */
     public void insertEntityAtPosition(EditorGameObject entity, EditorGameObject newParent, int insertIndex) {
-        // First, detach from current parent and reindex old siblings
-        EditorGameObject oldParent = entity.getParent();
+        // Detach from current parent (setParent handles children list updates)
+        EditorGameObject oldParent = (EditorGameObject) entity.getParent();
+        entity.setParent(newParent);
+
+        // Reindex old siblings
         if (oldParent != null) {
-            oldParent.getChildrenMutable().remove(entity);
-            // Reindex old siblings
-            List<EditorGameObject> oldSiblings = new ArrayList<>(oldParent.getChildrenMutable());
-            oldSiblings.sort(Comparator.comparingInt(EditorGameObject::getOrder));
-            for (int i = 0; i < oldSiblings.size(); i++) {
-                oldSiblings.get(i).setOrder(i);
-            }
-        } else {
-            // Reindex old root siblings (entity was at root level)
-            List<EditorGameObject> oldRoots = new ArrayList<>();
-            for (EditorGameObject e : entities) {
-                if (e != entity && (e.getParentId() == null || e.getParentId().isEmpty())) {
-                    oldRoots.add(e);
-                }
-            }
-            oldRoots.sort(Comparator.comparingInt(EditorGameObject::getOrder));
-            for (int i = 0; i < oldRoots.size(); i++) {
-                oldRoots.get(i).setOrder(i);
-            }
+            reindexSiblings(oldParent);
+        } else if (newParent != null) {
+            // Was at root, moved to child — reindex roots
+            reindexSiblings(null);
         }
-        
-        // Clear transient parent first
-        entity.setParentDirect(null);
-        entity.setParentId(newParent != null ? newParent.getId() : null);
-        
-        // Get target siblings list (now entity has new parentId set)
+
+        // Build new siblings list (excluding entity) to determine order
         List<EditorGameObject> siblings;
         if (newParent == null) {
-            // Root level - get all root entities except this one
             siblings = new ArrayList<>();
             for (EditorGameObject e : entities) {
                 if (e != entity && (e.getParentId() == null || e.getParentId().isEmpty())) {
@@ -695,36 +664,23 @@ public class EditorScene implements DirtyTracker {
                 }
             }
         } else {
-            // Child level - get parent's children except this one
             siblings = new ArrayList<>();
-            for (EditorGameObject child : newParent.getChildrenMutable()) {
+            for (GameObject child : newParent.getChildren()) {
                 if (child != entity) {
-                    siblings.add(child);
+                    siblings.add((EditorGameObject) child);
                 }
             }
         }
-        
-        // Sort by current order
+
         siblings.sort(Comparator.comparingInt(EditorGameObject::getOrder));
-        
-        // Clamp insert position
+
+        // Insert entity at position and reassign orders
         int idx = Math.max(0, Math.min(insertIndex, siblings.size()));
-        
-        // Insert entity at position
         siblings.add(idx, entity);
-        
-        // Reassign orders based on list position
         for (int i = 0; i < siblings.size(); i++) {
             siblings.get(i).setOrder(i);
         }
-        
-        // Update transient parent reference and add to parent's children
-        if (newParent != null) {
-            entity.setParentDirect(newParent);
-            newParent.getChildrenMutable().add(entity);
-        }
 
-        hierarchyVersion++;
         markDirty();
     }
 
@@ -751,10 +707,12 @@ public class EditorScene implements DirtyTracker {
             }
         }
 
-        // Add visible entities (EditorGameObject implements Renderable)
+        // Add visible entities via their SpriteRenderer components
         for (EditorGameObject entity : entities) {
-            if (entity.isRenderVisible()) {
-                renderables.add(entity);
+            if (!entity.isActiveInHierarchy()) continue;
+            var sr = entity.getComponent(com.pocket.rpg.components.rendering.SpriteRenderer.class);
+            if (sr != null && sr.isOwnEnabled() && sr.getSprite() != null) {
+                renderables.add(sr);
             }
         }
 
@@ -786,10 +744,12 @@ public class EditorScene implements DirtyTracker {
             }
         }
 
-        // Add entities with full opacity
+        // Add entities with full opacity via their SpriteRenderer components
         for (EditorGameObject entity : entities) {
-            if (entity.isRenderVisible()) {
-                result.add(new RenderableWithTint(entity, new Vector4f(1f, 1f, 1f, 1f)));
+            if (!entity.isActiveInHierarchy()) continue;
+            var sr = entity.getComponent(com.pocket.rpg.components.rendering.SpriteRenderer.class);
+            if (sr != null && sr.isOwnEnabled() && sr.getSprite() != null) {
+                result.add(new RenderableWithTint(sr, new Vector4f(1f, 1f, 1f, 1f)));
             }
         }
 
@@ -821,7 +781,6 @@ public class EditorScene implements DirtyTracker {
         triggerDataMap.clear();
         cameraSettings.reset();
         activeLayerIndex = -1;
-        selectedObject = null;
         dirty = false;
     }
 

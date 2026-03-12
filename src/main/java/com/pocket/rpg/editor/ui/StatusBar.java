@@ -37,21 +37,30 @@ public class StatusBar {
 
     // Current message
     private String message = "";
+    private StatusMessageEvent.MessageType messageType = StatusMessageEvent.MessageType.INFO;
     private float messageTimer = 0;
 
     /**
      * Initializes the status bar and subscribes to status message events.
      */
     public void initialize() {
-        EditorEventBus.get().subscribe(StatusMessageEvent.class, event -> showMessage(event.message()));
+        EditorEventBus.get().subscribe(StatusMessageEvent.class, event -> showMessage(event.message(), event.type()));
     }
 
     /**
-     * Shows a temporary message in the status bar.
+     * Shows a temporary message in the status bar with a specific type.
+     */
+    public void showMessage(String message, StatusMessageEvent.MessageType type) {
+        this.message = message;
+        this.messageType = type;
+        this.messageTimer = MESSAGE_DURATION;
+    }
+
+    /**
+     * Shows a temporary INFO message in the status bar.
      */
     public void showMessage(String message) {
-        this.message = message;
-        this.messageTimer = MESSAGE_DURATION;
+        showMessage(message, StatusMessageEvent.MessageType.INFO);
     }
 
     /**
@@ -116,19 +125,22 @@ public class StatusBar {
             alpha = messageTimer / FADE_DURATION;
         }
 
-        // Message with icon based on content
-        String icon = MaterialIcons.Info;
-        float r = 0.7f, g = 0.9f, b = 0.7f;
-
-        if (message.contains("Error") || message.contains("error")) {
-            icon = MaterialIcons.Warning;
-            r = 1.0f; g = 0.4f; b = 0.4f;
-        } else if (message.contains("Saved")) {
-            icon = MaterialIcons.Check;
-            r = 0.4f; g = 1.0f; b = 0.4f;
-        } else if (message.contains("Opened") || message.contains("created")) {
-            icon = MaterialIcons.FolderOpen;
-            r = 0.4f; g = 0.8f; b = 1.0f;
+        // Icon and color based on message type
+        String icon;
+        float r, g, b;
+        switch (messageType) {
+            case ERROR -> {
+                icon = MaterialIcons.Warning;
+                r = 1.0f; g = 0.4f; b = 0.4f;
+            }
+            case WARNING -> {
+                icon = MaterialIcons.Warning;
+                r = 1.0f; g = 0.8f; b = 0.3f;
+            }
+            default -> {
+                icon = MaterialIcons.Info;
+                r = 0.7f; g = 0.9f; b = 0.7f;
+            }
         }
 
         ImGui.textColored(r, g, b, alpha, icon + " " + message);

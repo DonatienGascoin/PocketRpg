@@ -3,6 +3,7 @@ package com.pocket.rpg.editor.panels;
 import com.pocket.rpg.components.ui.*;
 import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.config.RenderingConfig;
+import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.core.window.ViewportConfig;
 import com.pocket.rpg.editor.EditorContext;
 import com.pocket.rpg.editor.PrefabEditController;
@@ -10,8 +11,7 @@ import com.pocket.rpg.editor.camera.PreviewCamera;
 import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.uidesigner.*;
-import com.pocket.rpg.editor.rendering.EditorFramebuffer;
-import com.pocket.rpg.editor.rendering.EditorUIBridge;
+import com.pocket.rpg.rendering.targets.Framebuffer;
 import com.pocket.rpg.editor.rendering.PickingPass;
 import com.pocket.rpg.editor.rendering.PreviewCameraAdapter;
 import com.pocket.rpg.editor.scene.EditorGameObject;
@@ -64,13 +64,12 @@ public class UIDesignerPanel {
 
     // Unified rendering via RenderPipeline
     private RenderPipeline pipeline;
-    private EditorFramebuffer framebuffer;
+    private Framebuffer framebuffer;
     private ViewportConfig viewportConfig;
-    private final EditorUIBridge uiBridge = new EditorUIBridge();
     private boolean pipelineInitialized = false;
 
     // Scene background rendering (for WORLD mode)
-    private EditorFramebuffer sceneFramebuffer;
+    private Framebuffer sceneFramebuffer;
     private PreviewCamera previewCamera;
     private PreviewCameraAdapter cameraAdapter;
 
@@ -116,11 +115,11 @@ public class UIDesignerPanel {
         int height = state.getCanvasHeight();
 
         // Create framebuffer for UI rendering
-        framebuffer = new EditorFramebuffer(width, height);
+        framebuffer = new Framebuffer(width, height);
         framebuffer.init();
 
         // Create framebuffer for scene background (same game-native dimensions)
-        sceneFramebuffer = new EditorFramebuffer(width, height);
+        sceneFramebuffer = new Framebuffer(width, height);
         sceneFramebuffer.init();
 
         // Create viewport config matching canvas dimensions
@@ -361,8 +360,8 @@ public class UIDesignerPanel {
     private void renderUIToTexture(EditorScene scene) {
         if (pipeline == null || framebuffer == null) return;
 
-        // Get UICanvases via cached bridge (O(1) when hierarchy unchanged)
-        List<UICanvas> uiCanvases = uiBridge.getUICanvases(scene);
+        // Get UICanvases from scene entities
+        List<UICanvas> uiCanvases = collectUICanvases(scene);
 
         // Create render target
         FramebufferTarget target = new FramebufferTarget(framebuffer);
@@ -446,7 +445,7 @@ public class UIDesignerPanel {
             // Traverse UI hierarchy in render order (same as UIRenderer)
             // Use incrementing z-index to preserve paint order (SpriteBatch sorts by z-index)
             float[] zCounter = {0f};
-            List<UICanvas> canvases = uiBridge.getUICanvases(scene);
+            List<UICanvas> canvases = collectUICanvases(scene);
             for (UICanvas canvas : canvases) {
                 var root = canvas.getGameObject();
                 if (root == null) continue;
@@ -459,7 +458,7 @@ public class UIDesignerPanel {
     /**
      * Recursively submits UI elements to the picking batch in hierarchy order.
      */
-    private void submitPickingHierarchy(com.pocket.rpg.core.IGameObject go,
+    private void submitPickingHierarchy(GameObject go,
                                          SpriteBatch batch,
                                          Map<Integer, EditorGameObject> entityIdMap,
                                          Map<UITransform, EditorGameObject> transformToEntity,
@@ -593,6 +592,30 @@ public class UIDesignerPanel {
     }
 
     // ========================================================================
+    // UI CANVAS COLLECTION
+    // ========================================================================
+
+    /**
+     * Collects root UICanvas components from the scene.
+     * Since EditorGameObject extends GameObject, the UICanvas components
+     * already have proper parent-child hierarchy via GameObject.
+     */
+    private List<UICanvas> collectUICanvases(EditorScene scene) {
+        if (scene == null) return List.of();
+
+        List<UICanvas> canvases = new java.util.ArrayList<>();
+        for (EditorGameObject entity : scene.getEntities()) {
+            if (!entity.isEnabled()) continue;
+            UICanvas canvas = entity.getComponent(UICanvas.class);
+            if (canvas != null && entity.getParent() == null) {
+                canvases.add(canvas);
+            }
+        }
+        canvases.sort(java.util.Comparator.comparingInt(UICanvas::getSortOrder));
+        return canvases;
+    }
+
+    // ========================================================================
     // CLEANUP
     // ========================================================================
 
@@ -619,7 +642,6 @@ public class UIDesignerPanel {
             pickingPass = null;
         }
 
-        uiBridge.clear();
         pipelineInitialized = false;
     }
 }

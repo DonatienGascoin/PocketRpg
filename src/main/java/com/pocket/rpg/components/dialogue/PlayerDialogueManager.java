@@ -16,6 +16,7 @@ import com.pocket.rpg.dialogue.*;
 import com.pocket.rpg.logging.Log;
 import com.pocket.rpg.logging.Logger;
 import com.pocket.rpg.scenes.Scene;
+import com.pocket.rpg.scenes.SceneManager;
 import com.pocket.rpg.ui.ComponentKeyRegistry;
 import lombok.Getter;
 import lombok.Setter;
@@ -585,9 +586,9 @@ public class PlayerDialogueManager extends Component {
      * Dispatches a custom event to scene-level listeners via scene query.
      */
     private void dispatchToSceneListeners(String eventName) {
-        if (gameObject == null || gameObject.getScene() == null) return;
+        if (SceneManager.getActiveScene() == null) return;
 
-        Scene scene = gameObject.getScene();
+        Scene scene = SceneManager.getActiveScene();
         for (DialogueEventListener listener : scene.getComponentsImplementing(DialogueEventListener.class)) {
             if (eventName.equals(listener.getEventName())) {
                 listener.onDialogueEvent();
@@ -805,15 +806,15 @@ public class PlayerDialogueManager extends Component {
     // ========================================================================
 
     private void pauseAll() {
-        if (gameObject == null || gameObject.getScene() == null) return;
-        for (IPausable pausable : gameObject.getScene().getComponentsImplementing(IPausable.class)) {
+        if (SceneManager.getActiveScene() == null) return;
+        for (IPausable pausable : SceneManager.getActiveScene().getComponentsImplementing(IPausable.class)) {
             pausable.onPause();
         }
     }
 
     private void resumeAll() {
-        if (gameObject == null || gameObject.getScene() == null) return;
-        for (IPausable pausable : gameObject.getScene().getComponentsImplementing(IPausable.class)) {
+        if (SceneManager.getActiveScene() == null) return;
+        for (IPausable pausable : SceneManager.getActiveScene().getComponentsImplementing(IPausable.class)) {
             pausable.onResume();
         }
     }

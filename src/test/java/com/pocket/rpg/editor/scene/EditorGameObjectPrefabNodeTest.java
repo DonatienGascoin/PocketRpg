@@ -11,7 +11,6 @@ import com.pocket.rpg.serialization.GameObjectData;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.*;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -52,20 +51,20 @@ class EditorGameObjectPrefabNodeTest {
     }
 
     // ========================================================================
-    // GET MERGED COMPONENTS
+    // COMPONENT RESOLUTION
     // ========================================================================
 
     @Nested
-    class GetMergedComponents {
+    class ComponentResolution {
 
         @Test
         void childNode_resolvesChildComponents() {
             EditorGameObject entity = new EditorGameObject(PREFAB_ID, "guard001", new Vector3f());
 
-            List<Component> merged = entity.getComponents();
-            assertFalse(merged.isEmpty());
+            List<Component> components = entity.getComponents();
+            assertFalse(components.isEmpty());
 
-            SpriteRenderer sr = findComponent(merged, SpriteRenderer.class);
+            SpriteRenderer sr = entity.getComponent(SpriteRenderer.class);
             assertNotNull(sr, "Guard node should have SpriteRenderer");
             assertEquals(10, sr.getZIndex(), "Guard's zIndex default is 10");
         }
@@ -74,10 +73,10 @@ class EditorGameObjectPrefabNodeTest {
         void grandchildNode_resolvesGrandchildComponents() {
             EditorGameObject entity = new EditorGameObject(PREFAB_ID, "helm0001", new Vector3f());
 
-            List<Component> merged = entity.getComponents();
-            assertFalse(merged.isEmpty());
+            List<Component> components = entity.getComponents();
+            assertFalse(components.isEmpty());
 
-            SpriteRenderer sr = findComponent(merged, SpriteRenderer.class);
+            SpriteRenderer sr = entity.getComponent(SpriteRenderer.class);
             assertNotNull(sr, "Helmet node should have SpriteRenderer");
             assertEquals(12, sr.getZIndex(), "Helmet's zIndex default is 12");
         }
@@ -87,20 +86,21 @@ class EditorGameObjectPrefabNodeTest {
             // No prefabNodeId → resolves root
             EditorGameObject entity = new EditorGameObject(PREFAB_ID, new Vector3f());
 
-            List<Component> merged = entity.getComponents();
-            assertFalse(merged.isEmpty());
+            List<Component> components = entity.getComponents();
+            assertFalse(components.isEmpty());
 
-            SpriteRenderer sr = findComponent(merged, SpriteRenderer.class);
+            SpriteRenderer sr = entity.getComponent(SpriteRenderer.class);
             assertNotNull(sr, "Root node should have SpriteRenderer");
             assertEquals(5, sr.getZIndex(), "Root's zIndex default is 5");
         }
 
         @Test
-        void staleNodeId_returnsEmpty() {
+        void staleNodeId_hasOnlyAutoCreatedTransform() {
             EditorGameObject entity = new EditorGameObject(PREFAB_ID, "removed", new Vector3f());
 
-            List<Component> merged = entity.getComponents();
-            assertTrue(merged.isEmpty(), "Stale node ID should return empty list");
+            List<Component> components = entity.getComponents();
+            assertEquals(1, components.size(), "Stale node should only have auto-created Transform");
+            assertInstanceOf(com.pocket.rpg.components.core.Transform.class, components.getFirst());
         }
     }
 
@@ -147,28 +147,27 @@ class EditorGameObjectPrefabNodeTest {
     class IsFieldOverridden {
 
         @Test
-        void childNode_comparesAgainstChildDefault() {
+        void childNode_overrideTracking() {
             EditorGameObject entity = new EditorGameObject(PREFAB_ID, "guard001", new Vector3f());
 
             // Override zIndex to 15 (differs from default 10) → overridden
-            entity.setFieldValue(SR_TYPE, "zIndex", 15);
+            entity.applySerializedOverrides(Map.of(SR_TYPE, Map.of("zIndex", 15)));
             assertTrue(entity.isFieldOverridden(SR_TYPE, "zIndex"));
 
-            // Set to 10 (matches child default) → not overridden
-            entity.setFieldValue(SR_TYPE, "zIndex", 10);
+            // Clear the override → not overridden
+            entity.clearFieldOverride(SR_TYPE, "zIndex");
             assertFalse(entity.isFieldOverridden(SR_TYPE, "zIndex"));
         }
 
         @Test
-        void grandchildNode_comparesAgainstGrandchildDefault() {
+        void grandchildNode_overrideTracking() {
             EditorGameObject entity = new EditorGameObject(PREFAB_ID, "helm0001", new Vector3f());
 
-            // Set to 12 (matches grandchild default) → not overridden
-            entity.setFieldValue(SR_TYPE, "zIndex", 12);
+            // Not overridden initially
             assertFalse(entity.isFieldOverridden(SR_TYPE, "zIndex"));
 
-            // Override to 17 → overridden
-            entity.setFieldValue(SR_TYPE, "zIndex", 17);
+            // Mark as overridden → true
+            entity.markFieldOverridden(SR_TYPE, "zIndex");
             assertTrue(entity.isFieldOverridden(SR_TYPE, "zIndex"));
         }
     }
@@ -183,24 +182,26 @@ class EditorGameObjectPrefabNodeTest {
         @Test
         void childNode_revertsToChildDefault() {
             EditorGameObject entity = new EditorGameObject(PREFAB_ID, "guard001", new Vector3f());
-            entity.setFieldValue(SR_TYPE, "zIndex", 99);
+            entity.applySerializedOverrides(Map.of(SR_TYPE, Map.of("zIndex", 99)));
 
             entity.resetFieldToDefault(SR_TYPE, "zIndex");
 
-            // After reset, getFieldValue should return the child default (10), not root (5)
-            Object value = entity.getFieldValue(SR_TYPE, "zIndex");
-            assertEquals(10, value, "Reset should revert to Guard's default (10)");
+            // After reset, the component should have the child default (10), not root (5)
+            SpriteRenderer sr = entity.getComponent(SpriteRenderer.class);
+            assertEquals(10, sr.getZIndex(), "Reset should revert to Guard's default (10)");
+            assertFalse(entity.isFieldOverridden(SR_TYPE, "zIndex"));
         }
 
         @Test
         void grandchildNode_revertsToGrandchildDefault() {
             EditorGameObject entity = new EditorGameObject(PREFAB_ID, "helm0001", new Vector3f());
-            entity.setFieldValue(SR_TYPE, "zIndex", 99);
+            entity.applySerializedOverrides(Map.of(SR_TYPE, Map.of("zIndex", 99)));
 
             entity.resetFieldToDefault(SR_TYPE, "zIndex");
 
-            Object value = entity.getFieldValue(SR_TYPE, "zIndex");
-            assertEquals(12, value, "Reset should revert to Helmet's default (12)");
+            SpriteRenderer sr = entity.getComponent(SpriteRenderer.class);
+            assertEquals(12, sr.getZIndex(), "Reset should revert to Helmet's default (12)");
+            assertFalse(entity.isFieldOverridden(SR_TYPE, "zIndex"));
         }
     }
 
@@ -214,7 +215,7 @@ class EditorGameObjectPrefabNodeTest {
         @Test
         void toData_fromData_preservesPrefabNodeId_child() {
             EditorGameObject original = new EditorGameObject(PREFAB_ID, "guard001", new Vector3f(5, 10, 0));
-            original.setFieldValue(SR_TYPE, "zIndex", 20);
+            original.applySerializedOverrides(Map.of(SR_TYPE, Map.of("zIndex", 20)));
 
             GameObjectData data = original.toData();
             assertEquals("guard001", data.getPrefabNodeId());
@@ -282,28 +283,128 @@ class EditorGameObjectPrefabNodeTest {
     }
 
     // ========================================================================
-    // SET FIELD VALUE INVALIDATES CACHE
+    // APPLY SERIALIZED OVERRIDES
     // ========================================================================
 
     @Nested
-    class SetFieldValueCache {
+    class ApplySerializedOverrides {
 
         @Test
-        void setFieldValue_invalidatesComponentCache() {
+        void appliesValueAndMarksOverridden() {
             EditorGameObject entity = new EditorGameObject(PREFAB_ID, "guard001", new Vector3f());
 
-            // First access caches merged components
-            List<Component> first = entity.getComponents();
-            SpriteRenderer sr1 = findComponent(first, SpriteRenderer.class);
-            assertEquals(10, sr1.getZIndex());
+            // Apply override
+            entity.applySerializedOverrides(Map.of(SR_TYPE, Map.of("zIndex", 25)));
 
-            // Override zIndex
-            entity.setFieldValue(SR_TYPE, "zIndex", 25);
+            // Component should have the overridden value
+            SpriteRenderer sr = entity.getComponent(SpriteRenderer.class);
+            assertEquals(25, sr.getZIndex());
 
-            // Components should be re-merged with new override
-            List<Component> second = entity.getComponents();
-            SpriteRenderer sr2 = findComponent(second, SpriteRenderer.class);
-            assertEquals(25, sr2.getZIndex());
+            // Field should be marked as overridden
+            assertTrue(entity.isFieldOverridden(SR_TYPE, "zIndex"));
+        }
+
+        @Test
+        void multipleOverridesApplied() {
+            EditorGameObject entity = new EditorGameObject(PREFAB_ID, "guard001", new Vector3f());
+
+            entity.applySerializedOverrides(Map.of(SR_TYPE, Map.of("zIndex", 25)));
+            entity.applySerializedOverrides(Map.of(SR_TYPE, Map.of("zIndex", 30)));
+
+            SpriteRenderer sr = entity.getComponent(SpriteRenderer.class);
+            assertEquals(30, sr.getZIndex(), "Latest override should win");
+        }
+
+        @Test
+        void copyOverrides_doesNotShareMutableState() {
+            // Simulate entity duplication: copy overrides from original to copy
+            EditorGameObject original = new EditorGameObject(PREFAB_ID, "guard001", new Vector3f(10, 20, 0));
+            original.markFieldOverridden(TRANSFORM_TYPE, "localPosition");
+
+            EditorGameObject copy = new EditorGameObject(PREFAB_ID, "guard001", new Vector3f());
+            copy.applySerializedOverrides(original.getComponentOverrides());
+
+            // Modify the copy's position
+            copy.setPosition(99, 99, 0);
+
+            // Original should be unaffected
+            assertEquals(10, original.getPosition().x, "Original X should be unchanged");
+            assertEquals(20, original.getPosition().y, "Original Y should be unchanged");
+        }
+
+        @Test
+        void getComponentOverrides_returnsIndependentCopy() {
+            EditorGameObject entity = new EditorGameObject(PREFAB_ID, "guard001", new Vector3f(10, 20, 0));
+            entity.markFieldOverridden(TRANSFORM_TYPE, "localPosition");
+
+            Map<String, Map<String, Object>> overrides1 = entity.getComponentOverrides();
+            Map<String, Map<String, Object>> overrides2 = entity.getComponentOverrides();
+
+            // Mutating one returned map should not affect the other
+            overrides1.get(TRANSFORM_TYPE).put("localPosition", "corrupted");
+            assertNotEquals("corrupted", overrides2.get(TRANSFORM_TYPE).get("localPosition"));
+        }
+    }
+
+    // ========================================================================
+    // REFRESH FROM TEMPLATE
+    // ========================================================================
+
+    @Nested
+    class RefreshFromTemplate {
+
+        @Test
+        void preservesOverriddenFields() {
+            EditorGameObject entity = new EditorGameObject(PREFAB_ID, "guard001", new Vector3f());
+            entity.applySerializedOverrides(Map.of(SR_TYPE, Map.of("zIndex", 99)));
+
+            entity.refreshFromTemplate();
+
+            // Overridden field should still have the override value
+            SpriteRenderer sr = entity.getComponent(SpriteRenderer.class);
+            assertEquals(99, sr.getZIndex());
+            assertTrue(entity.isFieldOverridden(SR_TYPE, "zIndex"));
+        }
+
+        @Test
+        void preservesTransformOverrides() {
+            EditorGameObject entity = new EditorGameObject(PREFAB_ID, "guard001", new Vector3f());
+
+            // Override position
+            entity.setPosition(50, 60, 0);
+            entity.markFieldOverridden(TRANSFORM_TYPE, "localPosition");
+
+            entity.refreshFromTemplate();
+
+            // Position override should be preserved
+            assertEquals(50, entity.getPosition().x);
+            assertEquals(60, entity.getPosition().y);
+            assertTrue(entity.isFieldOverridden(TRANSFORM_TYPE, "localPosition"));
+        }
+
+        @Test
+        void picksUpTemplateChangesOnNonOverriddenFields() {
+            EditorGameObject entity = new EditorGameObject(PREFAB_ID, "guard001", new Vector3f());
+
+            // The entity should have zIndex=10 (guard default)
+            SpriteRenderer sr = entity.getComponent(SpriteRenderer.class);
+            assertEquals(10, sr.getZIndex());
+
+            // Now "edit" the prefab template's guard node default
+            // (Simulated by modifying the fixture directly)
+            JsonPrefab guardTower = (JsonPrefab) PrefabRegistry.getInstance().getPrefab(PREFAB_ID);
+            GameObjectData guardNode = guardTower.findNode("guard001");
+            for (Component comp : guardNode.getComponents()) {
+                if (comp instanceof SpriteRenderer templateSr) {
+                    templateSr.setZIndex(42);
+                }
+            }
+
+            entity.refreshFromTemplate();
+
+            // Non-overridden field should pick up the new template default
+            SpriteRenderer refreshedSr = entity.getComponent(SpriteRenderer.class);
+            assertEquals(42, refreshedSr.getZIndex());
         }
     }
 

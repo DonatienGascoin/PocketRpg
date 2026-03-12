@@ -2,6 +2,8 @@ package com.pocket.rpg.integration;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.core.GameObject;
+import com.pocket.rpg.scenes.SceneManager;
+import com.pocket.rpg.testing.MockSceneManagerContext;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,6 +16,7 @@ class GameObjectComponentIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        SceneManager.setContext(null);
         gameObject = new GameObject("TestObject", new Vector3f(100, 200, 0));
     }
 

@@ -10,7 +10,7 @@ import com.pocket.rpg.editor.events.PrefabEditStoppedEvent;
 import com.pocket.rpg.editor.events.PlayModeStartedEvent;
 import com.pocket.rpg.editor.events.PlayModeStoppedEvent;
 import com.pocket.rpg.editor.gizmos.GizmoRenderer;
-import com.pocket.rpg.editor.rendering.EditorFramebuffer;
+import com.pocket.rpg.rendering.targets.Framebuffer;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.tools.*;
 import com.pocket.rpg.editor.ui.viewport.*;
@@ -116,7 +116,7 @@ public class SceneViewport {
         return renderer.isContentVisible();
     }
 
-    public EditorFramebuffer getFramebuffer() {
+    public Framebuffer getFramebuffer() {
         return renderer.getFramebuffer();
     }
 

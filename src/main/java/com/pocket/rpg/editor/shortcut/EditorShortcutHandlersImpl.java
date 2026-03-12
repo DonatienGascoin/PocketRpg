@@ -449,9 +449,9 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
     }
 
     private boolean isAncestorSelected(EditorGameObject entity, Set<EditorGameObject> selectedSet) {
-        EditorGameObject parent = entity.getParent();
+        var parent = entity.getParent();
         while (parent != null) {
-            if (selectedSet.contains(parent)) return true;
+            if (parent instanceof EditorGameObject ego && selectedSet.contains(ego)) return true;
             parent = parent.getParent();
         }
         return false;
@@ -492,12 +492,12 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
         if (selected.isEmpty()) return;
 
         // Toggle based on majority state: if any are enabled, disable all; else enable all
-        boolean anyEnabled = selected.stream().anyMatch(EditorGameObject::isOwnEnabled);
+        boolean anyEnabled = selected.stream().anyMatch(EditorGameObject::isEnabled);
         boolean newState = !anyEnabled;
 
         List<EditorCommand> commands = new ArrayList<>();
         for (EditorGameObject e : selected) {
-            if (e.isOwnEnabled() != newState) {
+            if (e.isEnabled() != newState) {
                 commands.add(new ToggleEntityEnabledCommand(e, newState));
             }
         }

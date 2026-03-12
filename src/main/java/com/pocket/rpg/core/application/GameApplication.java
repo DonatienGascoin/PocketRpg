@@ -11,7 +11,7 @@ import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.config.InputConfig;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.core.window.AbstractWindow;
-import com.pocket.rpg.editor.scene.RuntimeSceneLoader;
+import com.pocket.rpg.scenes.RuntimeSceneLoader;
 import com.pocket.rpg.input.DefaultInputContext;
 import com.pocket.rpg.input.InputBackend;
 import com.pocket.rpg.input.InputContext;
@@ -27,6 +27,7 @@ import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.resources.ErrorMode;
 import com.pocket.rpg.save.PlayerPlacementHandler;
 import com.pocket.rpg.save.SaveManager;
+import com.pocket.rpg.scenes.SceneManager;
 import com.pocket.rpg.serialization.ComponentRegistry;
 import com.pocket.rpg.serialization.Serializer;
 import com.pocket.rpg.time.DefaultTimeContext;
@@ -138,10 +139,10 @@ public class GameApplication {
         //  bootstrap once one exists.
         screenTarget = new ScreenTarget(engine.getViewportConfig());
         RuntimeSceneLoader sceneLoader = new RuntimeSceneLoader();
-        engine.getSceneManager().setSceneLoader(sceneLoader, "gameData/scenes/");
-        SaveManager.initialize(engine.getSceneManager());
-        MusicManager.initialize(engine.getSceneManager(), Assets.getContext());
-        engine.getSceneManager().addLifecycleListener(new PlayerPlacementHandler(engine.getSceneManager()));
+        SceneManager.setSceneLoader(sceneLoader, "gameData/scenes/");
+        SaveManager.initialize();
+        MusicManager.initialize(Assets.getContext());
+        SceneManager.addLifecycleListener(new PlayerPlacementHandler());
 
         // Load configurable start scene
         String startScene = gameConfig.getStartScene();
@@ -149,7 +150,7 @@ public class GameApplication {
             throw new IllegalStateException(
                     "No start scene configured in game.json (set 'startScene' field)");
         }
-        engine.getSceneManager().loadScene(startScene);
+        SceneManager.loadScene(startScene);
 
         System.out.println("Application initialization complete");
     }

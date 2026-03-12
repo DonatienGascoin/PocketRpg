@@ -99,9 +99,9 @@ public final class PrefabHierarchyHelper {
         data.setOrder(order);
         result.add(data);
 
-        List<? extends EditorGameObject> children = entity.getChildren();
+        var children = entity.getChildren();
         for (int i = 0; i < children.size(); i++) {
-            captureNode(children.get(i), entity.getId(), i, result);
+            captureNode((EditorGameObject) children.get(i), entity.getId(), i, result);
         }
     }
 
@@ -120,7 +120,8 @@ public final class PrefabHierarchyHelper {
     }
 
     private static void collectDescendants(EditorGameObject parent, List<EditorGameObject> result) {
-        for (EditorGameObject child : parent.getChildren()) {
+        for (var go : parent.getChildren()) {
+            EditorGameObject child = (EditorGameObject) go;
             result.add(child);
             collectDescendants(child, result);
         }
@@ -189,7 +190,8 @@ public final class PrefabHierarchyHelper {
     }
 
     private static void collectByNodeId(EditorGameObject entity, Map<String, EditorGameObject> map) {
-        for (EditorGameObject child : entity.getChildren()) {
+        for (var go : entity.getChildren()) {
+            EditorGameObject child = (EditorGameObject) go;
             if (child.isPrefabChildNode()) {
                 map.put(child.getPrefabNodeId(), child);
             }

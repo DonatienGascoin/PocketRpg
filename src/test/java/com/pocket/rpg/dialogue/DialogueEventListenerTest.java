@@ -6,6 +6,8 @@ import com.pocket.rpg.components.dialogue.DialogueReaction;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.save.SaveManager;
 import com.pocket.rpg.scenes.Scene;
+import com.pocket.rpg.scenes.SceneManager;
+import com.pocket.rpg.testing.MockSceneManagerContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,10 +34,12 @@ class DialogueEventListenerTest {
         resetSaveManager();
         initSaveManager();
         scene = new TestScene("TestScene");
+        SceneManager.setContext(new MockSceneManagerContext(scene));
     }
 
     @AfterEach
     void tearDown() throws Exception {
+        SceneManager.setContext(null);
         resetSaveManager();
     }
 

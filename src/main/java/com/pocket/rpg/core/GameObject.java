@@ -6,6 +6,7 @@ import com.pocket.rpg.components.core.Transform;
 import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.logging.Log;
 import com.pocket.rpg.scenes.Scene;
+import com.pocket.rpg.scenes.SceneManager;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector3f;
@@ -17,10 +18,9 @@ import java.util.List;
 /**
  * GameObject is the fundamental entity in the game.
  * It holds components that define its behavior and properties.
- *
- * UPDATED: Now supports parent-child hierarchy.
+ * Supports parent-child hierarchy.
  */
-public class GameObject implements IGameObject {
+public class GameObject {
     @Setter
     @Getter
     private String name;
@@ -31,14 +31,13 @@ public class GameObject implements IGameObject {
     @Getter
     private boolean destroyed = false;
 
-    @Setter
-    @Getter
-    private Scene scene;
-
     private final List<Component> components;
 
     @Getter
     private Transform transform;
+
+    @Getter @Setter
+    private int order = 0;
 
     // Parent-child hierarchy
     @Getter
@@ -46,7 +45,6 @@ public class GameObject implements IGameObject {
 
     private final List<GameObject> children = new ArrayList<>();
 
-    @Override
     public String getId() {
         return "go_" + System.identityHashCode(this);
     }
@@ -86,8 +84,6 @@ public class GameObject implements IGameObject {
             return;
         }
 
-        Scene oldScene = this.scene;
-
         // Remove from old parent
         if (this.parent != null) {
             this.parent.children.remove(this);
@@ -105,23 +101,18 @@ public class GameObject implements IGameObject {
         // Add to new parent
         if (newParent != null) {
             newParent.children.add(this);
+        }
 
-            Scene newScene = newParent.scene;
+        // Invalidate world transform cache (parent chain changed)
+        if (transform != null) {
+            transform.markWorldDirty();
+        }
 
-            // Handle scene changes
-            if (newScene != null && newScene != oldScene) {
-                // Moving to a different scene
-                if (oldScene != null) {
-                    oldScene.unregisterCachedComponents(this);
-                }
-                setSceneRecursive(newScene);
-                newScene.registerCachedComponents(this);
-            } else if (newScene != null && oldScene == null) {
-                // First time being added to a scene via parenting
-                setSceneRecursive(newScene);
-                newScene.registerCachedComponents(this);
-            }
-            // If newScene == oldScene, components are already registered - do nothing
+        // Re-register with active scene (handles cache updates for reparenting)
+        Scene scene = SceneManager.getActiveScene();
+        if (scene != null) {
+            scene.unregisterCachedComponents(this);
+            scene.registerCachedComponents(this);
         }
     }
 
@@ -155,7 +146,7 @@ public class GameObject implements IGameObject {
     /**
      * Checks if this GameObject is an ancestor of the given GameObject.
      */
-    private boolean isAncestorOf(GameObject other) {
+    public boolean isAncestorOf(GameObject other) {
         GameObject current = other.parent;
         while (current != null) {
             if (current == this) return true;
@@ -165,13 +156,89 @@ public class GameObject implements IGameObject {
     }
 
     /**
-     * Sets scene recursively for this object and all children.
+     * Returns true if this game object and all its ancestors are enabled.
      */
-    private void setSceneRecursive(Scene scene) {
-        this.scene = scene;
-        for (GameObject child : children) {
-            child.setSceneRecursive(scene);
+    public boolean isActiveInHierarchy() {
+        if (!enabled) return false;
+        GameObject current = parent;
+        while (current != null) {
+            if (!current.enabled) return false;
+            current = current.parent;
         }
+        return true;
+    }
+
+    /**
+     * Returns true if this is a runtime game object (in a running scene).
+     * Overridden by EditorGameObject to return false.
+     */
+    public boolean isRuntime() {
+        return true;
+    }
+
+    /**
+     * Returns true if this is an editor game object (in the scene editor).
+     * Overridden by EditorGameObject to return true.
+     */
+    public boolean isEditor() {
+        return false;
+    }
+
+    public boolean hasChildren() {
+        return !children.isEmpty();
+    }
+
+    // =======================================================================
+    // Protected Accessors for Subclasses
+    // =======================================================================
+
+    /**
+     * Sets the enabled field directly without triggering callbacks or propagation.
+     * Used by EditorGameObject which doesn't need runtime lifecycle management.
+     */
+    protected void setEnabledDirect(boolean enabled) {
+        this.enabled = enabled;
+    }
+
+    /**
+     * Returns the raw mutable component list.
+     * Used by EditorGameObject for its special construction and override logic.
+     */
+    protected List<Component> getComponentsInternal() {
+        return components;
+    }
+
+    /**
+     * Returns the raw mutable children list.
+     * Used by EditorGameObject and EditorScene for hierarchy management.
+     */
+    protected List<GameObject> getChildrenInternal() {
+        return children;
+    }
+
+    /**
+     * Sets the transform reference.
+     * Used by EditorGameObject after prefab cloning to update the cached transform.
+     */
+    protected void setTransformRef(Transform t) {
+        this.transform = t;
+    }
+
+    /**
+     * Sets the parent reference directly without modifying children lists.
+     * Used by EditorGameObject for hierarchy reconstruction where children
+     * lists are managed separately.
+     */
+    protected void setParentRef(GameObject newParent) {
+        this.parent = newParent;
+    }
+
+    /**
+     * Adds a component at a specific index in the component list.
+     */
+    protected void addComponentAt(int index, Component component) {
+        component.setGameObject(this);
+        components.add(index, component);
     }
 
     // =======================================================================
@@ -192,6 +259,7 @@ public class GameObject implements IGameObject {
         }
 
         // Invalidate Scene caches (renderables, uiCanvases, ComponentKeyRegistry)
+        Scene scene = SceneManager.getActiveScene();
         if (scene != null) {
             if (enabled) {
                 scene.registerCachedComponents(this);
@@ -226,6 +294,7 @@ public class GameObject implements IGameObject {
         }
 
         // Invalidate Scene caches for this child
+        Scene scene = SceneManager.getActiveScene();
         if (scene != null) {
             if (parentNowEnabled) {
                 scene.registerCachedComponents(this);
@@ -253,11 +322,14 @@ public class GameObject implements IGameObject {
             transform = (Transform) component;
             addComponentInternal(component);
 
+            Scene scene = SceneManager.getActiveScene();
             if (scene != null) {
                 scene.registerCachedComponent(component);
             }
 
-            if (scene != null && enabled) {
+            // Only auto-start if this GO is part of the active scene
+            // (i.e., it has been added via scene.addGameObject and the scene is initialized)
+            if (scene != null && scene.getGameObjects().contains(this) && enabled) {
                 component.start();
             }
 
@@ -274,11 +346,14 @@ public class GameObject implements IGameObject {
 
         addComponentInternal(component);
 
+        Scene scene = SceneManager.getActiveScene();
         if (scene != null) {
             scene.registerCachedComponent(component);
         }
 
-        if (scene != null && enabled) {
+        // Only auto-start if this GO is part of the active scene
+        // (i.e., it has been added via scene.addGameObject and the scene is initialized)
+        if (scene != null && scene.getGameObjects().contains(this) && enabled) {
             component.start();
         }
 
@@ -286,7 +361,7 @@ public class GameObject implements IGameObject {
     }
 
     private void addComponentInternal(Component component) {
-        component.setOwner(this);
+        component.setGameObject(this);
         components.add(component);
     }
 
@@ -323,8 +398,9 @@ public class GameObject implements IGameObject {
 
         if (components.remove(component)) {
             component.destroy();
-            component.setOwner(null);
+            component.setGameObject(null);
 
+            Scene scene = SceneManager.getActiveScene();
             if (scene != null) {
                 scene.unregisterCachedComponent(component);
             }
@@ -352,22 +428,8 @@ public class GameObject implements IGameObject {
         return result;
     }
 
-    @SuppressWarnings("unchecked")
-    public <T extends Component> List<T> getComponents() {
-        List<T> result = new ArrayList<>();
-        for (Component component : components) {
-                result.add((T) component);
-        }
-        return result;
-    }
-
     public List<Component> getAllComponents() {
         return new ArrayList<>(components);
-    }
-
-    @Override
-    public boolean hasChildren() {
-        return !children.isEmpty();
     }
 
     // =======================================================================
@@ -447,7 +509,14 @@ public class GameObject implements IGameObject {
     }
 
     public void destroy() {
+        if (destroyed) return; // Re-entrancy guard
         destroyed = true;
+
+        // Self-remove from the active scene
+        Scene scene = SceneManager.getActiveScene();
+        if (scene != null) {
+            scene.removeFromScene(this);
+        }
 
         // Destroy children first
         for (GameObject child : new ArrayList<>(children)) {

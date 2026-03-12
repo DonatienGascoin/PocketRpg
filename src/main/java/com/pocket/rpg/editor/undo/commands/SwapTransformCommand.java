@@ -1,14 +1,11 @@
 package com.pocket.rpg.editor.undo.commands;
 
-import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.core.Transform;
 import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.undo.EditorCommand;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
-
-import java.util.List;
 
 /**
  * Command for swapping between Transform and UITransform.
@@ -91,7 +88,7 @@ public class SwapTransformCommand implements EditorCommand {
         uiTransform.setPivot(0f, 0f);
 
         // Set the owner reference
-        uiTransform.setOwner(entity);
+        uiTransform.setGameObject(entity);
 
         return uiTransform;
     }
@@ -116,7 +113,7 @@ public class SwapTransformCommand implements EditorCommand {
         transform.setLocalScale(scale2D.x, scale2D.y, 1f);
 
         // Set the owner reference
-        transform.setOwner(entity);
+        transform.setGameObject(entity);
 
         return transform;
     }
@@ -125,10 +122,6 @@ public class SwapTransformCommand implements EditorCommand {
      * Replaces the old transform with the new one in the entity's components list.
      */
     private void replaceTransform(Transform oldTransform, Transform newTransform) {
-        List<Component> components = entity.getComponents();
-        int index = components.indexOf(oldTransform);
-        if (index >= 0) {
-            components.set(index, newTransform);
-        }
+        entity.replaceComponent(oldTransform, newTransform);
     }
 }

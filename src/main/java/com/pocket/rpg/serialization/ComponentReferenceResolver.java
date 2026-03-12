@@ -129,7 +129,7 @@ public class ComponentReferenceResolver {
      * @param gameObject The GameObject to resolve references for
      */
     public static void resolveAll(GameObject gameObject) {
-        for (Component component : gameObject.getComponents()) {
+        for (Component component : gameObject.getAllComponents()) {
             resolveComponentReferences(component, gameObject);
         }
     }

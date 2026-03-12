@@ -9,7 +9,9 @@ import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.input.Input;
 import com.pocket.rpg.input.KeyCode;
 import com.pocket.rpg.scenes.Scene;
+import com.pocket.rpg.scenes.SceneManager;
 import com.pocket.rpg.testing.MockInputTesting;
+import com.pocket.rpg.testing.MockSceneManagerContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,6 +44,7 @@ class DialogueChainingTest {
         Input.setContext(mockInput);
 
         scene = new TestScene("TestScene");
+        SceneManager.setContext(new MockSceneManagerContext(scene));
 
         GameObject playerGo = new GameObject("Player");
         playerInput = new PlayerInput();
@@ -62,6 +65,7 @@ class DialogueChainingTest {
     @AfterEach
     void tearDown() {
         Input.setContext(null);
+        SceneManager.setContext(null);
     }
 
     @Test

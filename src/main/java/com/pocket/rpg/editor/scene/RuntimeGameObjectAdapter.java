@@ -31,8 +31,13 @@ public class RuntimeGameObjectAdapter implements HierarchyItem {
 
     /**
      * Gets or creates an adapter for the given GameObject.
+     * Must not be called with an EditorGameObject — EGO implements HierarchyItem directly.
      */
     public static RuntimeGameObjectAdapter of(GameObject gameObject) {
+        if (gameObject instanceof EditorGameObject) {
+            throw new IllegalArgumentException(
+                    "EditorGameObject implements HierarchyItem directly — do not wrap in RuntimeGameObjectAdapter");
+        }
         return adapterCache.computeIfAbsent(gameObject, RuntimeGameObjectAdapter::new);
     }
 
@@ -44,7 +49,7 @@ public class RuntimeGameObjectAdapter implements HierarchyItem {
     }
 
     // ========================================================================
-    // IGameObject delegation
+    // GameObject delegation
     // ========================================================================
 
     @Override
@@ -82,25 +87,22 @@ public class RuntimeGameObjectAdapter implements HierarchyItem {
         return gameObject.isEnabled();
     }
 
+    public boolean isActiveInHierarchy() {
+        return gameObject.isActiveInHierarchy();
+    }
+
     @Override
     public boolean isRuntime() {
         return true;
     }
 
+    public boolean isEditor() {
+        return false;
+    }
+
     @Override
     public boolean hasChildren() {
         return gameObject.hasChildren();
-    }
-
-    @Override
-    public RuntimeGameObjectAdapter getParent() {
-        GameObject parent = gameObject.getParent();
-        return parent != null ? RuntimeGameObjectAdapter.of(parent) : null;
-    }
-
-    @Override
-    public List<GameObject> getChildren() {
-        return gameObject.getChildren();
     }
 
     // ========================================================================

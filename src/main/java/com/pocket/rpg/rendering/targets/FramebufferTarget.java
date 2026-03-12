@@ -1,33 +1,26 @@
 package com.pocket.rpg.rendering.targets;
 
-import com.pocket.rpg.editor.rendering.EditorFramebuffer;
 import com.pocket.rpg.rendering.core.RenderTarget;
-import com.pocket.rpg.rendering.pipeline.RenderPipeline;
 import lombok.Getter;
 import org.joml.Vector4f;
 
 import static org.lwjgl.opengl.GL11.*;
 
 /**
- * RenderTarget implementation that wraps an EditorFramebuffer.
+ * RenderTarget implementation that wraps a {@link Framebuffer}.
  * <p>
  * Used by editor panels (GameViewPanel, PlayModeController) to render
  * via RenderPipeline into a framebuffer for ImGui display.
- * <p>
- * <b>RENDERING ARCHITECTURE NOTE:</b>
- * This adapter allows RenderPipeline to render to editor framebuffers
- * without coupling the core rendering system to editor-specific classes.
  *
  * @see RenderTarget
- * @see EditorFramebuffer
- * @see RenderPipeline
+ * @see Framebuffer
  */
 @Getter
 public class FramebufferTarget implements RenderTarget {
 
-    private final EditorFramebuffer framebuffer;
+    private final Framebuffer framebuffer;
 
-    public FramebufferTarget(EditorFramebuffer framebuffer) {
+    public FramebufferTarget(Framebuffer framebuffer) {
         this.framebuffer = framebuffer;
     }
 

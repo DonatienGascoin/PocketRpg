@@ -48,13 +48,6 @@ class EditorSceneHierarchyTest {
         }
 
         @Test
-        void incrementsHierarchyVersion() {
-            int before = scene.getHierarchyVersion();
-            scene.addEntity(entity("A"));
-            assertTrue(scene.getHierarchyVersion() > before);
-        }
-
-        @Test
         void marksDirty() {
             scene.clearDirty();
             scene.addEntity(entity("A"));
@@ -146,17 +139,6 @@ class EditorSceneHierarchyTest {
             scene.removeEntity(e);
 
             assertFalse(scene.getSelectedEntities().contains(e));
-        }
-
-        @Test
-        void incrementsHierarchyVersion() {
-            var e = entity("A");
-            scene.addEntity(e);
-            int before = scene.getHierarchyVersion();
-
-            scene.removeEntity(e);
-
-            assertTrue(scene.getHierarchyVersion() > before);
         }
 
         @Test

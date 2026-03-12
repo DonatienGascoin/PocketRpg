@@ -8,6 +8,7 @@ import com.pocket.rpg.components.ComponentMeta;
 import com.pocket.rpg.editor.gizmos.GizmoColors;
 import com.pocket.rpg.editor.gizmos.GizmoContext;
 import com.pocket.rpg.editor.gizmos.GizmoDrawableSelected;
+import com.pocket.rpg.scenes.SceneManager;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector3f;
@@ -164,10 +165,10 @@ public class StaticOccupant extends Component implements BlockingComponent, Gizm
     }
 
     private TileEntityMap getTileEntityMap() {
-        if (gameObject == null || gameObject.getScene() == null) {
+        if (SceneManager.getActiveScene() == null) {
             return null;
         }
-        return gameObject.getScene().getCollisionSystem().getTileEntityMap();
+        return SceneManager.getActiveScene().getCollisionSystem().getTileEntityMap();
     }
 
     // ========================================================================

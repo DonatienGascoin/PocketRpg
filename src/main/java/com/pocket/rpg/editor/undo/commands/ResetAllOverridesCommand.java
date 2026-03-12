@@ -2,8 +2,9 @@ package com.pocket.rpg.editor.undo.commands;
 
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.undo.EditorCommand;
+import com.pocket.rpg.serialization.ComponentReflectionUtils;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -21,17 +22,16 @@ public class ResetAllOverridesCommand implements EditorCommand {
 
     @Override
     public void execute() {
-        // Deep copy current overrides before clearing
-        savedOverrides = copyOverrides(entity.getComponentOverrides());
+        // Deep copy current override values before clearing
+        savedOverrides = deepCopyOverrides(entity.getComponentOverrides());
+        // Clear overriddenFields and re-clone all components from template
         entity.resetAllOverrides();
-        entity.invalidateComponentCache();
     }
 
     @Override
     public void undo() {
-        // Restore saved overrides
-        entity.getComponentOverrides().putAll(savedOverrides);
-        entity.invalidateComponentCache();
+        // Re-apply saved overrides (sets values on components and marks as overridden)
+        entity.applySerializedOverrides(savedOverrides);
     }
 
     @Override
@@ -39,11 +39,16 @@ public class ResetAllOverridesCommand implements EditorCommand {
         return "Reset All Overrides";
     }
 
-    private static Map<String, Map<String, Object>> copyOverrides(Map<String, Map<String, Object>> source) {
-        Map<String, Map<String, Object>> copy = new HashMap<>();
+    private static Map<String, Map<String, Object>> deepCopyOverrides(Map<String, Map<String, Object>> source) {
+        Map<String, Map<String, Object>> copy = new LinkedHashMap<>();
         if (source != null) {
-            for (Map.Entry<String, Map<String, Object>> entry : source.entrySet()) {
-                copy.put(entry.getKey(), new HashMap<>(entry.getValue()));
+            for (var entry : source.entrySet()) {
+                Map<String, Object> fieldCopy = new LinkedHashMap<>();
+                for (var fieldEntry : entry.getValue().entrySet()) {
+                    fieldCopy.put(fieldEntry.getKey(),
+                            ComponentReflectionUtils.deepCopyValue(fieldEntry.getValue()));
+                }
+                copy.put(entry.getKey(), fieldCopy);
             }
         }
         return copy;

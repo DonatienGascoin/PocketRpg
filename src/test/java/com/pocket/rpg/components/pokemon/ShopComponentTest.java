@@ -7,6 +7,7 @@ import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.core.window.ViewportConfig;
 import com.pocket.rpg.items.*;
 import com.pocket.rpg.save.SaveManager;
+import com.pocket.rpg.scenes.DefaultSceneManagerContext;
 import com.pocket.rpg.scenes.Scene;
 import com.pocket.rpg.scenes.SceneManager;
 import com.pocket.rpg.serialization.ComponentRegistry;
@@ -29,7 +30,6 @@ class ShopComponentTest {
     @TempDir
     Path tempDir;
 
-    private SceneManager sceneManager;
     private static ItemRegistry testRegistry;
     private static ShopRegistry testShopRegistry;
 
@@ -44,15 +44,20 @@ class ShopComponentTest {
 
     @BeforeEach
     void setUp() {
-        sceneManager = new SceneManager(
+        SceneManager.setContext(new DefaultSceneManagerContext(
                 new ViewportConfig(GameConfig.builder()
                         .gameWidth(800).gameHeight(600)
                         .windowWidth(800).windowHeight(600)
                         .build()),
                 RenderingConfig.builder().defaultOrthographicSize(7.5f).build()
-        );
-        SaveManager.initialize(sceneManager, tempDir);
+        ));
+        SaveManager.initialize(tempDir);
         SaveManager.newGame();
+    }
+
+    @AfterEach
+    void tearDown() {
+        SceneManager.setContext(null);
     }
 
     // ========================================================================
@@ -112,7 +117,7 @@ class ShopComponentTest {
             shopkeeper.addComponent(shop);
             scene.addGameObject(shopkeeper);
         });
-        sceneManager.loadScene(scene);
+        SceneManager.loadScene(scene);
 
         GameObject player = scene.findGameObject("Player");
         ShopComponent shop = scene.findGameObject("Shopkeeper").getComponent(ShopComponent.class);
@@ -147,7 +152,7 @@ class ShopComponentTest {
             shopkeeper.addComponent(shop);
             scene.addGameObject(shopkeeper);
         });
-        sceneManager.loadScene(scene);
+        SceneManager.loadScene(scene);
         return new SceneFixture(
                 scene,
                 scene.findGameObject("Player"),

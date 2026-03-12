@@ -2,15 +2,11 @@ package com.pocket.rpg.rendering.pipeline;
 
 import com.pocket.rpg.components.rendering.SpriteRenderer;
 import com.pocket.rpg.components.rendering.TilemapRenderer;
-import com.pocket.rpg.editor.rendering.TilemapLayerRenderable;
-import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.rendering.batch.SpriteBatch;
 import com.pocket.rpg.rendering.core.RenderCamera;
 import com.pocket.rpg.rendering.core.Renderable;
 import com.pocket.rpg.rendering.culling.CullingSystem;
-import org.joml.Vector2f;
-import org.joml.Vector3f;
 import org.joml.Vector4f;
 
 import java.util.List;
@@ -86,28 +82,11 @@ public class RenderDispatcher {
         RenderCamera effectiveCamera = camera != null ? camera : currentCamera;
         Vector4f effectiveTint = tint != null ? tint : WHITE;
 
-        // ===================
-        // RUNTIME COMPONENTS
-        // ===================
         if (renderable instanceof SpriteRenderer sr) {
             submitSpriteRenderer(sr, batch, effectiveTint);
         } else if (renderable instanceof TilemapRenderer tr) {
             submitTilemapChunks(tr, batch, effectiveTint);
-        }
-        // ===================
-        // EDITOR TYPES
-        // ===================
-        else if (renderable instanceof EditorGameObject entity) {
-            submitEditorGameObject(entity, batch, effectiveTint);
-        } else if (renderable instanceof TilemapLayerRenderable tlr) {
-            // TilemapLayerRenderable has its own tint - combine with passed tint
-            Vector4f combinedTint = combineTints(tlr.tint(), effectiveTint);
-            submitTilemapChunks(tlr.layer().getTilemap(), batch, combinedTint);
-        }
-        // ===================
-        // UNKNOWN TYPE
-        // ===================
-        else {
+        } else {
             System.err.println("[RenderDispatcher] Unknown renderable type: " +
                     renderable.getClass().getSimpleName());
         }
@@ -122,68 +101,6 @@ public class RenderDispatcher {
         if (sprite == null) return;
 
         batch.submit(sr, tint);
-    }
-
-    // ========================================================================
-    // EDITOR TYPES
-    // ========================================================================
-
-    /**
-     * Resolved geometry data for an editor entity.
-     * Used by both the normal render pass and the GPU picking pass to avoid code duplication.
-     */
-    public record ResolvedGeometry(
-            Sprite sprite, float x, float y, float width, float height,
-            float rotation, float originX, float originY, float zIndex
-    ) {}
-
-    /**
-     * Resolves the renderable geometry for an editor entity.
-     * Returns null if the entity has no sprite (not renderable).
-     *
-     * @param entity The editor entity to resolve
-     * @return Resolved geometry, or null if no sprite
-     */
-    public static ResolvedGeometry resolveEntityGeometry(EditorGameObject entity) {
-        Sprite sprite = entity.getCurrentSprite();
-        if (sprite == null) return null;
-
-        Vector3f pos = entity.getPosition();
-        Vector2f size = entity.getCurrentSize();
-        Vector3f scale = entity.getScale();
-        Vector3f rotation = entity.getRotation();
-
-        float width = size.x * scale.x;
-        float height = size.y * scale.y;
-
-        float originX = 0.5f;
-        float originY = 0.5f;
-        SpriteRenderer sr = entity.getComponent(SpriteRenderer.class);
-        if (sr != null) {
-            originX = sr.getEffectiveOriginX();
-            originY = sr.getEffectiveOriginY();
-        }
-
-        return new ResolvedGeometry(sprite, pos.x, pos.y, width, height,
-                rotation.z, originX, originY, entity.getZIndex());
-    }
-
-    private void submitEditorGameObject(EditorGameObject entity, SpriteBatch batch, Vector4f tint) {
-        ResolvedGeometry geom = resolveEntityGeometry(entity);
-        if (geom == null) return;
-
-        Vector4f finalTint = tint;
-        SpriteRenderer sr = entity.getComponent(SpriteRenderer.class);
-        if (sr != null) {
-            finalTint = combineTints(sr.getTintColor(), tint);
-        }
-
-        batch.submit(
-                geom.sprite(), geom.x(), geom.y(),
-                geom.width(), geom.height(),
-                geom.rotation(), geom.originX(), geom.originY(),
-                geom.zIndex(), finalTint
-        );
     }
 
     // ========================================================================

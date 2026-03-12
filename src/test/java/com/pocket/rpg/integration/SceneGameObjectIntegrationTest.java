@@ -6,7 +6,10 @@ import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.core.window.ViewportConfig;
 import com.pocket.rpg.scenes.Scene;
+import com.pocket.rpg.scenes.SceneManager;
+import com.pocket.rpg.testing.MockSceneManagerContext;
 import org.joml.Vector3f;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -20,12 +23,18 @@ class SceneGameObjectIntegrationTest {
     @BeforeEach
     void setUp() {
         scene = new TestScene("TestScene");
+        SceneManager.setContext(new MockSceneManagerContext(scene));
         viewportConfig = new ViewportConfig(GameConfig.builder()
                 .gameWidth(800)
                 .gameHeight(600)
                 .windowWidth(800)
                 .windowHeight(600)
                 .build());
+    }
+
+    @AfterEach
+    void tearDown() {
+        SceneManager.setContext(null);
     }
 
     @Test
@@ -154,7 +163,7 @@ class SceneGameObjectIntegrationTest {
         GameObject go = new GameObject("Test");
         scene.addGameObject(go);
 
-        assertSame(scene, go.getScene());
+        assertTrue(scene.getGameObjects().contains(go));
     }
 
     @Test
@@ -163,7 +172,7 @@ class SceneGameObjectIntegrationTest {
         scene.addGameObject(go);
         scene.removeGameObject(go);
 
-        assertNull(go.getScene());
+        assertFalse(scene.getGameObjects().contains(go));
     }
 
     @Test
@@ -247,7 +256,7 @@ class SceneGameObjectIntegrationTest {
         @Override
         public void update(float deltaTime) {
             GameObject spawned = new GameObject("SpawnedObject");
-            gameObject.getScene().addGameObject(spawned);
+            SceneManager.getActiveScene().addGameObject(spawned);
         }
     }
 
@@ -260,9 +269,9 @@ class SceneGameObjectIntegrationTest {
 
         @Override
         public void update(float deltaTime) {
-            GameObject target = gameObject.getScene().findGameObject(targetName);
+            GameObject target = SceneManager.getActiveScene().findGameObject(targetName);
             if (target != null) {
-                gameObject.getScene().removeGameObject(target);
+                target.destroy();
             }
         }
     }

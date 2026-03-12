@@ -166,7 +166,7 @@ public class PrefabEditController {
                     EditorEventBus.get().publish(new StatusMessageEvent("Prefab saved - stale references updated"));
                 } catch (Exception e) {
                     Log.error("PrefabEditController", "Failed to save prefab after stale reference prompt", e);
-                    EditorEventBus.get().publish(new StatusMessageEvent("Save failed: " + e.getMessage()));
+                    EditorEventBus.get().publish(new StatusMessageEvent("Save failed: " + e.getMessage(), StatusMessageEvent.MessageType.ERROR));
                 }
             });
         }
@@ -184,7 +184,7 @@ public class PrefabEditController {
             targetPrefab.clearPreviewCache();
 
             // Success: update saved snapshot, clear undo, mark clean
-            invalidateInstanceCaches();
+            refreshPrefabInstances();
             savedGameObjects = deepCloneGameObjects(targetPrefab.getGameObjects());
             savedDisplayName = targetPrefab.getDisplayName();
             savedCategory = targetPrefab.getCategory();
@@ -462,15 +462,20 @@ public class PrefabEditController {
         return result;
     }
 
-    private void invalidateInstanceCaches() {
+    private void refreshPrefabInstances() {
         EditorScene scene = context.getCurrentScene();
         if (scene == null || targetPrefab == null) return;
 
         String prefabId = targetPrefab.getId();
+        int count = 0;
         for (EditorGameObject entity : scene.getEntities()) {
             if (prefabId.equals(entity.getPrefabId())) {
-                entity.invalidateComponentCache();
+                entity.refreshFromTemplate();
+                count++;
             }
+        }
+        if (count > 0) {
+            System.out.println("Refreshed " + count + " prefab instance(s)");
         }
     }
 }

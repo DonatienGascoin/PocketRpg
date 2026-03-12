@@ -112,7 +112,8 @@ public class GizmoRenderer {
      * Recursively renders always-visible gizmos for child entities.
      */
     private void renderAlwaysGizmosRecursive(EditorGameObject parent, GizmoContext ctx) {
-        for (EditorGameObject child : parent.getChildren()) {
+        for (var go : parent.getChildren()) {
+            EditorGameObject child = (EditorGameObject) go;
             if (!child.isEnabled()) continue; // Skip disabled children
 
             Transform transform = child.getComponent(Transform.class);
@@ -156,7 +157,8 @@ public class GizmoRenderer {
         }
 
         // Recurse into children
-        for (EditorGameObject child : entity.getChildren()) {
+        for (var go : entity.getChildren()) {
+            EditorGameObject child = (EditorGameObject) go;
             if (!child.isEnabled()) continue;
             renderSelectedGizmosForEntity(child, ctx);
         }

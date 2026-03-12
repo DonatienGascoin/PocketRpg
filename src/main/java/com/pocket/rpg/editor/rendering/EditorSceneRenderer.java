@@ -1,5 +1,7 @@
 package com.pocket.rpg.editor.rendering;
 
+import com.pocket.rpg.components.rendering.SpriteRenderer;
+import com.pocket.rpg.rendering.targets.Framebuffer;
 import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.editor.camera.EditorCamera;
@@ -11,11 +13,14 @@ import com.pocket.rpg.editor.scene.TilemapLayer;
 import com.pocket.rpg.editor.scene.LayerVisibilityMode;
 import com.pocket.rpg.rendering.core.RenderCamera;
 import com.pocket.rpg.rendering.pipeline.RenderDispatcher;
-import com.pocket.rpg.rendering.pipeline.RenderDispatcher.ResolvedGeometry;
 import com.pocket.rpg.rendering.batch.SpriteBatch;
 import com.pocket.rpg.rendering.batch.BatchRenderer;
+import com.pocket.rpg.rendering.resources.Sprite;
+import com.pocket.rpg.resources.Assets;
 import imgui.ImGui;
 import imgui.ImVec2;
+import org.joml.Vector2f;
+import org.joml.Vector3f;
 import org.joml.Vector4f;
 
 import static org.lwjgl.opengl.GL33.*;
@@ -38,7 +43,7 @@ public class EditorSceneRenderer {
 
     private static final Vector4f WHITE = new Vector4f(1f, 1f, 1f, 1f);
 
-    private final EditorFramebuffer framebuffer;
+    private final Framebuffer framebuffer;
     private final RenderingConfig renderingConfig;
 
     private BatchRenderer batchRenderer;
@@ -51,7 +56,7 @@ public class EditorSceneRenderer {
     // Viewport bounds for lazy pixel readback (updated each frame from SceneViewport)
     private float viewportScreenX, viewportScreenY;
 
-    public EditorSceneRenderer(EditorFramebuffer framebuffer, RenderingConfig renderingConfig) {
+    public EditorSceneRenderer(Framebuffer framebuffer, RenderingConfig renderingConfig) {
         this.framebuffer = framebuffer;
         this.renderingConfig = renderingConfig;
     }
@@ -151,19 +156,43 @@ public class EditorSceneRenderer {
                 (batch, entityIdMap) -> {
                     TilemapLayer activeLayer = scene.getActiveLayer();
                     for (EditorGameObject entity : scene.getEntities()) {
-                        if (!entity.isRenderVisible()) continue;
+                        if (!entity.isActiveInHierarchy()) continue;
                         if (entity.hasComponent(UITransform.class)) continue;
 
                         Vector4f tint = getEntityTint(entity, activeLayer, scene);
                         if (tint == null) continue;
 
-                        ResolvedGeometry geom = RenderDispatcher.resolveEntityGeometry(entity);
-                        if (geom == null) continue;
+                        // Read sprite from SpriteRenderer
+                        SpriteRenderer sr = entity.getComponent(SpriteRenderer.class);
+                        Sprite sprite = (sr != null && sr.isOwnEnabled()) ? sr.getSprite() : null;
+
+                        // Broken-prefab fallback
+                        if (sprite == null && entity.isPrefabInstance()
+                                && !entity.isPrefabChildNode() && !entity.isPrefabValid()) {
+                            sprite = Assets.load("editor/brokenPrefabLink.png");
+                        }
+
+                        if (sprite == null) continue;
+
+                        // Resolve geometry
+                        Vector3f pos = entity.getPosition();
+                        Vector3f scale = entity.getScale();
+                        Vector3f rotation = entity.getRotation();
+                        float width = sprite.getWorldWidth() * scale.x;
+                        float height = sprite.getWorldHeight() * scale.y;
+
+                        float originX = 0.5f;
+                        float originY = 0.5f;
+                        int zIndex = 0;
+                        if (sr != null) {
+                            originX = sr.getEffectiveOriginX();
+                            originY = sr.getEffectiveOriginY();
+                            zIndex = sr.getZIndex();
+                        }
 
                         Vector4f idColor = PickingPass.registerEntity(entityIdMap, entity);
-                        batch.submit(geom.sprite(), geom.x(), geom.y(),
-                                geom.width(), geom.height(), geom.rotation(),
-                                geom.originX(), geom.originY(), geom.zIndex(), idColor);
+                        batch.submit(sprite, pos.x, pos.y, width, height,
+                                rotation.z, originX, originY, zIndex, idColor);
                     }
                 }
         );
@@ -217,20 +246,50 @@ public class EditorSceneRenderer {
 
     /**
      * Renders entities with visibility mode support.
-     * Entities may be hidden, dimmed, or fully visible based on the current mode.
+     * Reads SpriteRenderer components directly from entities.
      */
     private void renderEntities(EditorScene scene, SpriteBatch batch, RenderCamera camera) {
         TilemapLayer activeLayer = scene.getActiveLayer();
 
         for (EditorGameObject entity : scene.getEntities()) {
-            if (!entity.isRenderVisible()) continue;
+            if (!entity.isActiveInHierarchy()) continue;
+            if (entity.hasComponent(UITransform.class)) continue;
 
             // Determine tint based on visibility mode (null = skip rendering)
             Vector4f tint = getEntityTint(entity, activeLayer, scene);
             if (tint == null) continue;
 
-            // Submit entity via dispatcher
-            dispatcher.submit(entity, batch, camera, tint);
+            // Read sprite from SpriteRenderer component
+            SpriteRenderer sr = entity.getComponent(SpriteRenderer.class);
+            Sprite sprite = (sr != null && sr.isOwnEnabled()) ? sr.getSprite() : null;
+
+            // Broken-prefab icon fallback
+            if (sprite == null && entity.isPrefabInstance()
+                    && !entity.isPrefabChildNode() && !entity.isPrefabValid()) {
+                sprite = Assets.load("editor/brokenPrefabLink.png");
+            }
+
+            if (sprite == null) continue;
+
+            // Resolve geometry
+            Vector3f pos = entity.getPosition();
+            Vector3f scale = entity.getScale();
+            Vector3f rotation = entity.getRotation();
+            float width = sprite.getWorldWidth() * scale.x;
+            float height = sprite.getWorldHeight() * scale.y;
+
+            float originX = 0.5f;
+            float originY = 0.5f;
+            int zIndex = 0;
+            if (sr != null) {
+                originX = sr.getEffectiveOriginX();
+                originY = sr.getEffectiveOriginY();
+                zIndex = sr.getZIndex();
+                tint = RenderDispatcher.combineTints(sr.getTintColor(), tint);
+            }
+
+            batch.submit(sprite, pos.x, pos.y, width, height,
+                    rotation.z, originX, originY, zIndex, tint);
         }
     }
 

@@ -1,6 +1,7 @@
 package com.pocket.rpg.scenes.transitions;
 
 import com.pocket.rpg.config.TransitionConfig;
+import com.pocket.rpg.scenes.SceneManager;
 
 /**
  * Unity-style static API for scene transitions.
@@ -137,7 +138,7 @@ public class SceneTransition {
      */
     public static void loadSceneInstant(String sceneName) {
         checkInitialized();
-        instance.getSceneManager().loadScene(sceneName);
+        SceneManager.loadScene(sceneName);
     }
 
     /**
@@ -149,7 +150,7 @@ public class SceneTransition {
      */
     public static void loadSceneInstant(String sceneName, String spawnId) {
         checkInitialized();
-        instance.getSceneManager().loadScene(sceneName, spawnId);
+        SceneManager.loadScene(sceneName, spawnId);
     }
 
     /**

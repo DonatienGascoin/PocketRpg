@@ -67,11 +67,10 @@ public abstract class UIComponent extends Component {
 
     /**
      * Override to invalidate caches when owner changes.
-     * This is critical for GameViewPanel's wrapper GameObjects.
      */
     @Override
-    public void setOwner(com.pocket.rpg.core.IGameObject owner) {
-        super.setOwner(owner);
+    public void setGameObject(com.pocket.rpg.core.GameObject gameObject) {
+        super.setGameObject(gameObject);
         transformCacheDirty = true;
         canvasCacheDirty = true;
     }

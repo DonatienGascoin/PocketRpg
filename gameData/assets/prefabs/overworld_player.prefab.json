@@ -133,6 +133,18 @@
         {
           "type": "com.pocket.rpg.components.pokemon.PlayerInventoryComponent",
           "properties": {}
+        },
+        {
+          "type": "com.pocket.rpg.components.interaction.TriggerZone",
+          "properties": {
+            "offsetX": 0,
+            "offsetY": 0,
+            "width": 1,
+            "height": 1,
+            "oneShot": false,
+            "playerOnly": true,
+            "elevation": 0
+          }
         }
       ]
     },
@@ -421,7 +433,8 @@
             "fillOrigin": "LEFT",
             "fillAmount": 1.0,
             "fillClockwise": true,
-            "pixelsPerUnit": 100.0
+            "pixelsPerUnit": 100.0,
+            "preserveAspectRatio": false
           }
         }
       ]
@@ -618,7 +631,8 @@
             "fillOrigin": "LEFT",
             "fillAmount": 1.0,
             "fillClockwise": true,
-            "pixelsPerUnit": 100.0
+            "pixelsPerUnit": 100.0,
+            "preserveAspectRatio": false
           }
         }
       ]
@@ -840,7 +854,8 @@
             "fillOrigin": "LEFT",
             "fillAmount": 1.0,
             "fillClockwise": true,
-            "pixelsPerUnit": 100.0
+            "pixelsPerUnit": 100.0,
+            "preserveAspectRatio": false
           }
         }
       ]
@@ -1858,7 +1873,8 @@
             "fillOrigin": "LEFT",
             "fillAmount": 1.0,
             "fillClockwise": true,
-            "pixelsPerUnit": 100.0
+            "pixelsPerUnit": 100.0,
+            "preserveAspectRatio": false
           }
         },
         {

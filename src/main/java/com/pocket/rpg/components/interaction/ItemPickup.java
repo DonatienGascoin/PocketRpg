@@ -5,6 +5,7 @@ import com.pocket.rpg.components.Tooltip;
 import com.pocket.rpg.components.pokemon.PlayerInventoryComponent;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.editor.gizmos.GizmoColors;
+import com.pocket.rpg.scenes.SceneManager;
 import com.pocket.rpg.logging.Log;
 import com.pocket.rpg.logging.Logger;
 import com.pocket.rpg.save.ISaveable;
@@ -87,7 +88,7 @@ public class ItemPickup extends InteractableComponent implements ISaveable {
         pickedUp = true;
 
         if (destroyOnPickup) {
-            gameObject.getScene().removeGameObject(gameObject);
+            gameObject.destroy();
         } else {
             gameObject.setEnabled(false);
         }
@@ -97,7 +98,7 @@ public class ItemPickup extends InteractableComponent implements ISaveable {
     protected void onInteractableStart() {
         if (pickedUp) {
             if (destroyOnPickup) {
-                gameObject.getScene().removeGameObject(gameObject);
+                gameObject.destroy();
             } else {
                 gameObject.setEnabled(false);
             }

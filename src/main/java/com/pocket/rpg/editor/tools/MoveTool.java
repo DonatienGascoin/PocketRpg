@@ -1,5 +1,6 @@
 package com.pocket.rpg.editor.tools;
 
+import com.pocket.rpg.components.core.Transform;
 import com.pocket.rpg.editor.EditorSelectionManager;
 import com.pocket.rpg.editor.camera.EditorCamera;
 import com.pocket.rpg.editor.scene.EditorGameObject;
@@ -326,6 +327,7 @@ public class MoveTool implements EditorTool, ViewportAwareTool, ContinuousDragTo
             UndoManager.getInstance().push(
                     new MoveEntityCommand(selected, dragStartPosition, newPosition)
             );
+            selected.syncFieldOverride(Transform.class.getName(), "localPosition", newPosition);
         }
     }
 }

@@ -214,7 +214,7 @@ public class UIDesignerInputHandler {
             EditorGameObject entity = entities.get(i);
             if (!coords.isUIEntity(entity)) continue;
             if (entity.hasComponent(UICanvas.class)) continue;
-            if (!entity.isEnabled()) continue;
+            if (!entity.isActiveInHierarchy()) continue;
 
             if (coords.isPointInElement(entity, canvasX, canvasY)) {
                 return entity;
@@ -315,7 +315,8 @@ public class UIDesignerInputHandler {
     }
 
     private void captureChildStates(EditorGameObject parent, List<UITransformDragCommand.ChildTransformState> states) {
-        for (EditorGameObject child : parent.getChildren()) {
+        for (var childGo : parent.getChildren()) {
+            if (!(childGo instanceof EditorGameObject child)) continue;
             UITransform childTransform = child.getComponent(UITransform.class);
             if (childTransform != null) {
                 Vector2f offset = childTransform.getOffset();

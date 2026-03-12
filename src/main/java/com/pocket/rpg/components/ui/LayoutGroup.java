@@ -3,7 +3,6 @@ package com.pocket.rpg.components.ui;
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.components.ComponentMeta;
-import com.pocket.rpg.editor.panels.hierarchy.HierarchyItem;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -81,7 +80,7 @@ public abstract class LayoutGroup extends Component implements UITransformDriver
     // ========================================================================
 
     @Override
-    public TransformDriverInfo getChildDriverInfo(HierarchyItem child) {
+    public TransformDriverInfo getChildDriverInfo(GameObject child) {
         boolean isGrid = this instanceof UIGridLayoutGroup;
         boolean widthDriven = isGrid || childForceExpandWidth;
         boolean heightDriven = isGrid || childForceExpandHeight;

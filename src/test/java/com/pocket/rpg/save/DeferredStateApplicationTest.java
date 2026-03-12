@@ -7,7 +7,7 @@ import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.core.window.ViewportConfig;
-import com.pocket.rpg.scenes.MockSceneManager;
+import com.pocket.rpg.scenes.DefaultSceneManagerContext;
 import com.pocket.rpg.scenes.Scene;
 import com.pocket.rpg.scenes.SceneManager;
 import com.pocket.rpg.serialization.Serializer;
@@ -29,8 +29,6 @@ class DeferredStateApplicationTest {
     @TempDir
     Path tempDir;
 
-    private SceneManager sceneManager;
-
     @BeforeAll
     static void initSerializer() {
         // Reuse the StubAssetContext from PlayerDataTest approach
@@ -40,15 +38,20 @@ class DeferredStateApplicationTest {
 
     @BeforeEach
     void setUp() {
-        sceneManager = new SceneManager(
+        SceneManager.setContext(new DefaultSceneManagerContext(
                 new ViewportConfig(GameConfig.builder()
                         .gameWidth(800).gameHeight(600)
                         .windowWidth(800).windowHeight(600)
                         .build()),
                 RenderingConfig.builder().defaultOrthographicSize(7.5f).build()
-        );
-        SaveManager.initialize(sceneManager, tempDir);
+        ));
+        SaveManager.initialize(tempDir);
         SaveManager.newGame();
+    }
+
+    @AfterEach
+    void tearDown() {
+        SceneManager.setContext(null);
     }
 
     // ========================================================================
@@ -74,7 +77,7 @@ class DeferredStateApplicationTest {
             });
 
             // Load scene to register entity
-            sceneManager.loadScene(scene1);
+            SceneManager.loadScene(scene1);
 
             // Save state for the entity
             assertTrue(SaveManager.save("test"));
@@ -90,7 +93,7 @@ class DeferredStateApplicationTest {
 
             events.clear();
             assertTrue(SaveManager.load("test"));
-            sceneManager.loadScene(scene2);
+            SceneManager.loadScene(scene2);
 
             // Verify onStart happened before loadSaveState
             int startIdx = events.indexOf("onStart");
@@ -115,7 +118,7 @@ class DeferredStateApplicationTest {
                 scene1.addGameObject(go);
             });
 
-            sceneManager.loadScene(scene1);
+            SceneManager.loadScene(scene1);
             assertTrue(SaveManager.save("test"));
 
             // Reload scene without the entity initially
@@ -125,7 +128,7 @@ class DeferredStateApplicationTest {
             });
 
             assertTrue(SaveManager.load("test"));
-            sceneManager.loadScene(scene2);
+            SceneManager.loadScene(scene2);
 
             // Now add entity AFTER scene init (late registration)
             List<String> events = new ArrayList<>();
@@ -150,7 +153,7 @@ class DeferredStateApplicationTest {
                 scene1.addGameObject(go);
             });
 
-            sceneManager.loadScene(scene1);
+            SceneManager.loadScene(scene1);
 
             // Should be able to save — entities registered and not cleared
             assertTrue(SaveManager.save("test"),
@@ -176,7 +179,7 @@ class DeferredStateApplicationTest {
             go.addComponent(movement);
             scene.addDeferredGameObject(go);
 
-            sceneManager.loadScene(scene);
+            SceneManager.loadScene(scene);
 
             movement.setGridPosition(5, 10);
             movement.setFacingDirection(Direction.LEFT);
@@ -198,7 +201,7 @@ class DeferredStateApplicationTest {
             go.addComponent(movement);
             scene.addDeferredGameObject(go);
 
-            sceneManager.loadScene(scene);
+            SceneManager.loadScene(scene);
 
             // Initial position is 0,0
             assertEquals(0, movement.getGridX());
@@ -227,7 +230,7 @@ class DeferredStateApplicationTest {
             go.addComponent(movement);
             scene.addDeferredGameObject(go);
 
-            sceneManager.loadScene(scene);
+            SceneManager.loadScene(scene);
 
             assertDoesNotThrow(() -> movement.loadSaveState(null));
             assertEquals(0, movement.getGridX());
@@ -244,7 +247,7 @@ class DeferredStateApplicationTest {
             go.addComponent(movement);
             scene.addDeferredGameObject(go);
 
-            sceneManager.loadScene(scene);
+            SceneManager.loadScene(scene);
 
             // Only set direction, no position keys
             movement.loadSaveState(Map.of("facingDirection", "UP"));
@@ -266,7 +269,7 @@ class DeferredStateApplicationTest {
                 scene1.addGameObject(go);
             });
 
-            sceneManager.loadScene(scene1);
+            SceneManager.loadScene(scene1);
 
             // Move player to a specific position
             GameObject player = scene1.findGameObject("Player");
@@ -287,7 +290,7 @@ class DeferredStateApplicationTest {
             });
 
             assertTrue(SaveManager.load("test_gm"));
-            sceneManager.loadScene(scene2);
+            SceneManager.loadScene(scene2);
 
             // Verify state restored
             GameObject restoredPlayer = scene2.findGameObject("Player");

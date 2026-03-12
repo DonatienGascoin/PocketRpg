@@ -11,6 +11,7 @@ import com.pocket.rpg.components.Tooltip;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.editor.gizmos.GizmoColors;
 import com.pocket.rpg.editor.gizmos.GizmoContext;
+import com.pocket.rpg.scenes.SceneManager;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector3f;
@@ -263,9 +264,9 @@ public abstract class InteractableComponent extends Component implements Interac
     }
 
     private TileEntityMap fetchTileEntityMap() {
-        if (gameObject == null || gameObject.getScene() == null) {
+        if (SceneManager.getActiveScene() == null) {
             return null;
         }
-        return gameObject.getScene().getCollisionSystem().getTileEntityMap();
+        return SceneManager.getActiveScene().getCollisionSystem().getTileEntityMap();
     }
 }

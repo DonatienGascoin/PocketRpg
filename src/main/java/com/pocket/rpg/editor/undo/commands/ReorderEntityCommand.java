@@ -28,12 +28,13 @@ public class ReorderEntityCommand implements EditorCommand {
     @Override
     public void execute() {
         // Save actual position in sibling list
-        EditorGameObject parent = entity.getParent();
+        EditorGameObject parent = (EditorGameObject) entity.getParent();
         List<EditorGameObject> siblings;
         if (parent == null) {
             siblings = scene.getRootEntities();
         } else {
-            siblings = new ArrayList<>(parent.getChildren());
+            siblings = new ArrayList<>(parent.getChildren().stream()
+                    .map(c -> (EditorGameObject) c).toList());
         }
         siblings.sort(Comparator.comparingInt(EditorGameObject::getOrder));
         oldIndex = siblings.indexOf(entity);
@@ -51,7 +52,7 @@ public class ReorderEntityCommand implements EditorCommand {
         System.out.println("[REORDER-UNDO] " + entity.getName() +
                 ": restoring to oldIndex=" + oldIndex);
 
-        scene.insertEntityAtPosition(entity, entity.getParent(), oldIndex);
+        scene.insertEntityAtPosition(entity, (EditorGameObject) entity.getParent(), oldIndex);
         scene.markDirty();
     }
 

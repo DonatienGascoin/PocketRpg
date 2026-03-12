@@ -312,14 +312,13 @@ public abstract class Scene {
     // ===========================================
 
     public void addGameObject(GameObject obj) {
-        if (obj.getScene() != null) {
+        if (gameObjects.contains(obj)) {
             throw new IllegalStateException(
-                    "GameObject '" + obj.getName() + "' already belongs to a scene"
+                    "GameObject '" + obj.getName() + "' already belongs to this scene"
             );
         }
 
         gameObjects.add(obj);
-        obj.setScene(this);
         registerCachedComponents(obj);
 
         if (initialized) {
@@ -328,11 +327,21 @@ public abstract class Scene {
         }
     }
 
+    /**
+     * Removes a GameObject from this scene and destroys it.
+     * Convenience method — equivalent to obj.destroy() (which self-removes).
+     */
     public void removeGameObject(GameObject obj) {
+        obj.destroy();
+    }
+
+    /**
+     * Removes a GameObject from the scene's list and unregisters its cached components.
+     * Does NOT destroy the object. Called by GameObject.destroy() for self-removal.
+     */
+    public void removeFromScene(GameObject obj) {
         if (gameObjects.remove(obj)) {
-            obj.destroy();
             unregisterCachedComponents(obj);
-            obj.setScene(null);
         }
     }
 

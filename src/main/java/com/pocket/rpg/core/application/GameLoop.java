@@ -36,22 +36,14 @@ import lombok.Getter;
 public class GameLoop {
 
     @Getter
-    private final SceneManager sceneManager;
-
-    @Getter
     private final TransitionManager transitionManager;
 
     /**
      * Creates a GameLoop with required dependencies.
      *
-     * @param sceneManager      Required - manages current scene
      * @param transitionManager Optional - if null, no transition handling
      */
-    public GameLoop(SceneManager sceneManager, TransitionManager transitionManager) {
-        if (sceneManager == null) {
-            throw new IllegalArgumentException("SceneManager is required");
-        }
-        this.sceneManager = sceneManager;
+    public GameLoop(TransitionManager transitionManager) {
         this.transitionManager = transitionManager;
     }
 
@@ -77,13 +69,13 @@ public class GameLoop {
 
             // During fade-in, allow scene updates so camera/components settle
             if (transitionManager.isFadingIn()) {
-                sceneManager.update(deltaTime);
+                SceneManager.update(deltaTime);
             }
             return;
         }
 
         // Normal update
-        sceneManager.update(deltaTime);
+        SceneManager.update(deltaTime);
     }
 
     /**
@@ -102,6 +94,6 @@ public class GameLoop {
      * Cleans up resources.
      */
     public void destroy() {
-        sceneManager.destroy();
+        SceneManager.destroy();
     }
 }

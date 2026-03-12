@@ -41,8 +41,8 @@ public class RemoveEntityCommand implements EditorCommand {
         allRemoved.add(e);
         savedParentIds.put(e, e.getParentId());
         savedOrders.put(e, e.getOrder());
-        for (EditorGameObject child : e.getChildren()) {
-            collectDescendants(child);
+        for (var child : e.getChildren()) {
+            collectDescendants((EditorGameObject) child);
         }
     }
 

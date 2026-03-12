@@ -83,7 +83,7 @@ public class CustomComponentEditorRegistry {
 
         // Set up context for @Required and override styling
         // Preserve existing scene context if set
-        EditorGameObject editorEntity = entity instanceof EditorGameObject ego ? ego : null;
+        EditorGameObject editorEntity = entity.isEditor() ? (EditorGameObject) entity : null;
         FieldEditorContext.begin(editorEntity, component, FieldEditorContext.getCurrentScene());
         try {
             // Draw componentKey field at top of every custom inspector

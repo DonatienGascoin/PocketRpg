@@ -1,38 +1,38 @@
-package com.pocket.rpg.editor.rendering;
+package com.pocket.rpg.rendering.targets;
 
 import lombok.Getter;
 
 import static org.lwjgl.opengl.GL33.*;
 
 /**
- * OpenGL framebuffer for rendering the scene in the editor.
- * 
- * The scene is rendered to this framebuffer, then displayed
- * as an ImGui image in the viewport panel.
+ * OpenGL framebuffer for off-screen rendering.
+ * <p>
+ * Wraps an FBO with a color texture and depth/stencil renderbuffer.
+ * The color texture can be sampled for display (e.g., as an ImGui image).
  */
-public class EditorFramebuffer {
+public class Framebuffer {
 
     @Getter
     private int width;
-    
+
     @Getter
     private int height;
-    
+
     @Getter
     private int fboId;
-    
+
     @Getter
     private int textureId;
-    
+
     private int rboId; // Depth/stencil renderbuffer
-    
+
     @Getter
     private boolean initialized = false;
 
     /**
      * Creates a framebuffer with initial dimensions.
      */
-    public EditorFramebuffer(int width, int height) {
+    public Framebuffer(int width, int height) {
         this.width = Math.max(1, width);
         this.height = Math.max(1, height);
     }
@@ -42,41 +42,40 @@ public class EditorFramebuffer {
      */
     public void init() {
         if (initialized) return;
-        
+
         // Create framebuffer
         fboId = glGenFramebuffers();
         glBindFramebuffer(GL_FRAMEBUFFER, fboId);
-        
+
         // Create color texture
         textureId = glGenTextures();
         glBindTexture(GL_TEXTURE_2D, textureId);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, 
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0,
             GL_RGBA, GL_UNSIGNED_BYTE, (java.nio.ByteBuffer) null);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureId, 0);
-        
+
         // Create depth/stencil renderbuffer
         rboId = glGenRenderbuffers();
         glBindRenderbuffer(GL_RENDERBUFFER, rboId);
         glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
-        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, 
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
             GL_RENDERBUFFER, rboId);
-        
+
         // Check completeness
         if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
             throw new RuntimeException("Framebuffer is not complete!");
         }
-        
+
         // Unbind
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glBindTexture(GL_TEXTURE_2D, 0);
         glBindRenderbuffer(GL_RENDERBUFFER, 0);
-        
+
         initialized = true;
-        System.out.println("EditorFramebuffer initialized: " + width + "x" + height);
     }
 
     /**
@@ -85,21 +84,21 @@ public class EditorFramebuffer {
     public void resize(int newWidth, int newHeight) {
         if (newWidth <= 0 || newHeight <= 0) return;
         if (newWidth == width && newHeight == height) return;
-        
+
         this.width = newWidth;
         this.height = newHeight;
-        
+
         if (!initialized) {
             init();
             return;
         }
-        
+
         // Resize texture
         glBindTexture(GL_TEXTURE_2D, textureId);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0,
             GL_RGBA, GL_UNSIGNED_BYTE, (java.nio.ByteBuffer) null);
         glBindTexture(GL_TEXTURE_2D, 0);
-        
+
         // Resize renderbuffer
         glBindRenderbuffer(GL_RENDERBUFFER, rboId);
         glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
@@ -137,16 +136,14 @@ public class EditorFramebuffer {
      */
     public void destroy() {
         if (!initialized) return;
-        
+
         glDeleteFramebuffers(fboId);
         glDeleteTextures(textureId);
         glDeleteRenderbuffers(rboId);
-        
+
         fboId = 0;
         textureId = 0;
         rboId = 0;
         initialized = false;
-        
-        System.out.println("EditorFramebuffer destroyed");
     }
 }

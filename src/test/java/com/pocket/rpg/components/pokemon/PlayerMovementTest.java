@@ -9,6 +9,7 @@ import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.core.window.ViewportConfig;
 import com.pocket.rpg.save.PlayerData;
 import com.pocket.rpg.save.SaveManager;
+import com.pocket.rpg.scenes.DefaultSceneManagerContext;
 import com.pocket.rpg.scenes.Scene;
 import com.pocket.rpg.scenes.SceneManager;
 import com.pocket.rpg.serialization.ComponentRegistry;
@@ -30,8 +31,6 @@ class PlayerMovementTest {
     @TempDir
     Path tempDir;
 
-    private SceneManager sceneManager;
-
     @BeforeAll
     static void initSerializer() {
         com.pocket.rpg.resources.Assets.setContext(new TestStubAssetContext());
@@ -41,15 +40,20 @@ class PlayerMovementTest {
 
     @BeforeEach
     void setUp() {
-        sceneManager = new SceneManager(
+        SceneManager.setContext(new DefaultSceneManagerContext(
                 new ViewportConfig(GameConfig.builder()
                         .gameWidth(800).gameHeight(600)
                         .windowWidth(800).windowHeight(600)
                         .build()),
                 RenderingConfig.builder().defaultOrthographicSize(7.5f).build()
-        );
-        SaveManager.initialize(sceneManager, tempDir);
+        ));
+        SaveManager.initialize(tempDir);
         SaveManager.newGame();
+    }
+
+    @AfterEach
+    void tearDown() {
+        SceneManager.setContext(null);
     }
 
     @Test
@@ -65,7 +69,7 @@ class PlayerMovementTest {
             scene1.addGameObject(player);
         });
 
-        sceneManager.loadScene(scene1);
+        SceneManager.loadScene(scene1);
 
         // Move the player to a specific position
         GameObject player = scene1.findGameObject("Player");
@@ -75,7 +79,7 @@ class PlayerMovementTest {
 
         // Load another scene to trigger onBeforeSceneUnload
         TestScene scene2 = new TestScene("town");
-        sceneManager.loadScene(scene2);
+        SceneManager.loadScene(scene2);
 
         // Verify PlayerData was flushed
         PlayerData data = PlayerData.load();
@@ -96,11 +100,11 @@ class PlayerMovementTest {
             scene1.addGameObject(player);
         });
 
-        sceneManager.loadScene(scene1);
+        SceneManager.loadScene(scene1);
 
         // Load another scene — should not crash
         TestScene scene2 = new TestScene("other");
-        assertDoesNotThrow(() -> sceneManager.loadScene(scene2));
+        assertDoesNotThrow(() -> SceneManager.loadScene(scene2));
     }
 
     @Test
@@ -115,7 +119,7 @@ class PlayerMovementTest {
             scene1.addGameObject(player);
         });
 
-        sceneManager.loadScene(scene1);
+        SceneManager.loadScene(scene1);
 
         // PlayerData should have defaults (no flush happened, no previous scene)
         PlayerData data = PlayerData.load();

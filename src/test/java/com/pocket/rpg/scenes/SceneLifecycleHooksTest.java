@@ -5,6 +5,7 @@ import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.core.window.ViewportConfig;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -20,18 +21,19 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class SceneLifecycleHooksTest {
 
-    private SceneManager sceneManager;
-    private ViewportConfig viewportConfig;
-    private RenderingConfig renderingConfig;
-
     @BeforeEach
     void setUp() {
-        viewportConfig = new ViewportConfig(GameConfig.builder()
+        ViewportConfig viewportConfig = new ViewportConfig(GameConfig.builder()
                 .gameWidth(800).gameHeight(600)
                 .windowWidth(800).windowHeight(600)
                 .build());
-        renderingConfig = RenderingConfig.builder().defaultOrthographicSize(7.5f).build();
-        sceneManager = new SceneManager(viewportConfig, renderingConfig);
+        RenderingConfig renderingConfig = RenderingConfig.builder().defaultOrthographicSize(7.5f).build();
+        SceneManager.setContext(new DefaultSceneManagerContext(viewportConfig, renderingConfig));
+    }
+
+    @AfterEach
+    void tearDown() {
+        SceneManager.setContext(null);
     }
 
     // ========================================================================
@@ -54,12 +56,12 @@ class SceneLifecycleHooksTest {
             go.addComponent(tracker);
             scene1.addDeferredGameObject(go);
 
-            sceneManager.loadScene(scene1);
+            SceneManager.loadScene(scene1);
             assertTrue(tracker.isStarted(), "Component should be started after scene load");
 
             // Load another scene to trigger unload of scene1
             TestScene scene2 = new TestScene("Scene2");
-            sceneManager.loadScene(scene2);
+            SceneManager.loadScene(scene2);
 
             assertTrue(events.contains("onBeforeSceneUnload"),
                     "onBeforeSceneUnload should have been called");
@@ -81,7 +83,7 @@ class SceneLifecycleHooksTest {
             go.addComponent(tracker);
             scene1.addDeferredGameObject(go);
 
-            sceneManager.loadScene(scene1);
+            SceneManager.loadScene(scene1);
 
             assertFalse(events.contains("onBeforeSceneUnload"),
                     "onBeforeSceneUnload should NOT fire on first scene load");
@@ -101,11 +103,11 @@ class SceneLifecycleHooksTest {
             go.addComponent(tracker);
             scene1.addDeferredGameObject(go);
 
-            sceneManager.loadScene(scene1);
+            SceneManager.loadScene(scene1);
 
             // Load another scene to trigger unload
             TestScene scene2 = new TestScene("Scene2");
-            sceneManager.loadScene(scene2);
+            SceneManager.loadScene(scene2);
 
             assertTrue(events.contains("onBeforeSceneUnload"),
                     "Second component's onBeforeSceneUnload should still fire despite first throwing");
@@ -123,11 +125,11 @@ class SceneLifecycleHooksTest {
             go.addComponent(tracker);
             scene1.addDeferredGameObject(go);
 
-            sceneManager.loadScene(scene1);
+            SceneManager.loadScene(scene1);
             tracker.setEnabled(false);
 
             TestScene scene2 = new TestScene("Scene2");
-            sceneManager.loadScene(scene2);
+            SceneManager.loadScene(scene2);
 
             assertFalse(events.contains("onBeforeSceneUnload"),
                     "onBeforeSceneUnload should NOT fire on disabled components");
@@ -147,10 +149,10 @@ class SceneLifecycleHooksTest {
             parent.addChild(child);
             scene1.addDeferredGameObject(parent);
 
-            sceneManager.loadScene(scene1);
+            SceneManager.loadScene(scene1);
 
             TestScene scene2 = new TestScene("Scene2");
-            sceneManager.loadScene(scene2);
+            SceneManager.loadScene(scene2);
 
             assertTrue(events.contains("onBeforeSceneUnload"),
                     "onBeforeSceneUnload should fire on child components");
@@ -170,7 +172,7 @@ class SceneLifecycleHooksTest {
         void firesAfterInitializeBeforeLoaded() {
             List<String> events = new ArrayList<>();
 
-            sceneManager.addLifecycleListener(new SceneLifecycleListener() {
+            SceneManager.addLifecycleListener(new SceneLifecycleListener() {
                 @Override
                 public void onSceneLoaded(Scene scene) {
                     events.add("onSceneLoaded");
@@ -188,7 +190,7 @@ class SceneLifecycleHooksTest {
             });
 
             TestScene scene1 = new TestScene("Scene1");
-            sceneManager.loadScene(scene1);
+            SceneManager.loadScene(scene1);
 
             int postInitIdx = events.indexOf("onPostSceneInitialize");
             int loadedIdx = events.indexOf("onSceneLoaded");
@@ -204,7 +206,7 @@ class SceneLifecycleHooksTest {
         void firesAfterAllComponentStarts() {
             List<String> events = new ArrayList<>();
 
-            sceneManager.addLifecycleListener(new SceneLifecycleListener() {
+            SceneManager.addLifecycleListener(new SceneLifecycleListener() {
                 @Override
                 public void onSceneLoaded(Scene scene) {}
 
@@ -223,7 +225,7 @@ class SceneLifecycleHooksTest {
             go.addComponent(tracker);
             scene1.addDeferredGameObject(go);
 
-            sceneManager.loadScene(scene1);
+            SceneManager.loadScene(scene1);
 
             int startIdx = events.indexOf("onStart");
             int postInitIdx = events.indexOf("onPostSceneInitialize");
@@ -239,7 +241,7 @@ class SceneLifecycleHooksTest {
         void existingOnSceneLoadedStillFires() {
             List<String> events = new ArrayList<>();
 
-            sceneManager.addLifecycleListener(new SceneLifecycleListener() {
+            SceneManager.addLifecycleListener(new SceneLifecycleListener() {
                 @Override
                 public void onSceneLoaded(Scene scene) {
                     events.add("onSceneLoaded:" + scene.getName());
@@ -252,7 +254,7 @@ class SceneLifecycleHooksTest {
             });
 
             TestScene scene1 = new TestScene("Scene1");
-            sceneManager.loadScene(scene1);
+            SceneManager.loadScene(scene1);
 
             assertTrue(events.contains("onSceneLoaded:Scene1"),
                     "onSceneLoaded should still fire");
@@ -272,10 +274,10 @@ class SceneLifecycleHooksTest {
                 // Note: onPostSceneInitialize NOT overridden — uses default
             };
 
-            sceneManager.addLifecycleListener(listener);
+            SceneManager.addLifecycleListener(listener);
 
             TestScene scene1 = new TestScene("Scene1");
-            assertDoesNotThrow(() -> sceneManager.loadScene(scene1));
+            assertDoesNotThrow(() -> SceneManager.loadScene(scene1));
         }
 
         @Test
@@ -283,7 +285,7 @@ class SceneLifecycleHooksTest {
         void fullLifecycleOrdering() {
             List<String> events = new ArrayList<>();
 
-            sceneManager.addLifecycleListener(new SceneLifecycleListener() {
+            SceneManager.addLifecycleListener(new SceneLifecycleListener() {
                 @Override
                 public void onSceneLoaded(Scene scene) {
                     events.add("listener:onSceneLoaded");
@@ -306,7 +308,7 @@ class SceneLifecycleHooksTest {
             GameObject go = new GameObject("Player");
             go.addComponent(tracker1);
             scene1.addDeferredGameObject(go);
-            sceneManager.loadScene(scene1);
+            SceneManager.loadScene(scene1);
 
             events.clear();
 
@@ -316,7 +318,7 @@ class SceneLifecycleHooksTest {
             GameObject go2 = new GameObject("Player2");
             go2.addComponent(tracker2);
             scene2.addDeferredGameObject(go2);
-            sceneManager.loadScene(scene2);
+            SceneManager.loadScene(scene2);
 
             // Expected order:
             // 1. scene1 component onBeforeSceneUnload

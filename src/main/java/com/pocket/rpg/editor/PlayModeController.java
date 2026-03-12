@@ -8,10 +8,10 @@ import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.config.InputConfig;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.core.application.GameEngine;
-import com.pocket.rpg.editor.rendering.EditorFramebuffer;
+import com.pocket.rpg.rendering.targets.Framebuffer;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.RuntimeGameObjectAdapter;
-import com.pocket.rpg.editor.scene.RuntimeSceneLoader;
+import com.pocket.rpg.scenes.RuntimeSceneLoader;
 import com.pocket.rpg.editor.serialization.EditorSceneSerializer;
 import com.pocket.rpg.rendering.postfx.PostProcessor;
 import com.pocket.rpg.rendering.targets.FramebufferTarget;
@@ -20,6 +20,7 @@ import com.pocket.rpg.save.PlayerPlacementHandler;
 import com.pocket.rpg.save.SaveManager;
 import com.pocket.rpg.scenes.RuntimeScene;
 import com.pocket.rpg.scenes.Scene;
+import com.pocket.rpg.scenes.SceneManager;
 import com.pocket.rpg.scenes.transitions.TransitionManager;
 import com.pocket.rpg.serialization.SceneData;
 import com.pocket.rpg.serialization.Serializer;
@@ -86,7 +87,7 @@ public class PlayModeController {
     private float displayX, displayY, displayWidth, displayHeight;
 
     // Rendering (play mode renders to framebuffer, not screen)
-    private EditorFramebuffer outputFramebuffer;
+    private Framebuffer outputFramebuffer;
 
     private Consumer<String> messageCallback;
 
@@ -165,21 +166,21 @@ public class PlayModeController {
             engine.init();
 
             // 5. Create output framebuffer
-            outputFramebuffer = new EditorFramebuffer(gameConfig.getGameWidth(), gameConfig.getGameHeight());
+            outputFramebuffer = new Framebuffer(gameConfig.getGameWidth(), gameConfig.getGameHeight());
             outputFramebuffer.init();
 
             // 6. Configure scene loading and load from snapshot
             RuntimeSceneLoader sceneLoader = new RuntimeSceneLoader();
-            engine.getSceneManager().setSceneLoader(sceneLoader, "gameData/scenes/");
+            SceneManager.setSceneLoader(sceneLoader, "gameData/scenes/");
             // TODO: SaveManager, MusicManager, and PlayerPlacementHandler are game-level concerns
             //  and should not be initialized here. Move to a game-specific bootstrap once one exists.
-            SaveManager.initialize(engine.getSceneManager());
-            MusicManager.initialize(engine.getSceneManager(), Assets.getContext());
-            engine.getSceneManager().addLifecycleListener(new PlayerPlacementHandler(engine.getSceneManager()));
+            SaveManager.initialize();
+            MusicManager.initialize(Assets.getContext());
+            SceneManager.addLifecycleListener(new PlayerPlacementHandler());
 
             SceneData runtimeCopy = Serializer.deepCopy(snapshot, SceneData.class);
             RuntimeScene runtimeScene = sceneLoader.load(runtimeCopy);
-            engine.getSceneManager().loadScene(runtimeScene);
+            SceneManager.loadScene(runtimeScene);
 
             // 7. Create play mode selection manager
             playModeSelectionManager = new PlayModeSelectionManager();
@@ -356,7 +357,7 @@ public class PlayModeController {
      * Returns the currently running runtime scene, or null if not in play mode.
      */
     public Scene getRuntimeScene() {
-        return engine != null ? engine.getSceneManager().getCurrentScene() : null;
+        return engine != null ? SceneManager.getCurrentScene() : null;
     }
 
     public boolean isActive() {

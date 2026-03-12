@@ -1,5 +1,6 @@
 package com.pocket.rpg.editor.undo.commands;
 
+import com.pocket.rpg.components.core.Transform;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.undo.EditorCommand;
 import org.joml.Vector3f;
@@ -22,11 +23,17 @@ public class MoveEntityCommand implements EditorCommand {
     @Override
     public void execute() {
         entity.setPosition(newPosition);
+        syncOverride(newPosition);
     }
 
     @Override
     public void undo() {
         entity.setPosition(oldPosition);
+        syncOverride(oldPosition);
+    }
+
+    private void syncOverride(Vector3f value) {
+        entity.syncFieldOverride(Transform.class.getName(), "localPosition", value);
     }
 
     @Override

@@ -3,8 +3,10 @@ package com.pocket.rpg.transitions;
 import com.pocket.rpg.config.TransitionConfig;
 import com.pocket.rpg.rendering.MockOverlayRenderer;
 import com.pocket.rpg.scenes.MockSceneManager;
+import com.pocket.rpg.scenes.SceneManager;
 import com.pocket.rpg.scenes.transitions.TransitionManager;
 import org.joml.Vector4f;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
@@ -25,6 +27,7 @@ class TransitionManagerTest {
     @BeforeEach
     void setUp() {
         sceneManager = new MockSceneManager();
+        SceneManager.setContext(sceneManager);
         overlayRenderer = new MockOverlayRenderer();
 
         defaultConfig = TransitionConfig.builder()
@@ -33,20 +36,22 @@ class TransitionManagerTest {
                 .fadeColor(new Vector4f(0, 0, 0, 1))
                 .build();
 
-        transitionManager = new TransitionManager(sceneManager, overlayRenderer, defaultConfig);
+        transitionManager = new TransitionManager(overlayRenderer, defaultConfig);
+    }
+
+    @AfterEach
+    void tearDown() {
+        SceneManager.setContext(null);
     }
 
     @Test
     @DisplayName("Constructor validates parameters")
     void testConstructorValidation() {
         assertThrows(IllegalArgumentException.class, () ->
-                new TransitionManager(null, overlayRenderer, defaultConfig));
+                new TransitionManager(null, defaultConfig));
 
         assertThrows(IllegalArgumentException.class, () ->
-                new TransitionManager(sceneManager, null, defaultConfig));
-
-        assertThrows(IllegalArgumentException.class, () ->
-                new TransitionManager(sceneManager, overlayRenderer, null));
+                new TransitionManager(overlayRenderer, null));
     }
 
     @Test
@@ -57,7 +62,7 @@ class TransitionManagerTest {
                 .build();
 
         assertThrows(IllegalArgumentException.class, () ->
-                new TransitionManager(sceneManager, overlayRenderer, invalidConfig));
+                new TransitionManager(overlayRenderer, invalidConfig));
     }
 
     @Test
@@ -281,13 +286,6 @@ class TransitionManagerTest {
         assertDoesNotThrow(() -> transitionManager.cancelTransition());
 
         assertFalse(transitionManager.isTransitioning());
-    }
-
-    @Test
-    @DisplayName("getSceneManager returns injected instance")
-    void testGetSceneManager() {
-        // Package-private method for SceneTransition static API
-        assertSame(sceneManager, transitionManager.getSceneManager());
     }
 
     @Test

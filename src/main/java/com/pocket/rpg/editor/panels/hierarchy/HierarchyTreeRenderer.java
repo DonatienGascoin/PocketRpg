@@ -1,5 +1,6 @@
 package com.pocket.rpg.editor.panels.hierarchy;
 
+import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.editor.PlayModeSelectionManager;
 import com.pocket.rpg.editor.assets.HierarchyDropTarget;
 import com.pocket.rpg.editor.core.MaterialIcons;
@@ -33,6 +34,7 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Renders the entity tree with rename, context menus, and tooltips.
@@ -70,7 +72,7 @@ public class HierarchyTreeRenderer {
     public void requestScrollToEntity(EditorGameObject entity) {
         scrollToEntityId = entity.getId();
         entitiesToForceOpen.clear();
-        EditorGameObject current = entity.getParent();
+        GameObject current = entity.getParent();
         while (current != null) {
             entitiesToForceOpen.add(current.getId());
             current = current.getParent();
@@ -106,7 +108,7 @@ public class HierarchyTreeRenderer {
         }
 
         // Determine the label - empty when renaming (we'll draw inline input after)
-        boolean hierarchicallyDisabled = !entity.isEnabled();
+        boolean hierarchicallyDisabled = !entity.isActiveInHierarchy();
         String label;
         if (isRenaming) {
             label = IconUtils.getIconForEntity(entity) + " ";
@@ -160,7 +162,9 @@ public class HierarchyTreeRenderer {
 
         // Always render children if node is open
         if (hasChildren && nodeOpen) {
-            List<EditorGameObject> children = new ArrayList<>(entity.getChildren());
+            List<EditorGameObject> children = entity.getChildren().stream()
+                    .map(go -> (EditorGameObject) go)
+                    .collect(Collectors.toCollection(ArrayList::new));
             children.sort(Comparator.comparingInt(EditorGameObject::getOrder));
 
             for (EditorGameObject child : children) {
@@ -229,7 +233,7 @@ public class HierarchyTreeRenderer {
                 ImGui.separator();
 
                 // Toggle enabled for all selected entities
-                boolean anyEnabled = selected.stream().anyMatch(EditorGameObject::isOwnEnabled);
+                boolean anyEnabled = selected.stream().anyMatch(EditorGameObject::isEnabled);
                 String toggleLabel = anyEnabled
                         ? MaterialIcons.VisibilityOff + " Disable All"
                         : MaterialIcons.Visibility + " Enable All";
@@ -237,7 +241,7 @@ public class HierarchyTreeRenderer {
                     boolean newState = !anyEnabled;
                     List<EditorCommand> commands = new ArrayList<>();
                     for (EditorGameObject e : selected) {
-                        if (e.isOwnEnabled() != newState) {
+                        if (e.isEnabled() != newState) {
                             commands.add(new ToggleEntityEnabledCommand(e, newState));
                         }
                     }
@@ -284,7 +288,7 @@ public class HierarchyTreeRenderer {
                 ImGui.separator();
 
                 // Toggle enabled
-                boolean ownEnabled = entity.isOwnEnabled();
+                boolean ownEnabled = entity.isEnabled();
                 String enableLabel = ownEnabled
                         ? MaterialIcons.VisibilityOff + " Disable"
                         : MaterialIcons.Visibility + " Enable";
@@ -312,8 +316,8 @@ public class HierarchyTreeRenderer {
                     renameBuffer.set(nameBeforeRename);
                 }
 
-                // Toggle enabled using isOwnEnabled (not hierarchical)
-                boolean ownEnabled = entity.isOwnEnabled();
+                // Toggle enabled using isEnabled (raw field, not hierarchical)
+                boolean ownEnabled = entity.isEnabled();
                 String enableLabel = ownEnabled
                         ? MaterialIcons.VisibilityOff + " Disable"
                         : MaterialIcons.Visibility + " Enable";

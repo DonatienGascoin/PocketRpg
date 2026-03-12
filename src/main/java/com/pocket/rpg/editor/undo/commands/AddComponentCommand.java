@@ -1,7 +1,6 @@
 package com.pocket.rpg.editor.undo.commands;
 
 import com.pocket.rpg.components.Component;
-import com.pocket.rpg.components.RequiredComponent;
 import com.pocket.rpg.components.ui.UIText;
 import com.pocket.rpg.config.ConfigLoader;
 import com.pocket.rpg.editor.core.EditorConfig;
@@ -31,10 +30,17 @@ public class AddComponentCommand implements EditorCommand {
 
     @Override
     public void execute() {
-        // Auto-add required components first
-        addRequiredComponents(component.getClass());
+        // Snapshot components before adding to track auto-added dependencies
+        List<Component> before = new java.util.ArrayList<>(entity.getComponents());
 
         entity.addComponent(component);
+
+        // Track auto-added required components (added by EGO.addComponent)
+        for (Component c : entity.getComponents()) {
+            if (c != component && !before.contains(c)) {
+                autoAdded.add(c);
+            }
+        }
 
         // Apply editor defaults for specific component types
         if (component instanceof UIText uiText && uiText.getFontPath() == null) {
@@ -71,25 +77,4 @@ public class AddComponentCommand implements EditorCommand {
         // Not used
     }
 
-    private void addRequiredComponents(Class<?> componentClass) {
-        Class<?> clazz = componentClass;
-        while (clazz != null && clazz != Component.class && clazz != Object.class) {
-            RequiredComponent[] requirements = clazz.getDeclaredAnnotationsByType(RequiredComponent.class);
-            for (RequiredComponent req : requirements) {
-                Class<? extends Component> requiredType = req.value();
-                if (entity.hasComponent(requiredType)) {
-                    continue;
-                }
-                try {
-                    Component dependency = requiredType.getDeclaredConstructor().newInstance();
-                    entity.addComponent(dependency);
-                    autoAdded.add(dependency);
-                } catch (Exception e) {
-                    System.err.println("[RequiredComponent] Failed to auto-add " +
-                            requiredType.getSimpleName() + ": " + e.getMessage());
-                }
-            }
-            clazz = clazz.getSuperclass();
-        }
-    }
 }

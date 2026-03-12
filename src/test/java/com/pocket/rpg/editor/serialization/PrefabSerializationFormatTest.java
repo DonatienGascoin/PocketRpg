@@ -143,7 +143,7 @@ class PrefabSerializationFormatTest {
             // Override zIndex on the guard child
             EditorGameObject guard = findChildByNodeId(root, "guard001");
             assertNotNull(guard);
-            guard.setFieldValue(SR_TYPE, "zIndex", 99);
+            guard.applySerializedOverrides(java.util.Map.of(SR_TYPE, java.util.Map.of("zIndex", 99)));
 
             SceneData sceneData = EditorSceneSerializer.toSceneData(scene);
             GameObjectData rootData = sceneData.getGameObjects().getFirst();
@@ -222,7 +222,7 @@ class PrefabSerializationFormatTest {
             EditorGameObject guard = findChildByNodeId(root, "guard001");
             assertNotNull(guard, "Guard child should exist");
             assertEquals("Custom Guard", guard.getName());
-            assertFalse(guard.isOwnEnabled());
+            assertFalse(guard.isEnabled());
         }
 
         @Test
@@ -250,8 +250,9 @@ class PrefabSerializationFormatTest {
             EditorGameObject guard = findChildByNodeId(root, "guard001");
             assertNotNull(guard);
 
-            Object zIndex = guard.getFieldValue(SR_TYPE, "zIndex");
-            assertEquals(99, zIndex);
+            SpriteRenderer sr = guard.getComponent(SpriteRenderer.class);
+            assertNotNull(sr);
+            assertEquals(99, sr.getZIndex());
         }
     }
 
@@ -292,12 +293,13 @@ class PrefabSerializationFormatTest {
     // ========================================================================
 
     private EditorGameObject findChildByNodeId(EditorGameObject parent, String nodeId) {
-        for (EditorGameObject child : parent.getChildren()) {
-            if (nodeId.equals(child.getPrefabNodeId())) {
-                return child;
+        for (var child : parent.getChildren()) {
+            EditorGameObject egoChild = (EditorGameObject) child;
+            if (nodeId.equals(egoChild.getPrefabNodeId())) {
+                return egoChild;
             }
             // Check grandchildren
-            EditorGameObject found = findChildByNodeId(child, nodeId);
+            EditorGameObject found = findChildByNodeId(egoChild, nodeId);
             if (found != null) return found;
         }
         return null;

@@ -2,8 +2,6 @@ package com.pocket.rpg.components.ui;
 
 import com.pocket.rpg.components.ComponentMeta;
 import com.pocket.rpg.core.GameObject;
-import com.pocket.rpg.core.IGameObject;
-import com.pocket.rpg.editor.panels.hierarchy.HierarchyItem;
 import com.pocket.rpg.rendering.ui.UIRendererBackend;
 import lombok.Getter;
 import lombok.Setter;
@@ -68,8 +66,8 @@ public class UIScrollView extends UIComponent implements UITransformDriver {
     private transient boolean hierarchyCacheDirty = true;
 
     @Override
-    public void setOwner(IGameObject owner) {
-        super.setOwner(owner);
+    public void setGameObject(GameObject gameObject) {
+        super.setGameObject(gameObject);
         hierarchyCacheDirty = true;
     }
 
@@ -153,7 +151,7 @@ public class UIScrollView extends UIComponent implements UITransformDriver {
     // ========================================================================
 
     @Override
-    public TransformDriverInfo getChildDriverInfo(HierarchyItem child) {
+    public TransformDriverInfo getChildDriverInfo(GameObject child) {
         // Viewport child (has UIMask) → width driven by ScrollView
         if (child != null && child.getComponent(UIMask.class) != null) {
             return new TransformDriverInfo(false, true, false, false, "ScrollView");

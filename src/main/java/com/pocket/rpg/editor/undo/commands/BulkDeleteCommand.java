@@ -55,8 +55,8 @@ public class BulkDeleteCommand implements EditorCommand {
         if (!visited.add(e)) return;
         savedParentIds.put(e, e.getParentId());
         savedOrders.put(e, e.getOrder());
-        for (EditorGameObject child : e.getChildren()) {
-            collectDescendants(child, visited);
+        for (var child : e.getChildren()) {
+            collectDescendants((EditorGameObject) child, visited);
         }
     }
 

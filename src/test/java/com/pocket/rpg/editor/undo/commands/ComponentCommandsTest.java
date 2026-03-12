@@ -1,12 +1,15 @@
 package com.pocket.rpg.editor.undo.commands;
 
+import com.pocket.rpg.components.rendering.SpritePostEffect;
 import com.pocket.rpg.components.rendering.SpriteRenderer;
 import com.pocket.rpg.editor.scene.EditorGameObject;
+import com.pocket.rpg.prefab.JsonPrefab;
+import com.pocket.rpg.prefab.JsonPrefabHierarchyTest;
+import com.pocket.rpg.prefab.PrefabRegistry;
+import com.pocket.rpg.serialization.ComponentRegistry;
 import org.joml.Vector3f;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -14,12 +17,32 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ComponentCommandsTest {
 
+    private static final String PREFAB_ID = "guard_tower";
+    private static final String SR_TYPE = SpriteRenderer.class.getName();
+
+    @BeforeAll
+    static void initRegistry() {
+        ComponentRegistry.initialize();
+    }
+
+    @BeforeEach
+    void setUp() {
+        PrefabRegistry.getInstance().clear();
+        JsonPrefab guardTower = JsonPrefabHierarchyTest.buildGuardTowerFixture();
+        PrefabRegistry.getInstance().register(guardTower);
+    }
+
+    @AfterAll
+    static void cleanup() {
+        PrefabRegistry.getInstance().clear();
+    }
+
     private EditorGameObject createEntity(String name) {
         return new EditorGameObject(name, new Vector3f(0, 0, 0), false);
     }
 
-    private EditorGameObject createPrefabEntity(String prefabId) {
-        return new EditorGameObject(prefabId, new Vector3f(0, 0, 0), true);
+    private EditorGameObject createPrefabEntity() {
+        return new EditorGameObject(PREFAB_ID, new Vector3f(0, 0, 0));
     }
 
     // ========================================================================
@@ -160,15 +183,15 @@ class ComponentCommandsTest {
         }
 
         @Test
-        void merge_differentComponent_doesNotMerge() {
+        void merge_differentComponentType_doesNotMerge() {
             var entity = createEntity("Player");
-            var sprite1 = new SpriteRenderer();
-            var sprite2 = new SpriteRenderer();
-            entity.addComponent(sprite1);
-            entity.addComponent(sprite2);
+            var sprite = new SpriteRenderer();
+            var postEffect = new SpritePostEffect();
+            entity.addComponent(sprite);
+            entity.addComponent(postEffect);
 
-            var cmd1 = new SetComponentFieldCommand(sprite1, "zIndex", 0, 10, entity);
-            var cmd2 = new SetComponentFieldCommand(sprite2, "zIndex", 0, 10, entity);
+            var cmd1 = new SetComponentFieldCommand(sprite, "zIndex", 0, 10, entity);
+            var cmd2 = new SetComponentFieldCommand(postEffect, "zIndex", 0, 10, entity);
 
             assertFalse(cmd1.canMergeWith(cmd2));
         }
@@ -239,30 +262,24 @@ class ComponentCommandsTest {
 
         @Test
         void execute_clearsAllOverrides() {
-            var entity = createPrefabEntity("TestPrefab");
-            // Prefab constructor puts Transform overrides in the map
+            var entity = createPrefabEntity();
+            // Apply an override on the SpriteRenderer
+            entity.applySerializedOverrides(Map.of(SR_TYPE, Map.of("zIndex", 42)));
             assertFalse(entity.getComponentOverrides().isEmpty());
-
-            // Add extra overrides
-            entity.getComponentOverrides()
-                    .computeIfAbsent("com.example.Foo", k -> new HashMap<>())
-                    .put("bar", 42);
 
             var cmd = new ResetAllOverridesCommand(entity);
             cmd.execute();
 
             assertTrue(entity.getComponentOverrides().isEmpty());
+            // Component should have reverted to prefab default (5 for root)
+            SpriteRenderer sr = entity.getComponent(SpriteRenderer.class);
+            assertEquals(5, sr.getZIndex());
         }
 
         @Test
         void undo_restoresAllOverrides() {
-            var entity = createPrefabEntity("TestPrefab");
-            entity.getComponentOverrides()
-                    .computeIfAbsent("com.example.Foo", k -> new HashMap<>())
-                    .put("bar", 42);
-
-            // Snapshot what we expect to be restored
-            int overrideKeyCount = entity.getComponentOverrides().size();
+            var entity = createPrefabEntity();
+            entity.applySerializedOverrides(Map.of(SR_TYPE, Map.of("zIndex", 42)));
 
             var cmd = new ResetAllOverridesCommand(entity);
             cmd.execute();
@@ -270,16 +287,16 @@ class ComponentCommandsTest {
 
             cmd.undo();
 
-            assertEquals(overrideKeyCount, entity.getComponentOverrides().size());
-            assertEquals(42, entity.getComponentOverrides().get("com.example.Foo").get("bar"));
+            assertFalse(entity.getComponentOverrides().isEmpty());
+            assertEquals(42, entity.getComponentOverrides().get(SR_TYPE).get("zIndex"));
+            SpriteRenderer sr = entity.getComponent(SpriteRenderer.class);
+            assertEquals(42, sr.getZIndex());
         }
 
         @Test
         void fullCycle_multipleRounds() {
-            var entity = createPrefabEntity("TestPrefab");
-            entity.getComponentOverrides()
-                    .computeIfAbsent("com.example.Sprite", k -> new HashMap<>())
-                    .put("color", "red");
+            var entity = createPrefabEntity();
+            entity.applySerializedOverrides(Map.of(SR_TYPE, Map.of("zIndex", 99)));
 
             var cmd = new ResetAllOverridesCommand(entity);
 
@@ -287,37 +304,35 @@ class ComponentCommandsTest {
                 cmd.execute();
                 assertTrue(entity.getComponentOverrides().isEmpty(),
                         "Cycle " + i + ": overrides should be empty after execute");
+                assertEquals(5, entity.getComponent(SpriteRenderer.class).getZIndex(),
+                        "Cycle " + i + ": should revert to default");
 
                 cmd.undo();
-                assertEquals("red", entity.getComponentOverrides()
-                                .get("com.example.Sprite").get("color"),
+                assertEquals(99, ((Number) entity.getComponentOverrides()
+                                .get(SR_TYPE).get("zIndex")).intValue(),
                         "Cycle " + i + ": override should be restored after undo");
+                assertEquals(99, entity.getComponent(SpriteRenderer.class).getZIndex(),
+                        "Cycle " + i + ": component should have restored value");
             }
         }
 
         @Test
-        void execute_onEntityWithNoExtraOverrides_undoRestoresTransformOverrides() {
-            var entity = createPrefabEntity("TestPrefab");
-            // Only has the Transform overrides from constructor
-            Map<String, Map<String, Object>> before = new HashMap<>();
-            for (var entry : entity.getComponentOverrides().entrySet()) {
-                before.put(entry.getKey(), new HashMap<>(entry.getValue()));
-            }
+        void execute_onEntityWithNoOverrides_isNoop() {
+            var entity = createPrefabEntity();
+            // No overrides applied — map should already be empty
+            assertTrue(entity.getComponentOverrides().isEmpty());
 
             var cmd = new ResetAllOverridesCommand(entity);
             cmd.execute();
             assertTrue(entity.getComponentOverrides().isEmpty());
 
             cmd.undo();
-            assertEquals(before.size(), entity.getComponentOverrides().size());
-            for (var entry : before.entrySet()) {
-                assertTrue(entity.getComponentOverrides().containsKey(entry.getKey()));
-            }
+            assertTrue(entity.getComponentOverrides().isEmpty());
         }
 
         @Test
         void description() {
-            var entity = createPrefabEntity("TestPrefab");
+            var entity = createPrefabEntity();
             var cmd = new ResetAllOverridesCommand(entity);
             assertEquals("Reset All Overrides", cmd.getDescription());
         }
@@ -332,59 +347,52 @@ class ComponentCommandsTest {
     class ResetFieldOverrideCommandTests {
 
         @Test
-        void undo_restoresOverrideEntry() {
-            var entity = createPrefabEntity("TestPrefab");
-            String compType = "com.example.Foo";
-            entity.getComponentOverrides()
-                    .computeIfAbsent(compType, k -> new HashMap<>())
-                    .put("speed", 99);
+        void execute_resetsFieldAndUndoRestores() {
+            var entity = createPrefabEntity();
+            entity.applySerializedOverrides(Map.of(SR_TYPE, Map.of("zIndex", 99)));
 
-            // We can't call execute() because it uses ComponentReflectionUtils,
-            // but we can test undo() restores the map correctly by simulating
-            // what execute does to the override map.
-            entity.resetFieldToDefault(compType, "speed");
+            SpriteRenderer sr = entity.getComponent(SpriteRenderer.class);
+            var cmd = new ResetFieldOverrideCommand(entity, SR_TYPE, "zIndex");
 
-            // Verify the override was removed
-            var overrides = entity.getComponentOverrides().get(compType);
-            assertTrue(overrides == null || !overrides.containsKey("speed"));
+            cmd.execute();
 
-            // Simulate undo: restore the override
-            entity.getComponentOverrides()
-                    .computeIfAbsent(compType, k -> new HashMap<>())
-                    .put("speed", 99);
+            // Field should be reset to default (5 for root guard_tower)
+            assertEquals(5, sr.getZIndex());
+            assertFalse(entity.isFieldOverridden(SR_TYPE, "zIndex"));
 
-            assertEquals(99, entity.getComponentOverrides().get(compType).get("speed"));
+            cmd.undo();
+
+            // Field should be restored to the overridden value
+            assertEquals(99, sr.getZIndex());
+            assertTrue(entity.isFieldOverridden(SR_TYPE, "zIndex"));
         }
 
         @Test
-        void resetFieldToDefault_invalidatesCache_evenWhenMapNotEmpty() {
-            var entity = createPrefabEntity("TestPrefab");
-            String compType = "com.example.Foo";
-            var overrides = entity.getComponentOverrides()
-                    .computeIfAbsent(compType, k -> new HashMap<>());
-            overrides.put("fieldA", "valueA");
-            overrides.put("fieldB", "valueB");
+        void resetFieldToDefault_partialReset_preservesOtherOverrides() {
+            var entity = createPrefabEntity();
+            // Override two fields on the same component
+            entity.applySerializedOverrides(Map.of(SR_TYPE, Map.of("zIndex", 99)));
+            // Mark a second field as overridden
+            entity.markFieldOverridden(SR_TYPE, "flipX");
 
-            // Reset one field — map still has fieldB, cache should still be invalidated
-            entity.resetFieldToDefault(compType, "fieldA");
+            // Reset only zIndex
+            entity.resetFieldToDefault(SR_TYPE, "zIndex");
 
-            assertFalse(entity.getComponentOverrides().get(compType).containsKey("fieldA"));
-            assertTrue(entity.getComponentOverrides().get(compType).containsKey("fieldB"));
-            // If cache wasn't invalidated, stale components would be returned.
-            // We can't check the cache directly, but this verifies the map state is correct.
+            // zIndex should be cleared from overrides
+            assertFalse(entity.isFieldOverridden(SR_TYPE, "zIndex"));
+            // flipX should still be overridden
+            assertTrue(entity.isFieldOverridden(SR_TYPE, "flipX"));
         }
 
         @Test
         void resetFieldToDefault_removesComponentTypeKey_whenLastField() {
-            var entity = createPrefabEntity("TestPrefab");
-            String compType = "com.example.Foo";
-            entity.getComponentOverrides()
-                    .computeIfAbsent(compType, k -> new HashMap<>())
-                    .put("onlyField", "value");
+            var entity = createPrefabEntity();
+            entity.applySerializedOverrides(Map.of(SR_TYPE, Map.of("zIndex", 99)));
 
-            entity.resetFieldToDefault(compType, "onlyField");
+            entity.resetFieldToDefault(SR_TYPE, "zIndex");
 
-            assertFalse(entity.getComponentOverrides().containsKey(compType));
+            // No more overridden fields for this component type
+            assertFalse(entity.getComponentOverrides().containsKey(SR_TYPE));
         }
     }
 }

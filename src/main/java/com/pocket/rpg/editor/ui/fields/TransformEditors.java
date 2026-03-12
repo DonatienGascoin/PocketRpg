@@ -139,6 +139,7 @@ public final class TransformEditors {
         if (changed[0]) {
             if (entity != null) {
                 entity.setPosition(posX[0], posY[0], pos.z);
+                syncTransformOverride(entity, "localPosition", new Vector3f(posX[0], posY[0], pos.z));
             } else {
                 pos.set(posX[0], posY[0], pos.z);
             }
@@ -232,8 +233,10 @@ public final class TransformEditors {
 
         // Apply change directly
         if (changed[0]) {
+            Vector3f newRot = new Vector3f(rot.x, rot.y, rotZ[0]);
             if (entity != null) {
-                entity.setRotation(new Vector3f(rot.x, rot.y, rotZ[0]));
+                entity.setRotation(newRot);
+                syncTransformOverride(entity, "localRotation", newRot);
             } else {
                 rot.set(rot.x, rot.y, rotZ[0]);
             }
@@ -339,6 +342,7 @@ public final class TransformEditors {
         if (changed[0]) {
             if (entity != null) {
                 entity.setScale(scaleX[0], scaleY[0]);
+                syncTransformOverride(entity, "localScale", new Vector3f(scaleX[0], scaleY[0], scale.z));
             } else {
                 scale.set(scaleX[0], scaleY[0], scale.z);
             }
@@ -382,4 +386,8 @@ public final class TransformEditors {
     }
 
     private static final float RESET_BUTTON_WIDTH = 25f;
+
+    private static void syncTransformOverride(EditorGameObject entity, String fieldName, Vector3f value) {
+        entity.syncFieldOverride(TRANSFORM_TYPE, fieldName, value);
+    }
 }

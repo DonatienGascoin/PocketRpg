@@ -25,10 +25,7 @@ import com.pocket.rpg.scenes.SceneManager;
  */
 public class PlayerPlacementHandler implements SceneLifecycleListener {
 
-    private final SceneManager sceneManager;
-
-    public PlayerPlacementHandler(SceneManager sceneManager) {
-        this.sceneManager = sceneManager;
+    public PlayerPlacementHandler() {
     }
 
     @Override
@@ -69,7 +66,7 @@ public class PlayerPlacementHandler implements SceneLifecycleListener {
      * to the spawn point and applies facing direction and camera bounds.
      */
     private void applySpawnTeleport(Scene scene) {
-        String spawnId = sceneManager.getPendingSpawnId();
+        String spawnId = SceneManager.getPendingSpawnId();
         if (spawnId == null || spawnId.isEmpty()) return;
 
         GameObject player = scene.findGameObjectByComponent(PlayerMovement.class);

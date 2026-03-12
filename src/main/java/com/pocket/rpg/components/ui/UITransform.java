@@ -1,7 +1,7 @@
 package com.pocket.rpg.components.ui;
 
 import com.pocket.rpg.components.core.Transform;
-import com.pocket.rpg.core.IGameObject;
+import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.ui.AnchorPreset;
 import lombok.Getter;
 import lombok.Setter;
@@ -641,11 +641,11 @@ public class UITransform extends Transform {
      * @return Parent UITransform or null if no parent with UITransform
      */
     private UITransform getParentUITransform() {
-        if (owner == null) {
+        if (gameObject == null) {
             return null;
         }
 
-        IGameObject parent = owner.getParent();
+        GameObject parent = gameObject.getParent();
         if (parent == null) {
             return null;
         }
@@ -821,11 +821,11 @@ public class UITransform extends Transform {
         positionDirty = true;
         uiMatrixDirty = true;
 
-        if (owner == null) {
+        if (gameObject == null) {
             return;
         }
 
-        for (IGameObject child : owner.getChildren()) {
+        for (GameObject child : gameObject.getChildren()) {
             UITransform childTransform = child.getComponent(UITransform.class);
             if (childTransform != null) {
                 childTransform.markDirtyRecursive();
@@ -1091,9 +1091,9 @@ public class UITransform extends Transform {
      * Marks all children's UI matrices as dirty.
      */
     private void markChildrenUIMatrixDirty() {
-        if (owner == null) return;
+        if (gameObject == null) return;
 
-        for (IGameObject child : owner.getChildren()) {
+        for (GameObject child : gameObject.getChildren()) {
             UITransform childTransform = child.getComponent(UITransform.class);
             if (childTransform != null) {
                 childTransform.markUIMatrixDirty();

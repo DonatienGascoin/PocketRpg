@@ -1,5 +1,6 @@
 package com.pocket.rpg.editor.rendering;
 
+import com.pocket.rpg.rendering.targets.Framebuffer;
 import com.pocket.rpg.config.ConfigLoader;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.rendering.batch.BatchRenderer;
@@ -25,7 +26,7 @@ public class SpritePreviewRenderer {
 
     private static final int CHECKER_SIZE = 8;
 
-    private EditorFramebuffer framebuffer;
+    private Framebuffer framebuffer;
     private BatchRenderer batchRenderer;
     private boolean initialized = false;
 
@@ -103,7 +104,7 @@ public class SpritePreviewRenderer {
             RenderingConfig config = ConfigLoader.getConfig(ConfigLoader.ConfigType.RENDERING);
             batchRenderer = new BatchRenderer(config);
             batchRenderer.init(width, height);
-            framebuffer = new EditorFramebuffer(width, height);
+            framebuffer = new Framebuffer(width, height);
             framebuffer.init();
             lastFboWidth = width;
             lastFboHeight = height;

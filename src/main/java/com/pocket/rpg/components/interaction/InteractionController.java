@@ -10,6 +10,7 @@ import com.pocket.rpg.components.player.InputMode;
 import com.pocket.rpg.components.player.PlayerInput;
 import com.pocket.rpg.components.pokemon.GridMovement;
 import com.pocket.rpg.core.GameObject;
+import com.pocket.rpg.scenes.SceneManager;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector3f;
@@ -210,10 +211,10 @@ public class InteractionController extends Component {
     }
 
     private TileEntityMap getTileEntityMap() {
-        if (gameObject == null || gameObject.getScene() == null) {
+        if (SceneManager.getActiveScene() == null) {
             return null;
         }
-        return gameObject.getScene().getCollisionSystem().getTileEntityMap();
+        return SceneManager.getActiveScene().getCollisionSystem().getTileEntityMap();
     }
 
     private record InteractableCandidate(

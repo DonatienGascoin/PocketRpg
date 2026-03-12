@@ -1,5 +1,6 @@
 package com.pocket.rpg.editor.undo.commands;
 
+import com.pocket.rpg.components.core.Transform;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.undo.EditorCommand;
 import org.joml.Vector3f;
@@ -18,11 +19,17 @@ public class ScaleEntityCommand implements EditorCommand {
     @Override
     public void execute() {
         entity.setScale(newScale.x, newScale.y);
+        syncOverride(newScale);
     }
 
     @Override
     public void undo() {
         entity.setScale(oldScale.x, oldScale.y);
+        syncOverride(oldScale);
+    }
+
+    private void syncOverride(Vector3f value) {
+        entity.syncFieldOverride(Transform.class.getName(), "localScale", value);
     }
 
     @Override
@@ -37,7 +44,7 @@ public class ScaleEntityCommand implements EditorCommand {
     @Override
     public void mergeWith(EditorCommand other) {
         if (other instanceof ScaleEntityCommand cmd) {
-            this.newScale = cmd.newScale;
+            this.newScale = new Vector3f(cmd.newScale);
         }
     }
 

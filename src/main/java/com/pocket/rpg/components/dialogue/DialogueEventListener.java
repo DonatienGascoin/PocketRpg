@@ -14,6 +14,7 @@ import com.pocket.rpg.pokemon.PokemonFactory;
 import com.pocket.rpg.pokemon.PokemonInstance;
 import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.save.PlayerData;
+import com.pocket.rpg.scenes.SceneManager;
 import com.pocket.rpg.serialization.Required;
 import lombok.Getter;
 import lombok.Setter;
@@ -108,8 +109,8 @@ public class DialogueEventListener extends Component {
                 yield true;
             }
             case DESTROY_GAME_OBJECT -> {
-                if (gameObject != null && gameObject.getScene() != null) {
-                    gameObject.getScene().removeGameObject(gameObject);
+                if (gameObject != null) {
+                    gameObject.destroy();
                 }
                 yield true;
             }
@@ -199,8 +200,8 @@ public class DialogueEventListener extends Component {
      * Used to locate player components (inventory, party, storage) for reward reactions.
      */
     private <T> T findPlayerComponent(Class<T> type) {
-        if (gameObject == null || gameObject.getScene() == null) return null;
-        List<T> found = gameObject.getScene().getComponentsImplementing(type);
+        if (SceneManager.getActiveScene() == null) return null;
+        List<T> found = SceneManager.getActiveScene().getComponentsImplementing(type);
         return found.isEmpty() ? null : found.getFirst();
     }
 

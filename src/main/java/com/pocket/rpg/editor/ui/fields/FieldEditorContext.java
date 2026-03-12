@@ -118,11 +118,13 @@ public final class FieldEditorContext {
     }
 
     /**
-     * Marks a field as overridden with a value.
+     * Marks a field as overridden.
+     * The value parameter is accepted for caller compatibility but not used;
+     * the field value is already set directly on the component by the field editor.
      */
     public static void markFieldOverridden(String fieldName, Object value) {
         if (isActive()) {
-            entity.setFieldValue(componentType, fieldName, value);
+            entity.markFieldOverridden(componentType, fieldName);
         }
     }
 
@@ -143,9 +145,8 @@ public final class FieldEditorContext {
         if (!isActive()) return null;
 
         Object defaultValue = entity.getFieldDefault(componentType, fieldName);
-        if (component != null) {
-            ComponentReflectionUtils.setFieldValue(component, fieldName, defaultValue);
-        }
+        // entity.resetFieldToDefault handles both clearing the override and
+        // setting a deep-copied default value on the component
         entity.resetFieldToDefault(componentType, fieldName);
         return defaultValue;
     }

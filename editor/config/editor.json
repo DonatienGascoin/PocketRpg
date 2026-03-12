@@ -39,8 +39,8 @@
   "defaultUiFont": "gameData/assets/fonts/zelda.ttf",
   "showElementBounds": true,
   "recentScenes": [
-    "MenuMockups.scene",
     "DemoScene.scene",
+    "MenuMockups.scene",
     "Battle.scene",
     "Test.scene"
   ],

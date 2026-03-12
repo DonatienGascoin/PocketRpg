@@ -10,6 +10,7 @@ import com.pocket.rpg.editor.gizmos.GizmoColors;
 import com.pocket.rpg.editor.gizmos.GizmoContext;
 import com.pocket.rpg.editor.gizmos.GizmoDrawable;
 import com.pocket.rpg.save.SaveManager;
+import com.pocket.rpg.scenes.SceneManager;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector3f;
@@ -98,11 +99,11 @@ public class SpawnPoint extends Component implements GizmoDrawable {
         if (cameraBoundsId == null || cameraBoundsId.isEmpty()) {
             return;
         }
-        if (gameObject == null || gameObject.getScene() == null) {
+        if (SceneManager.getActiveScene() == null) {
             return;
         }
 
-        for (GameObject obj : gameObject.getScene().getGameObjects()) {
+        for (GameObject obj : SceneManager.getActiveScene().getGameObjects()) {
             CameraBoundsZone zone = obj.getComponent(CameraBoundsZone.class);
             if (zone != null && cameraBoundsId.equals(zone.getBoundsId())) {
                 zone.applyBounds(camera);

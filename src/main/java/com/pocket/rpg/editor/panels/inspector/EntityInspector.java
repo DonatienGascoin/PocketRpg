@@ -1,7 +1,6 @@
 package com.pocket.rpg.editor.panels.inspector;
 
 import com.pocket.rpg.components.Component;
-import com.pocket.rpg.core.IGameObject;
 import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.EditorFonts;
 import com.pocket.rpg.editor.core.MaterialIcons;
@@ -67,7 +66,7 @@ public class EntityInspector {
         fieldEditor.setScene(scene);
 
         // Enabled checkbox
-        boolean ownEnabled = entity.isOwnEnabled();
+        boolean ownEnabled = entity.isEnabled();
         ImBoolean enabledRef = new ImBoolean(ownEnabled);
         if (ImGui.checkbox("##EntityEnabled", enabledRef)) {
             UndoManager.getInstance().execute(

@@ -371,28 +371,25 @@ public class UIPreviewRenderer {
     }
 
     private EditorGameObject findParentWithUITransform(EditorGameObject entity) {
-        EditorGameObject parent = entity.getParent();
-        while (parent != null) {
-            if (parent.hasComponent(UITransform.class) || parent.hasComponent(UICanvas.class)) {
-                if (parent.hasComponent(UITransform.class)) {
-                    return parent;
-                }
+        com.pocket.rpg.core.GameObject current = entity.getParent();
+        while (current instanceof EditorGameObject parent) {
+            if (parent.getComponent(UITransform.class) != null) {
+                return parent;
+            }
+            if (parent.getComponent(UICanvas.class) != null) {
                 return null;
             }
-            parent = parent.getParent();
+            current = parent.getParent();
         }
         return null;
     }
 
     private int getCanvasSortOrder(EditorGameObject entity) {
-        EditorGameObject current = entity;
+        com.pocket.rpg.core.GameObject current = entity;
         while (current != null) {
-            if (current.hasComponent(UICanvas.class)) {
-                Component canvas = current.getComponentByType("UICanvas");
-                if (canvas != null) {
-                    return ComponentReflectionUtils.getInt(canvas, "sortOrder", 0);
-                }
-                return 0;
+            UICanvas canvas = current.getComponent(UICanvas.class);
+            if (canvas != null) {
+                return canvas.getSortOrder();
             }
             current = current.getParent();
         }

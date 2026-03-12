@@ -2,6 +2,7 @@ package com.pocket.rpg.components.pokemon;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ComponentMeta;
+import com.pocket.rpg.scenes.SceneManager;
 import org.joml.Vector3f;
 
 @ComponentMeta(category = "Rendering")
@@ -11,6 +12,6 @@ public class PlayerCameraFollow extends Component {
 
     @Override
     public void lateUpdate(float deltaTime) {
-        getGameObject().getScene().getCamera().setPosition(getTransform().getPosition().add(offset));
+        SceneManager.getActiveScene().getCamera().setPosition(getTransform().getPosition().add(offset));
     }
 }

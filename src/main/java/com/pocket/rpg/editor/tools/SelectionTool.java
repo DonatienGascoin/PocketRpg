@@ -218,7 +218,9 @@ public class SelectionTool implements EditorTool, ViewportAwareTool {
 
                 Set<EditorGameObject> selected = new HashSet<>();
                 for (EditorGameObject entity : scene.getEntities()) {
-                    if (!entity.isRenderVisible()) continue;
+                    if (!entity.isActiveInHierarchy()) continue;
+                    SpriteRenderer sr = entity.getComponent(SpriteRenderer.class);
+                    if (sr == null || !sr.isOwnEnabled() || sr.getSprite() == null) continue;
                     Vector3f pos = entity.getPosition();
                     if (pos.x >= minX && pos.x <= maxX && pos.y >= minY && pos.y <= maxY) {
                         selected.add(entity);
@@ -357,22 +359,18 @@ public class SelectionTool implements EditorTool, ViewportAwareTool {
         Vector3f pos = entity.getPosition();
         Vector3f scale = entity.getScale();
         Vector3f rotation = entity.getRotation();
-        Vector2f size = entity.getCurrentSize();
+        // Get size and pivot from SpriteRenderer
+        SpriteRenderer sr = entity.getComponent(SpriteRenderer.class);
+        Sprite sprite = (sr != null && sr.isOwnEnabled()) ? sr.getSprite() : null;
+        Vector2f size = (sprite != null)
+                ? new Vector2f(sprite.getWorldWidth(), sprite.getWorldHeight())
+                : new Vector2f(1f, 1f);
 
-        if (size == null) {
-            size = new Vector2f(1f, 1f);
-        }
-
-        // Get pivot from sprite (default to center if no sprite)
         float pivotX = 0.5f;
         float pivotY = 0.5f;
-        SpriteRenderer sr = entity.getComponent(SpriteRenderer.class);
-        if (sr != null) {
-            Sprite sprite = sr.getSprite();
-            if (sprite != null) {
-                pivotX = sprite.getPivotX();
-                pivotY = sprite.getPivotY();
-            }
+        if (sprite != null) {
+            pivotX = sprite.getPivotX();
+            pivotY = sprite.getPivotY();
         }
 
         // Calculate scaled size

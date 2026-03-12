@@ -13,7 +13,9 @@ import com.pocket.rpg.input.Input;
 import com.pocket.rpg.input.KeyCode;
 import com.pocket.rpg.save.SaveManager;
 import com.pocket.rpg.scenes.Scene;
+import com.pocket.rpg.scenes.SceneManager;
 import com.pocket.rpg.testing.MockInputTesting;
+import com.pocket.rpg.testing.MockSceneManagerContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,6 +54,7 @@ class DialogueEventDispatchTest {
         Input.setContext(mockInput);
 
         scene = new TestScene("TestScene");
+        SceneManager.setContext(new MockSceneManagerContext(scene));
 
         playerGo = new GameObject("Player");
         playerInput = new PlayerInput();
@@ -65,6 +68,7 @@ class DialogueEventDispatchTest {
     @AfterEach
     void tearDown() throws Exception {
         Input.setContext(null);
+        SceneManager.setContext(null);
         resetSaveManager();
     }
 

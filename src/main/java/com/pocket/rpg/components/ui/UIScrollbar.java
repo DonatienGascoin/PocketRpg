@@ -3,8 +3,6 @@ package com.pocket.rpg.components.ui;
 import com.pocket.rpg.components.ComponentMeta;
 import com.pocket.rpg.components.Tooltip;
 import com.pocket.rpg.core.GameObject;
-import com.pocket.rpg.core.IGameObject;
-import com.pocket.rpg.editor.panels.hierarchy.HierarchyItem;
 import com.pocket.rpg.rendering.ui.UIRendererBackend;
 import lombok.Getter;
 import lombok.Setter;
@@ -51,8 +49,8 @@ public class UIScrollbar extends UIComponent implements UITransformDriver {
     private transient boolean scrollViewCacheDirty = true;
 
     @Override
-    public void setOwner(IGameObject owner) {
-        super.setOwner(owner);
+    public void setGameObject(GameObject gameObject) {
+        super.setGameObject(gameObject);
         scrollViewCacheDirty = true;
     }
 
@@ -78,7 +76,7 @@ public class UIScrollbar extends UIComponent implements UITransformDriver {
     // ========================================================================
 
     @Override
-    public TransformDriverInfo getChildDriverInfo(HierarchyItem child) {
+    public TransformDriverInfo getChildDriverInfo(GameObject child) {
         return TransformDriverInfo.entirelyDriven("Scrollbar");
     }
 

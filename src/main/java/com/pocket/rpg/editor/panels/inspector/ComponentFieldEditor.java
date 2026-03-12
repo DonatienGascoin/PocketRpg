@@ -1,8 +1,6 @@
 package com.pocket.rpg.editor.panels.inspector;
 
 import com.pocket.rpg.components.Component;
-import com.pocket.rpg.editor.core.EditorColors;
-import com.pocket.rpg.editor.core.MaterialIcons;
 import com.pocket.rpg.editor.panels.hierarchy.HierarchyItem;
 import com.pocket.rpg.editor.scene.DirtyTracker;
 import com.pocket.rpg.editor.scene.EditorGameObject;
@@ -10,13 +8,6 @@ import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.ui.fields.FieldEditorContext;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
 import com.pocket.rpg.editor.ui.fields.ReflectionFieldEditor;
-import com.pocket.rpg.editor.undo.UndoManager;
-import com.pocket.rpg.editor.undo.commands.ResetFieldOverrideCommand;
-import com.pocket.rpg.serialization.ComponentMeta;
-import com.pocket.rpg.serialization.ComponentReflectionUtils;
-import com.pocket.rpg.serialization.FieldMeta;
-import imgui.ImGui;
-import imgui.flag.ImGuiCol;
 
 /**
  * Handles component field editing with prefab override support.
@@ -71,52 +62,4 @@ public class ComponentFieldEditor {
         return changed;
     }
 
-    private boolean renderWithOverrides(EditorGameObject entity, Component component) {
-        ComponentMeta meta = ComponentReflectionUtils.getMeta(component);
-        if (meta == null) {
-            ImGui.textDisabled("Unknown component type");
-            return false;
-        }
-
-        boolean changed = false;
-        String componentType = component.getClass().getName();
-
-        for (FieldMeta fieldMeta : meta.fields()) {
-            String fieldName = fieldMeta.name();
-            boolean isOverridden = entity.isFieldOverridden(componentType, fieldName);
-
-            ImGui.pushID(fieldName);
-            if (isOverridden) ImGui.pushStyleColor(ImGuiCol.Text, EditorColors.PREFAB[0], EditorColors.PREFAB[1], EditorColors.PREFAB[2], EditorColors.PREFAB[3]);
-
-            boolean fieldChanged = ReflectionFieldEditor.drawField(component, fieldMeta);
-
-            if (isOverridden) ImGui.popStyleColor();
-
-            if (isOverridden) {
-                ImGui.sameLine();
-                if (ImGui.smallButton(MaterialIcons.Undo + "##reset")) {
-                    UndoManager.getInstance().execute(
-                            new ResetFieldOverrideCommand(entity, component, componentType, fieldName));
-                    if (dirtyTracker != null) dirtyTracker.markDirty();
-                    changed = true;
-                }
-                if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("Reset to default: " + entity.getFieldDefault(componentType, fieldName));
-                }
-            }
-
-            if (fieldChanged) {
-                Object currentValue = ComponentReflectionUtils.getFieldValue(component, fieldName);
-                entity.setFieldValue(componentType, fieldName, currentValue);
-                if (dirtyTracker != null) dirtyTracker.markDirty();
-                changed = true;
-            }
-
-            ImGui.popID();
-        }
-
-        ReflectionFieldEditor.drawComponentReferences(meta.hierarchyReferences(), entity);
-
-        return changed;
-    }
 }

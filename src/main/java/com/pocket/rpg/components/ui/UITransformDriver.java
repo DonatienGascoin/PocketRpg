@@ -1,6 +1,6 @@
 package com.pocket.rpg.components.ui;
 
-import com.pocket.rpg.editor.panels.hierarchy.HierarchyItem;
+import com.pocket.rpg.core.GameObject;
 
 /**
  * Interface for components that drive child UITransform values.
@@ -13,5 +13,5 @@ public interface UITransformDriver {
      * Returns driver info describing which UITransform fields are controlled
      * for the given child, or null if this driver does not affect the child.
      */
-    TransformDriverInfo getChildDriverInfo(HierarchyItem child);
+    TransformDriverInfo getChildDriverInfo(GameObject child);
 }

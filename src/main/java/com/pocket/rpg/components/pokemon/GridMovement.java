@@ -13,6 +13,7 @@ import com.pocket.rpg.components.ComponentMeta;
 import com.pocket.rpg.save.ISaveable;
 import com.pocket.rpg.components.rendering.SpriteRenderer;
 import com.pocket.rpg.components.interaction.TriggerZone;
+import com.pocket.rpg.scenes.SceneManager;
 import com.pocket.rpg.components.core.Transform;
 import com.pocket.rpg.editor.gizmos.GizmoColors;
 import com.pocket.rpg.editor.gizmos.GizmoContext;
@@ -349,20 +350,20 @@ public class GridMovement extends Component implements IPausable, ISaveable {
      * Gets the CollisionSystem from the scene, or null if not available.
      */
     private CollisionSystem getCollisionSystem() {
-        if (gameObject == null || gameObject.getScene() == null) {
+        if (SceneManager.getActiveScene() == null) {
             return null;
         }
-        return gameObject.getScene().getCollisionSystem();
+        return SceneManager.getActiveScene().getCollisionSystem();
     }
 
     /**
      * Gets the TriggerSystem from the scene, or null if not available.
      */
     private TriggerSystem getTriggerSystem() {
-        if (gameObject == null || gameObject.getScene() == null) {
+        if (SceneManager.getActiveScene() == null) {
             return null;
         }
-        return gameObject.getScene().getTriggerSystem();
+        return SceneManager.getActiveScene().getTriggerSystem();
     }
 
     /**

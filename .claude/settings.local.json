@@ -55,7 +55,8 @@
       "WebFetch(domain:docs.unity3d.com)",
       "WebFetch(domain:dev.epicgames.com)",
       "WebFetch(domain:discussions.unity.com)",
-      "Bash(pip3 list:*)"
+      "Bash(pip3 list:*)",
+      "Bash(mvn clean:*)"
     ]
   },
   "outputStyle": "default"

@@ -9,6 +9,7 @@ import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.config.RenderingConfig;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.core.window.ViewportConfig;
+import com.pocket.rpg.scenes.DefaultSceneManagerContext;
 import com.pocket.rpg.scenes.Scene;
 import com.pocket.rpg.scenes.SceneManager;
 import com.pocket.rpg.serialization.ComponentRegistry;
@@ -28,8 +29,6 @@ class PlayerPlacementHandlerTest {
     @TempDir
     Path tempDir;
 
-    private SceneManager sceneManager;
-
     @BeforeAll
     static void initSerializer() {
         com.pocket.rpg.resources.Assets.setContext(new StubAssetContext());
@@ -39,16 +38,21 @@ class PlayerPlacementHandlerTest {
 
     @BeforeEach
     void setUp() {
-        sceneManager = new SceneManager(
+        SceneManager.setContext(new DefaultSceneManagerContext(
                 new ViewportConfig(GameConfig.builder()
                         .gameWidth(800).gameHeight(600)
                         .windowWidth(800).windowHeight(600)
                         .build()),
                 RenderingConfig.builder().defaultOrthographicSize(7.5f).build()
-        );
-        SaveManager.initialize(sceneManager, tempDir);
+        ));
+        SaveManager.initialize(tempDir);
         SaveManager.newGame();
-        sceneManager.addLifecycleListener(new PlayerPlacementHandler(sceneManager));
+        SceneManager.addLifecycleListener(new PlayerPlacementHandler());
+    }
+
+    @AfterEach
+    void tearDown() {
+        SceneManager.setContext(null);
     }
 
     // ========================================================================
@@ -71,7 +75,7 @@ class PlayerPlacementHandlerTest {
 
             TestScene scene = new TestScene("overworld");
             scene.setSetupAction(() -> addPlayer(scene, 0, 0));
-            sceneManager.loadScene(scene);
+            SceneManager.loadScene(scene);
 
             GameObject player = scene.findGameObject("Player");
             GridMovement gm = player.getComponent(GridMovement.class);
@@ -87,7 +91,7 @@ class PlayerPlacementHandlerTest {
         void skipsWhenNotReturning() {
             TestScene scene = new TestScene("overworld");
             scene.setSetupAction(() -> addPlayer(scene, 0, 0));
-            sceneManager.loadScene(scene);
+            SceneManager.loadScene(scene);
 
             GameObject player = scene.findGameObject("Player");
             GridMovement gm = player.getComponent(GridMovement.class);
@@ -105,7 +109,7 @@ class PlayerPlacementHandlerTest {
             data.save();
 
             TestScene scene = new TestScene("cutscene");
-            sceneManager.loadScene(scene);
+            SceneManager.loadScene(scene);
 
             PlayerData updated = PlayerData.load();
             assertTrue(updated.returningFromBattle);
@@ -133,7 +137,7 @@ class PlayerPlacementHandlerTest {
                 parent.addChild(player);
                 scene.addGameObject(parent);
             });
-            sceneManager.loadScene(scene);
+            SceneManager.loadScene(scene);
 
             GameObject parent = scene.findGameObject("Entities");
             GameObject player = parent.getChildren().get(0);
@@ -161,8 +165,8 @@ class PlayerPlacementHandlerTest {
                 addSpawnPoint(scene, "door_1", 5, 10, Direction.UP);
             });
 
-            sceneManager.registerScene(scene);
-            sceneManager.loadScene("overworld", "door_1");
+            SceneManager.registerScene(scene);
+            SceneManager.loadScene("overworld", "door_1");
 
             GameObject player = scene.findGameObject("Player");
             GridMovement gm = player.getComponent(GridMovement.class);
@@ -180,7 +184,7 @@ class PlayerPlacementHandlerTest {
                 addSpawnPoint(scene, "door_1", 5, 10, Direction.UP);
             });
 
-            sceneManager.loadScene(scene);
+            SceneManager.loadScene(scene);
 
             GameObject player = scene.findGameObject("Player");
             GridMovement gm = player.getComponent(GridMovement.class);
@@ -194,8 +198,8 @@ class PlayerPlacementHandlerTest {
             TestScene scene = new TestScene("cutscene");
             scene.setSetupAction(() -> addSpawnPoint(scene, "door_1", 5, 10, Direction.UP));
 
-            sceneManager.registerScene(scene);
-            assertDoesNotThrow(() -> sceneManager.loadScene("cutscene", "door_1"));
+            SceneManager.registerScene(scene);
+            assertDoesNotThrow(() -> SceneManager.loadScene("cutscene", "door_1"));
         }
     }
 
@@ -223,8 +227,8 @@ class PlayerPlacementHandlerTest {
                 addSpawnPoint(scene, "door_1", 5, 10, Direction.LEFT);
             });
 
-            sceneManager.registerScene(scene);
-            sceneManager.loadScene("overworld", "door_1");
+            SceneManager.registerScene(scene);
+            SceneManager.loadScene("overworld", "door_1");
 
             GameObject player = scene.findGameObject("Player");
             GridMovement gm = player.getComponent(GridMovement.class);
@@ -253,7 +257,7 @@ class PlayerPlacementHandlerTest {
             });
 
             // No spawnId — battle return position should stand
-            sceneManager.loadScene(scene);
+            SceneManager.loadScene(scene);
 
             GameObject player = scene.findGameObject("Player");
             GridMovement gm = player.getComponent(GridMovement.class);

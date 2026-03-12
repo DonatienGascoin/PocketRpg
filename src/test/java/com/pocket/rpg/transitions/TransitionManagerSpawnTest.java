@@ -3,8 +3,10 @@ package com.pocket.rpg.transitions;
 import com.pocket.rpg.config.TransitionConfig;
 import com.pocket.rpg.rendering.MockOverlayRenderer;
 import com.pocket.rpg.scenes.MockSceneManager;
+import com.pocket.rpg.scenes.SceneManager;
 import com.pocket.rpg.scenes.transitions.TransitionManager;
 import org.joml.Vector4f;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,13 +26,19 @@ class TransitionManagerSpawnTest {
     @BeforeEach
     void setUp() {
         sceneManager = new MockSceneManager();
+        SceneManager.setContext(sceneManager);
         overlayRenderer = new MockOverlayRenderer();
         defaultConfig = TransitionConfig.builder()
                 .fadeOutDuration(1.0f)
                 .fadeInDuration(1.0f)
                 .fadeColor(new Vector4f(0, 0, 0, 1))
                 .build();
-        transitionManager = new TransitionManager(sceneManager, overlayRenderer, defaultConfig);
+        transitionManager = new TransitionManager(overlayRenderer, defaultConfig);
+    }
+
+    @AfterEach
+    void tearDown() {
+        SceneManager.setContext(null);
     }
 
     @Test

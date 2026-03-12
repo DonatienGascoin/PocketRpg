@@ -7,6 +7,7 @@ import com.pocket.rpg.core.window.ViewportConfig;
 import com.pocket.rpg.items.*;
 import com.pocket.rpg.save.PlayerData;
 import com.pocket.rpg.save.SaveManager;
+import com.pocket.rpg.scenes.DefaultSceneManagerContext;
 import com.pocket.rpg.scenes.Scene;
 import com.pocket.rpg.scenes.SceneManager;
 import com.pocket.rpg.serialization.ComponentRegistry;
@@ -27,7 +28,6 @@ class PlayerInventoryComponentTest {
     @TempDir
     Path tempDir;
 
-    private SceneManager sceneManager;
     private static ItemRegistry testRegistry;
 
     @BeforeAll
@@ -47,15 +47,20 @@ class PlayerInventoryComponentTest {
 
     @BeforeEach
     void setUp() {
-        sceneManager = new SceneManager(
+        SceneManager.setContext(new DefaultSceneManagerContext(
                 new ViewportConfig(GameConfig.builder()
                         .gameWidth(800).gameHeight(600)
                         .windowWidth(800).windowHeight(600)
                         .build()),
                 RenderingConfig.builder().defaultOrthographicSize(7.5f).build()
-        );
-        SaveManager.initialize(sceneManager, tempDir);
+        ));
+        SaveManager.initialize(tempDir);
         SaveManager.newGame();
+    }
+
+    @AfterEach
+    void tearDown() {
+        SceneManager.setContext(null);
     }
 
     private PlayerInventoryComponent loadSceneWithInventory() {
@@ -65,7 +70,7 @@ class PlayerInventoryComponentTest {
             player.addComponent(new PlayerInventoryComponent());
             scene.addGameObject(player);
         });
-        sceneManager.loadScene(scene);
+        SceneManager.loadScene(scene);
         return scene.findGameObject("Player").getComponent(PlayerInventoryComponent.class);
     }
 

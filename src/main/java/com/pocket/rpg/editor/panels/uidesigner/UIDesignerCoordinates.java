@@ -1,6 +1,7 @@
 package com.pocket.rpg.editor.panels.uidesigner;
 
 import com.pocket.rpg.components.ui.*;
+import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import org.joml.Vector2f;
 
@@ -107,15 +108,15 @@ public class UIDesignerCoordinates {
      * Finds the nearest ancestor with a UITransform (stops at UICanvas).
      */
     public EditorGameObject findParentWithUITransform(EditorGameObject entity) {
-        EditorGameObject parent = entity.getParent();
-        while (parent != null) {
-            if (parent.hasComponent(UITransform.class) || parent.hasComponent(UICanvas.class)) {
-                if (parent.hasComponent(UITransform.class)) {
-                    return parent;
-                }
+        GameObject current = entity.getParent();
+        while (current instanceof EditorGameObject parent) {
+            if (parent.getComponent(UITransform.class) != null) {
+                return parent;
+            }
+            if (parent.getComponent(UICanvas.class) != null) {
                 return null; // Reached UICanvas without UITransform
             }
-            parent = parent.getParent();
+            current = parent.getParent();
         }
         return null;
     }

@@ -1,7 +1,7 @@
 package com.pocket.rpg.editor.ui.viewport;
 
 import com.pocket.rpg.editor.camera.EditorCamera;
-import com.pocket.rpg.editor.rendering.EditorFramebuffer;
+import com.pocket.rpg.rendering.targets.Framebuffer;
 import imgui.ImGui;
 import imgui.ImVec2;
 import lombok.Getter;
@@ -13,7 +13,7 @@ import lombok.Setter;
 public class ViewportRenderer {
 
     @Getter
-    private EditorFramebuffer framebuffer;
+    private Framebuffer framebuffer;
 
     @Getter
     @Setter
@@ -26,7 +26,7 @@ public class ViewportRenderer {
     }
 
     public void init(int initialWidth, int initialHeight) {
-        framebuffer = new EditorFramebuffer(initialWidth, initialHeight);
+        framebuffer = new Framebuffer(initialWidth, initialHeight);
         framebuffer.init();
     }
 

@@ -86,21 +86,19 @@ public final class SaveManager {
     /**
      * Initializes the save system.
      * Should be called once at game startup.
-     *
-     * @param sceneManager SceneManager to hook into
      */
-    public static void initialize(SceneManager sceneManager) {
-        initialize(sceneManager, getDefaultSavesDirectory());
+    public static void initialize() {
+        initialize(getDefaultSavesDirectory());
     }
 
     /**
      * Initializes with custom save directory.
      */
-    public static void initialize(SceneManager sceneManager, Path savesDirectory) {
+    public static void initialize(Path savesDirectory) {
         instance = new SaveManager(savesDirectory);
 
         // Hook into scene lifecycle
-        sceneManager.addLifecycleListener(new SceneLifecycleListener() {
+        SceneManager.addLifecycleListener(new SceneLifecycleListener() {
             @Override
             public void onSceneLoaded(Scene scene) {
                 // No-op: currentSceneName set in onPostSceneInitialize,
@@ -399,8 +397,8 @@ public final class SaveManager {
         if (sceneState.getDestroyedEntities().contains(pid.getId())) {
             // Mark for destruction - will be destroyed after onStart completes
             GameObject go = pid.getGameObject();
-            if (go != null && go.getScene() != null) {
-                go.getScene().removeGameObject(go);
+            if (go != null) {
+                go.destroy();
                 System.out.println("[SaveManager] Destroyed saved-as-destroyed entity: " + pid.getId());
             }
             return;

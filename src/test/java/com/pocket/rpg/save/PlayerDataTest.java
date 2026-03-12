@@ -7,7 +7,8 @@ import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.resources.AssetsConfiguration;
 import com.pocket.rpg.resources.CacheStats;
 import com.pocket.rpg.resources.LoadOptions;
-import com.pocket.rpg.scenes.MockSceneManager;
+import com.pocket.rpg.scenes.SceneManager;
+import com.pocket.rpg.testing.MockSceneManagerContext;
 import com.pocket.rpg.serialization.Serializer;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
@@ -37,8 +38,14 @@ class PlayerDataTest {
 
     @BeforeEach
     void setUp() {
-        SaveManager.initialize(new MockSceneManager(), tempDir);
+        SceneManager.setContext(new MockSceneManagerContext());
+        SaveManager.initialize(tempDir);
         SaveManager.newGame();
+    }
+
+    @AfterEach
+    void tearDown() {
+        SceneManager.setContext(null);
     }
 
     /** Minimal AssetContext stub for tests that don't need asset loading. */

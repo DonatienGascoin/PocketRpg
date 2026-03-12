@@ -153,7 +153,8 @@ public class EditorSceneSerializer {
 
     private static void collectChildOverrides(EditorGameObject parent,
                                                Map<String, GameObjectData.ChildNodeOverrides> result) {
-        for (EditorGameObject child : parent.getChildren()) {
+        for (var go : parent.getChildren()) {
+            EditorGameObject child = (EditorGameObject) go;
             if (!child.isPrefabChildNode()) continue;
 
             String nodeId = child.getPrefabNodeId();
@@ -178,7 +179,7 @@ public class EditorSceneSerializer {
             }
 
             // Active override
-            if (!child.isOwnEnabled()) {
+            if (!child.isEnabled()) {
                 overrides.setActive(false);
                 hasOverrides = true;
             }
@@ -262,13 +263,7 @@ public class EditorSceneSerializer {
         root.setOrder(goData.getOrder());
 
         // Apply root component overrides
-        if (goData.getComponentOverrides() != null) {
-            for (Map.Entry<String, Map<String, Object>> entry : goData.getComponentOverrides().entrySet()) {
-                for (Map.Entry<String, Object> field : entry.getValue().entrySet()) {
-                    root.setFieldValue(entry.getKey(), field.getKey(), field.getValue());
-                }
-            }
-        }
+        root.applySerializedOverrides(goData.getComponentOverrides());
 
         scene.addEntity(root);
 
@@ -304,13 +299,7 @@ public class EditorSceneSerializer {
                 if (overrides.getActive() != null) {
                     child.setEnabled(overrides.getActive());
                 }
-                if (overrides.getComponentOverrides() != null) {
-                    for (Map.Entry<String, Map<String, Object>> compEntry : overrides.getComponentOverrides().entrySet()) {
-                        for (Map.Entry<String, Object> field : compEntry.getValue().entrySet()) {
-                            child.setFieldValue(compEntry.getKey(), field.getKey(), field.getValue());
-                        }
-                    }
-                }
+                child.applySerializedOverrides(overrides.getComponentOverrides());
             }
         }
     }

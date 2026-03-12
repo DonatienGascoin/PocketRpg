@@ -6,6 +6,8 @@ import com.pocket.rpg.components.core.Transform;
 import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
+import com.pocket.rpg.editor.events.EditorEventBus;
+import com.pocket.rpg.editor.events.StatusMessageEvent;
 import com.pocket.rpg.editor.panels.ComponentBrowserPopup;
 import com.pocket.rpg.editor.scene.DirtyTracker;
 import com.pocket.rpg.editor.scene.EditorGameObject;
@@ -185,6 +187,14 @@ public class ComponentListRenderer {
                 componentBrowserPopup.open(meta -> {
                     Component component = ComponentRegistry.instantiateByClassName(meta.className());
                     if (component != null) {
+                        if (entity.hasComponent(component.getClass())) {
+                            EditorEventBus.get().publish(
+                                    new StatusMessageEvent(
+                                            "Cannot add " + component.getClass().getSimpleName()
+                                                    + " - entity already has one",
+                                            StatusMessageEvent.MessageType.ERROR));
+                            return;
+                        }
                         UndoManager.getInstance().execute(new AddComponentCommand(entity, component));
                         dirtyTracker.markDirty();
                     }

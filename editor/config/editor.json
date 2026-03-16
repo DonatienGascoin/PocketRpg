@@ -39,12 +39,14 @@
   "defaultUiFont": "gameData/assets/fonts/zelda.ttf",
   "showElementBounds": true,
   "recentScenes": [
-    "DemoScene.scene",
     "MenuMockups.scene",
+    "DemoScene.scene",
     "Battle.scene",
     "Test.scene"
   ],
   "recentAssets": [
+    "sprites/UIs/InventoryItem.png",
+    "sprites/UIs/HoveredInventoryCategories.png",
     "sprites/Pokemon/PokemonStatus.png",
     "sprites/UIs/PokedexShortEntry.png",
     "sprites/UIs/PokedexSelectedEntry.png",
@@ -57,13 +59,9 @@
     "sprites/UIs/Scrollbar.png",
     "sprites/UIs/HeaderSmall.png",
     "sprites/UIs/headers.png",
-    "sprites/UIs/Pokemon/PokemonStatus_fixed2.png",
-    "sprites/UIs/Pokemon/PokemonStatus.png",
-    "sprites/UIs/Pokemon/PokemonStatus_fixed.png"
+    "sprites/UIs/Pokemon/PokemonStatus_fixed2.png"
   ],
   "recentAssetTimestamps": {
-    "sprites/UIs/Pokemon/PokemonStatus.png": 1772564926938,
-    "sprites/UIs/Pokemon/PokemonStatus_fixed.png": 1772564050682,
     "sprites/UIs/Pokemon/PokemonStatus_fixed2.png": 1772564943723,
     "sprites/UIs/headers.png": 1772715423922,
     "sprites/UIs/header.png": 1772800904503,
@@ -76,7 +74,9 @@
     "sprites/UIs/ScrollBarHandle2.png": 1772738055183,
     "sprites/UIs/PokedexShortEntry.png": 1772801179418,
     "sprites/UIs/PokedexSelectedEntry.png": 1772801087717,
-    "sprites/Pokemon/PokemonStatus.png": 1772802506280
+    "sprites/Pokemon/PokemonStatus.png": 1772802506280,
+    "sprites/UIs/HoveredInventoryCategories.png": 1773678336458,
+    "sprites/UIs/InventoryItem.png": 1773686326095
   },
   "favoriteAssets": [
     "data/pokemon/pokedex.pokedex.json",

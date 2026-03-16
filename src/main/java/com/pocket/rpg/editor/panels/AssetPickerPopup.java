@@ -344,6 +344,13 @@ public class AssetPickerPopup {
 
             ImGui.spacing();
 
+            // Global Enter key to confirm (mouse clicks on selectables don't set keyboard focus,
+            // so the per-item isItemFocused()+Enter check only works for keyboard navigation).
+            // isAnyItemActive() prevents confirming while typing in the search bar.
+            if (ImGui.isKeyPressed(ImGuiKey.Enter) && !ImGui.isAnyItemActive()) {
+                confirmSelection();
+            }
+
             // Buttons
             float buttonWidth = 100;
             float totalButtonWidth = buttonWidth * 2 + 10;

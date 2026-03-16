@@ -5,10 +5,10 @@
 ### Problem
 `UIComponent` forces an `abstract render(UIRendererBackend)` on all subclasses, conflating "being a UI element" with "having visual output." This causes:
 
-- **4 out of 7** UIComponent subclasses have empty `render()` bodies (UICanvas, UIMask, UIScrollView, UIScrollbar)
+- **4 out of 8** UIComponent subclasses have empty `render()` bodies (UICanvas, UIMask, UIScrollView, UIScrollbar)
 - UIButton duplicates UIPanel/UIImage rendering logic
 - UIText contains OpenGL calls (`glEnable`, `glBlendFunc`) that belong in the renderer
-- `AlphaGroup` uses a hardcoded `instanceof` chain that must be updated for every new visual component
+- `AlphaGroup` uses a hardcoded `instanceof` chain (UIImage → UIPanel → UIButton → UIText) that must be updated for every new visual component
 - Color/alpha methods are copy-pasted across UIPanel, UIImage, UIButton, UIText
 - `UIRendererBackend` is coupled to `UIImage` enums (`FillMethod`, `FillOrigin`)
 
@@ -16,31 +16,67 @@
 Align UI rendering with the established world-space pattern: **components hold data, renderers draw it.** `SpriteRenderer` already follows this — it implements `Renderable` (data interface), and `BatchRenderer.drawSpriteRenderer()` does the actual drawing. UI components should work the same way.
 
 ### Key Changes
-1. Remove `abstract render()` from `UIComponent`
-2. Introduce `UIVisual` base class for components that have visual output (color, bounds)
-3. Move all rendering logic into `UIRenderer` (component dispatch)
-4. Auto-migrate existing scene/prefab files so UIButton GOs get a sibling UIPanel
-5. Make `UIButton` interaction-only (modifies sibling UIPanel/UIImage)
-6. Fix `AlphaGroup` to use `UIVisual` interface instead of instanceof chain
+1. Introduce `UIVisual` base class for components that have visual output (color, bounds)
+2. Remove `abstract render()` from `UIComponent`
+3. Move all rendering logic into `UIRenderer` (type-based dispatch)
+4. Make `UIButton` interaction-only — it manages a sibling UIPanel or UIImage based on its `TransitionMode`
+5. Fix `AlphaGroup` to use `UIVisual` instead of instanceof chain
+6. Move `FillMethod`/`FillOrigin` out of UIImage
+
+### Current UIComponent Hierarchy
+```
+Component
+├── AlphaGroup
+└── UIComponent (abstract)
+    ├── UIButton      — renders itself (COLOR_TINT quad/sprite or SPRITE_SWAP)
+    ├── UICanvas      — empty render()
+    ├── UIImage       — renders sprite (simple/sliced/tiled/filled)
+    ├── UIMask        — empty render()
+    ├── UIPanel       — renders colored quad
+    ├── UIScrollbar   — empty render()
+    ├── UIScrollView  — empty render()
+    └── UIText        — renders glyphs (layout, shadow, autofit)
+```
+
+### Architecture After
+```
+Component
+├── AlphaGroup (uses UIVisual for alpha — no instanceof chain)
+└── UIComponent (abstract, NO render() method, keeps RenderBounds for hit testing)
+    ├── UIVisual (abstract — color, alpha)
+    │   ├── UIPanel   — colored quad data
+    │   ├── UIImage   — sprite data (simple/sliced/tiled/filled)
+    │   └── UIText    — text/font/layout data
+    ├── UIButton      — interaction-only, manages sibling UIVisual
+    ├── UICanvas      — root container marker
+    ├── UIMask        — scissor clipping logic
+    ├── UIScrollbar   — scroll handle logic
+    └── UIScrollView  — scroll container logic
+
+UIRenderer
+  — owns ALL rendering logic
+  — dispatches by type: renderPanel(), renderImage(), renderText()
+  — reads data from UIVisual subclasses
+```
 
 ---
 
 ## Phase 1: Introduce UIVisual and extract shared state
 
-Extract the visual concerns (color, alpha, render bounds) into a `UIVisual` intermediate class. This is a pure refactor — no behavior changes.
+Extract the visual concerns (color, alpha) into a `UIVisual` intermediate class. This is a pure refactor — no behavior changes.
+
+**Important:** `RenderBounds` and `computeRenderBounds()` stay on `UIComponent` — they are used for hit testing by non-visual components (e.g. `UIButton.containsPoint()`), not just rendering.
 
 ### Tasks
 - [ ] Create `UIVisual extends UIComponent` with:
   - `Vector4f color` field with getters/setters
   - `setAlpha(float)` method
-  - `RenderBounds` record (moved from UIComponent)
-  - `computeRenderBounds()` method (moved from UIComponent)
 - [ ] Make `UIPanel`, `UIImage`, `UIText` extend `UIVisual` instead of `UIComponent`
 - [ ] Remove duplicate `color`, `setColor()`, `setAlpha()` from UIPanel, UIImage, UIText
   - UIPanel default color: `(0.2, 0.2, 0.2, 1)` — keep via constructor
   - UIImage default color: `(1, 1, 1, 1)` — keep via constructor
   - UIText default color: `(1, 1, 1, 1)` — keep via constructor
-- [ ] Remove `RenderBounds` and `computeRenderBounds()` from `UIComponent` base class
+- [ ] `RenderBounds` and `computeRenderBounds()` remain on `UIComponent` (used by UIButton for hit testing)
 - [ ] Update `AlphaGroup.applyAlphaToComponents()` to use `if (comp instanceof UIVisual visual)` instead of the instanceof chain
 - [ ] Verify all existing tests pass
 
@@ -48,17 +84,17 @@ Extract the visual concerns (color, alpha, render bounds) into a `UIVisual` inte
 
 | File | Change |
 |------|--------|
-| `components/ui/UIVisual.java` | **NEW** — intermediate base class |
-| `components/ui/UIComponent.java` | Remove `RenderBounds`, `computeRenderBounds()` |
+| `components/ui/UIVisual.java` | **NEW** — intermediate base class (color, alpha) |
 | `components/ui/UIPanel.java` | Extend `UIVisual`, remove duplicate color/alpha |
 | `components/ui/UIImage.java` | Extend `UIVisual`, remove duplicate color/alpha |
 | `components/ui/UIText.java` | Extend `UIVisual`, remove duplicate color/alpha |
 | `components/ui/AlphaGroup.java` | Replace instanceof chain with `UIVisual` check |
 
 ### Notes
-- UIButton also has color/alpha but is handled in Phase 3 (interaction refactor)
+- UIButton also has color/alpha but is handled in Phase 3 (it keeps its own color fields for button states)
 - `UIVisual` does NOT have a `render()` method yet — that gets removed in Phase 2
-- Serialization: no field name changes, so existing scene files work unchanged
+- **Serialization is safe:** `ComponentRegistry.collectFields()` walks the class hierarchy, so moving `color` to UIVisual doesn't break existing scene files — the field name stays the same.
+- AlphaGroup currently checks: `UIImage → UIPanel → UIButton → UIText`. After this phase, the visual chain becomes a single `UIVisual` check. UIButton keeps its own `setAlpha()` since it doesn't extend UIVisual — AlphaGroup still needs a separate `UIButton` check until Phase 3 removes UIButton's color ownership.
 
 ---
 
@@ -72,11 +108,12 @@ Remove `render()` from components entirely. UIRenderer dispatches by type and re
 - [ ] Move UIPanel render logic into `UIRenderer.renderPanel(UIPanel)`
 - [ ] Move UIImage render logic into `UIRenderer.renderImage(UIImage)` (all 4 image types: simple, sliced, tiled, filled)
 - [ ] Move UIText render logic into `UIRenderer.renderText(UIText)`
-  - This is the biggest move — includes layout calculation, glyph rendering, shadow passes
-  - The `renderInternal`, `renderTextPass`, `calculateLayout`, etc. methods move to UIRenderer
+  - This is the biggest move — includes `renderInternal`, `renderTextPass` with glyph rendering, shadow passes
   - UIText keeps layout state (`lines`, `lineWidths`, `naturalWidth`, `naturalHeight`, `layoutDirty`) and public query methods (`getNaturalWidth`, `getLineCount`, etc.)
-  - UIText keeps `getRenderFont()`, `calculateBestFitFontSize()` (font selection is data, not rendering)
-- [ ] Move UIButton render logic into `UIRenderer.renderButton(UIButton)` (temporary — Phase 4 removes this)
+  - UIText keeps `getRenderFont()`, `calculateBestFitFontSize()`, `calculateLayout()` (font selection and layout are data, not rendering)
+  - **Exposure needed:** Several private fields/methods in UIText must become package-private or gain getters for UIRenderer to read: `cachedFont`, `lines`, `lineWidths`, `naturalWidth`, `naturalHeight`, `layoutDirty`, `getRenderFont(float, float)`. Prefer adding getters over widening access.
+  - **OpenGL calls** (`glEnable(GL_BLEND)`, `glBlendFunc`) currently in UIText.render() move to UIRenderer — components must not touch GL state
+- [ ] Move UIButton render logic into `UIRenderer.renderButton(UIButton)` — temporary, removed in Phase 3
 - [ ] Update `UIRenderer.renderGameObjectUI()` to dispatch by type:
   ```java
   for (var component : go.getAllComponents()) {
@@ -92,7 +129,7 @@ Remove `render()` from components entirely. UIRenderer dispatches by type and re
   }
   ```
 - [ ] Remove `UIRendererBackend` dependency from all UI component imports
-- [ ] Remove the `UIText.render(backend, x, y, width, height, rotation, pivotX, pivotY)` overload (editor explicit-position render) — replace with UIRenderer method that takes UIText + explicit bounds
+- [ ] Handle UIText's second `render()` overload (`render(backend, x, y, width, height, rotation, pivotX, pivotY)`) — this is used for editor explicit-position rendering. Replace with a `UIRenderer.renderText(UIText, float x, float y, ...)` method.
 - [ ] Verify all existing tests pass
 
 ### Files
@@ -105,14 +142,10 @@ Remove `render()` from components entirely. UIRenderer dispatches by type and re
 | `components/ui/UIScrollView.java` | Remove empty `render()` |
 | `components/ui/UIScrollbar.java` | Remove empty `render()` |
 | `components/ui/UIPanel.java` | Remove `render()` |
-| `components/ui/UIImage.java` | Remove `render()` and private render helpers |
-| `components/ui/UIText.java` | Remove render methods, keep layout/font logic |
-| `components/ui/UIButton.java` | Remove `render()` and private render helpers |
-| `rendering/ui/UIRenderer.java` | Add `renderPanel()`, `renderImage()`, `renderText()`, `renderButton()`, update dispatch |
-
-### Notes
-- `UIRendererBackend` interface may still be useful for testing/mocking — evaluate whether to keep or inline into UIRenderer
-- UIText's `render(backend, x, y, ...)` overload is used by the editor for preview rendering — need to check all call sites before removing
+| `components/ui/UIImage.java` | Remove `render()` and private render helpers (`renderSimple`, `renderSliced`, `renderTiled`, `renderFilled`) |
+| `components/ui/UIText.java` | Remove `render()` methods and `renderInternal`/`renderTextPass`, keep layout/font logic |
+| `components/ui/UIButton.java` | Remove `render()`, `renderColorTint()`, `renderSpriteSwap()` |
+| `rendering/ui/UIRenderer.java` | Add `renderPanel()`, `renderImage()`, `renderText()`, `renderButton()`, update `renderGameObjectUI()` dispatch |
 
 ### Decision: What about UIRendererBackend?
 Once components no longer call `backend.drawQuad()` etc., the interface exists only as self-documentation on UIRenderer. Options:
@@ -123,126 +156,207 @@ Recommend: keep for now, revisit when adding unit tests for UI rendering.
 
 ---
 
-## Phase 3: Auto-migrate scene/prefab files (UIButton -> UIButton + UIPanel)
+## Phase 3: UIButton interaction-only refactor with managed visual
 
-### Problem
-Existing scene and prefab files have UIButton as the sole visual component on button GOs. After Phase 4, UIButton becomes interaction-only and requires a sibling UIPanel (or UIImage) for visual output. Without migration, all existing buttons become invisible.
+UIButton becomes interaction-only. Instead of rendering itself, it **manages a sibling UIVisual component** (UIPanel or UIImage) based on its `TransitionMode`. When the transition mode changes, UIButton automatically swaps the managed component.
 
-### Audit of affected files
-| File | UIButton occurrences |
-|------|---------------------|
-| `gameData/scenes/DemoScene.scene` | 5 |
-| `gameData/scenes/Battle.scene` | 4 |
-| `gameData/assets/prefabs/overworld_player.prefab.json` | 5 |
+### Design
 
-All have UIButton with only UITransform — **no sibling UIPanel or UIImage**.
+**TransitionMode → Managed Component mapping:**
+| TransitionMode | Managed Component | Why |
+|---------------|-------------------|-----|
+| `COLOR_TINT` | `UIPanel` | Quad with color tinting for hover/press states |
+| `SPRITE_SWAP` | `UIImage` | Sprite that swaps between normal/hover/pressed sprites |
 
-### Migration strategy
-**JSON-level auto-migration** in `SceneDataLoader.load()`, following the established pattern used for v3->v4 migration and Transform/UITransform cleanup. No version bump needed — the migration is idempotent (safe to run multiple times).
+**Lifecycle:**
+1. On `onStart()`, UIButton searches the same GameObject for an existing UIPanel/UIImage
+2. If one matching the current TransitionMode already exists, adopt it (set `managedVisual` reference, mark it as driven)
+3. If the wrong type exists (e.g. UIPanel but mode is SPRITE_SWAP), remove it and create the correct one
+4. If none exists, create the correct one and add it to the GameObject
+5. UIButton pushes its state (normal/hover/pressed color or sprite) to the managed component on state changes
 
-### How it works
-For every `GameObjectData` in the scene:
-1. Check if it has a `UIButton` component
-2. Check if it does NOT already have a `UIPanel` or `UIImage` component
-3. If both conditions met, inject a `UIPanel` component with color copied from UIButton's `color` field
-4. The injected UIPanel is inserted before the UIButton in the components list (render order: panel draws first, button handles interaction)
+**When TransitionMode changes (editor):**
+1. Remove the current managed component from the GameObject
+2. Create the new correct component type
+3. Add it to the GameObject
+4. Transfer applicable values (e.g. color carries over between UIPanel and UIImage)
+5. This is a `CompoundCommand` for undo: (change transitionMode + remove old component + add new component)
 
-### Migration logic (pseudocode)
-```java
-private void migrateStandaloneButtons(SceneData data) {
-    if (data.getGameObjects() == null) return;
+**Driven component flag:**
+The managed UIPanel/UIImage is marked with a `drivenBy` field (or similar mechanism) so that:
+- The inspector shows a warning banner: "Values driven by UIButton"
+- Color/sprite fields are rendered as read-only (grayed out)
+- The designer edits everything through UIButton's inspector section
 
-    for (GameObjectData go : data.getGameObjects()) {
-        List<Component> components = go.getComponents();
-        if (components == null) continue;
+**Serialization:**
+- The managed UIPanel/UIImage IS serialized as a normal component on the GameObject
+- On deserialization + `onStart()`, UIButton finds the existing sibling and adopts it (no recreation needed in the common case)
+- On load of old scenes (no sibling exists), UIButton auto-creates one — this handles migration naturally
 
-        UIButton button = null;
-        boolean hasVisual = false;
+### UIButton field changes
 
-        for (Component comp : components) {
-            if (comp instanceof UIButton b) button = b;
-            if (comp instanceof UIPanel || comp instanceof UIImage) hasVisual = true;
-        }
+**Kept fields:**
+- `transitionMode` — drives which sibling component is managed
+- `color` — normal state color (pushed to managed UIPanel/UIImage)
+- `hoveredColor`, `pressedColor` — COLOR_TINT state overrides
+- `hoverTint`, `pressedTint` — COLOR_TINT auto-darkening factors
+- `sprite` — normal sprite (pushed to managed UIImage in SPRITE_SWAP mode)
+- `hoveredSprite`, `pressedSprite` — SPRITE_SWAP state sprites
+- `onClick`, `onHover`, `onExit` — callbacks (unchanged)
+- `hovered`, `pressed` — runtime state (unchanged)
+- `config` — GameConfig reference for default tint values
 
-        if (button != null && !hasVisual) {
-            // Create UIPanel with button's color
-            UIPanel panel = new UIPanel();
-            panel.setColor(button.getColor());
+**Removed:**
+- All rendering methods (`render()`, `renderColorTint()`, `renderSpriteSwap()`)
+- No longer needs `computeRenderBounds()` (inherited from UIComponent, not UIVisual)
 
-            // Insert before the UIButton
-            int buttonIndex = components.indexOf(button);
-            components.add(buttonIndex, panel);
+**New fields:**
+- `transient UIVisual managedVisual` — reference to the managed sibling (not serialized)
 
-            System.out.println("Migrated standalone UIButton on: " + go.getName());
-        }
-    }
-}
-```
+### Inspector changes (UIButtonInspector)
 
-### The same migration runs for prefab files
-Need to check `PrefabDataLoader` or equivalent for the hook point. Prefab files (`.prefab.json`) go through a similar deserialization path.
+The inspector already shows different fields per TransitionMode. Main changes:
+- When the managed UIPanel/UIImage is selected directly, show a read-only view with a "Driven by UIButton" warning banner at the top
+- The existing UIButtonInspector remains the primary editing surface — no UX change for the designer
+- TransitionMode change triggers CompoundCommand (change mode + swap component)
+
+### Migration (replaces old Phase 3)
+
+Migration is simplified because UIButton self-heals on `onStart()`:
+- Old scenes with standalone UIButton: UIButton creates the missing sibling automatically on start
+- No loader-level migration needed — UIButton handles it
+- First save after loading an old scene will persist the new sibling component
+
+For the editor, `UIEntityFactory.createButton()` must be updated to include the correct sibling from the start.
 
 ### Tasks
-- [ ] Add `migrateStandaloneButtons(SceneData)` to `SceneDataLoader.load()` (after existing migrations)
-- [ ] Add equivalent migration in prefab loading path
-- [ ] Test: load Battle.scene, verify UIPanel is injected on button GOs
-- [ ] Test: load overworld_player.prefab.json, verify migration
-- [ ] Test: re-save a migrated scene, verify UIPanel persists (no duplicate on next load)
-- [ ] Test: scene with UIButton + existing UIImage is NOT migrated (idempotent)
+- [ ] Add `transient UIVisual managedVisual` field to UIButton
+- [ ] Implement `ensureManagedVisual()` — finds or creates the correct sibling based on TransitionMode
+- [ ] Call `ensureManagedVisual()` from `onStart()`
+- [ ] Implement `pushStateToVisual()` — applies current hover/press state to managed component
+- [ ] Call `pushStateToVisual()` from `setHoveredInternal()` and `setPressedInternal()` instead of storing tint on self
+- [ ] Remove `renderButton()` from UIRenderer (no longer needed — UIPanel/UIImage renders normally)
+- [ ] Remove UIButton from UIRenderer dispatch (it's no longer a rendered component)
+- [ ] Implement TransitionMode change handling:
+  - Remove old managed component
+  - Create new managed component of correct type
+  - Transfer applicable values
+  - Wire up as CompoundCommand in inspector
+- [ ] Update UIButtonInspector for TransitionMode swap undo
+- [ ] Add "driven by UIButton" warning in UIPanel/UIImage inspectors when the component is managed
+- [ ] Update `UIEntityFactory.createButton()` to include sibling UIPanel (default TransitionMode is COLOR_TINT)
+- [ ] Update programmatic button creation in game code (`DemoScene.java`, `ExampleScene.java`)
+- [ ] Update `AlphaGroup` — remove the separate `UIButton` instanceof check (UIButton no longer has color/alpha; alpha goes through the managed UIVisual)
+- [ ] Verify button hover/press visuals still work correctly
+- [ ] Verify old scenes load correctly (auto-creation of missing sibling)
 
 ### Files
 
 | File | Change |
 |------|--------|
-| `resources/loaders/SceneDataLoader.java` | Add `migrateStandaloneButtons()` call in `load()` |
-| `resources/loaders/PrefabDataLoader.java` (or equivalent) | Same migration for prefab files |
-| `editor/scene/UIEntityFactory.java` | Update `createButton()` to include UIPanel sibling |
+| `components/ui/UIButton.java` | Remove rendering, add managed visual lifecycle, add `pushStateToVisual()` |
+| `rendering/ui/UIRenderer.java` | Remove `renderButton()` and UIButton from dispatch |
+| `components/ui/AlphaGroup.java` | Remove UIButton instanceof check |
+| `editor/ui/inspectors/UIButtonInspector.java` | CompoundCommand for TransitionMode swap |
+| `editor/ui/inspectors/UIPanelInspector.java` | "Driven by UIButton" warning when managed |
+| `editor/ui/inspectors/UIImageInspector.java` | "Driven by UIButton" warning when managed |
+| `editor/scene/UIEntityFactory.java` | Update `createButton()` to include sibling UIPanel |
+| `scenes/DemoScene.java` | Add UIPanel to programmatic button GOs |
+| `scenes/ExampleScene.java` | Add UIPanel to programmatic button GOs |
 
-### Notes
-- Migration happens at load time in the loader, before any runtime processing
-- Idempotent: if UIPanel already exists, no change
-- The injected UIPanel uses UIButton's existing `color` field, so visual appearance is preserved
-- UIButton's `color` field becomes redundant after Phase 4 (the sibling UIPanel owns the color), but that's fine — UIButton can still store normal/hover/pressed colors for tinting the sibling
-- Programmatic button creation in game code (`DemoScene.java`, `ExampleScene.java`) also needs updating — these create buttons at runtime without going through scene files
+### Risk
+Medium. The main risk is edge cases during TransitionMode switching in the editor (undo/redo ordering, component removal timing). The runtime path is straightforward — UIButton finds its sibling on start and pushes state on hover/press changes.
 
 ---
 
-## Phase 4: UIButton interaction-only refactor
+## Phase 4: Editor UI quality-of-life fixes
 
-UIButton currently renders its own quad/sprite with hover/press tint applied. Instead, it should modify a sibling UIPanel or UIImage — same pattern UIScrollbar already uses (scrollbar doesn't render; sibling UIImage on the track GO does).
+Small targeted fixes to editor UI behavior that naturally belong in this plan.
 
-**Prerequisite: Phase 3 migration must be complete** — all existing buttons must have a sibling UIPanel/UIImage before this phase removes UIButton's rendering.
+### 4a: Auto-UITransform when creating entities under a Canvas
 
-### Tasks
-- [ ] Remove all rendering from UIButton (already done in Phase 2's temporary `renderButton()`)
-- [ ] UIButton applies state to sibling visual:
-  - On hover/press state change, find sibling UIPanel or UIImage on same GameObject
-  - Apply color tint or sprite swap to the sibling
-  - Store original color to restore on exit
-- [ ] Remove `renderButton()` from UIRenderer (no longer needed)
-- [ ] Update UIButton color fields:
-  - Keep `hoveredColor`, `pressedColor` for COLOR_TINT mode
-  - Keep `hoveredSprite`, `pressedSprite` for SPRITE_SWAP mode
-  - `color` field becomes "normal color" — applied to sibling on init and restored on hover exit
-- [ ] UIButton no longer extends UIVisual — it stays as UIComponent (it's not a visual)
-- [ ] Update `UIEntityFactory.createButton()` to include UIPanel sibling (done in Phase 3)
-- [ ] Update programmatic button creation:
-  - `scenes/DemoScene.java`
-  - `scenes/ExampleScene.java`
-  - Any other runtime code that creates UIButton
-- [ ] Verify button hover/press visuals still work correctly
+**Problem:** `EntityCreationService.createEmptyEntity()` always creates entities with a `Transform`. When the selected parent is under a UICanvas, the new child should get a `UITransform` instead. The `ReparentEntityCommand` already handles this for drag-drop reparenting (auto-swaps Transform ↔ UITransform), but the creation path has no such logic.
 
-### Files
+**Fix:** In `createEmptyEntity()`, after determining the parent, check if the parent is a UI element (has UICanvas or UITransform). If so, replace the default Transform with a UITransform on the new entity.
+
+#### Tasks
+- [ ] In `EntityCreationService.createEmptyEntity()`, after resolving the parent, check `isUIElement(parent)`
+- [ ] If parent is a UI element, remove the default Transform and add a UITransform instead
+- [ ] Verify: create empty entity under a Canvas → gets UITransform
+- [ ] Verify: create empty entity at root level → gets Transform (unchanged)
+
+#### Files
 
 | File | Change |
 |------|--------|
-| `components/ui/UIButton.java` | Remove rendering, add sibling visual modification |
-| `rendering/ui/UIRenderer.java` | Remove `renderButton()` |
-| `scenes/DemoScene.java` | Add UIPanel to button GOs |
-| `scenes/ExampleScene.java` | Add UIPanel to button GOs |
+| `editor/panels/hierarchy/EntityCreationService.java` | Add UITransform auto-swap in `createEmptyEntity()` |
 
-### Risk
-Medium risk after Phase 3 migration. The migration ensures all serialized buttons have a sibling visual. Remaining risk is programmatic button creation in game code — requires manual audit and update.
+### 4b: UIDesigner bounds toggle should always show selected item bounds
+
+**Problem:** The "Bounds" toggle button in UIDesignerPanel hides ALL element bounds, including the currently selected item. The selected item's bounds should always be visible regardless of the toggle — the toggle should only affect unselected items.
+
+**Current code** (UIDesignerPanel, ~line 335):
+```java
+if (state.isShowElementBounds()) {
+    gizmoDrawer.drawSelectionBorders(drawList, scene);
+    gizmoDrawer.drawLayoutPadding(drawList, scene);
+    gizmoDrawer.drawTrackPadding(drawList, scene);
+}
+```
+
+**Fix:** Split the gizmo drawing so that:
+- Unselected items' borders/padding are conditional on the toggle
+- Selected item's borders/padding are always drawn
+
+This likely requires `drawSelectionBorders()` (and possibly `drawLayoutPadding`/`drawTrackPadding`) to accept a filter or to be split into two calls: one for the selected entity (always drawn) and one for everything else (conditional).
+
+#### Tasks
+- [ ] Modify `UIDesignerGizmoDrawer.drawSelectionBorders()` to accept a flag or split into selected/unselected
+- [ ] Always draw selected item bounds, conditionally draw unselected based on `showElementBounds`
+- [ ] Same treatment for `drawLayoutPadding()` and `drawTrackPadding()` if they affect selected items
+- [ ] Verify: toggle bounds off → selected item still shows bounds, unselected items hidden
+- [ ] Verify: toggle bounds on → all items show bounds (unchanged behavior)
+
+#### Files
+
+| File | Change |
+|------|--------|
+| `editor/panels/UIDesignerPanel.java` | Split gizmo draw calls for selected vs unselected |
+| `editor/panels/uidesigner/UIDesignerGizmoDrawer.java` | Support selected-only vs all-elements rendering |
+
+### 4c: Scrollbar left/right positioning on UIScrollView
+
+**Problem:** The scrollbar is always positioned on the right side of the scroll view. There's no way to place it on the left. The scrollbar's UITransform is hardcoded to anchor `(1, 0)` / pivot `(1, 0)` (right-aligned), and the viewport always occupies the remaining left-side space.
+
+**Design:** Add a `ScrollbarPosition` enum (LEFT, RIGHT) to UIScrollView. When the position changes, UIScrollView adjusts the scrollbar's anchor/pivot and the viewport's offset/anchor in `updateMetrics()`.
+
+```java
+public enum ScrollbarPosition { LEFT, RIGHT }
+```
+
+**How it works:**
+- **RIGHT (default, current behavior):** Scrollbar anchor/pivot = (1, 0). Viewport anchor/pivot = (0, 0), offset = (0, 0).
+- **LEFT:** Scrollbar anchor/pivot = (0, 0). Viewport anchor = (0, 0), offset = (scrollbarWidth, 0) — viewport shifts right to make room.
+
+UIScrollView already dynamically computes viewport width in `updateMetrics()` (subtracts scrollbar width). The only change is *where* the remaining space goes — left-offset vs right-aligned.
+
+#### Tasks
+- [ ] Add `ScrollbarPosition` enum to `UIScrollView` (LEFT, RIGHT), default RIGHT
+- [ ] Add `scrollbarPosition` field with getter/setter
+- [ ] In `updateMetrics()`, after computing viewport width, set viewport offset based on position:
+  - RIGHT: viewport offset.x = 0, scrollbar anchor.x = 1, scrollbar pivot.x = 1
+  - LEFT: viewport offset.x = scrollbarWidth, scrollbar anchor.x = 0, scrollbar pivot.x = 0
+- [ ] Update `UIScrollViewInspector` to expose the `scrollbarPosition` enum
+- [ ] Update `UIEntityFactory.createScrollView()` — no change needed (default is RIGHT)
+- [ ] Test: create scroll view, switch to LEFT, verify scrollbar appears on left and viewport shifts right
+- [ ] Test: undo/redo scrollbar position change
+
+#### Files
+
+| File | Change |
+|------|--------|
+| `components/ui/UIScrollView.java` | Add `ScrollbarPosition` enum and field, update `updateMetrics()` |
+| `editor/ui/inspectors/UIScrollViewInspector.java` | Expose scrollbar position enum selector |
 
 ---
 
@@ -275,12 +389,16 @@ Medium risk after Phase 3 migration. The migration ensures all serialized button
 ## Phase 6: Code review
 
 - [ ] Verify no UIComponent subclass has a `render()` method
-- [ ] Verify UIRenderer handles all visual component types
-- [ ] Verify AlphaGroup works with UIVisual interface
-- [ ] Verify UIButton interaction works via sibling modification
-- [ ] Verify scene file backwards compatibility (migration + no field renames)
-- [ ] Verify prefab file migration works
+- [ ] Verify UIRenderer handles all visual component types (UIPanel, UIImage, UIText)
+- [ ] Verify AlphaGroup works with UIVisual interface (no instanceof chain)
+- [ ] Verify UIButton interaction works via managed sibling visual
+- [ ] Verify scene file backwards compatibility (UIButton auto-creates missing sibling)
+- [ ] Verify prefab file compatibility
 - [ ] Verify editor inspector still works for all UI components
+- [ ] Verify "driven by UIButton" warning shows on managed UIPanel/UIImage
+- [ ] Verify TransitionMode switching creates correct sibling with undo support
+- [ ] Verify new entities under canvas get UITransform automatically
+- [ ] Verify UIDesigner bounds toggle always shows selected item bounds
 - [ ] Run full test suite
 - [ ] Check for any remaining `UIRendererBackend` imports in component classes
 - [ ] Update architecture docs if needed
@@ -293,41 +411,56 @@ Medium risk after Phase 3 migration. The migration ensures all serialized button
 |------|-----------|
 | Existing UI component unit tests | No regression in data behavior |
 | `UIMaskTest` | Mask still works after render() removal |
-| Unit test: migration adds UIPanel to standalone UIButton GO | Phase 3 migration logic |
-| Unit test: migration is idempotent (UIButton+UIPanel GO unchanged) | No double-migration |
-| Unit test: migration preserves UIButton color on injected UIPanel | Visual fidelity |
-| Manual: load Battle.scene, verify buttons visible | Migration works end-to-end |
-| Manual: load overworld_player prefab, verify buttons visible | Prefab migration |
-| Manual: button hover/press | UIButton interaction refactor works |
-| Manual: AlphaGroup on a subtree | Alpha applies to all visuals |
+| Unit test: UIButton.ensureManagedVisual() creates UIPanel for COLOR_TINT | Managed visual lifecycle |
+| Unit test: UIButton.ensureManagedVisual() creates UIImage for SPRITE_SWAP | Managed visual lifecycle |
+| Unit test: UIButton adopts existing UIPanel on start | Deserialization path |
+| Unit test: UIButton pushes hover color to managed UIPanel | State propagation |
+| Unit test: UIButton pushes pressed sprite to managed UIImage | State propagation |
+| Unit test: TransitionMode change swaps managed component | Editor switching |
+| Unit test: old scene without sibling — UIButton auto-creates on start | Migration |
+| Manual: load DemoScene/Battle.scene, verify buttons visible | Migration works end-to-end |
+| Manual: button hover/press in game | Interaction refactor works |
+| Manual: change TransitionMode in inspector, undo/redo | Editor undo |
+| Manual: select managed UIPanel, verify "driven" warning shows | Inspector UX |
+| Manual: AlphaGroup on a button subtree | Alpha propagates through managed visual |
 | Manual: UIScrollView scrolling | Scroll + mask clipping still works |
 | Manual: UIText with autoFit, wordWrap, shadow | Text rendering moved correctly |
 | Manual: create new button in editor, verify UIPanel is included | Factory update |
+| Manual: create empty entity under canvas → gets UITransform | Phase 4a auto-UITransform |
+| Manual: create empty entity at root → gets Transform | Phase 4a no regression |
+| Manual: bounds toggle off, select item → selected bounds visible | Phase 4b bounds fix |
+| Manual: bounds toggle on → all bounds visible | Phase 4b no regression |
+| Manual: scroll view with scrollbar on LEFT → scrollbar left, viewport shifted right | Phase 4c scrollbar position |
+| Manual: scroll view with scrollbar on RIGHT → default behavior unchanged | Phase 4c no regression |
 
-## Architecture After
+---
 
-```
-UIComponent (base)
-  - canvas lookup, transform validation, raycastTarget
-  - NO render() method
+## Phase Order Summary
 
-UIVisual extends UIComponent
-  - color, alpha, RenderBounds, computeRenderBounds()
-  - UIPanel, UIImage, UIText extend this
+| Phase | Risk | Description |
+|-------|------|-------------|
+| 1 | Low | Introduce UIVisual, extract shared color/alpha. Pure refactor. |
+| 2 | Medium | Move render() logic to UIRenderer, remove abstract render(). |
+| 3 | Medium | UIButton interaction-only refactor with managed sibling visual. |
+| 4 | Low | Editor UI QoL: auto-UITransform under canvas, bounds toggle fix, scrollbar left/right. |
+| 5 | Low | Move FillMethod/FillOrigin enums. Mechanical refactor. |
+| 6 | — | Code review and validation. |
 
-UIButton extends UIComponent
-  - interaction state (hover, pressed)
-  - modifies sibling UIVisual for visual feedback
+Phases 1-2 are independent of Phase 3. Phase 3 can be done after or in parallel with Phase 2 (UIButton rendering moves to UIRenderer in Phase 2, then gets replaced by managed visual in Phase 3). Phase 4 is independent of all other phases and can be done at any time.
 
-UICanvas, UIMask, UIScrollView, UIScrollbar extend UIComponent
-  - pure logic/marker components, no rendering concern
+---
 
-UIRenderer
-  - owns ALL rendering logic
-  - dispatches by component type
-  - reads data from UIVisual subclasses
+## Engineering Review Notes
 
-SceneDataLoader / PrefabDataLoader
-  - auto-migrates standalone UIButton GOs by injecting sibling UIPanel
-  - idempotent, runs at load time
-```
+Review performed against the codebase. Key findings that shaped the plan:
+
+| Area | Finding | Resolution |
+|------|---------|------------|
+| **Serialization** | `ComponentRegistry.collectFields()` walks the full class hierarchy — moving `color` to UIVisual superclass is safe | No migration needed |
+| **RenderBounds** | `UIButton.containsPoint()` uses `computeRenderBounds()` for hit testing — can't move to UIVisual | RenderBounds stays on UIComponent |
+| **addComponent during onStart** | `GameObject.addComponent()` auto-starts the new component if scene is active — safe for managed visual creation | UIButton can create sibling in onStart() |
+| **AlphaGroup + managed visual** | AlphaGroup calls `applyAlphaToComponents(childGO)` which iterates ALL components on a GO. Managed UIPanel on same GO as UIButton will be reached via `UIVisual` check | No issue — sibling components on same GO are iterated together |
+| **UIText complexity** | ~5 private fields and methods need getters for UIRenderer access. OpenGL blend calls must move out. | Add getters, move GL calls to UIRenderer |
+| **UIDesigner bounds** | `drawSelectionBorders()` already distinguishes selected vs unselected entities (different color/thickness) — easy to add filter parameter | Low complexity split |
+| **"Driven by" mechanism** | No existing pattern in codebase for marking components as managed | New transient field + inspector check needed |
+| **UIRendererBackend imports** | 9 component files import it; only 4 (UIPanel, UIImage, UIText, UIButton) actually use it in render() | All imports removed in Phase 2 |

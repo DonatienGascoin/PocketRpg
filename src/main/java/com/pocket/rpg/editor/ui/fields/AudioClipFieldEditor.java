@@ -41,6 +41,8 @@ public final class AudioClipFieldEditor {
                 if (ImGui.smallButton("...")) {
                     Object oldValue = ComponentReflectionUtils.getFieldValue(component, fieldName);
                     String currentPath = oldValue != null ? Assets.getPathForResource(oldValue) : null;
+                    // Capture entity now — FieldEditorContext is cleared before renderAssetPicker() runs
+                    EditorGameObject capturedEntity = FieldEditorContext.getEntity();
 
                     AssetEditor.openPicker(AudioClip.class, currentPath, selectedAsset -> {
                         UndoManager.getInstance().execute(
@@ -49,10 +51,10 @@ public final class AudioClipFieldEditor {
                                         fieldName,
                                         oldValue,
                                         selectedAsset,
-                                        FieldEditorContext.getEntity()
+                                        capturedEntity
                                 )
                         );
-                        FieldEditorContext.markFieldOverridden(fieldName, selectedAsset);
+                        // syncOverride in the command handles override tracking
                         var scene = FieldEditorContext.getCurrentScene();
                         if (scene != null) scene.markDirty();
                     });

@@ -171,7 +171,7 @@ public class EditorConfig {
      * Default font path for new UIText components.
      */
     @Builder.Default
-    private String defaultUiFont = "gameData/assets/fonts/zelda.ttf";
+    private String defaultUiFont = "fonts/Pokemon-Red.ttf";
 
     /**
      * Whether to show element bounds in the UI Designer.

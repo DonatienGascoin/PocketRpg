@@ -176,6 +176,7 @@ public class ExampleScene extends Scene {
         playButton.setColor(0.2f, 0.6f, 0.2f, 1f);  // Green
         playButton.setOnClick(() -> System.out.println("Play button clicked!"));
         playBtn.addComponent(playButton);
+        playBtn.addComponent(new UIPanel(new org.joml.Vector4f(0.2f, 0.6f, 0.2f, 1f)));
         playBtn.setParent(canvasGO);
 
         // Button with custom hover tint
@@ -190,6 +191,7 @@ public class ExampleScene extends Scene {
         optionsButton.setHoverTint(0.2f);  // 20% darker on hover
         optionsButton.setOnClick(() -> System.out.println("Options button clicked!"));
         optionsBtn.addComponent(optionsButton);
+        optionsBtn.addComponent(new UIPanel(new org.joml.Vector4f(0.3f, 0.3f, 0.6f, 1f)));
         optionsBtn.setParent(canvasGO);
 
         // Button with custom hover callback (no auto-tint)
@@ -211,6 +213,7 @@ public class ExampleScene extends Scene {
         });
         quitButton.setOnClick(() -> System.out.println("Quit button clicked!"));
         quitBtn.addComponent(quitButton);
+        quitBtn.addComponent(new UIPanel(new org.joml.Vector4f(0.6f, 0.2f, 0.2f, 1f)));
         quitBtn.setParent(canvasGO);
 
         System.out.println("✓ UI demo created");

@@ -1,11 +1,12 @@
 package com.pocket.rpg.components.ui;
 
+import com.pocket.rpg.components.DrivableBy;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.rendering.resources.Texture;
-import com.pocket.rpg.rendering.ui.UIRendererBackend;
+import com.pocket.rpg.rendering.ui.FillMethod;
+import com.pocket.rpg.rendering.ui.FillOrigin;
 import lombok.Getter;
 import lombok.Setter;
-import org.joml.Vector4f;
 
 /**
  * Renders a sprite/texture in screen space with various rendering modes.
@@ -19,7 +20,8 @@ import org.joml.Vector4f;
  *   <li><b>FILLED</b> - Progress bar / cooldown style partial rendering</li>
  * </ul>
  */
-public class UIImage extends UIComponent {
+@DrivableBy(UIButton.class)
+public class UIImage extends UIVisual {
 
     // ========================================================================
     // ENUMS
@@ -39,48 +41,12 @@ public class UIImage extends UIComponent {
         FILLED
     }
 
-    /**
-     * Fill method for FILLED image type.
-     */
-    public enum FillMethod {
-        /** Fill horizontally */
-        HORIZONTAL,
-        /** Fill vertically */
-        VERTICAL,
-        /** Fill radially in a 90-degree arc */
-        RADIAL_90,
-        /** Fill radially in a 180-degree arc */
-        RADIAL_180,
-        /** Fill radially in a full 360-degree circle */
-        RADIAL_360
-    }
-
-    /**
-     * Origin point for fill direction.
-     */
-    public enum FillOrigin {
-        // Horizontal origins
-        LEFT,
-        RIGHT,
-        // Vertical origins
-        BOTTOM,
-        TOP,
-        // Radial origins (corner or edge to start from)
-        BOTTOM_LEFT,
-        TOP_LEFT,
-        TOP_RIGHT,
-        BOTTOM_RIGHT
-    }
-
     // ========================================================================
     // FIELDS
     // ========================================================================
 
     @Getter @Setter
     private Sprite sprite;
-
-    @Getter
-    private final Vector4f color = new Vector4f(1, 1, 1, 1);  // RGBA tint
 
     /** How the sprite is rendered */
     @Getter @Setter
@@ -119,30 +85,17 @@ public class UIImage extends UIComponent {
     // ========================================================================
 
     public UIImage() {
+        super(1, 1, 1, 1);  // White default tint
     }
 
     public UIImage(Sprite sprite) {
+        super(1, 1, 1, 1);  // White default tint
         this.sprite = sprite;
     }
 
     public UIImage(Texture texture) {
+        super(1, 1, 1, 1);  // White default tint
         this.sprite = new Sprite(texture);
-    }
-
-    // ========================================================================
-    // COLOR METHODS
-    // ========================================================================
-
-    public void setColor(float r, float g, float b, float a) {
-        color.set(r, g, b, a);
-    }
-
-    public void setColor(Vector4f color) {
-        this.color.set(color);
-    }
-
-    public void setAlpha(float alpha) {
-        color.w = alpha;
     }
 
     // ========================================================================
@@ -181,101 +134,6 @@ public class UIImage extends UIComponent {
                      fillOrigin == FillOrigin.TOP_RIGHT || fillOrigin == FillOrigin.BOTTOM_RIGHT)
                     ? fillOrigin : FillOrigin.BOTTOM_LEFT;
         };
-    }
-
-    // ========================================================================
-    // RENDERING
-    // ========================================================================
-
-    @Override
-    public void render(UIRendererBackend backend) {
-        RenderBounds bounds = computeRenderBounds();
-        if (bounds == null) return;
-
-        switch (imageType) {
-            case SIMPLE -> renderSimple(backend, bounds);
-            case SLICED -> renderSliced(backend, bounds);
-            case TILED -> renderTiled(backend, bounds);
-            case FILLED -> renderFilled(backend, bounds);
-        }
-    }
-
-    private void renderSimple(UIRendererBackend backend, RenderBounds bounds) {
-        RenderBounds adjusted = preserveAspectRatio ? fitToAspectRatio(bounds) : bounds;
-        backend.drawSprite(adjusted.x(), adjusted.y(), adjusted.width(), adjusted.height(),
-                adjusted.rotation(), adjusted.pivotX(), adjusted.pivotY(), sprite, color);
-    }
-
-    private RenderBounds fitToAspectRatio(RenderBounds bounds) {
-        if (sprite == null || sprite.getWidth() <= 0 || sprite.getHeight() <= 0
-                || bounds.width() <= 0 || bounds.height() <= 0) {
-            return bounds;
-        }
-
-        float spriteAspect = sprite.getWidth() / sprite.getHeight();
-        float boundsAspect = bounds.width() / bounds.height();
-
-        float newW, newH;
-        if (spriteAspect > boundsAspect) {
-            // Sprite is wider — fit to width, shrink height
-            newW = bounds.width();
-            newH = bounds.width() / spriteAspect;
-        } else {
-            // Sprite is taller — fit to height, shrink width
-            newH = bounds.height();
-            newW = bounds.height() * spriteAspect;
-        }
-
-        // Center within the original bounds
-        float offsetX = (bounds.width() - newW) * bounds.pivotX();
-        float offsetY = (bounds.height() - newH) * bounds.pivotY();
-
-        return new RenderBounds(
-                bounds.x() + offsetX, bounds.y() + offsetY,
-                newW, newH,
-                bounds.rotation(), bounds.pivotX(), bounds.pivotY()
-        );
-    }
-
-    private void renderSliced(UIRendererBackend backend, RenderBounds bounds) {
-        if (sprite == null || !sprite.hasNineSlice()) {
-            // Fallback to simple if no 9-slice data
-            renderSimple(backend, bounds);
-            return;
-        }
-
-        backend.drawNineSlice(bounds.x(), bounds.y(), bounds.width(), bounds.height(),
-                bounds.rotation(), bounds.pivotX(), bounds.pivotY(),
-                sprite, color, fillCenter);
-    }
-
-    private void renderTiled(UIRendererBackend backend, RenderBounds bounds) {
-        if (sprite == null) {
-            renderSimple(backend, bounds);
-            return;
-        }
-
-        backend.drawTiled(bounds.x(), bounds.y(), bounds.width(), bounds.height(),
-                bounds.rotation(), bounds.pivotX(), bounds.pivotY(),
-                sprite, color, pixelsPerUnit);
-    }
-
-    private void renderFilled(UIRendererBackend backend, RenderBounds bounds) {
-        if (sprite == null || fillAmount <= 0) {
-            return; // Nothing to draw
-        }
-
-        // For horizontal, vertical, and radial 360, full fill = full sprite
-        // For radial 90/180, full fill only shows that portion of the sprite
-        if (fillAmount >= 1.0f && fillMethod != FillMethod.RADIAL_90
-                && fillMethod != FillMethod.RADIAL_180) {
-            renderSimple(backend, bounds);
-            return;
-        }
-
-        backend.drawFilled(bounds.x(), bounds.y(), bounds.width(), bounds.height(),
-                bounds.rotation(), bounds.pivotX(), bounds.pivotY(),
-                sprite, color, fillMethod, getEffectiveFillOrigin(), fillAmount, fillClockwise);
     }
 
     // ========================================================================

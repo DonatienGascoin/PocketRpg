@@ -1,19 +1,14 @@
 package com.pocket.rpg.components.ui;
 
-import com.pocket.rpg.rendering.resources.Texture;
-import com.pocket.rpg.rendering.ui.UIRendererBackend;
 import com.pocket.rpg.serialization.Required;
 import com.pocket.rpg.ui.text.Font;
 import com.pocket.rpg.ui.text.FontCache;
-import com.pocket.rpg.ui.text.Glyph;
 import com.pocket.rpg.ui.text.HorizontalAlignment;
 import com.pocket.rpg.ui.text.VerticalAlignment;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector2f;
 import org.joml.Vector4f;
-
-import static org.lwjgl.opengl.GL11.*;
 
 /**
  * UI component for rendering text.
@@ -43,7 +38,7 @@ import static org.lwjgl.opengl.GL11.*;
  * textObj.addComponent(text);
  * }</pre>
  */
-public class UIText extends UIComponent {
+public class UIText extends UIVisual {
 
     /**
      * Path to the font file (e.g., "fonts/zelda.ttf").
@@ -68,10 +63,6 @@ public class UIText extends UIComponent {
 
     @Getter
     private String text = "";
-
-    @Getter
-    @Setter
-    private Vector4f color = new Vector4f(1, 1, 1, 1);  // White
 
     @Getter
     @Setter
@@ -148,14 +139,17 @@ public class UIText extends UIComponent {
     // ========================================================================
 
     public UIText() {
+        super(1, 1, 1, 1);  // White default
     }
 
     public UIText(String fontPath, int fontSize) {
+        super(1, 1, 1, 1);  // White default
         this.fontPath = fontPath;
         this.fontSize = fontSize;
     }
 
     public UIText(String fontPath, int fontSize, String text) {
+        super(1, 1, 1, 1);  // White default
         this.fontPath = fontPath;
         this.fontSize = fontSize;
         setText(text);
@@ -217,13 +211,6 @@ public class UIText extends UIComponent {
     // ========================================================================
 
     /**
-     * Sets color from RGBA components (0-1 range).
-     */
-    public void setColor(float r, float g, float b, float a) {
-        color.set(r, g, b, a);
-    }
-
-    /**
      * Sets color from RGB (alpha = 1).
      */
     public void setColor(float r, float g, float b) {
@@ -263,108 +250,14 @@ public class UIText extends UIComponent {
     }
 
     // ========================================================================
-    // RENDERING
+    // RENDER FONT
     // ========================================================================
-
-    @Override
-    public void render(com.pocket.rpg.rendering.ui.UIRendererBackend backend) {
-        if (getFont() == null || text.isEmpty()) {
-            return;
-        }
-
-        UITransform transform = getUITransform();
-        if (transform == null) {
-            return;
-        }
-
-        // Use matrix-based methods for correct hierarchy handling
-        Vector2f pivotWorld = transform.getWorldPivotPosition2D();
-        Vector2f worldScale = transform.getComputedWorldScale2D();
-        float boxWidth = transform.getEffectiveWidth() * worldScale.x;
-        float boxHeight = transform.getEffectiveHeight() * worldScale.y;
-        float rotation = transform.getComputedWorldRotation2D();
-        Vector2f pivot = transform.getEffectivePivot();  // Use effective pivot for MATCH_PARENT
-
-        // Calculate top-left position from pivot
-        float boxX = pivotWorld.x - pivot.x * boxWidth;
-        float boxY = pivotWorld.y - pivot.y * boxHeight;
-        float pivotX = pivotWorld.x;
-        float pivotY = pivotWorld.y;
-
-        renderInternal(backend, boxX, boxY, boxWidth, boxHeight, rotation, pivotX, pivotY);
-    }
-
-    /**
-     * Renders text with explicit position, size, and rotation parameters.
-     * Use this in editor context where transform hierarchy may not be set up.
-     *
-     * @param backend  Rendering backend
-     * @param x        X position (screen-space)
-     * @param y        Y position (screen-space)
-     * @param width    Box width
-     * @param height   Box height
-     * @param rotation Rotation in degrees
-     * @param pivotX   Pivot X in screen coordinates
-     * @param pivotY   Pivot Y in screen coordinates
-     */
-    public void render(com.pocket.rpg.rendering.ui.UIRendererBackend backend,
-                       float x, float y, float width, float height,
-                       float rotation, float pivotX, float pivotY) {
-        if (getFont() == null || text.isEmpty()) return;
-
-        renderInternal(backend, x, y, width, height, rotation, pivotX, pivotY);
-    }
-
-    /**
-     * Internal rendering implementation shared by both render methods.
-     */
-    private void renderInternal(com.pocket.rpg.rendering.ui.UIRendererBackend backend,
-                                float boxX, float boxY, float boxWidth, float boxHeight,
-                                float rotation, float pivotX, float pivotY) {
-        // Get the font to render with (may recalculate if auto-fit)
-        Font renderFont = getRenderFont(boxWidth, boxHeight);
-        if (renderFont == null) return;
-
-        // Recalculate layout if needed
-        if (layoutDirty) {
-            calculateLayout(boxWidth, renderFont);
-        }
-
-        // Calculate text position for alignment
-        float textStartX = calculateHorizontalStart(boxX, boxWidth, naturalWidth);
-        float textStartY = calculateVerticalStart(boxY, boxHeight, naturalHeight);
-
-        // Use the transform's pivot point for rotation (passed in from render())
-        // This ensures MATCH_PARENT children rotate around the same pivot as their parent
-        float effectivePivotX = pivotX;
-        float effectivePivotY = pivotY;
-
-        // Setup OpenGL state for font atlas (single channel)
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-        // Bind font atlas and begin batch
-        Texture atlasTexture = renderFont.getAtlasTexture();
-        if (atlasTexture == null) return;
-        backend.beginBatch(atlasTexture);
-
-        // Render shadow first (if enabled)
-        if (shadow) {
-            renderTextPass(backend, renderFont, boxX + shadowOffset.x, boxY + shadowOffset.y,
-                    boxWidth, boxHeight, shadowColor, rotation, effectivePivotX, effectivePivotY);
-        }
-
-        // Render main text
-        renderTextPass(backend, renderFont, boxX, boxY, boxWidth, boxHeight, color, rotation, effectivePivotX, effectivePivotY);
-
-        backend.endBatch();
-    }
 
     /**
      * Gets the font to use for rendering.
      * When autoFit is enabled, finds the largest font size that fits.
      */
-    private Font getRenderFont(float boxWidth, float boxHeight) {
+    public Font getRenderFont(float boxWidth, float boxHeight) {
         if (!autoFit) {
             return getFont();
         }
@@ -430,59 +323,53 @@ public class UIText extends UIComponent {
         return (testLines.length - 1) * testFont.getLineHeight() + singleLineVisualHeight;
     }
 
+    // ========================================================================
+    // LAYOUT
+    // ========================================================================
+
     /**
-     * Renders a single pass of text (used for both shadow and main text).
-     * Supports rotation around the pivot point.
+     * Ensures layout is calculated, recalculating if dirty.
      */
-    private void renderTextPass(UIRendererBackend backend, Font renderFont, float baseX, float baseY,
-                                float boxWidth, float boxHeight, Vector4f textColor,
-                                float rotation, float pivotX, float pivotY) {
-
-        float startY = calculateVerticalStart(baseY, boxHeight, naturalHeight);
-
-        float lineY = startY;
-        float lineHeight = renderFont.getLineHeight();
-        float ascent = renderFont.getAscent();
-
-        for (int lineIndex = 0; lineIndex < lines.length; lineIndex++) {
-            String line = lines[lineIndex];
-            float lineWidth = lineWidths[lineIndex];
-
-            // Calculate horizontal starting position for this line
-            float lineX = calculateHorizontalStart(baseX, boxWidth, lineWidth);
-
-            // Render glyphs
-            float cursorX = lineX;
-            float baseline = lineY + ascent;
-
-            for (int i = 0; i < line.length(); i++) {
-                char c = line.charAt(i);
-                Glyph glyph = renderFont.getGlyph(c);
-
-                if (glyph != null && !glyph.isWhitespace()) {
-                    float glyphX = cursorX + glyph.bearingX;
-                    float glyphY = baseline - glyph.bearingY;
-                    float glyphW = glyph.width;
-                    float glyphH = glyph.height;
-
-                    // Use rotation-aware batchSprite to rotate both position AND glyph quad
-                    backend.batchSprite(
-                            glyphX, glyphY,
-                            glyphW, glyphH,
-                            glyph.u0, glyph.v0, glyph.u1, glyph.v1,
-                            rotation, pivotX, pivotY,
-                            textColor
-                    );
-                }
-
-                if (glyph != null) {
-                    cursorX += glyph.advance;
-                }
-            }
-
-            // Move to next line
-            lineY += lineHeight;
+    public void ensureLayout(float boxWidth, Font renderFont) {
+        if (layoutDirty) {
+            calculateLayout(boxWidth, renderFont);
         }
+    }
+
+    /**
+     * Gets the computed lines after layout.
+     */
+    public String[] getLines() {
+        return lines;
+    }
+
+    /**
+     * Gets the computed line widths after layout.
+     */
+    public float[] getLineWidths() {
+        return lineWidths;
+    }
+
+    /**
+     * Calculates horizontal start position based on alignment.
+     */
+    public float calculateHorizontalStart(float boxX, float boxWidth, float lineWidth) {
+        return switch (horizontalAlignment) {
+            case LEFT -> boxX;
+            case CENTER -> boxX + (boxWidth - lineWidth) / 2;
+            case RIGHT -> boxX + boxWidth - lineWidth;
+        };
+    }
+
+    /**
+     * Calculates vertical start position based on alignment.
+     */
+    public float calculateVerticalStart(float boxY, float boxHeight, float textHeight) {
+        return switch (verticalAlignment) {
+            case TOP -> boxY;
+            case MIDDLE -> boxY + (boxHeight - textHeight) / 2;
+            case BOTTOM -> boxY + boxHeight - textHeight;
+        };
     }
 
     private void calculateLayout(float maxWidth, Font renderFont) {
@@ -598,30 +485,6 @@ public class UIText extends UIComponent {
         }
     }
 
-    /**
-     * Calculates horizontal start position based on alignment.
-     * Text is aligned within the bounding box (Unity-style).
-     */
-    private float calculateHorizontalStart(float boxX, float boxWidth, float lineWidth) {
-        return switch (horizontalAlignment) {
-            case LEFT -> boxX;
-            case CENTER -> boxX + (boxWidth - lineWidth) / 2;
-            case RIGHT -> boxX + boxWidth - lineWidth;
-        };
-    }
-
-    /**
-     * Calculates vertical start position based on alignment.
-     * Text is aligned within the bounding box (Unity-style).
-     */
-    private float calculateVerticalStart(float boxY, float boxHeight, float textHeight) {
-        return switch (verticalAlignment) {
-            case TOP -> boxY;
-            case MIDDLE -> boxY + (boxHeight - textHeight) / 2;
-            case BOTTOM -> boxY + boxHeight - textHeight;
-        };
-    }
-
     // ========================================================================
     // LAYOUT INFO
     // ========================================================================
@@ -675,7 +538,4 @@ public class UIText extends UIComponent {
         return lines != null ? lines.length : 0;
     }
 
-    public void setAlpha(float alpha) {
-        color.w = alpha;
-    }
 }

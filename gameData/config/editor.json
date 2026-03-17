@@ -35,5 +35,5 @@
   "fontSize": 16.0,
   "showGrid": true,
   "showTileCoordinates": true,
-  "defaultUiFont": "gameData/assets/fonts/zelda.ttf"
+  "defaultUiFont": "fonts/zelda.ttf"
 }

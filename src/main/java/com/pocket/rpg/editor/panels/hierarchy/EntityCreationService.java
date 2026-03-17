@@ -1,6 +1,7 @@
 package com.pocket.rpg.editor.panels.hierarchy;
 
 import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.core.Transform;
 import com.pocket.rpg.components.ui.UICanvas;
 import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.core.GameObject;
@@ -10,6 +11,7 @@ import com.pocket.rpg.editor.scene.UIEntityFactory;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.AddEntitiesCommand;
 import com.pocket.rpg.editor.undo.commands.AddEntityCommand;
+import com.pocket.rpg.editor.utils.TransformSwapHelper;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import lombok.Setter;
 import org.joml.Vector3f;
@@ -45,6 +47,15 @@ public class EntityCreationService {
         if (selected != null) {
             entity.setParent(selected);
             entity.setOrder(selected.getChildren().size());
+
+            // Auto-swap Transform → UITransform when parenting under a UI element
+            if (isUIElement(selected)) {
+                Transform transform = entity.getComponent(Transform.class);
+                if (transform != null) {
+                    UITransform uiTransform = TransformSwapHelper.createUITransformFrom(transform);
+                    entity.replaceComponent(transform, uiTransform);
+                }
+            }
         } else {
             entity.setOrder(getNextRootOrder());
         }

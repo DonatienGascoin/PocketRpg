@@ -1,8 +1,6 @@
 package com.pocket.rpg.components.ui;
 
-import com.pocket.rpg.rendering.ui.UIRendererBackend;
-import lombok.Getter;
-import org.joml.Vector4f;
+import com.pocket.rpg.components.DrivableBy;
 
 /**
  * Renders a solid color rectangle in screen space.
@@ -12,28 +10,15 @@ import org.joml.Vector4f;
  * - UIImage: Requires a sprite/texture
  * - UIPanel: Solid color, no texture needed
  */
-public class UIPanel extends UIComponent {
-
-    @Getter
-    private final Vector4f color = new Vector4f(0.2f, 0.2f, 0.2f, 1f);  // Dark gray default
+@DrivableBy(UIButton.class)
+public class UIPanel extends UIVisual {
 
     public UIPanel() {
+        super(0.2f, 0.2f, 0.2f, 1f);  // Dark gray default
     }
 
-    public UIPanel(Vector4f color) {
-        this.color.set(color);
-    }
-
-    public void setColor(float r, float g, float b, float a) {
-        color.set(r, g, b, a);
-    }
-
-    public void setColor(Vector4f color) {
-        this.color.set(color);
-    }
-
-    public void setAlpha(float alpha) {
-        color.w = alpha;
+    public UIPanel(org.joml.Vector4f color) {
+        super(color.x, color.y, color.z, color.w);
     }
 
     /**
@@ -47,17 +32,9 @@ public class UIPanel extends UIComponent {
     }
 
     @Override
-    public void render(UIRendererBackend backend) {
-        RenderBounds bounds = computeRenderBounds();
-        if (bounds == null) return;
-
-        backend.drawQuad(bounds.x(), bounds.y(), bounds.width(), bounds.height(),
-                         bounds.rotation(), bounds.pivotX(), bounds.pivotY(), color);
-    }
-
-    @Override
     public String toString() {
+        var c = getColor();
         return String.format("UIPanel[color=(%.2f,%.2f,%.2f,%.2f)]",
-                color.x, color.y, color.z, color.w);
+                c.x, c.y, c.z, c.w);
     }
 }

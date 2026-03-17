@@ -1,6 +1,5 @@
 package com.pocket.rpg.rendering.ui;
 
-import com.pocket.rpg.components.ui.UIImage;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.rendering.resources.Texture;
 import org.joml.Vector4f;
@@ -151,7 +150,7 @@ public interface UIRendererBackend {
     void drawFilled(float x, float y, float width, float height,
                     float rotation, float originX, float originY,
                     Sprite sprite, Vector4f tint,
-                    UIImage.FillMethod fillMethod, UIImage.FillOrigin fillOrigin,
+                    FillMethod fillMethod, FillOrigin fillOrigin,
                     float fillAmount, boolean clockwise);
 
     // ========================================================================

@@ -1,7 +1,10 @@
 package com.pocket.rpg.editor.ui.inspectors;
 
 import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.DrivableBy;
 import com.pocket.rpg.components.ui.UIImage;
+import com.pocket.rpg.rendering.ui.FillMethod;
+import com.pocket.rpg.rendering.ui.FillOrigin;
 import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
@@ -31,6 +34,26 @@ public class UIImageInspector extends CustomComponentInspector<UIImage> {
     @Override
     public boolean draw() {
         boolean changed = false;
+
+        // Detect driven: check if a sibling driver component exists via @DrivableBy
+        boolean isDriven = false;
+        DrivableBy drivableBy = component.getClass().getAnnotation(DrivableBy.class);
+        if (drivableBy != null && entity != null) {
+            for (Class<? extends Component> driverType : drivableBy.value()) {
+                if (entity.getComponent(driverType) != null) {
+                    isDriven = true;
+                    break;
+                }
+            }
+        }
+
+        if (isDriven) {
+            ImGui.spacing();
+            EditorColors.textColored(EditorColors.WARNING,
+                    MaterialIcons.Warning + " Values driven by UIButton");
+            ImGui.spacing();
+            return false;
+        }
 
         // Sprite
         changed |= FieldEditors.drawAsset(MaterialIcons.Image + " Sprite", component, "sprite", Sprite.class, editorEntity());
@@ -158,9 +181,9 @@ public class UIImageInspector extends CustomComponentInspector<UIImage> {
         ImGui.indent();
 
         // Fill Method
-        changed |= EnumEditor.drawEnum("Fill Method", component, "fillMethod", UIImage.FillMethod.class);
+        changed |= EnumEditor.drawEnum("Fill Method", component, "fillMethod", FillMethod.class);
 
-        UIImage.FillMethod fillMethod = component.getFillMethod();
+        FillMethod fillMethod = component.getFillMethod();
 
         // Fill Origin - options depend on fill method
         ImGui.spacing();
@@ -171,9 +194,9 @@ public class UIImageInspector extends CustomComponentInspector<UIImage> {
         changed |= PrimitiveEditors.drawFloatSlider("Fill Amount", component, "fillAmount", 0f, 1f);
 
         // Clockwise checkbox - only for radial methods
-        if (fillMethod == UIImage.FillMethod.RADIAL_90 ||
-            fillMethod == UIImage.FillMethod.RADIAL_180 ||
-            fillMethod == UIImage.FillMethod.RADIAL_360) {
+        if (fillMethod == FillMethod.RADIAL_90 ||
+            fillMethod == FillMethod.RADIAL_180 ||
+            fillMethod == FillMethod.RADIAL_360) {
             ImGui.spacing();
             changed |= PrimitiveEditors.drawBoolean("Clockwise", component, "fillClockwise");
         }
@@ -182,15 +205,15 @@ public class UIImageInspector extends CustomComponentInspector<UIImage> {
         return changed;
     }
 
-    private boolean drawFillOriginForMethod(UIImage.FillMethod fillMethod) {
+    private boolean drawFillOriginForMethod(FillMethod fillMethod) {
         // Get valid origins for this fill method
-        UIImage.FillOrigin[] validOrigins = getValidOrigins(fillMethod);
+        FillOrigin[] validOrigins = getValidOrigins(fillMethod);
         String[] originNames = new String[validOrigins.length];
         for (int i = 0; i < validOrigins.length; i++) {
             originNames[i] = formatOriginName(validOrigins[i]);
         }
 
-        UIImage.FillOrigin currentOrigin = component.getFillOrigin();
+        FillOrigin currentOrigin = component.getFillOrigin();
 
         // Find current index (or default to 0 if current is invalid for this method)
         int currentIndex = 0;
@@ -209,8 +232,8 @@ public class UIImageInspector extends CustomComponentInspector<UIImage> {
         ImGui.sameLine();
         ImGui.setNextItemWidth(-1);
         if (ImGui.combo("##fillOrigin", selected, originNames)) {
-            UIImage.FillOrigin oldOrigin = currentOrigin;
-            UIImage.FillOrigin newOrigin = validOrigins[selected.get()];
+            FillOrigin oldOrigin = currentOrigin;
+            FillOrigin newOrigin = validOrigins[selected.get()];
             component.setFillOrigin(newOrigin);
             if (editorEntity() != null) {
                 UndoManager.getInstance().push(
@@ -224,26 +247,26 @@ public class UIImageInspector extends CustomComponentInspector<UIImage> {
         return changed;
     }
 
-    private UIImage.FillOrigin[] getValidOrigins(UIImage.FillMethod method) {
+    private FillOrigin[] getValidOrigins(FillMethod method) {
         return switch (method) {
-            case HORIZONTAL -> new UIImage.FillOrigin[]{
-                    UIImage.FillOrigin.LEFT,
-                    UIImage.FillOrigin.RIGHT
+            case HORIZONTAL -> new FillOrigin[]{
+                    FillOrigin.LEFT,
+                    FillOrigin.RIGHT
             };
-            case VERTICAL -> new UIImage.FillOrigin[]{
-                    UIImage.FillOrigin.BOTTOM,
-                    UIImage.FillOrigin.TOP
+            case VERTICAL -> new FillOrigin[]{
+                    FillOrigin.BOTTOM,
+                    FillOrigin.TOP
             };
-            case RADIAL_90, RADIAL_180, RADIAL_360 -> new UIImage.FillOrigin[]{
-                    UIImage.FillOrigin.BOTTOM_LEFT,
-                    UIImage.FillOrigin.TOP_LEFT,
-                    UIImage.FillOrigin.TOP_RIGHT,
-                    UIImage.FillOrigin.BOTTOM_RIGHT
+            case RADIAL_90, RADIAL_180, RADIAL_360 -> new FillOrigin[]{
+                    FillOrigin.BOTTOM_LEFT,
+                    FillOrigin.TOP_LEFT,
+                    FillOrigin.TOP_RIGHT,
+                    FillOrigin.BOTTOM_RIGHT
             };
         };
     }
 
-    private String formatOriginName(UIImage.FillOrigin origin) {
+    private String formatOriginName(FillOrigin origin) {
         // Convert BOTTOM_LEFT to "Bottom Left"
         String name = origin.name().replace("_", " ");
         StringBuilder result = new StringBuilder();

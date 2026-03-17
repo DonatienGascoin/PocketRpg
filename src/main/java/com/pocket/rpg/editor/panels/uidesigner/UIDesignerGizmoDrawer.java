@@ -58,8 +58,10 @@ public class UIDesignerGizmoDrawer {
     /**
      * Draws borders around all UI elements, highlighting selected ones.
      * Supports rotated elements by drawing 4 lines forming a rotated rectangle.
+     *
+     * @param selectedOnly If true, only draws the selected element's border.
      */
-    public void drawSelectionBorders(ImDrawList drawList, EditorScene scene) {
+    public void drawSelectionBorders(ImDrawList drawList, EditorScene scene, boolean selectedOnly) {
         if (scene == null) return;
 
         for (EditorGameObject entity : scene.getEntities()) {
@@ -70,6 +72,9 @@ public class UIDesignerGizmoDrawer {
             // Skip handle children of scrollbar (entirely driven, would just add clutter)
             if (entity.getParent() != null && entity.getParent().getComponent(UIScrollbar.class) != null) continue;
 
+            boolean selected = scene.isSelected(entity);
+            if (selectedOnly && !selected) continue;
+
             UITransform transform = entity.getComponent(UITransform.class);
             // Negate rotation to convert to screen space (Y-down)
             // Use matrix-based method for correct hierarchy handling
@@ -78,7 +83,6 @@ public class UIDesignerGizmoDrawer {
             float[] corners = calculateRotatedScreenCorners(entity, transform, rotation);
             if (corners == null) continue;
 
-            boolean selected = scene.isSelected(entity);
             int borderColor = selected ? UIDesignerState.COLOR_SELECTION
                     : ImGui.colorConvertFloat4ToU32(0.5f, 0.5f, 0.5f, 0.8f);
             float thickness = selected ? 2.0f : 1.0f;

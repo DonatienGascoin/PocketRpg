@@ -102,13 +102,13 @@
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
             "raycastTarget": true,
-            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/PokedexBackground.png",
             "color": {
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
               "w": 1.0
             },
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/PokedexBackground.png",
             "imageType": "SLICED",
             "fillCenter": true,
             "fillMethod": "HORIZONTAL",
@@ -329,13 +329,13 @@
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
             "raycastTarget": true,
-            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/PokemonSlot_unSelected.png",
             "color": {
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
               "w": 1.0
             },
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/PokemonSlot_unSelected.png",
             "imageType": "SLICED",
             "fillCenter": true,
             "fillMethod": "HORIZONTAL",
@@ -395,13 +395,13 @@
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
             "raycastTarget": true,
-            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/PokemonSlot_unSelected.png",
             "color": {
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
               "w": 1.0
             },
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/PokemonSlot_unSelected.png",
             "imageType": "SLICED",
             "fillCenter": true,
             "fillMethod": "HORIZONTAL",
@@ -461,13 +461,13 @@
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
             "raycastTarget": true,
-            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/PokemonSlot_unSelected.png",
             "color": {
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
               "w": 1.0
             },
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/PokemonSlot_unSelected.png",
             "imageType": "SLICED",
             "fillCenter": true,
             "fillMethod": "HORIZONTAL",
@@ -527,13 +527,13 @@
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
             "raycastTarget": true,
-            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/PokemonSlot_unSelected.png",
             "color": {
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
               "w": 1.0
             },
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/PokemonSlot_unSelected.png",
             "imageType": "SLICED",
             "fillCenter": true,
             "fillMethod": "HORIZONTAL",
@@ -593,13 +593,13 @@
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
             "raycastTarget": true,
-            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/PokemonSlot_unSelected.png",
             "color": {
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
               "w": 1.0
             },
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/PokemonSlot_unSelected.png",
             "imageType": "SLICED",
             "fillCenter": true,
             "fillMethod": "HORIZONTAL",
@@ -659,13 +659,13 @@
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
             "raycastTarget": true,
-            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/PokemonSlot_selected.png",
             "color": {
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
               "w": 1.0
             },
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/PokemonSlot_selected.png",
             "imageType": "SIMPLE",
             "fillCenter": true,
             "fillMethod": "HORIZONTAL",
@@ -955,15 +955,15 @@
           "type": "com.pocket.rpg.components.ui.UIText",
           "properties": {
             "raycastTarget": true,
-            "fontPath": "fonts/Pokemon-Red.ttf",
-            "fontSize": 20,
-            "text": "Cancel",
             "color": {
               "x": 0.0,
               "y": 0.0,
               "z": 0.0,
               "w": 1.0
             },
+            "fontPath": "fonts/Pokemon-Red.ttf",
+            "fontSize": 20,
+            "text": "Cancel",
             "horizontalAlignment": "CENTER",
             "verticalAlignment": "MIDDLE",
             "wordWrap": false,
@@ -1032,15 +1032,15 @@
           "type": "com.pocket.rpg.components.ui.UIText",
           "properties": {
             "raycastTarget": true,
-            "fontPath": "fonts/Pokemon-Red.ttf",
-            "fontSize": 20,
-            "text": "Choose a Pokémon",
             "color": {
               "x": 0.0,
               "y": 0.0,
               "z": 0.0,
               "w": 1.0
             },
+            "fontPath": "fonts/Pokemon-Red.ttf",
+            "fontSize": 20,
+            "text": "Choose a Pokémon",
             "horizontalAlignment": "CENTER",
             "verticalAlignment": "MIDDLE",
             "wordWrap": false,
@@ -1109,13 +1109,13 @@
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
             "raycastTarget": true,
-            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/Pokemon/OW0.4.png#4",
             "color": {
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
               "w": 1.0
             },
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/Pokemon/OW0.4.png#4",
             "imageType": "SIMPLE",
             "fillCenter": true,
             "fillMethod": "HORIZONTAL",
@@ -1233,15 +1233,15 @@
           "type": "com.pocket.rpg.components.ui.UIText",
           "properties": {
             "raycastTarget": true,
-            "fontPath": "fonts/Pokemon-Red.ttf",
-            "fontSize": 20,
-            "text": "Charizard",
             "color": {
               "x": 0.0,
               "y": 0.0,
               "z": 0.0,
               "w": 1.0
             },
+            "fontPath": "fonts/Pokemon-Red.ttf",
+            "fontSize": 20,
+            "text": "Charizard",
             "horizontalAlignment": "LEFT",
             "verticalAlignment": "MIDDLE",
             "wordWrap": false,
@@ -1310,15 +1310,15 @@
           "type": "com.pocket.rpg.components.ui.UIText",
           "properties": {
             "raycastTarget": true,
-            "fontPath": "fonts/Pokemon-Red.ttf",
-            "fontSize": 20,
-            "text": "Lv. 36",
             "color": {
               "x": 0.0,
               "y": 0.0,
               "z": 0.0,
               "w": 1.0
             },
+            "fontPath": "fonts/Pokemon-Red.ttf",
+            "fontSize": 20,
+            "text": "Lv. 36",
             "horizontalAlignment": "LEFT",
             "verticalAlignment": "MIDDLE",
             "wordWrap": false,
@@ -1387,13 +1387,13 @@
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
             "raycastTarget": true,
-            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/Battle/hpBar.png#0",
             "color": {
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
               "w": 1.0
             },
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/Battle/hpBar.png#0",
             "imageType": "SLICED",
             "fillCenter": true,
             "fillMethod": "HORIZONTAL",
@@ -1453,13 +1453,13 @@
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
             "raycastTarget": true,
-            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/Battle/hpBar.png#1",
             "color": {
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
               "w": 1.0
             },
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/Battle/hpBar.png#1",
             "imageType": "FILLED",
             "fillCenter": true,
             "fillMethod": "HORIZONTAL",
@@ -1519,15 +1519,15 @@
           "type": "com.pocket.rpg.components.ui.UIText",
           "properties": {
             "raycastTarget": true,
-            "fontPath": "fonts/Pokemon-Red.ttf",
-            "fontSize": 20,
-            "text": "36/36\t",
             "color": {
               "x": 0.0,
               "y": 0.0,
               "z": 0.0,
               "w": 1.0
             },
+            "fontPath": "fonts/Pokemon-Red.ttf",
+            "fontSize": 20,
+            "text": "36/36\t",
             "horizontalAlignment": "RIGHT",
             "verticalAlignment": "TOP",
             "wordWrap": false,
@@ -1828,13 +1828,13 @@
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
             "raycastTarget": true,
-            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/HeaderBig.png",
             "color": {
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
               "w": 1.0
             },
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/HeaderBig.png",
             "imageType": "SLICED",
             "fillCenter": true,
             "fillMethod": "HORIZONTAL",
@@ -1894,15 +1894,15 @@
           "type": "com.pocket.rpg.components.ui.UIText",
           "properties": {
             "raycastTarget": true,
-            "fontPath": "fonts/Pokemon-Red.ttf",
-            "fontSize": 30,
-            "text": "Seen: 12\nOwned: 9",
             "color": {
               "x": 0.0,
               "y": 0.0,
               "z": 0.0,
               "w": 1.0
             },
+            "fontPath": "fonts/Pokemon-Red.ttf",
+            "fontSize": 30,
+            "text": "Seen: 12\nOwned: 9",
             "horizontalAlignment": "CENTER",
             "verticalAlignment": "MIDDLE",
             "wordWrap": false,
@@ -1971,13 +1971,13 @@
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
             "raycastTarget": true,
-            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/HeaderSmall.png",
             "color": {
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
               "w": 1.0
             },
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/HeaderSmall.png",
             "imageType": "SLICED",
             "fillCenter": true,
             "fillMethod": "HORIZONTAL",
@@ -2037,15 +2037,15 @@
           "type": "com.pocket.rpg.components.ui.UIText",
           "properties": {
             "raycastTarget": true,
-            "fontPath": "fonts/Pokemon-Red.ttf",
-            "fontSize": 30,
-            "text": "Charizard",
             "color": {
               "x": 0.0,
               "y": 0.0,
               "z": 0.0,
               "w": 1.0
             },
+            "fontPath": "fonts/Pokemon-Red.ttf",
+            "fontSize": 30,
+            "text": "Charizard",
             "horizontalAlignment": "CENTER",
             "verticalAlignment": "MIDDLE",
             "wordWrap": false,
@@ -2114,13 +2114,13 @@
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
             "raycastTarget": true,
-            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/Pokemon/OW0.4.png#4",
             "color": {
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
               "w": 1.0
             },
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/Pokemon/OW0.4.png#4",
             "imageType": "SIMPLE",
             "fillCenter": true,
             "fillMethod": "HORIZONTAL",
@@ -2283,13 +2283,13 @@
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
             "raycastTarget": true,
-            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/HeaderAlt.png",
             "color": {
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
               "w": 1.0
             },
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/HeaderAlt.png",
             "imageType": "SIMPLE",
             "fillCenter": true,
             "fillMethod": "HORIZONTAL",
@@ -2394,15 +2394,15 @@
           "type": "com.pocket.rpg.components.ui.UIText",
           "properties": {
             "raycastTarget": true,
-            "fontPath": "fonts/Pokemon-Red.ttf",
-            "fontSize": 26,
-            "text": "Pokedex",
             "color": {
               "x": 0.0,
               "y": 0.0,
               "z": 0.0,
               "w": 1.0
             },
+            "fontPath": "fonts/Pokemon-Red.ttf",
+            "fontSize": 26,
+            "text": "Pokedex",
             "horizontalAlignment": "CENTER",
             "verticalAlignment": "MIDDLE",
             "wordWrap": false,
@@ -2472,20 +2472,21 @@
           "properties": {
             "raycastTarget": true,
             "scrollSensitivity": 20.0,
-            "showScrollbar": "ALWAYS"
+            "showScrollbar": "ALWAYS",
+            "scrollbarPosition": "RIGHT"
           }
         },
         {
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
             "raycastTarget": true,
-            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/HeaderBig.png",
             "color": {
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
               "w": 1.0
             },
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/HeaderBig.png",
             "imageType": "SLICED",
             "fillCenter": true,
             "fillMethod": "HORIZONTAL",
@@ -2665,13 +2666,13 @@
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
             "raycastTarget": true,
-            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/Scrollbar2.png",
             "color": {
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
               "w": 1.0
             },
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/Scrollbar2.png",
             "imageType": "SLICED",
             "fillCenter": true,
             "fillMethod": "HORIZONTAL",
@@ -2731,13 +2732,13 @@
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
             "raycastTarget": true,
-            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/ScrollBarHandle2.png",
             "color": {
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
               "w": 1.0
             },
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/ScrollBarHandle2.png",
             "imageType": "SIMPLE",
             "fillCenter": true,
             "fillMethod": "HORIZONTAL",
@@ -2797,13 +2798,13 @@
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
             "raycastTarget": true,
-            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/PokedexShortEntry.png#0",
             "color": {
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
               "w": 1.0
             },
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/PokedexShortEntry.png#0",
             "imageType": "SIMPLE",
             "fillCenter": true,
             "fillMethod": "HORIZONTAL",
@@ -2863,13 +2864,13 @@
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
             "raycastTarget": true,
-            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/PokedexShortEntry.png#1",
             "color": {
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
               "w": 1.0
             },
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/PokedexShortEntry.png#1",
             "imageType": "SIMPLE",
             "fillCenter": true,
             "fillMethod": "HORIZONTAL",
@@ -2929,13 +2930,13 @@
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
             "raycastTarget": true,
-            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/PokedexShortEntry.png#2",
             "color": {
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
               "w": 1.0
             },
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/PokedexShortEntry.png#2",
             "imageType": "SIMPLE",
             "fillCenter": true,
             "fillMethod": "HORIZONTAL",
@@ -2995,15 +2996,15 @@
           "type": "com.pocket.rpg.components.ui.UIText",
           "properties": {
             "raycastTarget": true,
-            "fontPath": "fonts/zelda.ttf",
-            "fontSize": 30,
-            "text": "001  Bulbasaur",
             "color": {
               "x": 0.0,
               "y": 0.0,
               "z": 0.0,
               "w": 1.0
             },
+            "fontPath": "fonts/zelda.ttf",
+            "fontSize": 30,
+            "text": "001  Bulbasaur",
             "horizontalAlignment": "LEFT",
             "verticalAlignment": "MIDDLE",
             "wordWrap": false,
@@ -3072,15 +3073,15 @@
           "type": "com.pocket.rpg.components.ui.UIText",
           "properties": {
             "raycastTarget": true,
-            "fontPath": "fonts/zelda.ttf",
-            "fontSize": 30,
-            "text": "002  Ivysaur",
             "color": {
               "x": 0.0,
               "y": 0.0,
               "z": 0.0,
               "w": 1.0
             },
+            "fontPath": "fonts/zelda.ttf",
+            "fontSize": 30,
+            "text": "002  Ivysaur",
             "horizontalAlignment": "LEFT",
             "verticalAlignment": "MIDDLE",
             "wordWrap": false,
@@ -3149,15 +3150,15 @@
           "type": "com.pocket.rpg.components.ui.UIText",
           "properties": {
             "raycastTarget": true,
-            "fontPath": "fonts/zelda.ttf",
-            "fontSize": 30,
-            "text": "003  ----------",
             "color": {
               "x": 0.0,
               "y": 0.0,
               "z": 0.0,
               "w": 1.0
             },
+            "fontPath": "fonts/zelda.ttf",
+            "fontSize": 30,
+            "text": "003  ----------",
             "horizontalAlignment": "LEFT",
             "verticalAlignment": "MIDDLE",
             "wordWrap": false,
@@ -3226,13 +3227,13 @@
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
             "raycastTarget": true,
-            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/PokedexSelectedEntry.png",
             "color": {
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
               "w": 1.0
             },
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/PokedexSelectedEntry.png",
             "imageType": "SLICED",
             "fillCenter": true,
             "fillMethod": "HORIZONTAL",
@@ -3292,13 +3293,13 @@
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
             "raycastTarget": true,
-            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/PokedexSelectedEntry.png",
             "color": {
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
               "w": 1.0
             },
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/PokedexSelectedEntry.png",
             "imageType": "SLICED",
             "fillCenter": true,
             "fillMethod": "HORIZONTAL",
@@ -3358,13 +3359,13 @@
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
             "raycastTarget": true,
-            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/PokedexSelectedEntry.png",
             "color": {
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
               "w": 1.0
             },
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/PokedexSelectedEntry.png",
             "imageType": "SLICED",
             "fillCenter": true,
             "fillMethod": "HORIZONTAL",
@@ -3482,13 +3483,13 @@
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
             "raycastTarget": true,
-            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/HeaderBig.png",
             "color": {
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
               "w": 1.0
             },
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/HeaderBig.png",
             "imageType": "SLICED",
             "fillCenter": true,
             "fillMethod": "HORIZONTAL",
@@ -3548,13 +3549,13 @@
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
             "raycastTarget": true,
-            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/Pokemon/OW0.4.png#4",
             "color": {
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
               "w": 1.0
             },
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/Pokemon/OW0.4.png#4",
             "imageType": "SIMPLE",
             "fillCenter": true,
             "fillMethod": "HORIZONTAL",
@@ -3672,13 +3673,13 @@
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
             "raycastTarget": true,
-            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/HeaderSmall.png",
             "color": {
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
               "w": 1.0
             },
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/HeaderSmall.png",
             "imageType": "SLICED",
             "fillCenter": true,
             "fillMethod": "HORIZONTAL",
@@ -3738,13 +3739,13 @@
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
             "raycastTarget": true,
-            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/HeaderSmall.png",
             "color": {
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
               "w": 1.0
             },
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/HeaderSmall.png",
             "imageType": "SLICED",
             "fillCenter": true,
             "fillMethod": "HORIZONTAL",
@@ -3817,15 +3818,15 @@
           "type": "com.pocket.rpg.components.ui.UIText",
           "properties": {
             "raycastTarget": true,
-            "fontPath": "fonts/Pokemon-Red.ttf",
-            "fontSize": 30,
-            "text": "001  Bulbasaur",
             "color": {
               "x": 0.0,
               "y": 0.0,
               "z": 0.0,
               "w": 1.0
             },
+            "fontPath": "fonts/Pokemon-Red.ttf",
+            "fontSize": 30,
+            "text": "001  Bulbasaur",
             "horizontalAlignment": "LEFT",
             "verticalAlignment": "MIDDLE",
             "wordWrap": false,
@@ -3894,13 +3895,13 @@
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
             "raycastTarget": true,
-            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/PokedexShortEntry.png#1",
             "color": {
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
               "w": 1.0
             },
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/PokedexShortEntry.png#1",
             "imageType": "SIMPLE",
             "fillCenter": true,
             "fillMethod": "HORIZONTAL",
@@ -4005,13 +4006,13 @@
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
             "raycastTarget": true,
-            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/Pokemon/PokemonStatus.png#10",
             "color": {
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
               "w": 1.0
             },
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/Pokemon/PokemonStatus.png#10",
             "imageType": "SIMPLE",
             "fillCenter": true,
             "fillMethod": "HORIZONTAL",
@@ -4071,13 +4072,13 @@
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
             "raycastTarget": true,
-            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/HeaderAlt.png",
             "color": {
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
               "w": 1.0
             },
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/HeaderAlt.png",
             "imageType": "SIMPLE",
             "fillCenter": true,
             "fillMethod": "HORIZONTAL",
@@ -4137,15 +4138,15 @@
           "type": "com.pocket.rpg.components.ui.UIText",
           "properties": {
             "raycastTarget": true,
-            "fontPath": "fonts/Pokemon-Red.ttf",
-            "fontSize": 30,
-            "text": "   Weight: 6.0 Kg",
             "color": {
               "x": 0.0,
               "y": 0.0,
               "z": 0.0,
               "w": 1.0
             },
+            "fontPath": "fonts/Pokemon-Red.ttf",
+            "fontSize": 30,
+            "text": "   Weight: 6.0 Kg",
             "horizontalAlignment": "LEFT",
             "verticalAlignment": "MIDDLE",
             "wordWrap": false,
@@ -4214,15 +4215,15 @@
           "type": "com.pocket.rpg.components.ui.UIText",
           "properties": {
             "raycastTarget": true,
-            "fontPath": "fonts/Pokemon-Red.ttf",
-            "fontSize": 30,
-            "text": "   Height: 0.4 m",
             "color": {
               "x": 0.0,
               "y": 0.0,
               "z": 0.0,
               "w": 1.0
             },
+            "fontPath": "fonts/Pokemon-Red.ttf",
+            "fontSize": 30,
+            "text": "   Height: 0.4 m",
             "horizontalAlignment": "LEFT",
             "verticalAlignment": "MIDDLE",
             "wordWrap": false,
@@ -4291,15 +4292,15 @@
           "type": "com.pocket.rpg.components.ui.UIText",
           "properties": {
             "raycastTarget": true,
-            "fontPath": "fonts/Pokemon-Red.ttf",
-            "fontSize": 30,
-            "text": "It prowls volcanic regions, its body glowing like hot embers in the dark. When threatened, the flame on its tail burns hotter, scorching the ground with every step.",
             "color": {
               "x": 0.0,
               "y": 0.0,
               "z": 0.0,
               "w": 1.0
             },
+            "fontPath": "fonts/Pokemon-Red.ttf",
+            "fontSize": 30,
+            "text": "It prowls volcanic regions, its body glowing like hot embers in the dark. When threatened, the flame on its tail burns hotter, scorching the ground with every step.",
             "horizontalAlignment": "LEFT",
             "verticalAlignment": "TOP",
             "wordWrap": true,
@@ -4368,13 +4369,13 @@
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
             "raycastTarget": true,
-            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/InventoryBg.png",
             "color": {
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
               "w": 1.0
             },
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/InventoryBg.png",
             "imageType": "SIMPLE",
             "fillCenter": true,
             "fillMethod": "HORIZONTAL",
@@ -4479,15 +4480,15 @@
           "type": "com.pocket.rpg.components.ui.UIText",
           "properties": {
             "raycastTarget": true,
-            "fontPath": "fonts/Pokemon-Red.ttf",
-            "fontSize": 25,
-            "text": "Inventory",
             "color": {
               "x": 0.0,
               "y": 0.0,
               "z": 0.0,
               "w": 1.0
             },
+            "fontPath": "fonts/Pokemon-Red.ttf",
+            "fontSize": 25,
+            "text": "Inventory",
             "horizontalAlignment": "CENTER",
             "verticalAlignment": "MIDDLE",
             "wordWrap": false,
@@ -4511,7 +4512,7 @@
     },
     {
       "id": "d8045ade",
-      "name": "SelectedPocket",
+      "name": "SelectedPockets",
       "active": true,
       "parentId": "35c0b4b1",
       "order": 1,
@@ -4601,13 +4602,13 @@
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
             "raycastTarget": true,
-            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/HoveredInventoryCategories.png#0",
             "color": {
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
               "w": 1.0
             },
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/HoveredInventoryCategories.png#0",
             "imageType": "SIMPLE",
             "fillCenter": true,
             "fillMethod": "HORIZONTAL",
@@ -4667,13 +4668,13 @@
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
             "raycastTarget": true,
-            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/HoveredInventoryCategories.png#1",
             "color": {
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
               "w": 1.0
             },
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/HoveredInventoryCategories.png#1",
             "imageType": "SIMPLE",
             "fillCenter": true,
             "fillMethod": "HORIZONTAL",
@@ -4733,13 +4734,13 @@
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
             "raycastTarget": true,
-            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/HoveredInventoryCategories.png#2",
             "color": {
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
               "w": 1.0
             },
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/HoveredInventoryCategories.png#2",
             "imageType": "SIMPLE",
             "fillCenter": true,
             "fillMethod": "HORIZONTAL",
@@ -4799,13 +4800,13 @@
           "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
             "raycastTarget": true,
-            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/HoveredInventoryCategories.png#3",
             "color": {
               "x": 1.0,
               "y": 1.0,
               "z": 1.0,
               "w": 1.0
             },
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/HoveredInventoryCategories.png#3",
             "imageType": "SIMPLE",
             "fillCenter": true,
             "fillMethod": "HORIZONTAL",
@@ -4823,14 +4824,14 @@
       "name": "ItemsScrollView",
       "active": true,
       "parentId": "35c0b4b1",
-      "order": 3,
+      "order": 2,
       "components": [
         {
           "type": "com.pocket.rpg.components.ui.UITransform",
           "properties": {
             "localPosition": {
-              "x": 0.0,
-              "y": 0.0,
+              "x": 16.0,
+              "y": -16.0,
               "z": 0.0
             },
             "localRotation": {
@@ -4851,8 +4852,8 @@
               "x": 0.0,
               "y": 1.0
             },
-            "width": 200.0,
-            "height": 300.0,
+            "width": 300.0,
+            "height": 320.0,
             "widthMode": "FIXED",
             "heightMode": "FIXED",
             "widthPercent": 100.0,
@@ -4864,6 +4865,7 @@
         {
           "type": "com.pocket.rpg.components.ui.UIPanel",
           "properties": {
+            "enabled": false,
             "raycastTarget": true,
             "color": {
               "x": 0.15,
@@ -4878,7 +4880,8 @@
           "properties": {
             "raycastTarget": true,
             "scrollSensitivity": 20.0,
-            "showScrollbar": "ALWAYS"
+            "showScrollbar": "ALWAYS",
+            "scrollbarPosition": "LEFT"
           }
         }
       ]
@@ -4894,7 +4897,7 @@
           "type": "com.pocket.rpg.components.ui.UITransform",
           "properties": {
             "localPosition": {
-              "x": 0.0,
+              "x": 18.0,
               "y": 0.0,
               "z": 0.0
             },
@@ -4916,8 +4919,8 @@
               "x": 0.0,
               "y": 0.0
             },
-            "width": 100.0,
-            "height": 100.0,
+            "width": 150.0,
+            "height": 106.666664,
             "widthMode": "PERCENT",
             "heightMode": "PERCENT",
             "widthPercent": 94.0,
@@ -4968,8 +4971,8 @@
               "x": 0.0,
               "y": 0.0
             },
-            "width": 100.0,
-            "height": 0.0,
+            "width": 150.0,
+            "height": 1.0666666,
             "widthMode": "PERCENT",
             "heightMode": "FIXED",
             "widthPercent": 100.0,
@@ -4985,7 +4988,7 @@
       "name": "Scrollbar",
       "active": true,
       "parentId": "a31e4464",
-      "order": 0,
+      "order": 1,
       "components": [
         {
           "type": "com.pocket.rpg.components.ui.UITransform",
@@ -5006,15 +5009,15 @@
               "z": 1.0
             },
             "anchor": {
-              "x": 1.0,
+              "x": 0.0,
               "y": 0.0
             },
             "pivot": {
-              "x": 1.0,
+              "x": 0.0,
               "y": 0.0
             },
-            "width": 12.0,
-            "height": 100.0,
+            "width": 18.0,
+            "height": 106.666664,
             "widthMode": "FIXED",
             "heightMode": "PERCENT",
             "widthPercent": 100.0,
@@ -5026,12 +5029,13 @@
         {
           "type": "com.pocket.rpg.components.ui.UIPanel",
           "properties": {
+            "enabled": false,
             "raycastTarget": true,
             "color": {
-              "x": 0.2,
-              "y": 0.2,
-              "z": 0.2,
-              "w": 0.5
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0,
+              "w": 1.0
             }
           }
         },
@@ -5042,7 +5046,7 @@
             "minHandleSize": 20.0,
             "fixedHandleSize": false,
             "handleSize": 20.0,
-            "trackPadding": 0.0
+            "trackPadding": 22.0
           }
         }
       ]
@@ -5059,7 +5063,7 @@
           "properties": {
             "localPosition": {
               "x": 0.0,
-              "y": 0.0,
+              "y": 22.0,
               "z": 0.0
             },
             "localRotation": {
@@ -5080,7 +5084,7 @@
               "x": 0.0,
               "y": 0.0
             },
-            "width": 100.0,
+            "width": 150.0,
             "height": 20.0,
             "widthMode": "PERCENT",
             "heightMode": "FIXED",
@@ -5091,15 +5095,23 @@
           }
         },
         {
-          "type": "com.pocket.rpg.components.ui.UIPanel",
+          "type": "com.pocket.rpg.components.ui.UIImage",
           "properties": {
             "raycastTarget": true,
             "color": {
-              "x": 0.6,
-              "y": 0.6,
-              "z": 0.6,
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0,
               "w": 1.0
-            }
+            },
+            "imageType": "SIMPLE",
+            "fillCenter": true,
+            "fillMethod": "HORIZONTAL",
+            "fillOrigin": "LEFT",
+            "fillAmount": 1.0,
+            "fillClockwise": true,
+            "pixelsPerUnit": 100.0,
+            "preserveAspectRatio": false
           }
         }
       ]

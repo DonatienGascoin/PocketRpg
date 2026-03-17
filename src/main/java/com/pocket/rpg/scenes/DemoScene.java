@@ -19,6 +19,7 @@ import com.pocket.rpg.resources.Assets;
 import com.pocket.rpg.ui.AnchorPreset;
 import com.pocket.rpg.components.ui.UIButton;
 import com.pocket.rpg.components.ui.UICanvas;
+import com.pocket.rpg.components.ui.UIPanel;
 import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.ui.text.*;
 import org.joml.Random;
@@ -323,7 +324,7 @@ public class DemoScene extends Scene {
         btnTransform.setPivotCenter();
         buttonObj.addComponent(btnTransform);
 
-        // Button component
+        // Button component first
         UIButton button = new UIButton();
         button.setColor(new Vector4f(0.6f, 0.6f, 0.6f, 1f));
         button.setHoverTint(.2f);
@@ -338,6 +339,10 @@ public class DemoScene extends Scene {
             System.out.println("Button clicked!");
         });
         buttonObj.addComponent(button);
+
+        // Managed visual at index+1 after UIButton
+        UIPanel btnPanel = new UIPanel(new Vector4f(0.6f, 0.6f, 0.6f, 1f));
+        buttonObj.addComponent(btnPanel);
 
         // Button text (child) - autoFit automatically uses parent bounds
         GameObject textObj = new GameObject("Button Text");

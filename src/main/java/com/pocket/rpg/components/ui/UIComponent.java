@@ -2,7 +2,6 @@ package com.pocket.rpg.components.ui;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ComponentMeta;
-import com.pocket.rpg.rendering.ui.UIRendererBackend;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector2f;
@@ -118,12 +117,6 @@ public abstract class UIComponent extends Component {
     }
 
     /**
-     * Called by UIRenderer to render this component.
-     * Subclasses implement their specific rendering logic.
-     */
-    public abstract void render(UIRendererBackend backend);
-
-    /**
      * Get the width of this UI element from UITransform.
      */
     public float getWidth() {
@@ -157,7 +150,7 @@ public abstract class UIComponent extends Component {
      * Computes the render bounds from UITransform.
      * Returns null if UITransform is missing.
      */
-    protected RenderBounds computeRenderBounds() {
+    public RenderBounds computeRenderBounds() {
         UITransform transform = getUITransform();
         if (transform == null) return null;
 

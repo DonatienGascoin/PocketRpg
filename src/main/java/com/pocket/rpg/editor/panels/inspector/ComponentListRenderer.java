@@ -1,6 +1,7 @@
 package com.pocket.rpg.editor.panels.inspector;
 
 import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.DrivableBy;
 import com.pocket.rpg.components.RequiredComponent;
 import com.pocket.rpg.components.core.Transform;
 import com.pocket.rpg.components.ui.UITransform;
@@ -270,6 +271,15 @@ public class ComponentListRenderer {
      * via @RequiredComponent, or null if no such dependency exists.
      */
     private String findDependentComponent(EditorGameObject entity, Component target) {
+        // Check @DrivableBy annotation — driven components cannot be removed independently
+        DrivableBy drivableBy = target.getClass().getAnnotation(DrivableBy.class);
+        if (drivableBy != null) {
+            for (Class<? extends Component> driverType : drivableBy.value()) {
+                Component driver = entity.getComponent(driverType);
+                if (driver != null) return driver.getClass().getSimpleName();
+            }
+        }
+
         Class<?> targetType = target.getClass();
         for (Component comp : entity.getComponents()) {
             if (comp == target) continue;

@@ -12,7 +12,11 @@ import com.pocket.rpg.components.ui.UIScrollbar;
 import com.pocket.rpg.components.ui.UIText;
 import com.pocket.rpg.components.ui.UITransform;
 import com.pocket.rpg.components.ui.UIVerticalLayoutGroup;
+import com.pocket.rpg.config.ConfigLoader;
 import com.pocket.rpg.config.GameConfig;
+import com.pocket.rpg.editor.core.EditorConfig;
+import com.pocket.rpg.ui.text.HorizontalAlignment;
+import com.pocket.rpg.ui.text.VerticalAlignment;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
@@ -123,8 +127,16 @@ public class UIEntityFactory {
     }
 
     /**
-     * Creates a UIButton entity.
-     * Button with text and click handling.
+     * Creates a UIButton entity with SPRITE_SWAP mode.
+     * <p>
+     * Hierarchy:
+     * <pre>
+     * Button (UITransform + UIButton + UIImage)
+     * └── Text (UITransform + UIText)
+     * </pre>
+     * The UIImage is created here because {@code ensureManagedVisual()} only runs
+     * at runtime ({@code onStart}). Having it in the factory ensures the component
+     * list is correct from creation.
      */
     public EditorGameObject createButton(String name) {
         EditorGameObject entity = new EditorGameObject(
@@ -142,14 +154,37 @@ public class UIEntityFactory {
         entity.addComponent(transform);
 
         UIButton button = new UIButton();
-        System.err.println("UIButton has no text field, only uses child UIText. To add ?");
-//        button.setText("Button"); // TODO: UIButton has no text field, only uses child UIText. To add ?
+        button.setTransitionMode(UIButton.TransitionMode.SPRITE_SWAP);
         button.setColor(new Vector4f(1f, 1f, 1f, 1f));
-        button.setHoverTint(.8f);
-//        button.setNormalColor(new Vector4f(1f, 1f, 1f, 1f)); // TODO: Does not exists, only using HoverTint for now. To add ?
-//        button.setHoverColor(new Vector4f(0.9f, 0.9f, 0.9f, 1f));
-//        button.setPressedColor(new Vector4f(0.8f, 0.8f, 0.8f, 1f));
         entity.addComponent(button);
+
+        // Managed visual: UIImage for SPRITE_SWAP mode
+        UIImage image = new UIImage();
+        image.setColor(new Vector4f(1f, 1f, 1f, 1f));
+        entity.addComponent(image);
+
+        // Child UIText for button label
+        EditorGameObject textGo = new EditorGameObject("Text", new Vector3f(0, 0, 0), false);
+
+        UITransform textTransform = new UITransform();
+        textTransform.setOffset(new Vector2f(0, 0));
+        textTransform.setAnchor(new Vector2f(0, 0));
+        textTransform.setPivot(new Vector2f(0, 0));
+        textTransform.setWidthMode(UITransform.SizeMode.PERCENT);
+        textTransform.setWidthPercent(100);
+        textTransform.setHeightMode(UITransform.SizeMode.PERCENT);
+        textTransform.setHeightPercent(100);
+        textGo.addComponent(textTransform);
+
+        UIText text = new UIText();
+        text.setText("Button");
+        text.setColor(new Vector4f(0f, 0f, 0f, 1f));
+        text.setHorizontalAlignment(HorizontalAlignment.CENTER);
+        text.setVerticalAlignment(VerticalAlignment.MIDDLE);
+        applyDefaultFont(text);
+        textGo.addComponent(text);
+
+        textGo.setParent(entity);
 
         return entity;
     }
@@ -177,6 +212,7 @@ public class UIEntityFactory {
         text.setText("New Text");
         // text.setFontSize(16f); // TODO: Does not exists, font size is from font asset. To add ?
         text.setColor(new Vector4f(1f, 1f, 1f, 1f));
+        applyDefaultFont(text);
         entity.addComponent(text);
 
         return entity;
@@ -374,5 +410,14 @@ public class UIEntityFactory {
         entity.addComponent(layout);
 
         return entity;
+    }
+
+    private void applyDefaultFont(UIText uiText) {
+        if (uiText.getFontPath() == null) {
+            try {
+                EditorConfig config = ConfigLoader.getConfig(ConfigLoader.ConfigType.EDITOR);
+                uiText.setFontPath(config.getDefaultUiFont());
+            } catch (Exception ignored) {}
+        }
     }
 }

@@ -65,14 +65,8 @@ public class AlphaGroup extends Component {
 
     private void applyAlphaToComponents(GameObject target) {
         for (var comp : target.getAllComponents()) {
-            if (comp instanceof UIImage img) {
-                img.setAlpha(alpha);
-            } else if (comp instanceof UIPanel panel) {
-                panel.setAlpha(alpha);
-            } else if (comp instanceof UIButton btn) {
-                btn.setAlpha(alpha);
-            } else if(comp instanceof UIText text) {
-                text.setAlpha(alpha);
+            if (comp instanceof UIVisual visual) {
+                visual.setAlpha(alpha);
             }
         }
     }

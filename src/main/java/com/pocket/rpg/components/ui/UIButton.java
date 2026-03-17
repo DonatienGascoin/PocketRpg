@@ -3,20 +3,24 @@ package com.pocket.rpg.components.ui;
 import com.pocket.rpg.config.GameConfig;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.rendering.resources.Texture;
-import com.pocket.rpg.rendering.ui.UIRendererBackend;
 import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector2f;
 import org.joml.Vector4f;
 
 /**
- * Clickable button with built-in visuals (image or solid color).
- * Supports hover tint and click/hover callbacks.
- *
- * Hover tint behavior:
- * - If onHover/onExit callbacks are set: no automatic tint (user handles visuals)
- * - If no callbacks: applies darkening tint (configurable)
- *
+ * Interaction-only button component that manages a sibling UIVisual for rendering.
+ * <p>
+ * UIButton does NOT render itself. Instead, it manages a sibling UIPanel (COLOR_TINT mode)
+ * or UIImage (SPRITE_SWAP mode) on the same GameObject, pushing hover/press state to it.
+ * <p>
+ * Lifecycle:
+ * <ol>
+ *   <li>On start, UIButton finds or creates the correct sibling UIVisual</li>
+ *   <li>On hover/press state changes, UIButton pushes color/sprite to the managed visual</li>
+ *   <li>UIRenderer renders the sibling UIPanel/UIImage normally (UIButton is not in dispatch)</li>
+ * </ol>
+ * <p>
  * Requires UICanvas ancestor and UITransform on same GameObject.
  */
 public class UIButton extends UIComponent {
@@ -51,7 +55,6 @@ public class UIButton extends UIComponent {
     private Float pressedTint = null;
 
     // Optional color overrides for hover/pressed states (full RGBA replacement).
-    // When set, these replace the base color entirely instead of applying tint darkening.
     @Getter
     private Vector4f hoveredColor = new Vector4f(0.3f, 0.3f, 0.3f, 0.3f);
 
@@ -64,6 +67,16 @@ public class UIButton extends UIComponent {
 
     @Getter @Setter
     private Sprite pressedSprite;
+
+    // ========================================
+    // Managed Visual
+    // ========================================
+
+    /**
+     * The managed sibling UIVisual (UIPanel for COLOR_TINT, UIImage for SPRITE_SWAP).
+     * Not serialized — resolved on start from existing siblings.
+     */
+    private transient UIVisual managedVisual;
 
     // ========================================
     // Callbacks
@@ -107,19 +120,144 @@ public class UIButton extends UIComponent {
     }
 
     // ========================================
+    // Lifecycle
+    // ========================================
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        ensureManagedVisual();
+    }
+
+    // ========================================
+    // Managed Visual Lifecycle
+    // ========================================
+
+    /**
+     * Finds or creates the correct sibling UIVisual based on TransitionMode.
+     * Called from onStart() at runtime to adopt existing siblings or auto-create missing ones.
+     * <p>
+     * TransitionMode swapping at runtime is not supported — the editor (UIButtonInspector)
+     * handles mode changes by swapping components via CompoundCommand.
+     */
+    public void ensureManagedVisual() {
+        if (gameObject == null) return;
+
+        switch (transitionMode) {
+            case COLOR_TINT -> {
+                UIPanel panel = gameObject.getComponent(UIPanel.class);
+                if (panel != null) {
+                    managedVisual = panel;
+                    pushStateToVisual();
+                    return;
+                }
+                // Wrong type present? Remove it (handles migration/corruption)
+                UIImage wrongType = gameObject.getComponent(UIImage.class);
+                if (wrongType != null) {
+                    gameObject.removeComponent(wrongType);
+                }
+                panel = new UIPanel(new Vector4f(color));
+                
+                gameObject.addComponent(panel);
+                managedVisual = panel;
+                pushStateToVisual();
+            }
+            case SPRITE_SWAP -> {
+                UIImage image = gameObject.getComponent(UIImage.class);
+                if (image != null) {
+                    managedVisual = image;
+                    
+                    pushStateToVisual();
+                    return;
+                }
+                // Wrong type present? Remove it (handles migration/corruption)
+                UIPanel wrongType = gameObject.getComponent(UIPanel.class);
+                if (wrongType != null) {
+                    gameObject.removeComponent(wrongType);
+                }
+                image = new UIImage(sprite);
+                
+                gameObject.addComponent(image);
+                managedVisual = image;
+                pushStateToVisual();
+            }
+        }
+    }
+
+    /**
+     * Pushes the current button state (color, hover, press) to the managed visual.
+     */
+    private void pushStateToVisual() {
+        if (managedVisual == null) return;
+
+        switch (transitionMode) {
+            case COLOR_TINT -> pushColorTintState();
+            case SPRITE_SWAP -> pushSpriteSwapState();
+        }
+    }
+
+    private void pushColorTintState() {
+        Vector4f renderColor = computeCurrentColor();
+        managedVisual.setColor(renderColor);
+    }
+
+    private void pushSpriteSwapState() {
+        if (managedVisual instanceof UIImage image) {
+            Sprite activeSprite;
+            if (pressed && pressedSprite != null) {
+                activeSprite = pressedSprite;
+            } else if (hovered && hoveredSprite != null) {
+                activeSprite = hoveredSprite;
+            } else {
+                activeSprite = sprite;
+            }
+            image.setSprite(activeSprite);
+            image.setColor(new Vector4f(color));
+        }
+    }
+
+    /**
+     * Computes the current effective color based on hover/press state.
+     */
+    private Vector4f computeCurrentColor() {
+        Vector4f renderColor = new Vector4f(color);
+        if (useAutoHoverTint()) {
+            if (pressed && pressedColor != null) {
+                renderColor.set(pressedColor);
+            } else if (pressed) {
+                float tint = getEffectivePressedTint();
+                renderColor.x *= (1f - tint);
+                renderColor.y *= (1f - tint);
+                renderColor.z *= (1f - tint);
+            } else if (hovered && hoveredColor != null) {
+                renderColor.set(hoveredColor);
+            } else if (hovered) {
+                float tint = getEffectiveHoverTint();
+                renderColor.x *= (1f - tint);
+                renderColor.y *= (1f - tint);
+                renderColor.z *= (1f - tint);
+            }
+        }
+        return renderColor;
+    }
+
+    // ========================================
     // Color Methods
     // ========================================
 
     public void setColor(float r, float g, float b, float a) {
         color.set(r, g, b, a);
+        pushStateToVisual();
     }
 
     public void setColor(Vector4f color) {
         this.color.set(color);
+        pushStateToVisual();
     }
 
     public void setAlpha(float alpha) {
         color.w = alpha;
+        pushStateToVisual();
     }
 
     public void setHoveredColor(Vector4f hoveredColor) {
@@ -142,18 +280,10 @@ public class UIButton extends UIComponent {
     // Config
     // ========================================
 
-    /**
-     * Sets the GameConfig reference for default hover tint.
-     * Called by UIInputHandler during initialization.
-     */
     public void setConfig(GameConfig config) {
         this.config = config;
     }
 
-    /**
-     * Gets the effective hover tint value.
-     * Uses button override if set, otherwise GameConfig default.
-     */
     public float getEffectiveHoverTint() {
         if (hoverTint != null) {
             return hoverTint;
@@ -161,13 +291,9 @@ public class UIButton extends UIComponent {
         if (config != null) {
             return config.getUiButtonHoverTint();
         }
-        return 0.1f;  // Fallback default
+        return 0.1f;
     }
 
-    /**
-     * Gets the effective pressed tint value.
-     * Uses button override if set, otherwise GameConfig default.
-     */
     public float getEffectivePressedTint() {
         if (pressedTint != null) {
             return pressedTint;
@@ -175,13 +301,9 @@ public class UIButton extends UIComponent {
         if (config != null) {
             return config.getUiButtonPressedTint();
         }
-        return 0.2f;  // Fallback default
+        return 0.2f;
     }
 
-    /**
-     * Returns true if automatic hover tint should be applied.
-     * False if user has set custom hover/exit callbacks.
-     */
     public boolean useAutoHoverTint() {
         return onHover == null && onExit == null;
     }
@@ -190,9 +312,6 @@ public class UIButton extends UIComponent {
     // State Management (called by UIInputHandler)
     // ========================================
 
-    /**
-     * Called by UIInputHandler when mouse enters button bounds.
-     */
     public void setHoveredInternal(boolean hovered) {
         if (this.hovered == hovered) return;
 
@@ -200,29 +319,24 @@ public class UIButton extends UIComponent {
         this.hovered = hovered;
 
         if (hovered && !wasHovered) {
-            // Just entered
             if (onHover != null) {
                 onHover.run();
             }
         } else if (!hovered && wasHovered) {
-            // Just exited
             if (onExit != null) {
                 onExit.run();
             }
-            pressed = false;  // Reset pressed state on exit
+            pressed = false;
         }
+
+        pushStateToVisual();
     }
 
-    /**
-     * Called by UIInputHandler when mouse is pressed over button.
-     */
     public void setPressedInternal(boolean pressed) {
         this.pressed = pressed;
+        pushStateToVisual();
     }
 
-    /**
-     * Called by UIInputHandler when mouse is released over button (click).
-     */
     public void triggerClick() {
         if (onClick != null) {
             onClick.run();
@@ -230,126 +344,34 @@ public class UIButton extends UIComponent {
     }
 
     // ========================================
-    // Rendering
-    // ========================================
-
-    @Override
-    public void render(UIRendererBackend backend) {
-        RenderBounds bounds = computeRenderBounds();
-        if (bounds == null) return;
-
-        switch (transitionMode) {
-            case COLOR_TINT -> renderColorTint(backend, bounds);
-            case SPRITE_SWAP -> renderSpriteSwap(backend, bounds);
-        }
-    }
-
-    private void renderColorTint(UIRendererBackend backend, RenderBounds bounds) {
-        Vector4f renderColor = new Vector4f(color);
-        if (useAutoHoverTint()) {
-            if (pressed && pressedColor != null) {
-                renderColor.set(pressedColor);
-            } else if (pressed) {
-                float tint = getEffectivePressedTint();
-                renderColor.x *= (1f - tint);
-                renderColor.y *= (1f - tint);
-                renderColor.z *= (1f - tint);
-            } else if (hovered && hoveredColor != null) {
-                renderColor.set(hoveredColor);
-            } else if (hovered) {
-                float tint = getEffectiveHoverTint();
-                renderColor.x *= (1f - tint);
-                renderColor.y *= (1f - tint);
-                renderColor.z *= (1f - tint);
-            }
-        }
-
-        if (sprite != null) {
-            drawSprite(backend, bounds, sprite, renderColor);
-        } else {
-            drawQuad(backend, bounds, renderColor);
-        }
-    }
-
-    private void renderSpriteSwap(UIRendererBackend backend, RenderBounds bounds) {
-        // Select active sprite: pressed > hovered > normal, with null fallback
-        Sprite activeSprite;
-        if (pressed && pressedSprite != null) {
-            activeSprite = pressedSprite;
-        } else if (hovered && hoveredSprite != null) {
-            activeSprite = hoveredSprite;
-        } else {
-            activeSprite = sprite;
-        }
-
-        // Apply color as multiplicative tint
-        Vector4f renderColor = new Vector4f(color);
-
-        if (activeSprite != null) {
-            drawSprite(backend, bounds, activeSprite, renderColor);
-        } else {
-            drawQuad(backend, bounds, renderColor);
-        }
-    }
-
-    private void drawSprite(UIRendererBackend backend, RenderBounds bounds, Sprite s, Vector4f tint) {
-        if (bounds.rotation() != 0) {
-            backend.drawSprite(bounds.x(), bounds.y(), bounds.width(), bounds.height(),
-                               bounds.rotation(), bounds.pivotX(), bounds.pivotY(), s, tint);
-        } else {
-            backend.drawSprite(bounds.x(), bounds.y(), bounds.width(), bounds.height(), s, tint);
-        }
-    }
-
-    private void drawQuad(UIRendererBackend backend, RenderBounds bounds, Vector4f tint) {
-        if (bounds.rotation() != 0) {
-            backend.drawQuad(bounds.x(), bounds.y(), bounds.width(), bounds.height(),
-                             bounds.rotation(), bounds.pivotX(), bounds.pivotY(), tint);
-        } else {
-            backend.drawQuad(bounds.x(), bounds.y(), bounds.width(), bounds.height(), tint);
-        }
-    }
-
-    // ========================================
     // Hit Testing
     // ========================================
 
-    /**
-     * Tests if a point (in game coordinates) is inside this button.
-     * Used by UIInputHandler for hover/click detection.
-     * Handles rotation by transforming the point into local space.
-     */
     public boolean containsPoint(float testX, float testY) {
         UITransform transform = getUITransform();
         if (transform == null) return false;
 
-        // Use matrix-based methods for correct hierarchy handling
         Vector2f pivotWorld = transform.getWorldPivotPosition2D();
         Vector2f scale = transform.getComputedWorldScale2D();
         float w = transform.getEffectiveWidth() * scale.x;
         float h = transform.getEffectiveHeight() * scale.y;
         float rotation = transform.getComputedWorldRotation2D();
-        Vector2f pivot = transform.getEffectivePivot();  // Use effective pivot for MATCH_PARENT
+        Vector2f pivot = transform.getEffectivePivot();
 
-        // Calculate top-left position from pivot
         float posX = pivotWorld.x - pivot.x * w;
         float posY = pivotWorld.y - pivot.y * h;
 
-        // If no rotation, use simple AABB check
         if (Math.abs(rotation) < 0.001f) {
             return testX >= posX && testX <= posX + w &&
                     testY >= posY && testY <= posY + h;
         }
 
-        // Transform point into button's local coordinate space
         float pivotX = pivotWorld.x;
         float pivotY = pivotWorld.y;
 
-        // Translate point relative to pivot
         float relX = testX - pivotX;
         float relY = testY - pivotY;
 
-        // Apply inverse rotation (negate the angle)
         float radians = (float) Math.toRadians(-rotation);
         float cos = (float) Math.cos(radians);
         float sin = (float) Math.sin(radians);
@@ -357,7 +379,6 @@ public class UIButton extends UIComponent {
         float localX = relX * cos - relY * sin + pivotX;
         float localY = relX * sin + relY * cos + pivotY;
 
-        // Now do AABB check in local space
         return localX >= posX && localX <= posX + w &&
                 localY >= posY && localY <= posY + h;
     }

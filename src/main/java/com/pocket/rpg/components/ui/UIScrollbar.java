@@ -3,7 +3,6 @@ package com.pocket.rpg.components.ui;
 import com.pocket.rpg.components.ComponentMeta;
 import com.pocket.rpg.components.Tooltip;
 import com.pocket.rpg.core.GameObject;
-import com.pocket.rpg.rendering.ui.UIRendererBackend;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -294,8 +293,4 @@ public class UIScrollbar extends UIComponent implements UITransformDriver {
         return null;
     }
 
-    @Override
-    public void render(UIRendererBackend backend) {
-        // UIScrollbar doesn't render itself — the UIImage on the track GO and handle GO do.
-    }
 }

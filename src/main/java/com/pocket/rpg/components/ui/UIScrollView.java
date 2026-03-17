@@ -2,7 +2,6 @@ package com.pocket.rpg.components.ui;
 
 import com.pocket.rpg.components.ComponentMeta;
 import com.pocket.rpg.core.GameObject;
-import com.pocket.rpg.rendering.ui.UIRendererBackend;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -30,6 +29,10 @@ public class UIScrollView extends UIComponent implements UITransformDriver {
         ALWAYS, AUTO, NEVER
     }
 
+    public enum ScrollbarPosition {
+        LEFT, RIGHT
+    }
+
     // ========================================================================
     // SERIALIZED FIELDS
     // ========================================================================
@@ -39,6 +42,9 @@ public class UIScrollView extends UIComponent implements UITransformDriver {
 
     @Getter
     private ScrollbarVisibility showScrollbar = ScrollbarVisibility.AUTO;
+
+    @Getter @Setter
+    private ScrollbarPosition scrollbarPosition = ScrollbarPosition.RIGHT;
 
     // ========================================================================
     // RUNTIME STATE (not serialized)
@@ -213,6 +219,24 @@ public class UIScrollView extends UIComponent implements UITransformDriver {
             } else {
                 viewportTransform.setWidth(viewportTargetWidth);
             }
+
+            // Position scrollbar and viewport based on scrollbarPosition
+            UITransform scrollbarTransform = scrollbarGo != null ? scrollbarGo.getComponent(UITransform.class) : null;
+            if (scrollbarPosition == ScrollbarPosition.LEFT) {
+                // Scrollbar on left: anchor/pivot at (0,0), viewport offset shifts right
+                if (scrollbarTransform != null) {
+                    scrollbarTransform.getAnchor().set(0, 0);
+                    scrollbarTransform.getPivot().set(0, 0);
+                }
+                viewportTransform.setOffset(scrollbarWidth, viewportTransform.getOffset().y);
+            } else {
+                // Scrollbar on right (default): anchor/pivot at (1,0), viewport at x=0
+                if (scrollbarTransform != null) {
+                    scrollbarTransform.getAnchor().set(1, 0);
+                    scrollbarTransform.getPivot().set(1, 0);
+                }
+                viewportTransform.setOffset(0, viewportTransform.getOffset().y);
+            }
         }
 
         // Re-clamp offset in case content shrank
@@ -330,9 +354,4 @@ public class UIScrollView extends UIComponent implements UITransformDriver {
         return Math.max(0, Math.min(offset, getMaxScrollOffset()));
     }
 
-    @Override
-    public void render(UIRendererBackend backend) {
-        // UIScrollView doesn't render anything itself.
-        // The UIPanel on the same GO handles background rendering.
-    }
 }

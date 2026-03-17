@@ -2,12 +2,12 @@ package com.pocket.rpg.rendering.ui;
 
 import com.pocket.rpg.components.ui.LayoutGroup;
 import com.pocket.rpg.components.ui.UICanvas;
-import com.pocket.rpg.components.ui.UIComponent;
-import com.pocket.rpg.components.ui.UIImage;
 import com.pocket.rpg.components.ui.UIMask;
 import com.pocket.rpg.components.ui.UIScrollbar;
 import com.pocket.rpg.components.ui.UIScrollView;
+import com.pocket.rpg.components.ui.UIText;
 import com.pocket.rpg.components.ui.UITransform;
+import com.pocket.rpg.components.ui.UIVisual;
 import com.pocket.rpg.rendering.core.RenderTarget;
 import com.pocket.rpg.rendering.resources.NineSlice;
 import com.pocket.rpg.config.GameConfig;
@@ -53,6 +53,8 @@ import static org.lwjgl.opengl.GL33.*;
  * Use this class for all UI rendering in both standalone game and editor contexts.
  */
 public class UIRenderer implements UIRendererBackend {
+
+    private final UIRenderDispatcher dispatcher = new UIRenderDispatcher();
 
     // Optional - set via constructor for RenderPipeline usage
     private ViewportConfig viewportConfig;
@@ -366,14 +368,21 @@ public class UIRenderer implements UIRendererBackend {
 
     private void renderGameObjectUI(GameObject go) {
         for (var component : go.getAllComponents()) {
-            if (component instanceof UIComponent uiComp) {
-                // Skip UICanvas - it's just a container marker
-                if (!(uiComp instanceof UICanvas) && uiComp.isEnabled()) {
-                    uiComp.render(this);
-                }
+            if (component instanceof UIVisual visual && visual.isEnabled()) {
+                dispatcher.render(visual, this);
             }
         }
     }
+
+    /**
+     * Renders a UIText component with explicit position parameters.
+     * Used for editor rendering where transform hierarchy may not be set up.
+     */
+    public void renderText(UIText text, float x, float y, float width, float height,
+                           float rotation, float pivotX, float pivotY) {
+        dispatcher.renderText(text, this, x, y, width, height, rotation, pivotX, pivotY);
+    }
+
 
     // ========================================================================
     // IMMEDIATE MODE - UIRendererBackend Implementation
@@ -665,7 +674,7 @@ public class UIRenderer implements UIRendererBackend {
     public void drawFilled(float x, float y, float width, float height,
                            float rotation, float originX, float originY,
                            Sprite sprite, Vector4f tint,
-                           UIImage.FillMethod fillMethod, UIImage.FillOrigin fillOrigin,
+                           FillMethod fillMethod, FillOrigin fillOrigin,
                            float fillAmount, boolean clockwise) {
         if (sprite == null || fillAmount <= 0) return;
 
@@ -674,8 +683,8 @@ public class UIRenderer implements UIRendererBackend {
 
         // For horizontal, vertical, and radial 360, full fill = full sprite
         // For radial 90/180, full fill only shows that portion of the sprite
-        if (fillAmount >= 1.0f && fillMethod != UIImage.FillMethod.RADIAL_90
-                && fillMethod != UIImage.FillMethod.RADIAL_180) {
+        if (fillAmount >= 1.0f && fillMethod != FillMethod.RADIAL_90
+                && fillMethod != FillMethod.RADIAL_180) {
             drawSprite(x, y, width, height, rotation, originX, originY, sprite, tint);
             return;
         }
@@ -694,7 +703,7 @@ public class UIRenderer implements UIRendererBackend {
     private void drawFilledHorizontal(float x, float y, float width, float height,
                                        float rotation, float originX, float originY,
                                        Sprite sprite, Vector4f tint,
-                                       UIImage.FillOrigin fillOrigin, float fillAmount) {
+                                       FillOrigin fillOrigin, float fillAmount) {
         float u0 = sprite.getU0(), v0 = sprite.getV0();
         float u1 = sprite.getU1(), v1 = sprite.getV1();
 
@@ -702,7 +711,7 @@ public class UIRenderer implements UIRendererBackend {
         float drawX = x;
         float drawU0 = u0, drawU1 = u1;
 
-        if (fillOrigin == UIImage.FillOrigin.LEFT) {
+        if (fillOrigin == FillOrigin.LEFT) {
             // Fill from left
             drawU1 = u0 + (u1 - u0) * fillAmount;
         } else {
@@ -733,7 +742,7 @@ public class UIRenderer implements UIRendererBackend {
     private void drawFilledVertical(float x, float y, float width, float height,
                                      float rotation, float originX, float originY,
                                      Sprite sprite, Vector4f tint,
-                                     UIImage.FillOrigin fillOrigin, float fillAmount) {
+                                     FillOrigin fillOrigin, float fillAmount) {
         float u0 = sprite.getU0(), v0 = sprite.getV0();
         float u1 = sprite.getU1(), v1 = sprite.getV1();
 
@@ -741,7 +750,7 @@ public class UIRenderer implements UIRendererBackend {
         float drawY = y;
         float drawV0 = v0, drawV1 = v1;
 
-        if (fillOrigin == UIImage.FillOrigin.TOP) {
+        if (fillOrigin == FillOrigin.TOP) {
             // Fill from top (Y-down coordinate system)
             drawV1 = v0 + (v1 - v0) * fillAmount;
         } else {
@@ -772,7 +781,7 @@ public class UIRenderer implements UIRendererBackend {
     private void drawFilledRadial(float x, float y, float width, float height,
                                    float rotation, float originX, float originY,
                                    Sprite sprite, Vector4f tint,
-                                   UIImage.FillMethod fillMethod, UIImage.FillOrigin fillOrigin,
+                                   FillMethod fillMethod, FillOrigin fillOrigin,
                                    float fillAmount, boolean clockwise) {
         // For radial fills, we render triangle fan segments from center
         // Screen coordinates: 0° = right, 90° = down, 180° = left, 270° = up

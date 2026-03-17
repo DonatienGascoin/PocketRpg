@@ -331,9 +331,10 @@ public class UIDesignerPanel {
         // Display rendered UI texture
         displayUITexture(drawList);
 
-        // Draw selection borders and layout padding (if enabled)
+        // Always draw selected item bounds; conditionally draw all others
+        gizmoDrawer.drawSelectionBorders(drawList, scene, true);  // selected only
         if (state.isShowElementBounds()) {
-            gizmoDrawer.drawSelectionBorders(drawList, scene);
+            gizmoDrawer.drawSelectionBorders(drawList, scene, false);  // all (includes selected, no-op overlap)
             gizmoDrawer.drawLayoutPadding(drawList, scene);
             gizmoDrawer.drawTrackPadding(drawList, scene);
         }

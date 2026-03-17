@@ -2,21 +2,32 @@ package com.pocket.rpg.editor.ui.inspectors;
 
 import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.ui.UIButton;
+import com.pocket.rpg.components.ui.UIImage;
+import com.pocket.rpg.components.ui.UIPanel;
 import com.pocket.rpg.components.ui.UITransform;
+import com.pocket.rpg.components.ui.UIVisual;
 import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
+import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.ui.fields.FieldEditorUtils;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
+import com.pocket.rpg.editor.undo.EditorCommand;
 import com.pocket.rpg.editor.undo.UndoManager;
+import com.pocket.rpg.editor.undo.commands.AddComponentAtCommand;
 import com.pocket.rpg.editor.undo.commands.CompoundCommand;
+import com.pocket.rpg.editor.undo.commands.RemoveComponentCommand;
 import com.pocket.rpg.editor.undo.commands.SetComponentFieldCommand;
 import com.pocket.rpg.editor.undo.commands.UITransformDragCommand;
 import com.pocket.rpg.rendering.resources.Sprite;
 import com.pocket.rpg.serialization.ComponentReflectionUtils;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
+import imgui.type.ImInt;
 import org.joml.Vector2f;
 import org.joml.Vector4f;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Custom editor for UIButton component.
@@ -38,12 +49,15 @@ public class UIButtonInspector extends CustomComponentInspector<UIButton> {
     public boolean draw() {
         boolean changed = false;
 
+        // Ensure managed visual sibling exists (migration of old scenes without one)
+        ensureManagedVisualInEditor();
+
         // === TRANSITION SECTION ===
         ImGui.text(MaterialIcons.SwapHoriz + " Transition");
         ImGui.separator();
 
         ImGui.spacing();
-        changed |= FieldEditors.drawEnum("Mode", component, "transitionMode", UIButton.TransitionMode.class);
+        changed |= drawTransitionModeCombo();
 
         UIButton.TransitionMode mode = component.getTransitionMode();
         if (mode == null) mode = UIButton.TransitionMode.COLOR_TINT;
@@ -135,6 +149,115 @@ public class UIButtonInspector extends CustomComponentInspector<UIButton> {
         changed |= drawAlphaSlider();
 
         return changed;
+    }
+
+    // ========================================
+    // TransitionMode swap
+    // ========================================
+
+    private boolean drawTransitionModeCombo() {
+        UIButton.TransitionMode current = component.getTransitionMode();
+        UIButton.TransitionMode[] modes = UIButton.TransitionMode.values();
+        String[] names = new String[modes.length];
+        for (int i = 0; i < modes.length; i++) {
+            names[i] = modes[i].name();
+        }
+
+        ImInt buf = new ImInt(current.ordinal());
+        ImGui.pushID("transitionMode");
+
+        final boolean[] changed = {false};
+        FieldEditorUtils.inspectorRow("Mode", () -> {
+            changed[0] = ImGui.combo("##transitionMode", buf, names);
+        });
+
+        if (changed[0]) {
+            UIButton.TransitionMode newMode = modes[buf.get()];
+            if (newMode != current) {
+                swapManagedVisual(current, newMode);
+            }
+        }
+
+        ImGui.popID();
+        return changed[0];
+    }
+
+    private void swapManagedVisual(UIButton.TransitionMode oldMode, UIButton.TransitionMode newMode) {
+        EditorGameObject ego = editorEntity();
+        if (ego == null) return;
+
+        // Find the old managed visual
+        UIVisual oldVisual = findManagedVisual(oldMode);
+
+        // Create new managed visual, transfer color
+        UIVisual newVisual = createVisualForMode(newMode, oldVisual);
+
+        // Calculate insertion index (right after UIButton)
+        int buttonIdx = ego.getComponents().indexOf(component);
+        int insertIdx = buttonIdx + 1;
+        // If old visual was between button and insertion point, adjust
+        if (oldVisual != null) {
+            int oldIdx = ego.getComponents().indexOf(oldVisual);
+            if (oldIdx >= 0 && oldIdx < insertIdx) {
+                insertIdx--;
+            }
+        }
+
+        // Build CompoundCommand
+        List<EditorCommand> commands = new ArrayList<>();
+        commands.add(new SetComponentFieldCommand(component, "transitionMode", oldMode, newMode, ego));
+        if (oldVisual != null) {
+            commands.add(new RemoveComponentCommand(ego, oldVisual));
+        }
+        commands.add(new AddComponentAtCommand(ego, newVisual, insertIdx));
+
+        UndoManager.getInstance().execute(new CompoundCommand("Change Transition Mode", commands));
+    }
+
+    /**
+     * Creates the managed visual sibling if missing (old scene migration in editor).
+     * Called once per draw — only acts if the sibling doesn't exist yet.
+     */
+    private void ensureManagedVisualInEditor() {
+        EditorGameObject ego = editorEntity();
+        if (ego == null) return;
+
+        UIButton.TransitionMode mode = component.getTransitionMode();
+        if (mode == null) mode = UIButton.TransitionMode.COLOR_TINT;
+
+        UIVisual existing = findManagedVisual(mode);
+        if (existing != null) return;
+
+        // Create the missing visual
+        UIVisual newVisual = createVisualForMode(mode, null);
+        int buttonIdx = ego.getComponents().indexOf(component);
+        int insertIdx = buttonIdx + 1;
+
+        UndoManager.getInstance().execute(
+                new AddComponentAtCommand(ego, newVisual, insertIdx)
+        );
+    }
+
+    private UIVisual findManagedVisual(UIButton.TransitionMode mode) {
+        if (entity == null) return null;
+        return switch (mode) {
+            case COLOR_TINT -> entity.getComponent(UIPanel.class);
+            case SPRITE_SWAP -> entity.getComponent(UIImage.class);
+        };
+    }
+
+    private UIVisual createVisualForMode(UIButton.TransitionMode mode, UIVisual oldVisual) {
+        // Transfer color from old visual if available
+        Vector4f color = oldVisual != null ? new Vector4f(oldVisual.getColor()) : new Vector4f(component.getColor());
+
+        return switch (mode) {
+            case COLOR_TINT -> new UIPanel(color);
+            case SPRITE_SWAP -> {
+                UIImage image = new UIImage(component.getSprite());
+                image.setColor(color);
+                yield image;
+            }
+        };
     }
 
     // ========================================

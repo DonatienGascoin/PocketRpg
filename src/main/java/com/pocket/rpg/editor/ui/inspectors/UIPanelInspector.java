@@ -1,8 +1,10 @@
 package com.pocket.rpg.editor.ui.inspectors;
 
+import com.pocket.rpg.components.Component;
+import com.pocket.rpg.components.DrivableBy;
 import com.pocket.rpg.components.ui.UIPanel;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
-import com.pocket.rpg.editor.ui.fields.FieldEditorContext;
 import com.pocket.rpg.editor.ui.fields.FieldEditors;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.SetComponentFieldCommand;
@@ -36,6 +38,26 @@ public class UIPanelInspector extends CustomComponentInspector<UIPanel> {
     @Override
     public boolean draw() {
         boolean changed = false;
+
+        // Detect driven: check if a sibling driver component exists via @DrivableBy
+        boolean isDriven = false;
+        DrivableBy drivableBy = component.getClass().getAnnotation(DrivableBy.class);
+        if (drivableBy != null && entity != null) {
+            for (Class<? extends Component> driverType : drivableBy.value()) {
+                if (entity.getComponent(driverType) != null) {
+                    isDriven = true;
+                    break;
+                }
+            }
+        }
+
+        if (isDriven) {
+            ImGui.spacing();
+            EditorColors.textColored(EditorColors.WARNING,
+                    MaterialIcons.Warning + " Values driven by UIButton");
+            ImGui.spacing();
+            return false;
+        }
 
         // Background Color
         ImGui.text(MaterialIcons.FormatColorFill + " Background Color");

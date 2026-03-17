@@ -7,8 +7,6 @@ import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.undo.EditorCommand;
 import com.pocket.rpg.editor.utils.TransformSwapHelper;
-import org.joml.Vector2f;
-import org.joml.Vector3f;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -145,68 +143,13 @@ public class ReparentEntityCommand implements EditorCommand {
 
         Transform newTransform;
         if (toUITransform) {
-            newTransform = createUITransformFrom(current);
+            newTransform = TransformSwapHelper.createUITransformFrom(current);
         } else {
-            newTransform = createTransformFrom((UITransform) current);
+            newTransform = TransformSwapHelper.createTransformFrom((UITransform) current);
         }
 
         // Replace in components list
         target.replaceComponent(current, newTransform);
-    }
-
-    /**
-     * Creates a UITransform from a regular Transform, preserving values.
-     */
-    private UITransform createUITransformFrom(Transform transform) {
-        UITransform uiTransform = new UITransform();
-
-        // Copy position -> offset
-        Vector3f localPos = transform.getLocalPosition();
-        uiTransform.setOffset(localPos.x, localPos.y);
-
-        // Copy Z rotation -> rotation2D
-        Vector3f localRot = transform.getLocalRotation();
-        uiTransform.setRotation2D(localRot.z);
-
-        // Copy scale -> scale2D
-        Vector3f localScale = transform.getLocalScale();
-        uiTransform.setScale2D(localScale.x, localScale.y);
-
-        // Set default UI-specific values
-        uiTransform.setWidth(100f);
-        uiTransform.setHeight(100f);
-        uiTransform.setAnchor(0f, 0f);
-        uiTransform.setPivot(0f, 0f);
-
-        // Set the owner reference
-        uiTransform.setGameObject(transform.getGameObject());
-
-        return uiTransform;
-    }
-
-    /**
-     * Creates a regular Transform from a UITransform, preserving values.
-     */
-    private Transform createTransformFrom(UITransform uiTransform) {
-        Transform transform = new Transform();
-
-        // Copy offset -> position
-        Vector2f offset = uiTransform.getOffset();
-        Vector3f localPos = uiTransform.getLocalPosition();
-        transform.setLocalPosition(offset.x, offset.y, localPos.z);
-
-        // Copy rotation2D -> Z rotation
-        float rotation2D = uiTransform.getLocalRotation2D();
-        transform.setLocalRotation(0, 0, rotation2D);
-
-        // Copy scale2D -> scale
-        Vector2f scale2D = uiTransform.getLocalScale2D();
-        transform.setLocalScale(scale2D.x, scale2D.y, 1f);
-
-        // Set the owner reference
-        transform.setGameObject(uiTransform.getGameObject());
-
-        return transform;
     }
 
     @Override

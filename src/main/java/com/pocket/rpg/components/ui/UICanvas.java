@@ -1,7 +1,6 @@
 package com.pocket.rpg.components.ui;
 
 import com.pocket.rpg.components.RequiredComponent;
-import com.pocket.rpg.rendering.ui.UIRendererBackend;
 import com.pocket.rpg.scenes.SceneManager;
 import lombok.Getter;
 import lombok.Setter;
@@ -70,11 +69,6 @@ public class UICanvas extends UIComponent {
         transform.getPivot().set(0, 0);
         transform.setOffset(0, 0);
         transform.markDirtyRecursive();
-    }
-
-    @Override
-    public void render(UIRendererBackend backend) {
-        // UICanvas doesn't render anything - it's just a marker
     }
 
     @Override

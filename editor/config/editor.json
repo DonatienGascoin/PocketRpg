@@ -36,8 +36,8 @@
   "fontSize": 16.0,
   "showGrid": true,
   "showTileCoordinates": true,
-  "defaultUiFont": "gameData/assets/fonts/zelda.ttf",
-  "showElementBounds": true,
+  "defaultUiFont": "fonts/zelda.ttf",
+  "showElementBounds": false,
   "recentScenes": [
     "MenuMockups.scene",
     "DemoScene.scene",

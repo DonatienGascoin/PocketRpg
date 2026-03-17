@@ -32,6 +32,13 @@ public class UIScrollViewInspector extends CustomComponentInspector<UIScrollView
                 UIScrollView.ScrollbarVisibility.class);
 
         ImGui.spacing();
+
+        // Scrollbar position
+        changed |= FieldEditors.drawEnum("Scrollbar Position", "scrollbarPosition",
+                component::getScrollbarPosition, component::setScrollbarPosition,
+                UIScrollView.ScrollbarPosition.class);
+
+        ImGui.spacing();
         ImGui.separator();
         ImGui.spacing();
 

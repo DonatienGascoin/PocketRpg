@@ -324,6 +324,8 @@ public class SpriteLoader implements AssetLoader<Sprite> {
             Texture texture = existing.getTexture();
             if (texture != null) {
                 texture.reloadFromDisk(path);
+                // Update parent sprite dimensions to match new texture size
+                existing.setSize(texture.getWidth(), texture.getHeight());
             }
 
             // 2. Reload metadata and apply to existing sprite

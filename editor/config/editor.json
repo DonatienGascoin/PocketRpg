@@ -36,7 +36,7 @@
   "fontSize": 16.0,
   "showGrid": true,
   "showTileCoordinates": true,
-  "defaultUiFont": "fonts/zelda.ttf",
+  "defaultUiFont": "fonts/Pokemon-Red.ttf",
   "showElementBounds": false,
   "recentScenes": [
     "MenuMockups.scene",
@@ -45,7 +45,11 @@
     "Test.scene"
   ],
   "recentAssets": [
+    "sprites/Items.png",
+    "sprites/ItemsV3.png",
+    "sprites/ItemsInitial.png",
     "sprites/UIs/InventoryItem.png",
+    "sprites/UIs/InventoryBg.png",
     "sprites/UIs/HoveredInventoryCategories.png",
     "sprites/Pokemon/PokemonStatus.png",
     "sprites/UIs/PokedexShortEntry.png",
@@ -55,20 +59,12 @@
     "sprites/UIs/header.png",
     "sprites/UIs/ScrollBarHandle2.png",
     "sprites/UIs/ScrollBarHandle.png",
-    "sprites/UIs/Scrollbar2.png",
-    "sprites/UIs/Scrollbar.png",
-    "sprites/UIs/HeaderSmall.png",
-    "sprites/UIs/headers.png",
-    "sprites/UIs/Pokemon/PokemonStatus_fixed2.png"
+    "sprites/UIs/Scrollbar2.png"
   ],
   "recentAssetTimestamps": {
-    "sprites/UIs/Pokemon/PokemonStatus_fixed2.png": 1772564943723,
-    "sprites/UIs/headers.png": 1772715423922,
     "sprites/UIs/header.png": 1772800904503,
-    "sprites/UIs/Scrollbar.png": 1772719074540,
     "sprites/UIs/ScrollBarHandle.png": 1772719082991,
     "sprites/UIs/HeaderBig.png": 1772800906969,
-    "sprites/UIs/HeaderSmall.png": 1772718111338,
     "sprites/UIs/Scrollbar2.png": 1772719078520,
     "sprites/UIs/HeaderAlt.png": 1772800907511,
     "sprites/UIs/ScrollBarHandle2.png": 1772738055183,
@@ -76,7 +72,11 @@
     "sprites/UIs/PokedexSelectedEntry.png": 1772801087717,
     "sprites/Pokemon/PokemonStatus.png": 1772802506280,
     "sprites/UIs/HoveredInventoryCategories.png": 1773678336458,
-    "sprites/UIs/InventoryItem.png": 1773686326095
+    "sprites/UIs/InventoryItem.png": 1773767703901,
+    "sprites/UIs/InventoryBg.png": 1773767703422,
+    "sprites/ItemsInitial.png": 1773768239569,
+    "sprites/ItemsV3.png": 1773770361244,
+    "sprites/Items.png": 1773779487344
   },
   "favoriteAssets": [
     "data/pokemon/pokedex.pokedex.json",

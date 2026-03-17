@@ -486,6 +486,16 @@ public class SpriteGrid {
 
             // Unconditional — null resets to global PPU (handles removal of override)
             sprite.setPixelsPerUnitOverride(newMeta.pixelsPerUnitOverride);
+
+            // Recalculate UVs — texture dimensions may have changed after hot-reload
+            int row = index / columns;
+            int col = index % columns;
+            int px = grid.offsetX + col * (grid.spriteWidth + grid.spacingX);
+            int pyTop = grid.offsetY + row * (grid.spriteHeight + grid.spacingY);
+            int py = texture.getHeight() - (pyTop + grid.spriteHeight);
+
+            sprite.setSize(grid.spriteWidth, grid.spriteHeight);
+            sprite.setUVsFromPixels(px, py, grid.spriteWidth, grid.spriteHeight);
         }
     }
 

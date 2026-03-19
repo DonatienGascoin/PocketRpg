@@ -109,6 +109,7 @@ public class HierarchyPanel extends EditorPanel {
         dragDropHandler.setScene(scene);
         creationService.setScene(scene);
         creationService.setSelectionHandler(selectionHandler);
+        selectionHandler.setTreeRenderer(treeRenderer);
         treeRenderer.setScene(scene);
         treeRenderer.setSelectionHandler(selectionHandler);
         treeRenderer.setDragDropHandler(dragDropHandler);
@@ -469,6 +470,7 @@ public class HierarchyPanel extends EditorPanel {
         }
 
         dragDropHandler.drawDropIndicator();
+        selectionHandler.updatePendingSelection();
         renderMultiSelectionContextMenu();
 
         // Empty area: invisible button for drops + deselect

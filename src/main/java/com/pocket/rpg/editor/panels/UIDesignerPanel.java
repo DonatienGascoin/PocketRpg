@@ -429,6 +429,9 @@ public class UIDesignerPanel {
     private void renderPickingPass(EditorScene scene) {
         if (pickingPass == null || !pickingPass.isInitialized() || scene == null) return;
 
+        // Use low threshold so semi-transparent UI elements (e.g. faded slots) are pickable
+        pickingPass.setAlphaThreshold(0.01f);
+
         // Build UITransform -> EditorGameObject lookup (shared component instances)
         Map<UITransform, EditorGameObject> transformToEntity = new HashMap<>();
         for (EditorGameObject entity : scene.getEntities()) {

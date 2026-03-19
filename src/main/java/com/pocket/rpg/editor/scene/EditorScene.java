@@ -681,6 +681,12 @@ public class EditorScene implements DirtyTracker {
             siblings.get(i).setOrder(i);
         }
 
+        // Physically reorder the parent's children list to match logical order,
+        // so getChildren() returns children in hierarchy order for layouts/rendering
+        if (newParent != null) {
+            newParent.sortChildrenByOrder();
+        }
+
         markDirty();
     }
 

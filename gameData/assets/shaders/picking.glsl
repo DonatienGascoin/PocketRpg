@@ -26,10 +26,11 @@ flat in vec4 Color;       // Entity ID encoded in RGB (flat = no interpolation)
 out vec4 FragColor;
 
 uniform sampler2D textureSampler;
+uniform float uAlphaThreshold;
 
 void main()
 {
     float alpha = texture(textureSampler, TexCoord).a;
-    if (alpha < 0.5) discard;             // Transparent pixel = not pickable
+    if (alpha < uAlphaThreshold) discard;  // Transparent pixel = not pickable
     FragColor = vec4(Color.rgb, 1.0);     // Output entity ID as flat color
 }

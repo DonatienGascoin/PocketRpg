@@ -201,6 +201,10 @@ public class UIImageInspector extends CustomComponentInspector<UIImage> {
             changed |= PrimitiveEditors.drawBoolean("Clockwise", component, "fillClockwise");
         }
 
+        // Preserve Aspect Ratio
+        ImGui.spacing();
+        changed |= PrimitiveEditors.drawBoolean("Preserve Aspect Ratio", component, "preserveAspectRatio");
+
         ImGui.unindent();
         return changed;
     }

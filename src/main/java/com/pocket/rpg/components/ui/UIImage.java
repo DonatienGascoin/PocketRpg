@@ -76,7 +76,7 @@ public class UIImage extends UIVisual {
     @Getter @Setter
     private float pixelsPerUnit = 100f;
 
-    /** For SIMPLE type: fit image within bounds while preserving sprite aspect ratio */
+    /** For SIMPLE and FILLED types: fit image within bounds while preserving sprite aspect ratio */
     @Getter @Setter
     private boolean preserveAspectRatio = false;
 

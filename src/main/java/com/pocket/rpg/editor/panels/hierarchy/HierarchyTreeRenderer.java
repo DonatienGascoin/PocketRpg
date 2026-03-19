@@ -65,6 +65,13 @@ public class HierarchyTreeRenderer {
     // Cache entity rects from previous frame for right-click pre-selection
     private final java.util.Map<String, float[]> entityRectCache = new java.util.HashMap<>();
 
+    // Tracks which entity tree nodes are currently expanded (updated each frame during render)
+    private final Set<String> expandedEntityIds = new HashSet<>();
+
+    public Set<String> getExpandedEntityIds() {
+        return expandedEntityIds;
+    }
+
     /**
      * Requests the tree to expand all ancestor nodes and scroll to reveal the given entity.
      * One-shot: clears after the entity is rendered.
@@ -92,7 +99,7 @@ public class HierarchyTreeRenderer {
                 && isMouseOverEntityArea(entity);
 
         if (willBeRightClicked && !scene.isSelected(entity)) {
-            selectionHandler.handleEntityClick(entity);
+            selectionHandler.selectEntity(entity);
         }
 
         boolean isSelected = scene.isSelected(entity);
@@ -124,13 +131,32 @@ public class HierarchyTreeRenderer {
 
         boolean nodeOpen = ImGui.treeNodeEx("##entity_" + entity.getId(), flags, label);
 
+        // Track expanded state for visible-only shift-click range selection
+        if (hasChildren) {
+            if (nodeOpen) expandedEntityIds.add(entity.getId());
+            else expandedEntityIds.remove(entity.getId());
+        }
+
         if (hierarchicallyDisabled) {
             ImGui.popStyleColor();
         }
 
         // Scroll to this entity if it's the target
         if (entity.getId().equals(scrollToEntityId)) {
-            ImGui.setScrollHereY(0.5f);
+            // Only scroll if the item is not already visible in the panel
+            float itemMinY = ImGui.getItemRectMinY();
+            float itemMaxY = ImGui.getItemRectMaxY();
+            float itemHeight = itemMaxY - itemMinY;
+            float margin = itemHeight * 2; // ~2 rows of padding from the edge
+            float windowMinY = ImGui.getWindowPosY();
+            float windowMaxY = windowMinY + ImGui.getWindowHeight();
+            if (itemMinY < windowMinY + margin || itemMaxY > windowMaxY - margin) {
+                if (itemMinY < windowMinY + margin) {
+                    ImGui.setScrollHereY(0.15f); // Item above — show near top with margin
+                } else {
+                    ImGui.setScrollHereY(0.85f); // Item below — show near bottom with margin
+                }
+            }
             scrollToEntityId = null;
             entitiesToForceOpen.clear();
         }
@@ -150,7 +176,7 @@ public class HierarchyTreeRenderer {
         });
 
         if (!isRenaming) {
-            handleEntityInteraction(entity);
+            handleEntityInteraction(entity, hasChildren);
             dragDropHandler.handleDragSource(entity);
             // Positional drop target (tree node is last item for beginDragDropTarget)
             dragDropHandler.handlePositionalDrop(entity, nodeMinY, nodeMaxY,
@@ -208,15 +234,20 @@ public class HierarchyTreeRenderer {
         }
     }
 
-    private void handleEntityInteraction(EditorGameObject entity) {
-        if (ImGui.isItemClicked(ImGuiMouseButton.Left)) {
+    private void handleEntityInteraction(EditorGameObject entity, boolean hasChildren) {
+        // Skip selection and rename when clicking the expand/collapse arrow (parent nodes only)
+        boolean clickedOnArrow = hasChildren
+                && ImGui.getMousePosX() < ImGui.getItemRectMinX() + ImGui.getTreeNodeToLabelSpacing();
+
+        if (ImGui.isItemClicked(ImGuiMouseButton.Left) && !clickedOnArrow) {
             selectionHandler.handleEntityClick(entity);
         }
 
         // Note: Right-click selection is handled earlier via pre-selection
         // to ensure the entity appears selected before the context menu opens
 
-        if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(0) && !entity.isPrefabChildNode()) {
+        if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(0)
+                && !entity.isPrefabChildNode() && !clickedOnArrow) {
             renamingItem = entity;
             nameBeforeRename = entity.getName();
             renameBuffer.set(nameBeforeRename);

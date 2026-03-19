@@ -138,13 +138,10 @@ public class UIDesignerCoordinates {
     }
 
     /**
-     * Checks if the entity has visual content (not just UICanvas or UITransform).
+     * Checks if the entity has visual content (a UIVisual component).
      */
     public boolean hasVisualContent(EditorGameObject entity) {
-        return entity.hasComponent(UIPanel.class) ||
-                entity.hasComponent(UIImage.class) ||
-                entity.hasComponent(UIButton.class) ||
-                entity.hasComponent(UIText.class);
+        return entity.hasComponent(UIVisual.class);
     }
 
     // ========================================================================

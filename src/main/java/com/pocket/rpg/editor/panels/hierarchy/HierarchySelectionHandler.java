@@ -8,6 +8,7 @@ import com.pocket.rpg.editor.tools.EditorTool;
 import com.pocket.rpg.editor.tools.ToolManager;
 import imgui.ImGui;
 import imgui.flag.ImGuiKey;
+import imgui.flag.ImGuiMouseButton;
 import lombok.Setter;
 
 import java.util.*;
@@ -37,7 +38,11 @@ public class HierarchySelectionHandler {
     @Setter
     private EditorUIController uiController;
 
+    @Setter
+    private HierarchyTreeRenderer treeRenderer;
+
     private EditorGameObject lastClickedEntity = null;
+    private EditorGameObject pendingNarrowSelect = null;
 
     public void init() {
         // No longer registers mode change listeners (modeless design)
@@ -90,6 +95,7 @@ public class HierarchySelectionHandler {
         boolean shiftHeld = ImGui.isKeyDown(ImGuiKey.LeftShift) || ImGui.isKeyDown(ImGuiKey.RightShift);
 
         if (ctrlHeld) {
+            pendingNarrowSelect = null;
             if (selectionManager != null) {
                 selectionManager.toggleEntitySelection(entity);
             } else if (scene != null) {
@@ -97,8 +103,13 @@ public class HierarchySelectionHandler {
             }
             activateSelectionTool();
         } else if (shiftHeld && lastClickedEntity != null) {
+            pendingNarrowSelect = null;
             selectRange(lastClickedEntity, entity);
+        } else if (scene != null && scene.isSelected(entity)) {
+            // Entity already selected — defer to mouse release so multi-drag works
+            pendingNarrowSelect = entity;
         } else {
+            pendingNarrowSelect = null;
             selectEntity(entity);
         }
 
@@ -117,8 +128,30 @@ public class HierarchySelectionHandler {
         activateSelectionTool();
     }
 
+    /**
+     * Called once per frame to resolve pending narrow-select on mouse release.
+     * If the user pressed on an already-selected entity without dragging,
+     * narrows the selection to just that entity on mouse release.
+     */
+    public void updatePendingSelection() {
+        if (pendingNarrowSelect == null) return;
+
+        // Drag started — cancel pending, keep multi-selection for the drag
+        if (ImGui.getDragDropPayload() != null) {
+            pendingNarrowSelect = null;
+            return;
+        }
+
+        // Mouse released without drag — narrow selection to the clicked entity
+        if (ImGui.isMouseReleased(ImGuiMouseButton.Left)) {
+            selectEntity(pendingNarrowSelect);
+            pendingNarrowSelect = null;
+        }
+    }
+
     public void clearSelection() {
         lastClickedEntity = null; // Reset the anchor for Shift+Click range selection
+        pendingNarrowSelect = null;
 
         if (selectionManager != null) {
             selectionManager.clearSelection();
@@ -136,8 +169,12 @@ public class HierarchySelectionHandler {
     private void selectRange(EditorGameObject from, EditorGameObject to) {
         if (scene == null) return;
 
+        Set<String> expandedIds = treeRenderer != null
+                ? treeRenderer.getExpandedEntityIds()
+                : Set.of();
+
         List<EditorGameObject> flat = new ArrayList<>();
-        flattenEntities(scene.getRootEntities(), flat);
+        flattenVisibleEntities(scene.getRootEntities(), flat, expandedIds);
 
         int fromIdx = flat.indexOf(from);
         int toIdx = flat.indexOf(to);
@@ -160,15 +197,20 @@ public class HierarchySelectionHandler {
         activateSelectionTool();
     }
 
-    private void flattenEntities(List<EditorGameObject> entities, List<EditorGameObject> result) {
+    /**
+     * Flattens the entity tree into a linear list, only including visible entities.
+     * Children of collapsed (non-expanded) nodes are skipped.
+     */
+    private void flattenVisibleEntities(List<EditorGameObject> entities, List<EditorGameObject> result,
+                                        Set<String> expandedIds) {
         for (EditorGameObject entity : entities) {
             result.add(entity);
-            if (entity.hasChildren()) {
+            if (entity.hasChildren() && expandedIds.contains(entity.getId())) {
                 List<EditorGameObject> children = entity.getChildren().stream()
                         .map(go -> (EditorGameObject) go)
                         .sorted(Comparator.comparingInt(EditorGameObject::getOrder))
                         .collect(Collectors.toCollection(ArrayList::new));
-                flattenEntities(children, result);
+                flattenVisibleEntities(children, result, expandedIds);
             }
         }
     }

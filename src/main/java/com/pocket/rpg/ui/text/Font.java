@@ -42,6 +42,14 @@ public class Font {
     private static final int FIRST_CHAR = 32;   // Space
     private static final int LAST_CHAR = 126;   // Tilde
     private static final int CHAR_COUNT = LAST_CHAR - FIRST_CHAR + 1;
+
+    /**
+     * Rasterization multiplier: glyphs are rasterized at size * RASTER_SCALE
+     * in the atlas, then glyph metrics are scaled back down. This gives
+     * more texture detail behind the same screen-space size, reducing
+     * blurriness at small font sizes.
+     */
+    private static final int RASTER_SCALE = 2;
     @Getter
     private final String path;
     private final int size;
@@ -131,9 +139,9 @@ public class Font {
             stbtt_PackBegin(packContext, atlasData, atlasWidth, atlasHeight, 0, 1);
 
             // Enable oversampling for better quality
-            stbtt_PackSetOversampling(packContext, 2, 2);
+            stbtt_PackSetOversampling(packContext, 4, 4);
 
-            success = stbtt_PackFontRange(packContext, fontData, 0, size,
+            success = stbtt_PackFontRange(packContext, fontData, 0, size * RASTER_SCALE,
                     FIRST_CHAR, packedChars);
 
             stbtt_PackEnd(packContext);
@@ -170,10 +178,12 @@ public class Font {
             STBTTPackedchar pc = packedChars.get(i);
             int codepoint = FIRST_CHAR + i;
 
-            // Use xoff2/yoff2 for correct screen-space dimensions
-            // (x1-x0 and y1-y0 are atlas pixels, which are scaled by oversampling)
-            float width = pc.xoff2() - pc.xoff();
-            float height = pc.yoff2() - pc.yoff();
+            // Metrics from STB are in rasterized space (size * RASTER_SCALE).
+            // Scale them back to the requested font size for correct screen dimensions.
+            float invScale = 1.0f / RASTER_SCALE;
+
+            float width = (pc.xoff2() - pc.xoff()) * invScale;
+            float height = (pc.yoff2() - pc.yoff()) * invScale;
 
             float u0 = (float) pc.x0() / atlasWidth;
             float v0 = (float) pc.y0() / atlasHeight;
@@ -182,9 +192,9 @@ public class Font {
 
             // STB uses xoff/yoff relative to cursor position
             // xoff = bearingX, yoff = offset from baseline to top of glyph
-            float bearingX = pc.xoff();
-            float bearingY = -pc.yoff();  // Convert to "up from baseline"
-            float advance = pc.xadvance();
+            float bearingX = pc.xoff() * invScale;
+            float bearingY = -pc.yoff() * invScale;
+            float advance = pc.xadvance() * invScale;
 
             Glyph glyph = new Glyph(codepoint, width, height,
                     bearingX, bearingY, advance,

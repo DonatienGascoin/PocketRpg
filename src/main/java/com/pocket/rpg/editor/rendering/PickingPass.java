@@ -28,10 +28,13 @@ import static org.lwjgl.opengl.GL33.*;
  */
 public class PickingPass {
 
+    private static final float DEFAULT_ALPHA_THRESHOLD = 0.5f;
+
     private PickingBuffer pickingBuffer;
     private BatchRenderer pickingBatchRenderer;
     private Map<Integer, EditorGameObject> entityIdMap;
     private boolean initialized = false;
+    private float alphaThreshold = DEFAULT_ALPHA_THRESHOLD;
 
     /** 1x1 white sprite for rendering solid quads (UIPanel, UIButton without sprite). */
     @Getter
@@ -71,6 +74,15 @@ public class PickingPass {
     }
 
     /**
+     * Sets the alpha threshold for the picking shader.
+     * Pixels with alpha below this value are discarded (not pickable).
+     * Takes effect on the next {@link #execute} call.
+     */
+    public void setAlphaThreshold(float threshold) {
+        this.alphaThreshold = threshold;
+    }
+
+    /**
      * Resizes the picking buffer to match a new viewport size.
      */
     public void resize(int width, int height) {
@@ -97,6 +109,7 @@ public class PickingPass {
         pickingBuffer.clear();
 
         pickingBatchRenderer.beginWithMatrices(projection, view, null);
+        pickingBatchRenderer.uploadFloat("uAlphaThreshold", alphaThreshold);
 
         SpriteBatch batch = pickingBatchRenderer.getBatch();
         submitter.submit(batch, entityIdMap);

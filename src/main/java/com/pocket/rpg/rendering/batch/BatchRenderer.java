@@ -145,6 +145,14 @@ public class BatchRenderer extends Renderer {
         }
     }
 
+    /**
+     * Uploads a float uniform to the active shader.
+     * Must be called after {@link #begin()} or {@link #beginWithMatrices}.
+     */
+    public void uploadFloat(String name, float value) {
+        batchShader.uploadFloat(name, value);
+    }
+
     @Override
     public void end() {
         batch.end();

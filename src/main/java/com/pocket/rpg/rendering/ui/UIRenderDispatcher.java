@@ -99,8 +99,9 @@ public class UIRenderDispatcher {
             return;
         }
 
-        backend.drawFilled(bounds.x(), bounds.y(), bounds.width(), bounds.height(),
-                bounds.rotation(), bounds.pivotX(), bounds.pivotY(),
+        UIComponent.RenderBounds adjusted = image.isPreserveAspectRatio() ? fitToAspectRatio(image, bounds) : bounds;
+        backend.drawFilled(adjusted.x(), adjusted.y(), adjusted.width(), adjusted.height(),
+                adjusted.rotation(), adjusted.pivotX(), adjusted.pivotY(),
                 image.getSprite(), image.getColor(), image.getFillMethod(), image.getEffectiveFillOrigin(),
                 image.getFillAmount(), image.isFillClockwise());
     }

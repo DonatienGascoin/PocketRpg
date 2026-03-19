@@ -41,7 +41,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -95,7 +99,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -161,7 +169,11 @@
             "widthPercent": 100.0,
             "heightPercent": 90.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -219,7 +231,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         }
       ]
@@ -264,7 +280,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -322,7 +342,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -388,7 +412,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -454,7 +482,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -520,7 +552,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -586,7 +622,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -652,7 +692,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -718,7 +762,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -776,7 +824,11 @@
             "widthPercent": 100.0,
             "heightPercent": 10.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -834,7 +886,11 @@
             "widthPercent": 70.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -891,7 +947,11 @@
             "widthPercent": 20.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -948,7 +1008,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": true,
-            "matchParentScale": true
+            "matchParentScale": true,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -1025,7 +1089,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": true,
-            "matchParentScale": true
+            "matchParentScale": true,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -1102,7 +1170,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -1168,7 +1240,11 @@
             "widthPercent": 60.0,
             "heightPercent": 90.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -1226,7 +1302,11 @@
             "widthPercent": 100.0,
             "heightPercent": 34.3,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -1303,7 +1383,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -1380,7 +1464,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -1446,7 +1534,11 @@
             "widthPercent": 85.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -1512,7 +1604,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -1589,7 +1685,11 @@
             "widthPercent": 40.0,
             "heightPercent": 90.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -1647,7 +1747,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": true,
-            "matchParentScale": true
+            "matchParentScale": true,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -1705,7 +1809,11 @@
             "widthPercent": 50.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -1763,7 +1871,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -1821,7 +1933,11 @@
             "widthPercent": 100.0,
             "heightPercent": 30.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -1887,7 +2003,11 @@
             "widthPercent": 75.0,
             "heightPercent": 60.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -1964,7 +2084,11 @@
             "widthPercent": 100.0,
             "heightPercent": 15.000001,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -2030,7 +2154,11 @@
             "widthPercent": 75.0,
             "heightPercent": 60.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -2107,7 +2235,11 @@
             "widthPercent": 50.0,
             "heightPercent": 50.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -2173,7 +2305,11 @@
             "widthPercent": 100.0,
             "heightPercent": 55.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         }
       ]
@@ -2218,7 +2354,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -2276,7 +2416,11 @@
             "widthPercent": 100.0,
             "heightPercent": 15.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -2342,7 +2486,11 @@
             "widthPercent": 100.0,
             "heightPercent": 85.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         }
       ]
@@ -2387,7 +2535,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -2464,7 +2616,11 @@
             "widthPercent": 50.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -2539,7 +2695,11 @@
             "widthPercent": 92.5,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -2591,7 +2751,11 @@
             "widthPercent": 100.0,
             "heightPercent": 12.885155,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -2649,7 +2813,11 @@
             "widthPercent": 7.5,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -2725,7 +2893,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -2791,7 +2963,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -2857,7 +3033,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -2923,7 +3103,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -2989,7 +3173,11 @@
             "widthPercent": 80.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -3066,7 +3254,11 @@
             "widthPercent": 80.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -3143,7 +3335,11 @@
             "widthPercent": 80.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -3220,7 +3416,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": true,
-            "matchParentScale": true
+            "matchParentScale": true,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -3286,7 +3486,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": true,
-            "matchParentScale": true
+            "matchParentScale": true,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -3352,7 +3556,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": true,
-            "matchParentScale": true
+            "matchParentScale": true,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -3418,7 +3626,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -3476,7 +3688,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -3542,7 +3758,11 @@
             "widthPercent": 60.0,
             "heightPercent": 60.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -3608,7 +3828,11 @@
             "widthPercent": 60.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -3666,7 +3890,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -3732,7 +3960,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -3811,7 +4043,11 @@
             "widthPercent": 80.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -3888,7 +4124,11 @@
             "widthPercent": 85.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -3954,7 +4194,11 @@
             "widthPercent": 40.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         }
       ]
@@ -3999,7 +4243,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -4065,7 +4313,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -4131,7 +4383,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -4208,7 +4464,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": true,
-            "matchParentScale": true
+            "matchParentScale": true,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -4285,7 +4545,11 @@
             "widthPercent": 90.0,
             "heightPercent": 90.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -4362,7 +4626,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -4428,7 +4696,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         }
       ]
@@ -4473,7 +4745,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -4550,7 +4826,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         }
       ]
@@ -4595,7 +4875,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -4661,7 +4945,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -4727,7 +5015,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -4793,7 +5085,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -4859,7 +5155,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -4926,7 +5226,11 @@
             "widthPercent": 94.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -4978,7 +5282,11 @@
             "widthPercent": 100.0,
             "heightPercent": 0.3333333,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -5043,7 +5351,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -5111,7 +5423,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -5176,7 +5492,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -5242,7 +5562,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -5308,7 +5632,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -5374,7 +5702,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -5451,7 +5783,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -5517,7 +5853,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -5583,7 +5923,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -5649,7 +5993,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -5726,7 +6074,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -5792,7 +6144,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -5858,7 +6214,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -5924,7 +6284,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -5990,7 +6354,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -6067,7 +6435,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -6133,7 +6505,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -6199,7 +6575,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -6265,7 +6645,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -6331,7 +6715,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -6408,7 +6796,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -6474,7 +6866,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -6540,7 +6936,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -6606,7 +7006,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -6672,7 +7076,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -6749,7 +7157,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -6815,7 +7227,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -6881,7 +7297,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -6947,7 +7367,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -7013,7 +7437,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -7090,7 +7518,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -7156,7 +7588,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -7222,7 +7658,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -7288,7 +7728,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -7354,7 +7798,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -7431,7 +7879,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -7497,7 +7949,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -7563,7 +8019,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -7629,7 +8089,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -7695,7 +8159,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -7772,7 +8240,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -7838,7 +8310,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -7904,7 +8380,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -7970,7 +8450,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -8036,7 +8520,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -8113,7 +8601,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -8179,7 +8671,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -8245,7 +8741,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -8311,7 +8811,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -8377,7 +8881,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -8454,7 +8962,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -8520,7 +9032,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -8586,7 +9102,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -8652,7 +9172,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -8718,7 +9242,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -8795,7 +9323,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -8861,7 +9393,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -8927,7 +9463,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -8993,7 +9533,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -9059,7 +9603,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -9136,7 +9684,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -9202,7 +9754,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -9268,7 +9824,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -9334,7 +9894,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -9400,7 +9964,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -9477,7 +10045,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -9543,7 +10115,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -9609,7 +10185,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -9675,7 +10255,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -9741,7 +10325,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -9818,7 +10406,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -9884,7 +10476,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -9950,7 +10546,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -10016,7 +10616,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -10082,7 +10686,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -10159,7 +10767,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -10225,7 +10837,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -10291,7 +10907,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -10357,7 +10977,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -10423,7 +11047,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -10500,7 +11128,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -10566,7 +11198,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -10632,7 +11268,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -10698,7 +11338,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -10764,7 +11408,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -10841,7 +11489,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -10907,7 +11559,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -10973,7 +11629,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -11039,7 +11699,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -11105,7 +11769,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -11182,7 +11850,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -11248,7 +11920,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -11314,7 +11990,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -11380,7 +12060,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -11446,7 +12130,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -11523,7 +12211,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -11589,7 +12281,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -11655,7 +12351,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -11721,7 +12421,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -11787,7 +12491,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -11864,7 +12572,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -11930,7 +12642,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -11996,7 +12712,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -12073,7 +12793,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -12150,7 +12874,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         }
       ]
@@ -12195,7 +12923,24 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.ui.UIVerticalLayoutGroup",
+          "properties": {
+            "paddingLeft": 20.0,
+            "paddingRight": 50.0,
+            "paddingTop": 20.0,
+            "paddingBottom": 20.0,
+            "spacing": 20.0,
+            "childForceExpandWidth": true,
+            "childForceExpandHeight": false,
+            "childAlignment": "LEFT"
           }
         }
       ]
@@ -12234,13 +12979,17 @@
               "y": 0.0
             },
             "width": 570.0,
-            "height": 64.5,
+            "height": 58.57143,
             "widthMode": "FIXED",
             "heightMode": "FIXED",
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         }
       ]
@@ -12257,7 +13006,7 @@
           "properties": {
             "localPosition": {
               "x": 20.0,
-              "y": 89.5,
+              "y": 337.85715,
               "z": 0.0
             },
             "localRotation": {
@@ -12279,13 +13028,17 @@
               "y": 0.0
             },
             "width": 570.0,
-            "height": 64.5,
+            "height": 58.57143,
             "widthMode": "FIXED",
             "heightMode": "FIXED",
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -12314,7 +13067,7 @@
           "properties": {
             "localPosition": {
               "x": 20.0,
-              "y": 159.0,
+              "y": 147.14285,
               "z": 0.0
             },
             "localRotation": {
@@ -12336,13 +13089,17 @@
               "y": 0.0
             },
             "width": 570.0,
-            "height": 64.5,
+            "height": 58.57143,
             "widthMode": "FIXED",
             "heightMode": "FIXED",
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -12371,7 +13128,7 @@
           "properties": {
             "localPosition": {
               "x": 20.0,
-              "y": 228.5,
+              "y": 274.2857,
               "z": 0.0
             },
             "localRotation": {
@@ -12393,13 +13150,17 @@
               "y": 0.0
             },
             "width": 570.0,
-            "height": 64.5,
+            "height": 58.57143,
             "widthMode": "FIXED",
             "heightMode": "FIXED",
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -12428,7 +13189,7 @@
           "properties": {
             "localPosition": {
               "x": 20.0,
-              "y": 298.0,
+              "y": 210.71428,
               "z": 0.0
             },
             "localRotation": {
@@ -12450,13 +13211,17 @@
               "y": 0.0
             },
             "width": 570.0,
-            "height": 64.5,
+            "height": 58.57143,
             "widthMode": "FIXED",
             "heightMode": "FIXED",
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -12485,7 +13250,7 @@
           "properties": {
             "localPosition": {
               "x": 20.0,
-              "y": 367.5,
+              "y": 83.57143,
               "z": 0.0
             },
             "localRotation": {
@@ -12507,13 +13272,17 @@
               "y": 0.0
             },
             "width": 570.0,
-            "height": 64.5,
+            "height": 58.57143,
             "widthMode": "FIXED",
             "heightMode": "FIXED",
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -12534,15 +13303,15 @@
       "id": "c39f2452",
       "name": "CancelPanel",
       "active": true,
-      "parentId": "ee62ceb8",
-      "order": 1,
+      "parentId": "dafea3f4",
+      "order": 6,
       "components": [
         {
           "type": "com.pocket.rpg.components.ui.UITransform",
           "properties": {
             "localPosition": {
-              "x": 0.0,
-              "y": 0.0,
+              "x": 20.0,
+              "y": 401.4286,
               "z": 0.0
             },
             "localRotation": {
@@ -12556,21 +13325,38 @@
               "z": 1.0
             },
             "anchor": {
-              "x": 0.5,
-              "y": 1.0
+              "x": 0.0,
+              "y": 0.0
             },
             "pivot": {
-              "x": 0.5,
-              "y": 1.0
+              "x": 0.0,
+              "y": 0.0
             },
             "width": 570.0,
-            "height": 52.875,
+            "height": 58.57143,
             "widthMode": "PERCENT",
             "heightMode": "PERCENT",
             "widthPercent": 100.0,
             "heightPercent": 10.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.ui.UIHorizontalLayoutGroup",
+          "properties": {
+            "paddingLeft": 0.0,
+            "paddingRight": 0.0,
+            "paddingTop": 0.0,
+            "paddingBottom": 0.0,
+            "spacing": 0.0,
+            "childForceExpandWidth": false,
+            "childForceExpandHeight": true,
+            "childAlignment": "TOP"
           }
         }
       ]
@@ -12579,7 +13365,7 @@
       "id": "94bc9948",
       "name": "Panel",
       "active": true,
-      "parentId": "c39f2452",
+      "parentId": "73fb12f4",
       "order": 0,
       "components": [
         {
@@ -12587,7 +13373,7 @@
           "properties": {
             "localPosition": {
               "x": 0.0,
-              "y": -5.0,
+              "y": 0.0,
               "z": 0.0
             },
             "localRotation": {
@@ -12615,7 +13401,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -12672,7 +13462,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -12749,7 +13543,11 @@
             "widthPercent": 15.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "PERCENT",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 5.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -12808,14 +13606,18 @@
               "x": 0.0,
               "y": 0.0
             },
-            "width": 232.275,
-            "height": 32.25,
+            "width": 228.0,
+            "height": 29.285715,
             "widthMode": "FIXED",
             "heightMode": "PERCENT",
             "widthPercent": 100.0,
             "heightPercent": 50.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -12889,10 +13691,14 @@
             "height": 64.166664,
             "widthMode": "PERCENT",
             "heightMode": "PERCENT",
-            "widthPercent": 81.5,
+            "widthPercent": 80.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "PERCENT",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 20.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -12921,7 +13727,7 @@
           "type": "com.pocket.rpg.components.ui.UITransform",
           "properties": {
             "localPosition": {
-              "x": 232.275,
+              "x": 228.0,
               "y": 0.0,
               "z": 0.0
             },
@@ -12943,14 +13749,18 @@
               "x": 0.0,
               "y": 0.0
             },
-            "width": 232.275,
-            "height": 32.25,
+            "width": 228.0,
+            "height": 29.285715,
             "widthMode": "FIXED",
             "heightMode": "PERCENT",
             "widthPercent": 100.0,
             "heightPercent": 50.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -12998,7 +13808,7 @@
           "type": "com.pocket.rpg.components.ui.UITransform",
           "properties": {
             "localPosition": {
-              "x": 0.0,
+              "x": 182.4,
               "y": 0.0,
               "z": 0.0
             },
@@ -13021,13 +13831,17 @@
               "y": 0.0
             },
             "width": 242.25,
-            "height": 32.25,
+            "height": 29.285715,
             "widthMode": "PERCENT",
             "heightMode": "PERCENT",
             "widthPercent": 60.0,
             "heightPercent": 50.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         }
       ]
@@ -13043,7 +13857,7 @@
           "type": "com.pocket.rpg.components.ui.UITransform",
           "properties": {
             "localPosition": {
-              "x": 278.73,
+              "x": 0.0,
               "y": 0.0,
               "z": 0.0
             },
@@ -13066,13 +13880,17 @@
               "y": 0.0
             },
             "width": 242.25,
-            "height": 32.25,
+            "height": 29.285715,
             "widthMode": "PERCENT",
             "heightMode": "PERCENT",
             "widthPercent": 40.0,
             "heightPercent": 50.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -13142,14 +13960,18 @@
               "x": 0.0,
               "y": 0.0
             },
-            "width": 464.55,
-            "height": 32.25,
+            "width": 456.0,
+            "height": 29.285715,
             "widthMode": "FIXED",
             "heightMode": "FIXED",
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -13179,7 +14001,7 @@
           "properties": {
             "localPosition": {
               "x": 0.0,
-              "y": 32.25,
+              "y": 29.285715,
               "z": 0.0
             },
             "localRotation": {
@@ -13200,14 +14022,18 @@
               "x": 0.0,
               "y": 0.0
             },
-            "width": 464.55,
-            "height": 32.25,
+            "width": 456.0,
+            "height": 29.285715,
             "widthMode": "FIXED",
             "heightMode": "FIXED",
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -13265,7 +14091,11 @@
             "widthPercent": 100.0,
             "heightPercent": 80.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -13331,7 +14161,11 @@
             "widthPercent": 100.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -13395,9 +14229,13 @@
             "widthMode": "PERCENT",
             "heightMode": "PERCENT",
             "widthPercent": 100.0,
-            "heightPercent": 90.0,
+            "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -13406,7 +14244,7 @@
             "paddingLeft": 20.0,
             "paddingRight": 50.0,
             "paddingTop": 20.0,
-            "paddingBottom": 0.0,
+            "paddingBottom": 20.0,
             "spacing": 5.0,
             "childForceExpandWidth": true,
             "childForceExpandHeight": true,
@@ -13455,7 +14293,11 @@
             "widthPercent": 5.0,
             "heightPercent": 100.0,
             "matchParentRotation": false,
-            "matchParentScale": false
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
           }
         },
         {
@@ -13472,6 +14314,283 @@
             "fontSize": 40,
             "text": "<",
             "horizontalAlignment": "CENTER",
+            "verticalAlignment": "MIDDLE",
+            "wordWrap": false,
+            "autoFit": false,
+            "minFontSize": 8,
+            "maxFontSize": 72,
+            "shadow": false,
+            "shadowColor": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0,
+              "w": 0.5
+            },
+            "shadowOffset": {
+              "x": 2.0,
+              "y": 2.0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "1b98e0ae",
+      "name": "Top",
+      "active": true,
+      "parentId": "8607b5a7",
+      "order": 0,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.ui.UITransform",
+          "properties": {
+            "localPosition": {
+              "x": 20.0,
+              "y": 20.0,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            },
+            "anchor": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "pivot": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "width": 570.0,
+            "height": 100.0,
+            "widthMode": "FIXED",
+            "heightMode": "PERCENT",
+            "widthPercent": 100.0,
+            "heightPercent": 60.0,
+            "matchParentRotation": false,
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
+          }
+        }
+      ]
+    },
+    {
+      "id": "52e3ec69",
+      "name": "Bottom",
+      "active": true,
+      "parentId": "8607b5a7",
+      "order": 1,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.ui.UITransform",
+          "properties": {
+            "localPosition": {
+              "x": 20.0,
+              "y": 292.0,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            },
+            "anchor": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "pivot": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "width": 570.0,
+            "height": 100.0,
+            "widthMode": "FIXED",
+            "heightMode": "PERCENT",
+            "widthPercent": 100.0,
+            "heightPercent": 40.0,
+            "matchParentRotation": false,
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
+          }
+        }
+      ]
+    },
+    {
+      "id": "5b86d5af",
+      "name": "Left",
+      "active": true,
+      "parentId": "c39f2452",
+      "order": 0,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.ui.UITransform",
+          "properties": {
+            "localPosition": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            },
+            "anchor": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "pivot": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "width": 285.0,
+            "height": 58.57143,
+            "widthMode": "PERCENT",
+            "heightMode": "FIXED",
+            "widthPercent": 80.0,
+            "heightPercent": 100.0,
+            "matchParentRotation": false,
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
+          }
+        }
+      ]
+    },
+    {
+      "id": "73fb12f4",
+      "name": "Right",
+      "active": true,
+      "parentId": "c39f2452",
+      "order": 1,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.ui.UITransform",
+          "properties": {
+            "localPosition": {
+              "x": 456.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            },
+            "anchor": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "pivot": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "width": 285.0,
+            "height": 58.57143,
+            "widthMode": "PERCENT",
+            "heightMode": "FIXED",
+            "widthPercent": 20.0,
+            "heightPercent": 100.0,
+            "matchParentRotation": false,
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
+          }
+        }
+      ]
+    },
+    {
+      "id": "eba174de",
+      "name": "Text",
+      "active": true,
+      "parentId": "5b86d5af",
+      "order": 1,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.ui.UITransform",
+          "properties": {
+            "localPosition": {
+              "x": 10.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            },
+            "anchor": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "pivot": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "width": 200.0,
+            "height": 30.0,
+            "widthMode": "PERCENT",
+            "heightMode": "PERCENT",
+            "widthPercent": 90.0,
+            "heightPercent": 100.0,
+            "matchParentRotation": false,
+            "matchParentScale": false,
+            "offsetXMode": "PERCENT",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 5.0,
+            "offsetYPercent": 0.0
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.ui.UIText",
+          "properties": {
+            "raycastTarget": true,
+            "color": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0,
+              "w": 1.0
+            },
+            "fontPath": "fonts/Pokemon-Red.ttf",
+            "fontSize": 25,
+            "text": "What to do ?",
+            "horizontalAlignment": "LEFT",
             "verticalAlignment": "MIDDLE",
             "wordWrap": false,
             "autoFit": false,

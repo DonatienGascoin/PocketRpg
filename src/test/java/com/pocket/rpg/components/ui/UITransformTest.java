@@ -1844,4 +1844,536 @@ class UITransformTest {
             assertEquals(60, after.x, 0.5f); // 50 + 10
         }
     }
+
+    // ========================================================================
+    // Offset Percentage Mode
+    // ========================================================================
+
+    @Nested
+    class OffsetPercentage {
+
+        @Test
+        void fixedModeReturnsRawOffset() {
+            childTransform.setOffsetXMode(UITransform.SizeMode.FIXED);
+            childTransform.setOffsetYMode(UITransform.SizeMode.FIXED);
+            childTransform.setOffset(50, 30);
+
+            assertEquals(50, childTransform.getEffectiveOffsetX(), 0.01f);
+            assertEquals(30, childTransform.getEffectiveOffsetY(), 0.01f);
+        }
+
+        @Test
+        void percentModeReturnsPercentageOfParent() {
+            childTransform.setOffsetXMode(UITransform.SizeMode.PERCENT);
+            childTransform.setOffsetXPercent(25);
+            childTransform.setOffsetYMode(UITransform.SizeMode.PERCENT);
+            childTransform.setOffsetYPercent(50);
+
+            // parent is 400x300
+            assertEquals(100, childTransform.getEffectiveOffsetX(), 0.01f); // 400 * 25%
+            assertEquals(150, childTransform.getEffectiveOffsetY(), 0.01f); // 300 * 50%
+        }
+
+        @Test
+        void mixedAxesXPercentYFixed() {
+            childTransform.setOffsetXMode(UITransform.SizeMode.PERCENT);
+            childTransform.setOffsetXPercent(10);
+            childTransform.setOffsetYMode(UITransform.SizeMode.FIXED);
+            childTransform.setOffset(0, 20);
+
+            assertEquals(40, childTransform.getEffectiveOffsetX(), 0.01f); // 400 * 10%
+            assertEquals(20, childTransform.getEffectiveOffsetY(), 0.01f);
+        }
+
+        @Test
+        void mixedAxesXFixedYPercent() {
+            childTransform.setOffsetXMode(UITransform.SizeMode.FIXED);
+            childTransform.setOffset(15, 0);
+            childTransform.setOffsetYMode(UITransform.SizeMode.PERCENT);
+            childTransform.setOffsetYPercent(33.33f);
+
+            assertEquals(15, childTransform.getEffectiveOffsetX(), 0.01f);
+            assertEquals(100, childTransform.getEffectiveOffsetY(), 0.5f); // 300 * 33.33%
+        }
+
+        @Test
+        void percentAt100EqualsParentSize() {
+            childTransform.setOffsetXMode(UITransform.SizeMode.PERCENT);
+            childTransform.setOffsetXPercent(100);
+            childTransform.setOffsetYMode(UITransform.SizeMode.PERCENT);
+            childTransform.setOffsetYPercent(100);
+
+            assertEquals(400, childTransform.getEffectiveOffsetX(), 0.01f);
+            assertEquals(300, childTransform.getEffectiveOffsetY(), 0.01f);
+        }
+
+        @Test
+        void percentZeroReturnsZero() {
+            childTransform.setOffsetXMode(UITransform.SizeMode.PERCENT);
+            childTransform.setOffsetXPercent(0);
+
+            assertEquals(0, childTransform.getEffectiveOffsetX(), 0.01f);
+        }
+
+        @Test
+        void percentNegativeValue() {
+            childTransform.setOffsetXMode(UITransform.SizeMode.PERCENT);
+            childTransform.setOffsetXPercent(-25);
+
+            assertEquals(-100, childTransform.getEffectiveOffsetX(), 0.01f); // 400 * -25%
+        }
+
+        @Test
+        void percentOver100() {
+            childTransform.setOffsetXMode(UITransform.SizeMode.PERCENT);
+            childTransform.setOffsetXPercent(150);
+
+            assertEquals(600, childTransform.getEffectiveOffsetX(), 0.01f); // 400 * 150%
+        }
+
+        @Test
+        void percentWithNoParentUsesScreenBounds() {
+            child.setParent(null);
+            childTransform.setScreenBounds(640, 480);
+            childTransform.setOffsetXMode(UITransform.SizeMode.PERCENT);
+            childTransform.setOffsetXPercent(50);
+
+            assertEquals(320, childTransform.getEffectiveOffsetX(), 0.01f); // 640 * 50%
+        }
+
+        @Test
+        void defaultOffsetModeIsFixed() {
+            assertEquals(UITransform.SizeMode.FIXED, childTransform.getOffsetXMode());
+            assertEquals(UITransform.SizeMode.FIXED, childTransform.getOffsetYMode());
+            assertEquals(0f, childTransform.getOffsetXPercent(), 0.01f);
+            assertEquals(0f, childTransform.getOffsetYPercent(), 0.01f);
+        }
+    }
+
+    // ========================================================================
+    // Offset Percentage with Size Percentage (mixed)
+    // ========================================================================
+
+    @Nested
+    class OffsetPercentWithSizePercent {
+
+        @Test
+        void bothSizeAndOffsetPercent() {
+            parent.setParent(null);
+            parentTransform.setScreenBounds(640, 480);
+            parentTransform.setAnchor(0, 0);
+            parentTransform.setOffset(0, 0);
+            parentTransform.setPivot(0, 0);
+
+            // Child: 50% size, 10% offset
+            childTransform.setWidthMode(UITransform.SizeMode.PERCENT);
+            childTransform.setWidthPercent(50);
+            childTransform.setHeightMode(UITransform.SizeMode.PERCENT);
+            childTransform.setHeightPercent(50);
+            childTransform.setOffsetXMode(UITransform.SizeMode.PERCENT);
+            childTransform.setOffsetXPercent(10);
+            childTransform.setOffsetYMode(UITransform.SizeMode.PERCENT);
+            childTransform.setOffsetYPercent(10);
+            childTransform.setAnchor(0, 0);
+            childTransform.setPivot(0, 0);
+            childTransform.setScreenBounds(640, 480);
+
+            // effectiveWidth = 400 * 50% = 200
+            // effectiveOffsetX = 400 * 10% = 40
+            Vector2f pos = childTransform.getScreenPosition();
+            assertEquals(40, pos.x, 0.5f);
+            assertEquals(30, pos.y, 0.5f); // 300 * 10% = 30
+        }
+
+        @Test
+        void sizePercentWithOffsetFixed() {
+            parent.setParent(null);
+            parentTransform.setScreenBounds(640, 480);
+            parentTransform.setAnchor(0, 0);
+            parentTransform.setOffset(0, 0);
+            parentTransform.setPivot(0, 0);
+
+            childTransform.setWidthMode(UITransform.SizeMode.PERCENT);
+            childTransform.setWidthPercent(50);
+            childTransform.setOffsetXMode(UITransform.SizeMode.FIXED);
+            childTransform.setOffset(20, 0);
+            childTransform.setAnchor(0, 0);
+            childTransform.setPivot(0, 0);
+            childTransform.setScreenBounds(640, 480);
+
+            Vector2f pos = childTransform.getScreenPosition();
+            assertEquals(20, pos.x, 0.5f);
+        }
+
+        @Test
+        void offsetPercentWithPivot() {
+            parent.setParent(null);
+            parentTransform.setScreenBounds(640, 480);
+            parentTransform.setAnchor(0, 0);
+            parentTransform.setOffset(0, 0);
+            parentTransform.setPivot(0, 0);
+
+            childTransform.setWidthMode(UITransform.SizeMode.FIXED);
+            childTransform.setWidth(200);
+            childTransform.setHeightMode(UITransform.SizeMode.FIXED);
+            childTransform.setHeight(100);
+            childTransform.setOffsetXMode(UITransform.SizeMode.PERCENT);
+            childTransform.setOffsetXPercent(50); // 400 * 50% = 200
+            childTransform.setAnchor(0, 0);
+            childTransform.setPivot(0.5f, 0); // center pivot
+            childTransform.setScreenBounds(640, 480);
+
+            // pos.x = anchor(0) + effectiveOffset(200) - pivot(0.5)*width(200) = 100
+            Vector2f pos = childTransform.getScreenPosition();
+            assertEquals(100, pos.x, 0.5f);
+        }
+
+        @Test
+        void offsetPercentWithAnchor() {
+            parent.setParent(null);
+            parentTransform.setScreenBounds(640, 480);
+            parentTransform.setAnchor(0, 0);
+            parentTransform.setOffset(0, 0);
+            parentTransform.setPivot(0, 0);
+
+            childTransform.setWidth(100);
+            childTransform.setHeight(100);
+            childTransform.setAnchor(0.5f, 0); // center anchor
+            childTransform.setPivot(0, 0);
+            childTransform.setOffsetXMode(UITransform.SizeMode.PERCENT);
+            childTransform.setOffsetXPercent(10); // 400 * 10% = 40
+            childTransform.setScreenBounds(640, 480);
+
+            // pos.x = anchor(0.5*400=200) + effectiveOffset(40) = 240
+            Vector2f pos = childTransform.getScreenPosition();
+            assertEquals(240, pos.x, 0.5f);
+        }
+    }
+
+    // ========================================================================
+    // Offset Percentage in Hierarchy (parent/grandparent)
+    // ========================================================================
+
+    @Nested
+    class OffsetPercentHierarchy {
+
+        @Test
+        void childPercentOffsetRelativeToParentSize() {
+            parent.setParent(null);
+            parentTransform.setScreenBounds(800, 600);
+            parentTransform.setAnchor(0, 0);
+            parentTransform.setOffset(0, 0);
+            parentTransform.setPivot(0, 0);
+
+            childTransform.setAnchor(0, 0);
+            childTransform.setPivot(0, 0);
+            childTransform.setOffsetXMode(UITransform.SizeMode.PERCENT);
+            childTransform.setOffsetXPercent(25); // 400 * 25% = 100
+            childTransform.setOffsetYMode(UITransform.SizeMode.PERCENT);
+            childTransform.setOffsetYPercent(50); // 300 * 50% = 150
+            childTransform.setScreenBounds(800, 600);
+
+            Vector2f pos = childTransform.getScreenPosition();
+            assertEquals(100, pos.x, 0.5f);
+            assertEquals(150, pos.y, 0.5f);
+        }
+
+        @Test
+        void grandchildPercentOffsetRelativeToChildSize() {
+            parent.setParent(null);
+            parentTransform.setScreenBounds(800, 600);
+            parentTransform.setAnchor(0, 0);
+            parentTransform.setOffset(0, 0);
+            parentTransform.setPivot(0, 0);
+
+            childTransform.setAnchor(0, 0);
+            childTransform.setPivot(0, 0);
+            childTransform.setOffset(0, 0);
+            childTransform.setScreenBounds(800, 600);
+            // child is 200x100
+
+            GameObject grandchild = new GameObject("Grandchild");
+            UITransform gcTransform = new UITransform(50, 50);
+            grandchild.addComponent(gcTransform);
+            grandchild.setParent(child);
+            gcTransform.setAnchor(0, 0);
+            gcTransform.setPivot(0, 0);
+            gcTransform.setOffsetXMode(UITransform.SizeMode.PERCENT);
+            gcTransform.setOffsetXPercent(50); // 200 * 50% = 100
+            gcTransform.setOffsetYMode(UITransform.SizeMode.PERCENT);
+            gcTransform.setOffsetYPercent(50); // 100 * 50% = 50
+            gcTransform.setScreenBounds(800, 600);
+
+            Vector2f pos = gcTransform.getScreenPosition();
+            assertEquals(100, pos.x, 0.5f);
+            assertEquals(50, pos.y, 0.5f);
+        }
+
+        @Test
+        void grandchildPercentOffsetWithPercentSizeParent() {
+            parent.setParent(null);
+            parentTransform.setScreenBounds(800, 600);
+            parentTransform.setAnchor(0, 0);
+            parentTransform.setOffset(0, 0);
+            parentTransform.setPivot(0, 0);
+
+            // Child at 50% of parent: effective size = 200x150
+            childTransform.setWidthMode(UITransform.SizeMode.PERCENT);
+            childTransform.setWidthPercent(50);
+            childTransform.setHeightMode(UITransform.SizeMode.PERCENT);
+            childTransform.setHeightPercent(50);
+            childTransform.setAnchor(0, 0);
+            childTransform.setPivot(0, 0);
+            childTransform.setOffset(0, 0);
+            childTransform.setScreenBounds(800, 600);
+
+            GameObject grandchild = new GameObject("Grandchild");
+            UITransform gcTransform = new UITransform(50, 50);
+            grandchild.addComponent(gcTransform);
+            grandchild.setParent(child);
+            gcTransform.setAnchor(0, 0);
+            gcTransform.setPivot(0, 0);
+            gcTransform.setOffsetXMode(UITransform.SizeMode.PERCENT);
+            gcTransform.setOffsetXPercent(25); // 200 * 25% = 50
+            gcTransform.setOffsetYMode(UITransform.SizeMode.PERCENT);
+            gcTransform.setOffsetYPercent(25); // 150 * 25% = 37.5
+            gcTransform.setScreenBounds(800, 600);
+
+            Vector2f pos = gcTransform.getScreenPosition();
+            assertEquals(50, pos.x, 0.5f);
+            assertEquals(37.5f, pos.y, 0.5f);
+        }
+
+        @Test
+        void parentPercentOffsetChildPercentOffset() {
+            parent.setParent(null);
+            parentTransform.setScreenBounds(800, 600);
+            parentTransform.setAnchor(0, 0);
+            parentTransform.setOffset(0, 0);
+            parentTransform.setPivot(0, 0);
+
+            // Parent (400x300) with child at 10% offset
+            childTransform.setAnchor(0, 0);
+            childTransform.setPivot(0, 0);
+            childTransform.setOffsetXMode(UITransform.SizeMode.PERCENT);
+            childTransform.setOffsetXPercent(10); // 400 * 10% = 40
+            childTransform.setOffsetYMode(UITransform.SizeMode.PERCENT);
+            childTransform.setOffsetYPercent(10); // 300 * 10% = 30
+            childTransform.setScreenBounds(800, 600);
+
+            // Grandchild at 50% of child size (200x100)
+            GameObject grandchild = new GameObject("Grandchild");
+            UITransform gcTransform = new UITransform(50, 50);
+            grandchild.addComponent(gcTransform);
+            grandchild.setParent(child);
+            gcTransform.setAnchor(0, 0);
+            gcTransform.setPivot(0, 0);
+            gcTransform.setOffsetXMode(UITransform.SizeMode.PERCENT);
+            gcTransform.setOffsetXPercent(25); // 200 * 25% = 50
+            gcTransform.setOffsetYMode(UITransform.SizeMode.PERCENT);
+            gcTransform.setOffsetYPercent(25); // 100 * 25% = 25
+            gcTransform.setScreenBounds(800, 600);
+
+            // child screen pos = (40, 30), gc offset relative to child = (50, 25)
+            Vector2f gcPos = gcTransform.getScreenPosition();
+            assertEquals(90, gcPos.x, 0.5f);  // 40 + 50
+            assertEquals(55, gcPos.y, 0.5f);   // 30 + 25
+        }
+    }
+
+    // ========================================================================
+    // Offset Percentage in Position Calculation Paths
+    // ========================================================================
+
+    @Nested
+    class OffsetPercentPositionPaths {
+
+        @Test
+        void calculatePositionWithPercentOffset() {
+            parent.setParent(null);
+            parentTransform.setScreenBounds(800, 600);
+            parentTransform.setAnchor(0, 0);
+            parentTransform.setOffset(0, 0);
+            parentTransform.setPivot(0, 0);
+
+            childTransform.setAnchor(0, 0);
+            childTransform.setPivot(0, 0);
+            childTransform.setOffsetXMode(UITransform.SizeMode.PERCENT);
+            childTransform.setOffsetXPercent(25);
+            childTransform.setOffsetYMode(UITransform.SizeMode.PERCENT);
+            childTransform.setOffsetYPercent(50);
+            childTransform.setScreenBounds(800, 600);
+
+            Vector2f pos = childTransform.getScreenPosition();
+            assertEquals(100, pos.x, 0.5f); // 400 * 25%
+            assertEquals(150, pos.y, 0.5f); // 300 * 50%
+        }
+
+        @Test
+        void matrixPathWithPercentOffset() {
+            parent.setParent(null);
+            parentTransform.setScreenBounds(800, 600);
+            parentTransform.setAnchor(0, 0);
+            parentTransform.setOffset(0, 0);
+            parentTransform.setPivot(0, 0);
+
+            childTransform.setAnchor(0, 0);
+            childTransform.setPivot(0, 0);
+            childTransform.setOffsetXMode(UITransform.SizeMode.PERCENT);
+            childTransform.setOffsetXPercent(25); // 400 * 25% = 100
+            childTransform.setOffsetYMode(UITransform.SizeMode.PERCENT);
+            childTransform.setOffsetYPercent(50); // 300 * 50% = 150
+            childTransform.setScreenBounds(800, 600);
+
+            Vector2f pivotPos = childTransform.getWorldPivotPosition2D();
+            assertEquals(100, pivotPos.x, 0.5f);
+            assertEquals(150, pivotPos.y, 0.5f);
+        }
+
+        @Test
+        void matrixAndPositionPathsConsistentWithPercentOffset() {
+            parent.setParent(null);
+            parentTransform.setScreenBounds(800, 600);
+            parentTransform.setAnchor(0, 0);
+            parentTransform.setOffset(0, 0);
+            parentTransform.setPivot(0, 0);
+
+            childTransform.setAnchor(0.5f, 0.5f);
+            childTransform.setPivot(0.5f, 0.5f);
+            childTransform.setOffsetXMode(UITransform.SizeMode.PERCENT);
+            childTransform.setOffsetXPercent(10);
+            childTransform.setOffsetYMode(UITransform.SizeMode.PERCENT);
+            childTransform.setOffsetYPercent(20);
+            childTransform.setScreenBounds(800, 600);
+
+            Vector2f screenPos = childTransform.getScreenPosition();
+            Vector2f pivotPos = childTransform.getWorldPivotPosition2D();
+
+            // pivotPos = screenPos + pivot * effectiveSize
+            assertEquals(screenPos.x + 0.5f * 200, pivotPos.x, 1f);
+            assertEquals(screenPos.y + 0.5f * 100, pivotPos.y, 1f);
+        }
+
+        @Test
+        void percentOffsetWithParentRotation() {
+            parent.setParent(null);
+            parentTransform.setScreenBounds(640, 480);
+            parentTransform.setPivot(0.5f, 0.5f);
+            parentTransform.setAnchor(0, 0);
+            parentTransform.setOffset(0, 0);
+            parentTransform.setRotation2D(90);
+
+            childTransform.setAnchor(0, 0);
+            childTransform.setPivot(0, 0);
+            childTransform.setOffsetXMode(UITransform.SizeMode.PERCENT);
+            childTransform.setOffsetXPercent(25); // 400 * 25% = 100
+            childTransform.setOffsetYMode(UITransform.SizeMode.FIXED);
+            childTransform.setOffset(0, 0);
+            childTransform.setScreenBounds(640, 480);
+
+            // Should produce a valid position (rotation applied to the offset)
+            Vector2f pos = childTransform.getScreenPosition();
+            assertNotNull(pos);
+            assertTrue(Float.isFinite(pos.x));
+            assertTrue(Float.isFinite(pos.y));
+        }
+
+        @Test
+        void percentOffsetWithParentScale() {
+            parent.setParent(null);
+            parentTransform.setScreenBounds(800, 600);
+            parentTransform.setAnchor(0, 0);
+            parentTransform.setOffset(0, 0);
+            parentTransform.setPivot(0, 0);
+            parentTransform.setScale2D(2, 2);
+
+            childTransform.setAnchor(0, 0);
+            childTransform.setPivot(0, 0);
+            childTransform.setOffsetXMode(UITransform.SizeMode.PERCENT);
+            childTransform.setOffsetXPercent(25); // 400 * 25% = 100
+            childTransform.setScreenBounds(800, 600);
+
+            // Matrix path: offset=100, scaled by parent scale 2x -> pivotX = 200
+            Vector2f pivotPos = childTransform.getWorldPivotPosition2D();
+            assertEquals(200, pivotPos.x, 0.5f);
+        }
+
+        @Test
+        void fillingParentIgnoresPercentOffset() {
+            childTransform.setWidthMode(UITransform.SizeMode.PERCENT);
+            childTransform.setWidthPercent(100);
+            childTransform.setHeightMode(UITransform.SizeMode.PERCENT);
+            childTransform.setHeightPercent(100);
+            childTransform.setOffsetXMode(UITransform.SizeMode.PERCENT);
+            childTransform.setOffsetXPercent(50);
+            childTransform.setOffsetYMode(UITransform.SizeMode.PERCENT);
+            childTransform.setOffsetYPercent(50);
+
+            parentTransform.setScreenBounds(400, 300);
+            childTransform.setScreenBounds(400, 300);
+
+            // isFillingParent shortcut: snaps to parent origin, ignores offset
+            Vector2f pos = childTransform.getScreenPosition();
+            assertEquals(0, pos.x, 0.5f);
+            assertEquals(0, pos.y, 0.5f);
+        }
+
+        @Test
+        void noParentPercentOffsetUsesScreenBounds() {
+            child.setParent(null);
+            childTransform.setScreenBounds(800, 600);
+            childTransform.setAnchor(0, 0);
+            childTransform.setPivot(0, 0);
+            childTransform.setOffsetXMode(UITransform.SizeMode.PERCENT);
+            childTransform.setOffsetXPercent(50); // 800 * 50% = 400
+            childTransform.setOffsetYMode(UITransform.SizeMode.PERCENT);
+            childTransform.setOffsetYPercent(25); // 600 * 25% = 150
+
+            Vector2f pos = childTransform.getScreenPosition();
+            assertEquals(400, pos.x, 0.5f);
+            assertEquals(150, pos.y, 0.5f);
+
+            // Matrix path should agree
+            Vector2f pivotPos = childTransform.getWorldPivotPosition2D();
+            assertEquals(400, pivotPos.x, 0.5f);
+            assertEquals(150, pivotPos.y, 0.5f);
+        }
+    }
+
+    // ========================================================================
+    // Offset Percentage with setMatchParent
+    // ========================================================================
+
+    @Nested
+    class OffsetPercentMatchParent {
+
+        @Test
+        void setMatchParentResetsOffsetModes() {
+            childTransform.setOffsetXMode(UITransform.SizeMode.PERCENT);
+            childTransform.setOffsetXPercent(50);
+            childTransform.setOffsetYMode(UITransform.SizeMode.PERCENT);
+            childTransform.setOffsetYPercent(25);
+
+            childTransform.setMatchParent();
+
+            assertEquals(UITransform.SizeMode.FIXED, childTransform.getOffsetXMode());
+            assertEquals(UITransform.SizeMode.FIXED, childTransform.getOffsetYMode());
+            assertEquals(0f, childTransform.getOffsetXPercent(), 0.01f);
+            assertEquals(0f, childTransform.getOffsetYPercent(), 0.01f);
+            assertEquals(0f, childTransform.getOffset().x, 0.01f);
+            assertEquals(0f, childTransform.getOffset().y, 0.01f);
+        }
+
+        @Test
+        void clearMatchParentDoesNotAffectOffsetMode() {
+            childTransform.setOffsetXMode(UITransform.SizeMode.PERCENT);
+            childTransform.setOffsetXPercent(50);
+
+            childTransform.setMatchParent();
+            childTransform.clearMatchParent();
+
+            // clearMatchParent only resets size modes, offset mode was already reset by setMatchParent
+            assertEquals(UITransform.SizeMode.FIXED, childTransform.getOffsetXMode());
+        }
+    }
 }

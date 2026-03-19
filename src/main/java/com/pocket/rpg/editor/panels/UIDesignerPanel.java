@@ -335,9 +335,10 @@ public class UIDesignerPanel {
         gizmoDrawer.drawSelectionBorders(drawList, scene, true);  // selected only
         if (state.isShowElementBounds()) {
             gizmoDrawer.drawSelectionBorders(drawList, scene, false);  // all (includes selected, no-op overlap)
-            gizmoDrawer.drawLayoutPadding(drawList, scene);
             gizmoDrawer.drawTrackPadding(drawList, scene);
         }
+        // Layout padding gizmos always shown for selected entities (independent of bounds toggle)
+        gizmoDrawer.drawLayoutPadding(drawList, scene);
 
         // Draw selection gizmos (handles, anchor, pivot)
         gizmoDrawer.drawSelectionGizmos(drawList, scene);

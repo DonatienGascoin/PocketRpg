@@ -224,15 +224,26 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
             ImGui.sameLine();
             if (ImGui.smallButton("R##offset")) {
                 Vector2f currentOffset = component.getOffset();
-                if (currentOffset.x != 0 || currentOffset.y != 0) {
-                    // Push undo for reset
+                if (currentOffset.x != 0 || currentOffset.y != 0
+                        || component.getOffsetXPercent() != 0 || component.getOffsetYPercent() != 0) {
                     final UITransform t = this.component;
                     Vector2f oldOffset = new Vector2f(currentOffset);
+                    float oldXPercent = t.getOffsetXPercent();
+                    float oldYPercent = t.getOffsetYPercent();
                     t.setOffset(0, 0);
+                    t.setOffsetXPercent(0);
+                    t.setOffsetYPercent(0);
                     UndoManager.getInstance().push(
-                            new SetterUndoCommand<>(
-                                    v -> t.setOffset(v.x, v.y),
-                                    oldOffset, new Vector2f(0, 0), "Reset Offset"
+                            new CompoundCommand("Reset Offset",
+                                    new SetterUndoCommand<>(
+                                            v -> t.setOffset(v.x, v.y),
+                                            oldOffset, new Vector2f(0, 0), "Reset Offset Pixels"),
+                                    new SetterUndoCommand<>(
+                                            t::setOffsetXPercent,
+                                            oldXPercent, 0f, "Reset Offset X%"),
+                                    new SetterUndoCommand<>(
+                                            t::setOffsetYPercent,
+                                            oldYPercent, 0f, "Reset Offset Y%")
                             )
                     );
                     changed = true;
@@ -242,19 +253,15 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
             // Capture component reference for undo lambdas
             final UITransform t = this.component;
 
-            // X and Y on same line with automatic undo support
             ImGui.sameLine();
             ImGui.setCursorPosX(FIELD_POSITION);
-            float flexWidth = calculateFlexWidth(2);
-            changed |= PrimitiveEditors.drawFloatInline("X", "uiTransform.offset.x",
-                    () -> t.getOffset().x,
-                    v -> t.setOffset((float) v, t.getOffset().y),
-                    1.0f, flexWidth);
+
+            float usedPerField = ImGui.calcTextSize("X").x + ImGui.calcTextSize("px").x + 16f;
+            float offsetFieldWidth = calculateFlexWidth(2, usedPerField);
+
+            changed |= drawOffsetAxisField("X", "offsetX", true, hasParentUITransform, offsetFieldWidth);
             ImGui.sameLine();
-            changed |= PrimitiveEditors.drawFloatInline("Y", "uiTransform.offset.y",
-                    () -> t.getOffset().y,
-                    v -> t.setOffset(t.getOffset().x, (float) v),
-                    1.0f, flexWidth);
+            changed |= drawOffsetAxisField("Y", "offsetY", false, hasParentUITransform, offsetFieldWidth);
         }
 
 
@@ -559,9 +566,11 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
 
         // Per-axis mode toggle button: "px" or "%"
         String modeLabel = isPercent ? "%" : "px";
+        boolean toggled = false;
         if (FieldEditorUtils.accentButton(isPercent, modeLabel + "##" + id)) {
             if (hasParentUITransform) {
                 changed |= toggleSizeMode(isWidth);
+                toggled = true;
             }
         }
 
@@ -581,12 +590,17 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
         ImGui.sameLine();
         ImGui.setNextItemWidth(fieldWidth);
 
+        // Auto-select the drag field after toggling
+        if (toggled) {
+            ImGui.setKeyboardFocusHere();
+        }
+
         if (isPercent) {
             // PERCENT mode: drag the percentage value
             float percent = isWidth ? component.getWidthPercent() : component.getHeightPercent();
             float[] buf = {percent};
 
-            if (ImGui.dragFloat("##" + id, buf, 0.5f, 0f, 200f, "%.1f%%%%")) {
+            if (ImGui.dragFloat("##" + id, buf, 0.5f, 0f, 200f, "%.1f %%")) {
                 float newPercent = Math.max(0, buf[0]);
                 if (isWidth) {
                     component.setWidthPercent(newPercent);
@@ -613,7 +627,7 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
                     "percent_" + id,
                     currentPercent,
                     percentSetter,
-                    "Change " + (isWidth ? "Width" : "Height") + " %%"
+                    "Change " + (isWidth ? "Width" : "Height") + " %"
             );
 
             if (ImGui.isItemHovered()) {
@@ -725,6 +739,177 @@ public class UITransformInspector extends CustomComponentInspector<UITransform> 
                             new SetterUndoCommand<>(
                                     pixelSetter,
                                     oldPixelSize, effectiveSize, "Change Pixel Size")
+                    )
+            );
+        }
+
+        t.markDirty();
+        return true;
+    }
+
+    /**
+     * Draws a single offset axis field (X or Y) with a px/% toggle button and drag field.
+     */
+    private boolean drawOffsetAxisField(String label, String id, boolean isXAxis,
+                                         boolean hasParentUITransform, float fieldWidth) {
+        boolean changed = false;
+        final UITransform t = this.component;
+
+        UITransform.SizeMode mode = isXAxis ? t.getOffsetXMode() : t.getOffsetYMode();
+        boolean isPercent = mode == UITransform.SizeMode.PERCENT;
+
+        ImGui.text(label);
+        ImGui.sameLine();
+
+        // Per-axis mode toggle button: "px" or "%"
+        String modeLabel = isPercent ? "%" : "px";
+        boolean toggled = false;
+        if (FieldEditorUtils.accentButton(isPercent, modeLabel + "##" + id)) {
+            if (hasParentUITransform) {
+                changed |= toggleOffsetMode(isXAxis);
+                toggled = true;
+            }
+        }
+
+        if (ImGui.isItemHovered()) {
+            if (!hasParentUITransform) {
+                ImGui.setTooltip("No parent UITransform for percentage offset");
+            } else {
+                ImGui.setTooltip(isPercent ? "Switch to pixel offset" : "Switch to percentage of parent");
+            }
+        }
+
+        // Re-read mode after potential toggle
+        mode = isXAxis ? t.getOffsetXMode() : t.getOffsetYMode();
+        isPercent = mode == UITransform.SizeMode.PERCENT;
+
+        ImGui.sameLine();
+        ImGui.setNextItemWidth(fieldWidth);
+
+        // Auto-select the drag field after toggling
+        if (toggled) {
+            ImGui.setKeyboardFocusHere();
+        }
+
+        if (isPercent) {
+            float percent = isXAxis ? t.getOffsetXPercent() : t.getOffsetYPercent();
+            float[] buf = {percent};
+
+            if (ImGui.dragFloat("##" + id, buf, 0.5f, -200f, 200f, "%.1f %%")) {
+                float newPercent = buf[0];
+                if (isXAxis) {
+                    t.setOffsetXPercent(newPercent);
+                } else {
+                    t.setOffsetYPercent(newPercent);
+                }
+                t.markDirty();
+                changed = true;
+            }
+
+            // Undo for percent drag
+            float currentPercent = isXAxis ? t.getOffsetXPercent() : t.getOffsetYPercent();
+            Consumer<Float> percentSetter = isXAxis ? t::setOffsetXPercent : t::setOffsetYPercent;
+            FieldUndoTracker.track(
+                    "percent_" + id,
+                    currentPercent,
+                    percentSetter,
+                    "Change Offset " + (isXAxis ? "X" : "Y") + " %"
+            );
+
+            if (ImGui.isItemHovered()) {
+                float resolvedPx = isXAxis ? t.getEffectiveOffsetX() : t.getEffectiveOffsetY();
+                ImGui.setTooltip("Resolved: " + (int) resolvedPx + " px");
+            }
+        } else {
+            float pixelValue = isXAxis ? t.getOffset().x : t.getOffset().y;
+            float[] buf = {pixelValue};
+
+            if (ImGui.dragFloat("##" + id, buf, 1.0f)) {
+                float newValue = buf[0];
+                if (isXAxis) {
+                    t.setOffset(newValue, t.getOffset().y);
+                } else {
+                    t.setOffset(t.getOffset().x, newValue);
+                }
+                changed = true;
+            }
+
+            // Undo for pixel drag
+            float currentValue = isXAxis ? t.getOffset().x : t.getOffset().y;
+            Consumer<Float> pixelSetter = isXAxis
+                    ? v -> t.setOffset(v, t.getOffset().y)
+                    : v -> t.setOffset(t.getOffset().x, v);
+            FieldUndoTracker.track(
+                    "pixel_" + id,
+                    currentValue,
+                    pixelSetter,
+                    "Change Offset " + (isXAxis ? "X" : "Y")
+            );
+        }
+
+        return changed;
+    }
+
+    /**
+     * Toggles an offset axis between FIXED and PERCENT mode with undo support.
+     * When switching to PERCENT: auto-calculates initial percent from current pixel offset.
+     * When switching to FIXED: stores current effective pixel offset.
+     */
+    private boolean toggleOffsetMode(boolean isXAxis) {
+        final UITransform t = this.component;
+
+        UITransform.SizeMode oldMode = isXAxis ? t.getOffsetXMode() : t.getOffsetYMode();
+        float oldPercent = isXAxis ? t.getOffsetXPercent() : t.getOffsetYPercent();
+        float oldPixelOffset = isXAxis ? t.getOffset().x : t.getOffset().y;
+
+        if (oldMode == UITransform.SizeMode.FIXED) {
+            // Switching to PERCENT: calculate what percent the current pixel offset is
+            float parentSize = isXAxis ? t.getPercentReferenceWidth() : t.getPercentReferenceHeight();
+            float newPercent = (parentSize > 0) ? (oldPixelOffset / parentSize) * 100f : 0f;
+
+            if (isXAxis) {
+                t.setOffsetXMode(UITransform.SizeMode.PERCENT);
+                t.setOffsetXPercent(newPercent);
+            } else {
+                t.setOffsetYMode(UITransform.SizeMode.PERCENT);
+                t.setOffsetYPercent(newPercent);
+            }
+
+            UITransform.SizeMode newMode = UITransform.SizeMode.PERCENT;
+            UndoManager.getInstance().push(
+                    new CompoundCommand("Toggle Offset " + (isXAxis ? "X" : "Y") + " to %",
+                            new SetterUndoCommand<>(
+                                    isXAxis ? t::setOffsetXMode : t::setOffsetYMode,
+                                    oldMode, newMode, "Change Offset Mode"),
+                            new SetterUndoCommand<>(
+                                    isXAxis ? t::setOffsetXPercent : t::setOffsetYPercent,
+                                    oldPercent, newPercent, "Change Offset Percent")
+                    )
+            );
+        } else {
+            // Switching to FIXED: store current effective pixel offset
+            float effectiveOffset = isXAxis ? t.getEffectiveOffsetX() : t.getEffectiveOffsetY();
+
+            if (isXAxis) {
+                t.setOffsetXMode(UITransform.SizeMode.FIXED);
+                t.setOffset(effectiveOffset, t.getOffset().y);
+            } else {
+                t.setOffsetYMode(UITransform.SizeMode.FIXED);
+                t.setOffset(t.getOffset().x, effectiveOffset);
+            }
+
+            UITransform.SizeMode newMode = UITransform.SizeMode.FIXED;
+            Consumer<Float> pixelSetter = isXAxis
+                    ? v -> t.setOffset(v, t.getOffset().y)
+                    : v -> t.setOffset(t.getOffset().x, v);
+            UndoManager.getInstance().push(
+                    new CompoundCommand("Toggle Offset " + (isXAxis ? "X" : "Y") + " to px",
+                            new SetterUndoCommand<>(
+                                    isXAxis ? t::setOffsetXMode : t::setOffsetYMode,
+                                    oldMode, newMode, "Change Offset Mode"),
+                            new SetterUndoCommand<>(
+                                    pixelSetter,
+                                    oldPixelOffset, effectiveOffset, "Change Pixel Offset")
                     )
             );
         }

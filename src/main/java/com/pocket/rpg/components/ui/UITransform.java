@@ -167,6 +167,10 @@ public class UITransform extends Transform {
         this.heightMode = SizeMode.PERCENT;
         this.widthPercent = 100f;
         this.heightPercent = 100f;
+        this.offsetXMode = SizeMode.FIXED;
+        this.offsetYMode = SizeMode.FIXED;
+        this.offsetXPercent = 0f;
+        this.offsetYPercent = 0f;
         anchor.set(0, 0);
         pivot.set(0, 0);
         localPosition.set(0, 0, localPosition.z);
@@ -239,17 +243,65 @@ public class UITransform extends Transform {
     }
 
     // ========================================================================
+    // OFFSET MODE (Per-axis percentage offset)
+    // ========================================================================
+
+    @Getter
+    @Setter
+    private SizeMode offsetXMode = SizeMode.FIXED;
+
+    @Getter
+    @Setter
+    private SizeMode offsetYMode = SizeMode.FIXED;
+
+    /** Percentage of parent width when offsetXMode=PERCENT (can be negative). Default 0. */
+    @Getter
+    @Setter
+    private float offsetXPercent = 0f;
+
+    /** Percentage of parent height when offsetYMode=PERCENT (can be negative). Default 0. */
+    @Getter
+    @Setter
+    private float offsetYPercent = 0f;
+
+    // ========================================================================
     // OFFSET (uses localPosition.x/y from Transform)
     // ========================================================================
 
     /**
-     * Gets offset from anchor point.
+     * Gets the raw offset from anchor point (pixel value stored in localPosition).
      * This is a convenience wrapper around localPosition.x/y.
      *
      * @return Offset as Vector2f (new instance)
      */
     public Vector2f getOffset() {
         return new Vector2f(localPosition.x, localPosition.y);
+    }
+
+    /**
+     * Gets the effective X offset, considering offset mode.
+     * In PERCENT mode, returns percentage of parent width.
+     *
+     * @return Effective X offset in pixels
+     */
+    public float getEffectiveOffsetX() {
+        if (offsetXMode == SizeMode.PERCENT) {
+            return getParentWidth() * offsetXPercent / 100f;
+        }
+        return localPosition.x;
+    }
+
+    /**
+     * Gets the effective Y offset, considering offset mode.
+     * In PERCENT mode, returns percentage of parent height.
+     *
+     * @return Effective Y offset in pixels
+     */
+    public float getEffectiveOffsetY() {
+        if (offsetYMode == SizeMode.PERCENT) {
+            return getParentHeight() * offsetYPercent / 100f;
+        }
+        return localPosition.y;
     }
 
     /**
@@ -755,9 +807,9 @@ public class UITransform extends Transform {
         float anchorX = anchor.x * parentWidth;
         float anchorY = anchor.y * parentHeight;
 
-        // Apply offset from localPosition (positive Y = down)
-        float localX = anchorX + localPosition.x;
-        float localY = anchorY + localPosition.y;
+        // Apply offset (effective offset considers PERCENT mode)
+        float localX = anchorX + getEffectiveOffsetX();
+        float localY = anchorY + getEffectiveOffsetY();
 
         // Apply world scale to dimensions for pivot calculation
         // This ensures pivot offset accounts for scaled visual size
@@ -997,8 +1049,8 @@ public class UITransform extends Transform {
             parentHeight = parentTransform.getEffectiveHeight();
 
             // Calculate this element's position in parent's LOCAL space (from parent's top-left)
-            float childLocalX = anchor.x * parentWidth + localPosition.x;
-            float childLocalY = anchor.y * parentHeight + localPosition.y;
+            float childLocalX = anchor.x * parentWidth + getEffectiveOffsetX();
+            float childLocalY = anchor.y * parentHeight + getEffectiveOffsetY();
 
             // Calculate parent's pivot position in parent's LOCAL space (from parent's top-left)
             float parentPivotLocalX = parentPivotRatio.x * parentWidth;
@@ -1052,8 +1104,8 @@ public class UITransform extends Transform {
         } else {
             // No parent - local space equals world space
             // parentWidth/parentHeight are already set to screenWidth/screenHeight
-            float pivotLocalX = anchor.x * parentWidth + localPosition.x;
-            float pivotLocalY = anchor.y * parentHeight + localPosition.y;
+            float pivotLocalX = anchor.x * parentWidth + getEffectiveOffsetX();
+            float pivotLocalY = anchor.y * parentHeight + getEffectiveOffsetY();
 
             pivotWorldX = pivotLocalX;
             pivotWorldY = pivotLocalY;
@@ -1126,8 +1178,13 @@ public class UITransform extends Transform {
 
     @Override
     public String toString() {
-        return String.format("UITransform[anchor=(%.2f,%.2f), offset=(%.0f,%.0f), size=%.0fx%.0f, pivot=(%.2f,%.2f), rot=%.1f, scale=(%.2f,%.2f)]",
-                anchor.x, anchor.y, localPosition.x, localPosition.y, width, height, pivot.x, pivot.y,
+        return String.format("UITransform[anchor=(%.2f,%.2f), offset=(%.1f%s,%.1f%s), size=%.0fx%.0f, pivot=(%.2f,%.2f), rot=%.1f, scale=(%.2f,%.2f)]",
+                anchor.x, anchor.y,
+                offsetXMode == SizeMode.PERCENT ? offsetXPercent : localPosition.x,
+                offsetXMode == SizeMode.PERCENT ? "%" : "px",
+                offsetYMode == SizeMode.PERCENT ? offsetYPercent : localPosition.y,
+                offsetYMode == SizeMode.PERCENT ? "%" : "px",
+                width, height, pivot.x, pivot.y,
                 localRotation.z, localScale.x, localScale.y);
     }
 }

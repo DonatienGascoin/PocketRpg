@@ -25,6 +25,7 @@ import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiMouseButton;
+import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImString;
 import lombok.Setter;
@@ -54,6 +55,7 @@ public class HierarchyTreeRenderer {
     private EntityCreationService creationService;
 
     private Object renamingItem = null;
+    private boolean renameJustStarted = false;
     private final ImString renameBuffer = new ImString(64);
     private String nameBeforeRename = null;  // For undo support
     private final SavePrefabPopup savePrefabPopup = new SavePrefabPopup();
@@ -68,8 +70,47 @@ public class HierarchyTreeRenderer {
     // Tracks which entity tree nodes are currently expanded (updated each frame during render)
     private final Set<String> expandedEntityIds = new HashSet<>();
 
+    // Programmatic expand/collapse: entity ID → desired open state (consumed during render)
+    private final java.util.Map<String, Boolean> pendingOpenState = new java.util.HashMap<>();
+
     public Set<String> getExpandedEntityIds() {
         return expandedEntityIds;
+    }
+
+
+    /**
+     * Programmatically expand or collapse a tree node on the next frame.
+     */
+    public void setEntityOpen(String entityId, boolean open) {
+        pendingOpenState.put(entityId, open);
+    }
+
+    public boolean isRenaming() {
+        return renamingItem != null;
+    }
+
+    /**
+     * Starts inline rename for the given entity.
+     * Called by double-click, context menu, and F2 shortcut.
+     */
+    /**
+     * Cancels any active rename without applying changes.
+     */
+    public void cancelRename() {
+        renamingItem = null;
+        nameBeforeRename = null;
+    }
+
+    public void startRename(EditorGameObject entity) {
+        if (entity == null || entity.isPrefabChildNode()) return;
+        renamingItem = entity;
+        nameBeforeRename = entity.getName();
+        renameBuffer.set(nameBeforeRename);
+        renameJustStarted = true;
+        // Clear any pending narrow-select to prevent re-selection on mouse release
+        if (selectionHandler != null) {
+            selectionHandler.clearPendingNarrowSelect();
+        }
     }
 
     /**
@@ -106,8 +147,14 @@ public class HierarchyTreeRenderer {
 
         int flags = ImGuiTreeNodeFlags.SpanAvailWidth | ImGuiTreeNodeFlags.OpenOnArrow;
         if (isSelected) flags |= ImGuiTreeNodeFlags.Selected;
+        if (isRenaming) flags |= ImGuiTreeNodeFlags.AllowOverlap;
         if (!hasChildren) flags |= ImGuiTreeNodeFlags.Leaf | ImGuiTreeNodeFlags.NoTreePushOnOpen;
         else flags |= ImGuiTreeNodeFlags.DefaultOpen;
+
+        // Apply programmatic expand/collapse from keyboard navigation
+        if (pendingOpenState.containsKey(entity.getId())) {
+            ImGui.setNextItemOpen(pendingOpenState.remove(entity.getId()));
+        }
 
         // Force-open ancestor nodes to reveal scroll target
         if (entitiesToForceOpen.contains(entity.getId())) {
@@ -118,7 +165,7 @@ public class HierarchyTreeRenderer {
         boolean hierarchicallyDisabled = !entity.isActiveInHierarchy();
         String label;
         if (isRenaming) {
-            label = IconUtils.getIconForEntity(entity) + " ";
+            label = IconUtils.getIconForEntity(entity);
         } else {
             label = IconUtils.getIconForEntity(entity) + " " + entity.getName();
         }
@@ -163,7 +210,7 @@ public class HierarchyTreeRenderer {
 
         // Render inline rename field on same line as tree node
         if (isRenaming) {
-            ImGui.sameLine();
+            ImGui.sameLine(0, 0);
             renderRenameField(entity);
         }
 
@@ -206,7 +253,13 @@ public class HierarchyTreeRenderer {
     private void renderRenameField(EditorGameObject entity) {
         // Use remaining width for the input field
         ImGui.setNextItemWidth(-1);
-        ImGui.setKeyboardFocusHere();
+        if (renameJustStarted) {
+            ImGui.setKeyboardFocusHere();
+            renameJustStarted = false;
+        }
+
+        // Keep horizontal padding inside the field for text spacing, zero vertical to match tree line height
+        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, ImGui.getStyle().getFramePaddingX(), 0);
 
         int inputFlags = ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll;
         if (ImGui.inputText("##rename", renameBuffer, inputFlags)) {
@@ -219,6 +272,7 @@ public class HierarchyTreeRenderer {
             renamingItem = null;
             nameBeforeRename = null;
         }
+        ImGui.popStyleVar();
 
         // Cancel on escape
         if (ImGui.isKeyPressed(ImGuiKey.Escape)) {
@@ -248,9 +302,7 @@ public class HierarchyTreeRenderer {
 
         if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(0)
                 && !entity.isPrefabChildNode() && !clickedOnArrow) {
-            renamingItem = entity;
-            nameBeforeRename = entity.getName();
-            renameBuffer.set(nameBeforeRename);
+            startRename(entity);
         }
     }
 
@@ -342,9 +394,7 @@ public class HierarchyTreeRenderer {
                 ImGui.separator();
 
                 if (ImGui.menuItem(MaterialIcons.Edit + " Rename")) {
-                    renamingItem = entity;
-                    nameBeforeRename = entity.getName();
-                    renameBuffer.set(nameBeforeRename);
+                    startRename(entity);
                 }
 
                 // Toggle enabled using isEnabled (raw field, not hierarchical)

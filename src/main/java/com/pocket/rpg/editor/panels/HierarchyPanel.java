@@ -16,6 +16,9 @@ import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.RuntimeGameObjectAdapter;
 import com.pocket.rpg.editor.scene.UIEntityFactory;
+import com.pocket.rpg.editor.shortcut.ShortcutAction;
+import com.pocket.rpg.editor.shortcut.ShortcutBinding;
+import com.pocket.rpg.editor.shortcut.KeyboardLayout;
 import com.pocket.rpg.editor.tools.EditorTool;
 import com.pocket.rpg.editor.tools.ToolManager;
 import com.pocket.rpg.editor.undo.UndoManager;
@@ -25,10 +28,13 @@ import com.pocket.rpg.scenes.Scene;
 import com.pocket.rpg.editor.core.EditorColors;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiFocusedFlags;
+import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiMouseButton;
 import imgui.flag.ImGuiPopupFlags;
 import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiTreeNodeFlags;
+import imgui.flag.ImGuiWindowFlags;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -128,12 +134,37 @@ public class HierarchyPanel extends EditorPanel {
         selectionHandler.selectCollisionMap();
     }
 
+    @Override
+    public List<ShortcutAction> provideShortcuts(KeyboardLayout layout) {
+        return List.of(
+                panelShortcut()
+                        .id("editor.hierarchy.rename")
+                        .displayName("Rename Entity")
+                        .defaultBinding(ShortcutBinding.key(ImGuiKey.F2))
+                        .allowInInput(true)
+                        .handler(this::renameSelectedEntity)
+                        .build()
+        );
+    }
+
+    private void renameSelectedEntity() {
+        if (treeRenderer.isRenaming()) {
+            treeRenderer.cancelRename();
+            return;
+        }
+        if (scene == null) return;
+        Set<EditorGameObject> selected = scene.getSelectedEntities();
+        if (selected.size() != 1) return;
+        EditorGameObject entity = selected.iterator().next();
+        treeRenderer.startRename(entity);
+    }
 
     @Override
     public void render() {
         if (!isOpen()) return;
 
         if (ImGui.begin("Hierarchy")) {
+            setFocused(ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows));
             if (isPlayMode()) {
                 renderPlayModeHeader();
                 renderRuntimeHierarchy();
@@ -142,6 +173,8 @@ public class HierarchyPanel extends EditorPanel {
             } else {
                 renderEditorHierarchy();
             }
+        } else {
+            setFocused(false);
         }
         ImGui.end();
 
@@ -189,7 +222,8 @@ public class HierarchyPanel extends EditorPanel {
         renderEntityCreationMenu();
 
         // Scrollable child region — header stays fixed above
-        if (ImGui.beginChild("##sceneEntities", 0, 0, false)) {
+        // NoNavInputs prevents ImGui's built-in tree node arrow key handling from conflicting with our custom navigation
+        if (ImGui.beginChild("##sceneEntities", 0, 0, false, ImGuiWindowFlags.NoNavInputs)) {
             renderEntitiesSection();
 
             // Detect click on empty space to deselect all
@@ -329,7 +363,7 @@ public class HierarchyPanel extends EditorPanel {
         ImGui.separator();
 
         // ===== Scrollable Entity Section =====
-        if (ImGui.beginChild("##prefabEntities", 0, 0, false)) {
+        if (ImGui.beginChild("##prefabEntities", 0, 0, false, ImGuiWindowFlags.NoNavInputs)) {
             EditorScene workingScene = prefabEditController.getWorkingScene();
             if (workingScene != null) {
                 // Point scene refs to working scene for tree rendering
@@ -356,6 +390,8 @@ public class HierarchyPanel extends EditorPanel {
                 }
 
                 dragDropHandler.drawDropIndicator();
+                selectionHandler.updatePendingSelection();
+                selectionHandler.handleKeyboardNavigation();
 
                 // Bridge dirty: tree actions mark working scene dirty, propagate to controller
                 if (workingScene.isDirty()) {
@@ -471,6 +507,7 @@ public class HierarchyPanel extends EditorPanel {
 
         dragDropHandler.drawDropIndicator();
         selectionHandler.updatePendingSelection();
+        selectionHandler.handleKeyboardNavigation();
         renderMultiSelectionContextMenu();
 
         // Empty area: invisible button for drops + deselect

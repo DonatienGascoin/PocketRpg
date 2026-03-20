@@ -6,6 +6,7 @@ import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.tools.EditorTool;
 import com.pocket.rpg.editor.tools.ToolManager;
+import com.pocket.rpg.core.GameObject;
 import imgui.ImGui;
 import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiMouseButton;
@@ -46,6 +47,10 @@ public class HierarchySelectionHandler {
 
     public void init() {
         // No longer registers mode change listeners (modeless design)
+    }
+
+    public void clearPendingNarrowSelect() {
+        pendingNarrowSelect = null;
     }
 
     public void selectCamera() {
@@ -146,6 +151,85 @@ public class HierarchySelectionHandler {
         if (ImGui.isMouseReleased(ImGuiMouseButton.Left)) {
             selectEntity(pendingNarrowSelect);
             pendingNarrowSelect = null;
+        }
+    }
+
+    /**
+     * Handles arrow key navigation in the hierarchy (Unity-style).
+     * Up/Down moves selection, Left collapses or moves to parent, Right expands or moves to first child.
+     */
+    public void handleKeyboardNavigation() {
+        if (scene == null || treeRenderer == null) return;
+        if (!ImGui.isWindowFocused()) return;
+        if (treeRenderer.isRenaming()) return;
+
+        boolean up = ImGui.isKeyPressed(ImGuiKey.UpArrow);
+        boolean down = ImGui.isKeyPressed(ImGuiKey.DownArrow);
+        boolean left = ImGui.isKeyPressed(ImGuiKey.LeftArrow);
+        boolean right = ImGui.isKeyPressed(ImGuiKey.RightArrow);
+
+        if (!up && !down && !left && !right) return;
+
+        Set<EditorGameObject> selected = scene.getSelectedEntities();
+        if (selected.isEmpty()) {
+            // Nothing selected — select first visible entity on any arrow press
+            List<EditorGameObject> roots = scene.getRootEntities();
+            if (!roots.isEmpty()) {
+                roots.sort(Comparator.comparingInt(EditorGameObject::getOrder));
+                selectEntity(roots.getFirst());
+            }
+            return;
+        }
+
+        // Use first selected entity as anchor
+        EditorGameObject current = selected.iterator().next();
+        Set<String> expandedIds = treeRenderer.getExpandedEntityIds();
+
+        if (up || down) {
+            List<EditorGameObject> flat = new ArrayList<>();
+            flattenVisibleEntities(scene.getRootEntities(), flat, expandedIds);
+            int idx = flat.indexOf(current);
+            if (idx == -1) return;
+
+            int newIdx = up ? idx - 1 : idx + 1;
+            if (newIdx < 0 || newIdx >= flat.size()) return;
+
+            EditorGameObject target = flat.get(newIdx);
+            selectEntity(target);
+            treeRenderer.requestScrollToEntity(target);
+            lastClickedEntity = target;
+        } else if (left) {
+            if (current.hasChildren() && expandedIds.contains(current.getId())) {
+                // Collapse
+                treeRenderer.setEntityOpen(current.getId(), false);
+            } else {
+                // Move to parent
+                GameObject parent = current.getParent();
+                if (parent instanceof EditorGameObject editorParent) {
+                    selectEntity(editorParent);
+                    treeRenderer.requestScrollToEntity(editorParent);
+                    lastClickedEntity = editorParent;
+                }
+            }
+        } else { // right
+            if (current.hasChildren()) {
+                if (!expandedIds.contains(current.getId())) {
+                    // Expand
+                    treeRenderer.setEntityOpen(current.getId(), true);
+                } else {
+                    // Move to first child
+                    List<EditorGameObject> children = current.getChildren().stream()
+                            .map(go -> (EditorGameObject) go)
+                            .sorted(Comparator.comparingInt(EditorGameObject::getOrder))
+                            .toList();
+                    if (!children.isEmpty()) {
+                        EditorGameObject firstChild = children.getFirst();
+                        selectEntity(firstChild);
+                        treeRenderer.requestScrollToEntity(firstChild);
+                        lastClickedEntity = firstChild;
+                    }
+                }
+            }
         }
     }
 

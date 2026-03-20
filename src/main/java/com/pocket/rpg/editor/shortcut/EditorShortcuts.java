@@ -348,7 +348,7 @@ public final class EditorShortcuts {
                 ShortcutAction.builder()
                         .id(PANEL_COLLISION_TOGGLE)
                         .displayName("Toggle Collision Panel")
-                        .defaultBinding(ShortcutBinding.key(ImGuiKey.F2))
+                        .defaultBinding(ShortcutBinding.key(ImGuiKey.F4))
                         .global()
                         .handler(() -> {})
                         .build()
@@ -651,7 +651,7 @@ public final class EditorShortcuts {
 
         // Panel toggle shortcuts (same for all layouts)
         bindings.put(PANEL_TILESET_TOGGLE, ShortcutBinding.key(ImGuiKey.F1));
-        bindings.put(PANEL_COLLISION_TOGGLE, ShortcutBinding.key(ImGuiKey.F2));
+        bindings.put(PANEL_COLLISION_TOGGLE, ShortcutBinding.key(ImGuiKey.F4));
 
         // Paint tool shortcuts (context-dependent: tilemap or collision based on layer selection)
         bindings.put(TOOL_BRUSH, ShortcutBinding.key(ImGuiKey._1));

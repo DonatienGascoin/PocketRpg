@@ -36,7 +36,7 @@ public class GameObject {
     @Getter
     private Transform transform;
 
-    @Getter @Setter
+    @Getter
     private int order = 0;
 
     // Parent-child hierarchy
@@ -186,6 +186,25 @@ public class GameObject {
 
     public boolean hasChildren() {
         return !children.isEmpty();
+    }
+
+    /**
+     * Sets the sibling order and re-sorts the parent's children list
+     * so that getChildren() always returns children in order.
+     */
+    public void setOrder(int order) {
+        this.order = order;
+        if (parent != null) {
+            parent.sortChildrenByOrder();
+        }
+    }
+
+    /**
+     * Sorts the children list to match logical order values.
+     * Ensures getChildren() returns children in the correct order for layouts/rendering.
+     */
+    public void sortChildrenByOrder() {
+        children.sort(java.util.Comparator.comparingInt(GameObject::getOrder));
     }
 
     // =======================================================================

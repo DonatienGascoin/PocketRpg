@@ -291,13 +291,6 @@ public class EditorGameObject extends GameObject implements HierarchyItem {
         getChildrenInternal().clear();
     }
 
-    /**
-     * Package-private: sorts the children list to match logical order values.
-     * Used by EditorScene.insertEntityAtPosition() after reordering.
-     */
-    void sortChildrenByOrder() {
-        getChildrenInternal().sort(java.util.Comparator.comparingInt(c -> ((EditorGameObject) c).getOrder()));
-    }
 
     public int getDepth() {
         int depth = 0;

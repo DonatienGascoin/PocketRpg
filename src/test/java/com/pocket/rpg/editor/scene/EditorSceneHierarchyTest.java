@@ -302,6 +302,110 @@ class EditorSceneHierarchyTest {
     }
 
     // ========================================================================
+    // RESOLVE HIERARCHY — CHILD LIST ORDER
+    // ========================================================================
+
+    @Nested
+    class ResolveHierarchyChildListOrder {
+
+        @Test
+        void childrenListSortedByOrder_whenAddedOutOfOrder() {
+            // Simulates the bug: scene file has children in wrong file order
+            var parent = entity("Parent");
+            var first = entity("First");   // should be order 0
+            var second = entity("Second");  // should be order 1
+            scene.addEntity(parent);
+            // Add second before first (simulating file order mismatch)
+            scene.addEntity(second);
+            scene.addEntity(first);
+
+            second.setParentId(parent.getId());
+            second.setOrder(1);
+            first.setParentId(parent.getId());
+            first.setOrder(0);
+
+            scene.resolveHierarchy();
+
+            // Physical children list must match order field
+            List<EditorGameObject> children = parent.getChildren().stream()
+                    .map(c -> (EditorGameObject) c).toList();
+            assertEquals("First", children.get(0).getName());
+            assertEquals("Second", children.get(1).getName());
+        }
+
+        @Test
+        void childrenListSortedByOrder_multipleChildren() {
+            var parent = entity("Parent");
+            var c = entity("C");
+            var a = entity("A");
+            var b = entity("B");
+            scene.addEntity(parent);
+            // Add in reverse order
+            scene.addEntity(c);
+            scene.addEntity(a);
+            scene.addEntity(b);
+
+            c.setParentId(parent.getId());
+            c.setOrder(2);
+            a.setParentId(parent.getId());
+            a.setOrder(0);
+            b.setParentId(parent.getId());
+            b.setOrder(1);
+
+            scene.resolveHierarchy();
+
+            List<EditorGameObject> children = parent.getChildren().stream()
+                    .map(ch -> (EditorGameObject) ch).toList();
+            assertEquals("A", children.get(0).getName());
+            assertEquals("B", children.get(1).getName());
+            assertEquals("C", children.get(2).getName());
+        }
+
+        @Test
+        void childrenListSortedByOrder_multiLevel() {
+            var root = entity("Root");
+            var mid = entity("Mid");
+            var leafB = entity("LeafB");
+            var leafA = entity("LeafA");
+            scene.addEntity(root);
+            scene.addEntity(mid);
+            // Add leaves in reverse order
+            scene.addEntity(leafB);
+            scene.addEntity(leafA);
+
+            mid.setParentId(root.getId());
+            mid.setOrder(0);
+            leafB.setParentId(mid.getId());
+            leafB.setOrder(1);
+            leafA.setParentId(mid.getId());
+            leafA.setOrder(0);
+
+            scene.resolveHierarchy();
+
+            // Mid's children should be sorted
+            List<EditorGameObject> midChildren = mid.getChildren().stream()
+                    .map(c -> (EditorGameObject) c).toList();
+            assertEquals("LeafA", midChildren.get(0).getName());
+            assertEquals("LeafB", midChildren.get(1).getName());
+        }
+
+        @Test
+        void singleChild_noIssue() {
+            var parent = entity("Parent");
+            var child = entity("Child");
+            scene.addEntity(parent);
+            scene.addEntity(child);
+            child.setParentId(parent.getId());
+            child.setOrder(0);
+
+            scene.resolveHierarchy();
+
+            assertEquals(1, parent.getChildren().size());
+            assertEquals("Child", parent.getChildren().get(0).getName());
+        }
+    }
+
+    // ========================================================================
     // REINDEX SIBLINGS
     // ========================================================================
 

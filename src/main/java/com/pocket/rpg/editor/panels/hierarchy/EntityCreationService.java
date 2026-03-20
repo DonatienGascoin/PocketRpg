@@ -296,7 +296,7 @@ public class EntityCreationService {
      */
     private void shiftSiblingsAfter(EditorGameObject entity) {
         List<? extends GameObject> siblings = (entity.getParent() != null)
-                ? entity.getParent().getChildren()
+                ? new ArrayList<>(entity.getParent().getChildren())
                 : scene.getRootEntities();
 
         for (var go : siblings) {

@@ -14,6 +14,7 @@ import com.pocket.rpg.serialization.*;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -108,6 +109,7 @@ public class RuntimeSceneLoader {
             try {
                 GameObject go = createGameObject(goData);
                 if (go != null) {
+                    go.setOrder(goData.getOrder());
                     String id = goData.getId();
                     if (id != null) {
                         gameObjectsById.put(id, go);
@@ -137,42 +139,10 @@ public class RuntimeSceneLoader {
             }
         }
 
-        // Phase 2b: Sort children by order field
-        // Build reverse lookup: GameObject -> its data ID
-        Map<GameObject, String> goToId = new HashMap<>();
-        for (Map.Entry<String, GameObject> entry : gameObjectsById.entrySet()) {
-            goToId.put(entry.getValue(), entry.getKey());
-        }
-        for (GameObject go : gameObjectsById.values()) {
-            List<GameObject> children = go.getChildren();
-            if (children.size() > 1) {
-                List<GameObject> sorted = new ArrayList<>(children);
-                sorted.sort((a, b) -> {
-                    GameObjectData dataA = dataById.get(goToId.get(a));
-                    GameObjectData dataB = dataById.get(goToId.get(b));
-                    int orderA = dataA != null ? dataA.getOrder() : 0;
-                    int orderB = dataB != null ? dataB.getOrder() : 0;
-                    return Integer.compare(orderA, orderB);
-                });
-                // Re-parent in sorted order
-                for (GameObject child : sorted) {
-                    child.setParent(null);
-                }
-                for (GameObject child : sorted) {
-                    child.setParent(go);
-                }
-            }
-        }
-
         // Phase 3: Add root objects to scene (registers componentKeys in ComponentKeyRegistry)
+        // Sort by order so roots are added in the correct sequence
         List<Map.Entry<String, GameObject>> sortedEntries = new ArrayList<>(gameObjectsById.entrySet());
-        sortedEntries.sort((a, b) -> {
-            GameObjectData dataA = dataById.get(a.getKey());
-            GameObjectData dataB = dataById.get(b.getKey());
-            int orderA = dataA != null ? dataA.getOrder() : 0;
-            int orderB = dataB != null ? dataB.getOrder() : 0;
-            return Integer.compare(orderA, orderB);
-        });
+        sortedEntries.sort(Comparator.comparingInt(e -> e.getValue().getOrder()));
 
         for (Map.Entry<String, GameObject> entry : sortedEntries) {
             String id = entry.getKey();

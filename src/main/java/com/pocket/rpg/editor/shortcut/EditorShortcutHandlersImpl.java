@@ -20,6 +20,7 @@ import com.pocket.rpg.editor.undo.EditorCommand;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.AddEntitiesCommand;
 import com.pocket.rpg.editor.undo.commands.AddEntityCommand;
+import com.pocket.rpg.editor.undo.commands.BulkDeleteCommand;
 import com.pocket.rpg.editor.undo.commands.CompoundCommand;
 import com.pocket.rpg.editor.undo.commands.RemoveEntityCommand;
 import com.pocket.rpg.editor.undo.commands.ToggleEntityEnabledCommand;
@@ -440,10 +441,7 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
             UndoManager.getInstance().execute(new RemoveEntityCommand(scene, roots.get(0)));
             showMessage("Deleted: " + roots.get(0).getName());
         } else {
-            List<EditorCommand> commands = roots.stream()
-                    .map(e -> (EditorCommand) new RemoveEntityCommand(scene, e))
-                    .toList();
-            UndoManager.getInstance().execute(new CompoundCommand("Delete " + roots.size() + " entities", commands));
+            UndoManager.getInstance().execute(new BulkDeleteCommand(scene, selectedSet));
             showMessage("Deleted " + roots.size() + " entities");
         }
     }

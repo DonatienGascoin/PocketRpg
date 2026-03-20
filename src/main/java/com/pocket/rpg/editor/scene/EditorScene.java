@@ -581,6 +581,7 @@ public class EditorScene implements DirtyTracker {
         }
 
         // Ensure proper order indices for all levels
+        // (setOrder auto-sorts parent's children list)
         reindexSiblings(null); // Root entities
         for (EditorGameObject entity : entities) {
             if (entity.hasChildren()) {
@@ -679,12 +680,6 @@ public class EditorScene implements DirtyTracker {
         siblings.add(idx, entity);
         for (int i = 0; i < siblings.size(); i++) {
             siblings.get(i).setOrder(i);
-        }
-
-        // Physically reorder the parent's children list to match logical order,
-        // so getChildren() returns children in hierarchy order for layouts/rendering
-        if (newParent != null) {
-            newParent.sortChildrenByOrder();
         }
 
         markDirty();

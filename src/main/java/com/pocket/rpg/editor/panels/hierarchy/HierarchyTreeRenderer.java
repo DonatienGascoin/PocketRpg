@@ -149,16 +149,16 @@ public class HierarchyTreeRenderer {
         if (isSelected) flags |= ImGuiTreeNodeFlags.Selected;
         if (isRenaming) flags |= ImGuiTreeNodeFlags.AllowOverlap;
         if (!hasChildren) flags |= ImGuiTreeNodeFlags.Leaf | ImGuiTreeNodeFlags.NoTreePushOnOpen;
-        else flags |= ImGuiTreeNodeFlags.DefaultOpen;
 
-        // Apply programmatic expand/collapse from keyboard navigation
-        if (pendingOpenState.containsKey(entity.getId())) {
-            ImGui.setNextItemOpen(pendingOpenState.remove(entity.getId()));
-        }
-
-        // Force-open ancestor nodes to reveal scroll target
-        if (entitiesToForceOpen.contains(entity.getId())) {
-            ImGui.setNextItemOpen(true);
+        // Determine open state: programmatic overrides > force-open for scroll > tracked state (default closed)
+        if (hasChildren) {
+            if (pendingOpenState.containsKey(entity.getId())) {
+                ImGui.setNextItemOpen(pendingOpenState.remove(entity.getId()));
+            } else if (entitiesToForceOpen.contains(entity.getId())) {
+                ImGui.setNextItemOpen(true);
+            } else if (expandedEntityIds.contains(entity.getId())) {
+                ImGui.setNextItemOpen(true);
+            }
         }
 
         // Determine the label - empty when renaming (we'll draw inline input after)

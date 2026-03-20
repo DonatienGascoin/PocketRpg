@@ -223,7 +223,19 @@ public class EntityCreationService {
         }
 
         scene.markDirty();
+        selectEntity(copy);
         return copy;
+    }
+
+    /**
+     * Selects an entity and updates the shift-click anchor.
+     */
+    public void selectEntity(EditorGameObject entity) {
+        if (selectionHandler != null) {
+            selectionHandler.selectEntity(entity);
+        } else if (scene != null) {
+            scene.setSelection(Set.of(entity));
+        }
     }
 
     /**
@@ -239,11 +251,12 @@ public class EntityCreationService {
         EditorGameObject copy = cloneEntity(original, newPos);
         copy.setName(generateCopyName(original.getName(), (EditorGameObject) original.getParent()));
 
+        // Shift siblings after the original BEFORE parenting the copy,
+        // so the copy isn't included in the shift
+        shiftSiblingsAfter(original);
+
         copy.setParent((EditorGameObject) original.getParent());
         copy.setOrder(original.getOrder() + 1);
-
-        // Shift siblings after the original
-        shiftSiblingsAfter(original);
 
         allCopiesOut.add(copy);
         duplicateChildrenRecursive(original, copy, allCopiesOut);
@@ -270,6 +283,7 @@ public class EntityCreationService {
             copy.setName(original.getName());
             copyOverrides(original, copy);
         }
+        copy.setEnabled(original.isEnabled());
         return copy;
     }
 

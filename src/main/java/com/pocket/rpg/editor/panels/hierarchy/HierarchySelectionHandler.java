@@ -118,6 +118,7 @@ public class HierarchySelectionHandler {
             selectEntity(entity);
         }
 
+        // Update anchor for all click types (ctrl-click, shift-click, normal click)
         lastClickedEntity = entity;
     }
 
@@ -130,6 +131,7 @@ public class HierarchySelectionHandler {
         } else if (scene != null) {
             scene.setSelection(Set.of(entity));
         }
+        lastClickedEntity = entity;
         activateSelectionTool();
     }
 
@@ -197,7 +199,6 @@ public class HierarchySelectionHandler {
             EditorGameObject target = flat.get(newIdx);
             selectEntity(target);
             treeRenderer.requestScrollToEntity(target);
-            lastClickedEntity = target;
         } else if (left) {
             if (current.hasChildren() && expandedIds.contains(current.getId())) {
                 // Collapse
@@ -208,7 +209,6 @@ public class HierarchySelectionHandler {
                 if (parent instanceof EditorGameObject editorParent) {
                     selectEntity(editorParent);
                     treeRenderer.requestScrollToEntity(editorParent);
-                    lastClickedEntity = editorParent;
                 }
             }
         } else { // right
@@ -226,7 +226,6 @@ public class HierarchySelectionHandler {
                         EditorGameObject firstChild = children.getFirst();
                         selectEntity(firstChild);
                         treeRenderer.requestScrollToEntity(firstChild);
-                        lastClickedEntity = firstChild;
                     }
                 }
             }

@@ -1,40 +1,29 @@
 package com.pocket.rpg.editor.panels;
 
 import com.pocket.rpg.core.GameObject;
-import com.pocket.rpg.editor.PrefabEditController;
-import com.pocket.rpg.editor.SelectionGuard;
 import com.pocket.rpg.editor.PlayModeController;
 import com.pocket.rpg.editor.PlayModeSelectionManager;
+import com.pocket.rpg.editor.PrefabEditController;
+import com.pocket.rpg.editor.SelectionGuard;
 import com.pocket.rpg.editor.assets.HierarchyDropTarget;
+import com.pocket.rpg.editor.core.EditorColors;
 import com.pocket.rpg.editor.core.MaterialIcons;
-import com.pocket.rpg.editor.panels.hierarchy.EntityCreationService;
-import com.pocket.rpg.editor.panels.hierarchy.HierarchyDragDropHandler;
-import com.pocket.rpg.editor.panels.hierarchy.HierarchyItem;
-import com.pocket.rpg.editor.panels.hierarchy.HierarchySelectionHandler;
-import com.pocket.rpg.editor.panels.hierarchy.HierarchyTreeRenderer;
+import com.pocket.rpg.editor.panels.hierarchy.*;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.scene.RuntimeGameObjectAdapter;
 import com.pocket.rpg.editor.scene.UIEntityFactory;
+import com.pocket.rpg.editor.shortcut.KeyboardLayout;
 import com.pocket.rpg.editor.shortcut.ShortcutAction;
 import com.pocket.rpg.editor.shortcut.ShortcutBinding;
-import com.pocket.rpg.editor.shortcut.KeyboardLayout;
 import com.pocket.rpg.editor.tools.EditorTool;
 import com.pocket.rpg.editor.tools.ToolManager;
 import com.pocket.rpg.editor.undo.UndoManager;
 import com.pocket.rpg.editor.undo.commands.BulkDeleteCommand;
 import com.pocket.rpg.editor.utils.IconUtils;
 import com.pocket.rpg.scenes.Scene;
-import com.pocket.rpg.editor.core.EditorColors;
 import imgui.ImGui;
-import imgui.flag.ImGuiCol;
-import imgui.flag.ImGuiFocusedFlags;
-import imgui.flag.ImGuiKey;
-import imgui.flag.ImGuiMouseButton;
-import imgui.flag.ImGuiPopupFlags;
-import imgui.flag.ImGuiStyleVar;
-import imgui.flag.ImGuiTreeNodeFlags;
-import imgui.flag.ImGuiWindowFlags;
+import imgui.flag.*;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -223,7 +212,7 @@ public class HierarchyPanel extends EditorPanel {
 
         // Scrollable child region — header stays fixed above
         // NoNavInputs prevents ImGui's built-in tree node arrow key handling from conflicting with our custom navigation
-        if (ImGui.beginChild("##sceneEntities", 0, 0, false, ImGuiWindowFlags.NoNavInputs)) {
+        if (ImGui.beginChild("##sceneEntities", 0, 0, false, ImGuiWindowFlags.NoNavInputs | ImGuiWindowFlags.HorizontalScrollbar)) {
             renderEntitiesSection();
 
             // Detect click on empty space to deselect all

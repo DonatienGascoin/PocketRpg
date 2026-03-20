@@ -242,7 +242,11 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
         UndoManager.getInstance().execute(cmd);
         scene.markDirty();
 
-        scene.setSelection(rootCopies);
+        if (rootCopies.size() == 1) {
+            entityCreationService.selectEntity(rootCopies.iterator().next());
+        } else {
+            scene.setSelection(rootCopies);
+        }
         showMessage(roots.size() == 1
                 ? "Duplicated: " + roots.get(0).getName()
                 : "Duplicated " + roots.size() + " entities");

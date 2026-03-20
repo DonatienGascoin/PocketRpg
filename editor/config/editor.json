@@ -45,13 +45,13 @@
     "Test.scene"
   ],
   "recentAssets": [
+    "sprites/Pokemon/PokemonStatus.png",
     "sprites/Items.png",
     "sprites/ItemsV3.png",
     "sprites/ItemsInitial.png",
     "sprites/UIs/InventoryItem.png",
     "sprites/UIs/InventoryBg.png",
     "sprites/UIs/HoveredInventoryCategories.png",
-    "sprites/Pokemon/PokemonStatus.png",
     "sprites/UIs/PokedexShortEntry.png",
     "sprites/UIs/PokedexSelectedEntry.png",
     "sprites/UIs/HeaderAlt.png",
@@ -70,7 +70,7 @@
     "sprites/UIs/ScrollBarHandle2.png": 1772738055183,
     "sprites/UIs/PokedexShortEntry.png": 1772801179418,
     "sprites/UIs/PokedexSelectedEntry.png": 1772801087717,
-    "sprites/Pokemon/PokemonStatus.png": 1772802506280,
+    "sprites/Pokemon/PokemonStatus.png": 1774018864752,
     "sprites/UIs/HoveredInventoryCategories.png": 1773678336458,
     "sprites/UIs/InventoryItem.png": 1773767703901,
     "sprites/UIs/InventoryBg.png": 1773767703422,

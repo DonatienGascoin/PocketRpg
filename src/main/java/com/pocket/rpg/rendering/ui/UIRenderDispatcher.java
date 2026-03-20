@@ -128,8 +128,9 @@ public class UIRenderDispatcher {
             newW = bounds.height() * spriteAspect;
         }
 
-        float offsetX = (bounds.width() - newW) * bounds.pivotX();
-        float offsetY = (bounds.height() - newH) * bounds.pivotY();
+        // Center the image within the bounds (independent of pivot, which only affects rotation/positioning)
+        float offsetX = (bounds.width() - newW) * 0.5f;
+        float offsetY = (bounds.height() - newH) * 0.5f;
 
         return new UIComponent.RenderBounds(
                 bounds.x() + offsetX, bounds.y() + offsetY,

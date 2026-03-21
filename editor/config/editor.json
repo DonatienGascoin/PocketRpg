@@ -45,6 +45,9 @@
     "Test.scene"
   ],
   "recentAssets": [
+    "sprites/UIs/Bags.png",
+    "sprites/UIs/Border.png",
+    "sprites/UIs/InventoryBGList.png",
     "sprites/Pokemon/PokemonStatus.png",
     "sprites/Items.png",
     "sprites/ItemsV3.png",
@@ -56,18 +59,12 @@
     "sprites/UIs/PokedexSelectedEntry.png",
     "sprites/UIs/HeaderAlt.png",
     "sprites/UIs/HeaderBig.png",
-    "sprites/UIs/header.png",
-    "sprites/UIs/ScrollBarHandle2.png",
-    "sprites/UIs/ScrollBarHandle.png",
-    "sprites/UIs/Scrollbar2.png"
+    "sprites/UIs/header.png"
   ],
   "recentAssetTimestamps": {
     "sprites/UIs/header.png": 1772800904503,
-    "sprites/UIs/ScrollBarHandle.png": 1772719082991,
     "sprites/UIs/HeaderBig.png": 1772800906969,
-    "sprites/UIs/Scrollbar2.png": 1772719078520,
     "sprites/UIs/HeaderAlt.png": 1772800907511,
-    "sprites/UIs/ScrollBarHandle2.png": 1772738055183,
     "sprites/UIs/PokedexShortEntry.png": 1772801179418,
     "sprites/UIs/PokedexSelectedEntry.png": 1772801087717,
     "sprites/Pokemon/PokemonStatus.png": 1774018864752,
@@ -76,7 +73,10 @@
     "sprites/UIs/InventoryBg.png": 1773767703422,
     "sprites/ItemsInitial.png": 1773768239569,
     "sprites/ItemsV3.png": 1773770361244,
-    "sprites/Items.png": 1773779487344
+    "sprites/Items.png": 1773779487344,
+    "sprites/UIs/InventoryBGList.png": 1774031231239,
+    "sprites/UIs/Border.png": 1774032162228,
+    "sprites/UIs/Bags.png": 1774032405593
   },
   "favoriteAssets": [
     "data/pokemon/pokedex.pokedex.json",

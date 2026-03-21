@@ -12837,7 +12837,7 @@
     {
       "id": "ee62ceb8",
       "name": "PokemonMenuV2",
-      "active": true,
+      "active": false,
       "parentId": "448e165e",
       "order": 1,
       "components": [
@@ -12888,7 +12888,7 @@
       "name": "TrainerCard",
       "active": false,
       "parentId": "448e165e",
-      "order": 5,
+      "order": 6,
       "components": [
         {
           "type": "com.pocket.rpg.components.ui.UITransform",
@@ -20984,6 +20984,691 @@
               "x": 2.0,
               "y": 2.0
             }
+          }
+        }
+      ]
+    },
+    {
+      "id": "7af07942",
+      "name": "InventoryMenuV2",
+      "active": true,
+      "parentId": "448e165e",
+      "order": 5,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.ui.UITransform",
+          "properties": {
+            "localPosition": {
+              "x": 56.0,
+              "y": 53.0,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            },
+            "anchor": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "pivot": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "width": 620.0,
+            "height": 456.0,
+            "widthMode": "PERCENT",
+            "heightMode": "PERCENT",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
+            "matchParentRotation": false,
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.ui.UIVerticalLayoutGroup",
+          "properties": {
+            "paddingLeft": 16.0,
+            "paddingRight": 50.0,
+            "paddingTop": 16.0,
+            "paddingBottom": 12.0,
+            "spacing": 0.0,
+            "childForceExpandWidth": true,
+            "childForceExpandHeight": true,
+            "childAlignment": "LEFT"
+          }
+        }
+      ]
+    },
+    {
+      "id": "51b98e88",
+      "name": "SelectedItemDefinitionText",
+      "active": true,
+      "parentId": "1c1e6def",
+      "order": 0,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.ui.UITransform",
+          "properties": {
+            "localPosition": {
+              "x": 20.0,
+              "y": 20.0,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            },
+            "anchor": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "pivot": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "width": 612.0,
+            "height": 234.0,
+            "widthMode": "PERCENT",
+            "heightMode": "PERCENT",
+            "widthPercent": 90.0,
+            "heightPercent": 80.0,
+            "matchParentRotation": false,
+            "matchParentScale": false,
+            "offsetXMode": "PERCENT",
+            "offsetYMode": "PERCENT",
+            "offsetXPercent": 5.0,
+            "offsetYPercent": 10.0
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.ui.UIText",
+          "properties": {
+            "raycastTarget": true,
+            "color": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0,
+              "w": 1.0
+            },
+            "fontPath": "fonts/Pokemon-Red.ttf",
+            "fontSize": 25,
+            "text": "Default pokeball with a small chance of capture",
+            "horizontalAlignment": "LEFT",
+            "verticalAlignment": "TOP",
+            "wordWrap": true,
+            "autoFit": false,
+            "minFontSize": 8,
+            "maxFontSize": 72,
+            "shadow": false,
+            "shadowColor": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0,
+              "w": 0.5
+            },
+            "shadowOffset": {
+              "x": 2.0,
+              "y": 2.0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "da823e47",
+      "name": "Bottom",
+      "active": true,
+      "parentId": "7af07942",
+      "order": 1,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.ui.UITransform",
+          "properties": {
+            "localPosition": {
+              "x": 16.0,
+              "y": 242.0,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            },
+            "anchor": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "pivot": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "width": 574.0,
+            "height": 226.0,
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
+            "matchParentRotation": false,
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.ui.UIImage",
+          "properties": {
+            "raycastTarget": true,
+            "color": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0,
+              "w": 1.0
+            },
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/InventoryBGList.png",
+            "imageType": "SLICED",
+            "fillCenter": true,
+            "fillMethod": "HORIZONTAL",
+            "fillOrigin": "LEFT",
+            "fillAmount": 1.0,
+            "fillClockwise": true,
+            "pixelsPerUnit": 100.0,
+            "preserveAspectRatio": false
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.ui.UIHorizontalLayoutGroup",
+          "properties": {
+            "paddingLeft": 16.0,
+            "paddingRight": 16.0,
+            "paddingTop": 56.0,
+            "paddingBottom": 16.0,
+            "spacing": 0.0,
+            "childForceExpandWidth": false,
+            "childForceExpandHeight": true,
+            "childAlignment": "TOP"
+          }
+        }
+      ]
+    },
+    {
+      "id": "c8fc7dfd",
+      "name": "Container",
+      "active": true,
+      "parentId": "da823e47",
+      "order": 0,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.ui.UITransform",
+          "properties": {
+            "localPosition": {
+              "x": 16.0,
+              "y": 56.0,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            },
+            "anchor": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "pivot": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "width": 64.0,
+            "height": 154.0,
+            "widthMode": "PERCENT",
+            "heightMode": "FIXED",
+            "widthPercent": 30.0,
+            "heightPercent": 100.0,
+            "matchParentRotation": false,
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
+          }
+        }
+      ]
+    },
+    {
+      "id": "1c1e6def",
+      "name": "Definiton",
+      "active": true,
+      "parentId": "da823e47",
+      "order": 2,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.ui.UITransform",
+          "properties": {
+            "localPosition": {
+              "x": 180.6,
+              "y": 56.0,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            },
+            "anchor": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "pivot": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "width": 100.0,
+            "height": 154.0,
+            "widthMode": "PERCENT",
+            "heightMode": "FIXED",
+            "widthPercent": 70.0,
+            "heightPercent": 100.0,
+            "matchParentRotation": false,
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
+          }
+        }
+      ]
+    },
+    {
+      "id": "0dcd97f5",
+      "name": "ItemImage",
+      "active": true,
+      "parentId": "c8fc7dfd",
+      "order": 1,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.ui.UITransform",
+          "properties": {
+            "localPosition": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            },
+            "anchor": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "pivot": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "width": 64.0,
+            "height": 64.0,
+            "widthMode": "PERCENT",
+            "heightMode": "PERCENT",
+            "widthPercent": 70.0,
+            "heightPercent": 70.0,
+            "matchParentRotation": false,
+            "matchParentScale": false,
+            "offsetXMode": "PERCENT",
+            "offsetYMode": "PERCENT",
+            "offsetXPercent": 15.0,
+            "offsetYPercent": 15.0
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.ui.UIImage",
+          "properties": {
+            "raycastTarget": true,
+            "color": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0,
+              "w": 1.0
+            },
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/Items.png#1",
+            "imageType": "SIMPLE",
+            "fillCenter": true,
+            "fillMethod": "HORIZONTAL",
+            "fillOrigin": "LEFT",
+            "fillAmount": 1.0,
+            "fillClockwise": true,
+            "pixelsPerUnit": 100.0,
+            "preserveAspectRatio": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "0353c3a7",
+      "name": "Separator",
+      "active": true,
+      "parentId": "da823e47",
+      "order": 1,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.ui.UITransform",
+          "properties": {
+            "localPosition": {
+              "x": 178.6,
+              "y": 56.0,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            },
+            "anchor": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "pivot": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "width": 2.0,
+            "height": 154.0,
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
+            "matchParentRotation": false,
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.ui.UIPanel",
+          "properties": {
+            "raycastTarget": true,
+            "color": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0,
+              "w": 1.0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "8e30afa6",
+      "name": "Top",
+      "active": true,
+      "parentId": "7af07942",
+      "order": 0,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.ui.UITransform",
+          "properties": {
+            "localPosition": {
+              "x": 16.0,
+              "y": 16.0,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            },
+            "anchor": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "pivot": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "width": 574.0,
+            "height": 226.0,
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
+            "matchParentRotation": false,
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.ui.UIHorizontalLayoutGroup",
+          "properties": {
+            "paddingLeft": 0.0,
+            "paddingRight": 0.0,
+            "paddingTop": 0.0,
+            "paddingBottom": 0.0,
+            "spacing": 0.0,
+            "childForceExpandWidth": true,
+            "childForceExpandHeight": true,
+            "childAlignment": "TOP"
+          }
+        }
+      ]
+    },
+    {
+      "id": "b1510dd3",
+      "name": "Left",
+      "active": true,
+      "parentId": "8e30afa6",
+      "order": 1,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.ui.UITransform",
+          "properties": {
+            "localPosition": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            },
+            "anchor": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "pivot": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "width": 287.0,
+            "height": 226.0,
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
+            "matchParentRotation": false,
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
+          }
+        }
+      ]
+    },
+    {
+      "id": "882f143d",
+      "name": "Right",
+      "active": true,
+      "parentId": "8e30afa6",
+      "order": 2,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.ui.UITransform",
+          "properties": {
+            "localPosition": {
+              "x": 287.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            },
+            "anchor": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "pivot": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "width": 287.0,
+            "height": 226.0,
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
+            "matchParentRotation": false,
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
+          }
+        }
+      ]
+    },
+    {
+      "id": "0df55934",
+      "name": "Image",
+      "active": true,
+      "parentId": "b1510dd3",
+      "order": 1,
+      "components": [
+        {
+          "type": "com.pocket.rpg.components.ui.UITransform",
+          "properties": {
+            "localPosition": {
+              "x": 8.920685,
+              "y": -0.79319763,
+              "z": 0.0
+            },
+            "localRotation": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "localScale": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0
+            },
+            "anchor": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "pivot": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "width": 192.0,
+            "height": 240.0,
+            "widthMode": "FIXED",
+            "heightMode": "FIXED",
+            "widthPercent": 100.0,
+            "heightPercent": 100.0,
+            "matchParentRotation": false,
+            "matchParentScale": false,
+            "offsetXMode": "FIXED",
+            "offsetYMode": "FIXED",
+            "offsetXPercent": 0.0,
+            "offsetYPercent": 0.0
+          }
+        },
+        {
+          "type": "com.pocket.rpg.components.ui.UIImage",
+          "properties": {
+            "raycastTarget": true,
+            "color": {
+              "x": 1.0,
+              "y": 1.0,
+              "z": 1.0,
+              "w": 1.0
+            },
+            "sprite": "com.pocket.rpg.rendering.resources.Sprite:sprites/UIs/Bags.png#1",
+            "imageType": "SIMPLE",
+            "fillCenter": true,
+            "fillMethod": "HORIZONTAL",
+            "fillOrigin": "LEFT",
+            "fillAmount": 1.0,
+            "fillClockwise": true,
+            "pixelsPerUnit": 100.0,
+            "preserveAspectRatio": false
           }
         }
       ]

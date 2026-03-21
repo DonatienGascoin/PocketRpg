@@ -126,7 +126,7 @@ public class HierarchyPanel extends EditorPanel {
     @Override
     public List<ShortcutAction> provideShortcuts(KeyboardLayout layout) {
         return List.of(
-                panelShortcut()
+                ShortcutAction.builder()
                         .id("editor.hierarchy.rename")
                         .displayName("Rename Entity")
                         .defaultBinding(ShortcutBinding.key(ImGuiKey.F2))

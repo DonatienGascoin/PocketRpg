@@ -6,9 +6,9 @@
   "pivotY": null,
   "nineSlice": null,
   "grid": {
-    "spriteWidth": 48,
-    "spriteHeight": 48,
-    "spacingX": 16,
+    "spriteWidth": 32,
+    "spriteHeight": 32,
+    "spacingX": 0,
     "spacingY": 0,
     "offsetX": 0,
     "offsetY": 0

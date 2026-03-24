@@ -98,9 +98,10 @@ public class GameObject {
             uiTransform.clearLayoutOverrides();
         }
 
-        // Add to new parent
+        // Add to new parent and maintain sorted order
         if (newParent != null) {
             newParent.children.add(this);
+            newParent.sortChildrenByOrder();
         }
 
         // Invalidate world transform cache (parent chain changed)

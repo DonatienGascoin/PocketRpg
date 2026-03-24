@@ -12946,7 +12946,7 @@
     {
       "id": "8607b5a7",
       "name": "TrainerCard",
-      "active": false,
+      "active": true,
       "parentId": "448e165e",
       "order": 6,
       "components": [
@@ -23014,7 +23014,7 @@
       "name": "Category",
       "active": true,
       "parentId": "7af07942",
-      "order": 2,
+      "order": 0,
       "components": [
         {
           "type": "com.pocket.rpg.components.ui.UITransform",
@@ -23214,7 +23214,7 @@
       "name": "ItemIcon",
       "active": true,
       "parentId": "7af07942",
-      "order": 3,
+      "order": 1,
       "components": [
         {
           "type": "com.pocket.rpg.components.ui.UITransform",
@@ -23284,7 +23284,7 @@
       "name": "ItemDetailsText",
       "active": true,
       "parentId": "7af07942",
-      "order": 4,
+      "order": 2,
       "components": [
         {
           "type": "com.pocket.rpg.components.ui.UITransform",
@@ -23365,7 +23365,7 @@
       "name": "Scroll View",
       "active": true,
       "parentId": "7af07942",
-      "order": 5,
+      "order": 3,
       "components": [
         {
           "type": "com.pocket.rpg.components.ui.UITransform",

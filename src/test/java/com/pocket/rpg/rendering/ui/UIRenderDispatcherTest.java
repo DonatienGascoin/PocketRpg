@@ -120,33 +120,33 @@ class UIRenderDispatcherTest {
         }
 
         @Test
-        void pivotAffectsOffset_topLeftPivot() {
+        void centeredOffset_withTopLeftPivot() {
             UIImage image = createImage(200, 100, true);
-            // Pivot at top-left (0, 0)
+            // Pivot at top-left (0, 0) — offset is always centered regardless of pivot
             var bounds = new UIComponent.RenderBounds(0, 0, 100, 100, 0, 0f, 0f);
 
             var result = dispatcher.fitToAspectRatio(image, bounds);
 
             assertEquals(100f, result.width(), 0.01f);
             assertEquals(50f, result.height(), 0.01f);
-            // offset = (100 - 50) * 0.0 = 0
+            // centered offset = (100 - 50) * 0.5 = 25
             assertEquals(0f, result.x(), 0.01f);
-            assertEquals(0f, result.y(), 0.01f);
+            assertEquals(25f, result.y(), 0.01f);
         }
 
         @Test
-        void pivotAffectsOffset_bottomRightPivot() {
+        void centeredOffset_withBottomRightPivot() {
             UIImage image = createImage(200, 100, true);
-            // Pivot at bottom-right (1, 1)
+            // Pivot at bottom-right (1, 1) — offset is always centered regardless of pivot
             var bounds = new UIComponent.RenderBounds(0, 0, 100, 100, 0, 1f, 1f);
 
             var result = dispatcher.fitToAspectRatio(image, bounds);
 
             assertEquals(100f, result.width(), 0.01f);
             assertEquals(50f, result.height(), 0.01f);
-            // offset = (100 - 50) * 1.0 = 50
+            // centered offset = (100 - 50) * 0.5 = 25
             assertEquals(0f, result.x(), 0.01f);
-            assertEquals(50f, result.y(), 0.01f);
+            assertEquals(25f, result.y(), 0.01f);
         }
     }
 

@@ -1621,4 +1621,670 @@ class LayoutGroupTest {
             assertEquals(60, tr(leaf2).getOffset().x, 0.01f); // col 1
         }
     }
+
+    // ========================================================================
+    // Enforced Child Size
+    // ========================================================================
+
+    @Nested
+    class EnforcedChildSize {
+
+        // --- Fixed size: layout axis ---
+
+        @Test
+        void vLayoutFixedHeight() {
+            GameObject container = makeUI("C", 400, 300);
+            UIVerticalLayoutGroup vlg = new UIVerticalLayoutGroup();
+            vlg.setChildHeightMode(LayoutGroup.ChildSizeMode.FIXED);
+            vlg.setChildHeight(50);
+            vlg.setSpacing(5);
+            container.addComponent(vlg);
+
+            GameObject a = makeUI("A", 100, 20);
+            GameObject b = makeUI("B", 100, 80);
+            GameObject c = makeUI("C2", 100, 200);
+            a.setParent(container); b.setParent(container); c.setParent(container);
+
+            vlg.applyLayout();
+
+            assertEquals(50, tr(a).getEffectiveHeight(), 0.01f);
+            assertEquals(50, tr(b).getEffectiveHeight(), 0.01f);
+            assertEquals(50, tr(c).getEffectiveHeight(), 0.01f);
+            assertEquals(0, tr(a).getOffset().y, 0.01f);
+            assertEquals(55, tr(b).getOffset().y, 0.01f);
+            assertEquals(110, tr(c).getOffset().y, 0.01f);
+        }
+
+        @Test
+        void hLayoutFixedWidth() {
+            GameObject container = makeUI("C", 500, 200);
+            UIHorizontalLayoutGroup hlg = new UIHorizontalLayoutGroup();
+            hlg.setChildWidthMode(LayoutGroup.ChildSizeMode.FIXED);
+            hlg.setChildWidth(120);
+            hlg.setSpacing(10);
+            container.addComponent(hlg);
+
+            GameObject a = makeUI("A", 50, 100);
+            GameObject b = makeUI("B", 200, 100);
+            GameObject c = makeUI("C2", 80, 100);
+            a.setParent(container); b.setParent(container); c.setParent(container);
+
+            hlg.applyLayout();
+
+            assertEquals(120, tr(a).getEffectiveWidth(), 0.01f);
+            assertEquals(120, tr(b).getEffectiveWidth(), 0.01f);
+            assertEquals(120, tr(c).getEffectiveWidth(), 0.01f);
+            assertEquals(0, tr(a).getOffset().x, 0.01f);
+            assertEquals(130, tr(b).getOffset().x, 0.01f);
+            assertEquals(260, tr(c).getOffset().x, 0.01f);
+        }
+
+        @Test
+        void fixedSizeWithPadding() {
+            GameObject container = makeUI("C", 400, 300);
+            UIVerticalLayoutGroup vlg = new UIVerticalLayoutGroup();
+            vlg.setChildHeightMode(LayoutGroup.ChildSizeMode.FIXED);
+            vlg.setChildHeight(40);
+            vlg.setPaddingTop(10);
+            vlg.setPaddingBottom(20);
+            container.addComponent(vlg);
+
+            GameObject a = makeUI("A", 100, 100);
+            a.setParent(container);
+
+            vlg.applyLayout();
+
+            assertEquals(40, tr(a).getEffectiveHeight(), 0.01f);
+            assertEquals(10, tr(a).getOffset().y, 0.01f); // offset by paddingTop
+        }
+
+        @Test
+        void fixedSizeZero() {
+            GameObject container = makeUI("C", 400, 300);
+            UIVerticalLayoutGroup vlg = new UIVerticalLayoutGroup();
+            vlg.setChildHeightMode(LayoutGroup.ChildSizeMode.FIXED);
+            vlg.setChildHeight(0);
+            container.addComponent(vlg);
+
+            GameObject a = makeUI("A", 100, 100);
+            a.setParent(container);
+
+            vlg.applyLayout();
+
+            assertEquals(0, tr(a).getEffectiveHeight(), 0.01f);
+        }
+
+        @Test
+        void singleChild() {
+            GameObject container = makeUI("C", 400, 300);
+            UIVerticalLayoutGroup vlg = new UIVerticalLayoutGroup();
+            vlg.setChildHeightMode(LayoutGroup.ChildSizeMode.FIXED);
+            vlg.setChildHeight(80);
+            container.addComponent(vlg);
+
+            GameObject a = makeUI("A", 100, 30);
+            a.setParent(container);
+
+            vlg.applyLayout();
+
+            assertEquals(80, tr(a).getEffectiveHeight(), 0.01f);
+            assertEquals(0, tr(a).getOffset().y, 0.01f);
+        }
+
+        // --- Fixed size: cross axis ---
+
+        @Test
+        void vLayoutFixedCrossAxisWidth() {
+            GameObject container = makeUI("C", 400, 300);
+            UIVerticalLayoutGroup vlg = new UIVerticalLayoutGroup();
+            vlg.setChildWidthMode(LayoutGroup.ChildSizeMode.FIXED);
+            vlg.setChildWidth(200);
+            vlg.setChildAlignment(LayoutGroup.ChildHorizontalAlignment.CENTER);
+            container.addComponent(vlg);
+
+            GameObject a = makeUI("A", 100, 50);
+            a.setParent(container);
+
+            vlg.applyLayout();
+
+            assertEquals(200, tr(a).getEffectiveWidth(), 0.01f);
+            // CENTER: paddingLeft + (contentWidth - childWidth) / 2 = 0 + (400-200)/2 = 100
+            assertEquals(100, tr(a).getOffset().x, 0.01f);
+        }
+
+        @Test
+        void hLayoutFixedCrossAxisHeight() {
+            GameObject container = makeUI("C", 500, 100);
+            UIHorizontalLayoutGroup hlg = new UIHorizontalLayoutGroup();
+            hlg.setChildHeightMode(LayoutGroup.ChildSizeMode.FIXED);
+            hlg.setChildHeight(40);
+            container.addComponent(hlg);
+
+            GameObject a = makeUI("A", 100, 80);
+            a.setParent(container);
+
+            hlg.applyLayout();
+
+            assertEquals(40, tr(a).getEffectiveHeight(), 0.01f);
+        }
+
+        @Test
+        void bothAxesFixed() {
+            GameObject container = makeUI("C", 400, 300);
+            UIVerticalLayoutGroup vlg = new UIVerticalLayoutGroup();
+            vlg.setChildWidthMode(LayoutGroup.ChildSizeMode.FIXED);
+            vlg.setChildWidth(100);
+            vlg.setChildHeightMode(LayoutGroup.ChildSizeMode.FIXED);
+            vlg.setChildHeight(50);
+            container.addComponent(vlg);
+
+            GameObject a = makeUI("A", 200, 200);
+            a.setParent(container);
+
+            vlg.applyLayout();
+
+            assertEquals(100, tr(a).getEffectiveWidth(), 0.01f);
+            assertEquals(50, tr(a).getEffectiveHeight(), 0.01f);
+        }
+
+        // --- Varying native sizes ---
+
+        @Test
+        void varyingNativeSizesConverge() {
+            GameObject container = makeUI("C", 400, 300);
+            UIVerticalLayoutGroup vlg = new UIVerticalLayoutGroup();
+            vlg.setChildHeightMode(LayoutGroup.ChildSizeMode.FIXED);
+            vlg.setChildHeight(50);
+            container.addComponent(vlg);
+
+            GameObject a = makeUI("A", 100, 20);
+            GameObject b = makeUI("B", 100, 80);
+            GameObject c = makeUI("C2", 100, 200);
+            a.setParent(container); b.setParent(container); c.setParent(container);
+
+            vlg.applyLayout();
+
+            assertEquals(50, tr(a).getEffectiveHeight(), 0.01f);
+            assertEquals(50, tr(b).getEffectiveHeight(), 0.01f);
+            assertEquals(50, tr(c).getEffectiveHeight(), 0.01f);
+        }
+
+        // --- Percent size ---
+
+        @Test
+        void vLayoutPercentHeight() {
+            GameObject container = makeUI("C", 400, 400);
+            UIVerticalLayoutGroup vlg = new UIVerticalLayoutGroup();
+            vlg.setChildHeightMode(LayoutGroup.ChildSizeMode.PERCENT);
+            vlg.setChildHeight(30);
+            container.addComponent(vlg);
+
+            GameObject a = makeUI("A", 100, 100);
+            GameObject b = makeUI("B", 100, 100);
+            a.setParent(container); b.setParent(container);
+
+            vlg.applyLayout();
+
+            // percent base = (contentHeight - totalSpacing) = (400 - 0) = 400
+            // each child = 400 * 30/100 = 120
+            assertEquals(120, tr(a).getEffectiveHeight(), 0.01f);
+            assertEquals(120, tr(b).getEffectiveHeight(), 0.01f);
+        }
+
+        @Test
+        void hLayoutPercentWidth() {
+            GameObject container = makeUI("C", 500, 200);
+            UIHorizontalLayoutGroup hlg = new UIHorizontalLayoutGroup();
+            hlg.setChildWidthMode(LayoutGroup.ChildSizeMode.PERCENT);
+            hlg.setChildWidth(25);
+            hlg.setSpacing(10);
+            container.addComponent(hlg);
+
+            GameObject a = makeUI("A", 100, 100);
+            GameObject b = makeUI("B", 100, 100);
+            GameObject c = makeUI("C2", 100, 100);
+            a.setParent(container); b.setParent(container); c.setParent(container);
+
+            hlg.applyLayout();
+
+            // percent base = (contentWidth - totalSpacing) = (500 - 20) = 480
+            // each child = 480 * 25/100 = 120
+            assertEquals(120, tr(a).getEffectiveWidth(), 0.01f);
+            assertEquals(120, tr(b).getEffectiveWidth(), 0.01f);
+            assertEquals(120, tr(c).getEffectiveWidth(), 0.01f);
+        }
+
+        @Test
+        void percentCrossAxis() {
+            GameObject container = makeUI("C", 500, 100);
+            UIHorizontalLayoutGroup hlg = new UIHorizontalLayoutGroup();
+            hlg.setChildHeightMode(LayoutGroup.ChildSizeMode.PERCENT);
+            hlg.setChildHeight(80);
+            container.addComponent(hlg);
+
+            GameObject a = makeUI("A", 100, 50);
+            a.setParent(container);
+
+            hlg.applyLayout();
+
+            // cross axis percent base = contentHeight = 100
+            // child height = 100 * 80/100 = 80
+            assertEquals(80, tr(a).getEffectiveHeight(), 0.01f);
+        }
+
+        @Test
+        void percentOver100() {
+            GameObject container = makeUI("C", 400, 200);
+            UIVerticalLayoutGroup vlg = new UIVerticalLayoutGroup();
+            vlg.setChildHeightMode(LayoutGroup.ChildSizeMode.PERCENT);
+            vlg.setChildHeight(150);
+            container.addComponent(vlg);
+
+            GameObject a = makeUI("A", 100, 50);
+            a.setParent(container);
+
+            vlg.applyLayout();
+
+            // 200 * 150/100 = 300 — overflows, no clamping
+            assertEquals(300, tr(a).getEffectiveHeight(), 0.01f);
+        }
+
+        // --- Priority & interaction ---
+
+        @Test
+        void enforcedBeatsForceExpand() {
+            GameObject container = makeUI("C", 400, 300);
+            UIVerticalLayoutGroup vlg = new UIVerticalLayoutGroup();
+            vlg.setChildHeightMode(LayoutGroup.ChildSizeMode.FIXED);
+            vlg.setChildHeight(50);
+            vlg.setChildForceExpandHeight(true);
+            container.addComponent(vlg);
+
+            GameObject a = makeUI("A", 100, 100);
+            GameObject b = makeUI("B", 100, 100);
+            a.setParent(container); b.setParent(container);
+
+            vlg.applyLayout();
+
+            // Enforced wins over forceExpand: each child 50, not 150 (equal share)
+            assertEquals(50, tr(a).getEffectiveHeight(), 0.01f);
+            assertEquals(50, tr(b).getEffectiveHeight(), 0.01f);
+        }
+
+        @Test
+        void enforcedPercentBeatsForceExpand() {
+            GameObject container = makeUI("C", 400, 300);
+            UIVerticalLayoutGroup vlg = new UIVerticalLayoutGroup();
+            vlg.setChildHeightMode(LayoutGroup.ChildSizeMode.PERCENT);
+            vlg.setChildHeight(20);
+            vlg.setChildForceExpandHeight(true);
+            container.addComponent(vlg);
+
+            GameObject a = makeUI("A", 100, 100);
+            GameObject b = makeUI("B", 100, 100);
+            a.setParent(container); b.setParent(container);
+
+            vlg.applyLayout();
+
+            // PERCENT enforcement wins over forceExpand
+            // percent base = (300 - 0) = 300, each child = 300 * 20/100 = 60
+            // forceExpand would give (300-0)/2 = 150
+            assertEquals(60, tr(a).getEffectiveHeight(), 0.01f);
+            assertEquals(60, tr(b).getEffectiveHeight(), 0.01f);
+        }
+
+        @Test
+        void enforcedOneAxisForceExpandOther() {
+            GameObject container = makeUI("C", 400, 300);
+            UIVerticalLayoutGroup vlg = new UIVerticalLayoutGroup();
+            vlg.setChildWidthMode(LayoutGroup.ChildSizeMode.FIXED);
+            vlg.setChildWidth(200);
+            vlg.setChildForceExpandHeight(true);
+            container.addComponent(vlg);
+
+            GameObject a = makeUI("A", 100, 50);
+            GameObject b = makeUI("B", 100, 50);
+            a.setParent(container); b.setParent(container);
+
+            vlg.applyLayout();
+
+            // Cross axis (width): enforced 200
+            assertEquals(200, tr(a).getEffectiveWidth(), 0.01f);
+            // Layout axis (height): forceExpand = (300-0)/2 = 150
+            assertEquals(150, tr(a).getEffectiveHeight(), 0.01f);
+        }
+
+        @Test
+        void noneMeansCurrentBehavior() {
+            GameObject container = makeUI("C", 400, 300);
+            UIVerticalLayoutGroup vlg = new UIVerticalLayoutGroup();
+            // All modes NONE (default)
+            container.addComponent(vlg);
+
+            GameObject a = makeUI("A", 100, 50);
+            GameObject b = makeUI("B", 200, 80);
+            a.setParent(container); b.setParent(container);
+
+            vlg.applyLayout();
+
+            // Children use their own UITransform sizes
+            assertEquals(100, tr(a).getEffectiveWidth(), 0.01f);
+            assertEquals(50, tr(a).getEffectiveHeight(), 0.01f);
+            assertEquals(200, tr(b).getEffectiveWidth(), 0.01f);
+            assertEquals(80, tr(b).getEffectiveHeight(), 0.01f);
+        }
+
+        @Test
+        void switchFixedToNone() {
+            GameObject container = makeUI("C", 400, 300);
+            UIVerticalLayoutGroup vlg = new UIVerticalLayoutGroup();
+            vlg.setChildHeightMode(LayoutGroup.ChildSizeMode.FIXED);
+            vlg.setChildHeight(50);
+            container.addComponent(vlg);
+
+            GameObject a = makeUI("A", 100, 100);
+            a.setParent(container);
+
+            vlg.applyLayout();
+            assertEquals(50, tr(a).getEffectiveHeight(), 0.01f);
+
+            // Switch back to NONE
+            vlg.setChildHeightMode(LayoutGroup.ChildSizeMode.NONE);
+            vlg.applyLayout();
+
+            // Raw height field was synced to 50 during enforcement.
+            // After NONE, child uses its own UITransform — which is now 50 (the synced value).
+            assertEquals(50, tr(a).getEffectiveHeight(), 0.01f);
+        }
+
+        @Test
+        void percentChildOverriddenByParentFixed() {
+            GameObject container = makeUI("C", 400, 300);
+            UIHorizontalLayoutGroup hlg = new UIHorizontalLayoutGroup();
+            hlg.setChildWidthMode(LayoutGroup.ChildSizeMode.FIXED);
+            hlg.setChildWidth(100);
+            container.addComponent(hlg);
+
+            // Child has PERCENT width mode on its UITransform
+            GameObject a = makePercentChild("A", 50, 100);
+            a.setParent(container);
+
+            hlg.applyLayout();
+
+            // Enforced FIXED 100 overrides child's PERCENT 50%
+            assertEquals(100, tr(a).getEffectiveWidth(), 0.01f);
+        }
+
+        // --- Mixed modes across axes ---
+
+        @Test
+        void widthPercentHeightFixed() {
+            GameObject container = makeUI("C", 400, 300);
+            UIVerticalLayoutGroup vlg = new UIVerticalLayoutGroup();
+            vlg.setChildWidthMode(LayoutGroup.ChildSizeMode.PERCENT);
+            vlg.setChildWidth(80);
+            vlg.setChildHeightMode(LayoutGroup.ChildSizeMode.FIXED);
+            vlg.setChildHeight(40);
+            vlg.setChildAlignment(LayoutGroup.ChildHorizontalAlignment.LEFT);
+            container.addComponent(vlg);
+
+            GameObject a = makeUI("A", 100, 100);
+            GameObject b = makeUI("B", 200, 200);
+            a.setParent(container); b.setParent(container);
+
+            vlg.applyLayout();
+
+            // Cross axis (width): PERCENT 80% of contentWidth=400 → 320
+            assertEquals(320, tr(a).getEffectiveWidth(), 0.01f);
+            assertEquals(320, tr(b).getEffectiveWidth(), 0.01f);
+            // Layout axis (height): FIXED 40
+            assertEquals(40, tr(a).getEffectiveHeight(), 0.01f);
+            assertEquals(40, tr(b).getEffectiveHeight(), 0.01f);
+        }
+
+        @Test
+        void forceExpandWidthAndFixedHeight() {
+            GameObject container = makeUI("C", 400, 300);
+            UIVerticalLayoutGroup vlg = new UIVerticalLayoutGroup();
+            vlg.setChildForceExpandWidth(true);
+            vlg.setChildHeightMode(LayoutGroup.ChildSizeMode.FIXED);
+            vlg.setChildHeight(60);
+            container.addComponent(vlg);
+
+            GameObject a = makeUI("A", 50, 100);
+            GameObject b = makeUI("B", 200, 200);
+            a.setParent(container); b.setParent(container);
+
+            vlg.applyLayout();
+
+            // Cross axis (width): forceExpand → fill contentWidth=400
+            assertEquals(400, tr(a).getEffectiveWidth(), 0.01f);
+            assertEquals(400, tr(b).getEffectiveWidth(), 0.01f);
+            // Layout axis (height): FIXED 60 (beats forceExpand if it were on)
+            assertEquals(60, tr(a).getEffectiveHeight(), 0.01f);
+            assertEquals(60, tr(b).getEffectiveHeight(), 0.01f);
+        }
+
+        @Test
+        void forceExpandHeightAndPercentWidth() {
+            GameObject container = makeUI("C", 600, 200);
+            UIHorizontalLayoutGroup hlg = new UIHorizontalLayoutGroup();
+            hlg.setChildForceExpandWidth(true);
+            hlg.setChildHeightMode(LayoutGroup.ChildSizeMode.PERCENT);
+            hlg.setChildHeight(75);
+            container.addComponent(hlg);
+
+            GameObject a = makeUI("A", 100, 50);
+            GameObject b = makeUI("B", 100, 50);
+            a.setParent(container); b.setParent(container);
+
+            hlg.applyLayout();
+
+            // Layout axis (width): forceExpand → (600-0)/2 = 300 each
+            assertEquals(300, tr(a).getEffectiveWidth(), 0.01f);
+            assertEquals(300, tr(b).getEffectiveWidth(), 0.01f);
+            // Cross axis (height): PERCENT 75% of contentHeight=200 → 150
+            assertEquals(150, tr(a).getEffectiveHeight(), 0.01f);
+            assertEquals(150, tr(b).getEffectiveHeight(), 0.01f);
+        }
+
+        @Test
+        void fixedWidthPercentHeight() {
+            GameObject container = makeUI("C", 500, 400);
+            UIHorizontalLayoutGroup hlg = new UIHorizontalLayoutGroup();
+            hlg.setChildWidthMode(LayoutGroup.ChildSizeMode.FIXED);
+            hlg.setChildWidth(100);
+            hlg.setChildHeightMode(LayoutGroup.ChildSizeMode.PERCENT);
+            hlg.setChildHeight(50);
+            hlg.setSpacing(10);
+            container.addComponent(hlg);
+
+            GameObject a = makeUI("A", 200, 200);
+            GameObject b = makeUI("B", 50, 50);
+            a.setParent(container); b.setParent(container);
+
+            hlg.applyLayout();
+
+            // Layout axis (width): FIXED 100
+            assertEquals(100, tr(a).getEffectiveWidth(), 0.01f);
+            assertEquals(100, tr(b).getEffectiveWidth(), 0.01f);
+            // Cross axis (height): PERCENT 50% of contentHeight=400 → 200
+            assertEquals(200, tr(a).getEffectiveHeight(), 0.01f);
+            assertEquals(200, tr(b).getEffectiveHeight(), 0.01f);
+            // Positions: 0, 110
+            assertEquals(0, tr(a).getOffset().x, 0.01f);
+            assertEquals(110, tr(b).getOffset().x, 0.01f);
+        }
+
+        // --- Driver info ---
+
+        @Test
+        void widthEnforcedMeansWidthDriven() {
+            UIVerticalLayoutGroup vlg = new UIVerticalLayoutGroup();
+            vlg.setChildWidthMode(LayoutGroup.ChildSizeMode.FIXED);
+            vlg.setChildWidth(200);
+
+            GameObject child = makeUI("A", 100, 100);
+            assertTrue(vlg.getChildDriverInfo(child).widthDriven());
+        }
+
+        @Test
+        void heightEnforcedMeansHeightDriven() {
+            UIVerticalLayoutGroup vlg = new UIVerticalLayoutGroup();
+            vlg.setChildHeightMode(LayoutGroup.ChildSizeMode.PERCENT);
+            vlg.setChildHeight(50);
+
+            GameObject child = makeUI("A", 100, 100);
+            assertTrue(vlg.getChildDriverInfo(child).heightDriven());
+        }
+
+        @Test
+        void noneMeansNotDriven() {
+            UIVerticalLayoutGroup vlg = new UIVerticalLayoutGroup();
+            // All defaults: NONE, forceExpand false
+
+            GameObject child = makeUI("A", 100, 100);
+            assertFalse(vlg.getChildDriverInfo(child).widthDriven());
+            assertFalse(vlg.getChildDriverInfo(child).heightDriven());
+            // Position is always driven by layout groups
+            assertTrue(vlg.getChildDriverInfo(child).positionDriven());
+        }
+
+        // --- Layout overrides & sync ---
+
+        @Test
+        void enforcedSetsLayoutOverride() {
+            GameObject container = makeUI("C", 400, 300);
+            UIHorizontalLayoutGroup hlg = new UIHorizontalLayoutGroup();
+            hlg.setChildWidthMode(LayoutGroup.ChildSizeMode.FIXED);
+            hlg.setChildWidth(100);
+            container.addComponent(hlg);
+
+            // Child has FIXED width 200 on its own UITransform
+            GameObject a = makeUI("A", 200, 50);
+            a.setParent(container);
+
+            hlg.applyLayout();
+
+            // Layout override takes precedence: getEffectiveWidth returns 100, not 200
+            assertEquals(100, tr(a).getEffectiveWidth(), 0.01f);
+        }
+
+        @Test
+        void enforcedSyncsRawField() {
+            GameObject container = makeUI("C", 400, 300);
+            UIVerticalLayoutGroup vlg = new UIVerticalLayoutGroup();
+            vlg.setChildHeightMode(LayoutGroup.ChildSizeMode.FIXED);
+            vlg.setChildHeight(60);
+            container.addComponent(vlg);
+
+            GameObject a = makeUI("A", 100, 100);
+            a.setParent(container);
+
+            vlg.applyLayout();
+
+            // Raw field synced for graceful fallback
+            assertEquals(60, tr(a).getHeight(), 0.01f);
+        }
+
+        @Test
+        void contentExtentHeightVLayout() {
+            GameObject container = makeUI("C", 400, 300);
+            UIVerticalLayoutGroup vlg = new UIVerticalLayoutGroup();
+            vlg.setChildHeightMode(LayoutGroup.ChildSizeMode.FIXED);
+            vlg.setChildHeight(50);
+            vlg.setSpacing(5);
+            vlg.setPaddingTop(10);
+            vlg.setPaddingBottom(20);
+            container.addComponent(vlg);
+
+            GameObject a = makeUI("A", 100, 100);
+            GameObject b = makeUI("B", 100, 100);
+            GameObject c = makeUI("C2", 100, 100);
+            a.setParent(container); b.setParent(container); c.setParent(container);
+
+            vlg.applyLayout();
+
+            // extent = paddingTop + 50 + 5 + 50 + 5 + 50 + paddingBottom = 10 + 160 + 20 = 190
+            assertEquals(190, vlg.getContentExtentHeight(), 0.01f);
+        }
+
+        @Test
+        void contentExtentHeightHLayout() {
+            GameObject container = makeUI("C", 500, 100);
+            UIHorizontalLayoutGroup hlg = new UIHorizontalLayoutGroup();
+            hlg.setChildHeightMode(LayoutGroup.ChildSizeMode.FIXED);
+            hlg.setChildHeight(40);
+            hlg.setPaddingTop(5);
+            hlg.setPaddingBottom(10);
+            container.addComponent(hlg);
+
+            GameObject a = makeUI("A", 100, 80);
+            a.setParent(container);
+
+            hlg.applyLayout();
+
+            // HLayout extent = paddingTop + contentHeight + paddingBottom = 5 + (100-5-10) + 10 = 100
+            assertEquals(100, hlg.getContentExtentHeight(), 0.01f);
+        }
+
+        // --- Nested layout ---
+
+        @Test
+        void enforcedSizeOnChildContainingInnerLayout() {
+            // Parent VLayout enforces childHeight=100
+            GameObject parent = makeUI("Parent", 400, 400);
+            UIVerticalLayoutGroup vlg = new UIVerticalLayoutGroup();
+            vlg.setChildHeightMode(LayoutGroup.ChildSizeMode.FIXED);
+            vlg.setChildHeight(100);
+            parent.addComponent(vlg);
+
+            // Child container with its own HLayout
+            GameObject child = makeUI("Child", 400, 200);
+            child.setParent(parent);
+            UIHorizontalLayoutGroup hlg = new UIHorizontalLayoutGroup();
+            hlg.setChildForceExpandHeight(true);
+            child.addComponent(hlg);
+
+            // Grandchildren
+            GameObject gc1 = makeUI("GC1", 100, 30);
+            GameObject gc2 = makeUI("GC2", 100, 30);
+            gc1.setParent(child); gc2.setParent(child);
+
+            // Apply parent layout first, then inner layout
+            vlg.applyLayout();
+            // Child should be enforced to 100px height
+            assertEquals(100, tr(child).getEffectiveHeight(), 0.01f);
+
+            hlg.applyLayout();
+            // Grandchildren resolve against child's effective height (100)
+            // forceExpandHeight = true, so grandchildren fill the 100px
+            assertEquals(100, tr(gc1).getEffectiveHeight(), 0.01f);
+            assertEquals(100, tr(gc2).getEffectiveHeight(), 0.01f);
+        }
+
+        // --- Grid isolation ---
+
+        @Test
+        void gridIgnoresEnforcedFields() {
+            GameObject container = makeUI("C", 400, 300);
+            UIGridLayoutGroup grid = new UIGridLayoutGroup();
+            grid.setCellWidth(60);
+            grid.setCellHeight(40);
+            grid.setChildWidthMode(LayoutGroup.ChildSizeMode.FIXED);
+            grid.setChildWidth(999);
+            grid.setChildHeightMode(LayoutGroup.ChildSizeMode.FIXED);
+            grid.setChildHeight(999);
+            container.addComponent(grid);
+
+            GameObject a = makeUI("A", 100, 100);
+            a.setParent(container);
+
+            grid.applyLayout();
+
+            // Grid uses its own cellWidth/cellHeight, ignores enforced fields
+            assertEquals(60, tr(a).getEffectiveWidth(), 0.01f);
+            assertEquals(40, tr(a).getEffectiveHeight(), 0.01f);
+        }
+    }
 }

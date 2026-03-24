@@ -44,7 +44,7 @@ public class UIDesignerDragHandler {
 
         UITransform transform = entity.getComponent(UITransform.class);
         if (transform != null) {
-            Vector2f offset = transform.getOffset();
+            Vector2f offset = transform.getEffectiveOffset();
             state.setEntityStartOffsetX(offset.x);
             state.setEntityStartOffsetY(offset.y);
             captureOldValuesForUndo(transform);
@@ -66,7 +66,7 @@ public class UIDesignerDragHandler {
 
         UITransform transform = entity.getComponent(UITransform.class);
         if (transform != null) {
-            Vector2f offset = transform.getOffset();
+            Vector2f offset = transform.getEffectiveOffset();
             state.setEntityStartOffsetX(offset.x);
             state.setEntityStartOffsetY(offset.y);
             state.setEntityStartWidth(transform.getWidth());
@@ -157,7 +157,7 @@ public class UIDesignerDragHandler {
 
         UITransform transform = draggedEntity.getComponent(UITransform.class);
         if (transform != null) {
-            transform.setOffset(newOffsetX, newOffsetY);
+            transform.setEffectiveOffset(newOffsetX, newOffsetY);
             markSceneDirty();
         }
     }
@@ -231,7 +231,7 @@ public class UIDesignerDragHandler {
 
         transform.setWidth(newWidth);
         transform.setHeight(newHeight);
-        transform.setOffset(newOffsetX, newOffsetY);
+        transform.setEffectiveOffset(newOffsetX, newOffsetY);
 
         // Apply cascading resize to children
         float scaleX = newWidth / entityStartWidth;
@@ -256,7 +256,7 @@ public class UIDesignerDragHandler {
 
             childTransform.setWidth(Math.max(1, newWidth));
             childTransform.setHeight(Math.max(1, newHeight));
-            childTransform.setOffset(newOffsetX, newOffsetY);
+            childTransform.setEffectiveOffset(newOffsetX, newOffsetY);
         }
     }
 
@@ -301,14 +301,14 @@ public class UIDesignerDragHandler {
         UITransform transform = draggedEntity.getComponent(UITransform.class);
         if (transform != null) {
             Vector2f oldAnchor = transform.getAnchor();
-            Vector2f offset = transform.getOffset();
+            Vector2f offset = transform.getEffectiveOffset();
 
             // Adjust offset to compensate for anchor movement
             float anchorDeltaX = (newAnchorX - oldAnchor.x) * parentWidth;
             float anchorDeltaY = (newAnchorY - oldAnchor.y) * parentHeight;
 
             transform.setAnchor(newAnchorX, newAnchorY);
-            transform.setOffset(offset.x - anchorDeltaX, offset.y - anchorDeltaY);
+            transform.setEffectiveOffset(offset.x - anchorDeltaX, offset.y - anchorDeltaY);
 
             markSceneDirty();
         }
@@ -330,7 +330,7 @@ public class UIDesignerDragHandler {
         float width = transform.getWidth();
         float height = transform.getHeight();
         Vector2f oldPivot = transform.getPivot();
-        Vector2f offset = transform.getOffset();
+        Vector2f offset = transform.getEffectiveOffset();
         Vector2f anchor = transform.getAnchor();
 
         // Get parent bounds for anchor calculation
@@ -372,7 +372,7 @@ public class UIDesignerDragHandler {
         float pivotDeltaY = (newPivotY - oldPivot.y) * height;
 
         transform.setPivot(newPivotX, newPivotY);
-        transform.setOffset(offset.x + pivotDeltaX, offset.y + pivotDeltaY);
+        transform.setEffectiveOffset(offset.x + pivotDeltaX, offset.y + pivotDeltaY);
 
         markSceneDirty();
     }
@@ -388,7 +388,7 @@ public class UIDesignerDragHandler {
         UITransform transform = draggedEntity.getComponent(UITransform.class);
         if (transform == null) return;
 
-        Vector2f newOffset = transform.getOffset();
+        Vector2f newOffset = transform.getEffectiveOffset();
         float newWidth = transform.getWidth();
         float newHeight = transform.getHeight();
         Vector2f newAnchor = transform.getAnchor();
@@ -436,7 +436,7 @@ public class UIDesignerDragHandler {
     // ========================================================================
 
     private void captureOldValuesForUndo(UITransform transform) {
-        state.setDragOldOffset(new Vector2f(transform.getOffset()));
+        state.setDragOldOffset(new Vector2f(transform.getEffectiveOffset()));
         state.setDragOldWidth(transform.getWidth());
         state.setDragOldHeight(transform.getHeight());
         state.setDragOldAnchor(new Vector2f(transform.getAnchor()));
@@ -448,7 +448,7 @@ public class UIDesignerDragHandler {
             if (!(childGo instanceof EditorGameObject child)) continue;
             UITransform childTransform = child.getComponent(UITransform.class);
             if (childTransform != null) {
-                Vector2f offset = childTransform.getOffset();
+                Vector2f offset = childTransform.getEffectiveOffset();
                 float width = childTransform.getWidth();
                 float height = childTransform.getHeight();
 

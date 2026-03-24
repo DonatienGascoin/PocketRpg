@@ -77,6 +77,25 @@ public class UIGridLayoutGroup extends LayoutGroup {
     private ChildVerticalAlignment verticalAlignment = ChildVerticalAlignment.TOP;
 
     // ========================================================================
+    // DRIVER INFO
+    // ========================================================================
+
+    @Override
+    public boolean willDriveChildWidth() {
+        return true;
+    }
+
+    @Override
+    public boolean willDriveChildHeight() {
+        return true;
+    }
+
+    @Override
+    public TransformDriverInfo getChildDriverInfo(GameObject child) {
+        return new TransformDriverInfo(false, true, true, true, "grid layout");
+    }
+
+    // ========================================================================
     // LAYOUT
     // ========================================================================
 

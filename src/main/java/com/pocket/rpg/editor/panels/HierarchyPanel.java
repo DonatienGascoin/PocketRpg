@@ -392,7 +392,10 @@ public class HierarchyPanel extends EditorPanel {
                 float avail = ImGui.getContentRegionAvailY();
                 if (avail > 20) {
                     ImGui.invisibleButton("##prefab_empty_drop", ImGui.getContentRegionAvailX(), avail - 10);
-                    dragDropHandler.handleEmptyAreaEntityDrop(rootEntities.size());
+                    if (dragDropHandler.handleEmptyAreaEntityDrop(rootEntities.size())) {
+                        EditorGameObject first = scene.getSelectedEntities().iterator().next();
+                        treeRenderer.requestScrollToEntity(first);
+                    }
                     if (ImGui.isItemClicked(ImGuiMouseButton.Left)) {
                         selectionHandler.clearSelection();
                     }
@@ -504,7 +507,10 @@ public class HierarchyPanel extends EditorPanel {
         if (avail > 20) {
             ImGui.invisibleButton("##empty_drop", ImGui.getContentRegionAvailX(), avail - 10);
             HierarchyDropTarget.handleEmptyAreaDropOnLastItem(scene);
-            dragDropHandler.handleEmptyAreaEntityDrop(rootEntities.size());
+            if (dragDropHandler.handleEmptyAreaEntityDrop(rootEntities.size())) {
+                EditorGameObject first = scene.getSelectedEntities().iterator().next();
+                treeRenderer.requestScrollToEntity(first);
+            }
             if (ImGui.isItemClicked(ImGuiMouseButton.Left)) {
                 selectionHandler.clearSelection();
             }

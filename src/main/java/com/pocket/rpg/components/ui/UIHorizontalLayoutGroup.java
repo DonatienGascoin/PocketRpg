@@ -54,9 +54,13 @@ public class UIHorizontalLayoutGroup extends LayoutGroup {
             UITransform ct = child.getComponent(UITransform.class);
             ct.clearLayoutOverrides();
 
-            // Layout axis (width): resolve percentage against content area minus spacing
+            // Layout axis (width): enforced size > forceExpand > percent > fixed
             float childWidth;
-            if (childForceExpandWidth) {
+            if (childWidthMode == ChildSizeMode.FIXED) {
+                childWidth = this.childWidth;
+            } else if (childWidthMode == ChildSizeMode.PERCENT) {
+                childWidth = (contentWidth - totalSpacing) * this.childWidth / 100f;
+            } else if (childForceExpandWidth) {
                 childWidth = expandedWidth;
             } else if (ct.getWidthMode() == UITransform.SizeMode.PERCENT) {
                 childWidth = (contentWidth - totalSpacing) * ct.getWidthPercent() / 100f;
@@ -64,9 +68,13 @@ public class UIHorizontalLayoutGroup extends LayoutGroup {
                 childWidth = ct.getEffectiveWidth();
             }
 
-            // Cross axis (height): resolve percentage against content height
+            // Cross axis (height): enforced size > forceExpand > percent > fixed
             float childHeight;
-            if (childForceExpandHeight) {
+            if (childHeightMode == ChildSizeMode.FIXED) {
+                childHeight = this.childHeight;
+            } else if (childHeightMode == ChildSizeMode.PERCENT) {
+                childHeight = contentHeight * this.childHeight / 100f;
+            } else if (childForceExpandHeight) {
                 childHeight = contentHeight;
             } else if (ct.getHeightMode() == UITransform.SizeMode.PERCENT) {
                 childHeight = contentHeight * ct.getHeightPercent() / 100f;
@@ -89,19 +97,19 @@ public class UIHorizontalLayoutGroup extends LayoutGroup {
             // Horizontal layout: width is layout axis (content - spacing), height is cross axis (content)
             ct.setLayoutPercentReference(contentWidth - totalSpacing, contentHeight);
 
-            // Set layout overrides for percentage or force-expanded children
-            // so getEffectiveWidth/Height returns layout-computed values
-            if (childForceExpandWidth || ct.getWidthMode() == UITransform.SizeMode.PERCENT) {
+            // Set layout overrides so getEffectiveWidth/Height returns layout-computed values
+            if (childWidthMode != ChildSizeMode.NONE || childForceExpandWidth || ct.getWidthMode() == UITransform.SizeMode.PERCENT) {
                 ct.setLayoutOverrideWidth(childWidth);
             }
-            if (childForceExpandHeight || ct.getHeightMode() == UITransform.SizeMode.PERCENT) {
+            if (childHeightMode != ChildSizeMode.NONE || childForceExpandHeight || ct.getHeightMode() == UITransform.SizeMode.PERCENT) {
                 ct.setLayoutOverrideHeight(childHeight);
             }
 
-            if (childForceExpandWidth) {
-                ct.setWidth(expandedWidth);
+            // Sync raw fields for graceful fallback when enforcement is removed
+            if (childWidthMode != ChildSizeMode.NONE || childForceExpandWidth) {
+                ct.setWidth(childWidth);
             }
-            if (childForceExpandHeight) {
+            if (childHeightMode != ChildSizeMode.NONE || childForceExpandHeight) {
                 ct.setHeight(childHeight);
             }
 

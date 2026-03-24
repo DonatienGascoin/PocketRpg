@@ -1,8 +1,11 @@
 package com.pocket.rpg.editor.undo.commands;
 
+import com.pocket.rpg.components.Component;
 import com.pocket.rpg.components.core.Transform;
+import com.pocket.rpg.components.ui.TransformDriverInfo;
 import com.pocket.rpg.components.ui.UICanvas;
 import com.pocket.rpg.components.ui.UITransform;
+import com.pocket.rpg.components.ui.UITransformDriver;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.undo.EditorCommand;
@@ -57,6 +60,10 @@ public class ReparentEntityCommand implements EditorCommand {
         oldIndex = oldSiblings.indexOf(entity);
         if (oldIndex == -1) oldIndex = 0;
 
+        // Bake layout-driven values before reparenting so the child keeps its
+        // visual appearance when leaving a layout group parent
+        bakeLayoutValuesIfNeeded(entity, oldParent);
+
         // Check canvas context before reparenting
         boolean wasUnderCanvas = TransformSwapHelper.isUnderCanvas(entity);
 
@@ -90,6 +97,52 @@ public class ReparentEntityCommand implements EditorCommand {
         // Restore parent position
         scene.insertEntityAtPosition(entity, oldParent, oldIndex);
         scene.markDirty();
+    }
+
+    /**
+     * If the entity is leaving a layout-driven parent, bakes the current effective
+     * runtime values (position, size) into FIXED mode fields so the child preserves
+     * its visual appearance after reparenting.
+     */
+    private void bakeLayoutValuesIfNeeded(EditorGameObject target, EditorGameObject parent) {
+        if (parent == null) return;
+
+        // Find a UITransformDriver on the old parent
+        TransformDriverInfo driverInfo = null;
+        for (Component comp : parent.getComponents()) {
+            if (comp instanceof UITransformDriver driver) {
+                driverInfo = driver.getChildDriverInfo(target);
+                if (driverInfo != null) break;
+            }
+        }
+        if (driverInfo == null) return;
+
+        Transform transform = target.getTransform();
+        if (!(transform instanceof UITransform ct)) return;
+
+        if (driverInfo.positionDriven()) {
+            float effectiveX = ct.getEffectiveOffsetX();
+            float effectiveY = ct.getEffectiveOffsetY();
+            ct.setAnchor(0, 0);
+            ct.setPivot(0, 0);
+            ct.setOffsetXMode(UITransform.SizeMode.FIXED);
+            ct.setOffsetYMode(UITransform.SizeMode.FIXED);
+            ct.setOffset(effectiveX, effectiveY);
+        }
+
+        if (driverInfo.widthDriven()) {
+            float effectiveW = ct.getEffectiveWidth();
+            ct.setWidthMode(UITransform.SizeMode.FIXED);
+            ct.setWidth(effectiveW);
+        }
+
+        if (driverInfo.heightDriven()) {
+            float effectiveH = ct.getEffectiveHeight();
+            ct.setHeightMode(UITransform.SizeMode.FIXED);
+            ct.setHeight(effectiveH);
+        }
+
+        ct.clearLayoutOverrides();
     }
 
     /**

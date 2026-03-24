@@ -305,6 +305,46 @@ public class UITransform extends Transform {
     }
 
     /**
+     * Gets the effective offset as a vector, considering offset mode.
+     * In PERCENT mode, resolves percentage against parent size.
+     *
+     * @return Effective offset in pixels (new instance)
+     */
+    public Vector2f getEffectiveOffset() {
+        return new Vector2f(getEffectiveOffsetX(), getEffectiveOffsetY());
+    }
+
+    /**
+     * Sets the effective offset in pixels, respecting the current offset mode.
+     * In PERCENT mode, converts the pixel value back to a percentage of parent size.
+     * In FIXED mode, sets localPosition.x/y directly.
+     *
+     * @param x X offset in pixels
+     * @param y Y offset in pixels
+     */
+    public void setEffectiveOffset(float x, float y) {
+        if (offsetXMode == SizeMode.PERCENT) {
+            float parentWidth = getParentWidth();
+            if (parentWidth > 0) {
+                offsetXPercent = (x / parentWidth) * 100f;
+            }
+        } else {
+            localPosition.x = x;
+        }
+        if (offsetYMode == SizeMode.PERCENT) {
+            float parentHeight = getParentHeight();
+            if (parentHeight > 0) {
+                offsetYPercent = (y / parentHeight) * 100f;
+            }
+        } else {
+            localPosition.y = y;
+        }
+        positionDirty = true;
+        uiMatrixDirty = true;
+        markDirtyAndNotify();
+    }
+
+    /**
      * Sets offset from anchor point.
      * Positive X = right, Positive Y = down.
      * This sets localPosition.x/y.

@@ -22,7 +22,7 @@ import java.util.List;
 public abstract class LayoutGroup extends Component implements UITransformDriver {
 
     // ========================================================================
-    // ALIGNMENT ENUMS
+    // ENUMS
     // ========================================================================
 
     public enum ChildHorizontalAlignment {
@@ -31,6 +31,16 @@ public abstract class LayoutGroup extends Component implements UITransformDriver
 
     public enum ChildVerticalAlignment {
         TOP, MIDDLE, BOTTOM
+    }
+
+    /** How the layout group enforces child size on a given axis. */
+    public enum ChildSizeMode {
+        /** No enforcement — children use their own UITransform size. */
+        NONE,
+        /** All children get exactly {@code childWidth}/{@code childHeight} pixels. */
+        FIXED,
+        /** All children get a percentage of the content area. */
+        PERCENT
     }
 
     // ========================================================================
@@ -62,6 +72,18 @@ public abstract class LayoutGroup extends Component implements UITransformDriver
     @Getter @Setter
     protected boolean childForceExpandHeight = false;
 
+    @Getter @Setter
+    protected ChildSizeMode childWidthMode = ChildSizeMode.NONE;
+
+    @Getter @Setter
+    protected float childWidth = 0;
+
+    @Getter @Setter
+    protected ChildSizeMode childHeightMode = ChildSizeMode.NONE;
+
+    @Getter @Setter
+    protected float childHeight = 0;
+
     // ========================================================================
     // LAYOUT APPLICATION
     // ========================================================================
@@ -79,12 +101,25 @@ public abstract class LayoutGroup extends Component implements UITransformDriver
     // UITransformDriver
     // ========================================================================
 
+    /**
+     * Whether this layout group will drive child width.
+     * Subclasses can override (e.g. grid always drives both axes).
+     */
+    public boolean willDriveChildWidth() {
+        return childForceExpandWidth || childWidthMode != ChildSizeMode.NONE;
+    }
+
+    /**
+     * Whether this layout group will drive child height.
+     * Subclasses can override (e.g. grid always drives both axes).
+     */
+    public boolean willDriveChildHeight() {
+        return childForceExpandHeight || childHeightMode != ChildSizeMode.NONE;
+    }
+
     @Override
     public TransformDriverInfo getChildDriverInfo(GameObject child) {
-        boolean isGrid = this instanceof UIGridLayoutGroup;
-        boolean widthDriven = isGrid || childForceExpandWidth;
-        boolean heightDriven = isGrid || childForceExpandHeight;
-        return new TransformDriverInfo(false, widthDriven, heightDriven, true, "parent layout");
+        return new TransformDriverInfo(false, willDriveChildWidth(), willDriveChildHeight(), true, "parent layout");
     }
 
     // ========================================================================

@@ -267,7 +267,7 @@ public class HierarchySelectionHandler {
         int start = Math.min(fromIdx, toIdx);
         int end = Math.max(fromIdx, toIdx);
 
-        Set<EditorGameObject> rangeSet = new HashSet<>();
+        Set<EditorGameObject> rangeSet = new LinkedHashSet<>();
         for (int i = start; i <= end; i++) {
             rangeSet.add(flat.get(i));
         }

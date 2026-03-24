@@ -29,7 +29,7 @@ import lombok.Setter;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -223,14 +223,14 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
         }
 
         // Filter out children whose ancestor is also selected (parent duplication handles them)
-        Set<EditorGameObject> selectedSet = new HashSet<>(selected);
+        Set<EditorGameObject> selectedSet = new LinkedHashSet<>(selected);
         List<EditorGameObject> roots = selected.stream()
                 .filter(e -> !isAncestorSelected(e, selectedSet))
                 .toList();
 
         // Duplicate all roots, collecting all copies for a single undo command
         List<EditorGameObject> allCopies = new ArrayList<>();
-        Set<EditorGameObject> rootCopies = new HashSet<>();
+        Set<EditorGameObject> rootCopies = new LinkedHashSet<>();
         for (EditorGameObject entity : roots) {
             rootCopies.add(entityCreationService.duplicateEntityInto(entity, allCopies));
         }
@@ -436,7 +436,7 @@ public class EditorShortcutHandlersImpl implements EditorShortcutHandlers {
         if (selected.isEmpty()) return;
 
         // Filter out children whose parent is also selected (parent removal handles them)
-        Set<EditorGameObject> selectedSet = new HashSet<>(selected);
+        Set<EditorGameObject> selectedSet = new LinkedHashSet<>(selected);
         List<EditorGameObject> roots = selected.stream()
                 .filter(e -> !isAncestorSelected(e, selectedSet))
                 .toList();

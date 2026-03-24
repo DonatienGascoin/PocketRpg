@@ -226,8 +226,11 @@ public class HierarchyTreeRenderer {
             handleEntityInteraction(entity, hasChildren);
             dragDropHandler.handleDragSource(entity);
             // Positional drop target (tree node is last item for beginDragDropTarget)
-            dragDropHandler.handlePositionalDrop(entity, nodeMinY, nodeMaxY,
+            boolean dropped = dragDropHandler.handlePositionalDrop(entity, nodeMinY, nodeMaxY,
                     depth, hasChildren && nodeOpen);
+            if (dropped && !scene.getSelectedEntities().isEmpty()) {
+                requestScrollToEntity(scene.getSelectedEntities().iterator().next());
+            }
             // Asset drops on entity (also targets the tree node)
             HierarchyDropTarget.handleEntityDrop(scene, entity);
             renderEntityContextMenu(entity);

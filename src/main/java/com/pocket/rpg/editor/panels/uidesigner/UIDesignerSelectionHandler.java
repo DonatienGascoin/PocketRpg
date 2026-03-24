@@ -7,7 +7,7 @@ import com.pocket.rpg.editor.scene.EditorScene;
 import org.joml.Vector2f;
 
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.BiFunction;
@@ -155,7 +155,7 @@ public class UIDesignerSelectionHandler {
             }
             case ADD_TO_SELECTION -> {
                 wasAlreadySelected = false;
-                Set<EditorGameObject> selected = new HashSet<>(scene.getSelectedEntities());
+                Set<EditorGameObject> selected = new LinkedHashSet<>(scene.getSelectedEntities());
                 selected.add(topmost);
                 selectionManager.selectEntities(selected);
                 return topmost;

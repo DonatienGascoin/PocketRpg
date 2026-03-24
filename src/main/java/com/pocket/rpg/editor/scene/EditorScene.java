@@ -106,7 +106,7 @@ public class EditorScene implements DirtyTracker {
 
     private final List<EditorGameObject> entities = new ArrayList<>();
 
-    private final Set<EditorGameObject> selectedEntities = new HashSet<>();
+    private final Set<EditorGameObject> selectedEntities = new LinkedHashSet<>();
 
     // ========================================================================
     // GPU PICKING

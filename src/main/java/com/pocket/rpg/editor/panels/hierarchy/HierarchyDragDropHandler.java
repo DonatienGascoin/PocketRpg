@@ -3,7 +3,9 @@ package com.pocket.rpg.editor.panels.hierarchy;
 import com.pocket.rpg.core.GameObject;
 import com.pocket.rpg.editor.scene.EditorGameObject;
 import com.pocket.rpg.editor.scene.EditorScene;
+import com.pocket.rpg.editor.undo.EditorCommand;
 import com.pocket.rpg.editor.undo.UndoManager;
+import com.pocket.rpg.editor.undo.commands.CompoundCommand;
 import com.pocket.rpg.editor.undo.commands.ReparentEntityCommand;
 import com.pocket.rpg.editor.utils.IconUtils;
 import imgui.ImDrawList;
@@ -12,6 +14,7 @@ import imgui.flag.ImGuiDragDropFlags;
 import imgui.flag.ImGuiKey;
 import lombok.Setter;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -105,12 +108,12 @@ public class HierarchyDragDropHandler {
      * Computes drop zone from mouse Y position and handles ABOVE/ON/BELOW logic.
      * Both ABOVE and BELOW use mouse X position for depth detection.
      */
-    public void handlePositionalDrop(EditorGameObject entity, float nodeMinY, float nodeMaxY,
-                                     int depth, boolean isExpandedWithChildren) {
+    public boolean handlePositionalDrop(EditorGameObject entity, float nodeMinY, float nodeMaxY,
+                                        int depth, boolean isExpandedWithChildren) {
         if (dragCancelled) {
             lastRenderedEntity = entity;
             lastRenderedDepth = depth;
-            return;
+            return false;
         }
         if (ImGui.beginDragDropTarget()) {
             float mouseY = ImGui.getMousePosY();
@@ -164,41 +167,41 @@ public class HierarchyDragDropHandler {
             int acceptFlags = (zone != DropZone.ON)
                     ? ImGuiDragDropFlags.AcceptNoDrawDefaultRect : ImGuiDragDropFlags.None;
             byte[] payload = ImGui.acceptDragDropPayload(DRAG_DROP_TYPE, acceptFlags);
+            boolean dropped = false;
             if (payload != null && isValidTarget) {
-                executeDropAction(zone, entity, depth);
+                dropped = executeDropAction(zone, entity, depth);
             }
 
             ImGui.endDragDropTarget();
+
+            // Track for ABOVE zone X-depth on the next entity
+            lastRenderedEntity = entity;
+            lastRenderedDepth = depth;
+            return dropped;
         }
 
         // Track for ABOVE zone X-depth on the next entity
         lastRenderedEntity = entity;
         lastRenderedDepth = depth;
+        return false;
     }
 
     /**
      * Handles entity drops on the empty area invisible button (appends as root).
      */
-    public void handleEmptyAreaEntityDrop(int rootCount) {
-        if (dragCancelled) return;
+    public boolean handleEmptyAreaEntityDrop(int rootCount) {
+        if (dragCancelled) return false;
         if (ImGui.beginDragDropTarget()) {
             byte[] payload = ImGui.acceptDragDropPayload(DRAG_DROP_TYPE);
+            boolean dropped = false;
             if (payload != null) {
                 Set<EditorGameObject> selected = scene.getSelectedEntities();
-                int offset = 0;
-                for (EditorGameObject dragged : selected) {
-                    int adjustedIndex = rootCount + offset;
-                    if (dragged.getParent() == null && dragged.getOrder() < rootCount) {
-                        adjustedIndex = Math.max(0, adjustedIndex - 1);
-                    }
-                    UndoManager.getInstance().execute(
-                            new ReparentEntityCommand(scene, dragged, null, adjustedIndex)
-                    );
-                    offset++;
-                }
+                dropped = executeReparent(selected, null, rootCount);
             }
             ImGui.endDragDropTarget();
+            return dropped;
         }
+        return false;
     }
 
     /**
@@ -366,40 +369,29 @@ public class HierarchyDragDropHandler {
     // DROP EXECUTION
     // ========================================================================
 
-    private void executeDropAction(DropZone zone, EditorGameObject entity, int depth) {
+    private boolean executeDropAction(DropZone zone, EditorGameObject entity, int depth) {
         Set<EditorGameObject> selected = scene.getSelectedEntities();
 
-        switch (zone) {
+        return switch (zone) {
             case ABOVE -> {
                 var resolved = resolveForAbove(entity, depth);
-                if (resolved != null) {
-                    executeReparent(selected, resolved.parent, resolved.insertIndex);
-                }
+                yield resolved != null && executeReparent(selected, resolved.parent, resolved.insertIndex);
             }
             case BELOW -> {
                 var resolved = resolveForBelow(entity, depth);
-                if (resolved != null) {
-                    executeReparent(selected, resolved.parent, resolved.insertIndex);
-                }
+                yield resolved != null && executeReparent(selected, resolved.parent, resolved.insertIndex);
             }
             case ON -> {
-                if (entity.isPrefabChildNode()) break;
+                if (entity.isPrefabChildNode()) yield false;
                 int insertIdx = entity.getChildren().size();
-                int offset = 0;
-                for (EditorGameObject dragged : selected) {
-                    if (dragged != entity && !dragged.isAncestorOf(entity)) {
-                        UndoManager.getInstance().execute(
-                                new ReparentEntityCommand(scene, dragged, entity, insertIdx + offset)
-                        );
-                        offset++;
-                    }
-                }
+                yield executeReparent(selected, entity, insertIdx);
             }
-        }
+        };
     }
 
-    private void executeReparent(Set<EditorGameObject> selected, EditorGameObject targetParent,
-                                 int insertIndex) {
+    private boolean executeReparent(Set<EditorGameObject> selected, EditorGameObject targetParent,
+                                    int insertIndex) {
+        List<EditorCommand> commands = new ArrayList<>();
         int offset = 0;
         for (EditorGameObject dragged : selected) {
             if (dragged == targetParent || (targetParent != null && dragged.isAncestorOf(targetParent))) {
@@ -411,11 +403,19 @@ public class HierarchyDragDropHandler {
                 adjustedIndex = Math.max(0, adjustedIndex - 1);
             }
 
-            UndoManager.getInstance().execute(
-                    new ReparentEntityCommand(scene, dragged, targetParent, adjustedIndex)
-            );
+            commands.add(new ReparentEntityCommand(scene, dragged, targetParent, adjustedIndex));
             offset++;
         }
+
+        if (commands.size() == 1) {
+            UndoManager.getInstance().execute(commands.get(0));
+        } else if (commands.size() > 1) {
+            String desc = "Reparent " + commands.size() + " entities";
+            if (targetParent != null) desc += " to " + targetParent.getName();
+            UndoManager.getInstance().execute(new CompoundCommand(desc, commands));
+        }
+
+        return !commands.isEmpty();
     }
 
     // ========================================================================

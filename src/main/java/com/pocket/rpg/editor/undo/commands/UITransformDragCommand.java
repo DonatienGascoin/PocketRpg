@@ -81,7 +81,11 @@ public class UITransformDragCommand implements EditorCommand {
          * Captures new values from current transform state.
          */
         public void captureNewValues() {
-            if (transform != null) {
+            if (transform instanceof com.pocket.rpg.components.ui.UITransform uiTransform) {
+                newOffset = uiTransform.getEffectiveOffset();
+                newWidth = uiTransform.getWidth();
+                newHeight = uiTransform.getHeight();
+            } else if (transform != null) {
                 Object offsetObj = ComponentReflectionUtils.getFieldValue(transform, "offset");
                 if (offsetObj instanceof Vector2f v) {
                     newOffset = new Vector2f(v);
@@ -92,7 +96,11 @@ public class UITransformDragCommand implements EditorCommand {
         }
 
         public void applyOld() {
-            if (transform != null) {
+            if (transform instanceof com.pocket.rpg.components.ui.UITransform uiTransform) {
+                uiTransform.setEffectiveOffset(oldOffset.x, oldOffset.y);
+                uiTransform.setWidth(oldWidth);
+                uiTransform.setHeight(oldHeight);
+            } else if (transform != null) {
                 ComponentReflectionUtils.setFieldValue(transform, "offset", new Vector2f(oldOffset));
                 ComponentReflectionUtils.setFieldValue(transform, "width", oldWidth);
                 ComponentReflectionUtils.setFieldValue(transform, "height", oldHeight);
@@ -100,7 +108,11 @@ public class UITransformDragCommand implements EditorCommand {
         }
 
         public void applyNew() {
-            if (transform != null) {
+            if (transform instanceof com.pocket.rpg.components.ui.UITransform uiTransform) {
+                uiTransform.setEffectiveOffset(newOffset.x, newOffset.y);
+                uiTransform.setWidth(newWidth);
+                uiTransform.setHeight(newHeight);
+            } else if (transform != null) {
                 ComponentReflectionUtils.setFieldValue(transform, "offset", new Vector2f(newOffset));
                 ComponentReflectionUtils.setFieldValue(transform, "width", newWidth);
                 ComponentReflectionUtils.setFieldValue(transform, "height", newHeight);
@@ -241,7 +253,7 @@ public class UITransformDragCommand implements EditorCommand {
 
         // Use direct setters for UITransform - reflection doesn't work for final Vector2f fields
         if (transform instanceof com.pocket.rpg.components.ui.UITransform uiTransform) {
-            uiTransform.setOffset(offset.x, offset.y);
+            uiTransform.setEffectiveOffset(offset.x, offset.y);
             uiTransform.setWidth(width);
             uiTransform.setHeight(height);
             uiTransform.setAnchor(anchor.x, anchor.y);

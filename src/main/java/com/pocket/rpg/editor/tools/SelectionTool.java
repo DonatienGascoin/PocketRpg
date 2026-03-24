@@ -19,7 +19,7 @@ import lombok.Setter;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
 
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.function.Consumer;
 
@@ -216,7 +216,7 @@ public class SelectionTool implements EditorTool, ViewportAwareTool {
                 float minY = Math.min(worldStart.y, worldEnd.y);
                 float maxY = Math.max(worldStart.y, worldEnd.y);
 
-                Set<EditorGameObject> selected = new HashSet<>();
+                Set<EditorGameObject> selected = new LinkedHashSet<>();
                 for (EditorGameObject entity : scene.getEntities()) {
                     if (!entity.isActiveInHierarchy()) continue;
                     SpriteRenderer sr = entity.getComponent(SpriteRenderer.class);

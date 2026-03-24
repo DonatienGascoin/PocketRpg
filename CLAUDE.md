@@ -18,6 +18,18 @@ mvn exec:java -Dexec.mainClass="com.pocket.rpg.Main"                    # Run ga
 mvn exec:java -Dexec.mainClass="com.pocket.rpg.editor.EditorApplication" # Run editor
 ```
 
+## Scene Inspector
+
+Inspect `.scene` files from the command line (hierarchy, components, field values, prefab resolution, validation).
+
+```bash
+bash scripts/inspect-scene.sh MenuMockups "tree;stats"          # Hierarchy + overview
+bash scripts/inspect-scene.sh DemoScene "find:Player;node:Player" # Find and inspect nodes
+bash scripts/inspect-scene.sh help                                # List all commands
+```
+
+Commands: `tree`, `node`, `find`, `search`, `resolve`, `diff`, `query`, `validate`, `refs`, `stats`, `help`
+
 ## Project Overview
 
 PocketRpg is a 2D game engine with a scene editor, built in Java 25. Uses LWJGL for OpenGL/GLFW, ImGui for editor UI, and custom tile-based collision (Pokémon-style grid movement).

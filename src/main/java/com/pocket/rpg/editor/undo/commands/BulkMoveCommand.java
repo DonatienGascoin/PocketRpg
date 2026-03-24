@@ -5,7 +5,7 @@ import com.pocket.rpg.editor.scene.EditorScene;
 import com.pocket.rpg.editor.undo.EditorCommand;
 import org.joml.Vector3f;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -15,7 +15,7 @@ import java.util.Set;
 public class BulkMoveCommand implements EditorCommand {
 
     private final EditorScene scene;
-    private final Map<EditorGameObject, Vector3f> oldPositions = new HashMap<>();
+    private final Map<EditorGameObject, Vector3f> oldPositions = new LinkedHashMap<>();
     private final Vector3f offset;
 
     public BulkMoveCommand(EditorScene scene, Set<EditorGameObject> entities, Vector3f offset) {
